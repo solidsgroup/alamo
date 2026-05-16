@@ -18,10 +18,11 @@ gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_
 
 gas.eos.type = tpg
 
+#chemistry.type = frozen
 chemistry.type = finite_rate
 chemistry.finite_rate.yaml = h2o2.yaml
 chemistry.finite_rate.integration = substep
-chemistry.finite_rate.nsubsteps = 1
+chemistry.finite_rate.nsubsteps = 50
 
 ### OUTPUT ###
 
@@ -30,98 +31,199 @@ details = 1
 
 ### MESHING ###
 
-amr.plot_dt = 1e-8
+amr.plot_dt = 1e-6
+#amr.plot_int = 1
 amr.max_level = 0
-amr.max_grid_size = 4096
-amr.blocking_factor = 4
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
 amr.regrid_int = 10
 amr.grid_eff = 0.7
-amr.n_cell = 1024 4 0
+amr.n_cell = 128 2 0
 
 ### DIMENSIONS ###
-
-geometry.prob_lo = -0.01 0.0 0.0
-geometry.prob_hi = 0.01 0.0004 0.0
+# Counterflow width = 0.02 m, center at x = 0
+geometry.prob_lo = -0.01 -0.00001 0.0 # [ m ]
+geometry.prob_hi =  0.01  0.00001 0.0 # [ m ]
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep = 1.0e-9
+timestep  = 1e-8
 stop_time = 5.0e-3
+
+#dynamictimestep.on = 1
+#dynamictimestep.verbose = 0
+#dynamictimestep.cfl = 0.0004
+#dynamictimestep.max  = 1.0
+#dynamictimestep.min  = 0.0
 
 ### HYDRO PARAM ###
 
-cfl = 0.4
+cfl   = 0.5
 small = 1e-14
 
-### ETA IC ###
+### ETA IC (no solid phase: eta = 1 everywhere) ###
 
-eta.ic.type = constant
-eta.ic.constant.value = 1.0
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.001
+eta.ic.expression.region0        = "1.0"
 
-### INITIAL CONDITIONS ###
+### M0 / U0 / Q (kept structurally but not used for BC matching) ###
+
+m0.ic.type = expression
+m0.ic.expression.constant.eps = 0.001
+m0.ic.expression.constant.P_H2 = 101325.0
+m0.ic.expression.constant.P_center = 101325.0
+m0.ic.expression.constant.T = 300.0
+m0.ic.expression.constant.R_H2 = 4124.237410
+m0.ic.expression.constant.R_O2 = 259.843820
+m0.ic.expression.constant.R_N2 = 296.800949
+m0.ic.expression.constant.R_O2N2 = 288.2
+m0.ic.expression.constant.Y_O2 = 0.232
+m0.ic.expression.constant.Y_N2 = 0.754
+m0.ic.expression.constant.m0_scale_H2 = 1.0
+m0.ic.expression.constant.m0_scale_center = 1.0
+m0.ic.expression.constant.u_H2 = 2.93
+m0.ic.expression.constant.u_center = 0.0
+m0.ic.expression.constant.offset = 0.002
+m0.ic.expression.region0 = "m0_scale_H2 * P_H2/R_H2/T * u_H2 * (0.5 - 0.5*(erf((x + offset)/eps)))"
+m0.ic.expression.region1 = "0.0"
+m0.ic.expression.region2 = "0.0"
+m0.ic.expression.region3 = "m0_scale_center * P_center/R_O2N2/T * Y_O2 * u_center * (0.5*(erf((x + offset)/eps) - erf((x - offset)/eps)))"
+m0.ic.expression.region4 = "0.0"
+m0.ic.expression.region5 = "0.0"
+m0.ic.expression.region6 = "0.0"
+m0.ic.expression.region7 = "0.0"
+m0.ic.expression.region8 = "0.0"
+m0.ic.expression.region9 = "m0_scale_center * P_center/R_O2N2/T * Y_N2 * u_center * (0.5*(erf((x + offset)/eps) - erf((x - offset)/eps)))"
+
+u0.ic.type = expression
+u0.ic.expression.constant.eps = 0.001
+u0.ic.expression.constant.u_H2 = 2.93
+u0.ic.expression.constant.u_center = 0.0
+u0.ic.expression.constant.offset = 0.002
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "u_center * (0.5*(erf((x + offset)/eps) - erf((x - offset)/eps))) + u_H2 * (0.5 - 0.5*(erf((x + offset)/eps)))"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+
+### GAS DENSITY IC (species densities) ###
+
+# Windows in x: left fuel, narrow central hotspot, right oxidizer
+#density.ic.expression.region0 = "P_H2/R_H2/T_stream * (0.5 - 0.5*erf((x - coff + offset)/eps)) + P_H2/R_H2/T_center * (0.5 + 0.5*erf((x - coff + offset)/eps)) * (0.5 - 0.5*erf((x - coff - offset)/eps))"
+#density.ic.expression.region1 = "0.0"
+#density.ic.expression.region2 = "0.0"
+#density.ic.expression.region3 = "P_air/R_air/T_stream * Y_O2 * (0.5 + 0.5*erf((x - coff - offset)/eps)) + P_air/R_air/T_center * Y_O2 * (0.5 - 0.5*erf((x - coff - offset)/eps)) * (0.5 + 0.5*erf((x - coff + offset)/eps))"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
+#density.ic.expression.region6 = "0.0"
+#density.ic.expression.region7 = "0.0"
+#density.ic.expression.region8 = "P_air/R_air/T_stream * Y_AR * (0.5 + 0.5*erf((x - coff - offset)/eps)) + P_air/R_air/T_center * Y_AR * (0.5 - 0.5*erf((x - coff - offset)/eps)) * (0.5 + 0.5*erf((x - coff + offset)/eps))"
+#density.ic.expression.region9 = "P_air/R_air/T_stream * Y_N2 * (0.5 + 0.5*erf((x - coff - offset)/eps)) + P_air/R_air/T_center * Y_N2 * (0.5 - 0.5*erf((x - coff - offset)/eps)) * (0.5 + 0.5*erf((x - coff + offset)/eps))"
 
 density.ic.type = expression
-
-density.ic.expression.constant.P0 = 101325.0
-density.ic.expression.constant.T0 = 300.0
-
+density.ic.expression.constant.eps = 0.002
+density.ic.expression.constant.offset = 0.003
+density.ic.expression.constant.coff = 0.0025
+density.ic.expression.constant.P_H2 = 101325.0
+density.ic.expression.constant.P_air = 101325.0
+density.ic.expression.constant.T_stream = 300.0
+density.ic.expression.constant.T_center = 2500.0
 density.ic.expression.constant.R_H2 = 4124.237410
 density.ic.expression.constant.R_O2 = 259.843820
 density.ic.expression.constant.R_N2 = 296.800949
 density.ic.expression.constant.R_AR = 208.132137
+density.ic.expression.constant.R_air = 287.0
+density.ic.expression.constant.Y_O2 = 0.232
+density.ic.expression.constant.Y_N2 = 0.754
+density.ic.expression.constant.Y_AR = 0.014
 
-density.ic.expression.constant.Y_O2 = 0.2329
-density.ic.expression.constant.Y_N2 = 0.7543
-density.ic.expression.constant.Y_AR = 0.0128
+#density.ic.expression.region0 = "(P_H2/R_H2/T_stream)*(x<-1.0e-2) + (8.187372e-02 + ((8.168618e-02 - 8.187372e-02)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (8.168618e-02 + ((5.238042e-02 - 8.168618e-02)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (5.238042e-02 + ((4.672511e-03 - 5.238042e-02)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (4.672511e-03 + ((1.017153e-05 - 4.672511e-03)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (1.017153e-05 + ((3.806808e-08 - 1.017153e-05)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region1 = "(0.0 + ((9.221052e-10 - 0.0)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (9.221052e-10 + ((1.413391e-07 - 9.221052e-10)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (1.413391e-07 + ((3.698414e-07 - 1.413391e-07)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (3.698414e-07 + ((3.191136e-07 - 3.698414e-07)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (3.191136e-07 + ((1.194437e-09 - 3.191136e-07)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region2 = "(1.096130e-11 + ((7.800938e-08 - 1.096130e-11)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (7.800938e-08 + ((1.195764e-05 - 7.800938e-08)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (1.195764e-05 + ((3.129750e-05 - 1.195764e-05)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (3.129750e-05 + ((2.700074e-05 - 3.129750e-05)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (2.700074e-05 + ((1.010927e-07 - 2.700074e-05)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region3 = "(4.003764e-10 + ((2.849320e-06 - 4.003764e-10)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (2.849320e-06 + ((4.368300e-04 - 2.849320e-06)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (4.368300e-04 + ((1.143059e-03 - 4.368300e-04)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (1.143059e-03 + ((5.707230e-02 - 1.143059e-03)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (5.707230e-02 + ((3.013291e-01 - 5.707230e-02)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region4 = "(1.472546e-10 + ((1.048444e-06 - 1.472546e-10)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (1.048444e-06 + ((1.606499e-04 - 1.048444e-06)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (1.606499e-04 + ((4.204357e-04 - 1.606499e-04)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (4.204357e-04 + ((3.628540e-04 - 4.204357e-04)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (3.628540e-04 + ((1.357778e-06 - 3.628540e-04)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02)) + (P_air/R_air/T_stream*Y_O2)*(x>1.0e-2)"
+#density.ic.expression.region5 = "(7.259910e-09 + ((5.168127e-05 - 7.259910e-09)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (5.168127e-05 + ((7.922299e-03 - 5.168127e-05)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (7.922299e-03 + ((2.072938e-02 - 7.922299e-03)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (2.072938e-02 + ((1.788762e-02 - 2.072938e-02)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (1.788762e-02 + ((6.695265e-05 - 1.788762e-02)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region6 = "(0.0 + ((6.833326e-10 - 0.0)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (6.833326e-10 + ((1.047523e-07 - 6.833326e-10)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (1.047523e-07 + ((2.740980e-07 - 1.047523e-07)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (2.740980e-07 + ((2.365237e-07 - 2.740980e-07)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (2.365237e-07 + ((8.852852e-10 - 2.365237e-07)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region7 = "(0.0 + ((7.695483e-11 - 0.0)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (7.695483e-11 + ((1.179802e-08 - 7.695483e-11)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (1.179802e-08 + ((3.086100e-08 - 1.179802e-08)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (3.086100e-08 + ((2.663982e-08 - 3.086100e-08)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (2.663982e-08 + ((9.969929e-11 - 2.663982e-08)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02))"
+#density.ic.expression.region8 = "(0.0 + ((6.412101e-06 - 0.0)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (6.412101e-06 + ((9.828783e-04 - 6.412101e-06)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (9.828783e-04 + ((2.571671e-03 - 9.828783e-04)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (2.571671e-03 + ((6.382150e-03 - 2.571671e-03)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (6.382150e-03 + ((2.237168e-02 - 6.382150e-03)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02)) + (P_air/R_air/T_stream * Y_AR)*(x>1.0e-2)"
+#density.ic.expression.region9 = "(3.455206e-08 + ((2.459359e-04 - 3.455206e-08)/(4.000000e-03))*(x + 1.000000e-02 - 0.000000e+00))*((x >= -1.000000e-02)*(x <= -6.000000e-03)) + (2.459359e-04 + ((3.769868e-02 - 2.459359e-04)/(4.000000e-03))*(x + 1.000000e-02 - 4.000000e-03))*((x > -6.000000e-03)*(x <= -2.000000e-03)) + (3.769868e-02 + ((9.863860e-02 - 3.769868e-02)/(4.000000e-03))*(x + 1.000000e-02 - 8.000000e-03))*((x > -2.000000e-03)*(x <= 2.000000e-03)) + (9.863860e-02 + ((2.448155e-01 - 9.863860e-02)/(4.000000e-03))*(x + 1.000000e-02 - 1.200000e-02))*((x > 2.000000e-03)*(x <= 6.000000e-03)) + (2.448155e-01 + ((8.580976e-01 - 2.448155e-01)/(4.000000e-03))*(x + 1.000000e-02 - 1.600000e-02))*((x > 6.000000e-03)*(x <= 1.000000e-02)) + (P_air/R_air/T_stream*Y_N2)*(x>1.0e-2)"
 
-density.ic.expression.region0 = "0.0"
-density.ic.expression.region1 = "0.0"
-density.ic.expression.region2 = "0.0"
-density.ic.expression.region3 = "P0/R_O2/T0 * Y_O2"
-density.ic.expression.region4 = "0.0"
-density.ic.expression.region5 = "0.0"
-density.ic.expression.region6 = "0.0"
-density.ic.expression.region7 = "0.0"
-density.ic.expression.region8 = "P0/R_AR/T0 * Y_AR"
-density.ic.expression.region9 = "P0/R_N2/T0 * Y_N2"
+density.ic.expression.region0 = "(8.18938424621731e-02)*(x<=-1.0e-02) + (8.18938424621731e-02 + ((8.08933494377831e-02 - 8.18938424621731e-02)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (8.08933494377831e-02 + ((3.70605891491109e-02 - 8.08933494377831e-02)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (3.70605891491109e-02 + ((2.33709564652021e-03 - 3.70605891491109e-02)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (2.33709564652021e-03 + ((8.46857347777653e-04 - 2.33709564652021e-03)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (8.46857347777653e-04 + ((1.88960619135594e-05 - 8.46857347777653e-04)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region1 = "(5.42792387839283e-09 + ((5.84527546088077e-07 - 5.42792387839283e-09)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (5.84527546088077e-07 + ((1.98498711469716e-05 - 5.84527546088077e-07)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.98498711469716e-05 + ((1.72294241080173e-04 - 1.98498711469716e-05)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (1.72294241080173e-04 + ((8.07346400358599e-09 - 1.72294241080173e-04)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (8.07346400358599e-09 + ((2.81440722896850e-10 - 8.07346400358599e-09)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region2 = "(1.92122954416258e-12 + ((4.10882986752756e-10 - 1.92122954416258e-12)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (4.10882986752756e-10 + ((2.64246035428696e-08 - 4.10882986752756e-10)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (2.64246035428696e-08 + ((4.24345569033998e-05 - 2.64246035428696e-08)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (4.24345569033998e-05 + ((4.20211612803101e-08 - 4.24345569033998e-05)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (4.20211612803101e-08 + ((3.95923090530059e-10 - 4.20211612803101e-08)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region3 = "(5.20762944216959e-11 + ((1.49360310859521e-08 - 5.20762944216959e-11)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (1.49360310859521e-08 + ((1.69064547323090e-06 - 1.49360310859521e-08)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.69064547323090e-06 + ((1.00702197224744e-04 - 1.69064547323090e-06)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (1.00702197224744e-04 + ((2.04985695096100e-01 - 1.00702197224744e-04)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (2.04985695096100e-01 + ((2.72851603845232e-01 - 2.04985695096100e-01)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02)) + (2.04985695096100e-01)*(x>1.0e-02)"
+density.ic.expression.region4 = "(1.63542003396960e-13 + ((3.50700284008381e-11 - 1.63542003396960e-13)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (3.50700284008381e-11 + ((1.21374586986647e-08 - 3.50700284008381e-11)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.21374586986647e-08 + ((4.10500496090056e-04 - 1.21374586986647e-08)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (4.10500496090056e-04 + ((3.89037837775223e-07 - 4.10500496090056e-04)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (3.89037837775223e-07 + ((3.59566408517046e-09 - 3.89037837775223e-07)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region5 = "(4.71544744897193e-07 + ((1.27675045498188e-04 - 4.71544744897193e-07)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (1.27675045498188e-04 + ((1.00142302287621e-02 - 1.27675045498188e-04)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.00142302287621e-02 + ((2.80924813409568e-02 - 1.00142302287621e-02)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (2.80924813409568e-02 + ((4.53379059489737e-03 - 2.80924813409568e-02)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (4.53379059489737e-03 + ((3.08619990032792e-05 - 4.53379059489737e-03)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region6 = "(1.11375625748555e-12 + ((3.19837359524086e-10 - 1.11375625748555e-12)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (3.19837359524086e-10 + ((6.29295815035947e-09 - 3.19837359524086e-10)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (6.29295815035947e-09 + ((8.13072617075461e-08 - 6.29295815035947e-09)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (8.13072617075461e-08 + ((1.07023919499776e-04 - 8.13072617075461e-08)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (1.07023919499776e-04 + ((6.48654977144789e-07 - 1.07023919499776e-04)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region7 = "(4.78915190718788e-15 + ((1.37583668622093e-12 - 4.78915190718788e-15)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (1.37583668622093e-12 + ((1.17009070506474e-10 - 1.37583668622093e-12)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.17009070506474e-10 + ((2.14421129695930e-08 - 1.17009070506474e-10)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (2.14421129695930e-08 + ((1.29044929185166e-03 - 2.14421129695930e-08)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (1.29044929185166e-03 + ((7.76315171268151e-06 - 1.29044929185166e-03)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02))"
+density.ic.expression.region8 = "(2.01540746299408e-08 + ((5.72994558517630e-06 - 2.01540746299408e-08)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (5.72994558517630e-06 + ((4.79082361604516e-04 - 5.72994558517630e-06)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (4.79082361604516e-04 + ((1.53715809864798e-03 - 4.79082361604516e-04)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (1.53715809864798e-03 + ((1.24604478672474e-02 - 1.53715809864798e-03)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (1.24604478672474e-02 + ((1.62251988660015e-02 - 1.24604478672474e-02)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02)) + (0.0162251988660015)*(x>1.0e-02)"
+density.ic.expression.region9 = "(6.43603707910219e-07 + ((1.91512568247282e-04 - 6.43603707910219e-07)/(4.0e-03))*(x + 1.0e-02))*((x>-1.0e-02)*(x<=-6.0e-03)) + (1.91512568247282e-04 + ((1.85666738785569e-02 - 1.91512568247282e-04)/(4.0e-03))*(x + 6.0e-03))*((x>-6.0e-03)*(x<=-2.0e-03)) + (1.85666738785569e-02 + ((8.56382845259076e-02 - 1.85666738785569e-02)/(4.0e-03))*(x + 2.0e-03))*((x>-2.0e-03)*(x<= 2.0e-03)) + (8.56382845259076e-02 + ((6.82016950173848e-01 - 8.56382845259076e-02)/(4.0e-03))*(x - 2.0e-03))*((x> 2.0e-03)*(x<= 6.0e-03)) + (6.82016950173848e-01 + ((8.87385423113730e-01 - 6.82016950173848e-01)/(4.0e-03))*(x - 6.0e-03))*((x> 6.0e-03)*(x<= 1.0e-02)) + (0.88738542311373)*(x>1.0e-02)"
 
-velocity.ic.type = constant
-velocity.ic.constant.value = 0.0 0.0
 
-pressure.ic.type = constant
-pressure.ic.constant.value = 101325.0
+### GAS VELOCITY IC (x-velocity: opposed flow, zero in hotspot) ###
 
-### AUXILIARY IC ###
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.001
+velocity.ic.expression.constant.offset   = 0.003
+velocity.ic.expression.constant.coff = 0.0025
+velocity.ic.expression.constant.u_fuel = 2.93
+velocity.ic.expression.constant.u_ox   = 0.612
+velocity.ic.expression.constant.fact = -0.1
+# left, center, right windows
+#velocity.ic.expression.region0 = "u_fuel * (0.5 - 0.5*erf((x - coff + offset)/eps)) + 0.0 * (0.5*(erf((x - coff + offset)/eps) - erf((x -coff - offset)/eps))) - u_ox * (0.5 + 0.5*erf((x - coff - offset)/eps))"
+#velocity.ic.expression.region0 = "u_fuel * (0.5 - 0.5*erf((x)/eps)) - u_ox * (0.5 + 0.5*erf((x)/eps))"
+velocity.ic.expression.region0 = "fact * (u_fuel - (u_fuel + u_ox)/0.02*(x+0.01))"
+velocity.ic.expression.region1 = "0.0"
 
-m0.ic.type = constant
-m0.ic.constant.value = 0.0
+### GAS PRESSURE IC (uniform 1 atm, same window structure) ###
 
-u0.ic.type = constant
-u0.ic.constant.value = 0.0
+pressure.ic.type = expression
+pressure.ic.expression.constant.eps = 0.001
+pressure.ic.expression.constant.offset = 0.0005
+pressure.ic.expression.constant.P_fuel = 101325.0
+pressure.ic.expression.constant.P_ox   = 101325.0
+pressure.ic.expression.region0 = "P_fuel * (0.5 - 0.5*erf((x + offset)/eps)) + P_ox * (0.5*(erf((x + offset)/eps) - erf((x - offset)/eps))) + P_ox * (0.5 + 0.5*erf((x - offset)/eps))"
 
-q.ic.type = constant
-q.ic.constant.value = 0.0 0.0
+### SOLID FIELDS (no solid phase, but keep definitions) ###
 
-### SOLID IC ###
-
-solid.density.ic.type = constant
-solid.density.ic.constant.value = 0.0
-
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.eps = 0.001
+solid.density.ic.expression.constant.P = 101325.0
+solid.density.ic.expression.constant.T = 300.0
+solid.density.ic.expression.constant.R_H2 = 4124.237410
+solid.density.ic.expression.constant.R_O2 = 259.843820
+solid.density.ic.expression.constant.R_N2 = 296.800949
+solid.density.ic.expression.constant.R_AR = 208.132137
+solid.density.ic.expression.constant.R_O2N2 = 288.2
+solid.density.ic.expression.constant.Y_O2 = 0.232
+solid.density.ic.expression.constant.Y_N2 = 0.754
+solid.density.ic.expression.region0 = "0.0"
+solid.density.ic.expression.region1 = "0.0"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "0.0"
+solid.density.ic.expression.region4 = "0.0"
+solid.density.ic.expression.region5 = "0.0"
+solid.density.ic.expression.region6 = "0.0"
+solid.density.ic.expression.region7 = "0.0"
+solid.density.ic.expression.region8 = "0.0"
+solid.density.ic.expression.region9 = "0.0"
 solid.momentum.ic.constant.value = 0.0 0.0
 solid.energy.ic.constant.value = 0.0
 
-### ETA BC ###
+### ETA BC  ###
 
-pf.eta.bc.constant.type.xlo = dirichlet
-pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
 pf.eta.bc.constant.type.ylo = neumann
 pf.eta.bc.constant.type.yhi = neumann
 pf.eta.bc.constant.type.zlo = neumann
 pf.eta.bc.constant.type.zhi = neumann
 
-pf.eta.bc.constant.val.xlo = 1.0
-pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
@@ -129,65 +231,68 @@ pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
 
+# DENSITY BC: species densities at inlets (fuel left, oxidizer right)
+
 density.bc.type = expression
-
-density.bc.expression.type.xlo = neumann neumann neumann dirichlet neumann neumann neumann neumann dirichlet dirichlet
-density.bc.expression.type.xhi = dirichlet neumann neumann neumann neumann neumann neumann neumann neumann neumann
-density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.expression.type.xhi = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
+density.bc.expression.type.xlo = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
 density.bc.expression.type.yhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
 
-density.bc.expression.constant.P0 = 101325.0
-density.bc.expression.constant.T0 = 300.0
-
+density.bc.expression.constant.P = 101325.0
 density.bc.expression.constant.R_H2 = 4124.237410
-density.bc.expression.constant.R_O2 = 259.843820
-density.bc.expression.constant.R_N2 = 296.800949
-density.bc.expression.constant.R_AR = 208.132137
+density.bc.expression.constant.R_air = 287.0
+density.bc.expression.constant.T_stream = 300.0
+density.bc.expression.constant.Y_O2 = 0.232
+density.bc.expression.constant.Y_N2 = 0.754
+density.bc.expression.constant.Y_AR = 0.014
 
-density.bc.expression.constant.Y_O2 = 0.2329
-density.bc.expression.constant.Y_N2 = 0.7543
-density.bc.expression.constant.Y_AR = 0.0128
-
-density.bc.expression.val.xlo = "0.0" "0.0" "0.0" "P0/R_O2/T0 * Y_O2" "0.0" "0.0" "0.0" "0.0" "P0/R_AR/T0 * Y_AR" "P0/R_N2/T0 * Y_N2"
-
-density.bc.expression.val.xhi = "P0/R_H2/T0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
-
-density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+# xlo: pure H2
+density.bc.expression.val.xlo = "P/R_H2/T_stream" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+#density.bc.expression.val.xlo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+# xhi: air with O2/N2/Ar
+density.bc.expression.val.xhi = "0.0" "0.0" "0.0" "P/R_air/T_stream*Y_O2" "0.0" "0.0" "0.0" "0.0" "P/R_air/T_stream*Y_AR" "P/R_air/T_stream*Y_N2"
+#density.bc.expression.val.xhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 
 density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 
-### MOMENTUM BC ###
+# MOMENTUM BC: match mass fluxes (rho*u = mdot)
+# x-momentum only: +0.24 kg/m^2/s on left, -0.72 kg/m^2/s on right
 
-momentum.bc.constant.type.xlo = dirichlet dirichlet
 momentum.bc.constant.type.xhi = dirichlet dirichlet
-
+momentum.bc.constant.type.xlo = dirichlet dirichlet
 momentum.bc.constant.type.ylo = neumann neumann
 momentum.bc.constant.type.yhi = neumann neumann
-
-momentum.bc.constant.val.xlo = 0.72 0.0
-momentum.bc.constant.val.xhi = -0.24 0.0
-
+momentum.bc.constant.val.xlo = 0.24 0.0
+momentum.bc.constant.val.xhi = -0.72 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
 
-### ENERGY BC ###
+# ENERGY BC: approximate total energy consistent with 300 K streams
 
-energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.xhi = neumann
-
-energy.bc.constant.type.ylo = neumann
-energy.bc.constant.type.yhi = neumann
-
-energy.bc.constant.val.xlo = 0.0
-energy.bc.constant.val.xhi = 0.0
-
-energy.bc.constant.val.ylo = 0.0
-energy.bc.constant.val.yhi = 0.0
+energy.bc.type = expression
+energy.bc.expression.constant.P = 101325.0
+energy.bc.expression.constant.T_stream = 300.0
+energy.bc.expression.constant.R_H2 = 4124.237410
+energy.bc.expression.constant.R_air = 287.0
+energy.bc.expression.type.xhi = dirichlet
+energy.bc.expression.type.xlo = dirichlet
+#energy.bc.expression.type.xhi = neumann
+#energy.bc.expression.type.xlo = neumann
+energy.bc.expression.type.ylo = neumann
+energy.bc.expression.type.yhi = neumann
+energy.bc.expression.val.xlo = "1543.0"
+energy.bc.expression.val.xhi = "1543.0"
+#energy.bc.expression.val.xlo = "0.0"
+#energy.bc.expression.val.xhi = "0.0"
+energy.bc.expression.val.ylo = "0.0"
+energy.bc.expression.val.yhi = "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 10000000
-gradu_refinement_criterion = 0.1
+gradu_refinement_criterion   = 0.1
 
-prescribedflowmode = absolute
+prescribedflowmode = relative

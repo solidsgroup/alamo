@@ -85,6 +85,14 @@ namespace
             });
         }
     }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    std::array<Numeric::StencilType, AMREX_SPACEDIM> BCGhostStencil()
+    {
+        return { AMREX_D_DECL(Numeric::StencilType::Central,
+                              Numeric::StencilType::Central,
+                              Numeric::StencilType::Central) };
+    }
 }
 
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
@@ -489,28 +497,28 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             solution_mf[0],solution_mf[1],solution_mf[2]);
     });
 
-    // Take care of filling boundaries during stages
+    auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
+                                         amrex::MultiFab& E, Set::Scalar fill_time)
+    {
+        ProjectSpeciesDensities(rho);
+        density_bc->FillBoundary(rho, 0, NSPECIES, fill_time, 0);
+        momentum_bc->FillBoundary(M, 0, 2, fill_time, 0);
+        energy_bc->FillBoundary(E, 0, 1, fill_time, 0);
+    };
+
+    // Integrator::TimeStep fills AMR coarse/fine ghost cells for evolving
+    // fields before this call. The transient RK stage aliases still need their
+    // same-level and physical ghost cells refreshed after every stage update.
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
     {
-        ProjectSpeciesDensities(stage_mf[0]);
-        density_bc->FillBoundary(stage_mf[0],0,NSPECIES,time,0);   
-        stage_mf[0].FillBoundary(true);
-        momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
-        stage_mf[1].FillBoundary(true);
-        energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
-        stage_mf[2].FillBoundary(true);
+        fill_conserved_boundaries(stage_mf[0], stage_mf[1], stage_mf[2], time);
     });
     
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
-    ProjectSpeciesDensities(*density_mf[lev]);
-    density_bc->FillBoundary(*density_mf[lev], 0, NSPECIES, time + dt, 0);
-    density_mf[lev]->FillBoundary(true);
-    momentum_bc->FillBoundary(*momentum_mf[lev], 0, 2, time + dt, 0);
-    momentum_mf[lev]->FillBoundary(true);
-    energy_bc->FillBoundary(*energy_mf[lev], 0, 1, time + dt, 0);
-    energy_mf[lev]->FillBoundary(true);
+    fill_conserved_boundaries(*density_mf[lev], *momentum_mf[lev],
+                              *energy_mf[lev], time + dt);
 
     //
     // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
@@ -693,14 +701,21 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 }
 
 
-void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
+void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
-                const amrex::MultiFab &rho_mf,
-                const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf)
+                amrex::MultiFab &rho_mf,
+                amrex::MultiFab &M_mf,
+                amrex::MultiFab &E_mf)
 {
+    // RHS evaluation samples ghost cells directly for boundary fluxes and
+    // centered gradients. Refresh the conserved physical ghosts here as a guard
+    // for the initial RK evaluation as well as subsequent stage evaluations.
+    density_bc->FillBoundary(rho_mf, 0, NSPECIES, time, 0);
+    momentum_bc->FillBoundary(M_mf, 0, 2, time, 0);
+    energy_bc->FillBoundary(E_mf, 0, 1, time, 0);
+
     int nghost = 1;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
@@ -723,8 +738,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
     amrex::Array4<Set::Scalar> qdot_arr;
 
     const Set::Scalar* DX = geom[lev].CellSize();
-    amrex::Box domain = geom[lev].Domain();
-
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -891,7 +904,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
         // Third and final ParallelFor loop to get 2nd gradients and compute fluxes
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            // Conservative ghost cells and derived ghost cells were filled for
+            // this RHS stage, so boundary valid cells can use centered stencils
+            // and Riemann states that sample the specified physical BCs.
+            auto sten = BCGhostStencil();
 
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -952,8 +968,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
             Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
-            // sten is necessary here because sometimes corner ghost
-            // cells don't get filled
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX,sten);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
@@ -1005,18 +1019,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
                 (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
 
-            Solver::Local::Riemann::State state_xlo_fluid = (sten[0] == Numeric::StencilType::Hi) ? state_x_fluid : (invert ? 
+            Solver::Local::Riemann::State state_xlo_fluid = invert ? 
                 (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
-                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small));
-            Solver::Local::Riemann::State state_xhi_fluid = (sten[0] == Numeric::StencilType::Lo) ? state_x_fluid : (invert ? 
+                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
+            Solver::Local::Riemann::State state_xhi_fluid = invert ? 
                 (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small) : 
-                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small));
-            Solver::Local::Riemann::State state_ylo_fluid = (sten[1] == Numeric::StencilType::Hi) ? state_y_fluid : (invert ? 
+                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
+            Solver::Local::Riemann::State state_ylo_fluid = invert ? 
                 (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
-                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small));
-            Solver::Local::Riemann::State state_yhi_fluid = (sten[1] == Numeric::StencilType::Lo) ? state_y_fluid : (invert ? 
+                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
+            Solver::Local::Riemann::State state_yhi_fluid = invert ? 
                 (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
-                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small));
+                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
