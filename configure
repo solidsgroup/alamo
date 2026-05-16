@@ -314,6 +314,7 @@ if args.buildamrex and not args.amrex:
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
+    amrex_configure += ' --with-fortran=no'
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
@@ -326,8 +327,8 @@ if args.buildamrex and not args.amrex:
     subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
     
     f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex BL_NO_FORT=TRUE $(MAKECMD)\n") # --output-sync=target
-    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex BL_NO_FORT=TRUE install\n")
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
     f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
