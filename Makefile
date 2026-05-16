@@ -46,7 +46,7 @@ LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
-ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(foreach pth,$(subst :, ,${CPLUS_INCLUDE_PATH}),-I$(pth))
 LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
