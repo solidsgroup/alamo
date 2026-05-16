@@ -129,6 +129,15 @@ cutoff = 0.2
 eta.ic.type = constant
 eta.ic.constant.value = 1.0
 
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+
 m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 u0.ic.constant.value = 0.0 0.0
 q.ic.constant.value = 0.0 0.0
