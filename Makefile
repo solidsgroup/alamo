@@ -40,13 +40,18 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 
 CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
 
+# Skip on macOS: -Bsymbolic-functions is a GNU ld flag not supported by
+# Apple's ld64, and -lstdc++fs is a pre-GCC-9 std::filesystem shim that
+# doesn't exist in libc++ (used by Apple Clang and Homebrew LLVM).
+ifneq ($(shell uname -s),Darwin)
 LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
+endif
 
 #CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
-ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(foreach pth,$(subst :, ,${CPLUS_INCLUDE_PATH}),-I$(pth))
 LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
