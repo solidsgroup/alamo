@@ -3,7 +3,6 @@
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
-MPI_LIB ?= -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
@@ -54,15 +53,13 @@ HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
-SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
 OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
-OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 
-NUM = $(words $(SRC) $(SRC_F) $(SRC_MAIN))
+NUM = $(words $(SRC) $(SRC_MAIN))
 CTR = 0
 NUM_DEP = $(words $(DEP))
 CTR_DEP = 0
@@ -123,7 +120,7 @@ info:
 
 bin/%: bin/%-$(POSTFIX) ;
 
-bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o 
+bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	$(eval CTR_EXE=$(shell echo $$(($(CTR_EXE)+1))))
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     " 
 	@printf '%9s' "($(CTR_EXE)/$(NUM_EXE)) " 
@@ -182,15 +179,7 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET} ${DEP_DIFF}
 
 .PHONY: .FORCE
 
-FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
-
-obj/obj-$(POSTFIX)/%.F90.o: src/%.F90 
-	@printf "$(B_ON)$(FG_YELLOW)COMPILING  $(RESET)$<\n" 
-	@mkdir -p $(dir $@)
-	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
-	rm *.mod -rf
-
-docs: docs/build/html/index.html .FORCE 
+docs: docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
 docs/build/html/index.html: $(shell find docs/source/ -type f) README.rst .FORCE

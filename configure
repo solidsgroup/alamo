@@ -136,8 +136,6 @@ parser.add_argument('--perf',dest='perf',action='store_true',default=False,help=
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--memcheck',dest='memcheck',action='store_true',default=False,help="Use memory checking")
 parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="Memory checking toolL MSan (default) or ASan")
-parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
-                    help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
@@ -316,6 +314,7 @@ if args.buildamrex and not args.amrex:
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
+    amrex_configure += ' --with-fortran=no'
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
@@ -457,7 +456,6 @@ if mpidist == "openmpi":
     compmpicmd = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
     compmpicmd = args.comp + " " + compmpicmd
     shellmessage("openmpi c++ link"   , "mpicxx --showme:link".format(args.comp))
-    shellmessage("openmpi fort link"   , "mpifort --showme:link".format(args.comp))
     shellmessage("openmpi version", "mpicxx --showme:version")
     env = os.environ.copy()
     env.update({'OMPI_CXX': args.comp})
@@ -521,7 +519,6 @@ if args.perf:
 #         flags may cause linker to fail!
 #
 if args.comp == 'g++':
-    f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
@@ -544,7 +541,6 @@ if args.comp == 'g++':
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
 if args.comp == 'clang++':
-    f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug:
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
@@ -555,7 +551,6 @@ if args.comp == 'clang++':
         f.write("CXX_COMPILE_FLAGS += -O3\n")
         f.write("LINKER_FLAGS += -flto \n")    
 if args.comp == 'icc':
-    f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
