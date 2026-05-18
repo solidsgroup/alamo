@@ -1,0 +1,178 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Species: 0:AP, 1:Binder, 2:Mono, 3:Premixed, 4:Primary, 5:Final
+gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
+
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+
+gas.eos.type = tpg
+
+chemistry.type = rocfire
+chemistry.rocfire.A = 27.0_g/cm^3/s 25.3_g/cm^3/s 5.0_g/cm^3/s 0.4_g/cm^3/s
+chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.rocfire.pressure_reference = 1_atm
+chemistry.rocfire.nsubsteps = 1000
+
+### OUTPUT ###
+plot_file = output.sandwich_rocfire
+details = 1
+
+### MESHING ###
+#amr.plot_dt = 1e-5
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 16
+amr.regrid_int = 100
+amr.grid_eff = 0.7
+amr.n_cell = 64 64 0
+
+### DIMENSIONS ###
+geometry.prob_lo = -0.15 -0.03 0.0 # [ m ]
+geometry.prob_hi = 0.15 0.27 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+timestep  = 1.0e-6
+stop_time = 5.0e-3
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+### HYDRO PARAM ###
+cfl   = 0.4
+small = 1e-14
+cutoff = 0.2
+
+### ETA IC ###
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.005
+eta.ic.expression.region0        = "0.5 * (erf((y+0.01)/eps) + 1)"
+
+### AP/HTPB SOURCE ASSUMPTIONS ###
+# AP density = 1950.0 kg/m3; HTPB density = 920.0 kg/m3; regression rate = 0.0100 m/s at 10 MPa.
+# AP occupies the center strip (-0.05 < x < 0.05); HTPB occupies the two outer strips.
+# AP (species 0) turns into Mono (species 2); HTPB/Binder (species 1) turns into Premixed (species 3).
+
+m0.ic.type = expression
+m0.ic.expression.constant.rdot = 0.01
+m0.ic.expression.constant.eps_x = 0.01
+m0.ic.expression.constant.rho_AP = 1950.0
+m0.ic.expression.constant.rho_HTPB = 920.0
+m0.ic.expression.region0 = "0.0"
+m0.ic.expression.region1 = "0.0"
+m0.ic.expression.region2 = "rdot * rho_AP * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region3 = "rdot * rho_HTPB * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+m0.ic.expression.region4 = "0.0"
+m0.ic.expression.region5 = "0.0"
+
+u0.ic.type = expression
+u0.ic.expression.constant.U_eject_avg = 0.261251790186
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "U_eject_avg"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+
+density.ic.type = expression
+density.ic.expression.constant.P0 = 1.0e7
+density.ic.expression.constant.T0 = 1000.0
+density.ic.expression.constant.R_bg = 319.787
+density.ic.expression.constant.eps_x = 0.01
+density.ic.expression.constant.eps_y = 0.005
+density.ic.expression.constant.rho_AP = 1950.0
+density.ic.expression.constant.rho_HTPB = 920.0
+density.ic.expression.region0 = "0.0"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "rho_AP * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region3 = "rho_HTPB * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "P0/R_bg/T0 * 0.5 * (erf((y+0.01)/eps_y) + 1.0)"
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "1.0e7"
+
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.eps_x = 0.01
+solid.density.ic.expression.constant.rho_AP = 1950.0
+solid.density.ic.expression.constant.rho_HTPB = 920.0
+solid.density.ic.expression.region0 = "rho_AP * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region1 = "rho_HTPB * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "0.0"
+solid.density.ic.expression.region4 = "0.0"
+solid.density.ic.expression.region5 = "0.0"
+
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0
+
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion   = 0.5
+
+prescribedflowmode = absolute

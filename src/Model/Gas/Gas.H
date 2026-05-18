@@ -5,8 +5,10 @@
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/Transport/Rocfire.H"
 #include "Model/Gas/EOS/CPG.H"
 #include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
@@ -40,12 +42,12 @@ public:
         delete value.thermo;
         value.thermo = nullptr;
         // thermo model
-        pp.select<Thermo::CpConstant, Thermo::NASA7>("thermo", value.thermo);
+        pp.select<Thermo::CpConstant, Thermo::NASA7, Thermo::Rocfire>("thermo", value.thermo);
 
         delete value.transport;
         value.transport = nullptr;
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged, Transport::Rocfire>("transport", value.transport, value.MW, value.thermo);
 
         delete value.eos;
         value.eos = nullptr;
