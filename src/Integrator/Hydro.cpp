@@ -198,48 +198,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
-        auto auxiliary_bc_specified = [&pp](const std::string& name)
-        {
-            const char* suffixes[] = {
-                ".type",
-                ".constant.type.xlo", ".constant.type.xhi",
-                ".constant.type.ylo", ".constant.type.yhi",
-                ".constant.type.zlo", ".constant.type.zhi",
-                ".constant.val.xlo", ".constant.val.xhi",
-                ".constant.val.ylo", ".constant.val.yhi",
-                ".constant.val.zlo", ".constant.val.zhi"
-            };
-            for (const char* suffix : suffixes)
-            {
-                if (pp.contains((name + suffix).c_str())) return true;
-            }
-            return false;
-        };
-
-        const bool bc_D_specified = auxiliary_bc_specified("bc_D");
-        const bool bc_1_specified = auxiliary_bc_specified("bc_1");
-        const bool bc_N_specified = auxiliary_bc_specified("bc_N");
-
-        pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
-        if (!bc_D_specified)
-        {
-            delete value.neumann_bc_D;
-            value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
-        }
-
         pp.select_default<BC::Constant,BC::Expression>("bc_1",value.neumann_bc_1, 1);
-        if (!bc_1_specified)
-        {
-            delete value.neumann_bc_1;
-            value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
-        }
-
+        pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
         pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, NSPECIES);
-        if (!bc_N_specified)
-        {
-            delete value.neumann_bc_N;
-            value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
-        }
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
