@@ -1,21 +1,22 @@
 alamo.program = allencahn
 plot_file = ./output.cantiliver_2
-amr.plot_dt = 0.1
+amr.plot_dt = 0.001
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 1
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 4
-timestep  = 1e-3
-amr.n_cell = 64 8
-geometry.prob_lo = -24.0 -3
-geometry.prob_hi =  24.0  3
+timestep  = 1e-4
+amr.n_cell = 25 10
+geometry.prob_lo = -0.25 0.0
+geometry.prob_hi =  0.25  0.2
 geometry.is_periodic = 0 0 0
 stop_time = 12.0
+amr.cell.all = 1
 
 allencahn.ch.direction = 1
-allencahn.ch.direction_tstart = 1.0
-tstart = 1.0
+allencahn.ch.direction_tstart = 0.1
+tstart = 0.1
 
 #alamo.program = allencahn
 
@@ -47,20 +48,17 @@ allencahn.alpha.bc.constant.val.yhi = 0.0
 allencahn.alpha.ic.png.filename = ../papers/SFIFullFeedback/results/scripts/cantilever_domain.png
 allencahn.alpha.ic.type = png
 allencahn.alpha.ic.png.fit = coord
-allencahn.alpha.ic.png.coord.lo = -38 -38
-allencahn.alpha.ic.png.coord.hi = 38 38
+allencahn.alpha.ic.png.coord.lo = -0.25 0.0
+allencahn.alpha.ic.png.coord.hi = 0.25 0.2
 allencahn.alpha.ic.png.max = 0
 allencahn.alpha.ic.png.min = 255
 
 allencahn.refinement_threshold = 0.1
 
-
-allencahn.ch.L = 0.5
+allencahn.ch.L = 0.005
 allencahn.ch.kappa = 0.002
 allencahn.ch.lambda = 0.05
 #allencahn.ch.direction = 0
-
-elastic.type = disable
 
 ### ETA IC ###
 #hydro.rhoInterface.ic.type = expression
@@ -124,7 +122,7 @@ hydro.energy.bc.constant.type.xlo = dirichlet
 hydro.energy.bc.constant.type.ylo = neumann
 hydro.energy.bc.constant.type.yhi = neumann
 hydro.energy.bc.constant.val.xhi = 0.0
-hydro.energy.bc.constant.val.xlo = 700.0
+hydro.energy.bc.constant.val.xlo = 1.0
 hydro.energy.bc.constant.val.ylo = 0.0 
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
@@ -163,7 +161,7 @@ amr.abort_on_nan = 0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
-dynamictimestep.max  = 0.01
+dynamictimestep.max  = 0.001
 dynamictimestep.min  = 1E-6
 #dynamictimestep.cfl = 0.005
 hydro.cfl   = 10.0
@@ -171,3 +169,31 @@ hydro.cfl_v   = 10.0
 #hydro.small=1E-4
 
 invert = 1
+
+# Enable elasticity
+elastic.type = static
+# Thermoelasticity
+elastic.on = 1
+elastic.interval = 50
+# Elastic model params
+model_steel.mu = 14191.376
+model_steel.kappa = 15162.376
+model_steel.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
+# Elastic solver information
+elastic.solver.verbose = 4
+elastic.solver.fixed_iter = 5000
+elastic.solver.nriters = 1
+elastic.solver.nrtolerance = 1E-5
+elastic.print_model = 1
+elastic.print_residual = 1
+# Mechanics boundary conditions
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = trac trac 
+elastic.bc.constant.type.ylo = disp disp 
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = trac trac 
+elastic.bc.constant.type.xloyhi = trac trac
+# No traction on free surface
+elastic.traction = 0.0
+elastic.elastic_ref_threshold = 0.0005
+elastic.zero_out_displacement = 0 # Zero out the displacement before each elastic solver iternation
