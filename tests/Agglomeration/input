@@ -19,7 +19,7 @@ amr.max_level = 0
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 6.0e-9
+timestep = 1.0e-9
 stop_time = 0.1
 
 # Phase field parameters
@@ -119,13 +119,13 @@ flame.elastic.on = 0
 flame.elastic.type = disable
 flame.elastic.phirefinement = 0
 
-# Agglomeration parameters
-calculate_initial_volume = true
-sigma = 1.0e-2
+# DDCH agglomeration parameters
 epsilon = 5.5e-6
-lambda = 5.0e3
-L_0_agglom = 2.5e2
-L_0_reaction = 5.0e-2
+omega = 1.0
+gamma = 6.0
+kappa = 1.0e-1
+mu_agglom = 7.5
+mu_reaction = 5.0e-4
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = random
@@ -146,7 +146,3 @@ alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
 alpha.bc.constant.val.zlo = 0.0
 alpha.bc.constant.val.zhi = 0.0
-
-# Miscellaneous agglomeration parameters
-eta_refinement_threshold = 0.9
-gradient_alpha_refinement_threshold = 1e-1

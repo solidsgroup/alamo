@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <utility>
 
 #include "Agglomeration.H"
@@ -6,6 +5,7 @@
 
 #include "BC/Constant.H"
 #include "IC/Constant.H"
+#include "IC/Ellipse.H"
 #include "IC/Expression.H"
 #include "IC/Random.H"
 #include "IO/ParmParse.H"
@@ -19,12 +19,9 @@
 #include "AMReX_Box.H"
 #include "AMReX_GpuLaunchFunctsC.H"
 #include "AMReX_GpuQualifiers.H"
-#include "AMReX_IntVect.H"
 #include "AMReX_MFIter.H"
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
-#include "AMReX_ParallelDescriptor.H"
-#include "AMReX_TagBox.H"
 
 namespace Integrator
 {
@@ -34,105 +31,35 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     BL_PROFILE("Integrator::Agglomeration::Agglomeration()")
     pp.queryclass<Flame>("flame", &value);
 
-    // Interface energy
-    pp.query_default("sigma", value.agglom.sigma, "1.0_J/m^2", Unit::Energy() / Unit::Area());
+    if (value.max_level >= 1)
+        Util::Abort(INFO, "Agglomeration does not support mesh refinement; set amr.max_level = 0");
+
     // Diffuse interface length parameter
     pp.query_default("epsilon", value.agglom.epsilon, "1.0_m", Unit::Length());
-
-    // Free-flow agglomeration mobility parameter
-    pp.query_default("L_0_agglom", value.agglom.L_0_agglom, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
+    // DDCH bulk chemical potential coefficient
+    pp.query_default("omega", value.agglom.omega, "1.0", Unit::Less());
+    // DDCH energy restriction parameter
+    pp.query_default("gamma", value.agglom.gamma, "6.0", Unit::Less());
+    // DDCH regularization normalization parameter
+    pp.query_default("kappa", value.agglom.kappa, "1.0e-4", Unit::Less());
+    // DDCH free-flow agglomeration mobility coefficient
+    pp.query_default("mu_agglom", value.agglom.mu_agglom, "1.0", Unit::Less());
     // Free-flow reaction mobility parameter
-    pp.query_default("L_0_reaction", value.agglom.L_0_reaction, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
-
-    // Lagrangian multiplier for the agglomerate volume constraint
-    pp.query_default("lambda", value.agglom.lambda, "1.0_J/m^3", Unit::Energy() / Unit::Volume());
-    // If true, the value of V_0 will be ignored, and the
-    // prescribed volume of agglomerate will be calculated just
-    // before the first timestep after all initialization has
-    // occurred. If false, a value of V_0 must be specified.
-    pp.query_default("calculate_initial_volume", value.agglom.calculate_initial_volume, true);
-    // Prescribed volume of agglomerate in the domain. This value
-    // is only used if calculate_initial_volume is false.
-    pp.query_default("V_0", value.agglom.V_0, "1.0", Unit::Volume());
-
-    // If eta is larger than this value, do NOT refine/regrid alpha
-    pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1.0", Unit::Less());
-    // If the gradient of alpha is larger than this value and eta is smaller than `eta_refinement_threshold`, refine/regrid alpha
-    pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
+    pp.query_default("mu_reaction", value.agglom.mu_reaction, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
 
     // Initial condition for the agglomerate order parameter
-    pp.select_default<IC::Constant, IC::Random, IC::Expression>("alpha.ic", value.agglom.alpha_ic, value.geom);
+    pp.select_default<IC::Constant, IC::Random, IC::Ellipse, IC::Expression>("alpha.ic", value.agglom.alpha_ic, value.geom);
     // Boundary condition for for agglomerate order parameter
     pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, 1);
 
-    value.RegisterNewFab(value.agglom.alpha_0, value.agglom.alpha_bc, 1, 1, "agglom.alpha_0", false);
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);
     value.RegisterNewFab(value.agglom.dalpha_agglom, value.agglom.alpha_bc, 1, 1, "agglom.dalpha_agglom", true);
     value.RegisterNewFab(value.agglom.dalpha_reaction, value.agglom.alpha_bc, 1, 1, "agglom.dalpha_reaction", true);
+    value.RegisterNewFab(value.agglom.driving_force, value.agglom.alpha_bc, 1, 1, "agglom.driving_force", true, false);
+    value.AddField<Set::Vector, Set::Hypercube::Cell>(value.agglom.evolution_driving_force, nullptr, 1, 1, "agglom.evolution_driving_force", true, false);
 
-    value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", false);
-    value.RegisterIntegratedVariable(&value.agglom.V_0, "agglom.V_0", false);
-    value.RegisterIntegratedVariable(&value.agglom.dV, "agglom.dV", false);
-    value.RegisterIntegratedVariable(&value.agglom.dV_0, "agglom.dV_0", false);
-}
-
-Set::Scalar
-Agglomeration::CalculateInitialVolume(int target_resolution_level)
-{
-    BL_PROFILE("Integrator::Agglomeration::CalculateInitialVolume");
-
-    // calculate refined cell count based on target resolution level
-    amrex::IntVect refined_cells = geom[0].Domain().length();
-    for (int i = 0; i < target_resolution_level; i++)
-        refined_cells *= refRatio(std::min(i, max_level - 1));
-
-    // create fine geometry with same physical domain but higher resolution
-    amrex::Box fine_domain(amrex::IntVect(0), refined_cells - amrex::IntVect(1));
-    amrex::Geometry fine_geom(fine_domain, geom[0].ProbDomain(), geom[0].Coord(), geom[0].isPeriodic());
-
-    // create BoxArray and DistributionMapping for the fine grid
-    amrex::BoxArray fine_ba(fine_domain);
-    fine_ba.maxSize(32);
-    amrex::DistributionMapping fine_dm(fine_ba);
-
-    // create BoxArray for node-centered data
-    amrex::BoxArray fine_nodal_ba = amrex::convert(fine_ba, amrex::IntVect::TheNodeVector());
-
-    // create temporary fields
-    Set::Field<Set::Scalar> fine_phi_field(1);
-    fine_phi_field.Define(0, fine_nodal_ba, fine_dm, 1, 0);
-    Set::Field<Set::Scalar> fine_alpha_field(1);
-    fine_alpha_field.Define(0, fine_ba, fine_dm, 1, 0);
-
-    // temporarily replace geom[0] with fine geometry so existing ICs use correct positions
-    // this is a bit hacky, but necessary because when the ICs are parsed, they're associated with a geometry
-    amrex::Geometry original_geom = geom[0];
-    geom[0] = fine_geom;
-
-    // initialize phi and alpha using the existing ICs (which now see fine_geom via geom[0])
-    ic_phi->Initialize(0, fine_phi_field);
-    agglom.alpha_ic->Initialize(0, fine_alpha_field);
-
-    // restore original geometry
-    geom[0] = original_geom;
-
-    // average phi from nodes to cell centers and apply complement scaling
-    amrex::MultiFab fine_phi_cc(fine_ba, fine_dm, 1, 0);
-    amrex::average_node_to_cellcenter(fine_phi_cc, 0, *fine_phi_field[0], 0, 1, 0);
-    ScaleByComplement(*fine_alpha_field[0], fine_phi_cc, 0, 0, 1, 0);
-
-    // compute volume integral
-    const Set::Scalar *dx = fine_geom.CellSize();
-    Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
-    Set::Scalar volume = fine_alpha_field[0]->sum() * dv;
-
-    std::string cells_str = std::to_string(refined_cells[0])
-        AMREX_D_TERM(, +"x" + std::to_string(refined_cells[1]), +"x" + std::to_string(refined_cells[2]));
-
-    Util::Message(INFO, "Calculated initial volume on fine grid (level ", target_resolution_level, ", ", cells_str, " cells): V_0 = ", volume);
-
-    return volume;
+    value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V");
 }
 
 void
@@ -173,28 +100,9 @@ Agglomeration::Initialize(int lev)
     Flame::Initialize(lev);
 
     agglom.alpha_old[lev]->setVal(0.0);
+    agglom.driving_force[lev]->setVal(0.0);
     agglom.alpha_ic->Initialize(lev, agglom.alpha);
     ScaleByPhiComplement(agglom.alpha, lev);
-}
-
-void
-Agglomeration::TimeStepBegin(Set::Scalar a_time, int a_iter)
-{
-    BL_PROFILE("Integrator::Agglomeration::TimeStepBegin");
-    Flame::TimeStepBegin(a_time, a_iter);
-
-    if (a_time == 0.0)
-    {
-        if (agglom.calculate_initial_volume)
-            agglom.V_0 = CalculateInitialVolume(max_level);
-        agglom.V = agglom.V_0;
-        agglom.prev_finest_ba = grids[finest_level];
-        agglom.prev_finest_level = finest_level;
-        Util::Message(INFO, "agglom.V_0 = ", agglom.V_0, ", agglom.V = ", agglom.V);
-    }
-
-    agglom.dV = 0.0;
-    agglom.dV_0 = 0.0;
 }
 
 void
@@ -205,12 +113,61 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
-    Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
 
-    amrex::BoxArray cfba;
-    if (lev < finest_level)
-        cfba = amrex::coarsen(grids[lev + 1], refRatio(lev));
+    // Pass 1: compute the DDCH driving force (variational derivative of free energy)
+    for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> alpha_old = agglom.alpha_old.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> driving_force = agglom.driving_force.Patch(lev, mfi);
 
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Scalar alpha = alpha_old(i, j, k);
+            Set::Scalar g_denom = sqrt(agglom.gamma * agglom.gamma * (1 - alpha) * (1 - alpha) * alpha * alpha + agglom.kappa * agglom.kappa * agglom.epsilon * agglom.epsilon);
+            Set::Scalar g = 1.0 / g_denom;
+            Set::Scalar gprime = -agglom.gamma * agglom.gamma * (alpha - 1) * alpha * (2 * alpha - 1) / (g_denom * g_denom * g_denom);
+            Set::Scalar f = agglom.omega / 4 * alpha * alpha * (1 - alpha) * (1 - alpha);
+            Set::Scalar fprime = agglom.omega / 2 * alpha * (1 - alpha) * (1 - 2 * alpha);
+            Set::Vector grad_alpha = Numeric::Gradient(alpha_old, i, j, k, 0, dx);
+            Set::Scalar norm_sq_grad_alpha = grad_alpha.squaredNorm();
+            Set::Scalar lap_alpha = Numeric::Laplacian(alpha_old, i, j, k, 0, dx);
+
+            driving_force(i, j, k) = g * fprime / agglom.epsilon
+                - agglom.epsilon * (gprime * norm_sq_grad_alpha + g * lap_alpha)
+                + gprime * (f / agglom.epsilon + agglom.epsilon / 2 * norm_sq_grad_alpha);
+        });
+    }
+
+    agglom.driving_force[lev]->FillBoundary(geom[lev].periodicity());
+
+    // Uncomment the next two `for` loops to use the non-product-rule
+    // (divergence form) DDCH evolution. This form handles the
+    // eta-dependence of the mobility naturally through the divergence,
+    // so no extra grad(eta) term is needed.
+    //
+    // for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
+    // {
+    //     const amrex::Box &bx = mfi.tilebox();
+    //     Set::Patch<const Set::Scalar> alpha_old = agglom.alpha_old.Patch(lev, mfi);
+    //     Set::Patch<const Set::Scalar> driving_force = agglom.driving_force.Patch(lev, mfi);
+    //     Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+    //     Set::Patch<Set::Vector> evolution_driving_force = agglom.evolution_driving_force.Patch(lev, mfi);
+    //
+    //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+    //         Set::Scalar alpha = alpha_old(i, j, k);
+    //         Set::Scalar eta_complement = 1 - eta(i, j, k);
+    //         Set::Scalar eta_scale = eta_complement * eta_complement * eta_complement;
+    //         Set::Scalar M = (agglom.mu_agglom * alpha * alpha * (1 - alpha) * (1 - alpha) + agglom.kappa * agglom.epsilon) * eta_scale;
+    //         Set::Vector grad_driving_force = Numeric::Gradient(driving_force, i, j, k, 0, dx);
+    //
+    //         evolution_driving_force(i, j, k) = M * grad_driving_force;
+    //     });
+    // }
+    //
+    // agglom.evolution_driving_force[lev]->FillBoundary(geom[lev].periodicity());
+
+    // Pass 2: advance alpha using the product-rule DDCH evolution
+    // plus the non-conservative reaction sink.
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
@@ -218,142 +175,63 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
         Set::Patch<Set::Scalar> dalpha_agglom = agglom.dalpha_agglom.Patch(lev, mfi);
         Set::Patch<Set::Scalar> dalpha_reaction = agglom.dalpha_reaction.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            Set::Scalar laplacian_alpha = Numeric::Laplacian(alpha_old, i, j, k, 0, dx);
-
-            Set::Scalar free_energy_derivative = 2 * agglom.sigma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k)) - agglom.sigma * agglom.epsilon * laplacian_alpha;
-
-            Set::Scalar eta_complement = 1 - eta(i, j, k);
-            Set::Scalar eta_scale = eta_complement * eta_complement * eta_complement;
-            Set::Scalar L_agglom = agglom.L_0_agglom * eta_scale;
-            Set::Scalar L_reaction = agglom.L_0_reaction * eta_scale;
-
-            Set::Scalar lagrange_term = agglom.lambda * (agglom.V / agglom.V_0 - 1);
-            dalpha_agglom(i, j, k) = -L_agglom * (free_energy_derivative + lagrange_term) * dt;
-            dalpha_reaction(i, j, k) = -L_reaction * free_energy_derivative * dt;
-            Set::Scalar dalpha = dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k);
-
-            alpha(i, j, k) = alpha_old(i, j, k) + dalpha;
-        });
-
-        // accumulate volume flux using complement to avoid double-counting with finer levels
-        amrex::BoxList boxes_to_integrate;
-        if (lev < finest_level)
-        {
-            amrex::BoxArray comp = amrex::complementIn(bx, cfba);
-            boxes_to_integrate = comp.boxList();
-        }
-        else
-            boxes_to_integrate.push_back(bx);
-
-        // we do a manual loop instead of a ParallelFor to avoid
-        // threading/race conditions resulting from the += operator on
-        // agglom.dV and agglom.dV_0
-        for (const amrex::Box &box : boxes_to_integrate)
-        {
-            const auto lo = amrex::lbound(box);
-            const auto hi = amrex::ubound(box);
-            for (int k = lo.z; k <= hi.z; ++k)
-                for (int j = lo.y; j <= hi.y; ++j)
-                    for (int i = lo.x; i <= hi.x; ++i)
-                    {
-                        agglom.dV += (dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k)) * dv;
-                        agglom.dV_0 += dalpha_reaction(i, j, k) * dv;
-                    }
-        }
-    }
-}
-
-void
-Agglomeration::TimeStepComplete(Set::Scalar a_time, int a_iter)
-{
-    BL_PROFILE("Integrator::Agglomeration::TimeStepComplete");
-    Flame::TimeStepComplete(a_time, a_iter);
-
-    amrex::ParallelDescriptor::ReduceRealSum(agglom.dV);
-    amrex::ParallelDescriptor::ReduceRealSum(agglom.dV_0);
-    agglom.V += agglom.dV;
-    agglom.V_0 += agglom.dV_0;
-}
-
-void
-Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
-{
-    BL_PROFILE("Integrator::Agglomeration::TagCellsForRefinement")
-    Flame::TagCellsForRefinement(lev, a_tags, time, ngrow);
-
-    const Set::Vector dx(geom[lev].CellSize());
-    Set::Scalar dr = dx.lpNorm<2>();
-
-    for (amrex::MFIter mfi(*agglom.alpha[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box &bx = mfi.tilebox();
-        Set::Patch<char> tags = a_tags.array(mfi);
-        Set::Patch<const Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> driving_force = agglom.driving_force.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            if (eta(i, j, k) < agglom.eta_refinement_threshold)
-            {
-                Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, dx.data());
-                if (grad.lpNorm<2>() * dr > agglom.gradient_alpha_refinement_threshold)
-                    tags(i, j, k) = amrex::TagBox::SET;
-            }
+            Set::Scalar alpha_val = alpha_old(i, j, k);
+            Set::Scalar eta_complement = 1 - eta(i, j, k);
+            Set::Scalar eta_scale = eta_complement * eta_complement * eta_complement;
+            Set::Scalar deta_scale_deta = -3 * eta_complement * eta_complement;
+
+            Set::Scalar M = agglom.mu_agglom * alpha_val * alpha_val * (1 - alpha_val) * (1 - alpha_val) + agglom.kappa * agglom.epsilon;
+            Set::Scalar dM_dalpha = 2.0 * agglom.mu_agglom * alpha_val * (alpha_val - 1) * (2 * alpha_val - 1);
+            Set::Scalar tildeM = M * eta_scale;
+            Set::Scalar dtildeM_dalpha = dM_dalpha * eta_scale;
+            Set::Scalar dtildeM_deta = M * deta_scale_deta;
+
+            Set::Vector grad_alpha = Numeric::Gradient(alpha_old, i, j, k, 0, dx);
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, dx);
+            Set::Vector grad_driving_force = Numeric::Gradient(driving_force, i, j, k, 0, dx);
+            Set::Scalar lap_driving_force = Numeric::Laplacian(driving_force, i, j, k, 0, dx);
+
+            dalpha_agglom(i, j, k) = dt / agglom.epsilon * (
+                tildeM * lap_driving_force
+                + dtildeM_dalpha * grad_alpha.dot(grad_driving_force)
+                + dtildeM_deta * grad_eta.dot(grad_driving_force));
+            dalpha_reaction(i, j, k) = -agglom.mu_reaction * eta_scale * driving_force(i, j, k) * dt;
+
+            alpha(i, j, k) = alpha_old(i, j, k) + dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k);
         });
+
+        // Replace the product-rule alpha update above with the line
+        // below to use the non-product-rule (divergence form) DDCH
+        // evolution. Requires the two commented-out `for` loops above
+        // to be uncommented so `evolution_driving_force` is populated.
+        //
+        // amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        //     Set::Scalar eta_complement = 1 - eta(i, j, k);
+        //     Set::Scalar eta_scale = eta_complement * eta_complement * eta_complement;
+        //     dalpha_agglom(i, j, k) = dt / agglom.epsilon * Numeric::Divergence(evolution_driving_force, i, j, k, dx);
+        //     dalpha_reaction(i, j, k) = -agglom.mu_reaction * eta_scale * driving_force(i, j, k) * dt;
+        //     alpha(i, j, k) = alpha_old(i, j, k) + dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k);
+        // });
     }
 }
 
 void
-Agglomeration::Regrid(int lev, Set::Scalar time)
+Agglomeration::Integrate(int amrlev, Set::Scalar time, int step,
+    const amrex::MFIter &mfi, const amrex::Box &box)
 {
-    BL_PROFILE("Integrator::Agglomeration::Regrid")
-    Flame::Regrid(lev, time);
+    BL_PROFILE("Integrator::Agglomeration::Integrate");
+    Flame::Integrate(amrlev, time, step, mfi, box);
 
-    agglom.alpha_ic->Initialize(lev, agglom.alpha_0);
-    ScaleByPhiComplement(agglom.alpha_0, lev);
+    const Set::Scalar *dx = geom[amrlev].CellSize();
+    Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
+    Set::Patch<const Set::Scalar> alpha = agglom.alpha.Patch(amrlev, mfi);
 
-    // The goal here is, on regrid, to set the value of the
-    // agglomerate phase to its value based on the IC without
-    // disrupting the agglomerate phase near the regression front or
-    // in the "burned" region of the simulation. The temp and eta
-    // refinement criterion ensure that at the regression front, we'll
-    // be at the finest level, so I only want to do reset the values
-    // based on the IC when we're a.) above the
-    // eta_refinement_threshold and b.) not already on the finest
-    // level. There's one small caveat to b.): if a cell has just been
-    // refined from finest_level - 1 to the finest_level, we do want
-    // to reset it to its value based on the IC.
-    for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box &bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> alpha_0 = agglom.alpha_0.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
-
-        amrex::BoxList boxes_to_update;
-        if (lev == finest_level && agglom.prev_finest_level == finest_level)
-            // only update cells on the finest level that were JUST refined
-            boxes_to_update = amrex::complementIn(bx, agglom.prev_finest_ba).boxList();
-        else
-            // this implies we're on level coarser than the
-            // finest_level, or there is just now a new
-            // finer_level. in either case, all the boxes should be
-            // set based on the IC
-            boxes_to_update.push_back(bx);
-
-        for (const amrex::Box &box : boxes_to_update)
-            amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                if (eta(i, j, k) > agglom.eta_refinement_threshold)
-                    alpha(i, j, k) = alpha_0(i, j, k);
-            });
-    }
-
-    if (lev == finest_level)
-    {
-        agglom.prev_finest_ba = grids[finest_level];
-        agglom.prev_finest_level = finest_level;
-    }
+    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        agglom.V += alpha(i, j, k) * dv;
+    });
 }
 }
