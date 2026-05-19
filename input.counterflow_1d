@@ -19,26 +19,29 @@ gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_
 gas.eos.type = tpg
 
 #chemistry.type = frozen
+#chemistry.type = equilibrium
+#chemistry.equilibrium.yaml = h2o2.yaml
 chemistry.type = finite_rate
 chemistry.finite_rate.yaml = h2o2.yaml
 chemistry.finite_rate.integration = substep
-chemistry.finite_rate.nsubsteps = 50
+chemistry.finite_rate.nsubsteps = 100
 
 ### OUTPUT ###
 
 plot_file = output.counterflow_1d
 details = 1
+restart = output.counterflow_1d_050/5000000cell
 
 ### MESHING ###
 
-amr.plot_dt = 1e-6
+amr.plot_dt = 1e-4
 #amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 10
 amr.grid_eff = 0.7
-amr.n_cell = 128 2 0
+amr.n_cell = 64 2 0
 
 ### DIMENSIONS ###
 # Counterflow width = 0.02 m, center at x = 0
@@ -48,8 +51,8 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1e-8
-stop_time = 5.0e-3
+timestep  = 2e-8
+stop_time = 5.0e-1
 
 #dynamictimestep.on = 1
 #dynamictimestep.verbose = 0
@@ -59,7 +62,7 @@ stop_time = 5.0e-3
 
 ### HYDRO PARAM ###
 
-cfl   = 0.5
+cfl   = 0.4
 small = 1e-14
 
 ### ETA IC (no solid phase: eta = 1 everywhere) ###
@@ -169,13 +172,14 @@ velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.001
 velocity.ic.expression.constant.offset   = 0.003
 velocity.ic.expression.constant.coff = 0.0025
-velocity.ic.expression.constant.u_fuel = 2.93
-velocity.ic.expression.constant.u_ox   = 0.612
-velocity.ic.expression.constant.fact = -0.1
+velocity.ic.expression.constant.u_fuel = 5.861
+velocity.ic.expression.constant.u_ox   = 1.224
+velocity.ic.expression.constant.fact = -200.0
 # left, center, right windows
 #velocity.ic.expression.region0 = "u_fuel * (0.5 - 0.5*erf((x - coff + offset)/eps)) + 0.0 * (0.5*(erf((x - coff + offset)/eps) - erf((x -coff - offset)/eps))) - u_ox * (0.5 + 0.5*erf((x - coff - offset)/eps))"
 #velocity.ic.expression.region0 = "u_fuel * (0.5 - 0.5*erf((x)/eps)) - u_ox * (0.5 + 0.5*erf((x)/eps))"
 velocity.ic.expression.region0 = "fact * (u_fuel - (u_fuel + u_ox)/0.02*(x+0.01))"
+#velocity.ic.expression.region0 = "-3.37279191e17*x^8 + 2.19863424e15*x^7 + 8.07988652e13*x^6 - 4.02028427e11*x^5 - 6.63825795e9*x^4 + 2.33179613e7*x^3 + 2.19907081e5*x^2 - 8.55701781e2*x - 4.04787024e-01"
 velocity.ic.expression.region1 = "0.0"
 
 ### GAS PRESSURE IC (uniform 1 atm, same window structure) ###
@@ -264,8 +268,8 @@ momentum.bc.constant.type.xhi = dirichlet dirichlet
 momentum.bc.constant.type.xlo = dirichlet dirichlet
 momentum.bc.constant.type.ylo = neumann neumann
 momentum.bc.constant.type.yhi = neumann neumann
-momentum.bc.constant.val.xlo = 0.24 0.0
-momentum.bc.constant.val.xhi = -0.72 0.0
+momentum.bc.constant.val.xlo = 0.48 0.0
+momentum.bc.constant.val.xhi = -1.44 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
 

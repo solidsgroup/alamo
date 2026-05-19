@@ -31,7 +31,7 @@ struct Rocfire
     std::array<double, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
     std::array<double, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
-    double pressure_reference = 101325.0;
+    double pressure_reference = 100000.0;
     int nsubsteps = 1;
 
     Rocfire() = default;
@@ -259,7 +259,7 @@ struct Rocfire
         pp.queryarr_default("qsolid", qsolid,
             {"-100.0_cal/g", "-300.0_cal/g"},
             Unit::Energy() / Unit::Mass());
-        pp.query_default("pressure_reference", value.pressure_reference, "1_atm", Unit::Pressure());
+        pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
         pp.query_default("nsubsteps", value.nsubsteps, 1);
 
         Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.rocfire.A must have 4 entries.");

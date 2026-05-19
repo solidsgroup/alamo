@@ -198,9 +198,48 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
+        auto auxiliary_bc_specified = [&pp](const std::string& name)
+        {
+            const char* suffixes[] = {
+                ".type",
+                ".constant.type.xlo", ".constant.type.xhi",
+                ".constant.type.ylo", ".constant.type.yhi",
+                ".constant.type.zlo", ".constant.type.zhi",
+                ".constant.val.xlo", ".constant.val.xhi",
+                ".constant.val.ylo", ".constant.val.yhi",
+                ".constant.val.zlo", ".constant.val.zhi"
+            };
+            for (const char* suffix : suffixes)
+            {
+                if (pp.contains((name + suffix).c_str())) return true;
+            }
+            return false;
+        };
+
+        const bool bc_D_specified = auxiliary_bc_specified("bc_D");
+        const bool bc_1_specified = auxiliary_bc_specified("bc_1");
+        const bool bc_N_specified = auxiliary_bc_specified("bc_N");
+
         pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
+        if (!bc_D_specified)
+        {
+            delete value.neumann_bc_D;
+            value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
+        }
+
         pp.select_default<BC::Constant,BC::Expression>("bc_1",value.neumann_bc_1, 1);
+        if (!bc_1_specified)
+        {
+            delete value.neumann_bc_1;
+            value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
+        }
+
         pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, NSPECIES);
+        if (!bc_N_specified)
+        {
+            delete value.neumann_bc_N;
+            value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
+        }
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
@@ -323,6 +362,19 @@ void Hydro::Initialize(int lev)
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
     solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
+    if (!managed)
+    {
+        eta_bc->define(geom[lev]);
+        eta_bc->FillBoundary(*(*eta_mf)[lev], 0, 1, 0.0, 0);
+        eta_bc->FillBoundary(*(*eta_old_mf)[lev], 0, 1, 0.0, 0);
+    }
+    neumann_bc_N->define(geom[lev]);
+    neumann_bc_D->define(geom[lev]);
+    neumann_bc_1->define(geom[lev]);
+    neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, 0.0, 0);
+    neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
+    neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, 0.0, 0);
+
     ic_m0            ->Initialize(lev, m0_mf, 0.0);
     ic_u0            ->Initialize(lev, u0_mf, 0.0);
     ic_q             ->Initialize(lev, q_mf,  0.0);
@@ -405,11 +457,47 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
     eta_ic->Initialize(lev, *eta_mf, time);
+    eta_bc->define(geom[lev]);
+    eta_bc->FillBoundary(*(*eta_mf)[lev], 0, 1, time, 0);
 }
 
 void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
+}
+
+void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf)
+{
+    for (amrex::MFIter mfi(rho_mf, false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+
+        amrex::Array4<Set::Scalar> const& rho = rho_mf.array(mfi);
+        amrex::Array4<Set::Scalar> const& M   = M_mf.array(mfi);
+        amrex::Array4<Set::Scalar> const& E   = E_mf.array(mfi);
+
+        Set::Scalar cutoff_local = cutoff;
+        bool invert_local = invert;
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta = invert_local ? 1.0 - eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            if (eta < cutoff_local)
+            {
+                for (int n = 0; n < NSPECIES; ++n)
+                {
+                    rho(i,j,k,n) = rho_solid(i,j,k,n);
+                }
+                M(i,j,k,0) = M_solid(i,j,k,0);
+                M(i,j,k,1) = M_solid(i,j,k,1);
+                E(i,j,k,0) = E_solid(i,j,k,0);
+            }
+        });
+    }
 }
 
 void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
@@ -454,6 +542,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         UpdateFluxes(lev,time,dt);
         Mix(lev);
     }
+
+    if (!managed)
+    {
+        eta_bc->define(geom[lev]);
+        eta_bc->FillBoundary(*(*eta_mf)[lev], 0, 1, time, 0);
+        eta_bc->FillBoundary(*(*eta_old_mf)[lev], 0, 1, time, 0);
+    }
+    neumann_bc_N->define(geom[lev]);
+    neumann_bc_D->define(geom[lev]);
+    neumann_bc_1->define(geom[lev]);
+    neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, time, 0);
+    neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, time, 0);
+    neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -500,7 +601,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
                                          amrex::MultiFab& E, Set::Scalar fill_time)
     {
+        ApplyCutoffToConserved(lev, rho, M, E);
         ProjectSpeciesDensities(rho);
+        density_bc->define(geom[lev]);
+        momentum_bc->define(geom[lev]);
+        energy_bc->define(geom[lev]);
         density_bc->FillBoundary(rho, 0, NSPECIES, fill_time, 0);
         momentum_bc->FillBoundary(M, 0, 2, fill_time, 0);
         energy_bc->FillBoundary(E, 0, 1, fill_time, 0);
@@ -611,6 +716,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         Set::Patch<const Set::Scalar> E         = energy_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> v               = velocity_mf.Patch(lev,mfi);
@@ -637,18 +743,22 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
-            Set::Scalar density = gas.ComputeD(rho, i, j, k);
-            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-
+            std::array<double, NSPECIES> rhoY_fluid;
             for (int n=0; n<NSPECIES; ++n)
             {
-                scratch(i,j,k,n) = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
             }
+            ProjectSpeciesDensities(rhoY_fluid, i, j, k);
+            for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
+
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
             Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
             Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
+
+            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
             v(i,j,k,0) = Mx_fluid / density_fluid;
             v(i,j,k,1) = My_fluid / density_fluid;
 
@@ -709,12 +819,30 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &M_mf,
                 amrex::MultiFab &E_mf)
 {
+    ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf);
+    ProjectSpeciesDensities(rho_mf);
+
     // RHS evaluation samples ghost cells directly for boundary fluxes and
-    // centered gradients. Refresh the conserved physical ghosts here as a guard
+    // centered gradients. Refresh physical and same-level ghosts here as a guard
     // for the initial RK evaluation as well as subsequent stage evaluations.
+    density_bc->define(geom[lev]);
+    momentum_bc->define(geom[lev]);
+    energy_bc->define(geom[lev]);
     density_bc->FillBoundary(rho_mf, 0, NSPECIES, time, 0);
     momentum_bc->FillBoundary(M_mf, 0, 2, time, 0);
     energy_bc->FillBoundary(E_mf, 0, 1, time, 0);
+    if (!managed)
+    {
+        eta_bc->define(geom[lev]);
+        eta_bc->FillBoundary(*(*eta_mf)[lev], 0, 1, time, 0);
+        eta_bc->FillBoundary(*(*eta_old_mf)[lev], 0, 1, time, 0);
+    }
+    neumann_bc_N->define(geom[lev]);
+    neumann_bc_D->define(geom[lev]);
+    neumann_bc_1->define(geom[lev]);
+    neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, time, 0);
+    neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, time, 0);
+    neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
 
     int nghost = 1;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
@@ -749,6 +877,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 
@@ -783,20 +912,25 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            // Compute T and P primitives from mixed values
-            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
-            Set::Scalar density = gas.ComputeD(rho, i, j, k);
-            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-
-            // Compute velocity from fluid values
+            // Reconstruct the gas state from the mixed conserved state before
+            // computing any primitive or transport quantity.
+            std::array<double, NSPECIES> rhoY_fluid;
             for (int n=0; n<NSPECIES; ++n)
             {
-                scratch(i,j,k,n) = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
             }
+            ProjectSpeciesDensities(rhoY_fluid, i, j, k);
+            for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
+
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
             Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
             Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
+
+            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;
 
@@ -810,7 +944,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 #endif
             }
 
-            rho_sum(i,j,k) = density;
+            rho_sum(i,j,k) = density_fluid;
             gas.diffusion_coeffs(DKM, T(i,j,k), p(i,j,k), X, i, j, k);
             mixed_k(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
             mixed_mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
@@ -881,6 +1015,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> pressure  = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> temp      = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> scratch   = scratch_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -962,9 +1097,21 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
 
             std::vector<double> mdot0(NSPECIES);
-            for (int n=0; n<NSPECIES; ++n ) { mdot0[n] = m0(i,j,k,n)*grad_eta_mag; }
-            Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
+            Set::Scalar mdot0_total = 0.0;
+            Set::Scalar rho_solid_sum = 0.0;
+            for (int n=0; n<NSPECIES; ++n )
+            {
+                mdot0[n] = m0(i,j,k,n)*grad_eta_mag;
+                mdot0_total += mdot0[n];
+                rho_solid_sum += rho_solid(i,j,k,n);
+            }
+
+            Set::Vector Pdot0 = mdot0_total * u0;
             Set::Scalar qdot0 = q0.dot(grad_eta);
+            if (rho_solid_sum > small)
+            {
+                qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum;
+            }
 
             Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
@@ -1077,7 +1224,10 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Source(i,j,k,NSPECIES+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
 
             std::array<double, NSPECIES> rhoY_intermediate;
-            for (int n=0; n<NSPECIES; ++n) rhoY_intermediate[n] = rho(i,j,k,n) + drhof_dt_hydro[n] * dt;
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                rhoY_intermediate[n] = scratch(i,j,k,n) + drhof_dt_hydro[n] * dt / (eta + small);
+            }
             ProjectSpeciesDensities(rhoY_intermediate, i, j, k);
 
             std::array<double, NSPECIES> wdot;

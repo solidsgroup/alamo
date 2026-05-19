@@ -1,0 +1,204 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Species: [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
+gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
+
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = h2o2.yaml
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
+gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
+
+gas.eos.type = tpg
+
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = h2o2.yaml
+chemistry.finite_rate.integration = substep
+chemistry.finite_rate.nsubsteps = 10
+
+### OUTPUT ###
+
+plot_file = output.counterflow_1d_diffuse
+details = 1
+
+### MESHING ###
+
+amr.plot_dt = 1e-6
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 96 2 0
+
+### DIMENSIONS ###
+geometry.prob_lo = -0.015 -0.00001 0.0 
+geometry.prob_hi =  0.015  0.00001 0.0 
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1e-8
+stop_time = 5.0e-1
+
+### HYDRO PARAM ###
+
+cfl   = 0.4
+small = 1e-14
+cutoff = 0.1
+
+### ETA IC (diffuse source regions) ###
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps = 0.001
+eta.ic.expression.constant.x_left = -0.01
+eta.ic.expression.constant.x_right = 0.01
+eta.ic.expression.region0 = "0.25 * (1.0 + erf((x - x_left)/eps)) * (1.0 - erf((x - x_right)/eps))"
+
+### M0 / U0 / Q (DIFFUSE INLET SOURCES) ###
+
+m0.ic.type = expression
+m0.ic.expression.constant.eps = 0.001
+m0.ic.expression.constant.flux_h2 = 0.48
+m0.ic.expression.constant.flux_air = 1.44
+m0.ic.expression.constant.Y_O2 = 0.2319
+m0.ic.expression.constant.Y_AR = 0.01379
+m0.ic.expression.constant.Y_N2 = 0.7543
+m0.ic.expression.region0 = "flux_h2 * 0.5 * (1.0 - erf(x/eps))"
+m0.ic.expression.region1 = "0.0"
+m0.ic.expression.region2 = "0.0"
+m0.ic.expression.region3 = "flux_air * Y_O2 * 0.5 * (1.0 + erf(x/eps))"
+m0.ic.expression.region4 = "0.0"
+m0.ic.expression.region5 = "0.0"
+m0.ic.expression.region6 = "0.0"
+m0.ic.expression.region7 = "0.0"
+m0.ic.expression.region8 = "flux_air * Y_AR * 0.5 * (1.0 + erf(x/eps))"
+m0.ic.expression.region9 = "flux_air * Y_N2 * 0.5 * (1.0 + erf(x/eps))"
+
+u0.ic.type = expression
+u0.ic.expression.constant.eps = 0.001
+u0.ic.expression.constant.u_fuel = 5.861
+u0.ic.expression.constant.u_ox = 1.224
+u0.ic.expression.region0 = "u_fuel * 0.5 * (1.0 - erf(x/eps)) + u_ox * 0.5 * (1.0 + erf(x/eps))"
+u0.ic.expression.region1 = "0.0"
+
+q.ic.type = expression
+q.ic.expression.constant.eps = 0.001
+q.ic.expression.constant.P_stream = 101325.0
+q.ic.expression.constant.u_fuel = 5.861
+q.ic.expression.constant.u_ox = 1.224
+q.ic.expression.region0 = "P_stream * u_fuel * 0.5 * (1.0 - erf(x/eps)) - P_stream * u_ox * 0.5 * (1.0 + erf(x/eps))"
+q.ic.expression.region1 = "0.0"
+
+### GAS DENSITY IC (Match reservoirs exactly) ###
+
+density.ic.type = expression
+density.ic.expression.constant.eps = 0.001
+density.ic.expression.constant.rho_h2 = 0.0818938
+density.ic.expression.constant.rho_o2 = 0.27290
+density.ic.expression.constant.rho_ar = 0.016225
+density.ic.expression.constant.rho_n2 = 0.88770
+density.ic.expression.region0 = "rho_h2 * 0.5 * (1.0 - erf(x/eps))"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "rho_o2 * 0.5 * (1.0 + erf(x/eps))"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "rho_ar * 0.5 * (1.0 + erf(x/eps))"
+density.ic.expression.region9 = "rho_n2 * 0.5 * (1.0 + erf(x/eps))"
+
+### GAS VELOCITY IC (STAGNANT) ###
+
+velocity.ic.constant.value = 0.0 0.0
+
+### GAS PRESSURE IC (UNIFORM 1 ATM) ###
+
+pressure.ic.constant.value = 101325.0
+
+### SOLID FIELDS (Exact matches for 300K gas) ###
+
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.eps = 0.001
+solid.density.ic.expression.constant.rho_h2 = 0.0818938
+solid.density.ic.expression.constant.rho_o2 = 0.27290
+solid.density.ic.expression.constant.rho_ar = 0.016225
+solid.density.ic.expression.constant.rho_n2 = 0.88770
+solid.density.ic.expression.region0 = "rho_h2 * 0.5 * (1.0 - erf(x/eps))"
+solid.density.ic.expression.region1 = "0.0"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "rho_o2 * 0.5 * (1.0 + erf(x/eps))"
+solid.density.ic.expression.region4 = "0.0"
+solid.density.ic.expression.region5 = "0.0"
+solid.density.ic.expression.region6 = "0.0"
+solid.density.ic.expression.region7 = "0.0"
+solid.density.ic.expression.region8 = "rho_ar * 0.5 * (1.0 + erf(x/eps))"
+solid.density.ic.expression.region9 = "rho_n2 * 0.5 * (1.0 + erf(x/eps))"
+
+solid.momentum.ic.type = expression
+solid.momentum.ic.expression.constant.eps = 0.001
+solid.momentum.ic.expression.constant.rho_h2 = 0.0818938
+solid.momentum.ic.expression.constant.rho_o2 = 0.27290
+solid.momentum.ic.expression.constant.rho_ar = 0.016225
+solid.momentum.ic.expression.constant.rho_n2 = 0.88770
+solid.momentum.ic.expression.constant.u_fuel = 5.861
+solid.momentum.ic.expression.constant.u_ox = 1.224
+solid.momentum.ic.expression.region0 = "rho_h2 * u_fuel * 0.5 * (1.0 - erf(x/eps)) - (rho_o2 + rho_ar + rho_n2) * u_ox * 0.5 * (1.0 + erf(x/eps))"
+solid.momentum.ic.expression.region1 = "0.0"
+
+solid.energy.ic.type = expression
+solid.energy.ic.expression.constant.eps = 0.001
+solid.energy.ic.expression.constant.rho_h2 = 0.0818938
+solid.energy.ic.expression.constant.rho_o2 = 0.27290
+solid.energy.ic.expression.constant.rho_ar = 0.016225
+solid.energy.ic.expression.constant.rho_n2 = 0.88770
+solid.energy.ic.expression.constant.u_fuel = 5.861
+solid.energy.ic.expression.constant.u_ox = 1.224
+solid.energy.ic.expression.region0 = "(1543.16 + 0.5 * rho_h2 * u_fuel * u_fuel) * 0.5 * (1.0 - erf(x/eps)) + (1548.3 + 0.5 * (rho_o2 + rho_ar + rho_n2) * u_ox * u_ox) * 0.5 * (1.0 + erf(x/eps))"
+
+### BCs ###
+
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+momentum.bc.constant.type.xlo = neumann
+momentum.bc.constant.type.xhi = neumann
+momentum.bc.constant.type.ylo = neumann
+momentum.bc.constant.type.yhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+
+bc_N.constant.type.xlo = neumann
+bc_N.constant.type.xhi = neumann
+bc_N.constant.type.ylo = neumann
+bc_N.constant.type.yhi = neumann
+bc_D.constant.type.xlo = neumann
+bc_D.constant.type.xhi = neumann
+bc_D.constant.type.ylo = neumann
+bc_D.constant.type.yhi = neumann
+bc_1.constant.type.xlo = neumann
+bc_1.constant.type.xhi = neumann
+bc_1.constant.type.ylo = neumann
+bc_1.constant.type.yhi = neumann
+
+prescribedflowmode = relative
