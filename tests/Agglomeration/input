@@ -2,7 +2,8 @@ alamo.program = agglomeration
 plot_file = tests/Agglomeration/output
 
 # AMR parameters
-amr.plot_dt = 1e-4
+# amr.plot_dt = 1e-4
+amr.plot_dt = 1e-5
 amr.blocking_factor = 16
 amr.thermo.plot_dt = 1e-4
 flame.amr.refinement_criterion = 1e-1
@@ -120,26 +121,26 @@ flame.elastic.type = disable
 flame.elastic.phirefinement = 0
 
 # DDCH agglomeration parameters
-epsilon = 5.5e-6
-omega = 1.0
-gamma = 6.0
+epsilon = 2.0e-5
+omega = 1.0e-3
+gamma = 6.0e0
 kappa = 1.0e-1
-mu_agglom = 7.5
-mu_reaction = 5.0e-4
+mu = 1.0e-6
+M_reaction = 0.0
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = random
-alpha.ic.random.offset = 0.4
-alpha.ic.random.mult = 0.2
+alpha.ic.random.offset = 4.0e-1
+alpha.ic.random.mult = 2.0e-1
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant
-alpha.bc.constant.type.xlo = dirichlet
-alpha.bc.constant.type.xhi = dirichlet
-alpha.bc.constant.type.ylo = dirichlet
-alpha.bc.constant.type.yhi = dirichlet
-alpha.bc.constant.type.zlo = dirichlet
-alpha.bc.constant.type.zhi = dirichlet
+alpha.bc.constant.type.xlo = neumann
+alpha.bc.constant.type.xhi = neumann
+alpha.bc.constant.type.ylo = neumann
+alpha.bc.constant.type.yhi = neumann
+alpha.bc.constant.type.zlo = neumann
+alpha.bc.constant.type.zhi = neumann
 alpha.bc.constant.val.xlo = 0.0
 alpha.bc.constant.val.xhi = 0.0
 alpha.bc.constant.val.ylo = 0.0

@@ -42,8 +42,8 @@ private:
         Set::Scalar omega = NAN;
         Set::Scalar gamma = NAN;
         Set::Scalar kappa = NAN;
-        Set::Scalar mu_agglom = NAN;
-        Set::Scalar mu_reaction = NAN;
+        Set::Scalar mu = NAN;
+        Set::Scalar M_reaction = NAN;
         Set::Scalar V = 0.0;
     } agglom;
 };
