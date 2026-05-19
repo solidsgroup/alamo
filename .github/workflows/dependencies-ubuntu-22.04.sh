@@ -4,7 +4,7 @@ set -eu -o pipefail
 # Make sure your system is up-to-date with standard build software
 #
 sudo apt update
-sudo apt install build-essential g++ gfortran
+sudo apt install build-essential g++
 
 #
 # Use apt (or apt-get) to install these packages

@@ -14,7 +14,7 @@ using namespace std;
 #include <vector>
 #include <algorithm>
 #include <iterator>
-#include "mpi.h"
+#include <mpi.h>
 #include "IO/ParmParse.H"
 
 namespace IC
