@@ -45,19 +45,19 @@ allencahn.alpha.bc.constant.val.xhi = 0.0
 allencahn.alpha.bc.constant.val.ylo = 0.0
 allencahn.alpha.bc.constant.val.yhi = 0.0
 
-allencahn.alpha.ic.type = expression
-allencahn.alpha.ic.expression.constant.width = 0.96
-allencahn.alpha.ic.expression.constant.height = 3.0
-allencahn.alpha.ic.expression.constant.eps = 0.6
-allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
+# allencahn.alpha.ic.type = expression
+# allencahn.alpha.ic.expression.constant.width = 0.96
+# allencahn.alpha.ic.expression.constant.height = 3.0
+# allencahn.alpha.ic.expression.constant.eps = 0.6
+# allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 
-# allencahn.alpha.ic.type = png
-# allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
-# allencahn.alpha.ic.png.fit = coord
-# allencahn.alpha.ic.png.coord.lo = -38 -38
-# allencahn.alpha.ic.png.coord.hi = 38 38
-# allencahn.alpha.ic.png.max = 0
-# allencahn.alpha.ic.png.min = 255
+allencahn.alpha.ic.type = png
+allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
+allencahn.alpha.ic.png.fit = coord
+allencahn.alpha.ic.png.coord.lo = -38 -38
+allencahn.alpha.ic.png.coord.hi = 38 38
+allencahn.alpha.ic.png.max = 0
+allencahn.alpha.ic.png.min = 255
 
 allencahn.refinement_threshold = 0.1
 
