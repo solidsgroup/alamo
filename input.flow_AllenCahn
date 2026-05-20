@@ -1,6 +1,6 @@
 alamo.program = allencahn
 plot_file = ./output.allencahn
-amr.plot_dt = 0.1
+amr.plot_dt = 0.5
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
@@ -8,8 +8,8 @@ amr.grid_eff = 0.7
 amr.max_level = 3
 timestep  = 1e-2
 amr.n_cell = 64 8
-geometry.prob_lo = -24.0 -3
-geometry.prob_hi =  24.0  3
+geometry.prob_lo = -24.0  0
+geometry.prob_hi =  24.0  6
 geometry.is_periodic = 0 0 0
 stop_time = 50.0
 
@@ -44,18 +44,25 @@ allencahn.alpha.bc.constant.val.xlo = 0.0
 allencahn.alpha.bc.constant.val.xhi = 0.0
 allencahn.alpha.bc.constant.val.ylo = 0.0
 allencahn.alpha.bc.constant.val.yhi = 0.0
-allencahn.alpha.ic.type = png
-allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
-allencahn.alpha.ic.png.fit = coord
-allencahn.alpha.ic.png.coord.lo = -38 -38
-allencahn.alpha.ic.png.coord.hi = 38 38
-allencahn.alpha.ic.png.max = 0
-allencahn.alpha.ic.png.min = 255
+
+allencahn.alpha.ic.type = expression
+allencahn.alpha.ic.expression.constant.width = 0.96
+allencahn.alpha.ic.expression.constant.height = 3.0
+allencahn.alpha.ic.expression.constant.eps = 0.6
+allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
+
+# allencahn.alpha.ic.type = png
+# allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
+# allencahn.alpha.ic.png.fit = coord
+# allencahn.alpha.ic.png.coord.lo = -38 -38
+# allencahn.alpha.ic.png.coord.hi = 38 38
+# allencahn.alpha.ic.png.max = 0
+# allencahn.alpha.ic.png.min = 255
 
 allencahn.refinement_threshold = 0.1
 
 
-allencahn.ch.L = 10.0
+allencahn.ch.L = 0.0
 allencahn.ch.kappa = 0.002
 allencahn.ch.lambda = 0.05
 #allencahn.ch.direction = 0
