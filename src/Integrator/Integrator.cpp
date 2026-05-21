@@ -1044,11 +1044,11 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         if (node.all) allnames.insert(allnames.end(), cnames.begin(), cnames.end());
         const std::string base = plotfilename[0] + plotfilename[1] + "node";
 #ifdef AMREX_USE_HDF5
-        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
             Geom(), time, iter, refRatio(),"ZLIB@" + compression_level);
         const std::string chkptfilename = base + ".Checkpoint";
 #else
-        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
             Geom(), time, iter, refRatio());
         const std::string chkptfilename = base + "/Checkpoint";
 #endif
