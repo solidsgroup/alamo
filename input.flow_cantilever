@@ -133,7 +133,7 @@ hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.1
-hydro.lagrange=1.0
+hydro.lagrange=0.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
