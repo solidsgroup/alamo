@@ -33,12 +33,15 @@ struct Rocfire
     std::array<double, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
     double pressure_reference = 100000.0;
     int nsubsteps = 1;
+    double beta = 7.974;
+    double gamma = 3.19;
 
     Rocfire() = default;
     Rocfire(IO::ParmParse &pp, std::string name)
     {
         pp_queryclass(name,*this);
     }
+
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static double sum_species(const std::array<double, NSPECIES>& values)
@@ -100,19 +103,19 @@ struct Rocfire
         wdot[Binder]   -= progress[1];
         wdot[Premixed] += progress[1];
 
-        wdot[AP]       -= 7.974 * progress[2];
+        wdot[AP]       -= beta * progress[2];
         wdot[Binder]   -= progress[2];
-        wdot[Primary]  += 8.974 * progress[2];
+        wdot[Primary]  += (beta + 1.0) * progress[2];
 
-        wdot[Mono]     -= 3.19 * progress[3];
+        wdot[Mono]     -= gamma * progress[3];
         wdot[Premixed] -= progress[3];
-        wdot[Final]    += 4.19 * progress[3];
+        wdot[Final]    += (gamma + 1.0) * progress[3];
 
         const double qdot =
-            (qgas[0] + qsolid[0]) * progress[0]
-          + (qgas[1] + qsolid[1]) * progress[1]
-          + (8.974 * qgas[2] + 7.974 * qsolid[0] + qsolid[1]) * progress[2]
-          + (4.19 * qgas[3]) * progress[3];
+            (qgas[0] /*+ qsolid[0]*/) * progress[0]
+          + (qgas[1] /*+ qsolid[1]*/) * progress[1]
+          + /*(beta + 1.0) * */qgas[2] * progress[2]
+          + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
         return {wdot, qdot};
     }
@@ -247,7 +250,7 @@ struct Rocfire
         std::vector<double> qsolid;
 
         pp.queryarr_default("A", A,
-            {"27.0_g/cm^3/s", "25.3_g/cm^3/s", "5.0_g/cm^3/s", "0.4_g/cm^3/s"},
+            {"27.0e3_g/cm^3/s", "25.3e3_g/cm^3/s", "5.0e3_g/cm^3/s", "0.4e3_g/cm^3/s"},
             Unit::Density() / Unit::Time());
         pp.queryarr_default("pressure_exponent", pressure_exponent, {1.6, 1.7, 1.7, 1.7});
         pp.queryarr_default("activation_energy", activation_energy,
@@ -261,6 +264,8 @@ struct Rocfire
             Unit::Energy() / Unit::Mass());
         pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
         pp.query_default("nsubsteps", value.nsubsteps, 1);
+        pp.query_default("beta", value.beta, 7.974);
+        pp.query_default("gamma", value.gamma, 3.19);
 
         Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.rocfire.A must have 4 entries.");
         Util::Assert(INFO, TEST(pressure_exponent.size() == nreactions),
@@ -272,6 +277,8 @@ struct Rocfire
         Util::Assert(INFO, TEST(value.pressure_reference > 0.0),
             "chemistry.rocfire.pressure_reference must be positive.");
         Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.rocfire.nsubsteps must be > 0.");
+        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.rocfire.beta must be > 0.");
+        Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.rocfire.gamma must be > 0.");
 
         std::copy(A.begin(), A.end(), value.A.begin());
         std::copy(pressure_exponent.begin(), pressure_exponent.end(), value.pressure_exponent.begin());

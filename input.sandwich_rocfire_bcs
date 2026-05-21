@@ -29,22 +29,24 @@ chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 
 chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
 chemistry.rocfire.pressure_reference = 1_bar
-chemistry.rocfire.nsubsteps = 100
+chemistry.rocfire.nsubsteps = 200
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire
+plot_file = output.sandwich_rocfire_bcs_part3
 details = 1
-#restart = output.sandwich_rocfire_part1/00126cell
+restart = output.sandwich_rocfire_bcs_part2/105000cell
 
 ### MESHING ###
 amr.plot_dt = 1e-7
-#amr.plot_int = 10
+#amr.plot_int = 1
 amr.max_level = 2
 amr.max_grid_size = 500000
 amr.blocking_factor = 16
-amr.regrid_int = 10
+amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.n_cell = 16 16 0
+#amr.n_cell = 128 128 0
+#amr.n_cell = 1 1 0
 
 ### DIMENSIONS ###
 geometry.prob_lo = -0.0003 -0.0001 0.0 # [ m ]
@@ -52,7 +54,7 @@ geometry.prob_hi = 0.0003 0.0004 0.0 # [ m ]
 geometry.is_periodic = 1 0 0
 
 ### TIME STEP ###
-timestep  = 1.0e-9
+timestep  = 1.0e-8
 stop_time = 5.0e-3
 
 integration.type = RungeKutta
@@ -64,8 +66,7 @@ small = 1e-8
 
 ### ETA IC ###
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 1e-5
-eta.ic.expression.region0        = "0.5 * (1 + erf((y)/eps))"
+eta.ic.expression.region0        = "1.0"
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
 # AP density = 1950.0 kg/m3; HTPB density = 920.0 kg/m3; regression rate = 0.0100 m/s at 10 MPa.
@@ -88,20 +89,16 @@ eta.ic.expression.region0        = "0.5 * (1 + erf((y)/eps))"
 # Hydro multiplies it by |grad eta| to form the conserved density source.
 
 m0.ic.type = expression
-m0.ic.expression.region0 = "9.75 * (x>-0.0002) * (x<0.0002)"
-m0.ic.expression.region1 = "4.6 * ((x<=-0.0002) + (x>=0.0002))"
+m0.ic.expression.region0 = "0.0"
+m0.ic.expression.region1 = "0.0"
 m0.ic.expression.region2 = "0.0"
 m0.ic.expression.region3 = "0.0"
 m0.ic.expression.region4 = "0.0"
 m0.ic.expression.region5 = "0.0"
 
 u0.ic.type = expression
-u0.ic.expression.constant.P = 6e6
-u0.ic.expression.constant.T = 800.0
-u0.ic.expression.constant.T_final = 3000.0
-u0.ic.expression.constant.R = 319.787
 u0.ic.expression.region0 = "0.0"
-u0.ic.expression.region1 = "9.75 / P/R/T * (x>-0.0002)*(x<0.0002) + 4.6 / P/R/T * ((x<=-0.0002) + (x>=0.0002))"
+u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 # Additional heat flux only. The total energy carried by m0 is computed from
@@ -111,52 +108,95 @@ q.ic.expression.region1 = "0.0"
 
 density.ic.type = expression
 density.ic.expression.constant.eps = 1e-5
-density.ic.expression.constant.P = 6e6
+density.ic.expression.constant.P = 6.0e6
 density.ic.expression.constant.T = 800.0
 density.ic.expression.constant.T_final = 3000.0
 density.ic.expression.constant.R = 319.787
+density.ic.expression.constant.eps_x = 0.005
+density.ic.expression.constant.eps_y = 0.005
 density.ic.expression.constant.beta = 7.974
 density.ic.expression.constant.gamma = 3.19
-density.ic.expression.region0 = "1e-6"
-density.ic.expression.region1 = "1e-6"
-density.ic.expression.region2 = "1e-6"
-density.ic.expression.region3 = "1e-6"
-density.ic.expression.region4 = "1e-6"
+
+# Final products
+density.ic.expression.region0 = "0.0"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "0.0"
+density.ic.expression.region4 = "0.0"
 density.ic.expression.region5 = "P/R/T_final"
+
+# Sandwich with final products
+#density.ic.expression.region0 = "P/R/T * (x>-0.0002)*(x<0.0002) * (0.5 - 0.5*erf(y/eps))"
+#density.ic.expression.region1 = "P/R/T * ((x<=-0.0002) + (x>=0.0002)) * (0.5 - 0.5*erf(y/eps))"
+#density.ic.expression.region2 = "P/R/T * gamma/(gamma + 1) * (0.5 + 0.5*erf(y/eps))"
+#density.ic.expression.region3 = "P/R/T / (gamma + 1) * (0.5 + 0.5*erf(y/eps))"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
+
+# Sandwich with only reactants
+#density.ic.expression.region0 = "P/R/T * (x>-0.0002)*(x<0.0002)"
+#density.ic.expression.region1 = "P/R/T * ((x<=-0.0002) + (x>=0.0002))"
+#density.ic.expression.region2 = "0.0"
+#density.ic.expression.region3 = "0.0"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
+
+# Stoichiometric AP/HTPB -> Primary
+#density.ic.expression.region0 = "P/R/T * 7.974 / 8.974"
+#density.ic.expression.region1 = "P/R/T / 8.974"
+#density.ic.expression.region2 = "0.0"
+#density.ic.expression.region3 = "0.0"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
+
+# Stoichiometric Mono/Premixed -> Final
+#density.ic.expression.region0 = "0.0"
+#density.ic.expression.region1 = "0.0"
+#density.ic.expression.region2 = "P/R/T * 3.19 / 4.19"
+#density.ic.expression.region3 = "P/R/T / 4.19"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.U_eject_avg = 0.261251790186
 velocity.ic.expression.constant.fact = 1.0
 velocity.ic.expression.region0 = "0.0"
+#velocity.ic.expression.region1 = "0.0"
+#velocity.ic.expression.region1 = "U_eject_avg*100"
 velocity.ic.expression.region1 = "fact * (0.4157 * (x>-0.0002) * (x<0.0002) + 0.1961 * ((x<=-0.0002) + (x>=0.0002)))"
 
 pressure.ic.type = expression
 pressure.ic.expression.region0 = "6.0e6"
 
 solid.density.ic.type = expression
-solid.density.ic.expression.constant.P = 6e6
-solid.density.ic.expression.constant.R = 319.787
-solid.density.ic.expression.constant.T = 800.0
-solid.density.ic.expression.constant.T_final = 3300.0
-solid.density.ic.expression.region0 = "1e-3 + P/R/T*(x>-0.0002)*(x<0.0002)"
-solid.density.ic.expression.region1 = "1e-3 + P/R/T*((x<=-0.0002) + (x>=0.0002))"
-solid.density.ic.expression.region2 = "1e-3"
-solid.density.ic.expression.region3 = "1e-3"
-solid.density.ic.expression.region4 = "1e-3"
-solid.density.ic.expression.region5 = "1e-3"
+solid.density.ic.expression.constant.eps_x = 0.005
+solid.density.ic.expression.constant.rho_g_AP = 74.6406456
+solid.density.ic.expression.constant.rho_g_HTPB = 35.2151079
+solid.density.ic.expression.region0 = "rho_g_AP * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region1 = "rho_g_HTPB * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "0.0"
+solid.density.ic.expression.region4 = "0.0"
+solid.density.ic.expression.region5 = "0.0"
 
 solid.momentum.ic.type = expression
+solid.momentum.ic.expression.constant.eps_x = 0.005
+solid.momentum.ic.expression.constant.U_eject_avg = 0.261251790186
+solid.momentum.ic.expression.constant.rho_g_AP = 74.6406456
+solid.momentum.ic.expression.constant.rho_g_HTPB = 35.2151079
 solid.momentum.ic.expression.region0 = "0.0"
-solid.momentum.ic.expression.region1 = "9.75 * (x>-0.0002) * (x<0.0002) + 4.6 * ((x<=-0.0002) + (x>=0.0002))"
+solid.momentum.ic.expression.region1 = "U_eject_avg * (rho_g_AP * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) + rho_g_HTPB * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))))"
 
 solid.energy.ic.type = expression
-solid.energy.ic.expression.constant.P = 6e6
-solid.energy.ic.expression.constant.R = 319.787
-solid.energy.ic.expression.constant.T = 800.0
-solid.energy.ic.expression.constant.T_final = 3300.0
-solid.energy.ic.expression.constant.T0 = 300.0
-solid.energy.ic.expression.constant.cv = 935.413
-solid.energy.ic.expression.region0 = "P/R/T * (cv*(T-T0) + 0.5*(0.4157 * (x>-0.0002) * (x<0.0002) + 0.1961 * ((x<=-0.0002) + (x>=0.0002)))^2)"
+solid.energy.ic.expression.constant.eps_x = 0.005
+solid.energy.ic.expression.constant.P0 = 1.0e7
+solid.energy.ic.expression.constant.R_bg = 319.787
+solid.energy.ic.expression.constant.Cv = 935.413
+solid.energy.ic.expression.constant.T_ref = 298.15
+solid.energy.ic.expression.constant.U_eject_avg = 0.261251790186
+solid.energy.ic.expression.constant.rho_g_AP = 74.6406456
+solid.energy.ic.expression.constant.rho_g_HTPB = 35.2151079
+solid.energy.ic.expression.region0 = "0.001 * (rho_g_AP * (Cv * (P0/(R_bg*rho_g_AP) - T_ref) + 0.5 * U_eject_avg * U_eject_avg) * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) + rho_g_HTPB * (Cv * (P0/(R_bg*rho_g_HTPB) - T_ref) + 0.5 * U_eject_avg * U_eject_avg) * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))))"
 
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
@@ -181,22 +221,28 @@ density.bc.expression.constant.T = 800.0
 density.bc.expression.constant.T_final = 3300.0
 density.bc.expression.type.xhi = periodic periodic periodic periodic periodic periodic
 density.bc.expression.type.xlo = periodic periodic periodic periodic periodic periodic
-density.bc.expression.type.yhi = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
-density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann
+density.bc.expression.type.yhi = "dirichlet" "dirichlet" "dirichlet" "dirichlet" "dirichlet" "dirichlet"
+#density.bc.expression.type.yhi = "neumann" "neumann" "neumann" "neumann" "neumann" "neumann"
+density.bc.expression.type.ylo = "dirichlet" "dirichlet" "dirichlet" "dirichlet" "dirichlet" "dirichlet"
+#density.bc.expression.type.ylo = "neumann" "neumann" "neumann" "neumann" "neumann" "neumann"
 density.bc.expression.val.xhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 density.bc.expression.val.xlo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "P/R/T_final"
-density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+#density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+density.bc.expression.val.ylo = "P/R/T*(x>-0.0002)*(x<0.0002)" "P/R/T*((x<=-0.0002) + (x>=0.0002))" "0.0" "0.0" "0.0" "0.0"
+#density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 
 momentum.bc.type = expression
 momentum.bc.expression.type.xhi = periodic periodic
 momentum.bc.expression.type.xlo = periodic periodic
+#momentum.bc.expression.type.yhi = neumann neumann
 momentum.bc.expression.type.yhi = neumann dirichlet
-momentum.bc.expression.type.ylo = neumann neumann
+momentum.bc.expression.type.ylo = dirichlet dirichlet
 momentum.bc.expression.val.xhi = "0.0" "0.0"
 momentum.bc.expression.val.xlo = "0.0" "0.0"
+#momentum.bc.expression.val.yhi = "0.0" "0.0"
 momentum.bc.expression.val.yhi = "0.0" "9.75"
-momentum.bc.expression.val.ylo = "0.0" "0.0"
+momentum.bc.expression.val.ylo = "0.0" "9.75 * (x>-0.0002) * (x<0.0002) + 4.6 * ((x<=-0.0002) + (x>=0.0002))"
 
 energy.bc.type = expression
 energy.bc.expression.constant.P = 6e6
@@ -207,12 +253,16 @@ energy.bc.expression.constant.T0 = 300.0
 energy.bc.expression.constant.cv = 935.413
 energy.bc.expression.type.xhi = periodic
 energy.bc.expression.type.xlo = periodic
+#energy.bc.expression.type.yhi = neumann
 energy.bc.expression.type.yhi = dirichlet
-energy.bc.expression.type.ylo = neumann
+#energy.bc.expression.type.ylo = neumann
+energy.bc.expression.type.ylo = dirichlet
 energy.bc.expression.val.xhi = "0.0"
 energy.bc.expression.val.xlo = "0.0"
+#energy.bc.expression.val.yhi = "0.0"
 energy.bc.expression.val.yhi = "P/R/T_final * cv*(T_final-T0) + 0.5/(P/R/T)*9.75^2"
-energy.bc.expression.val.ylo = "0.0"
+#energy.bc.expression.val.ylo = "0.0"
+energy.bc.expression.val.ylo = "P/R/T * (cv*(T-T0) + 0.5*(0.4157 * (x>-0.0002) * (x<0.0002) + 0.1961 * ((x<=-0.0002) + (x>=0.0002)))^2)"
 
 bc_N.constant.type.xlo = neumann
 bc_N.constant.type.xhi = neumann

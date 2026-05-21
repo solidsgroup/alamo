@@ -19,6 +19,7 @@ public:
 private:
     double mw;
     double cp_mass;
+    double Tref;
     
 public:
     Rocfire() {} ;
@@ -33,9 +34,11 @@ public:
     {
         pp.query_default("mw", value.mw, "26.0_g/mol", Unit::Mass()/Unit::Amount());
         pp.query_default("cp_mass", value.cp_mass, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
+        pp.query_default("Tref", value.Tref, "300.0_K", Unit::Temperature());
 
         Util::Assert(INFO, TEST(value.mw > 0.0), "gas.thermo.rocfire.mw must be positive.");
         Util::Assert(INFO, TEST(value.cp_mass > 0.0), "gas.thermo.rocfire.cp_mass must be positive.");
+        Util::Assert(INFO, TEST(value.Tref >= 0.0), "gas.thermo.rocfire.Tref must be greater than or equal to zero.");
     }
 
 public:
@@ -62,7 +65,7 @@ public:
         return cp_mass * mw;
     }
     double enthalpy_mol_species(double T, int /*n*/) const override {
-        return cp_mass * mw * T;
+        return cp_mass * mw * (T - Tref);
     }
     double entropy_mol_species(double /*T*/, int /*n*/) const override {
         return 0.0;
