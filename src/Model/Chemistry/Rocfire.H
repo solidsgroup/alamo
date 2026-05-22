@@ -112,8 +112,8 @@ struct Rocfire
         wdot[Final]    += (gamma + 1.0) * progress[3];
 
         const double qdot =
-            (qgas[0] /*+ qsolid[0]*/) * progress[0]
-          + (qgas[1] /*+ qsolid[1]*/) * progress[1]
+            (qgas[0] + qsolid[0]) * progress[0]
+          + (qgas[1] + qsolid[1]) * progress[1]
           + /*(beta + 1.0) * */qgas[2] * progress[2]
           + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
