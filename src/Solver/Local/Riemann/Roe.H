@@ -293,8 +293,63 @@ public:
                 Util::ParallelMessage(INFO,"deltav1 ", deltav1); 
                 Util::ParallelMessage(INFO,"deltav2 ", deltav2);
                 Util::ParallelMessage(INFO,"deltav3 ", deltav3);
+                Util::ParallelMessage(INFO,"Mn_R ", Mn_R);
+                Util::ParallelMessage(INFO,"Mt_R ", Mt_R);
+                Util::ParallelMessage(INFO,"E_R ", E_R);
+                Util::ParallelMessage(INFO,"E_L ", E_L);
+                Util::ParallelMessage(INFO,"Mt_L ", Mt_L);
+                Util::ParallelMessage(INFO,"Mt_R ", Mt_R);
+                Util::ParallelMessage(INFO,"rho_sum_L ", rho_sum_L);
+                Util::ParallelMessage(INFO,"rho_sum_R ", rho_sum_R);
+                Util::ParallelMessage(INFO,"deltap ", deltap);
+                Util::ParallelMessage(INFO,"p_R ", p_R);
+                Util::ParallelMessage(INFO,"p_L ", p_L);
+                Util::ParallelMessage(INFO,"T_R ", T_R);
+                Util::ParallelMessage(INFO,"X ", X);
+                Util::ParallelMessage(INFO,"i ", i);
+                Util::ParallelMessage(INFO,"j ", j);
+                Util::ParallelMessage(INFO,"j ", k);
             }
             Util::Exception(INFO);
+        }
+
+        // if (fl.mass[0] != fl.mass[0]) // check first element for NAN
+        if (1)
+        {
+            if (verbose)
+            {
+                Util::Warning(INFO,"hi ", hi);
+                Util::Warning(INFO,"lo ", lo);
+                //Util::ParallelMessage(INFO,"rho_R ", rho_R);
+                //Util::ParallelMessage(INFO,"rho_L ", rho_L);
+                Util::Warning(INFO,"rho_RL ", rho_RL); 
+                Util::Warning(INFO,"u_R ", u_R);
+                Util::Warning(INFO,"u_L ", u_L);
+                Util::Warning(INFO,"u_RL ", u_RL); 
+                Util::Warning(INFO,"a_RL ", a_RL);
+                Util::Warning(INFO,"lambda1 ", lambda1); 
+                Util::Warning(INFO,"lambda2 ", lambda2); 
+                Util::Warning(INFO,"lambda3 ", lambda3); 
+                Util::Warning(INFO,"deltav1 ", deltav1); 
+                Util::Warning(INFO,"deltav2 ", deltav2);
+                Util::Warning(INFO,"deltav3 ", deltav3);
+                Util::Warning(INFO,"Mn_R ", Mn_R);
+                Util::Warning(INFO,"Mt_R ", Mt_R);
+                Util::Warning(INFO,"E_R ", E_R);
+                Util::Warning(INFO,"E_L ", E_L);
+                Util::Warning(INFO,"Mt_L ", Mt_L);
+                Util::Warning(INFO,"Mt_R ", Mt_R);
+                Util::Warning(INFO,"rho_sum_L ", rho_sum_L);
+                Util::Warning(INFO,"rho_sum_R ", rho_sum_R);
+                Util::Warning(INFO,"deltap ", deltap);
+                Util::Warning(INFO,"p_R ", p_R);
+                Util::Warning(INFO,"p_L ", p_L);
+                Util::Warning(INFO,"T_R ", T_R);
+                Util::Warning(INFO,"X ", X);
+                Util::Warning(INFO,"i ", i);
+                Util::Warning(INFO,"j ", j);
+                Util::Warning(INFO,"j ", k);
+            }
         }
 
 

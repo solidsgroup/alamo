@@ -642,7 +642,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf)
 {
-    int nghost = 1;
+    int nghost = 2;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
     amrex::MultiFab rho_sum_mf(ba,dm,1,nghost);             // sum_k[rhoY_k]
@@ -974,7 +974,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             catch(...)
             {
                 Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i,"j=",j);
+                Util::ParallelMessage(INFO,"i=",i," j=",j);
                 Util::Abort(INFO);
             }
 

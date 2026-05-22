@@ -7,7 +7,8 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 2.5e-7
+# amr.plot_dt = 2.5e-7
+amr.plot_int = 1
 amr.max_grid_size = 16
 amr.blocking_factor = 4
 amr.base_regrid_int = 10
@@ -19,7 +20,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
+amr.max_level = 0
 
 # # Full size
 # amr.n_cell = 32 32 32
@@ -191,13 +192,13 @@ elastic.type = disable
 system.amount = kmol
 
 # Species: [AP_gas, HTPB_gas, AP_mono_flame, Premixed_binder_flame, Primary_flame, Diffusion_flame] # from RocFire paper "gross2013coupling"
-hydro.gas.mw = 26 26 26 26 26 26
+hydro.gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
 
 hydro.gas.thermo.type = cpconstant
-hydro.gas.thermo.cpconstant.cp_moles = 32635.0 32635.0 32635.0 32635.0 32635.0 32635.0 # J/kmol/K
+hydro.gas.thermo.cpconstant.cp_moles = 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K # J/kmol/K
 hydro.gas.thermo.cpconstant.h0   =   0.0   0.0   0.0   0.0   0.0   0.0
 hydro.gas.thermo.cpconstant.s0   =   0.0   0.0   0.0   0.0   0.0   0.0
-hydro.gas.thermo.cpconstant.Tref = 300.0 300.0 300.0 300.0 300.0 300.0
+hydro.gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K
 
 hydro.gas.transport.type = mixture_averaged
 hydro.gas.transport.mixture_averaged.type = constant
@@ -217,33 +218,33 @@ hydro.pressure.ic.expression.region0 = "101325.0"
 hydro.velocity.ic.type = constant
 hydro.velocity.ic.constant.value = 0.0 0.0
 
-hydro.solid.density.ic.constant.value = 10.0 10.0 0.0 0.0 0.0 0.0
+hydro.solid.density.ic.constant.value = 1.0 1.0 1.0 1.0 1.0 1.0
 hydro.solid.momentum.ic.constant.value = 0.0 0.0
-hydro.solid.energy.ic.constant.value = 0.0
+hydro.solid.energy.ic.constant.value = 100000
 
 hydro.m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0
 hydro.u0.ic.constant.value = 0.0 0.0
 hydro.q.ic.constant.value = 0.0 0.0
 
 hydro.on = 1
-hydro.tstart = 1e-6 # Was 0.0005
+hydro.tstart = 0.0 # Was 0.0005
 hydro.rho_ap = 2.0
 hydro.rho_htpb = 1.0
-hydro.u0_ap = 5.0
-hydro.u0_htpb = 20.0 # 20.0
+hydro.u0_ap = 0.0
+hydro.u0_htpb = 0.0 # 20.0
 hydro.lagrange= 0.0
-hydro.solver.type = hllc
+hydro.solver.type = roe
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 hydro.prescribedflowmode = relative
 hydro.small=1E-3
-hydro.cutoff=0.2
-
+hydro.cutoff=0.0
 
 hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = neumann neumann
+hydro.momentum.bc.constant.type.xlo = dirichlet neumann
 hydro.momentum.bc.constant.type.ylo = neumann neumann
 hydro.momentum.bc.constant.type.yhi = neumann neumann
+hydro.momentum.bc.constant.val.xhi = 1.0 0.0
 
 hydro.density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann
 hydro.density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann

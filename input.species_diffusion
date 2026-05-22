@@ -1,5 +1,5 @@
 ### RIEMANN SOLVER ###
-solver.type = hllc
+solver.type = roe
 
 ### GAS MODEL ###
 system.amount = kmol
@@ -67,6 +67,8 @@ density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
+# density.ic.expression.region0 = "1"
+# density.ic.expression.region1 = "1"
 density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
 density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
 #density.ic.expression.region0 = "P/R/T * (x<=0.5)"

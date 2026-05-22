@@ -636,7 +636,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             
-            if (etanew(i, j, k) <= 0.0) etanew(i, j, k) = small;
+            if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
+
 
             if (thermal.on)
             {
