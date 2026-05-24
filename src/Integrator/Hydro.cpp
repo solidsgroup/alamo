@@ -93,6 +93,25 @@ namespace
                               Numeric::StencilType::Central,
                               Numeric::StencilType::Central) };
     }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Solver::Local::Riemann::State ReconstructFluidState(
+        const Solver::Local::Riemann::State& total,
+        const Solver::Local::Riemann::State& solid,
+        Set::Scalar eta_raw,
+        bool invert,
+        Set::Scalar small)
+    {
+        if (invert)
+        {
+            const Set::Scalar eta_fluid = 1.0 - eta_raw;
+            if (eta_fluid <= small) return solid;
+            return (total - eta_raw * solid) / (eta_fluid + small);
+        }
+
+        if (eta_raw <= small) return solid;
+        return (total - (1.0 - eta_raw) * solid) / (eta_raw + small);
+    }
 }
 
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
@@ -527,7 +546,7 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
-    if (!managed) std::swap(*eta_old_mf, *eta_mf);
+    if (!managed) std::swap((*eta_old_mf)[lev], (*eta_mf)[lev]);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
@@ -744,17 +763,30 @@ void Hydro::RefreshDerivedPlotFields(int lev)
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             std::array<double, NSPECIES> rhoY_fluid;
-            for (int n=0; n<NSPECIES; ++n)
+            Set::Scalar Mx_fluid = 0.0;
+            Set::Scalar My_fluid = 0.0;
+            Set::Scalar E_fluid = 0.0;
+            if (eta <= small)
             {
-                rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
+                Mx_fluid = M_solid(i,j,k,0);
+                My_fluid = M_solid(i,j,k,1);
+                E_fluid = E_solid(i,j,k);
+            }
+            else
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                }
+                Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
+                My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+                E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
             }
             ProjectSpeciesDensities(rhoY_fluid, i, j, k);
             for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
 
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
-            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
-            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
-            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
 
             gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
@@ -915,17 +947,30 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             // Reconstruct the gas state from the mixed conserved state before
             // computing any primitive or transport quantity.
             std::array<double, NSPECIES> rhoY_fluid;
-            for (int n=0; n<NSPECIES; ++n)
+            Set::Scalar Mx_fluid = 0.0;
+            Set::Scalar My_fluid = 0.0;
+            Set::Scalar E_fluid = 0.0;
+            if (eta <= small)
             {
-                rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
+                Mx_fluid = M_solid(i,j,k,0);
+                My_fluid = M_solid(i,j,k,1);
+                E_fluid = E_solid(i,j,k);
+            }
+            else
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    rhoY_fluid[n] = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+                }
+                Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
+                My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+                E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
             }
             ProjectSpeciesDensities(rhoY_fluid, i, j, k);
             for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
 
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
-            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
-            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
-            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
 
             gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
@@ -1159,25 +1204,19 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
 
-            Solver::Local::Riemann::State state_x_fluid   = invert ? 
-                (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)   + small): 
-                (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k)   + small);
-            Solver::Local::Riemann::State state_y_fluid =   invert ? 
-                (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
-                (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
+            Solver::Local::Riemann::State state_x_fluid =
+                ReconstructFluidState(state_x, state_x_solid, eta_patch(i,j,k), invert, small);
+            Solver::Local::Riemann::State state_y_fluid =
+                ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small);
 
-            Solver::Local::Riemann::State state_xlo_fluid = invert ? 
-                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
-                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
-            Solver::Local::Riemann::State state_xhi_fluid = invert ? 
-                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small) : 
-                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
-            Solver::Local::Riemann::State state_ylo_fluid = invert ? 
-                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
-                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
-            Solver::Local::Riemann::State state_yhi_fluid = invert ? 
-                (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
-                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
+            Solver::Local::Riemann::State state_xlo_fluid =
+                ReconstructFluidState(state_xlo, state_xlo_solid, eta_patch(i-1,j,k), invert, small);
+            Solver::Local::Riemann::State state_xhi_fluid =
+                ReconstructFluidState(state_xhi, state_xhi_solid, eta_patch(i+1,j,k), invert, small);
+            Solver::Local::Riemann::State state_ylo_fluid =
+                ReconstructFluidState(state_ylo, state_ylo_solid, eta_patch(i,j-1,k), invert, small);
+            Solver::Local::Riemann::State state_yhi_fluid =
+                ReconstructFluidState(state_yhi, state_yhi_solid, eta_patch(i,j+1,k), invert, small);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
@@ -1215,13 +1254,18 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 }
             }
 
-            Source(i,j, k, NSPECIES  ) = Pdot0(0) - Ldot0(0);
-            Source(i,j, k, NSPECIES+1) = Pdot0(1) - Ldot0(1);
-            Source(i,j, k, NSPECIES+2) = qdot0;
+            Set::Vector interface_momentum_source = -Ldot0;
+
+            Source(i,j, k, NSPECIES  ) = Pdot0(0) + interface_momentum_source(0);
+            Source(i,j, k, NSPECIES+1) = Pdot0(1) + interface_momentum_source(1);
+            Source(i,j, k, NSPECIES+2) = qdot0 + interface_momentum_source.dot(u);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,NSPECIES  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,NSPECIES+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+            Set::Vector lagrange_momentum_source =
+                -lagrange*(u-u0).dot(grad_eta)*grad_eta;
+            Source(i,j,k,NSPECIES  ) += lagrange_momentum_source(0);
+            Source(i,j,k,NSPECIES+1) += lagrange_momentum_source(1);
+            Source(i,j,k,NSPECIES+2) += lagrange_momentum_source.dot(u);
 
             std::array<double, NSPECIES> rhoY_intermediate;
             for (int n=0; n<NSPECIES; ++n)
