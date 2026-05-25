@@ -1272,9 +1272,16 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             std::array<double, NSPECIES> rhoY_intermediate;
             for (int n=0; n<NSPECIES; ++n)
             {
-                rhoY_intermediate[n] = scratch(i,j,k,n) + drhof_dt_hydro[n] * dt / (eta + small);
+                rhoY_intermediate[n] = scratch(i,j,k,n);
             }
-            ProjectSpeciesDensities(rhoY_intermediate, i, j, k);
+            if (eta > cutoff)
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    rhoY_intermediate[n] += drhof_dt_hydro[n] * dt / (eta + small);
+                }
+                ProjectSpeciesDensities(rhoY_intermediate, i, j, k);
+            }
 
             std::array<double, NSPECIES> wdot;
             Set::Scalar qdot = 0.0;
