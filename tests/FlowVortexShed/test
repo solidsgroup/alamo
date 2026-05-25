@@ -20,7 +20,7 @@ testlib.validate(path=path,
                  vars=["momentumx","vorticity","pressure"],
                  tolerance=[tol, tol, tol],
                  abs_tolerance = 1e8, #ignore
-                 generate_ref_data = False,
+                 #generate_ref_data = True,
                  tight_layout=False,
 )
 
