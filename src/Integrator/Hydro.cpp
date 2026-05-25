@@ -149,6 +149,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e100);
         // density-based refinement
         pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
+        // density-based refinement
+        pp.query_default("temp_refinement_criterion", value.temp_refinement_criterion, 1e100);
 
         pp_forbid("gamma", "replaced by gas->gamma(...)"); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
@@ -1501,6 +1503,18 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
+    // Temperature criterion for refinement
+    for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& temp = (*temperature_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX, sten);
+            if (grad_temp.lpNorm<2>() * dr * 2 > temp_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
 }
 
 }

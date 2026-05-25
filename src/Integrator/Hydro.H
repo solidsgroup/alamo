@@ -173,6 +173,7 @@ protected:
     bool details = false;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
+    Set::Scalar temp_refinement_criterion=NAN;
     Set::Scalar cfl=NAN, cfl_v=NAN;
 
     Set::Scalar small=NAN;
