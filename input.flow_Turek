@@ -50,7 +50,7 @@ allencahn.ch.lambda = 0.05
 ### HYDRO PARAM ###
 
 ### GAS MODEL ###
-hydro.solver.type = roe
+hydro.solver.type = hllc
 system.amount = kmol
 hydro.gas.mw = 28.0_g/mol
 hydro.gas.thermo.type = cpconstant
@@ -118,7 +118,7 @@ hydro.momentum.bc.expression.type.xhi = neumann neumann
 # hydro.momentum.bc.expression.type.yhi = dirichlet dirichlet
 hydro.momentum.bc.expression.type.ylo = neumann neumann
 hydro.momentum.bc.expression.type.yhi = neumann neumann
-hydro.momentum.bc.expression.val.xlo = "1.5*U*(4.0/0.1681)*y*(0.41-y)" "0.0"
+hydro.momentum.bc.expression.val.xlo = "1.5*U*(4.0/0.1681)*y*(.41-y)" "0.0"
 hydro.momentum.bc.expression.val.xhi = "0.0" "0.0"
 hydro.momentum.bc.expression.val.ylo = "0.0" "0.0"
 hydro.momentum.bc.expression.val.yhi = "0.0" "0.0"
