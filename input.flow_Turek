@@ -8,9 +8,9 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 4
-timestep  = 1e-2
-amr.n_cell = 60 10
+amr.max_level = 2
+timestep  = 1e-8
+amr.n_cell = 240 40
 geometry.prob_lo = 0.0_m  0.0_m
 geometry.prob_hi = 2.5_m  0.41_m
 geometry.is_periodic = 0 0 0
@@ -19,7 +19,7 @@ stop_time = 50.0
 
 amr.cell.all = 1
 
-tstart = 10e-2
+tstart = 10e-8
 
 ## Allen-Cahn Model with no growth
 allencahn.ch.direction = 0
@@ -27,10 +27,12 @@ allencahn.ch.direction_tstart = 0.0
 allencahn.alpha.ic.type = expression
 allencahn.alpha.ic.expression.constant.length = 0.35
 allencahn.alpha.ic.expression.constant.thickness = 0.02
-allencahn.alpha.ic.expression.constant.eps = 0.01
+allencahn.alpha.ic.expression.constant.eps = 0.008
 allencahn.alpha.ic.expression.constant.radius = 0.05
-# allencahn.alpha.ic.expression.region0 = "1/2*erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps)*(1 - erf((abs(x)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
-allencahn.alpha.ic.expression.region0 = "1/4*(1 - erf((abs(x-0.5)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
+# allencahn.alpha.ic.expression.region0 = "1/2*(1 - erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))*(1 - erf((abs(x)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
+# allencahn.alpha.ic.expression.region0 = "1 - 1/4*(1 - erf((abs(x-0.5)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
+# allencahn.alpha.ic.expression.region0 = "1/2*(1 + erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))"
+allencahn.alpha.ic.expression.region0 = "(1/2*(1 + erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))*(1 - 1/4*(1 - erf((abs(x-0.4)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))))"
 
 allencahn.alpha.bc.constant.type.xlo = neumann
 allencahn.alpha.bc.constant.type.xhi = neumann
@@ -48,7 +50,7 @@ allencahn.ch.lambda = 0.05
 ### HYDRO PARAM ###
 
 ### GAS MODEL ###
-hydro.solver.type = hllc
+hydro.solver.type = roe
 system.amount = kmol
 hydro.gas.mw = 28.0_g/mol
 hydro.gas.thermo.type = cpconstant
@@ -56,24 +58,23 @@ hydro.gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
 hydro.gas.thermo.cpconstant.h0 = 0.0
 hydro.gas.thermo.cpconstant.s0 = 0.0
 hydro.gas.thermo.cpconstant.Tref = 0.0_K
+
 hydro.gas.transport.type = mixture_averaged
 hydro.gas.transport.mixture_averaged.type = constant
-hydro.gas.transport.mixture_averaged.mu = 0.01_Pa*s
+hydro.gas.transport.mixture_averaged.mu = 3.0_Pa*s
 hydro.gas.transport.mixture_averaged.k = 0.023_W/m/K
 hydro.gas.eos.type = cpg
 
 hydro.density.ic.type = constant
 hydro.density.ic.constant.value = 5.0
-# hydro.density.ic.expression.region0 = "30.0" # * (0.98027677 * (x<-2.0) + (x>=-2))"
+# hydro.density.ic.expression.region0 = "1000.0"
 hydro.velocity.ic.type = expression
-hydro.velocity.ic.expression.constant.eps   = 0.02
-hydro.velocity.ic.expression.constant.x0    = -0.2
-hydro.velocity.ic.expression.region0 = "0.0" # "0.8 * (0.5 - 0.5*erf((x-x0)/eps))"
+hydro.velocity.ic.expression.region0 = "0.0" 
 hydro.velocity.ic.expression.region1 = "0.0"
 hydro.pressure.ic.type = expression
 hydro.pressure.ic.expression.constant.gamma = 1.4
 hydro.pressure.ic.expression.constant.E_solid = 5.0
-hydro.pressure.ic.expression.region0 = "100.0" # * 40.0 * (0.9724967 * (x<-2.0) + (x>=-2))"
+hydro.pressure.ic.expression.region0 = "1000000" # * 40.0 * (0.9724967 * (x<-2.0) + (x>=-2))"
 
 ### ETA BC  ###
 
@@ -105,18 +106,34 @@ hydro.energy.bc.constant.type.xlo = neumann
 hydro.energy.bc.constant.type.ylo = neumann
 hydro.energy.bc.constant.type.yhi = neumann
 hydro.energy.bc.constant.val.xhi = 0.0
-hydro.energy.bc.constant.val.xlo = 100.0
+hydro.energy.bc.constant.val.xlo = 0.0
 hydro.energy.bc.constant.val.ylo = 0.0 
 hydro.energy.bc.constant.val.yhi = 0.0
-hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = dirichlet neumann
-hydro.momentum.bc.constant.type.ylo = neumann dirichlet
-hydro.momentum.bc.constant.type.yhi = neumann dirichlet
-hydro.momentum.bc.constant.val.xhi = 0.0 0.0
-hydro.momentum.bc.constant.val.xlo = 0.0 0.0
-hydro.momentum.bc.constant.val.ylo = 0.0 0.0
-hydro.momentum.bc.constant.val.yhi = 0.0 0.0
-hydro.eta.ic.constant.value = 1.0
+
+hydro.momentum.bc.type = expression
+hydro.momentum.bc.expression.constant.U = 0.002
+hydro.momentum.bc.expression.type.xlo = dirichlet dirichlet
+hydro.momentum.bc.expression.type.xhi = neumann neumann
+# hydro.momentum.bc.expression.type.ylo = dirichlet dirichlet
+# hydro.momentum.bc.expression.type.yhi = dirichlet dirichlet
+hydro.momentum.bc.expression.type.ylo = neumann neumann
+hydro.momentum.bc.expression.type.yhi = neumann neumann
+hydro.momentum.bc.expression.val.xlo = "1.5*U*(4.0/0.1681)*y*(0.41-y)" "0.0"
+hydro.momentum.bc.expression.val.xhi = "0.0" "0.0"
+hydro.momentum.bc.expression.val.ylo = "0.0" "0.0"
+hydro.momentum.bc.expression.val.yhi = "0.0" "0.0"
+
+hydro.eta.ic.type = expression
+# hydro.eta.ic.constant.value = 1.0
+hydro.eta.ic.expression.constant.length = 0.35
+hydro.eta.ic.expression.constant.thickness = 0.02
+hydro.eta.ic.expression.constant.eps = 0.008
+hydro.eta.ic.expression.constant.radius = 0.05
+# allencahn.alpha.ic.expression.region0 = "1/2*(1 - erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))*(1 - erf((abs(x)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
+# allencahn.alpha.ic.expression.region0 = "1 - 1/4*(1 - erf((abs(x-0.5)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))"
+# allencahn.alpha.ic.expression.region0 = "1/2*(1 + erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))"
+hydro.eta.ic.expression.region0 = "(1/2*(1 + erf((((x-0.2)**2+(y-0.2)**2)**(0.5)-radius)/eps))*(1 - 1/4*(1 - erf((abs(x-0.4)-1/2*length)/eps))*(1 - erf((abs(y-0.2)-1/2*thickness)/eps))))"
+
 
 ### HYDRO REFINEMENT CRITERIA ###
 hydro.eta_refinement_criterion = 0.1
@@ -132,7 +149,7 @@ hydro.u0.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
-hydro.cutoff=0.1
+hydro.cutoff=0.01
 hydro.lagrange=0.0
 
 dynamictimestep.on = 1
