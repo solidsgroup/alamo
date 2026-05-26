@@ -32,18 +32,19 @@ private:
     {
         Set::Field<Set::Scalar> alpha_old;
         Set::Field<Set::Scalar> alpha;
-        Set::Field<Set::Scalar> dalpha_agglom;
-        Set::Field<Set::Scalar> dalpha_reaction;
+        Set::Field<Set::Scalar> dalpha;
         Set::Field<Set::Scalar> driving_force;
         Set::Field<Set::Vector> evolution_driving_force;
         IC::IC<Set::Scalar> *alpha_ic = nullptr;
         BC::BC<Set::Scalar> *alpha_bc = nullptr;
+        Set::Scalar p = NAN;
         Set::Scalar epsilon = NAN;
         Set::Scalar omega = NAN;
         Set::Scalar gamma = NAN;
-        Set::Scalar kappa = NAN;
+        Set::Scalar kappa_g = NAN;
         Set::Scalar mu = NAN;
-        Set::Scalar M_reaction = NAN;
+        Set::Scalar kappa_M = NAN;
+        Set::Scalar q = NAN;
         Set::Scalar V = 0.0;
     } agglom;
 };

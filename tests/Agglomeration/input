@@ -2,10 +2,9 @@ alamo.program = agglomeration
 plot_file = tests/Agglomeration/output
 
 # AMR parameters
-# amr.plot_dt = 1e-4
-amr.plot_dt = 1e-5
+amr.plot_dt = 1.0e-9
 amr.blocking_factor = 16
-amr.thermo.plot_dt = 1e-4
+amr.thermo.plot_dt = 1.0e-9
 flame.amr.refinement_criterion = 1e-1
 flame.amr.refinement_criterion_temp = 10.0
 flame.amr.phi_refinement_criterion = 5e-1
@@ -13,21 +12,21 @@ amr.cell.all = 1
 amr.node.all = 1
 
 # Geometry and AMR level specification
-amr.n_cell = 128 128 128
-geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 5.12e-4 5.12e-4 5.12e-4
+amr.n_cell = 512 512
+geometry.prob_lo = 0.0 0.0
+geometry.prob_hi = 1.28e-4 1.28e-4
 amr.max_level = 0
-geometry.is_periodic = 0 0 0
+geometry.is_periodic = 1 1
 
 # Timestep and duration
-timestep = 1.0e-9
-stop_time = 0.1
+timestep = 1.0e-12
+stop_time = 1.0e-5
 
 # Phase field parameters
 flame.pf.eps = 1e-6
 flame.pf.lambda = 1e-3
 flame.pf.eta.ic.type = constant
-flame.pf.eta.ic.constant.value = 1.0
+flame.pf.eta.ic.constant.value = 0.0
 flame.pf.kappa = 1.0
 flame.pf.w1 = 1.0
 flame.pf.w12 = 2.0
@@ -36,24 +35,18 @@ flame.small = 1e-4
 
 # eta boundary condition
 flame.pf.eta.bc.type = constant
-flame.pf.eta.bc.constant.type.xlo = dirichlet
-flame.pf.eta.bc.constant.type.xhi = dirichlet
-flame.pf.eta.bc.constant.type.ylo = neumann
-flame.pf.eta.bc.constant.type.yhi = neumann
-flame.pf.eta.bc.constant.type.zlo = neumann
-flame.pf.eta.bc.constant.type.zhi = neumann
+flame.pf.eta.bc.constant.type.xlo = periodic
+flame.pf.eta.bc.constant.type.xhi = periodic
+flame.pf.eta.bc.constant.type.ylo = periodic
+flame.pf.eta.bc.constant.type.yhi = periodic
 flame.pf.eta.bc.constant.val.xlo = 0.0
-flame.pf.eta.bc.constant.val.xhi = 1.0
+flame.pf.eta.bc.constant.val.xhi = 0.0
 flame.pf.eta.bc.constant.val.ylo = 0.0
 flame.pf.eta.bc.constant.val.yhi = 0.0
-flame.pf.eta.bc.constant.val.zlo = 0.0
-flame.pf.eta.bc.constant.val.zhi = 0.0
 
-# Phi initial condition (spheres)
-flame.phi.ic.type = psread
-flame.phi.ic.psread.file.unit = m
-flame.phi.ic.psread.file.name = tests/Agglomeration/3d-slice.xyzr
-flame.phi.ic.psread.eps = 1.15e-5_m
+# Phi initial condition
+flame.phi.ic.type = constant
+flame.phi.ic.constant.value = 0.0
 
 # Use the full-feedback propellant model
 flame.propellant.type = fullfeedback
@@ -121,29 +114,27 @@ flame.elastic.type = disable
 flame.elastic.phirefinement = 0
 
 # DDCH agglomeration parameters
-epsilon = 2.0e-5
-omega = 1.0e-3
-gamma = 6.0e0
-kappa = 1.0e-1
-mu = 1.0e-6
-M_reaction = 0.0
+p = 1.0
+epsilon = 1.0e-6
+omega = 2.5
+gamma = 6.0
+kappa_g = 1.0e-2
+mu = 1.0e-15
+kappa_M = 1.0e-19
+q = 3.0
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = random
-alpha.ic.random.offset = 4.0e-1
-alpha.ic.random.mult = 2.0e-1
+alpha.ic.random.offset = 1.55e-1
+alpha.ic.random.mult = 5.0e-2
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant
-alpha.bc.constant.type.xlo = neumann
-alpha.bc.constant.type.xhi = neumann
-alpha.bc.constant.type.ylo = neumann
-alpha.bc.constant.type.yhi = neumann
-alpha.bc.constant.type.zlo = neumann
-alpha.bc.constant.type.zhi = neumann
+alpha.bc.constant.type.xlo = periodic
+alpha.bc.constant.type.xhi = periodic
+alpha.bc.constant.type.ylo = periodic
+alpha.bc.constant.type.yhi = periodic
 alpha.bc.constant.val.xlo = 0.0
 alpha.bc.constant.val.xhi = 0.0
 alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
-alpha.bc.constant.val.zlo = 0.0
-alpha.bc.constant.val.zhi = 0.0

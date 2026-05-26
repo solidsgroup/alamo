@@ -1,0 +1,92 @@
+alamo.program = agglomeration
+plot_file = tests/Agglomeration/output_conference_paper
+
+# AMR / output parameters
+amr.plot_dt = 1.0e-3
+amr.blocking_factor = 16
+amr.thermo.plot_dt = 1.0e-3
+amr.cell.all = 1
+amr.node.all = 1
+
+# 2D periodic domain. Lengths are non-dimensional (1 unit ~= 1 um).
+amr.n_cell = 512 512
+geometry.prob_lo = 0.0 0.0
+geometry.prob_hi = 25.6 25.6
+amr.max_level = 0
+geometry.is_periodic = 1 1
+
+# Timestep and duration (non-dimensional time)
+timestep = 1.0e-7
+stop_time = 1.0e0
+
+# Phase field (eta) parameters - eta stays at 0, so disable all driving terms
+flame.pf.eps = 1.0e-6
+flame.pf.lambda = 0.0
+flame.pf.kappa = 0.0
+flame.pf.w1 = 0.0
+flame.pf.w12 = 0.0
+flame.pf.w0 = 0.0
+flame.small = 1.0e-12
+
+# eta IC: zero everywhere
+flame.pf.eta.ic.type = constant
+flame.pf.eta.ic.constant.value = 0.0
+
+# eta BC: periodic
+flame.pf.eta.bc.type = constant
+flame.pf.eta.bc.constant.type.xlo = periodic
+flame.pf.eta.bc.constant.type.xhi = periodic
+flame.pf.eta.bc.constant.type.ylo = periodic
+flame.pf.eta.bc.constant.type.yhi = periodic
+flame.pf.eta.bc.constant.val.xlo = 0.0
+flame.pf.eta.bc.constant.val.xhi = 0.0
+flame.pf.eta.bc.constant.val.ylo = 0.0
+flame.pf.eta.bc.constant.val.yhi = 0.0
+
+# phi IC: zero everywhere (no AP particles; alpha lives entirely in the binder)
+flame.phi.ic.type = constant
+flame.phi.ic.constant.value = 0.0
+
+# Propellant model: power law with zero rates so L = 0 and eta cannot evolve
+flame.propellant.type = powerlaw
+flame.propellant.powerlaw.gamma = 1.0
+flame.propellant.powerlaw.r_ap = 0.0
+flame.propellant.powerlaw.r_htpb = 0.0
+flame.propellant.powerlaw.r_comb = 0.0
+flame.propellant.powerlaw.n_ap = 1.0
+flame.propellant.powerlaw.n_htpb = 1.0
+flame.propellant.powerlaw.n_comb = 1.0
+flame.propellant.powerlaw.deltaw = 1.0
+
+# Thermal: off
+flame.thermal.on = 0
+
+# Chamber pressure - placeholder (unused with zero burn rates)
+flame.chamber.pressure = 1.0_MPa
+
+# Mechanics: disabled
+flame.elastic.on = 0
+flame.elastic.type = disable
+flame.elastic.phirefinement = 0
+
+# DDCH agglomeration parameters
+epsilon = 1.5e-1
+omega = 1.0e0
+gamma = 5.0e0
+kappa_g = 1.0e-1
+kappa_M = 5.0e-6
+mu = 1.0e0
+M_reaction = 0.0e0
+
+# alpha IC: 7 circles read from XYZR file
+alpha.ic.type = psread
+alpha.ic.psread.file.unit = m
+alpha.ic.psread.file.name = tests/Agglomeration/conference_paper.xyzr
+alpha.ic.psread.eps = 5.0e-1
+
+# alpha BC: periodic
+alpha.bc.type = constant
+alpha.bc.constant.type.xlo = periodic
+alpha.bc.constant.type.xhi = periodic
+alpha.bc.constant.type.ylo = periodic
+alpha.bc.constant.type.yhi = periodic
