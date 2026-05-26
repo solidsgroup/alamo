@@ -272,39 +272,90 @@ void Hydro::Mix(int lev)
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
 
-
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
-
-            // Initially compute primitives (T,P,u) from given initial conditions
-            // But from then on, compute them from mixed values to avoid zero T conditions
-            // Except velocity - keep velocity from fluid values only
-            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
-            Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+            
+            gas.ComputeLocalFractions(rho, Y, X, i,j,k);
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
             T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
-            // Mix
+            if (i == 67 && j == 63)
+            {
+                amrex::Print() << "Mix Func INIT DEBUG (67,63):"
+                            << "\n  eta_patch=" << eta_patch(i,j,k)
+                            << " eta=" << eta
+                            << "\n  density=" << density
+                            << " rho_solid=" << rho_solid(i,j,k)
+                            << " p=" << p(i,j,k)
+                            << " T=" << T(i,j,k)
+                            << "\n  v_x=" << v(i,j,k,0)
+                            << " v_y=" << v(i,j,k,1)
+                            << "\n  E_fluid=" << E_fluid
+                            << " E_solid=" << E_solid(i,j,k)
+                            << "\n  E_mixed(before)=" << E_fluid*eta + E_solid(i,j,k)*(1.0-eta)
+                            << "\n  M_solid_x=" << M_solid(i,j,k,0)
+                            << " M_solid_y=" << M_solid(i,j,k,1)
+                            << "\n  M_x(before)=" << (rho(i,j,k)*v(i,j,k,0))*eta + M_solid(i,j,k,0)*(1.0-eta)
+                            << " M_y(before)=" << (rho(i,j,k)*v(i,j,k,1))*eta + M_solid(i,j,k,1)*(1.0-eta)
+                            << "\n  rho_mixed(before)=" << eta*rho(i,j,k) + (1.0-eta)*rho_solid(i,j,k)
+                            << "\n";
+            }
+
             M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
             M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
-
             rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
-
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
-            //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
 
-            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
-            //density = gas.ComputeD(rho, i, j, k);
-            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            //v(i,j,k,0) = M(i,j,k,0)/density;
-            //v(i,j,k,1) = M(i,j,k,1)/density;
+            if (i == 67 && j == 63)
+            {
+                amrex::Print() << "Mix Func INIT RESULT (67,63):"
+                            << "\n  rho(after)=" << rho(i,j,k)
+                            << " M_x(after)=" << M(i,j,k,0)
+                            << " M_y(after)=" << M(i,j,k,1)
+                            << " E(after)=" << E(i,j,k)
+                            << "\n  E/eta=" << E(i,j,k) / (eta + 1e-8)
+                            << " E_solid/eta=" << E_solid(i,j,k) / (eta + 1e-8)
+                            << "\n";
+            }
         });
+        // amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        // {  
+        //     Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+
+        //     // Initially compute primitives (T,P,u) from given initial conditions
+        //     // But from then on, compute them from mixed values to avoid zero T conditions
+        //     // Except velocity - keep velocity from fluid values only
+        //     gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
+        //     Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+        //     T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
+        //     Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
+
+        //     // Mix
+        //     M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
+        //     M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
+        //     M_old(i, j, k, 0) = M(i, j, k, 0);
+        //     M_old(i, j, k, 1) = M(i, j, k, 1);
+
+        //     rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
+        //     rho_old(i, j, k) = rho(i, j, k);
+
+        //     E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
+        //     E_old(i, j, k) = E(i, j, k);
+        //     //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
+
+        //     //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+        //     //density = gas.ComputeD(rho, i, j, k);
+        //     //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+        //     //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+        //     //v(i,j,k,0) = M(i,j,k,0)/density;
+        //     //v(i,j,k,1) = M(i,j,k,1)/density;
+        // });
         //Util::Abort(INFO);
     }
     c_max = 0.0;
