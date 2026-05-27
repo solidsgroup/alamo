@@ -89,7 +89,7 @@ protected:
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
     void RefreshDerivedPlotFields(int lev);
-    void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf);
+    void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost = false, bool use_old_eta = false);
     
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
