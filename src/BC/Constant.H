@@ -134,6 +134,13 @@ public:
                 {AMREX_D_DECL((T)m_bc_type[Face::XLO][0],(T)m_bc_type[Face::YLO][0],(T)m_bc_type[Face::ZLO][0])}} };
     }
 
+    virtual int GetBCType(Orientation face, int comp) override
+    {
+        if (m_bc_type[(int)face].size() > (size_t)comp)
+            return m_bc_type[(int)face][comp];
+        return 0;
+    }
+
 
 private:
 #if AMREX_SPACEDIM==2
@@ -171,6 +178,11 @@ public:
         bcmap["Symmetry"] = amrex::BCType::mathematicalBndryTypes::reflect_even;
         bcmap["SlipWall"] = amrex::BCType::mathematicalBndryTypes::ext_dir;
         bcmap["NoSlipWall"] = amrex::BCType::mathematicalBndryTypes::ext_dir;
+        bcmap["dirichlet_face"] = 101;
+        bcmap["DirichletFace"] = 101;
+        bcmap["dirichletface"] = 101;
+        bcmap["nonreflecting"] = amrex::BCType::mathematicalBndryTypes::foextrap;
+        bcmap["Nonreflecting"] = amrex::BCType::mathematicalBndryTypes::foextrap;
         // From <AMReX_LO_BCTYPES.H>
         bcmap["interior"] = (int)amrex::LinOpBCType::interior;
         bcmap["Dirichlet"] = (int)amrex::LinOpBCType::Dirichlet;
