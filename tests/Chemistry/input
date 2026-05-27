@@ -102,10 +102,10 @@ plot_file = output.chemistry_finite_rate_implicit
 amr.plot_dt = 1e-6
 amr.max_level = 0
 amr.max_grid_size = 32
-amr.blocking_factor = 4
+amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 0.7
-amr.n_cell = 16 16 0 # Quasi-0D (small 2D grid)
+amr.n_cell = 1 1 0
 
 ### DIMENSIONS ###
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
