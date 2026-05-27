@@ -70,16 +70,25 @@ public:
     void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
 
     // EOS
+    #if AMREX_SPACEDIM == 2
     double ComputeT(
             double density, double momentumx, double momentumy, double E, double Tguess,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
+    double ComputeE(    
+            double density, double momentumx, double momentumy, double T,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    #elif AMREX_SPACEDIM == 3
+    double ComputeT(
+            double density, double momentumx, double momentumy, double momentumz, double E, double Tguess,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
+    double ComputeE(    
+            double density, double momentumx, double momentumy, double momentumz, double T,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    #endif
     double ComputeT_from_primitives(
             double pressure, double density,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double ComputeE(    
-            double density, double momentumx, double momentumy, double T,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
 // Universal methods inherent to Gas
 public:

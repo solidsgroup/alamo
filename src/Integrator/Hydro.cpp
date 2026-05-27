@@ -190,7 +190,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // Boundary condition for energy
         pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
         // Boundary condition for momentum
-        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
+        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,AMREX_SPACEDIM);
 
         if (!value.managed)
         {
@@ -222,27 +222,27 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true ,true);
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false, true);
 
-        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true ,true, {"x","y"});
-        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
+        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, AMREX_SPACEDIM, nghost, "momentum",     true ,true, {"x","y"});
+        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, AMREX_SPACEDIM, nghost, "momentum_old", false, true);
  
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
         value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "temperature",  true, false);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, AMREX_SPACEDIM, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
         value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, NSPECIES, 0, "m0",  true, false);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, AMREX_SPACEDIM, 0, "u0",  true, false, {"x","y"});
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, AMREX_SPACEDIM, 0, "q",   true, false, {"x","y"});
 
         value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
         value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
         value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
-        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
+        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, {"x","y"});
         value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+3, 0, "Source", true, false);
+        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+AMREX_SPACEDIM+1, 0, "Source", true, false);
 
         value.RegisterNewFab(value.mass_fraction_mf,    &value.bc_nothing, NSPECIES, nghost, "mass_fraction",     true , true);
         value.RegisterNewFab(value.mole_fraction_mf,    &value.bc_nothing, NSPECIES, nghost, "mole_fraction",     true , true);
@@ -407,13 +407,23 @@ void Hydro::Mix(int lev)
             gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
             Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
             T(i,j,k) = gas.ComputeT_from_primitives(p(i,j,k), density, X, i, j, k);
+            #if AMREX_SPACEDIM == 2
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
+            #elif AMREX_SPACEDIM == 3
+            Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), density*v(i,j,k,2), T(i,j,k), X, i, j, k);
+            #endif
 
             // Mix
             M(i, j, k, 0) = density*v(i, j, k, 0)*eta +  M_solid(i, j, k, 0)*(1.0-eta);
             M(i, j, k, 1) = density*v(i, j, k, 1)*eta +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
+
+            #if AMREX_SPACEDIM == 3
+            M(i, j, k, 2) = density*v(i, j, k, 2)*eta +  M_solid(i, j, k, 2)*(1.0-eta);
+            M_old(i, j, k, 2) = M(i, j, k, 2);
+            #endif
+            
 
             for (int n=0; n<NSPECIES; ++n)
             {
@@ -443,6 +453,8 @@ void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }
 
+// Returns solid values for densities, momentum, and energy if eta < cutoff
+// Otherwise mixed densities are updated according to TryProjectSpeciesDensities
 void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost, bool use_old_eta)
 {
     Set::Field<Set::Scalar>* eta_field = use_old_eta ? eta_old_mf : eta_mf;
@@ -476,6 +488,9 @@ void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::Mult
                 }
                 M(i,j,k,0) = M_solid(i,j,k,0);
                 M(i,j,k,1) = M_solid(i,j,k,1);
+                #if AMREX_SPACEDIM == 3
+                M(i,j,k,2) = M_solid(i,j,k,2);
+                #endif
                 E(i,j,k,0) = E_solid(i,j,k,0);
             };
 
@@ -505,12 +520,24 @@ void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::Mult
                 (M(i,j,k,0) - (1.0 - eta) * M_solid(i,j,k,0)) / (eta + small_local);
             const Set::Scalar My_fluid =
                 (M(i,j,k,1) - (1.0 - eta) * M_solid(i,j,k,1)) / (eta + small_local);
+            #if AMREX_SPACEDIM == 3
+            const Set::Scalar Mz_fluid =
+                (M(i,j,k,2) - (1.0 - eta) * M_solid(i,j,k,2)) / (eta + small_local);
+            #endif
             const Set::Scalar E_fluid =
                 (E(i,j,k,0) - (1.0 - eta) * E_solid(i,j,k,0)) / (eta + small_local);
+            #if AMREX_SPACEDIM == 2
             const Set::Scalar kinetic_fluid =
                 0.5 * (Mx_fluid * Mx_fluid + My_fluid * My_fluid) / (density_fluid + small_local);
+            #elif AMREX_SPACEDIM == 3
+            const Set::Scalar kinetic_fluid =
+                0.5 * (Mx_fluid * Mx_fluid + My_fluid * My_fluid + Mz_fluid * Mz_fluid) / (density_fluid + small_local);
+            #endif
 
             if (!std::isfinite(Mx_fluid) || !std::isfinite(My_fluid) ||
+                #if AMREX_SPACEDIM == 3
+                !std::isfinite(Mz_fluid) ||
+                #endif
                 !std::isfinite(E_fluid) || !std::isfinite(kinetic_fluid) ||
                 E_fluid <= kinetic_fluid)
             {
