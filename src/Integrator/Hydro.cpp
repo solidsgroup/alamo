@@ -32,6 +32,10 @@ namespace Integrator
 
 namespace
 {
+    // Check that all partial densities are finite and greater than or equal to 0.0.
+    // If returns true: negative densities are clipped and remaining densities are scaled to
+    // conserve the original density
+    // If returns false: no changes are made to the partial densities, and run quietly continues
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool TryProjectSpeciesDensities(
         std::array<double, NSPECIES>& rhoY,
@@ -73,6 +77,7 @@ namespace
         return true;
     }
 
+    // Helper function to test if densities are scaled or not
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool TryProjectSpeciesDensities(std::array<double, NSPECIES>& rhoY)
     {
@@ -84,6 +89,7 @@ namespace
             rhoY, raw_density, positive_density, scale, nonfinite_species);
     }
 
+    // Noisy density projection that exits loudly if it fails
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void ProjectSpeciesDensities(std::array<double, NSPECIES>& rhoY, int i, int j, int k)
     {
@@ -109,7 +115,8 @@ namespace
             ", positive density=", positive_density);
     }
 
-
+    // Stencil to apply central differencing even at bounds of validbox
+    // This ensures ghost cells are correctly utilized to enforce BCs
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     std::array<Numeric::StencilType, AMREX_SPACEDIM> BCGhostStencil()
     {
@@ -118,9 +125,11 @@ namespace
                               Numeric::StencilType::Central) };
     }
 
+    // If eta is less than cutoff, then the fluid state should simply return the solid state,
+    // Otherwise compute the fluid state by removing the solid contribution from the mixed state
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Solver::Local::Riemann::State ReconstructFluidState(
-        const Solver::Local::Riemann::State& total,
+        const Solver::Local::Riemann::State& mixed,
         const Solver::Local::Riemann::State& solid,
         Set::Scalar eta_raw,
         bool invert,
@@ -131,11 +140,11 @@ namespace
         {
             const Set::Scalar eta_fluid = 1.0 - eta_raw;
             if (eta_fluid <= cutoff) return solid;
-            return (total - eta_raw * solid) / (eta_fluid + small);
+            return (mixed - eta_raw * solid) / (eta_fluid + small);
         }
 
         if (eta_raw <= cutoff) return solid;
-        return (total - (1.0 - eta_raw) * solid) / (eta_raw + small);
+        return (mixed - (1.0 - eta_raw) * solid) / (eta_raw + small);
     }
 }
 
@@ -151,16 +160,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         // Gas model (Thermo, Transport, and EOS)
         pp.queryclass<Model::Gas::Gas>("gas", value.gas);
-        std::cout << value.gas.thermo->model_name() << "\n";
-        std::cout << value.gas.transport->model_name() << "\n";
-        std::cout << value.gas.eos->model_name() << "\n";
-        std::cout << NSPECIES << "\n";
-
-        // pp.query_default("r_refinement_criterion",     value.r_refinement_criterion    , 0.01);
-        // energy-based refinement
-        // pp.query_default("e_refinement_criterion",     value.e_refinement_criterion    , 0.01);
-        // momentum-based refinement
-        // pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
+        Util::Message(INFO, "Model::Gas::EOS       = ", value.gas.eos->model_name());
+        Util::Message(INFO, "Model::Gas::Thermo    = ", value.gas.thermo->model_name());
+        Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport->model_name());
+        Util::Message(INFO, "NSPECIES = ", NSPECIES);
 
         pp.forbid("scheme","use integration.type instead");
 
@@ -181,17 +184,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_forbid("mu", "replaced with gas->dynamic_viscosity(...)"); // linear viscosity coefficient
-        pp_forbid("Lfactor","replaced with mu");
-        //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
-        pp_forbid("Pfactor","replaced with mu");
-        //pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
-        pp_forbid("pref", "deprecated - use absolute pressure"); // reference pressure for Roe solver
-
-        pp_forbid("rho.bc","--> density.bc");
-        pp_forbid("p.bc","--> pressure.bc");
-        pp_forbid("v.bc", "--> velocity.bc");
-        pp_forbid("pressure.bc","--> energy.bc");
-        pp_forbid("velocity.bc","--> momentum.bc");
 
         // Boundary condition for density
         pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc, NSPECIES);
@@ -210,8 +202,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
         pp_query_default("details",value.details,false); // save detailed data (viscosity, heat conductivity, etc.)
-
-        pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
     }
     // Register FabFields:
     {
@@ -244,48 +234,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
-        auto auxiliary_bc_specified = [&pp](const std::string& name)
-        {
-            const char* suffixes[] = {
-                ".type",
-                ".constant.type.xlo", ".constant.type.xhi",
-                ".constant.type.ylo", ".constant.type.yhi",
-                ".constant.type.zlo", ".constant.type.zhi",
-                ".constant.val.xlo", ".constant.val.xhi",
-                ".constant.val.ylo", ".constant.val.yhi",
-                ".constant.val.zlo", ".constant.val.zhi"
-            };
-            for (const char* suffix : suffixes)
-            {
-                if (pp.contains((name + suffix).c_str())) return true;
-            }
-            return false;
-        };
-
-        const bool bc_D_specified = auxiliary_bc_specified("bc_D");
-        const bool bc_1_specified = auxiliary_bc_specified("bc_1");
-        const bool bc_N_specified = auxiliary_bc_specified("bc_N");
-
-        pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
-        if (!bc_D_specified)
-        {
-            delete value.neumann_bc_D;
-            value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
-        }
-
-        pp.select_default<BC::Constant,BC::Expression>("bc_1",value.neumann_bc_1, 1);
-        if (!bc_1_specified)
-        {
-            delete value.neumann_bc_1;
-            value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
-        }
-
-        pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, NSPECIES);
-        if (!bc_N_specified)
-        {
-            delete value.neumann_bc_N;
-            value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
-        }
+        value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
+        value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
+        value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
@@ -306,15 +257,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.qdot_mf, &value.bc_nothing, 1, nghost, "qdot", true, true);
         }
     }
-
-    pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
-    pp_forbid("Pressure.ic", "--> pressure.ic");
-    pp_forbid("SolidMomentum.ic", "--> solid.momentum.ic");
-    pp_forbid("SolidDensity.ic.type", "--> solid.density.ic.type");
-    pp_forbid("SolidEnergy.ic.type", "--> solid.energy.ic.type");
-    pp_forbid("Density.ic.type", "--> density.ic.type");
-    pp_forbid("rho_injected.ic.type","no longer using rho_injected use m0 instead");
-    pp.forbid("mdot.ic.type", "replace mdot with u0");
 
     // ORDER PARAMETER
 
@@ -395,8 +337,6 @@ void Hydro::Initialize(int lev)
         eta_ic           ->Initialize(lev, *eta_old_mf, 0.0);
     }
     etadot_mf[lev]   ->setVal(0.0);
-
-    //flux_mf[lev]   ->setVal(0.0);
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
@@ -483,16 +423,7 @@ void Hydro::Mix(int lev)
 
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
-            //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
-
-            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
-            //density = gas.ComputeD(rho, i, j, k);
-            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            //v(i,j,k,0) = M(i,j,k,0)/density;
-            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
-        //Util::Abort(INFO);
     }
     c_max = 0.0;
     vx_max = 0.0;
