@@ -798,36 +798,36 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
                 (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
 
-            // Override energy using pressure_mf to avoid E/eta amplification (Claude suggestion)
-            state_xlo_fluid.E = gas.ComputeE(state_xlo_fluid.rho,
-                state_xlo_fluid.M_normal, state_xlo_fluid.M_tangent,
-                gas.ComputeT(pressure(i-1,j,k), state_xlo_fluid.rho, molef, i-1, j, k),
-                molef, i-1, j, k);
+            // // Override energy using pressure_mf to avoid E/eta amplification (Claude suggestion)
+            // state_xlo_fluid.E = gas.ComputeE(state_xlo_fluid.rho,
+            //     state_xlo_fluid.M_normal, state_xlo_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i-1,j,k), state_xlo_fluid.rho, molef, i-1, j, k),
+            //     molef, i-1, j, k);
 
-            state_x_fluid.E = gas.ComputeE(state_x_fluid.rho,
-                state_x_fluid.M_normal, state_x_fluid.M_tangent,
-                gas.ComputeT(pressure(i,j,k), state_x_fluid.rho, molef, i, j, k),
-                molef, i, j, k);
+            // state_x_fluid.E = gas.ComputeE(state_x_fluid.rho,
+            //     state_x_fluid.M_normal, state_x_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i,j,k), state_x_fluid.rho, molef, i, j, k),
+            //     molef, i, j, k);
 
-            state_xhi_fluid.E = gas.ComputeE(state_xhi_fluid.rho,
-                state_xhi_fluid.M_normal, state_xhi_fluid.M_tangent,
-                gas.ComputeT(pressure(i+1,j,k), state_xhi_fluid.rho, molef, i+1, j, k),
-                molef, i+1, j, k);
+            // state_xhi_fluid.E = gas.ComputeE(state_xhi_fluid.rho,
+            //     state_xhi_fluid.M_normal, state_xhi_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i+1,j,k), state_xhi_fluid.rho, molef, i+1, j, k),
+            //     molef, i+1, j, k);
 
-            state_ylo_fluid.E = gas.ComputeE(state_ylo_fluid.rho,
-                state_ylo_fluid.M_normal, state_ylo_fluid.M_tangent,
-                gas.ComputeT(pressure(i,j-1,k), state_ylo_fluid.rho, molef, i, j-1, k),
-                molef, i, j-1, k);
+            // state_ylo_fluid.E = gas.ComputeE(state_ylo_fluid.rho,
+            //     state_ylo_fluid.M_normal, state_ylo_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i,j-1,k), state_ylo_fluid.rho, molef, i, j-1, k),
+            //     molef, i, j-1, k);
 
-            state_y_fluid.E = gas.ComputeE(state_y_fluid.rho,
-                state_y_fluid.M_normal, state_y_fluid.M_tangent,
-                gas.ComputeT(pressure(i,j,k), state_y_fluid.rho, molef, i, j, k),
-                molef, i, j, k);
+            // state_y_fluid.E = gas.ComputeE(state_y_fluid.rho,
+            //     state_y_fluid.M_normal, state_y_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i,j,k), state_y_fluid.rho, molef, i, j, k),
+            //     molef, i, j, k);
 
-            state_yhi_fluid.E = gas.ComputeE(state_yhi_fluid.rho,
-                state_yhi_fluid.M_normal, state_yhi_fluid.M_tangent,
-                gas.ComputeT(pressure(i,j+1,k), state_yhi_fluid.rho, molef, i, j+1, k),
-                molef, i, j+1, k);
+            // state_yhi_fluid.E = gas.ComputeE(state_yhi_fluid.rho,
+            //     state_yhi_fluid.M_normal, state_yhi_fluid.M_tangent,
+            //     gas.ComputeT(pressure(i,j+1,k), state_yhi_fluid.rho, molef, i, j+1, k),
+            //     molef, i, j+1, k);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
