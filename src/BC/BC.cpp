@@ -28,13 +28,6 @@ int ReadString(std::string bcstring)
     if (bcstring == "inflow")           return (int)amrex::LinOpBCType::inflow;
     if (bcstring == "Periodic" ||
         bcstring == "periodic")         return (int)amrex::LinOpBCType::Periodic;
-    if (bcstring == "dirichlet_face" ||
-        bcstring == "DirichletFace" ||
-        bcstring == "dirichletface")    return 101;
-    if (bcstring == "nonreflecting" ||
-        bcstring == "Nonreflecting" ||
-        bcstring == "outflow" ||
-        bcstring == "Outflow")          return (int)amrex::BCType::mathematicalBndryTypes::foextrap;
     return 0;
 }
 bool IsPeriodic(int bctype)
@@ -56,7 +49,6 @@ bool IsDirichlet(int bctype)
 {
     if (bctype == (int)amrex::BCType::mathematicalBndryTypes::ext_dir) return true;
     if (bctype == (int)amrex::LinOpBCType::Dirichlet) return true;
-    if (bctype == 101) return true; // dirichlet_face
     else return false;
 }
 bool IsReflectEven(int bctype)
@@ -67,16 +59,6 @@ bool IsReflectEven(int bctype)
 bool IsReflectOdd(int bctype)
 {
     if (bctype == (int)amrex::BCType::mathematicalBndryTypes::reflect_odd) return true;
-    else return false;
-}
-bool IsFoextrap(int bctype)
-{
-    if (bctype == (int)amrex::BCType::mathematicalBndryTypes::foextrap) return true;
-    else return false;
-}
-bool IsDirichletFace(int bctype)
-{
-    if (bctype == 101) return true;
     else return false;
 }
 }

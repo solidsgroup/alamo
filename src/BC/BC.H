@@ -109,8 +109,6 @@ public:
     }
 
 
-    virtual int GetBCType(Orientation /*face*/, int /*comp*/) { return 0; }
-
     virtual amrex::BCRec GetBCRec() = 0;
 
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic()
@@ -142,8 +140,6 @@ bool IsNeumann(int bctype);
 bool IsReflectEven(int bctype);
 bool IsReflectOdd(int bctype);
 bool IsDirichlet(int bctype);
-bool IsFoextrap(int bctype);
-bool IsDirichletFace(int bctype);
 }
 
 }

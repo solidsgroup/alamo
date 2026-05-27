@@ -1158,15 +1158,6 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             qdot_arr = qdot_mf.Patch(lev,mfi);
         }
 
-        const amrex::Box &domain_box = geom[lev].Domain();
-        const amrex::Dim3 dom_lo = amrex::lbound(domain_box);
-        const amrex::Dim3 dom_hi = amrex::ubound(domain_box);
-
-        bool bc_xlo_is_dirichlet_face = BC::BCUtil::IsDirichletFace(density_bc->GetBCType(BC::Orientation::xlo, 0));
-        bool bc_xhi_is_dirichlet_face = BC::BCUtil::IsDirichletFace(density_bc->GetBCType(BC::Orientation::xhi, 0));
-        bool bc_ylo_is_dirichlet_face = BC::BCUtil::IsDirichletFace(density_bc->GetBCType(BC::Orientation::ylo, 0));
-        bool bc_yhi_is_dirichlet_face = BC::BCUtil::IsDirichletFace(density_bc->GetBCType(BC::Orientation::yhi, 0));
-
         // Third and final ParallelFor loop to get 2nd gradients and compute fluxes
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1321,76 +1312,6 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Util::ParallelMessage(INFO,"lev=",lev);
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
-            }
-
-            auto get_physical_flux = [&](const Solver::Local::Riemann::State& state, int ii, int jj, int kk)
-            {
-                Solver::Local::Riemann::Flux flux;
-                double rho_val = 0.0;
-                for (int n = 0; n < NSPECIES; ++n)
-                {
-                    rho_val += state.rho[n];
-                }
-                double u_norm = state.M_normal / (rho_val + small);
-                
-                for (int n = 0; n < NSPECIES; ++n)
-                {
-                    flux.mass[n] = state.rho[n] * u_norm;
-                }
-                
-                double T_val = gas.ComputeT(rho_val, state.M_normal, state.M_tangent, state.E, 300.0, molef, ii, jj, kk);
-                double p_val = gas.ComputeP(rho_val, T_val, molef, ii, jj, kk);
-                
-                flux.momentum_normal = state.M_normal * u_norm + p_val;
-                flux.momentum_tangent = state.M_tangent * u_norm;
-                flux.energy = u_norm * (state.E + p_val);
-                return flux;
-            };
-
-            bool is_xlo = (i == dom_lo.x);
-            bool is_xhi = (i == dom_hi.x);
-            bool is_ylo = (j == dom_lo.y);
-            bool is_yhi = (j == dom_hi.y);
-
-            if (is_xlo && bc_xlo_is_dirichlet_face)
-            {
-                Solver::Local::Riemann::State state_bc;
-                for (int n = 0; n < NSPECIES; ++n)
-                    state_bc.rho[n] = 0.5 * (state_xlo_fluid.rho[n] + state_x_fluid.rho[n]);
-                state_bc.M_normal = 0.5 * (state_xlo_fluid.M_normal + state_x_fluid.M_normal);
-                state_bc.M_tangent = 0.5 * (state_xlo_fluid.M_tangent + state_x_fluid.M_tangent);
-                state_bc.E = 0.5 * (state_xlo_fluid.E + state_x_fluid.E);
-                flux_xlo = get_physical_flux(state_bc, i, j, k) * eta;
-            }
-            if (is_xhi && bc_xhi_is_dirichlet_face)
-            {
-                Solver::Local::Riemann::State state_bc;
-                for (int n = 0; n < NSPECIES; ++n)
-                    state_bc.rho[n] = 0.5 * (state_x_fluid.rho[n] + state_xhi_fluid.rho[n]);
-                state_bc.M_normal = 0.5 * (state_x_fluid.M_normal + state_xhi_fluid.M_normal);
-                state_bc.M_tangent = 0.5 * (state_x_fluid.M_tangent + state_xhi_fluid.M_tangent);
-                state_bc.E = 0.5 * (state_x_fluid.E + state_xhi_fluid.E);
-                flux_xhi = get_physical_flux(state_bc, i, j, k) * eta;
-            }
-            if (is_ylo && bc_ylo_is_dirichlet_face)
-            {
-                Solver::Local::Riemann::State state_bc;
-                for (int n = 0; n < NSPECIES; ++n)
-                    state_bc.rho[n] = 0.5 * (state_ylo_fluid.rho[n] + state_y_fluid.rho[n]);
-                state_bc.M_normal = 0.5 * (state_ylo_fluid.M_normal + state_y_fluid.M_normal);
-                state_bc.M_tangent = 0.5 * (state_ylo_fluid.M_tangent + state_y_fluid.M_tangent);
-                state_bc.E = 0.5 * (state_ylo_fluid.E + state_y_fluid.E);
-                flux_ylo = get_physical_flux(state_bc, i, j, k) * eta;
-            }
-            if (is_yhi && bc_yhi_is_dirichlet_face)
-            {
-                Solver::Local::Riemann::State state_bc;
-                for (int n = 0; n < NSPECIES; ++n)
-                    state_bc.rho[n] = 0.5 * (state_y_fluid.rho[n] + state_yhi_fluid.rho[n]);
-                state_bc.M_normal = 0.5 * (state_y_fluid.M_normal + state_yhi_fluid.M_normal);
-                state_bc.M_tangent = 0.5 * (state_y_fluid.M_tangent + state_yhi_fluid.M_tangent);
-                state_bc.E = 0.5 * (state_y_fluid.E + state_yhi_fluid.E);
-                flux_yhi = get_physical_flux(state_bc, i, j, k) * eta;
             }
 
             std::array<double, NSPECIES> drhof_dt_hydro;
