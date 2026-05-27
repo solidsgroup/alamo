@@ -286,12 +286,13 @@ void Hydro::Mix(int lev)
                 amrex::Print() << "Mix Func INIT DEBUG (89,85):"
                             << "\n  eta_patch=" << eta_patch(i,j,k)
                             << " eta=" << eta
-                            << "\n  density=" << density
+                            << "\n  density(before)=" << density
                             << " rho_solid=" << rho_solid(i,j,k)
                             << " p=" << p(i,j,k)
                             << " T=" << T(i,j,k)
                             << "\n  v_x=" << v(i,j,k,0)
                             << " v_y=" << v(i,j,k,1)
+                            << " E=" << E(i,j,k)
                             << "\n  E_fluid=" << E_fluid
                             << " E_solid=" << E_solid(i,j,k)
                             << "\n  E_mixed(before)=" << E_fluid*eta + E_solid(i,j,k)*(1.0-eta)
@@ -315,12 +316,12 @@ void Hydro::Mix(int lev)
             if (i == 89 && j == 85)
             {
                 amrex::Print() << "Mix Func INIT RESULT (89,85):"
-                            << "\n  rho(after)=" << rho(i,j,k)
+                            << "\n  density(after)=" << rho(i,j,k)
                             << " M_x(after)=" << M(i,j,k,0)
                             << " M_y(after)=" << M(i,j,k,1)
                             << " E(after)=" << E(i,j,k)
-                            << "\n  E/eta=" << E(i,j,k) / (eta + 1e-8)
-                            << " E_solid/eta=" << E_solid(i,j,k) / (eta + 1e-8)
+                            << "\n  E/eta=" << E(i,j,k) / (eta)
+                            << " E_solid/eta=" << E_solid(i,j,k) / (eta)
                             << "\n";
             }
         });
@@ -582,6 +583,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;
 
+            if (i == 89 && j == 85)
+            {
+                amrex::Print() << "Velocity at (89,85):"
+                            << "\n  v(i,j,k,0)=" << v(i,j,k,0)
+                            << "\n  v(i,j,k,1)=" << v(i,j,k,1)
+                            << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
+                            << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
+                            << "\n";
+            }
+
             if (eta < small) 
             {
                 v(i,j,k,0) *= eta;
@@ -718,20 +729,20 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             double hess_val = hess_eta(q, s);
                             
                             // if (std::abs(u_diff) > 1e-10 && std::abs(hess_val) > 1e-10)
-                            if (i == 89 && j == 85 && p == 1 && q == 1)
-                            {
-                                amrex::Print() << "p=" << p << " q=" << q 
-                                            << " r=" << r << " s=" << s
-                                            << " u(r)=" << u(r) 
-                                            << " u0(r)=" << u0(r) 
-                                            << " u(r)-u0(r)=" << u_diff
-                                            << " hess_eta(q,s)=" << hess_val
-                                            << " contribution=" << 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * u_diff * hess_val
-                                            << " hess_u(r,q,s)=" << hess_u(r,q,s)
-                                            << " hess_u(s,q,r)=" << hess_u(s,q,r)
-                                            << " div_tau(p)=" << 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r))
-                                            << " i=" << i << " j=" << j << "\n";
-                            }
+                            // if (i == 89 && j == 85 && p == 1 && q == 1)
+                            // {
+                            //     amrex::Print() << "p=" << p << " q=" << q 
+                            //                 << " r=" << r << " s=" << s
+                            //                 << " u(r)=" << u(r) 
+                            //                 << " u0(r)=" << u0(r) 
+                            //                 << " u(r)-u0(r)=" << u_diff
+                            //                 << " hess_eta(q,s)=" << hess_val
+                            //                 << " contribution=" << 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * u_diff * hess_val
+                            //                 << " hess_u(r,q,s)=" << hess_u(r,q,s)
+                            //                 << " hess_u(s,q,r)=" << hess_u(s,q,r)
+                            //                 << " div_tau(p)=" << 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r))
+                            //                 << " i=" << i << " j=" << j << "\n";
+                            // }
                             
                             Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
@@ -759,15 +770,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
             Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
             
-            if (i == 89 && j == 85)
-            // if (std::abs(Source(i,j,k,1)) > 1000) 
-            {
-                amrex::Print()
-                            << "\nSource(i,j,k,1)=" << Source(i,j,k,1)
-                            << "\nSource(i,j,k,2)=" << Source(i,j,k,2)
-                            << "\ni=" << i << " j=" << j << "\n";
+            // if (i == 89 && j == 85)
+            // // if (std::abs(Source(i,j,k,1)) > 1000) 
+            // {
+            //     amrex::Print()
+            //                 << "\nSource(i,j,k,1)=" << Source(i,j,k,1)
+            //                 << "\nSource(i,j,k,2)=" << Source(i,j,k,2)
+            //                 << "\ni=" << i << " j=" << j << "\n";
 
-            }
+            // }
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
@@ -788,44 +799,44 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
 
-            // Solver::Local::Riemann::State state_xlo_fluid = invert ? 
-            //     (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small):
-            //     (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
-            // Solver::Local::Riemann::State state_x_fluid   = invert ? 
-            //     (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)   + small): 
-            //     (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k)   + small);
-            // Solver::Local::Riemann::State state_xhi_fluid = invert ? 
-            //     (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small): 
-            //     (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
-            // Solver::Local::Riemann::State state_ylo_fluid = invert ? 
-            //     (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
-            //     (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
-            // Solver::Local::Riemann::State state_y_fluid =   invert ? 
-            //     (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
-            //     (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
-            // Solver::Local::Riemann::State state_yhi_fluid = invert ? 
-            //     (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
-            //     (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
-
-
             Solver::Local::Riemann::State state_xlo_fluid = invert ? 
-                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k)) :
-                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k));
+                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small):
+                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
             Solver::Local::Riemann::State state_x_fluid   = invert ? 
-                (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)): 
-                (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k));
+                (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)   + small): 
+                (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k)   + small);
             Solver::Local::Riemann::State state_xhi_fluid = invert ? 
-                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k)) : 
-                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k));
+                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small): 
+                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
             Solver::Local::Riemann::State state_ylo_fluid = invert ? 
-                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k)): 
-                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k));
+                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
+                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
             Solver::Local::Riemann::State state_y_fluid =   invert ? 
-                (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)): 
-                (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k));
+                (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
+                (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
             Solver::Local::Riemann::State state_yhi_fluid = invert ? 
-                (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k)): 
-                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k));
+                (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
+                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
+
+
+            // Solver::Local::Riemann::State state_xlo_fluid = invert ? 
+            //     (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k)) :
+            //     (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k));
+            // Solver::Local::Riemann::State state_x_fluid   = invert ? 
+            //     (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)): 
+            //     (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k));
+            // Solver::Local::Riemann::State state_xhi_fluid = invert ? 
+            //     (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k)) : 
+            //     (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k));
+            // Solver::Local::Riemann::State state_ylo_fluid = invert ? 
+            //     (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k)): 
+            //     (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k));
+            // Solver::Local::Riemann::State state_y_fluid =   invert ? 
+            //     (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)): 
+            //     (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k));
+            // Solver::Local::Riemann::State state_yhi_fluid = invert ? 
+            //     (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k)): 
+            //     (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k));
 
             // // Override energy using pressure_mf to avoid E/eta amplification (Claude suggestion)
             // state_xlo_fluid.E = gas.ComputeE(state_xlo_fluid.rho,
@@ -860,34 +871,34 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "STATE DEBUG (89,85):"
-                            << "\n  eta_xlo=" << eta_patch(i-1,j,k)
-                            << " eta_x="   << eta_patch(i,j,k)
-                            << " eta_xhi=" << eta_patch(i+1,j,k)
-                            << "\n  state_xlo.momentum_normal="  << state_xlo.M_normal
-                            << " state_xlo_solid.momentum_normal=" << state_xlo_solid.M_normal
-                            << " state_xlo_fluid.momentum_normal=" << state_xlo_fluid.M_normal
-                            << "\n  state_x.momentum_normal="   << state_x.M_normal
-                            << " state_x_solid.momentum_normal="  << state_x_solid.M_normal
-                            << " state_x_fluid.momentum_normal="  << state_x_fluid.M_normal
-                            << "\n  state_xhi.momentum_normal="  << state_xhi.M_normal
-                            << " state_xhi_solid.momentum_normal=" << state_xhi_solid.M_normal
-                            << " state_xhi_fluid.momentum_normal=" << state_xhi_fluid.M_normal
-                            << "\n  state_xlo.Energy="  << state_xlo.E
-                            << " state_xlo_solid.Energy=" << state_xlo_solid.E
-                            << " state_xlo_fluid.Energy=" << state_xlo_fluid.E
-                            << "\n  state_x.Energy="   << state_x.E
-                            << " state_x_solid.Energy="  << state_x_solid.E
-                            << " state_x_fluid.Energy="  << state_x_fluid.E
-                            << "\n  state_xhi.Energy="  << state_xhi.E
-                            << " state_xhi_solid.Energy=" << state_xhi_solid.E
-                            << " state_xhi_fluid.Energy=" << state_xhi_fluid.E
-                            << "\n  invert=" << invert
-                            << " small=" << small
-                            << "\n";
-            }
+            // if (i == 76 && j == 76)
+            // {
+            //     amrex::Print() << "STATE DEBUG (89,85):"
+            //                 << "\n  eta_xlo=" << eta_patch(i-1,j,k)
+            //                 << " eta_x="   << eta_patch(i,j,k)
+            //                 << " eta_xhi=" << eta_patch(i+1,j,k)
+            //                 << "\n  state_xlo.momentum_normal="  << state_xlo.M_normal
+            //                 << " state_xlo_solid.momentum_normal=" << state_xlo_solid.M_normal
+            //                 << " state_xlo_fluid.momentum_normal=" << state_xlo_fluid.M_normal
+            //                 << "\n  state_x.momentum_normal="   << state_x.M_normal
+            //                 << " state_x_solid.momentum_normal="  << state_x_solid.M_normal
+            //                 << " state_x_fluid.momentum_normal="  << state_x_fluid.M_normal
+            //                 << "\n  state_xhi.momentum_normal="  << state_xhi.M_normal
+            //                 << " state_xhi_solid.momentum_normal=" << state_xhi_solid.M_normal
+            //                 << " state_xhi_fluid.momentum_normal=" << state_xhi_fluid.M_normal
+            //                 << "\n  state_xlo.Energy="  << state_xlo.E
+            //                 << " state_xlo_solid.Energy=" << state_xlo_solid.E
+            //                 << " state_xlo_fluid.Energy=" << state_xlo_fluid.E
+            //                 << "\n  state_x.Energy="   << state_x.E
+            //                 << " state_x_solid.Energy="  << state_x_solid.E
+            //                 << " state_x_fluid.Energy="  << state_x_fluid.E
+            //                 << "\n  state_xhi.Energy="  << state_xhi.E
+            //                 << " state_xhi_solid.Energy=" << state_xhi_solid.E
+            //                 << " state_xhi_fluid.Energy=" << state_xhi_fluid.E
+            //                 << "\n  invert=" << invert
+            //                 << " small=" << small
+            //                 << "\n";
+            // }
 
             // if (i == 89 && j == 85)
             // {
@@ -906,12 +917,34 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
+                if (eta > cutoff) {
+                    flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                    flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
-                //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+                    //hi interface fluxes
+                    flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                    flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+                } else {
+                    flux_xlo.energy = 0.0;
+                    flux_xlo.mass = 0.0;
+                    flux_xlo.momentum_normal = 0.0;
+                    flux_xlo.momentum_tangent = 0.0;
+
+                    flux_ylo.energy = 0.0;
+                    flux_ylo.mass = 0.0;
+                    flux_ylo.momentum_normal = 0.0;
+                    flux_ylo.momentum_tangent = 0.0;
+
+                    flux_xhi.energy = 0.0;
+                    flux_xhi.mass = 0.0;
+                    flux_xhi.momentum_normal = 0.0;
+                    flux_xhi.momentum_tangent = 0.0;
+
+                    flux_yhi.energy = 0.0;
+                    flux_yhi.mass = 0.0;
+                    flux_yhi.momentum_normal = 0.0;
+                    flux_yhi.momentum_tangent = 0.0;
+                }
             }
             catch(...)
             {
@@ -935,20 +968,20 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 // ) * dt;
                 ;
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "drhof_dt terms at (89,85):"
-                            << " \n     (flux_xlo.mass - flux_xhi.mass) / DX[0]=" << (flux_xlo.mass - flux_xhi.mass) / DX[0]
-                            << " \n     flux_xlo.mass=" << flux_xlo.mass
-                            << " \n     flux_xhi.mass=" << flux_xhi.mass
-                            << " \n     DX[0]=" << DX[0]
-                            << " \n     (flux_ylo.mass - flux_yhi.mass) / DX[1]=" << (flux_ylo.mass - flux_yhi.mass) / DX[1]
-                            << " \n     flux_ylo.mass=" << flux_ylo.mass
-                            << " \n     flux_yhi.mass=" << flux_yhi.mass
-                            << " \n     DX[1]=" << DX[1]
-                            << " \n     Source(i, j, k, 0)=" << Source(i, j, k, 0)
-                            << " \n     rho_rhs(i,j,k)=" << rho_rhs(i,j,k);
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "drhof_dt terms at (89,85):"
+            //                 << " \n     (flux_xlo.mass - flux_xhi.mass) / DX[0]=" << (flux_xlo.mass - flux_xhi.mass) / DX[0]
+            //                 << " \n     flux_xlo.mass=" << flux_xlo.mass
+            //                 << " \n     flux_xhi.mass=" << flux_xhi.mass
+            //                 << " \n     DX[0]=" << DX[0]
+            //                 << " \n     (flux_ylo.mass - flux_yhi.mass) / DX[1]=" << (flux_ylo.mass - flux_yhi.mass) / DX[1]
+            //                 << " \n     flux_ylo.mass=" << flux_ylo.mass
+            //                 << " \n     flux_yhi.mass=" << flux_yhi.mass
+            //                 << " \n     DX[1]=" << DX[1]
+            //                 << " \n     Source(i, j, k, 0)=" << Source(i, j, k, 0)
+            //                 << " \n     rho_rhs(i,j,k)=" << rho_rhs(i,j,k);
+            // }
 
             Set::Scalar term_flux_x = (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0];
             Set::Scalar term_flux_y = (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1];
@@ -956,25 +989,25 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar term_gravity = g(0)*rho(i,j,k);
             Set::Scalar term_source = Source(i, j, k, 1);
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "\ndMxf_dt terms at (89,85):"
-                            << " \n     flux_x=" << (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0]
-                            << " \n     flux_y=" << (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1]
-                            << " \n     flux_xlo.momentum_normal=" << flux_xlo.momentum_normal
-                            << " \n     flux_xhi.momentum_normal=" << flux_xhi.momentum_normal
-                            << " \n     flux_xhi.momentum_normal-flux_xlo.momentum_normal=" << flux_xhi.momentum_normal - flux_xlo.momentum_normal
-                            << " \n     flux_ylo.momentum_tangent=" << flux_ylo.momentum_tangent
-                            << " \n     flux_yhi.momentum_tangent=" << flux_yhi.momentum_tangent
-                            << " \n     div_tau*eta=" << term_div_tau
-                            << " \n     div_tau=" << div_tau(0)
-                            << " \n     eta=" << eta
-                            << " \n     gravity=" << term_gravity
-                            << " \n     source=" << term_source
-                            << " \n     Ldot0=" << Ldot0(0)
-                            << " \n     Pdot0=" << Pdot0(0)
-                            << " \n     dMxf_dt=" << term_flux_x + term_flux_y + term_div_tau + term_gravity + term_source;
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "\ndMxf_dt terms at (89,85):"
+            //                 << " \n     flux_x=" << (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0]
+            //                 << " \n     flux_y=" << (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1]
+            //                 << " \n     flux_xlo.momentum_normal=" << flux_xlo.momentum_normal
+            //                 << " \n     flux_xhi.momentum_normal=" << flux_xhi.momentum_normal
+            //                 << " \n     flux_xhi.momentum_normal-flux_xlo.momentum_normal=" << flux_xhi.momentum_normal - flux_xlo.momentum_normal
+            //                 << " \n     flux_ylo.momentum_tangent=" << flux_ylo.momentum_tangent
+            //                 << " \n     flux_yhi.momentum_tangent=" << flux_yhi.momentum_tangent
+            //                 << " \n     div_tau*eta=" << term_div_tau
+            //                 << " \n     div_tau=" << div_tau(0)
+            //                 << " \n     eta=" << eta
+            //                 << " \n     gravity=" << term_gravity
+            //                 << " \n     source=" << term_source
+            //                 << " \n     Ldot0=" << Ldot0(0)
+            //                 << " \n     Pdot0=" << Pdot0(0)
+            //                 << " \n     dMxf_dt=" << term_flux_x + term_flux_y + term_div_tau + term_gravity + term_source;
+            // }
 
             Set::Scalar dMxf_dt =
                 term_flux_x +
@@ -1010,27 +1043,27 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar term_gravity_2 = g(1)*rho(i,j,k);
             Set::Scalar term_source_2 = Source(i, j, k, 2);
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "\ndMyf_dt terms at (89,85):"
-                            << "\n      (flux_xlo.momentum_tangent  - flux_xhi.momentum_tangent ) / DX[0]=" << term_flux_x_2
-                            << "\n      (flux_ylo.momentum_normal - flux_yhi.momentum_normal) / DX[1]=" << term_flux_y_2
-                            << "\n      flux_xlo.momentum_normal=" << flux_xlo.momentum_normal
-                            << "\n      flux_xhi.momentum_normal=" << flux_xhi.momentum_normal
-                            << "\n      flux_xhi.momentum_normal-flux_xlo.momentum_normal=" << flux_xhi.momentum_normal - flux_xlo.momentum_normal
-                            << "\n      flux_ylo.momentum_tangent=" << flux_ylo.momentum_tangent
-                            << "\n      flux_yhi.momentum_tangent=" << flux_yhi.momentum_tangent
-                            << "\n      flux_yhi.momentum_tangent-flux_ylo.momentum_tangent=" << flux_yhi.momentum_tangent - flux_ylo.momentum_tangent
-                            << "\n      div_tau*eta=" << term_div_tau_2
-                            << "\n      div_tau=" << div_tau(0)
-                            << "\n      eta=" << eta
-                            << "\n      gravity=" << term_gravity_2
-                            << "\n      source=" << term_source_2
-                            << "\n      Ldot0=" << Ldot0(0)
-                            << "\n      Pdot0=" << Pdot0(0)
-                            << "\n      dMyf_dt=" << dMyf_dt
-                            << "\n";
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "\ndMyf_dt terms at (89,85):"
+            //                 << "\n      (flux_xlo.momentum_tangent  - flux_xhi.momentum_tangent ) / DX[0]=" << term_flux_x_2
+            //                 << "\n      (flux_ylo.momentum_normal - flux_yhi.momentum_normal) / DX[1]=" << term_flux_y_2
+            //                 << "\n      flux_xlo.momentum_normal=" << flux_xlo.momentum_normal
+            //                 << "\n      flux_xhi.momentum_normal=" << flux_xhi.momentum_normal
+            //                 << "\n      flux_xhi.momentum_normal-flux_xlo.momentum_normal=" << flux_xhi.momentum_normal - flux_xlo.momentum_normal
+            //                 << "\n      flux_ylo.momentum_tangent=" << flux_ylo.momentum_tangent
+            //                 << "\n      flux_yhi.momentum_tangent=" << flux_yhi.momentum_tangent
+            //                 << "\n      flux_yhi.momentum_tangent-flux_ylo.momentum_tangent=" << flux_yhi.momentum_tangent - flux_ylo.momentum_tangent
+            //                 << "\n      div_tau*eta=" << term_div_tau_2
+            //                 << "\n      div_tau=" << div_tau(0)
+            //                 << "\n      eta=" << eta
+            //                 << "\n      gravity=" << term_gravity_2
+            //                 << "\n      source=" << term_source_2
+            //                 << "\n      Ldot0=" << Ldot0(0)
+            //                 << "\n      Pdot0=" << Pdot0(0)
+            //                 << "\n      dMyf_dt=" << dMyf_dt
+            //                 << "\n";
+            // }
 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
@@ -1054,18 +1087,26 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small);
                 // ) * dt;
 
-            if (i == 89 && j == 85)
+            // if (std::abs(dEf_dt) > 10000)
             {
-                amrex::Print() << "dEf_dt terms at (89,85):"
-                            << "\n  flux_xlo.energy=" << flux_xlo.energy
-                            << "\n  flux_xhi.energy=" << flux_xhi.energy
-                            << "\n  (flux_xlo.energy - flux_xhi.energy) / DX[0]=" << (flux_xlo.energy - flux_xhi.energy) / DX[0]
-                            << "\n  flux_ylo.energy=" << flux_ylo.energy
-                            << "\n  flux_yhi.energy=" << flux_yhi.energy
-                            << "\n  (flux_ylo.energy - flux_yhi.energy) / DX[1]=" << (flux_ylo.energy - flux_yhi.energy) / DX[1]
-                            << "\n  Source(i, j, k, 3)=" << Source(i, j, k, 3)
-                            << "\n\n";
+                amrex::Print() << "dMyf_dt=" << dEf_dt
+                            << " i=" << i
+                            << " j=" << j
+                            << " \n";
             }
+
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "dEf_dt terms at (89,85):"
+            //                 << "\n  flux_xlo.energy=" << flux_xlo.energy
+            //                 << "\n  flux_xhi.energy=" << flux_xhi.energy
+            //                 << "\n  (flux_xlo.energy - flux_xhi.energy) / DX[0]=" << (flux_xlo.energy - flux_xhi.energy) / DX[0]
+            //                 << "\n  flux_ylo.energy=" << flux_ylo.energy
+            //                 << "\n  flux_yhi.energy=" << flux_yhi.energy
+            //                 << "\n  (flux_ylo.energy - flux_yhi.energy) / DX[1]=" << (flux_ylo.energy - flux_yhi.energy) / DX[1]
+            //                 << "\n  Source(i, j, k, 3)=" << Source(i, j, k, 3)
+            //                 << "\n\n";
+            // }
             
 #ifdef AMREX_DEBUG
             if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||

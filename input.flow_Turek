@@ -8,9 +8,10 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 2
+amr.max_level = 0
 timestep  = 1e-8
-amr.n_cell = 240 40
+amr.n_cell = 960 160
+# amr.n_cell = 240 40
 geometry.prob_lo = 0.0_m  0.0_m
 geometry.prob_hi = 2.5_m  0.41_m
 geometry.is_periodic = 0 0 0
@@ -19,7 +20,7 @@ stop_time = 50.0
 
 amr.cell.all = 1
 
-tstart = 10e-8
+tstart = 5e-8
 
 ## Allen-Cahn Model with no growth
 allencahn.ch.direction = 0
