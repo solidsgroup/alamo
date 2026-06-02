@@ -1,6 +1,7 @@
 //
-// Fill a domain (region where field=0) with packed spheres (regions where field=1).
-// Sphere locations and radii are determined from an xyzr file.
+// Fill a domain based on a list of points to form a closed 2D shape.
+// The distance from each point to the nearest edge is found and an error function is then used to compute
+// the vlude of phi between 0 (outside) and 1 (inside).
 //
 
 #ifndef IC_PSREAD_H_
@@ -22,7 +23,7 @@ namespace IC
 class PSRead : public IC<Set::Scalar>
 {
 public:
-    static constexpr const char* name = "psread";
+    static constexpr const char* name = "pointlist";
 
     enum Type
     {
@@ -41,7 +42,7 @@ public:
     };
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
-    {
+    {   
         Set::Vector size = Set::Size(geom[lev]);
         int ncomp = a_phi[lev]->nComp();
 
@@ -54,51 +55,54 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+            double small = 1e-8;
+            for (unsigned int n = 0; n < X.size()-1; n++)
+                {   
+                    // Compute the slope and y intercept of each edge
+                    m_edge[n] = (X[n + 1](1) - X[n](1))/(X[n + 1](0) - X[n](0) + small);
+                    b_edge[n] = (X[n](1) - m_edge[n]*X[n](0));
+                }
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                Set::Scalar min_grain_id = 0;
+                int x_cross;
+                Set::Scalar min_dist_to_edge; // Mininmum distance from point to nearest edge
+                Set::Scalar dist_to_edge; // Distance from point to nearest edge
+                int num_cross = 0;
 
-                for (unsigned int n = 0; n < X.size(); n++)
-                {
-                    Set::Scalar d;
-                    Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
-
-                    d = (x - X[n]).lpNorm<2>();
-
-                    if (geom[0].isPeriodic(0))
+                for (unsigned int n = 0; n < X.size()-1; n++)
+                {   
+                    Set::Scalar m_r; // Slope of the line normal to the edge
+                    Set::Scalar b_r; // Y-intercept of the line normal to the edge
+                    Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
+                    if ((X[n](1) > x(1) && X[n+1](1) > x(1)) || (X[n](1) < x(1) && X[n+1](1) < x(1)))
                     {
-                        d1 = std::min((x - X[n] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - X[n] - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
-                    }
-#if AMREX_SPACEDIM > 1
-                    if (geom[0].isPeriodic(1))
+                        num_cross += 0;
+                    } else 
                     {
-                        d1 = std::min((x - X[n] + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - X[n] - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
-                    }
-#endif
-#if AMREX_SPACEDIM > 2
-                    if (geom[0].isPeriodic(2))
+                        x_cross = (x(1) - b_edge[n])/(m_edge[n]);
+
+                        if (x_cross > x[n])
+                        {   // If the horxiontal ray crosses the intercept, add 1 to n_cross
+                            num_cross += 1;
+                        } else
+                        {
+                            num_cross += 0;
+                        }
+                    } 
+                    m_r = -1/m_edge[n];
+                    b_r = x(1) - m_r*x(0);
+
+                    x_int(0) = (b_edge[n] - b_r)/(m_r - m_edge[n]);
+                    x_int(1) = m_edge[n]*x_int(0) + b_edge[n];
+
+                    if (((x_int(0) - X[n](0)) > 0 && (x_int(0) - X[n+1](0) < 0)) && ((x_int(1) - X[n](1)) > 0 && (x_int(1) - X[n+1](1) < 0)))
                     {
-                        d1 = std::min((x - X[n] + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - X[n] - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
-                    }
-#endif
-
-                    d = std::min(d, d1);
-
-                    if (d <= (R[n] + eps))
-
-                    {
-                        Set::Scalar m = 0.5 * (1 + erf((-d + R[n]) / (eps)));
-                        min_grain_id = min_grain_id + m * (1. - min_grain_id);
+                        dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
                     }
                 }
-
-                phi(i, j, k, 0) = min_grain_id;
-                if (invert) phi(i,j,k,0) = 1.0 - min_grain_id;
-                if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
+                
             });
         }
     }
@@ -128,7 +132,7 @@ public:
 
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
-        
+
         Unit unit = Unit::Length();
         // Units of length in the file
         pp.queryunit("file.unit",unit);
@@ -140,7 +144,6 @@ public:
         if (datafile.is_open())
         {
             value.X.clear();
-            value.R.clear();
 
             while (getline(datafile, line))
             {
@@ -154,15 +157,13 @@ public:
                 #if AMREX_SPACEDIM > 2
                 Set::Scalar z = (std::stod(strz) * unit).normalized_value();
                 #endif
-                Set::Scalar r = (std::stod(strR) * unit).normalized_value();
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
                 X = value.x0 + value.mult*X;
 
                 value.X.push_back(X);
-                value.R.push_back(r);
                 if (verbose > 0)
-                    Util::Message(INFO, "x=", value.X.back().transpose(), " r=", value.R.back());
+                    Util::Message(INFO, "x=", value.X.back().transpose());
             }
             datafile.close();
         }
@@ -178,7 +179,18 @@ private:
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
+    std::vector<Set::Scalar> m_edge;
+    std::vector<Set::Scalar> b_edge;
     bool invert = false;
+    
+    double dist(double x1, double y1, double x2, double y2)
+    {   
+        // Find distance between 2 points
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+
+        return std::sqrt(dx*dx + dy*dy);
+    }
 };
 }
 #endif
