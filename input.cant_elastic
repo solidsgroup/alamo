@@ -32,7 +32,7 @@ psi.ic.expression.region0 = "(0.5 + 0.5*erf((y + width)/eps))*(0.5 - 0.5*erf((y 
 trac_normal.ic.type=expression
 trac_normal.ic.expression.constant.eps = 0.19
 trac_normal.ic.expression.constant.load = 0.000001
-trac_normal.ic.expression.region0 = "load*(y<0)+0*(y>=0)"
+trac_normal.ic.expression.region0 = "load*((y<0)*(x<2.75)+0*(y>=0))"
 
 solver.verbose = 3
 solver.max_iter = 1000
