@@ -6,15 +6,17 @@ timestep = 0.1
 stop_time = 2.0
 
 amr.plot_int = 1
-amr.max_level = 5
-amr.n_cell = 12 4 16
+# amr.max_level = 5
+# amr.n_cell = 16 4 16
+amr.max_level = 0
+amr.n_cell = 400 100 16
 amr.blocking_factor = 2
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
 amr.node.all = 0
 amr.cell.all = 1
 
-geometry.prob_lo = -8 -2 -8
+geometry.prob_lo = -12 -2 -8
 geometry.prob_hi =  4  2  8
 
 nmodels = 1
@@ -32,13 +34,13 @@ psi.ic.expression.region0 = "(0.5 + 0.5*erf((y + width)/eps))*(0.5 - 0.5*erf((y 
 trac_normal.ic.type=expression
 trac_normal.ic.expression.constant.eps = 0.19
 trac_normal.ic.expression.constant.load = 0.000001
-trac_normal.ic.expression.region0 = "load*((y<0)*(x<2.75)+0*(y>=0))"
+trac_normal.ic.expression.region0 = "load*((y<0)*(0.5 - 0.5*erf((x - 1.5)/eps))+0*(y>=0))"
 
 solver.verbose = 3
-solver.max_iter = 1000
-solver.fixed_iter = 100
-solver.nriters = 1
-solver.nrtolerance = 1E-5
+solver.max_iter = 10000
+# solver.fixed_iter = 100
+solver.nriters = 100
+solver.nrtolerance = 1E-16
 
 ref_threshold = 100
 
@@ -56,7 +58,13 @@ bc.expression.val.xhiylo = "0.0" "0.0"
 bc.expression.val.xhiyhi = "0.0" "0.0"
 bc.expression.val.ylo = "0.0" "0" 
 bc.expression.val.xhi = "0.0" "0.0"
-
+elasticop.small = 1e-4
 solver.dump_on_fail = 1
 amrex.signal_handling = 0
 amrex.throw_exception = 1
+
+fakeparam = test
+
+solver.bottom_solver = smoother
+solver.tol_abs = 1E-16
+solver.tol_rel = 1E-16
