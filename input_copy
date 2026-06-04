@@ -123,4 +123,51 @@ chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
 chamber.ballistic.gamma = 1.25
 
 # Thermoelasticity
-elastic.type = disable
+elastic.on = 1
+
+# Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
+# 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
+# burns back, which keeps the solve robust on evolving complex geometry.
+elastic.zero_out_displacement = 0
+
+elastic.type = static
+elastic.interval = 25
+elastic.tstart = 0.5e-4
+elastic.phirefinement = 100
+elastic.print_model = 1
+# Conditioning of the masked elastic operator on thin/complex grain features:
+# psi_floor keeps the gas-region operator non-singular (gas stress is ignored).
+elastic.psi_floor = 0.05
+# Tolerance-based MLMG (replaces fixed_iter) with extra smoothing for the
+# high-contrast, spatially-varying stiffness field.
+elastic.solver.max_iter = 200
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 200
+elastic.solver.nrtolerance = 1e-5
+elastic.solver.verbose = 4
+elastic.traction = 1.0_MPa
+
+model_ap.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
+model_ap.kappa = 150_MPa
+model_ap.mu = 140_MPa
+
+model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
+model_htpb.kappa = 210_MPa
+model_htpb.mu = 8_MPa
+
+massfraction = 0.8 # % AP, TEMPORARY
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 8_MPa
+model_void.mu = 6_MPa
+
+elastic.bc.type = constant
+elastic.bc.constant.type.xhi = trac trac
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiyhi = trac trac
+elastic.bc.constant.type.xhiylo = disp disp
