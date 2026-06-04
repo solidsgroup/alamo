@@ -100,8 +100,23 @@ public:
                     if (((x_int(0) - X[n](0)) > 0 && (x_int(0) - X[n+1](0) < 0)) && ((x_int(1) - X[n](1)) > 0 && (x_int(1) - X[n+1](1) < 0)))
                     {
                         dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+                    } else if (((x_int(0) - X[n](0)) < 0 && (x_int(0) - X[n+1](0) > 0)) && ((x_int(1) - X[n](1)) < 0 && (x_int(1) - X[n+1](1) > 0)))
+                    {
+                        dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+                    } else
+                    {
+                        dist_to_edge = std::min(dist(x(0), x(1), X[n](0), X[n](1)), dist(x(0), x(1), X[n+1](0), X[n+1](1)));
                     }
+                    min_dist_to_edge = std::min(min_dist_to_edge, dist_to_edge);
                 }
+                if (num_cross % 2 == 0) 
+                {
+                    min_dist_to_edge = min_dist_to_edge; // If the number of crossings is even, the point is inside the shape
+                } else 
+                {
+                    min_dist_to_edge = -1*min_dist_to_edge;
+                }
+                phi(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * 0.01)));
                 
             });
         }
