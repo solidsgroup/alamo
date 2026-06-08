@@ -115,7 +115,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp-g++
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
     - name: create report
