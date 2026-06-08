@@ -503,7 +503,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 

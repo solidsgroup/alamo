@@ -322,7 +322,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> temp  = temp_mf.Patch(lev,mfi);
             Set::Scalar Tcutoff = thermal.Tcutoff;
 
             if (elastic.on)
