@@ -56,7 +56,6 @@ public:
 
         // Calculate primitives
         Set::Scalar u_L   = Mn_L/(rho_L+small),  u_R   = Mn_R/(rho_R+small);
-        Set::Scalar v_L   = Mn_L/(rho_L+small),  v_R   = Mn_R/(rho_R+small);
 
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {

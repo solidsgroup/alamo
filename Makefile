@@ -38,7 +38,15 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++20 $(METADATA_FLAGS)
+
+# Clang in C++20 adds a warning for failing to explicitly capture "this" in lambda functions.
+# Compliance will require changing ParallelFor calls from "[=]" to "[=,this]"
+# g++ also issues a warning but has no instrumentation for suppressing this warning only, so we
+# will just leave noisy output
+ifeq ($(COMP), CLANG)
+CXX_COMPILE_FLAGS += -Wno-deprecated-this-capture 
+endif
 
 # Skip on macOS: -Bsymbolic-functions is a GNU ld flag not supported by
 # Apple's ld64, and -lstdc++fs is a pre-GCC-9 std::filesystem shim that
