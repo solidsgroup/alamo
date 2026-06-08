@@ -24,9 +24,9 @@ jobs:
     - name: unit tests 2d
       continue-on-error: true
       run: ./bin/test-2d-g++
-    - name: configure 3d --comp=g++
+    - name: configure 3d
       continue-on-error: true
-      run: ./configure --dim=3
+      run: ./configure --dim=3 --comp=g++
     - name: make 3d
       continue-on-error: true
       run: make -j8
