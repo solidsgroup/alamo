@@ -17,14 +17,14 @@ jobs:
     - uses: actions/checkout@v4
     - name: configure 2d
       continue-on-error: true
-      run: ./configure --dim=2
+      run: ./configure --dim=2 --comp=g++
     - name: make 2d
       continue-on-error: true
       run: make -j8
     - name: unit tests 2d
       continue-on-error: true
       run: ./bin/test-2d-g++
-    - name: configure 3d
+    - name: configure 3d --comp=g++
       continue-on-error: true
       run: ./configure --dim=3
     - name: make 3d

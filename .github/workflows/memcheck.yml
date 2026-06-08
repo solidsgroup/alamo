@@ -27,7 +27,7 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=g++
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
