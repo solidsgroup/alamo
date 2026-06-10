@@ -29,6 +29,16 @@ jobs:
       run: bash .github/workflows/build-and-test.sh
     - name: documentation
       run: bash .github/workflows/build-docs.sh
+    - name: python
+      run: bash .github/workflows/python.sh
+  install-python:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: running the install script
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: python
+      run: bash .github/workflows/python.sh
   install-macos:
     runs-on: macos-latest
     steps:

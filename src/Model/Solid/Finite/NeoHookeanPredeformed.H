@@ -3,6 +3,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Finite/NeoHookean.H"
+#include "Unit/Unit.H"
 
 namespace Model
 {
@@ -13,23 +14,23 @@ namespace Finite
 class NeoHookeanPredeformed : public NeoHookean
 {
 public:
-    NeoHookeanPredeformed() {};
+    NeoHookeanPredeformed() = default;
     NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
-    virtual ~NeoHookeanPredeformed() {};
+    ~NeoHookeanPredeformed() = default;
 
-    Set::Scalar W(const Set::Matrix& F) const override
+    Set::Scalar W(const Set::Matrix& F) const 
     {
         return NeoHookean::W(F * F0.inverse());
     }
-    Set::Matrix DW(const Set::Matrix& F) const override
+    Set::Matrix DW(const Set::Matrix& F) const 
     {
         return NeoHookean::DW(F * F0.inverse());
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const 
     {
         return NeoHookean::DDW(F * F0.inverse());
     }
-    virtual void Print(std::ostream& out) const override
+    void Print(std::ostream& out) const 
     {
         out << "mu = " << mu << " kappa = " << kappa << " F0 = " << F0;
     }

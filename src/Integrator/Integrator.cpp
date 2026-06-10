@@ -17,153 +17,161 @@ namespace Integrator
 
 Integrator::Integrator() : amrex::AmrCore()
 {
+    IO::ParmParse pp;
+    Integrator::Parse (*this, pp);
+}
+void 
+Integrator::Parse(Integrator &value, IO::ParmParse &pp)
+{
     BL_PROFILE("Integrator::Integrator()");
     {
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
-        IO::ParmParse pp;
         // Number of iterations before ending (default is maximum possible int)
-        pp_query_default("max_step", max_step, 2147483647);  
+        pp.query_default("max_step", value.max_step, 2147483647);  
         // Simulation time before ending
-        pp_query_required("stop_time", stop_time, Unit::Time());    
+        pp.query_required("stop_time", value.stop_time, Unit::Time());    
         // Nominal timestep on amrlev = 0
-        pp_query_required("timestep", timestep, Unit::Time());      
-        pp_query("restart", restart_file_cell);       // Name of restart file to READ from
-        pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
-        pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
-    }
-
-    {
-        // This allows the user to ignore certain arguments that
-        // would otherwise cause problems.
-        // Most generally this is used in the event of a "above inputs
-        // specified but not used" error.
-        // The primary purpose of this was to fix those errors that arise
-        // in regression tests.
-        IO::ParmParse pp;
-        std::vector<std::string> ignore;
-        if (pp.contains("ignore")) Util::Message(INFO, "Ignore directive detected");
-        pp_queryarr("ignore", ignore); // Space-separated list of entries to ignore
-        for (unsigned int i = 0; i < ignore.size(); i++)
-        {
-            Util::Message(INFO, "ignoring ", ignore[i]);
-            pp.remove(ignore[i].c_str());
-        }
+        pp.query_required("timestep", value.timestep, Unit::Time());      
+        pp.query_default("restart", value.restart_file_cell,"");       // Name of restart file to read from
+        pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
+        pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
     }
     {
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
-        IO::ParmParse pp("amr");
-        pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
-        pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
-        pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
-        pp.query_default("plot_dt", plot_dt, "-1.0", Unit::Time());                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
+        pp.query_default("amr.regrid_int", value.regrid_int, 2);           // Regridding interval in step numbers
+        pp.query_default("amr.base_regrid_int", value.base_regrid_int, 0); // Regridding interval based on coarse level only
+        pp.query_default("amr.plot_int", value.plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
+        pp.query_default("amr.plot_dt", value.plot_dt, "-1.0", Unit::Time());                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
 
 
         // Output file: see IO::FileNameParse for wildcards and variable substitution
-        pp_query_default("plot_file", plot_file, "output");
+        pp.query_default("amr.plot_file", value.plot_file, "output");
 
-        pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
-        pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
-        pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
-        pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
+        pp.query_default("amr.cell.all", value.cell.all, false);                // Turn on to write all output in cell fabs (default: off)
+        pp.query_default("amr.cell.any", value.cell.any, true);                // Turn off to prevent any cell based output (default: on)
+        pp.query_default("amr.node.all", value.node.all, false);                // Turn on to write all output in node fabs (default: off)
+        pp.query_default("amr.node.any", value.node.any, true);                // Turn off to prevent any node based output (default: on)
 
-        pp_query_default("abort_on_nan",abort_on_nan, true); // Abort if a plotfile contains nan or inf.
+        pp.query_default("amr.abort_on_nan",value.abort_on_nan, true); // Abort if a plotfile contains nan or inf.
 
-        Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
-        Util::Assert(INFO, TEST(!(!node.any && node.all)));
+        Util::Assert(INFO, TEST(!(!value.cell.any && value.cell.all)));
+        Util::Assert(INFO, TEST(!(!value.node.any && value.node.all)));
 
-        pp_query_default("max_plot_level", max_plot_level, -1);    // Specify a maximum level of refinement for output files (NO REFINEMENT)
+        pp.query_default("amr.max_plot_level", value.max_plot_level, -1);    // Specify a maximum level of refinement for output files (NO REFINEMENT)
 
-        IO::FileNameParse(plot_file);
+        pp.query_default("amr.print_ghost_nodes", value.print_ghost_nodes, 0); // include ghost nodes in output
+        pp.query_default("amr.print_ghost_cells", value.print_ghost_cells, 0); // include ghost cells in output
 
-        nsubsteps.resize(maxLevel() + 1, 1);
-        int cnt = pp.countval("nsubsteps");
+        IO::FileNameParse(value.plot_file);
+
+        value.nsubsteps.resize(value.maxLevel() + 1, 1);
+        int cnt = pp.countval("amr.nsubsteps");
         if (cnt != 0)
-            if (cnt == maxLevel()) {
-                pp_queryarr("nsubsteps", nsubsteps); // Number of substeps to take on each level (default: 2)
-                nsubsteps.insert(nsubsteps.begin(), 1);
-                nsubsteps.pop_back();
+            if (cnt == value.maxLevel()) {
+                pp.queryarr("amr.nsubsteps", value.nsubsteps); // Number of substeps to take on each level (default: 2)
+                value.nsubsteps.insert(value.nsubsteps.begin(), 1);
+                value.nsubsteps.pop_back();
             }
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp_query_required("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
-                for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
+                pp.query_required("amr.nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
+                for (int lev = 1; lev <= value.maxLevel(); ++lev) value.nsubsteps[lev] = nsubsteps_all;
             }
             else
                 Util::Abort(INFO, "number of nsubsteps input must equal either 1 or amr.max_level");
         else
-            for (int lev = 1; lev <= maxLevel(); ++lev)
-                nsubsteps[lev] = MaxRefRatio(lev - 1);
+            for (int lev = 1; lev <= value.maxLevel(); ++lev)
+                value.nsubsteps[lev] = value.MaxRefRatio(lev - 1);
     }
     {
-        IO::ParmParse pp("dynamictimestep");
         // activate dynamic CFL-based timestep
-        pp_query("on",dynamictimestep.on);
-        if (dynamictimestep.on)
+        pp.query_default("dynamictimestep.on",value.dynamictimestep.on,false);
+        if (value.dynamictimestep.on)
         {
             // how much information to print
-            pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            pp.query_validate("dynamictimestep.verbose",value.dynamictimestep.verbose,{0,1});
             // number of previous timesteps for rolling average
-            pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
             // dynamic teimstep CFL condition
-            pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
             // minimum timestep size allowed shen stepping dynamically
-            pp_query_default("min",dynamictimestep.min,timestep);
+            pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
             // maximum timestep size allowed shen stepping dynamically
-            pp_query_default("max",dynamictimestep.max,timestep);
+            pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
 
-            Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
+            Util::AssertException(INFO,TEST(value.dynamictimestep.max >= value.dynamictimestep.min));
         }
     }
     {
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
-        IO::ParmParse pp("amr.thermo");
-        thermo.interval = 1;                                       // Default: integrate every time.
-        pp_query_default("int", thermo.interval, 1);               // Integration interval (1)
-        pp_query_default("plot_int", thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+        value.thermo.interval = 1;                                       // Default: integrate every time.
+        pp.query_default("amr.thermo.int", value.thermo.interval, 1);               // Integration interval (1)
+        pp.query_default("amr.thermo.plot_int", value.thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
+        pp.query_default("amr.thermo.plot_dt", value.thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
     }
 
     {
         // Instead of using AMR, prescribe an explicit, user-defined
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
-        IO::ParmParse pp("explicitmesh");
-        pp_query_default("on", explicitmesh.on, 0); // Use explicit mesh instead of AMR
-        if (explicitmesh.on)
+        pp.query_default("explicitmesh.on", value.explicitmesh.on, 0); // Use explicit mesh instead of AMR
+        if (value.explicitmesh.on)
         {
-            for (int ilev = 0; ilev < maxLevel(); ++ilev)
+            for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
             {
-                std::string strlo = "lo" + std::to_string(ilev + 1);
-                std::string strhi = "hi" + std::to_string(ilev + 1);
+                std::string strlo = "explicitmesh.lo" + std::to_string(ilev + 1);
+                std::string strhi = "explicitmesh.hi" + std::to_string(ilev + 1);
 
                 Util::Assert(INFO, TEST(pp.contains(strlo.c_str())));
                 Util::Assert(INFO, TEST(pp.contains(strhi.c_str())));
 
                 amrex::Vector<int> lodata, hidata;
-                pp_queryarr(strlo.c_str(), lodata);
-                pp_queryarr(strhi.c_str(), hidata);
+                pp.queryarr(strlo.c_str(), lodata);
+                pp.queryarr(strhi.c_str(), hidata);
                 amrex::IntVect lo(AMREX_D_DECL(lodata[0], lodata[1], lodata[2]));
                 amrex::IntVect hi(AMREX_D_DECL(hidata[0], hidata[1], hidata[2]));
 
-                explicitmesh.box.push_back(amrex::Box(lo, hi));
+                value.explicitmesh.box.push_back(amrex::Box(lo, hi));
             }
         }
     }
 
-    int nlevs_max = maxLevel() + 1;
 
-    istep.resize(nlevs_max, 0);
+    {
+        //
+        // These parameters are NOT USED! 
+        // They are shadow paramters for AMReX::TimeIntegration.
+        // The purpose here is:
+        // (1) to set default values
+        // (2) to prevent "unused input" warnings when integration is parsed, since it is parsed in the 
+        //     AMReX convention, not the Alamo convention.
+        // 
 
-    t_new.resize(nlevs_max, 0.0);
-    t_old.resize(nlevs_max, -1.e100);
-    SetTimestep(timestep);
+        std::string str;
+        // Type of time integration to use (see amrex::TimeIntegrator for more details)
+        pp.query_validate("integration.type", str, {"ForwardEuler","RungeKutta"});
+        if (str == "RungeKutta")
+        {
+            int type;
+            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
+            pp.query_validate("integration.rk.type", type, {1,2,3,4});
+        }
+    }
 
-    plot_file = Util::GetFileName();
-    IO::WriteMetaData(plot_file, IO::Status::Running, 0);
+    int nlevs_max = value.maxLevel() + 1;
+
+    value.istep.resize(nlevs_max, 0);
+
+    value.t_new.resize(nlevs_max, 0.0);
+    value.t_old.resize(nlevs_max, -1.e100);
+    value.SetTimestep(value.timestep);
+
+    value.plot_file = Util::GetFileName();
+    IO::WriteMetaData(value.plot_file, IO::Status::Running, 0);
 }
 
 // Destructor
@@ -686,9 +694,9 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
-                            Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev], cell.nghost_array[j]);
                         }
                     }
+                    Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
                 }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
@@ -855,7 +863,9 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         {
             int ncomp = ccomponents + bfcomponents_cell;
             if (cell.all) ncomp += ncomponents + bfcomponents;
-            cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+            amrex::BoxArray cgrids_ghost = grids[ilev];
+            cgrids_ghost.grow(print_ghost_cells);
+            cplotmf[ilev].define(cgrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             int cnames_cnt = 0;
@@ -931,7 +941,11 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             ngrids.convert(amrex::IntVect::TheNodeVector());
             int ncomp = ncomponents + bfcomponents;
             if (node.all) ncomp += ccomponents + bfcomponents_cell;
-            nplotmf[ilev].define(ngrids, dmap[ilev], ncomp, 0);
+
+            amrex::BoxArray ngrids_ghost = ngrids;
+            ngrids_ghost.grow(print_ghost_nodes);
+            
+            nplotmf[ilev].define(ngrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             for (int i = 0; i < node.number_of_fabs; i++)
@@ -958,7 +972,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                     if (!cell.writeout_array[i]) continue;
                     if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO, cnames[i], " contains nan (i=", i, "). Resetting to zero.");
                     if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    if ((*cell.fab_array[i])[ilev]->nGrow() == 0)
+                    if ((*cell.fab_array[i])[ilev]->nGrow() < 1)
                     {
                         if (initial) Util::Warning(INFO, cnames[i], " has no ghost cells and will not be included in nodal output");
                         continue;

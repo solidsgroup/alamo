@@ -29,22 +29,24 @@ amr.regrid_int = 100
 amr.base_regrid_int = 20
 amr.grid_eff = 0.7
 
+system.length = mm
+
 # Geometry
-geometry.prob_lo = 0.0 -0.25 -0.1 # [mm]
-geometry.prob_hi = 4.0 0.25 0.1 # [mm]
+geometry.prob_lo = 0.0_mm -0.25_mm -0.1_mm # [mm]
+geometry.prob_hi = 4.0_mm  0.25_mm  0.1_mm # [mm]
 geometry.is_periodic = 0 1 1
 
 # Timestep and duration
-timestep = 0.0000125 # [s]
-stop_time = 0.2 # [s]
+timestep = 0.0000125_s # [s]
+stop_time = 0.2_s # [s]
 
 # Phase field params
-pf.eps = 0.0005 # [mm]
-pf.lambda = 0.001
-pf.kappa = 1.0
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+pf.eps = 0.0005_mm # [mm]
+pf.lambda = 0.001_kg/s^2
+pf.kappa = 1.0_kg/s^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
 
 # Propellant model parameters
 propellant.type = powerlaw
@@ -57,7 +59,7 @@ propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
 propellant.powerlaw.n_comb = 0.0 # [ 1 ]
 
 # Chamber pressure (affects the propellant model)
-chamber.pressure = 0.2
+chamber.pressure = 0.2_MPa
 
 # Phase field initial condition
 pf.eta.ic.type = constant
@@ -66,10 +68,10 @@ pf.eta.ic.constant.value = 1.0
 # Species field initial condition
 phi.ic.type = laminate
 phi.ic.laminate.number_of_inclusions = 1
-phi.ic.laminate.center  = 0.0 0.0 0.0
-phi.ic.laminate.thickness = 0.1
+phi.ic.laminate.center  = 0.0_mm 0.0_mm 0.0_mm
+phi.ic.laminate.thickness = 0.1_mm
 phi.ic.laminate.orientation = 0 1 
-phi.ic.laminate.eps = 0.015
+phi.ic.laminate.eps = 0.015_mm
 phi.ic.laminate.singlefab = 1
 phi.ic.laminate.invert = 1
 
