@@ -541,6 +541,9 @@ void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
 // Otherwise mixed densities are updated according to TryProjectSpeciesDensities
 void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost, bool use_old_eta)
 {
+    // Only cutoff-wall mode should remap mixed conserved fields to a solid state.
+    if (!(cutoff >= 0.0 && cutoff < 1.0)) return;
+
     Set::Field<Set::Scalar>* eta_field = use_old_eta ? eta_old_mf : eta_mf;
     for (amrex::MFIter mfi(rho_mf, true); mfi.isValid(); ++mfi)
     {
@@ -1444,6 +1447,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             const Set::Scalar injection_specific_energy =
                 (rho_solid_sum > small) ? E_solid(i,j,k) / rho_solid_sum : 0.0;
+            const bool cutoff_wall_enforced = (cutoff >= 0.0 && cutoff < 1.0);
 
             try
             {
@@ -1469,8 +1473,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 }
                 else
                 {
-                    flux_xlo = riemannsolver->Solve(
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
                         state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small);
+                    flux_xlo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
                 }
 
                 if (eta_ylo <= cutoff)
@@ -1495,8 +1500,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 }
                 else
                 {
-                    flux_ylo = riemannsolver->Solve(
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
                         state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small);
+                    flux_ylo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
                 }
 
                 if (eta_xhi <= cutoff)
@@ -1521,8 +1527,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 }
                 else
                 {
-                    flux_xhi = riemannsolver->Solve(
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
                         state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small);
+                    flux_xhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
                 }
 
                 if (eta_yhi <= cutoff)
@@ -1547,8 +1554,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 }
                 else
                 {
-                    flux_yhi = riemannsolver->Solve(
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
                         state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small);
+                    flux_yhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
                 }
             }
             catch(...)
@@ -1585,7 +1593,6 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             // In cutoff-wall mode, the Riemann wall flux imposes no-penetration
             // at the cutoff face; applying this over the full eta ramp adds a
             // second, finite-thickness constraint and creates an interface peak.
-            const bool cutoff_wall_enforced = (cutoff >= 0.0 && cutoff < 1.0);
             if (!cutoff_wall_enforced)
             {
                 const Set::Scalar momentum_density_for_lagrange =

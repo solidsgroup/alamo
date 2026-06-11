@@ -86,7 +86,7 @@ stop_time = 10.0
 cfl   = 0.4
 
 small=1E-8
-#cutoff=1E-5
+#cutoff=0.5
 #lagrange=1E4
 
 ### ETA IC ###
