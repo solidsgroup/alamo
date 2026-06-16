@@ -28,7 +28,7 @@ psi.ic.expression.constant.eps = 0.2
 # psi.ic.expression.constant.R   = 1.0
 psi.ic.expression.constant.width = 0.3
 psi.ic.expression.constant.height = 3.0
-psi.ic.expression.region0 = "(0.5 + 0.5*erf((y + width)/eps))*(0.5 - 0.5*erf((y - width)/eps))*(0.5 - 0.5*erf((x - height)/eps))"
+psi.ic.expression.region0 = "(0.5 + 0.5*erf((y + width)/eps))*(0.5 - 0.5*erf((y - width)/eps))*(0.5 - 0.5*erf((x - height)/eps))*(0.5 + 0.5*erf((x + 11.0)/eps))"
 # psi.ic.expression.region0 = "0.5 + 0.5*tanh((sqrt(x^2 + y^2) - R)/eps)"
 
 trac_normal.ic.type=expression
