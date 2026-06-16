@@ -42,9 +42,6 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {   
-        Set::Vector size = Set::Size(geom[lev]);
-        int ncomp = a_phi[lev]->nComp();
-
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
@@ -57,6 +54,11 @@ public:
             m_edge.resize(X.size() - 1);
             b_edge.resize(X.size() - 1);
 
+            if (X.back() != X.front())
+            // The first and last point must match, if they do not add another point to the end
+            {
+                X.push_back(X.front());
+            }
             for (unsigned int n = 0; n < X.size()-1; n++)
                 {   
                     // Compute the slope and y intercept of each edge
@@ -77,8 +79,6 @@ public:
 
                 for (unsigned int n = 0; n < X.size()-1; n++)
                 {   
-                    Set::Scalar m_r; // Slope of the line normal to the edge
-                    Set::Scalar b_r; // Y-intercept of the line normal to the edge
                     Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
                     // std::cout << "X[n](1) = " << X[n](1) << ",X[n][1] = " << X[n][1] << std::endl;
                     if ((X[n](1) > x(1) && X[n+1](1) > x(1)) || (X[n](1) < x(1) && X[n+1](1) < x(1)))
@@ -155,6 +155,10 @@ public:
                 }
                 
                 phi(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * eps)));
+
+                if (invert) {
+                    phi(i,j,k) = 1 - phi(i,j,k);
+                }
                 
             });
         }
