@@ -2,7 +2,6 @@
 // Fill a domain based on a list of points to form a closed 2D shape.
 // The distance from each point to the nearest edge is found and an error function is then used to compute
 // the vlude of phi between 0 (outside) and 1 (inside).
-//
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -65,41 +64,6 @@ public:
                     b_edge[n] = (X[n](1) - m_edge[n]*X[n](0));
                 }
 
-            // std::cout << "X.size() = " << X.size() << std::endl;
-            // std::cout << "m_edge.size() = " << m_edge.size() << std::endl;
-            // std::cout << "b_edge.size() = " << b_edge.size() << std::endl;
-
-            // m_edge.resize(X.size() - 1);
-            // b_edge.resize(X.size() - 1);
-
-            // for (unsigned int n = 0; n < X.size() - 1; n++)
-            // {
-            //     std::cout << "\nIteration n = " << n << std::endl;
-
-            //     std::cout << "Accessing X[" << n << "] and X[" << n + 1 << "]" << std::endl;
-
-            //     std::cout << "X[" << n << "] = ("
-            //             << X[n](0) << ", "
-            //             << X[n](1) << ")" << std::endl;
-
-            //     std::cout << "X[" << n + 1 << "] = ("
-            //             << X[n + 1](0) << ", "
-            //             << X[n + 1](1) << ")" << std::endl;
-
-            //     double dx = X[n + 1](0) - X[n](0) + small;
-            //     double dy = X[n + 1](1) - X[n](1);
-
-            //     std::cout << "dx = " << dx << ", dy = " << dy << std::endl;
-
-            //     m_edge[n] = dy / dx;
-            //     b_edge[n] = X[n](1) - m_edge[n] * X[n](0);
-
-            //     std::cout << "m_edge[" << n << "] = " << m_edge[n] << std::endl;
-            //     std::cout << "b_edge[" << n << "] = " << b_edge[n] << std::endl;
-            // }
-
-            // std::cout << "Finished computing slopes \n";
-
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
@@ -122,25 +86,9 @@ public:
                         num_cross += 0;
                     } else
                     {
-                        // x_cross = (x(1) - b_edge[n])/(m_edge[n]);
-                        // std::cout << "\nComputing x_cross for edge n = " << n << std::endl;
-                        // std::cout << "x(1) = " << x(1) << std::endl;
-                        // std::cout << "b_edge[" << n << "] = " << b_edge[n] << std::endl;
-                        // std::cout << "m_edge[" << n << "] = " << m_edge[n] << std::endl;
-
                         double numerator = x(1) - b_edge[n];
 
-                        // std::cout << "numerator = x(1) - b_edge[" << n << "] = " << numerator << std::endl;
-
-                        if (std::abs(m_edge[n]) < 1e-12)
-                        {
-                            std::cout << "WARNING: m_edge[" << n
-                                    << "] is near zero!" << std::endl;
-                        }
-
                         x_cross = numerator / m_edge[n];
-
-                        // std::cout << "x_cross = " << x_cross << std::endl;
 
                         if (x_cross > x[0])
                         {   // If the horxiontal ray crosses the intercept, add 1 to n_cross
@@ -151,20 +99,31 @@ public:
                         }
                     }
 
+                    // Computes the closest point on a line segment (X[n] → X[n+1]) to a query point x,
+                    // using vector projection onto the segment.
+                    //
+                    // Let A = X[n], B = X[n+1], and P = x.
+                    //
+                    // The parameter t is the normalized projection of P onto the infinite line AB:
+                    //
+                    //     t = ((P - A) · (B - A)) / |B - A|^2
+                    //
+                    // If t ∈ [0, 1], the perpendicular projection lies within the segment.
+                    // If t < 0, the closest point is A.
+                    // If t > 1, the closest point is B.
+                    //
+                    // The resulting closest point x_int is then used to compute the Euclidean
+                    // distance from P to the segment, and the minimum distance over all edges is tracked.
+
                     double x1 = X[n](0);
                     double y1 = X[n](1);
-
                     double x2 = X[n+1](0);
                     double y2 = X[n+1](1);
-
                     double px = x(0);
                     double py = x(1);
-
                     double dx = x2 - x1;
                     double dy = y2 - y1;
-
                     double len2 = dx*dx + dy*dy;
-
                     double t = ((px - x1)*dx + (py - y1)*dy) / len2;
 
                     if (t < 0.0)
@@ -184,50 +143,16 @@ public:
                     }
 
                     dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-
-                    // m_r = -1/(m_edge[n]+small);
-                    // b_r = x(1) - m_r*x(0);
-
-                    // x_int(0) = (b_edge[n] - b_r)/(m_r - m_edge[n] + small);
-                    // x_int(1) = m_edge[n]*x_int(0) + b_edge[n];
-
-                    // if ((x_int(0) > X[n](0)) && (x_int(0) < X[n+1](0))) {
-
-                    // }
-
-                    // if (((x_int(0) - X[n](0)) > 0 && (x_int(0) - X[n+1](0) < 0)) && ((x_int(1) - X[n](1)) > 0 && (x_int(1) - X[n+1](1) < 0)))
-                    // {
-                    //     dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-                    // } else if (((x_int(0) - X[n](0)) < 0 && (x_int(0) - X[n+1](0) > 0)) && ((x_int(1) - X[n](1)) < 0 && (x_int(1) - X[n+1](1) > 0)))
-                    // {
-                    //     dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-                    // } else
-                    // {
-                    //     dist_to_edge = std::min(dist(x(0), x(1), X[n](0), X[n](1)), dist(x(0), x(1), X[n+1](0), X[n+1](1)));
-                    // }
                     min_dist_to_edge = std::min(min_dist_to_edge, dist_to_edge);
 
                 }
                 if (num_cross % 2 == 0) 
                 {
-                    min_dist_to_edge = min_dist_to_edge; // If the number of crossings is even, the point is inside the shape
+                    min_dist_to_edge = 1*min_dist_to_edge; // If the number of crossings is even, the point is inside the shape
                 } else 
                 {
                     min_dist_to_edge = -1*min_dist_to_edge;
                 }
-
-                double denom = std::sqrt(2.0) * eps;
-                double arg   = min_dist_to_edge / denom;
-                double tanh_val = std::tanh(arg);
-                double phi_val  = 0.5 * (1.0 - tanh_val);
-
-                // std::cout << "i,j,k = " << i << ", " << j << ", " << k << std::endl;
-
-                // std::cout << "num_cross = "<< num_cross << std::endl;
-
-                // std::cout << "min_dist_to_edge = " << min_dist_to_edge << std::endl;
-
-                // std::cout << "phi_val = " << phi_val << "\n" << std::endl;
                 
                 phi(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * eps)));
                 
