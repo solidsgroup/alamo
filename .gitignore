@@ -62,3 +62,12 @@ alamo
 setup.py
 alamo.py
 /.venv
+
+# --- scratch / experiment clutter ---
+*.log
+*.nohup
+alamovenv/
+.claude_investigation/
+.claude_fab_probe.py
+sweep_*/
+backtraces_*/
