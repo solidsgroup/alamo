@@ -15,4 +15,4 @@ source alamovenv/bin/activate
 pip install -e .
 
 # Run the python regression test
-./scripts/runtests.py --python tests/Py 
+./scripts/runtests.py --python --comp=g++ tests/Py 

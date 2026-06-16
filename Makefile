@@ -3,7 +3,6 @@
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
-MPI_LIB ?= -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
@@ -39,30 +38,41 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++20 $(METADATA_FLAGS)
 
+# Clang in C++20 adds a warning for failing to explicitly capture "this" in lambda functions.
+# Compliance will require changing ParallelFor calls from "[=]" to "[=,this]"
+# g++ also issues a warning but has no instrumentation for suppressing this warning only, so we
+# will just leave noisy output
+ifeq ($(COMP), CLANG)
+CXX_COMPILE_FLAGS += -Wno-deprecated-this-capture 
+endif
+
+# Skip on macOS: -Bsymbolic-functions is a GNU ld flag not supported by
+# Apple's ld64, and -lstdc++fs is a pre-GCC-9 std::filesystem shim that
+# doesn't exist in libc++ (used by Apple Clang and Homebrew LLVM).
+ifneq ($(shell uname -s),Darwin)
 LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
+endif
 
 #CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
-ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(foreach pth,$(subst :, ,${CPLUS_INCLUDE_PATH}),-I$(pth))
 LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
-SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
 OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
-OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 
-NUM = $(words $(SRC) $(SRC_F) $(SRC_MAIN))
+NUM = $(words $(SRC) $(SRC_MAIN))
 CTR = 0
 NUM_DEP = $(words $(DEP))
 CTR_DEP = 0
@@ -123,7 +133,7 @@ info:
 
 bin/%: bin/%-$(POSTFIX) ;
 
-bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o 
+bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	$(eval CTR_EXE=$(shell echo $$(($(CTR_EXE)+1))))
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     " 
 	@printf '%9s' "($(CTR_EXE)/$(NUM_EXE)) " 
@@ -182,15 +192,7 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET} ${DEP_DIFF}
 
 .PHONY: .FORCE
 
-FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
-
-obj/obj-$(POSTFIX)/%.F90.o: src/%.F90 
-	@printf "$(B_ON)$(FG_YELLOW)COMPILING  $(RESET)$<\n" 
-	@mkdir -p $(dir $@)
-	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
-	rm *.mod -rf
-
-docs: docs/build/html/index.html .FORCE 
+docs: docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
 docs/build/html/index.html: $(shell find docs/source/ -type f) README.rst .FORCE
