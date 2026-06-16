@@ -150,35 +150,62 @@ public:
                             num_cross += 0;
                         }
                     }
-                    m_r = -1/(m_edge[n]+small);
-                    b_r = x(1) - m_r*x(0);
 
-                    x_int(0) = (b_edge[n] - b_r)/(m_r - m_edge[n] + small);
-                    x_int(1) = m_edge[n]*x_int(0) + b_edge[n];
+                    double x1 = X[n](0);
+                    double y1 = X[n](1);
 
-                    if ((x_int(0) > X[n](0)) && (x_int(0) < X[n+1](0))) {
+                    double x2 = X[n+1](0);
+                    double y2 = X[n+1](1);
 
+                    double px = x(0);
+                    double py = x(1);
+
+                    double dx = x2 - x1;
+                    double dy = y2 - y1;
+
+                    double len2 = dx*dx + dy*dy;
+
+                    double t = ((px - x1)*dx + (py - y1)*dy) / len2;
+
+                    if (t < 0.0)
+                    {
+                        x_int(0) = x1;
+                        x_int(1) = y1;
+                    }
+                    else if (t > 1.0)
+                    {
+                        x_int(0) = x2;
+                        x_int(1) = y2;
+                    }
+                    else
+                    {
+                        x_int(0) = x1 + t*dx;
+                        x_int(1) = y1 + t*dy;
                     }
 
-                    if (((x_int(0) - X[n](0)) > 0 && (x_int(0) - X[n+1](0) < 0)) && ((x_int(1) - X[n](1)) > 0 && (x_int(1) - X[n+1](1) < 0)))
-                    {
-                        dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-                    } else if (((x_int(0) - X[n](0)) < 0 && (x_int(0) - X[n+1](0) > 0)) && ((x_int(1) - X[n](1)) < 0 && (x_int(1) - X[n+1](1) > 0)))
-                    {
-                        dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-                    } else
-                    {
-                        dist_to_edge = std::min(dist(x(0), x(1), X[n](0), X[n](1)), dist(x(0), x(1), X[n+1](0), X[n+1](1)));
-                    }
+                    dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+
+                    // m_r = -1/(m_edge[n]+small);
+                    // b_r = x(1) - m_r*x(0);
+
+                    // x_int(0) = (b_edge[n] - b_r)/(m_r - m_edge[n] + small);
+                    // x_int(1) = m_edge[n]*x_int(0) + b_edge[n];
+
+                    // if ((x_int(0) > X[n](0)) && (x_int(0) < X[n+1](0))) {
+
+                    // }
+
+                    // if (((x_int(0) - X[n](0)) > 0 && (x_int(0) - X[n+1](0) < 0)) && ((x_int(1) - X[n](1)) > 0 && (x_int(1) - X[n+1](1) < 0)))
+                    // {
+                    //     dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+                    // } else if (((x_int(0) - X[n](0)) < 0 && (x_int(0) - X[n+1](0) > 0)) && ((x_int(1) - X[n](1)) < 0 && (x_int(1) - X[n+1](1) > 0)))
+                    // {
+                    //     dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+                    // } else
+                    // {
+                    //     dist_to_edge = std::min(dist(x(0), x(1), X[n](0), X[n](1)), dist(x(0), x(1), X[n+1](0), X[n+1](1)));
+                    // }
                     min_dist_to_edge = std::min(min_dist_to_edge, dist_to_edge);
-
-                    if (x(1) > 0.5 && x(1) < 0.6) {
-                        std::cout << "x(0) = " << x(0) << ", x(1) = " << x(1) << std::endl;
-                        std::cout << "m_edge = " << m_edge[n] << ", b_edge = " << b_edge[n] << std::endl;
-                        std::cout << "x_int = (" << x_int(0) << "," << x_int(1) << ")" << std::endl;
-                        std::cout << "dist to edge = " << dist_to_edge << std::endl;
-                        std::cout << "\n";
-                    }
 
                 }
                 if (num_cross % 2 == 0) 
