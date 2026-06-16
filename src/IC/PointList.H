@@ -1,7 +1,7 @@
 //
 // Fill a domain based on a list of points to form a closed 2D shape.
 // The distance from each point to the nearest edge is found and an error function is then used to compute
-// the vlude of phi between 0 (outside) and 1 (inside).
+// the vlude of phi between 0 (outside) and 1 (inside). Only works in 2 dimensions
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -43,7 +43,12 @@ public:
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {   
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
+        {   
+            if (AMREX_SPACEDIM != 2)
+            {
+                amrex::Abort("This code only supports 2D (AMREX_SPACEDIM must be 2)");
+            }
+
             amrex::Box bx;
             amrex::IndexType type = a_phi[lev]->ixType();
             if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
