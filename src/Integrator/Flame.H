@@ -65,6 +65,7 @@ private:
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> psi_mf; // floored copy of eta used to weight the elastic solver
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -116,9 +117,26 @@ private:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
-        model_type model_ap, model_htpb, model_void;
+        model_type model_ap, model_htpb, model_void, model_casing;
         Set::Scalar traction = NAN;
+        // When 1, the interface traction follows the evolving chamber pressure
+        // instead of the constant elastic.traction value.
+        int traction_from_chamber = 0;
         int phirefinement = -1;
+        // Floor for the psi weighting field used by the elastic solver. psi=eta
+        // zeroes the gas region, which leaves the masked operator near-singular on
+        // thin/complex solid features and makes MLMG diverge. With a floor f, the
+        // solver sees psi = f + (1-f)*eta, keeping the operator positive-definite in
+        // the gas (whose stress we ignore). Default 0 reproduces the old psi=eta.
+        // Only used when use_psi=1.
+        Set::Scalar psi_floor = 0.0;
+        // Whether to mask the elastic operator with the psi field at all. When 0,
+        // no psi is installed (psi_avg=1 everywhere) and the gas is conditioned
+        // purely by its real, unitized model_void stiffness -- a cleaner model with
+        // no arbitrary scalar multiplying the void modulus. The masked operator with
+        // (psi_floor*kappa_void) is numerically equivalent to use_psi=0 with
+        // kappa_void scaled to that product, so a soft physical void replaces both.
+        int use_psi = 1;
     } elastic;
 
     // Chamber state variables (not inputs)

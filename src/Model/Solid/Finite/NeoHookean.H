@@ -153,7 +153,11 @@ public:
         // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
         // bulk modulus \(K\).
         // You can currently specify (mu and kappa), (lambda and mu), or (E and nu).
-        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+        // Units are pressure for the stiffness moduli (lambda, mu, E, kappa) and
+        // dimensionless for Poisson's ratio (nu). Bare (unit-less) numbers are still
+        // accepted and pass through unchanged.
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli,
+                            {Unit::Pressure(), Unit::Pressure(), Unit::Pressure(), Unit::Less(), Unit::Pressure()});
 
 
         if (moduli[0].first == "mu" && moduli[1].first == "kappa")

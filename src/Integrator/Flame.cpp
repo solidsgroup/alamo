@@ -115,8 +115,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
-    value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
+    // eta carries 3 ghost cells (not 2): the elastic model blend in UpdateModel
+    // does CellToNodeAverage(eta) over the model's grown box, which reaches one
+    // cell past a 2-ghost buffer at interior grid edges. temp already uses 3.
+    value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 3, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    value.RegisterNewFab(value.psi_mf, value.bc_eta, 1, 2, "psi", true);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
@@ -131,6 +135,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         ("propellant",value.propellant);
 
     if (value.propellant.get_name() == "homogenize")  value.homogenized = true;
+
+    // AP mass fraction for homogenized elastic model blending
+    pp_query_default("massfraction", value.massfraction, 0.8);
 
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
@@ -224,11 +231,29 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
 
-    // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
+    // Body force (surface traction applied at the burn interface; pressure units).
+    // Bare (unit-less) numbers are still accepted and pass through unchanged.
+    pp_query_default("elastic.traction", value.elastic.traction, "0.0", Unit::Pressure());
 
-    // Phi refinement criteria 
-    pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
+    // If 1, the interface traction is set each step from the evolving chamber
+    // pressure; elastic.traction is then ignored. (Coupling is explicit: the
+    // elastic solve at step N uses the pressure from the end of step N-1.)
+    pp_query_default("elastic.traction_from_chamber", value.elastic.traction_from_chamber, 0);
+
+    // Phi refinement criteria
+    pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
+
+    // Floor for the psi weighting field (0 => psi=eta, the original behavior).
+    // A small floor keeps the masked elastic operator non-singular in the gas,
+    // which is what lets MLMG converge on thin/complex grain geometries.
+    // NOTE: must be read before the Mechanics queryclass below, which strictly
+    // validates that every elastic.* key has been consumed.
+    pp_query_default("elastic.psi_floor", value.elastic.psi_floor, 0.0);
+
+    // Whether to mask the elastic operator with psi at all (1) or condition the
+    // gas purely through the real model_void stiffness with no mask (0). Same
+    // strict-validation ordering requirement as psi_floor above.
+    pp_query_default("elastic.use_psi", value.elastic.use_psi, 1);
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
@@ -241,10 +266,20 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        // elastic model of void (gas phase, lives where phi=1 and eta=0)
+        if (value.homogenized)
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
+        // elastic model of casing (stiff confinement outside the fuel disk, phi=0)
+        if (value.homogenized)
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_casing", value.elastic.model_casing);
 
-        // Use our current eta field as the psi field for the solver
+        // Use (floored) eta as the psi field to weight the elastic operator and zero
+        // out the gas region. psi_mf is filled from eta in UpdateModel. When use_psi=0
+        // we install no psi at all: psi_avg stays 1 everywhere and the gas is
+        // conditioned only by its (soft, unitized) model_void stiffness.
         value.psi_on = false;
-        value.solver.setPsi(value.eta_mf);
+        if (value.elastic.use_psi)
+            value.solver.setPsi(value.psi_mf);
     }
 
     bool allow_unused;
@@ -354,6 +389,18 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
+        // Build the (floored) psi weighting field used by the elastic solver:
+        //   psi = psi_floor + (1 - psi_floor) * eta
+        // With psi_floor=0 this is just eta (original behavior). A small floor keeps
+        // the masked operator non-singular in the gas region. eta's ghosts are valid
+        // (FillBoundary above), so copy with ghosts to keep psi consistent.
+        {
+            const int ng = psi_mf[lev]->nGrow();
+            amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, ng);
+            psi_mf[lev]->mult(1.0 - elastic.psi_floor, 0, 1, ng);
+            psi_mf[lev]->plus(elastic.psi_floor, 0, 1, ng);
+        }
+
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box smallbox = mfi.nodaltilebox();
@@ -366,10 +413,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+                const Set::Scalar traction = elastic.traction_from_chamber ? chamber.pressure : elastic.traction;
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    rhs(i, j, k) = elastic.traction * grad_eta;
+                    rhs(i, j, k) = traction * grad_eta;
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -390,7 +438,26 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         model_void.F0 -= Set::Matrix::Identity();
                         model_void.F0 *= (temp_avg - elastic.Telastic);
                         model_void.F0 += Set::Matrix::Identity();
-                        model(i, j, k) = (model_ap * massfraction + model_htpb * (1. - massfraction)) * phi_avg + model_void * (1. - phi_avg);
+                        model_type model_casing = elastic.model_casing;
+                        model_casing.F0 -= Set::Matrix::Identity();
+                        model_casing.F0 *= (temp_avg - elastic.Telastic);
+                        model_casing.F0 += Set::Matrix::Identity();
+
+                        // Three-material partition of unity (sums to 1):
+                        //   solid  = phi*eta       -- fuel present AND unburned (propellant)
+                        //   void   = phi*(1-eta)   -- fuel region, burned (combustion gas, very soft)
+                        //   casing = (1-phi)       -- outside the fuel disk (stiff confinement)
+                        // phi (static) masks the cylindrical chamber out of the square domain;
+                        // eta (live) splits propellant from gas inside it.
+                        // NOTE: this CellToNodeAverage(eta) over the grown box requires eta to carry
+                        // 3 ghost cells (like temp) so the read stays in bounds at grid edges.
+                        Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, 0);
+                        Set::Scalar w_solid  = phi_avg * eta_avg;
+                        Set::Scalar w_void   = phi_avg * (1. - eta_avg);
+                        Set::Scalar w_casing = 1. - phi_avg;
+                        model(i, j, k) = (model_ap * massfraction + model_htpb * (1. - massfraction)) * w_solid
+                                       + model_void * w_void
+                                       + model_casing * w_casing;
                     }
                     else
                     {
@@ -545,6 +612,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+            if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
             if (etanew(i, j, k) != etanew(i, j, k)) { // Check for NaN

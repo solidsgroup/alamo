@@ -194,8 +194,10 @@ protected:
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         solver.Define(elastic_op);
+        Util::Message(INFO, "ELASTIC SOLVE: t=", a_time, " step=", a_step, " m_type=", (int)m_type);
         if (psi_on) solver.setPsi(psi_mf);
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
+
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
 

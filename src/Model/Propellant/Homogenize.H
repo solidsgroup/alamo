@@ -76,7 +76,10 @@ public:
         Set::Scalar L = NAN;
         if (mob_prop == 1) L = m_prop * pow(Pbar, pressure_exponent) * exp(-E_prop / T) * phi;
         else L = m_prop * exp(-E_prop / T) * phi;
-        if (T <= bound) L = 0.0;
+        // Smooth quench cutoff: tanh sigmoid centered on bound with width bound_width.
+        // Avoids the bistable interface ring caused by a hard step in L.
+        Set::Scalar damping = 0.5 * (1.0 + std::tanh((T - bound) / bound_width));
+        L *= damping;
         
         if (L != L)
         {
@@ -136,7 +139,9 @@ public:
         // Whether to include pressure to the arrhenius law [??]
         pp.query_default("mob_prop", value.mob_prop,false); 
         // HTPB Activation Energy for Arrhenius Law
-        pp.query_default("bound", value.bound,"0_K", Unit::Temperature()); 
+        pp.query_default("bound", value.bound,"0_K", Unit::Temperature());
+        // Smoothing width for the bound cutoff (transition over ~bound_width Kelvin)
+        pp.query_default("bound_width", value.bound_width,"50_K", Unit::Temperature());
 
         pp.query_default("pressure_exponent", value.pressure_exponent,"0.5_1", Unit::Less());
     }
@@ -154,6 +159,7 @@ public:
     Set::Scalar m_prop = NAN;
     Set::Scalar E_prop = NAN;
     Set::Scalar bound = NAN;
+    Set::Scalar bound_width = NAN;
     Set::Scalar P_reference = NAN;
     Set::Scalar pressure_exponent = NAN;
 
