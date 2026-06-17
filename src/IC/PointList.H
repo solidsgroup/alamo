@@ -1,7 +1,7 @@
 //
 // Fill a domain based on a list of points to form a closed 2D shape.
 // The distance from each point to the nearest edge is found and an error function is then used to compute
-// the vlude of phi between 0 (outside) and 1 (inside). Only works in 2 dimensions
+// the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -80,10 +80,10 @@ public:
                 Set::Scalar dy;
                 Set::Scalar len2;
                 Set::Scalar t;
+                Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
 
                 for (unsigned int n = 0; n < X.size()-1; n++)
                 {   
-                    Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
 
                     x1 = X[n](0);
                     y1 = X[n](1);
