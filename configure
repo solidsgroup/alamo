@@ -103,6 +103,76 @@ message("Python",python_version)
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 
+def normalize_cuda_arch(cuda_arch):
+    """Normalize CUDA architecture strings like 7.5, sm_75, or compute_75 to 75."""
+    cuda_arch = str(cuda_arch).strip().lower()
+    for prefix in ("sm_", "compute_"):
+        if cuda_arch.startswith(prefix):
+            cuda_arch = cuda_arch[len(prefix):]
+    cuda_arch = cuda_arch.replace(".", "")
+    if not re.fullmatch(r"\d+", cuda_arch):
+        raise Exception(error(f"CUDA architecture must be numeric, e.g. 75 or 80, but got {cuda_arch!r}"))
+    return cuda_arch
+
+def detect_cuda_arch(required=True):
+    """Detect the local NVIDIA GPU compute capability for CUDA builds."""
+    nvidia_smi = shutil.which("nvidia-smi")
+    if not nvidia_smi:
+        if not required:
+            return None
+        raise Exception(
+            error(
+                "Could not auto-detect CUDA architecture because nvidia-smi was not found. "
+                "Pass an explicit architecture, e.g. --cuda 75 or --cuda 80."
+            )
+        )
+
+    result = subprocess.run(
+        [nvidia_smi, "--query-gpu=compute_cap", "--format=csv,noheader"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        if not required:
+            return None
+        raise Exception(
+            error(
+                "Could not auto-detect CUDA architecture from nvidia-smi. "
+                "Pass an explicit architecture, e.g. --cuda 75 or --cuda 80.\n"
+                + result.stderr.strip()
+            )
+        )
+
+    detected_arches = [
+        normalize_cuda_arch(line)
+        for line in result.stdout.splitlines()
+        if line.strip()
+    ]
+    if not detected_arches:
+        if not required:
+            return None
+        raise Exception(
+            error(
+                "nvidia-smi did not report a GPU compute capability. "
+                "Pass an explicit architecture, e.g. --cuda 75 or --cuda 80."
+            )
+        )
+
+    unique_arches = sorted(set(detected_arches))
+    if len(unique_arches) > 1:
+        if not required:
+            return None
+        raise Exception(
+            error(
+                "Multiple CUDA GPU architectures were detected: "
+                + ", ".join(unique_arches)
+                + ". Pass the required architecture explicitly, e.g. --cuda "
+                + unique_arches[0]
+            )
+        )
+    return unique_arches[0]
+
 CONFIG_FILE = ".alamo"
 preparser = argparse.ArgumentParser(add_help=False)
 preparser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
@@ -140,7 +210,7 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
-parser.add_argument('--cuda',dest='cuda',const='80',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture (default: 80, works for A100)")
+parser.add_argument('--cuda',dest='cuda',const='auto',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture. If no architecture is given, auto-detect the local NVIDIA GPU compute capability.")
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
@@ -151,6 +221,22 @@ parser.set_defaults(**defaults)
 #
 
 args=parser.parse_args()
+
+if args.cuda:
+    if args.cuda is True or str(args.cuda).strip().lower() == "auto":
+        args.cuda = detect_cuda_arch()
+        message("CUDA Architecture", f"auto-detected sm_{args.cuda}")
+    else:
+        args.cuda = normalize_cuda_arch(args.cuda)
+        message("CUDA Architecture", f"using explicit sm_{args.cuda}")
+        detected_cuda_arch = detect_cuda_arch(required=False)
+        if detected_cuda_arch and detected_cuda_arch != args.cuda:
+            warning(
+                f"Explicit CUDA architecture sm_{args.cuda} does not match "
+                f"the detected local GPU architecture sm_{detected_cuda_arch}. "
+                "Local CUDA runs may fail; use --cuda or --cuda "
+                f"{detected_cuda_arch} for this machine."
+            )
 
 # Accept a path or a versioned name (e.g. /spack/.../bin/g++-15) as --comp by
 # normalizing to the bare compiler name for type checks. Invocations still
@@ -331,7 +417,6 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     if args.fft: amrex_configure += " --enable-fft=yes"
-    print("cuda",args.cuda)
     if args.cuda:
         amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
@@ -558,7 +643,7 @@ if mpidist == "openmpi":
         if args.comp != "g++": raise Exception(error("works only for g++ currently"))
 
         try:
-            shellmessage("nvidia info", "nvidia-smi --query-gpu=name --format=csv,noheader")
+            shellmessage("nvidia info", "nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader")
         except Exception as e:
             warning("Could not find information about current nvidia hardware")
 
