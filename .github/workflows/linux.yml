@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: installing preliminaries
-        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+        run: source .github/workflows/dependencies-ubuntu-24.04.sh
       - name: make
         run: bash .github/workflows/build-docs.sh
 
@@ -66,7 +66,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
+      run: source .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
       run: ./configure --dim=2 --comp=g++
     - name: make
@@ -109,7 +109,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       run: ./configure --dim=2 --comp=g++
     - name: make
@@ -152,7 +152,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure
       run: ./configure --dim=3 --comp=g++
     - name: make
@@ -195,7 +195,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing clang
       run: sudo apt install clang
     - name: configure (2d)
@@ -239,7 +239,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing clang
       run: sudo apt install clang
     - name: installing fftw3
@@ -284,7 +284,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       run: ./configure --cuda
     - name: make

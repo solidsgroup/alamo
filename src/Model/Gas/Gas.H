@@ -82,7 +82,7 @@ public:
             Set::Patch<const Set::Scalar>& density_mf,
             Set::Patch<Set::Scalar>& mass_fraction_mf,
             Set::Patch<Set::Scalar>& mole_fraction_mf,
-            const int i, const int j, const int k)
+            const int i, const int j, const int k) const
     {
         // In place update for mass and mole fractions
         // This needs to be called before any other functions if cell composition 

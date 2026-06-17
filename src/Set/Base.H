@@ -158,7 +158,6 @@ Scalar& Garbage()
 }
 
 AMREX_FORCE_INLINE
-AMREX_GPU_HOST_DEVICE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
 {
     (void)k;

@@ -86,6 +86,7 @@ public:
                 const amrex::Box &domain) = 0;
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,

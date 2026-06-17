@@ -13,7 +13,6 @@
 
 #include "AMReX_Config.H"
 #include "AMReX_Extension.H"
-//#include "Set/Base.H"
 //#include "Util/Util.H"
 
 /// \brief A collection of utility routines
@@ -109,8 +108,9 @@ std::string Join(const std::vector<double> & vec, std::string separator = " ")
     return Join(strvec,separator);
 }
 
+template<class VEC>
 AMREX_FORCE_INLINE
-std::string Join(const Set::Vector & vec, char separator = ' ')
+auto Join(const VEC & vec, char separator = ' ') -> decltype(vec.size(), vec[0], std::string())
 {
     std::ostringstream oss;
     for (size_t i = 0; i < vec.size(); ++i) {

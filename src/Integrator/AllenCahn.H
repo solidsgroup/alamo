@@ -153,7 +153,7 @@ public:
                 driving_force += ch.lambda * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
 
                 // Gradient
-                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
+                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX.data());
                 driving_force -= ch.kappa * alpha_lap;
 
                 if (time >= ch.direction_tstart)

@@ -201,7 +201,7 @@ public:
                     amrex::Box bx = mfi.grownnodaltilebox();
                     amrex::Array4<brittle_model> const &model = model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                         model(i, j, k) = brittle_model::Zero();
                         for (int n = 0; n < material.num_mat; n++)
                             model(i, j, k) += eta(i, j, k, n) * material.models[n];
@@ -221,7 +221,7 @@ public:
                 amrex::Box bx = mfi.growntilebox();
                 amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                     // psi(i,j,k,0) = crack.cracktype[0].g_phi(c(i,j,k,0));
                     psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0));
                 });
@@ -283,7 +283,7 @@ public:
                 amrex::Array4<Set::Scalar> const &energy = crack.energy_pristine_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &history_var = crack.history_var_mf[lev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                     //==========================================================
                     // The formulation below uses decomposition of stress
                     // Set::Matrix sig = stress(i,j,k);
@@ -523,7 +523,7 @@ public:
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[a_lev]->array(mfi);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
 #if AMREX_SPACEDIM != 2
                 Util::Abort(INFO, "This does not work for 1D or 3D yet.");
 #endif
@@ -634,7 +634,7 @@ public:
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                 Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -647,7 +647,7 @@ public:
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(df, i, j, k, 0, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.driving_force_refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -660,7 +660,7 @@ public:
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(psi, i, j, k, 0, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -675,7 +675,7 @@ public:
                 bx.convert(amrex::IntVect::TheCellVector());
                 amrex::Array4<char> const &tags = a_tags.array(mfi);
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k) {
                     Set::Matrix grad = Numeric::Gradient(eta, i, j, k, DX.data());
                     if (grad.lpNorm<2>() * DXnorm > material.m_eta_ref_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
@@ -692,7 +692,7 @@ public:
         amrex::Array4<const Set::Scalar> const &df = crack.driving_force_mf[amrlev]->array(mfi);
         // amrex::Array4<const Set::Scalar> const &c = crack.c_mf[amrlev]->array(mfi); // not used
         // amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[amrlev]->array(mfi); // not used
-        amrex::ParallelFor(a_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(a_box, [=](int i, int j, int k) {
             crack.driving_force_norm += df(i, j, k, 4) * DV;
         });
 

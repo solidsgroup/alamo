@@ -39,7 +39,7 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
 
-                Set::Vector x;
+                Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {

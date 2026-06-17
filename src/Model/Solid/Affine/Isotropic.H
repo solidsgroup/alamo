@@ -58,8 +58,11 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool ContainsNan() 
     {
-        if (F0.hasNaN()) return true;
-        if (ddw.contains_nan()) return true;
+        for (int p = 0; p < AMREX_SPACEDIM; ++p)
+            for (int q = 0; q < AMREX_SPACEDIM; ++q)
+                if (std::isnan(F0(p, q))) return true;
+        if (std::isnan(ddw.Lambda())) return true;
+        if (std::isnan(ddw.Mu())) return true;
         else return false;
     }
 public:

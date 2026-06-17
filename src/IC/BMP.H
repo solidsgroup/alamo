@@ -73,6 +73,7 @@ public:
         const auto channel = this->channel;
         const auto min = this->min;
         const auto max = this->max;
+        const auto scaling_factor = this->scaling_factor;
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {

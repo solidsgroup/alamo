@@ -1,6 +1,7 @@
 #ifndef UTIL_DEBUG_H
 #define UTIL_DEBUG_H
 
+#include "Set/Base.H"
 #include "Util/Util.H"
 
 // This code is for debugging purposes only

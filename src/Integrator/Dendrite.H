@@ -125,6 +125,7 @@ public:
             auto eps = this->eps;
             auto tau = this->tau;
             auto diffusion = this->diffusion;
+            auto Pi = Set::Constant::Pi;
 
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -149,7 +150,7 @@ public:
                 // Calculate anisotropic barrier height
                 // [ unnumbered equation on page 67 in the reference ]
                 //
-                Set::Scalar m = -(alpha / Set::Constant::Pi) * std::atan(gamma * sigma * temp(i, j, k));
+                Set::Scalar m = -(alpha / Pi) * std::atan(gamma * sigma * temp(i, j, k));
 
 
                 //

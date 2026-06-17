@@ -75,8 +75,7 @@ public:
 
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
-protected:
-    
+
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
@@ -84,6 +83,8 @@ protected:
                 const amrex::MultiFab &rho_mf,
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf);
+
+protected:
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;

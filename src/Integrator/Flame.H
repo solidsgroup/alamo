@@ -45,16 +45,17 @@ public:
         delete bc_temp;
     }
 
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
+    void Regrid(int lev, Set::Scalar time) override;
+    void UpdateModel(int a_step, Set::Scalar a_time) override;
+
 protected:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
-    void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
-    void UpdateModel(int a_step, Set::Scalar a_time) override;
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;

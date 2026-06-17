@@ -272,8 +272,10 @@ void Hydro::Mix(int lev)
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
 
+        auto gas = this->gas;
+        auto invert = this->invert;
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {  
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -371,7 +373,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        auto invert = this->invert;
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {   
 
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
@@ -435,6 +438,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         
         auto cutoff = this->cutoff;
         auto dynamictimestep = this->dynamictimestep;
+        auto small = this->small;
+        auto cfl = this->cfl;
+        auto cfl_v = this->cfl_v;
+        auto invert = this->invert;
         Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
@@ -451,7 +458,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Scalar *dt_max_handle = &dt_max;
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {   
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -500,8 +507,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
 
         auto small = this->small;
-        auto gamma = this->gamma;
-        auto pref = this->pref;
+        auto gas = this->gas;
+        auto invert = this->invert;
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
@@ -518,7 +525,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -555,10 +562,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     {
         const amrex::Box& bx = mfi.validbox();
 
-        auto mu = this->mu;
         auto lagrange = this->lagrange;
         auto small = this->small;
         auto riemannsolver = this->riemannsolver;
+        auto gas = this->gas;
+        auto g = this->g;
+        auto invert = this->invert;
+        auto prescribedflowmode_relative = this->prescribedflowmode == PrescribedFlowMode::Relative;
 
         // Inputs
         Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
@@ -593,7 +603,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
@@ -623,7 +633,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            if (prescribedflowmode == PrescribedFlowMode::Relative)
+            if (prescribedflowmode_relative)
             {
                 Set::Vector N = grad_eta / (grad_eta_mag + small);
                 // Set::Vector T(N(1), -N(0));

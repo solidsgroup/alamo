@@ -162,6 +162,8 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
+        auto m_psi_set = this->m_psi_set;
+        auto m_psi_small = this->m_psi_small;
 
         amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
 
@@ -318,6 +320,9 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
+        auto m_psi_set = this->m_psi_set;
+        auto m_psi_small = this->m_psi_small;
+        auto m_bc = this->m_bc;
 
         amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
         {
@@ -506,6 +511,8 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<amrex::Real> const& sigma = a_sigma.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][0]->array(mfi);
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+        auto m_psi_set = this->m_psi_set;
+        auto m_psi_small = this->m_psi_small;
         amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Matrix gradu;

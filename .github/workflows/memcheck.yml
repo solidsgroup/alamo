@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh 
     - name: installing mpich (needed for asan)
       run: sudo apt install -y libmpich-dev libmpich12 mpich
     - name: switch mpi compiler to mpich
@@ -59,7 +59,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing mpich (needed for asan)
       run: sudo apt install -y libmpich-dev libmpich12 mpich
     - name: switch mpi compiler to mpich
@@ -100,7 +100,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing mpich (needed for msan)
       run: sudo apt install -y libmpich-dev libmpich12 mpich
     - name: switch mpi compiler to mpich

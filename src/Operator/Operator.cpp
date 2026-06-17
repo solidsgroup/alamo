@@ -118,15 +118,16 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         {
             Box bx = mfi.grownnodaltilebox();
             
-            amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
-            amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
-            amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
-            amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
+            auto xfab = x.array(mfi);
+            auto bfab = b.const_array(mfi);
+            auto Rxfab = Rx.const_array(mfi);
+            auto diagfab = (*m_diag[amrlev][mglev]).const_array(mfi);
 
 
             for (int n = 0; n < ncomp; n++)
             {
-                amrex::ParallelFor(bx, [&] AMREX_GPU_DEVICE(int i, int j, int k) 
+                auto m_omega = this->m_omega;
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                 {
 
                     // Skip ghost cells outside problem domain

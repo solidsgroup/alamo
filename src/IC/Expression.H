@@ -82,6 +82,7 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            auto unitfactor = this->unitfactor;
             for (unsigned int n = 0; n < f.size(); n++)
             {
                 amrex::ParserExecutor<4> f_n = f[n];

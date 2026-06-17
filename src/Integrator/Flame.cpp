@@ -324,8 +324,16 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Scalar Tcutoff = thermal.Tcutoff;
+            auto elastic_on = this->elastic.on;
+            auto elastic_etacutoff = this->elastic.etacutoff;
+            auto elastic_apply_chamber_pressure = this->elastic.apply_chamber_pressure;
+            auto elastic_traction = this->elastic.traction;
+            auto elastic_model_ap = this->elastic.model_ap;
+            auto elastic_model_htpb = this->elastic.model_htpb;
+            auto elastic_Telastic = this->elastic.Telastic;
+            auto chamber_pressure = this->chamber.pressure;
 
-            if (elastic.on)
+            if (elastic_on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -333,14 +341,14 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
 
-                    if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && elastic.apply_chamber_pressure)
+                    if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic_etacutoff && elastic_apply_chamber_pressure)
                         {
-                            rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
+                            rhs(i, j, k) = elastic_traction * grad_eta - chamber_pressure * grad_eta;
                             // std::cout << "Applying chamber pressure" << std::endl;
                         }
-                    else if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && !elastic.apply_chamber_pressure)
+                    else if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic_etacutoff && !elastic_apply_chamber_pressure)
                         {
-                            rhs(i, j, k) = (elastic.traction) * grad_eta;
+                            rhs(i, j, k) = elastic_traction * grad_eta;
                             // std::cout << "Applying traction" << std::endl;
                         }
                     else
@@ -352,13 +360,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    model_type model_ap = elastic.model_ap;
+                    model_type model_ap = elastic_model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - elastic.Telastic);
+                    model_ap.F0 *= (temp_avg - elastic_Telastic);
                     model_ap.F0 += Set::Matrix::Identity();
-                    model_type model_htpb = elastic.model_htpb;
+                    model_type model_htpb = elastic_model_htpb;
                     model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - elastic.Telastic);
+                    model_htpb.F0 *= (temp_avg - elastic_Telastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
                     model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
@@ -370,9 +378,9 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     //phi_avg = phi(i,j,k,0);
-                    model_type model_ap = elastic.model_ap;
+                    model_type model_ap = elastic_model_ap;
                     model_ap.F0 *= Set::Matrix::Zero();
-                    model_type model_htpb = elastic.model_htpb;
+                    model_type model_htpb = elastic_model_htpb;
                     model_htpb.F0 *= Set::Matrix::Zero();
                     model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
                 });
@@ -598,6 +606,14 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    auto m_refinement_criterion = this->m_refinement_criterion;
+    auto t_refinement_restriction = this->t_refinement_restriction;
+    auto phi_refinement_criterion = this->phi_refinement_criterion;
+    auto thermal_on = this->thermal.on;
+    auto thermal_Tcutoff = this->thermal.Tcutoff;
+    auto thermal_phi_refinement_criterion_inital = this->thermal.phi_refinement_criterion_inital;
+    auto thermal_end_initial_refine_time = this->thermal.end_initial_refine_time;
+    auto elastic_phirefinement = this->elastic.phirefinement;
 
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
@@ -607,11 +623,11 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
 
-        if (thermal.on) {
+        if (thermal_on) {
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal.Tcutoff*0.9)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal_Tcutoff*0.9)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
 
@@ -626,7 +642,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     }
 
     // Phi criterion for refinement 
-    if (elastic.phirefinement) {
+    if (elastic_phirefinement) {
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
@@ -644,7 +660,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
 
     // Thermal criterion for refinement 
-    if (thermal.on) {
+    if (thermal_on) {
         for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
@@ -672,7 +688,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal.phi_refinement_criterion_inital) && time < thermal.end_initial_refine_time)
+            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal_phi_refinement_criterion_inital) && time < thermal_end_initial_refine_time)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }

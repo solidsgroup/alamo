@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: source .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (3d)
       run: ./configure --cuda --dim=2 
     - name: make

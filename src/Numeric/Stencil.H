@@ -982,12 +982,14 @@ Gradient(   const amrex::Array4<const Set::Matrix>& f,
 
 template<class T>
 [[nodiscard]] AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 std::array<T,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
-                    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType);
+                    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType());
 
 template<>
 [[nodiscard]] AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 std::array<Set::Matrix,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
                     std::array<StencilType, AMREX_SPACEDIM> stencil)
@@ -1014,6 +1016,7 @@ Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
 
 template<>
 [[nodiscard]] AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 std::array<Set::Matrix3,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
                     std::array<StencilType, AMREX_SPACEDIM> stencil)

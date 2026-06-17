@@ -55,7 +55,7 @@ public:
             amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                 amrex::IntVect m(AMREX_D_DECL(i,j,k));
                 
-                Set::Vector x;
+                Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
