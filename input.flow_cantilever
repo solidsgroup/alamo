@@ -1,6 +1,6 @@
 alamo.program = allencahn
 plot_file = ./output.cantilever
-amr.plot_dt = 0.005
+amr.plot_dt = 0.001
 # amr.plot_int = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
@@ -147,10 +147,10 @@ hydro.cfl_v   = 1.0
 elastic.type = static
 # Thermoelasticity
 elastic.on = 1
-elastic.interval = 10
+elastic.interval = 1
 # Elastic model params
-model_steel.E = 19000000000
-model_steel.nu = 0.2
+model_steel.E = 190_GPa
+model_steel.nu = 0.3
 # model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 # Elastic solver information
 elastic.solver.verbose = 4

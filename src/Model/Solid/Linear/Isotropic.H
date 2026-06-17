@@ -127,7 +127,8 @@ public:
         // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
         // bulk modulus \(\kappa\).
         // \(\mu\) and \(\lambda\) are how the final values are stored.
-        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli, std::vector<Unit>{Unit::Pressure(), Unit::Pressure(), Unit::Pressure(), Unit::Less(), Unit::Pressure()});
+        // pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
 
         if      (moduli[0].first == "lambda" && moduli[1].first == "mu")
         {

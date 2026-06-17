@@ -6,18 +6,20 @@ timestep = 0.1
 stop_time = 2.0
 
 amr.plot_int = 1
-# amr.max_level = 5
-# amr.n_cell = 16 4 16
-amr.max_level = 0
-amr.n_cell = 400 100 16
+amr.max_level = 3
+amr.n_cell = 100 50 16
+# amr.n_cell = 80 40 16
 amr.blocking_factor = 2
-amr.thermo.int = 1
-amr.thermo.plot_int = 1
+amr.thermo.int = 0
+amr.thermo.plot_int = 0
 amr.node.all = 0
 amr.cell.all = 1
 
-geometry.prob_lo = -12 -2 -8
-geometry.prob_hi =  4  2  8
+geometry.prob_lo = -12 -4 0
+geometry.prob_hi = 4 4 10
+
+# geometry.prob_lo = -12 -2 -8
+# geometry.prob_hi =  4  2  8
 
 nmodels = 1
 model1.mu = 1
@@ -42,8 +44,8 @@ trac_normal.ic.expression.region0 = "load*((y<0)*(0.5 - 0.5*erf((x - 1.5)/eps))+
 
 solver.verbose = 3
 solver.max_iter = 10000
-# solver.fixed_iter = 100
-solver.nriters = 100
+solver.fixed_iter = 100
+solver.nriters = 1
 solver.nrtolerance = 1E-16
 
 ref_threshold = 100
