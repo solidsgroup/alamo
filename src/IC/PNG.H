@@ -41,6 +41,12 @@ public:
         pp_queryclass(name, *this);
     }
 
+    PNG(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit, IO::ParmParse& pp, std::string name) : PNG(_geom)
+    {
+        unit = a_unit;
+        pp_queryclass(name, *this);
+    }
+
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
 
@@ -82,8 +88,7 @@ public:
 
                 std::array<Set::Scalar, 4> val = png(x);
 
-                field(i,j,k,0) = val[channel];
-
+                field(i,j,k,0) = val[channel] * unit.normalized_value();
 
                 if (field.nComp() > 1) field(i, j, k, 1) = 1.0 - field(i, j, k, 0);
 
@@ -101,6 +106,7 @@ private:
 #ifndef ALAMO_NOPNG
     Util::PNG png;
     Channel channel = Channel::G;
+    Unit unit = Unit::Less();
 #endif
 
 public:

@@ -1,39 +1,79 @@
 #ifndef SET_MATRIX4_DIAGONAL_H
 #define SET_MATRIX4_DIAGONAL_H
 
+#include "AMReX_Config.H"
 #include "Util/Util.H"
 #include "Base.H"
+
+#include "Set.H"
+#include "Set/Matrix3.H"
+#include "Set/Matrix4.H"
 
 namespace Set
 {
 template<>
 class Matrix4<AMREX_SPACEDIM, Sym::Diagonal>
 {
-    Set::Matrix A = Set::Matrix::Ones();
+    std::array<std::array<Set::Scalar,AMREX_SPACEDIM>,AMREX_SPACEDIM> A = {{
+            AMREX_D_DECL(
+                {AMREX_D_DECL(NAN,NAN,NAN)},
+                {AMREX_D_DECL(NAN,NAN,NAN)},
+                {AMREX_D_DECL(NAN,NAN,NAN)}
+                )}};
+        
+    
 public:
-    AMREX_GPU_HOST_DEVICE Matrix4() {};
-    AMREX_GPU_HOST_DEVICE Matrix4(Set::Matrix a_A): A(a_A) {};
+    Set::Matrix getA() const
+    {
+        Set::Matrix ret;
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                ret(i,j)=A[i][j];
+        return ret;
+    }
+
+    AMREX_GPU_HOST_DEVICE Matrix4() = default;
+    //AMREX_GPU_HOST_DEVICE Matrix4(Set::Matrix a_A): A(a_A) {};
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
     Scalar operator () (const int i, const int j, const int k, const int l) const
     {
-        if (i == k && j == l) return A(i, j);
+        if (i == k && j == l) return A[i][j];
         else return 0.0;
     }
     void Randomize()
     {
-        A = Set::Matrix::Random();
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                A[i][j] = Util::Random();
+    }
+    static Matrix4<AMREX_SPACEDIM,Sym::Diagonal> Random()
+    {
+        Matrix4<AMREX_SPACEDIM,Sym::Diagonal> ret;
+        ret.Randomize();
+        return ret;
     }
     void Print(std::ostream& os)
     {
-        os << "A = \n" << A;
+        os << "A = \n" << getA();
     }
     AMREX_GPU_HOST_DEVICE
     static Matrix4<AMREX_SPACEDIM, Sym::Diagonal> Zero()
     {
         Matrix4<AMREX_SPACEDIM, Sym::Diagonal> zero;
-        zero.A = Set::Matrix::Zero();
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                zero.A[i][j] = 0.0;
         return zero;
+    }
+    AMREX_GPU_HOST_DEVICE
+    static Matrix4<AMREX_SPACEDIM, Sym::Diagonal> Ones()
+    {
+        Matrix4<AMREX_SPACEDIM, Sym::Diagonal> ones;
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                ones.A[i][j] = 1.0;
+        return ones;
     }
     friend AMREX_GPU_HOST_DEVICE Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix& b);
     friend AMREX_GPU_HOST_DEVICE Set::Vector operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix3& b);
@@ -46,20 +86,34 @@ public:
 
 
     //AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda =  a.lambda; mu =  a.mu;}
-    AMREX_GPU_HOST_DEVICE void operator += (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a) { A += a.A; }
-    AMREX_GPU_HOST_DEVICE void operator -= (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a) { A -= a.A; }
-    //AMREX_GPU_HOST_DEVICE void operator *= (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a) {A *= a.A;}
-    //AMREX_GPU_HOST_DEVICE void operator /= (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a) {A /= a.A;}
-    AMREX_GPU_HOST_DEVICE void operator *= (const Set::Scalar& alpha) { A *= alpha; }
-    AMREX_GPU_HOST_DEVICE void operator /= (const Set::Scalar& alpha) { A /= alpha; }
+    AMREX_GPU_HOST_DEVICE void operator += (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a) { 
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                A[i][j] += a.A[i][j]; 
+    }
+    AMREX_GPU_HOST_DEVICE void operator -= (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a) { 
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                A[i][j] -= a.A[i][j]; 
+    }
+    AMREX_GPU_HOST_DEVICE void operator *= (const Set::Scalar& alpha) {
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                A[i][j] *= alpha; 
+    }
+    AMREX_GPU_HOST_DEVICE void operator /= (const Set::Scalar& alpha) { 
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++)
+            for (int j = 0 ; j < AMREX_SPACEDIM; j++)
+                A[i][j] /= alpha; 
+    }
 
     Set::Scalar Norm()
     {
-        return A.lpNorm<2>();
+        return getA().lpNorm<2>();
     }
     bool contains_nan() const
     {
-        if (std::isnan(A.lpNorm<2>())) return true;
+        if (std::isnan(getA().lpNorm<2>())) return true;
         return false;
     }
 
@@ -73,7 +127,7 @@ Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const S
     {
         for (int j = 0; j < AMREX_SPACEDIM; j++)
         {
-            ret(i, j) = a.A(i, j) * b(i, j);
+            ret(i, j) = a.A[i][j] * b(i, j);
         }
     }
 
@@ -87,7 +141,7 @@ Set::Vector operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const S
 
     for (int i = 0; i < AMREX_SPACEDIM; i++)
         for (int j = 0; j < AMREX_SPACEDIM; j++)
-            ret(i) += a.A(i, j) * b(i, j, j);
+            ret(i) += a.A[i][j] * b(i, j, j);
 
     return ret;
 }
@@ -102,7 +156,9 @@ Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM,
     const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b)
 {
     Matrix4<AMREX_SPACEDIM, Sym::Diagonal> ret = a;
-    ret.A += b.A;
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+        for (int j = 0; j < AMREX_SPACEDIM; j++)
+            ret.A[i][j] += b.A[i][j];
     return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -110,7 +166,9 @@ Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM,
     const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b)
 {
     Matrix4<AMREX_SPACEDIM, Sym::Diagonal> ret = a;
-    ret.A -= b.A;
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+        for (int j = 0; j < AMREX_SPACEDIM; j++)
+            ret.A[i][j] -= b.A[i][j];
     return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -118,7 +176,9 @@ Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM,
     const Set::Scalar& b)
 {
     Matrix4<AMREX_SPACEDIM, Sym::Diagonal> ret = a;
-    ret.A *= b;
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+        for (int j = 0; j < AMREX_SPACEDIM; j++)
+            ret.A[i][j] *= b;
     return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -133,7 +193,9 @@ Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator / (const Matrix4<AMREX_SPACEDIM,
     const Set::Scalar& b)
 {
     Matrix4<AMREX_SPACEDIM, Sym::Diagonal> ret = a;
-    ret.A /= b;
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+        for (int j = 0; j < AMREX_SPACEDIM; j++)
+            ret.A[i][j] /= b;
     return ret;
 }
 

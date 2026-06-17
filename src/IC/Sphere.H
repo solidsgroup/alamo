@@ -109,27 +109,32 @@ public:
                 if (type == Type::XYZ)
                 {
                     // 3D Sphere
-                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
+                    rsq =
+                        AMREX_D_TERM((x - center(0)) * (x - center(0)),
                             +(y - center(1)) * (y - center(1)),
                             +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::XY)
                 {
                     // Cylinder along Z axis
-                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
-                                        +(y - center(1)) * (y - center(1)), );
+                    rsq =
+                        AMREX_D_TERM((x - center(0)) * (x - center(0)),
+                            +(y - center(1)) * (y - center(1)),
+                            );
                 }
                 else if (type == Type::YZ)
                 {
                     // Cylinder along X axis
-                    rsq = AMREX_D_TERM( ,
+                    rsq =
+                        AMREX_D_TERM(,
                             +(y - center(1)) * (y - center(1)),
                             +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::ZX)
                 {
                     // Cylinder along Y axis
-                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
+                    rsq =
+                        AMREX_D_TERM((x - center(0)) * (x - center(0)),
                             ,
                             +(z - center(2)) * (z - center(2)));
                 }
@@ -137,14 +142,12 @@ public:
                 if (rsq < radius * radius)
                 {
                     field(i, j, k, 0) = alpha_in;
-                    if (ncomp > 1)
-                        field(i, j, k, 1) = 0.;
+                    if (ncomp > 1) field(i, j, k, 1) = 0.;
                 }
                 else
                 {
                     field(i, j, k, 0) = alpha_out;
-                    if (ncomp > 1)
-                        field(i, j, k, 1) = 1;
+                    if (ncomp > 1) field(i, j, k, 1) = 1;
                 }
             });
         }
@@ -164,14 +167,10 @@ public:
         std::string type;
         // Type - can be cylinder oriented along the x, y, z directions or full sphere.
         pp_query_validate("type", type, {"xyz","yz","zx","xy"}); 
-        if (type == "yz")
-            value.type = Type::YZ;
-        if (type == "zx")
-            value.type = Type::ZX;
-        if (type == "xy")
-            value.type = Type::XY;
-        if (type == "xyz")
-            value.type = Type::XYZ;
+        if (type == "yz")  value.type = Type::YZ;
+        if (type == "zx")  value.type = Type::ZX;
+        if (type == "xy")  value.type = Type::XY;
+        if (type == "xyz") value.type = Type::XYZ;
     }
 
 private:

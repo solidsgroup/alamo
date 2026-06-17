@@ -2,6 +2,10 @@
 #define SET_MATRIX4_MAJOR_H
 
 #include "Base.H"
+#include "Matrix4.H"
+#include "Matrix4_MajorMinor.H"
+#include "Matrix4_Isotropic.H"
+#include "Matrix4_Diagonal.H"
 
 namespace Set
 {
@@ -139,11 +143,14 @@ public:
         for (int i = 0; i < 10; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    AMREX_GPU_HOST_DEVICE
-    static Matrix4<2, Sym::Major> Randomize()
+    void Randomize()
+    {
+        for (int i = 0; i < 10; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<2, Sym::Major> Random()
     {
         Matrix4<2, Sym::Major> ret;
-        for (int i = 0; i < 10; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     AMREX_GPU_HOST_DEVICE
@@ -451,11 +458,14 @@ public:
         for (int i = 0; i < 45; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    AMREX_GPU_HOST_DEVICE
-    static Matrix4<3, Sym::Major> Randomize()
+    void Randomize()
+    {
+        for (int i = 0; i < 45; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<3, Sym::Major> Random()
     {
         Matrix4<3, Sym::Major> ret;
-        for (int i = 0; i < 45; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     AMREX_GPU_HOST_DEVICE

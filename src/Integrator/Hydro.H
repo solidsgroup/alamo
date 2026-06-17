@@ -14,7 +14,7 @@
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
 
-#if AMREX_SPACEDIM==2
+#include "Model/Gas/Gas.H"
 
 namespace Integrator
 {
@@ -24,10 +24,25 @@ public:
     static constexpr const char* name = "hydro";
 
     Hydro() {};
-    Hydro(IO::ParmParse& pp);
+
+    Hydro(  Set::Field<Set::Scalar> &a_eta,
+            Set::Field<Set::Scalar> &a_etaold,
+            bool a_invert) :
+        eta_mf(&a_eta), eta_old_mf(&a_etaold), invert(a_invert)
+    {
+        this->managed = true;
+    }
+
+    Hydro(IO::ParmParse& pp); 
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
+        if (!managed)
+        {
+            delete eta_mf;
+            delete eta_old_mf;
+        }
+
         delete density_bc;
         delete momentum_bc;
         delete energy_bc;
@@ -59,7 +74,8 @@ public:
     void Regrid(int lev, Set::Scalar time) override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
-public:
+    virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
+protected:
     
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
@@ -80,6 +96,11 @@ public:
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
+    Set::Field<Set::Scalar> temperature_mf;
+
+    Set::Field<Set::Scalar> mass_fraction_mf;
+    Set::Field<Set::Scalar> mole_fraction_mf;
+    Set::Field<Set::Scalar> scratch_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
@@ -89,11 +110,9 @@ public:
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
-
-
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
-
+    
+    Set::Field<Set::Scalar>* eta_mf;
+    Set::Field<Set::Scalar>* eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;
@@ -108,10 +127,12 @@ public:
     BC::BC<Set::Scalar>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
+    BC::BC<Set::Scalar>* tracer_bc = nullptr;
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* density_ic  = nullptr;
+    IC::IC<Set::Scalar>* tracer_ic  = nullptr;
 
     IC::IC<Set::Scalar>* ic_m0 = nullptr;
     IC::IC<Set::Scalar>* ic_u0 = nullptr;
@@ -130,11 +151,12 @@ public:
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
+    Set::Scalar cfl=NAN, cfl_v=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
+    Set::Scalar lagrange_m0=NAN;
 
     Solver::Local::Riemann::Riemann<
         Solver::Local::Riemann::Roe,
@@ -142,13 +164,31 @@ public:
         Solver::Local::Riemann::HLLC>
     riemannsolver;
 
+    //std::vector<std::string> species;
+    //std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
+    int nspecies;
+    Model::Gas::Gas gas;
+    
+
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4
     };
     IntegrationScheme scheme;
 
+    enum PrescribedFlowMode {
+        Absolute, Relative
+    };
+    PrescribedFlowMode prescribedflowmode;
+
+
+    Set::Vector g;
+
+    bool managed = false;
+    bool invert = false;
+
+    std::vector<bool> mixed;
+
 };
 }
 
-#endif
 #endif

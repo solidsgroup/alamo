@@ -129,6 +129,9 @@ public:
 
         pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
+        Util::Assert(INFO,   TEST((int)nmodels == (int)value.models.size()), 
+                        "nmodels does not match the # of specified models");
+
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
@@ -240,7 +243,6 @@ public:
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
-                bx = bx & domain;
 
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);

@@ -20,7 +20,7 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+                virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
 {
 
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
@@ -55,7 +55,6 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -63,6 +62,7 @@ private:
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> eta_0_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -86,6 +86,10 @@ private:
     bool plot_field = true;
     int variable_pressure = -1;
 
+    amrex::BoxArray prev_finest_ba;
+    int prev_finest_level = -1;
+    int end_initial_refine = 0;
+
     // Phase field model variables
     struct {
         Set::Scalar eps = NAN;
@@ -98,9 +102,13 @@ private:
     // Thermal transport variables
     struct {
         bool on = 0;
-        Set::Scalar hc = NAN, w1 = NAN;
+        Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
+        Set::Scalar Tcutoff = NAN;
+        Set::Scalar end_initial_refine_time = NAN;
+        Set::Scalar phi_refinement_criterion_inital = NAN;
+        Set::Field<Set::Scalar> has_exceeded_Tcutoff;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
@@ -111,6 +119,8 @@ private:
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
+        Set::Scalar etacutoff = NAN;
+        Set::Scalar apply_chamber_pressure = NAN;
     } elastic;
 
     // Chamber state variables (not inputs)

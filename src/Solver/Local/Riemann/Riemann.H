@@ -3,6 +3,8 @@
 
 #include "Set/Base.H"
 #include "Set/Set.H"
+#include "Model/Gas/Gas.H"
+#include <memory>
 
 namespace Solver
 {
@@ -205,13 +207,13 @@ private:
     
 public:
     template<int I = 0>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Flux Solve(const State &lo, const State &hi, const Set::Scalar gamma, const Set::Scalar p_ref, const Set::Scalar small) const
+    AMREX_FORCE_INLINE
+    Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
-            if (selected == I) return std::get<I>(obj).Solve(lo,hi,gamma,p_ref,small);
-            else return Solve<I+1>(lo,hi,gamma,p_ref,small);
+            if (selected == I) return std::get<I>(obj).Solve(lo, hi, gas, X, i, j, k, side, small);
+            else return Solve<I+1>(lo, hi, gas, X, i, j, k, side, small);
         }
         else Util::Abort(INFO,selected);
     }

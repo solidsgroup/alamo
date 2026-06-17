@@ -87,7 +87,6 @@ public:
 #endif
             
     }
-
     AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
     {

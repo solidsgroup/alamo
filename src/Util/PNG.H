@@ -4,6 +4,7 @@
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
+#include "Unit/Unit.H"
 
 #ifndef ALAMO_NOPNG
 #include <png.h>
@@ -47,8 +48,10 @@ public:
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp_queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
-            pp_queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
+            // Lower-left coordinates of image in domain
+            pp_queryarr("coord.lo", value.coord_lo,Unit::Length()); 
+            // Upper-right coordinates of image in domain
+            pp_queryarr("coord.hi", value.coord_hi,Unit::Length()); 
         }
         else Util::Abort(INFO);
 

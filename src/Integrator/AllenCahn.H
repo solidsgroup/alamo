@@ -36,6 +36,7 @@
 #include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
+#include "Unit/Unit.H"
 
 namespace Integrator
 {
@@ -74,20 +75,38 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query_default("ch.L",value.ch.L, 1.0);
+        pp.query_default("ch.L",value.ch.L, "1.0", 1.0 / Unit::Pressure()/Unit::Time());
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query_default("ch.eps",value.ch.eps, 0.1);
+        // pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query_default("ch.grad",value.ch.grad, 1.0);
+        pp.query_default("ch.grad",value.ch.kappa, "1.0", Unit::Energy()/Unit::Length());
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        pp_query_default("ch.chempot",value.ch.lambda, "1.0", Unit::Pressure());
         // Force directional growth: 0=no growth, 1=only positive, -1=only negative
         pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
         // Time to start forcing directional growth
         pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
+
+        std::pair<std::string,Set::Scalar> ch_coeffs[2];
+        pp.query_exactly<2>({"ch.lambda","ch.kappa","ch.sigma","ch.eps"}, ch_coeffs,
+                            {Unit::Pressure(), Unit::Energy()/Unit::Length(), Unit::Energy()/Unit::Area(), Unit::Length()});
+
+        if (ch_coeffs[0].first == "ch.lambda" && ch_coeffs[1].first == "ch.kappa")
+        {
+            value.ch.lambda = ch_coeffs[0].second;
+            value.ch.kappa = ch_coeffs[1].second;
+        }
+        else if (ch_coeffs[0].first == "ch.sigma" && ch_coeffs[1].first == "ch.eps")
+        {
+            Set::Scalar sigma = ch_coeffs[0].second, eps = ch_coeffs[1].second;
+            value.ch.lambda = 4.0 * sigma / eps;
+            value.ch.kappa = sigma * eps / 2.0;
+        }
+        
+
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
         
 
         // Use a constant BC object for temperature
@@ -124,17 +143,18 @@ public:
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
-
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar driving_force = 0.0;
+
                 // Chemical potential
                 Set::Scalar alpha_2 = alpha(i, j, k) * alpha(i, j, k);
                 Set::Scalar alpha_3 = alpha_2 * alpha(i, j, k);
-                driving_force += (ch.chempot / ch.eps) * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
+                driving_force += ch.lambda * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
+
                 // Gradient
-                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX.data());
-                driving_force -= ch.eps * ch.grad * alpha_lap;
+                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
+                driving_force -= ch.kappa * alpha_lap;
 
                 if (time >= ch.direction_tstart)
                 {
@@ -195,8 +215,8 @@ public:
     struct ch_struct {
         Set::Scalar L = NAN;
         Set::Scalar eps = NAN;
-        Set::Scalar grad = NAN;
-        Set::Scalar chempot = NAN;
+        Set::Scalar kappa = NAN;
+        Set::Scalar lambda = NAN;
         Set::Scalar direction_tstart = NAN;
         int direction = 0;
     };

@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-import argparse
-import os
-import re
-import subprocess
-import textwrap
-import sys
-import shutil
-#import ctypes.util
-import glob
-import json
-from pathlib import Path
+
+try:
+    import argparse
+    import os
+    import re
+    import subprocess
+    import textwrap
+    import sys
+    import shutil
+    import glob
+    import json
+    from pathlib import Path
+except ImportError as e:
+    sys.stderr.write(
+        f"\nError: Missing required Python module: {e.name}\n"
+        "Please install it and rerun configure.\n\n"
+    )
+    sys.exit(1)    
 
 #
 # Configuration parameters, mainly to specify default values:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.07"
+amrex_current_version = "26.06"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -96,50 +103,91 @@ message("Python",python_version)
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 
+CONFIG_FILE = ".alamo"
+preparser = argparse.ArgumentParser(add_help=False)
+preparser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
+preparser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+pre_args, remaining_argv = preparser.parse_known_args()
+defaults = {}
+if os.path.exists(pre_args.config):
+    with open(pre_args.config) as f:
+        defaults = json.load(f)
+    message("Config",f"loading configuration in {pre_args.config}")
+
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
-parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--comp', default="clang++", help='Compiler. Options: [g++], clang++, icc (or a path to one of these executables)')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify a github fork of amrex')
-parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
+parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify an AMReX fork')
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='Specify an AMReX branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
-parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
+parser.add_argument('--eigen', default="", help='Path to Eigen installation prefix (containing include/eigen3/) []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
+parser.add_argument('--libpng', default="", help='Path to libpng installation prefix (containing include/ and lib/) []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--offline', dest='offline', action='store_true',default=False, help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
-parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--perf',dest='perf',action='store_true',default=False,help="Add profile flags")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--memcheck',dest='memcheck',action='store_true',default=False,help="Use memory checking")
 parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="Memory checking toolL MSan (default) or ASan")
-parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
-                    help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.add_argument('--cuda',dest='cuda',const='80',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture (default: 80, works for A100)")
-parser.set_defaults(debug=False)
+parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
+parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
+parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+parser.set_defaults(**defaults)
 
 #
 # Logic to ensure compatibility of command line arguments.
 #
 
 args=parser.parse_args()
+
+# Accept a path or a versioned name (e.g. /spack/.../bin/g++-15) as --comp by
+# normalizing to the bare compiler name for type checks. Invocations still
+# use args.comp so the original path/binary is actually executed.
+comp_basename = os.path.basename(args.comp)
+comp_basename = re.sub(r"-\d+(\.\d+)*$", "", comp_basename)
+
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
     raise(Exception(error("To use memcheck you must also add the --debug flag")))
 if args.memcheck and args.coverage: 
     raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
-if args.memcheck and args.memcheck_tool == "msan" and not args.comp=="clang++":
+if args.memcheck and args.memcheck_tool == "msan" and not comp_basename=="clang++":
     raise(Exception(error("MSan only works with clang, use --comp=clang++")))
+
+if pre_args.save:
+    data = vars(args)
+    data.pop("save",None)
+    data.pop("config",None)
+    with open(pre_args.config,"w") as f:
+        json.dump(data,f,indent=4,sort_keys=True)
+    message("Config",f"saving configuration to {pre_args.config}")
+
+
+#
+# Github checkout mode (ssh or http)
+#
+if args.github_mode == "ssh":
+    GITHUB_REMOTE = "git@github.com:"
+    GITLAB_REMOTE = "git@gitlab.com:"
+elif args.github_mode in ["http","https"]:
+    GITHUB_REMOTE = "https://github.com/"
+    GITLAB_REMOTE = "https://gitlab.com/"
+else:
+    raise Exception(error(f"Github mode must be ssh, http or https but got {args.github_mode}"))
+
 
 #
 # Update default arguments version numbers (etc.) based on command line arguments
@@ -179,7 +227,7 @@ if args.profile: postfix += "-profile"
 if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
 if args.cuda: postfix += f"-cuda{args.cuda}"
-postfix += "-" + args.comp
+postfix += "-" + comp_basename
 f.write("POSTFIX = " + postfix + '\n')
 
 #
@@ -216,20 +264,17 @@ if args.omp:
 # AMREX
 #
 if args.buildamrex and not args.amrex:
-    if not os.path.isdir("ext"): 
-        shellmessage("Make ext",'mkdir -p ext')
-    if not os.path.isdir(f"ext/{args.amrexfork}"):
-        shellmessage("Make ext",f'mkdir -p ext/{args.amrexfork}')
+    if not os.path.isdir(f"ext/{args.amrexfork}"):  shellmessage("Make ext",f'mkdir -p ext/{args.amrexfork}')
     if not os.path.isdir(f"ext/{args.amrexfork}/amrex"):
         if args.offline:
             raise Exception(error("Cannot download AMReX and no version currently exists!"))
         if args.buildamrexbranch:
             shellmessage("AMReX-Clone",
-                            cmd = f"git clone https://github.com/{args.amrexfork}/amrex.git --branch " + args.buildamrexbranch,
+                            cmd = f"git clone {GITHUB_REMOTE}{args.amrexfork}/amrex.git --branch " + args.buildamrexbranch,
                             message="Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",
                             cwd=f"ext/{args.amrexfork}")
         else: shellmessage("AMReX-Clone", 
-                            cmd=f"git clone https://github.com/{args.amrexfork}/amrex.git",
+                            cmd=f"git clone {GITHUB_REMOTE}{args.amrexfork}/amrex.git",
                             message="Cloning AMReX [default branch] -- This may take a while",
                             cwd=f"ext/{args.amrexfork}")
     elif not args.offline:
@@ -259,7 +304,7 @@ if args.buildamrex and not args.amrex:
 
     amrexdescribe = ""
     for cmd, desc in zip(["git describe --always --dirty", "git log -1 --pretty=format:%H"], ["AMReX-Describe","AMReX-Hash"]):
-        ret = subprocess.run(cmd.split(' '),cwd=f"ext/{args.amrexfork}/amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(cmd.split(' '),cwd=f"ext/{args.amrexfork}/amrex",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         if not ret.returncode:
             message(desc, ret.stdout.decode())
         else:
@@ -269,9 +314,8 @@ if args.buildamrex and not args.amrex:
     
     postfix_amrex = postfix+"-"+amrexdescribe
     
-    args.amrex = f"ext/{args.amrexfork}/amrex/"+postfix_amrex
-    f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
-    f.write(f"AMREX_HOME = ext/{args.amrexfork}/amrex/\n")
+    args.amrex = f"ext/{args.amrexfork}/amrex/{postfix_amrex}"
+    f.write(f"AMREX_ROOT = ext/{args.amrexfork}/amrex\n")
     f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
     f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     
@@ -279,9 +323,10 @@ if args.buildamrex and not args.amrex:
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
     amrex_make_local = []
-    if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
-    elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
-    elif args.comp == "icc":     amrex_configure += ' --comp=intel'
+    amrex_configure += ' --with-fortran=no'
+    if   comp_basename =="g++":     amrex_configure += ' --comp=gnu'
+    elif comp_basename =="clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
+    elif comp_basename =="icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
@@ -301,15 +346,15 @@ if args.buildamrex and not args.amrex:
             message("Amrex make.local",'\n'.join(amrex_make_local))
 
     f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD) \n") # --output-sync=target
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD)\n") # --output-sync=target
     f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
-    f2.write(f"\ttouch $@\n") # update directory timestamp to prevent build every time
+    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
     else:        
         message("AMReX-Status", "Using pre-downloaded version")
-    message("AMReX-Directory", f"ext/{args.amrexfork}/amrex/"+postfix_amrex)
+    message("AMReX-Directory", f"ext/{args.amrexfork}/amrex/{postfix_amrex}")
 
 
             
@@ -354,36 +399,112 @@ else:
     warning("AMReX path not specified. This may cause compile errors.")
 
 #
+# AUTO-DETECT EIGEN VIA HOMEBREW ON MACOS
+#
+# Homebrew's prefix (/opt/homebrew on Apple Silicon, /usr/local on Intel) is
+# not in Apple Clang's default include search path, so without this the user
+# would have to pass --eigen explicitly even when eigen is installed via brew.
+#
+if (sys.platform == "darwin"
+        and not args.eigen
+        and not args.geteigen
+        and shutil.which("brew")):
+    try:
+        brew_eigen_prefix = subprocess.run(
+            ["brew", "--prefix", "eigen"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if os.path.isdir(os.path.join(brew_eigen_prefix, "include", "eigen3")):
+            args.eigen = brew_eigen_prefix
+            message("Eigen-Autodetect", f"Found Homebrew Eigen at {brew_eigen_prefix}")
+        else:
+            warning(
+                f"Homebrew reported Eigen at {brew_eigen_prefix} but "
+                "include/eigen3 was not found there. Skipping auto-detect."
+            )
+    except subprocess.CalledProcessError:
+        note(
+            "Homebrew is installed but Eigen is not. Install it with "
+            + code("brew install eigen")
+            + " or pass --eigen=<prefix> manually."
+        )
+
+#
 # EIGEN
 #
 if (args.geteigen):
-    if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
-    if not os.path.isdir("ext/eigen3"):
+    if not os.path.isdir("ext/libeigen"): subprocess.run(['mkdir','-p','ext/libeigen'])
+    if not os.path.isdir("ext/libeigen/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
         #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
-        p = subprocess.Popen(("git clone https://gitlab.com/libeigen/eigen.git eigen3").split(),
+        p = subprocess.Popen((f"git clone {GITLAB_REMOTE}libeigen/eigen.git libeigen/eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
+        p.wait()
+        if p.returncode == 0:
+            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
+        else:
+            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
-    message("Eigen-Directory","ext/")
-    f.write("EIGEN = ./ext/\n")
+    message("Eigen-Directory","ext/libeigen/")
+    f.write("EIGEN = ./ext/libeigen/\n")
 elif (args.eigen != ""):
-    if not os.path.isdir(args.eigen + "/eigen3"):
-        raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
+    if not os.path.isdir(os.path.join(args.eigen, "include", "eigen3")):
+        raise Exception(color.red+"ERROR"+color.reset+": Eigen prefix must contain include/eigen3/ subdirectory")
     message("Eigen-Directory",args.eigen)
-    f.write("EIGEN = " + args.eigen + "\n")
+    f.write(f"EIGEN = {args.eigen}/include\n")
 
+
+#
+# AUTO-DETECT LIBPNG VIA HOMEBREW ON MACOS
+#
+# Same rationale as eigen above: Homebrew's prefix is not in Apple Clang's
+# default include or library search path.
+#
+if (sys.platform == "darwin"
+        and not args.libpng
+        and shutil.which("brew")):
+    try:
+        brew_libpng_prefix = subprocess.run(
+            ["brew", "--prefix", "libpng"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if (os.path.isdir(os.path.join(brew_libpng_prefix, "include"))
+                and os.path.isdir(os.path.join(brew_libpng_prefix, "lib"))):
+            args.libpng = brew_libpng_prefix
+            message("libpng-Autodetect", f"Found Homebrew libpng at {brew_libpng_prefix}")
+        else:
+            warning(
+                f"Homebrew reported libpng at {brew_libpng_prefix} but "
+                "include/ or lib/ was not found there. Skipping auto-detect."
+            )
+    except subprocess.CalledProcessError:
+        note(
+            "Homebrew is installed but libpng is not. Install it with "
+            + code("brew install libpng")
+            + " or pass --libpng=<prefix> manually."
+        )
 
 #
 # MAC OS SUPPORT
 #
-if args.macos:
+# Apple's ld64 won't coalesce weak symbols across TUs the way GNU ld does;
+# AMREX_FORCE_INLINE makes templated definitions inline-deduped instead.
+#
+if sys.platform == "darwin":
+    message("Darwin", "Defining ALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE (ld64 weak-symbol workaround)")
     f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
 
 #
 # LINK LIBPNG
 #
+if args.libpng:
+    if not os.path.isdir(os.path.join(args.libpng, "include")):
+        raise Exception(color.red+"ERROR"+color.reset+": libpng prefix must contain include/ subdirectory")
+    if not os.path.isdir(os.path.join(args.libpng, "lib")):
+        raise Exception(color.red+"ERROR"+color.reset+": libpng prefix must contain lib/ subdirectory")
+    message("libpng-Directory", args.libpng)
+    f.write(f"ALAMO_INCLUDE += -isystem {args.libpng}/include\n")
+    f.write(f"LIB += -L{args.libpng}/lib -Wl,-rpath,{args.libpng}/lib\n")
 f.write("LIB += -lpng \n")
 
 #
@@ -392,15 +513,16 @@ f.write("LIB += -lpng \n")
 if args.link:
     for l in args.link:
         f.write("LIB += -L" + l + "\n")
+        f.write("LIB += -Wl,-rpath," + l + "\n")
     
 #
 # CHECK COMPILER AND SET OPTIONS
 #
-if   (args.comp == "g++"):     f.write("COMP = GCC\n")
-elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
-elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
+if   (comp_basename =="g++"):     f.write("COMP = GCC\n")
+elif (comp_basename =="clang++"): f.write("COMP = CLANG\n")
+elif (comp_basename =="icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
-message("Comp-Type", str(args.comp))
+message("Comp-Type", comp_basename)
 shellmessage("Comp-Version",args.comp+" --version")
 
 
@@ -418,7 +540,7 @@ elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower():
+elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
 
@@ -509,20 +631,21 @@ else:
             "flags but no guarantees.")
 
 if args.perf:
-    if not os.path.isdir('ext/FlameGraph'):
+    if not os.path.isdir('ext/brendangregg/FlameGraph'):
+        subprocess.run(['mkdir','-p','ext/brendangregg'])
         shellmessage("FlameGraph", 
-                     cmd="git clone https://github.com/brendangregg/FlameGraph",
+                     cmd=f"git clone {GITHUB_REMOTE}brendangregg/FlameGraph",
                      message="Cloning flamegraph",
-                     cwd="ext/")
+                     cwd="ext/brendangregg/")
 
 #
 # ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
 #   note: this must come after the MPI section, otherwise the order of
 #         flags may cause linker to fail!
 #
-if args.comp == 'g++':
+if comp_basename == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
-    #f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
@@ -545,8 +668,7 @@ if args.comp == 'g++':
     else:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
-if args.comp == 'clang++':
-    f.write("MPI_LIB += -lgfortran\n")
+if comp_basename =='clang++':
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug:
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
@@ -556,8 +678,7 @@ if args.comp == 'clang++':
     else:
         f.write("CXX_COMPILE_FLAGS += -O3\n")
         f.write("LINKER_FLAGS += -flto \n")    
-if args.comp == 'icc':
-    f.write("MPI_LIB += -lifcore\n")
+if comp_basename =='icc':
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
@@ -593,6 +714,15 @@ f2.write(f"\t fi\n")
 f2.write(f"\t$(QUIET)git diff > $@\n")
 
 #
+# PYTHON CHECKING
+#
+f2.write(f"python_ok:\n")
+if comp_basename =='g++' and args.debug:
+    f2.write(f"\n")
+else:
+    f2.write(f"""\t$(error $(error Python module requires configuration with --comp=g++ and --debug))\n""")
+    
+#
 # Documentation check
 #
 if (args.docs):
@@ -627,8 +757,25 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
-    otherflags = ""
-    if args.fft: otherflags += "-DALAMO_FFT"
+    otherflags = []
+    if args.fft: otherflags.append("-DALAMO_FFT")
+
+    if args.geteigen:
+        otherflags.extend(["-isystem", "./ext/libeigen"])
+    elif args.eigen:
+        otherflags.extend(["-isystem", f"{args.eigen}/include"])
+
+    if args.libpng:
+        otherflags.extend(["-isystem", f"{args.libpng}/include"])
+
+    if args.amrex:
+        otherflags.append(f"-I{args.amrex}/include")
+    else:
+        otherflags.append(f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include")
+
+    for pth in os.environ.get("CPLUS_INCLUDE_PATH", "").split(os.pathsep):
+        if pth:
+            otherflags.append(f"-I{pth}")
 
     cc = compmpicmd
     command_objects = []
@@ -636,15 +783,13 @@ if not args.compile_commands:
         "directory": projectdir,
         "file": srcfile,
         "arguments": [
-            *cc.split(" "),
-            *otherflags.split(" "),
+            *cc.split(),
+            *otherflags,
             "-std=c++17",
             "-I./src/",
             srcfile,
-            f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include",
         ],
     } for srcfile in srcfiles]
 
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
-

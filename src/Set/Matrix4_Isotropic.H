@@ -24,8 +24,12 @@
 #ifndef SET_MATRIX4_ISOTROPIC_H
 #define SET_MATRIX4_ISOTROPIC_H
 
+#include "AMReX_Config.H"
 #include "Util/Util.H"
-#include "Base.H"
+#include "Set/Set.H"
+#include "Set/Base.H"
+#include "Matrix3.H"
+#include "Matrix4.H"
 
 namespace Set
 {
@@ -58,6 +62,12 @@ public:
     {
         lambda = Util::Random();
         mu = Util::Random();
+    }
+    static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Random()
+    {
+        Matrix4<AMREX_SPACEDIM,Sym::Isotropic> ret;
+        ret.Randomize();
+        return ret;
     }
     void Print (std::ostream& os )
     {

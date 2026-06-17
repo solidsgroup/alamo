@@ -74,7 +74,7 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::Real> const& inter    = intermediate[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& etanew    = etanew_mf[lev]->array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar lap_eta = Numeric::Laplacian(eta,i,j,k,0,DX.data());
             
@@ -88,7 +88,7 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
         });
 
-        amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE (int i, int j, int k){
+        amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
             Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX.data());
 
             etanew(i,j,k) = eta(i,j,k) + dt*lap_inter;

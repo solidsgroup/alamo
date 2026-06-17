@@ -63,12 +63,12 @@ public:
     Constant(int a_ncomp, Unit a_unit = Unit::Less()) : m_ncomp(a_ncomp), unit(a_unit) {};
     Constant(int a_ncomp, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)
     {
-        pp_queryclass(name, *this);
+        pp.queryclass(name, *this);
     };
     Constant(int a_ncomp, Unit a_unit, IO::ParmParse& pp, std::string name) : 
         m_ncomp(a_ncomp), unit(a_unit)
     {
-        pp_queryclass(name, *this);
+        pp.queryclass(name, *this);
     };
     Constant(int ncomp, amrex::Vector<std::string> bc_hi_str,
         amrex::Vector<std::string> bc_lo_str,
@@ -199,34 +199,34 @@ public:
         // TYPES
 
         std::vector<std::string> str;
-        pp_queryarr_default("type.xlo", str,"dirichlet");  // BC type on the lower x edge (2d) face (3d)
+        pp.queryarr_default("type.xlo", str,{"dirichlet"});  // BC type on the lower x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr_default("type.xhi", str,"dirichlet");  // BC type on the upper x edge (2d) face (3d)
+        pp.queryarr_default("type.xhi", str,{"dirichlet"});  // BC type on the upper x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr_default("type.ylo", str,"dirichlet");  // BC type on the lower y edge (2d) face (3d)
+        pp.queryarr_default("type.ylo", str,{"dirichlet"});  // BC type on the lower y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr_default("type.yhi", str,"dirichlet");  // BC type on the upper y edge (2d) face (3d)
+        pp.queryarr_default("type.yhi", str,{"dirichlet"});  // BC type on the upper y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr_default("type.zlo", str,"dirichlet");  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
+        pp.queryarr_default("type.zlo", str,{"dirichlet"});  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 #endif
-        pp_queryarr_default("type.zhi", str,"dirichlet");  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
+        pp.queryarr_default("type.zhi", str,{"dirichlet"});  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]);
@@ -237,7 +237,7 @@ public:
         // VALS
         std::vector<std::string> val;
         value.m_bc_val[Face::XLO].clear();
-        pp_queryarr_default("val.xlo", val,"0.0");  // BC value on the lower x edge (2d) face (3d)
+        pp.queryarr_default("val.xlo", val,{"0.0"});  // BC value on the lower x edge (2d) face (3d)
         if (val.size() == value.m_ncomp) 
             for (unsigned int i = 0; i < value.m_ncomp; i++) 
                 value.m_bc_val[Face::XLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
@@ -247,24 +247,24 @@ public:
             value.m_bc_val[Face::XLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::XHI].clear();
-        pp_queryarr_default("val.xhi", val,"0.0"); // BC value on the upper x edge (2d) face (3d)
+        pp.queryarr_default("val.xhi", val,{"0.0"}); // BC value on the upper x edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::XHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::XHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YLO].clear();
-        pp_queryarr_default("val.ylo", val,"0.0");  // BC value on the lower y edge (2d) face (3d)
+        pp.queryarr_default("val.ylo", val,{"0.0"});  // BC value on the lower y edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::YLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YHI].clear();
-        pp_queryarr_default("val.yhi", val,"0.0"); // BC value on the upper y edge (2d) face (3d)
+        pp.queryarr_default("val.yhi", val,{"0.0"}); // BC value on the upper y edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::YHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
-        pp_queryarr_default("val.zlo", val,"0.0");  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
+        pp.queryarr_default("val.zlo", val,{"0.0"});  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZLO].clear();
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
@@ -272,7 +272,7 @@ public:
         else if (val.size() == 0) value.m_bc_val[Face::ZLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
 #endif
-        pp_queryarr_default("val.zhi", val,"0.0"); // BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)
+        pp.queryarr_default("val.zhi", val,{"0.0"}); // BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZHI].clear();
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));

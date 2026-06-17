@@ -3,6 +3,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
+#include "Unit/Unit.H"
 
 namespace Model
 {
@@ -157,7 +158,8 @@ public:
         // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
         // bulk modulus \(K\).
         // You can currently specify (mu and kappa), (lambda and mu), or (E and nu).
-        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+        // std::vector{Unit::Pressure, Unit::Pressure, Unit::Pressure, Unit::Less, Unit::Pressure};
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli, std::vector<Unit>{Unit::Pressure(), Unit::Pressure(), Unit::Pressure(), Unit::Less(), Unit::Pressure()});
 
 
         if (moduli[0].first == "mu" && moduli[1].first == "kappa")

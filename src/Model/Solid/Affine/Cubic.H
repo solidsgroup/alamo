@@ -66,7 +66,8 @@ public:
 
     static Cubic Zero()
     {
-        Cubic ret = Linear::Cubic::Zero();
+        Cubic ret;
+        ret.ddw = Linear::Cubic::Zero().ddw;
         ret.F0 = Set::Matrix::Zero();
         return ret;
     }
@@ -76,7 +77,8 @@ public:
     }
     static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
     {
-        Cubic ret = Linear::Cubic::Random(C11,C12,C44);
+        Cubic ret;
+        ret.ddw = Linear::Cubic::Random(C11,C12,C44).ddw;
         ret.F0 = Set::Matrix::Random();
         return ret;
     }
@@ -160,7 +162,7 @@ void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a
             amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                dst(i, j, k, a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
+                dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
             });
 }
     }    

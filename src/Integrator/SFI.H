@@ -55,6 +55,12 @@ public:
         if (hydro_initialized) Hydro::TimeStepBegin(a_time, a_step);
     }
 
+    void TimeStepComplete(Set::Scalar a_time, int a_iter) override
+    {
+        PF::TimeStepComplete(a_time, a_iter);
+        if (hydro_initialized) Hydro::TimeStepComplete(a_time, a_iter);
+    }
+
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         PF::Advance(a_lev, a_time, a_dt);
@@ -67,13 +73,19 @@ public:
         if (hydro_initialized) Hydro::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
     }
 
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        PF::Regrid(lev, time);
+        if (hydro_initialized) Hydro::Regrid(lev, time);
+    }
+
     void UpdateEta(int lev, Set::Scalar /*time*/) override
     {
-        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.growntilebox();
-            Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf->Patch(lev,mfi);
+            Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf->Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_old = PF::eta_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_new = PF::eta_mf.Patch(lev,mfi);
             amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
@@ -90,8 +102,8 @@ public:
                 }
             });
         }
-        Util::RealFillBoundary(*eta_mf[lev], geom[lev]);
-        Util::RealFillBoundary(*eta_old_mf[lev], geom[lev]);
+        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
+        Util::RealFillBoundary(*(*eta_old_mf)[lev], geom[lev]);
     }
 
     int invert = false;

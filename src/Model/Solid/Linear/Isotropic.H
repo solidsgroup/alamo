@@ -54,6 +54,7 @@
 
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
+#include "Set/Matrix4_Isotropic.H"
 
 namespace Model
 {
@@ -71,7 +72,7 @@ public:
     {
         Define(a_mu,a_lambda);
     };
-    virtual ~Isotropic() = default;
+    AMREX_GPU_HOST_DEVICE virtual ~Isotropic() = default;
 
     AMREX_GPU_HOST_DEVICE
     void Define(Set::Scalar a_mu, Set::Scalar a_lambda)

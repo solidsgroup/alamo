@@ -3,6 +3,20 @@
 #@ dim=2
 #@ check-file=reference/reference-2d.csv
 #@
+#@ [2d-serial-ssprk3]
+#@ dim=2
+#@ check-file=reference/reference-2d.csv
+#@ args = timestep=0.5_ms
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=3
+#@ 
+#@ [2d-serial-rk4]
+#@ dim=2
+#@ check-file=reference/reference-2d.csv
+#@ args = timestep=0.5_ms
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=4
+#@ 
 #@ [2d-serial-rescaled]
 #@ dim=2
 #@ check-file=reference/reference-2d-mm-ms.csv

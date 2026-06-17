@@ -12,6 +12,7 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Util/BMP.H"
+#include "Unit/Unit.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
 
@@ -30,6 +31,11 @@ public:
 
     BMP (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : BMP(_geom)
     {
+        pp_queryclass(name,*this);
+    }
+    BMP (amrex::Vector<amrex::Geometry> &_geom, Unit a_unit, IO::ParmParse &pp, std::string name) : BMP(_geom)
+    {
+        unit = a_unit;
         pp_queryclass(name,*this);
     }
 
@@ -168,6 +174,10 @@ public:
 
                 if (field.nComp() > 1) field(i,j,k,1) = 1.0 - field(i,j,k,0);
 
+                field(i,j,k,0) *= scaling_factor;
+                if (field.nComp() > 1) 
+                    field(i,j,k,1) *= scaling_factor;
+
             });
         }
         a_field[lev]->FillBoundary();
@@ -180,7 +190,8 @@ private:
     Set::Scalar min=NAN, max=NAN;
     Set::Vector coord_lo = Set::Vector::Zero();
     Set::Vector coord_hi = Set::Vector::Zero();
-
+    Unit unit = Unit::Less();
+    Set::Scalar scaling_factor = NAN;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
@@ -215,6 +226,8 @@ public:
         value.max = (Set::Scalar) value.bmp.max()[value.channel];
         pp_query_default("min",value.min,0.0); // Scaling value - minimum
         pp_query_default("max",value.max,255.0); // Scaling value - maximum
+
+        value.scaling_factor = value.unit.normalized_value();
 }    
 };
 }

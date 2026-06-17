@@ -5,13 +5,52 @@
 #@ args = stop_time=2.5
 #@ check-file = reference/reference-2d.csv
 
+#@ [fully-developed]
+#@ exe = hydro
+#@ dim = 2
+#@ nprocs = 4
+#@ args = amr.plot_dt = 0.5
+#@ args = stop_time=10
+#@ args = velocity.ic.expression.region0 = "0.0"
+#@ args = pressure.ic.expression.region0 = "100 - 0.06*x"
+#@ args = density.bc.constant.type.xhi=neumann
+#@ args = density.bc.constant.val.xhi=0.0
+#@ args = momentum.bc.expression.type.xlo=neumann neumann
+#@ args = momentum.bc.expression.type.xhi=neumann neumann
+#@ args = momentum.bc.expression.val.xlo="0" "0"
+#@ args = momentum.bc.expression.val.xhi="0" "0"
+#@ args = energy.bc.expression.val.xhi = "49.91 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+#@ check-file = reference/reference-2d-full.csv
+
 #@ [parallel]
 #@ exe = hydro
 #@ dim = 2
 #@ nprocs = 4
 #@ args = amr.plot_dt = 1.0
 #@ args = stop_time=10
-#@ check = false
+#@ check-file = reference/reference-2d-long.csv
+
+# Re = 0.01, Le ~= 1.26 (Chen, et al.)
+
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 12471.69_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 20.0_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
 
 ### OUTPUT ###
 
@@ -21,10 +60,10 @@ plot_file = ./output
 
 amr.plot_dt = 1.0
 #amr.plot_int = 10
-amr.max_level = 1
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
-amr.regrid_int = 100
+amr.regrid_int = 10
 amr.grid_eff = 0.8
 amr.n_cell = 120 40 0
 #amr.abort_on_nan=0
@@ -38,19 +77,17 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 2.5e-4
 stop_time = 10.0
 
 ### HYDRO PARAM ###
 
-gamma = 3.0
+#gamma = 3.0
 cfl   = 0.4
-mu    = 10.0
-pref = 100.0
 
 small=1E-8
-cutoff=6E-5
-lagrange=1E3
+#cutoff=1E-5
+#lagrange=1E4
 
 ### ETA IC ###
 
@@ -78,7 +115,7 @@ velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+pressure.ic.expression.region0 = "100.0"
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"
@@ -109,43 +146,43 @@ pf.eta.bc.constant.val.zhi = 0.0
 ### HYDRO BC ###
 
 density.bc.constant.type.xhi = neumann
-density.bc.constant.type.xlo = neumann
+density.bc.constant.type.xlo = dirichlet
 density.bc.constant.type.ylo = neumann
 density.bc.constant.type.yhi = neumann
 density.bc.constant.val.xhi = 0.0
-density.bc.constant.val.xlo = 0.0
+density.bc.constant.val.xlo = 100.0
 density.bc.constant.val.ylo = 0.0
 density.bc.constant.val.yhi = 0.0
 
-energy.bc.constant.type.xhi = dirichlet
-energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.ylo = neumann
-energy.bc.constant.type.yhi = neumann
-energy.bc.constant.val.xhi = 0.0
-energy.bc.constant.val.xlo = 0.0
-energy.bc.constant.val.ylo = 0.0 
-energy.bc.constant.val.yhi = 0.0
+energy.bc.type = expression
+energy.bc.expression.constant.eps = 0.1
+energy.bc.expression.type.xhi = dirichlet
+energy.bc.expression.type.xlo = dirichlet
+energy.bc.expression.type.ylo = neumann
+energy.bc.expression.type.yhi = neumann
+energy.bc.expression.val.xhi = "49.91 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+energy.bc.expression.val.xlo = "50.0 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+energy.bc.expression.val.ylo = "0.0 "
+energy.bc.expression.val.yhi = "0.0"
 
 momentum.bc.type = expression
+momentum.bc.expression.constant.eps = 0.1
 momentum.bc.expression.type.xlo = dirichlet dirichlet
 momentum.bc.expression.type.xhi = neumann neumann
 momentum.bc.expression.type.ylo = neumann neumann
 momentum.bc.expression.type.yhi = neumann neumann
-momentum.bc.expression.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/0.1) - 0.5*tanh((y - 2.5)/0.1))" "0.0"
+momentum.bc.expression.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))" "0.0"
 momentum.bc.expression.val.xhi = "0.0" "0.0"
 momentum.bc.expression.val.ylo = "0.0" "0.0"
 momentum.bc.expression.val.yhi = "0.0" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-#r_refinement_criterion   = 0.1
-#e_refinement_criterion   = 0.1
-#m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
-omega_refinement_criterion = 0.1
-gradu_refinement_criterion = 0.1
-p_refinement_criterion   = 0.1
-rho_refinement_criterion   = 0.1
+omega_refinement_criterion = 0.2
+gradu_refinement_criterion = 0.2
+p_refinement_criterion   = 0.5
+rho_refinement_criterion   = 0.5
 
 #TODO
 #

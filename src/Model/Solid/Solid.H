@@ -15,8 +15,16 @@
 #include <AMReX.H>
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
+#include <type_traits>
 
 #include "Set/Set.H"
+#include "Set/Matrix4.H"
+#include "Set/Matrix4_Diagonal.H"
+#include "Set/Matrix4_Full.H"
+#include "Set/Matrix4_Isotropic.H"
+#include "Set/Matrix4_Major.H"
+#include "Set/Matrix4_MajorMinor.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -73,6 +81,30 @@ public:
 
 public: 
     template <class T>
+    static int PODTest(int verbose = 0)
+    {
+        int ret = 0;
+        if (!std::is_trivially_copyable<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model is not trivially copyable");
+        }
+        if (std::has_virtual_destructor<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model has a virtual destructor");
+        }
+        if (std::is_polymorphic<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model is polymorphic");
+        }
+        if (!std::is_standard_layout<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model does not have standard layout.");
+        }
+        return ret;
+    }
+
+
+    template <class T>
     static int ArithmeticTest(int verbose = 0)
     {
         const T z = T::Zero();
@@ -86,8 +118,6 @@ public:
         {
             Util::Message(INFO,"Random() failed: a = \n",a); return 1;
         }
-
-        const T b = T::Random();
 
         T c = a;
         if (!(c==a) && verbose) {Util::Message(INFO); return 1;}

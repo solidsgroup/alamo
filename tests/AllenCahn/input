@@ -65,8 +65,7 @@ alpha.ic.bmp.fit = fitwidth
 alpha.ic.bmp.channel = g
 
 ch.L = 1.0
-ch.eps = 0.01
-ch.grad = 0.01
-ch.chempot = 0.01
+ch.kappa = 0.0001_J/m
+ch.lambda = 1.0_Pa
 
 

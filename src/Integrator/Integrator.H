@@ -40,6 +40,7 @@
 #ifndef INTEGRATOR_INTEGRATOR_H
 #define INTEGRATOR_INTEGRATOR_H
 
+#include "IO/ParmParse.H"
 #include <chrono>
 #include <ctime>
 #include <string>
@@ -78,6 +79,8 @@ public:
     /// This is the constructor for the intetgrator class, which reads timestep information,
     /// simulation output and AMR, initialized time substep, and creates a new directory.
     Integrator();
+
+    static void Parse(Integrator &, IO::ParmParse &);
 
     /// Virtual destructure; make sure delete any pointers that you create here.
     virtual ~Integrator();
@@ -185,6 +188,16 @@ protected:
     /// An optionally overridable method to trigger behavior whenver a regrid occurs.
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
+
+
+    inline void StopClock()
+    {
+        clock_running = false;
+    }
+    inline void RestartClock()
+    {
+        clock_running = true;
+    }
 
 
     /// Add a new cell-based scalar field.
@@ -383,6 +396,8 @@ protected:
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
 private:
     int max_plot_level = -1;
+    int print_ghost_nodes = 0;
+    int print_ghost_cells = 0;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
@@ -392,6 +407,8 @@ private:
 protected:
     bool integrate_variables_before_advance = true;
     bool integrate_variables_after_advance = false;
+
+    bool clock_running = true;
 
 protected:
     struct {

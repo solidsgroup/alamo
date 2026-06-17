@@ -83,7 +83,7 @@ std::string Wrap(std::string text, unsigned per_line)
 }
 
 AMREX_FORCE_INLINE
-std::string Join(const std::vector<std::string> & vec, char separator = '_')
+std::string Join(const std::vector<std::string> & vec, std::string separator = "_")
 {
     std::ostringstream oss;
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -96,7 +96,21 @@ std::string Join(const std::vector<std::string> & vec, char separator = '_')
 }
 
 AMREX_FORCE_INLINE
-std::string Join(const std::vector<double> & vec, char separator = '_')
+std::string Join(const std::vector<std::string> & vec, char separator)
+{
+    return Join(vec,std::string(1, separator));
+}
+
+AMREX_FORCE_INLINE
+std::string Join(const std::vector<double> & vec, std::string separator = " ")
+{
+    std::vector<std::string> strvec;
+    for (auto v : vec) strvec.push_back(std::to_string(v));
+    return Join(strvec,separator);
+}
+
+AMREX_FORCE_INLINE
+std::string Join(const Set::Vector & vec, char separator = ' ')
 {
     std::ostringstream oss;
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -169,6 +183,20 @@ std::complex<int> Parse(std::string input)
     }
     return std::complex<int>(re,im);
 }
+
+#include <string_view>
+
+constexpr std::string_view FuncName(std::string_view s)
+{
+    auto pos = s.find('[');
+    if (pos == std::string_view::npos)
+        return s; // no brackets, return full string
+    return s.substr(0, pos); // everything before the '['
+}
+
+
+
+
 
 }
 

@@ -37,9 +37,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {
-                            "microstructure", "flame", "heat",
-                            "dendrite","allencahn","cahnhilliard","pfc"});
+                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
 
     int seed;
     // Seed for random generator

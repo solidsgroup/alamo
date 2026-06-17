@@ -20,6 +20,7 @@ class Cubic : public Solid<Set::Sym::MajorMinor>
 {
 public:
     AMREX_GPU_HOST_DEVICE Cubic() = default;
+    AMREX_GPU_HOST_DEVICE Cubic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
     AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
     void

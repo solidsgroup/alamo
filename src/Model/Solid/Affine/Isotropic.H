@@ -55,6 +55,13 @@ public:
     {
         AMREX_IF_ON_HOST( out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0; )
     }
+    AMREX_GPU_HOST_DEVICE
+    bool ContainsNan() 
+    {
+        if (F0.hasNaN()) return true;
+        if (ddw.contains_nan()) return true;
+        else return false;
+    }
 public:
     static Isotropic Zero()
     {
