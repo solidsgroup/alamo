@@ -50,9 +50,9 @@ class Hexagonal : public Solid<Set::Sym::MajorMinor>
 {
 public:
 
-    Hexagonal() {};
+    Hexagonal() = default;
     Hexagonal(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
-    virtual ~Hexagonal() {};
+    ~Hexagonal() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
@@ -109,19 +109,19 @@ public:
                                         ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
                     }
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const 
     {
         out << ddw;
     }

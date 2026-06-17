@@ -2,7 +2,14 @@ name: Linux
 
 on:
   push:
-    branches-ignore: []
+    branches-ignore: ["paper", "candidate-install"]
+  pull_request:
+    branches:
+      - development
+      - master
+
+permissions:
+  contents: read
 
 jobs:
   style-check:
@@ -11,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
+
   editorconfig-compliance:
     runs-on: ubuntu-24.04
     steps:
@@ -32,11 +40,27 @@ jobs:
   build-docs:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-    - name: make
-      run: bash .github/workflows/build-docs.sh
+      - uses: actions/checkout@v4
+      - name: installing preliminaries
+        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      - name: make
+        run: bash .github/workflows/build-docs.sh
+
+      - name: upload documentation
+        if: always()
+        id: upload_report
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/build/html
+
+      - name: Add report link to summary
+        if: always()
+        run: |
+          echo "## 📄 Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+
   test-2d-22-04:
     runs-on: ubuntu-22.04
     steps:
@@ -44,13 +68,42 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
-      run: ./configure --dim=2 
+      run: ./configure --dim=2 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --comp=g++
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-2d-22-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-22-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-2d-22-04
+        path: test-2d-22-04
+    - name: Add report link to summary
+      if: always()
+      run: |
+        echo "## 📄 Report: test-2d-22-04" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+
   test-2d-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -58,13 +111,42 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
-      run: ./configure --dim=2 
+      run: ./configure --dim=2 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-2d-24-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-2d-24-04
+        path: test-2d-24-04
+    - name: Add report link to summary
+      if: always()
+      run: |
+        echo "## 📄 Report: test-2d-24-04" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+
   test-3d-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -72,13 +154,42 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure
-      run: ./configure --dim=3 
+      run: ./configure --dim=3 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe"
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-3d-24-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-3d-24-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-3d-24-04
+        path: test-3d-24-04
+    - name: Add report link to summary
+      if: always()
+      run: |
+        echo "## 📄 Report: test-3d-24-04" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+
   test-2d-24-04-clang:
     runs-on: ubuntu-24.04
     steps:
@@ -96,13 +207,33 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace --perf
     - name: create report
-      run: python3 scripts/package_report.py
+      if: always()
+      run: python3 scripts/package_report.py --name test-2d-24-04-clang
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04-clang"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
+      id: upload_report
       uses: actions/upload-artifact@v4
       with:
-        name: regression-report
-        path: report.tar.gz
+        name: test-2d-24-04-clang
+        path: test-2d-24-04-clang
+    - name: Add report link to summary
+      if: always()
+      run: |
+        echo "## 📄 Report: test-2d-24-04-clang" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
   test-2d-24-04-clang-fft:
     runs-on: ubuntu-24.04
     steps:
@@ -119,3 +250,31 @@ jobs:
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-2d-24-04-clang-fft
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04-clang-fft"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-2d-24-04-clang-fft
+        path: test-2d-24-04-clang-fft
+    - name: Add report link to summary
+      if: always()
+      run: |
+        echo "## 📄 Report: test-2d-24-04-clang-fft" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY

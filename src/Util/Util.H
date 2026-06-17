@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <complex>
 #include <stdlib.h>
+#include <string_view>
 
 #include <string>
 #include "Util/String.H"
@@ -16,6 +17,8 @@
 #include "AMReX.H"
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_iMultiFab.H>
+#include <AMReX_Reduce.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -323,6 +326,7 @@ namespace Test
 int Message(std::string testname);
 int Message(std::string testname, int passed);
 int SubMessage(std::string testname, int passed);
+void SubWarning(std::string testname);
 int SubFinalMessage(int failed);
 }
 
@@ -332,20 +336,23 @@ int SubFinalMessage(int failed);
 //
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
-
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
 

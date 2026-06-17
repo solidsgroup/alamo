@@ -340,7 +340,10 @@ public:
             // First value is accepted by default...
 
             // set default value
-            value = possibleintvals[0];
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(), possibleintvals[0]);
+            }
 
             // get the read value (if it exists)
             int retval = query(name.c_str(),value);
@@ -380,14 +383,17 @@ public:
             // if not using default values, then the input must be specified
             if (!firstbydefault)
             {
-                if (!contains(name.c_str()))
+                if (!amrex::ParmParse::contains(name.c_str()))
                 {
                     Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
                 }
             }
 
             // set default value
-            value = std::string(possiblecharvals[0]);
+            if (!amrex::ParmParse::contains(name.c_str()))
+            {
+                add(name.c_str(), std::string(possiblecharvals[0]));
+            }
 
             // get the read value (if it exists)
             int retval = amrex::ParmParse::query(name.c_str(),value);
@@ -651,15 +657,35 @@ public:
         }        
         return queryarr(name,value,unit);
     }
-    int queryarr_default(   std::string name, std::vector<std::string> & value, std::string defaultvalue)
+    int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue)
     {
         if (!contains(name.c_str()))
         {
-            add(name.c_str(),defaultvalue);
+            addarr(name.c_str(),defaultvalue);
         }
         return amrex::ParmParse::queryarr(name.c_str(),value);
     }
 
+    int queryarr_default(   std::string name, Set::Vector & value, std::string defaultvalue, Unit unit)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                this->addarr(name.c_str(),Util::String::Split(defaultvalue));
+            }
+            return queryarr(name.c_str(),value,unit);
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
     int queryarr_default(   std::string name, Set::Vector & value, Set::Vector defaultvalue)
     {
         try
@@ -690,6 +716,40 @@ public:
                 return 0;
             }
             return queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<double> defaultvalue)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                addarr(name.c_str(),defaultvalue);
+            }
+            return queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<std::string> defaultvalue, Unit unit)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                addarr(name.c_str(),defaultvalue);
+            }
+            return queryarr(name,value, unit);
         }
         catch (...)
         {
@@ -1269,10 +1329,6 @@ public:
             Util::ParmParseException(INFO,names_str);
         }
     }
-
-
-
-
 };
 }
 #endif

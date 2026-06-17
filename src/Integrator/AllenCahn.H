@@ -75,7 +75,7 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp.query_default("ch.L",value.ch.L, "1.0", 1/ Unit::Pressure()/Unit::Time());
+        pp.query_default("ch.L",value.ch.L, "1.0", 1.0 / Unit::Pressure()/Unit::Time());
         // Value for :math:`\epsilon` (diffuse boundary width)
         // pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
         // Value for :math:`\kappa` (Interface energy parameter)

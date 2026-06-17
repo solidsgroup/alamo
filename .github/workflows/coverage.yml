@@ -25,13 +25,13 @@ jobs:
         run: bash .github/workflows/dependencies-ubuntu-24.04.sh
       - name: Configure (2D)
         continue-on-error: true
-        run: ./configure --dim=2 --coverage
+        run: ./configure --dim=2 --coverage --comp=g++
       - name: Build (2D)
         continue-on-error: true
         run: make
       - name: Configure (3D)
         continue-on-error: true
-        run: ./configure --dim=3 --coverage
+        run: ./configure --dim=3 --coverage --comp=g++
       - name: Build (3D)
         continue-on-error: true
         run: make
@@ -40,9 +40,15 @@ jobs:
         run: >
           scripts/runtests.py --serial
           --timeout=50 --permit-timeout
-          --coverage --no-backspace
+          --coverage --no-backspace --comp=g++
       - name: Generate Coverage Report
         run: make cov-report
+      - name: upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./cov
       - name: Generate Documentation
         run: make docs
       - name: Compile GitHub Pages

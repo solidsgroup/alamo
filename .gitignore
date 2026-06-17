@@ -62,6 +62,7 @@ alamo
 setup.py
 alamo.py
 /.venv
+.alamo
 
 # --- scratch / experiment clutter ---
 *.log

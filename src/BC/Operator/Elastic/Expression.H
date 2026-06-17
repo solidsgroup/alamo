@@ -431,112 +431,112 @@ public:
             }
         };
 
-        pp_queryarr_default("type.xlo",type, "disp"); // 3D Face / 2D Edge type
-        pp_queryarr_default("val.xlo", val , "0.0"); // 3D Face / 2D Edge value
+        pp.queryarr_default("type.xlo",type, {"disp"}); // 3D Face / 2D Edge type
+        pp.queryarr_default("val.xlo", val , {"0.0"}); // 3D Face / 2D Edge value
         set(type,val,Face::XLO); 
 
-        pp_queryarr_default("type.xhi",type, "disp"); // 3D Face / 2D Edge  type
-        pp_queryarr_default("val.xhi" ,val , "0.0"); // 3D Face / 2D Edge value
+        pp.queryarr_default("type.xhi",type, {"disp"}); // 3D Face / 2D Edge  type
+        pp.queryarr_default("val.xhi" ,val , {"0.0"}); // 3D Face / 2D Edge value
         set(type,val,Face::XHI); 
 
-        pp_queryarr_default("type.ylo",type, "disp"); // 3D Face / 2D Edge type
-        pp_queryarr_default("val.ylo" ,val , "0.0"); // 3D Face / 2D Edge value
+        pp.queryarr_default("type.ylo",type, {"disp"}); // 3D Face / 2D Edge type
+        pp.queryarr_default("val.ylo" ,val , {"0.0"}); // 3D Face / 2D Edge value
         set(type,val,Face::YLO); 
 
-        pp_queryarr_default("type.yhi",type, "disp"); // 3D Face / 2D Edge type
-        pp_queryarr_default("val.yhi", val , "0.0"); // 3D Face / 2D Edge value
+        pp.queryarr_default("type.yhi",type, {"disp"}); // 3D Face / 2D Edge type
+        pp.queryarr_default("val.yhi", val , {"0.0"}); // 3D Face / 2D Edge value
         set(type,val,Face::YHI); 
 
 #if AMREX_SPACEDIM==3
-        pp_queryarr_default("type.zlo",type, "disp"); // 3D Face type
-        pp_queryarr_default("val.zlo", val , "0.0"); // 3D Face value
+        pp.queryarr_default("type.zlo",type, {"disp"}); // 3D Face type
+        pp.queryarr_default("val.zlo", val , {"0.0"}); // 3D Face value
         set(type,val,Face::ZLO); 
 
-        pp_queryarr_default("type.zhi",type, "disp"); // 3D Face type
-        pp_queryarr_default("val.zhi", val , "0.0"); // 3D Face value
+        pp.queryarr_default("type.zhi",type, {"disp"}); // 3D Face type
+        pp.queryarr_default("val.zhi", val , {"0.0"}); // 3D Face value
         set(type,val,Face::ZHI); 
 #endif
 
 
-        pp.queryarr_default("type.xloylo",type, "disp"); // 3D Edge / 2D Corner type
-        pp.queryarr_default("val.xloylo", val , "0.0"); // 3D Edge / 2D Corner value
+        pp.queryarr_default("type.xloylo",type, {"disp"}); // 3D Edge / 2D Corner type
+        pp.queryarr_default("val.xloylo", val , {"0.0"}); // 3D Edge / 2D Corner value
         set(type,val,Face::XLO_YLO); 
 
-        pp_queryarr_default("type.xloyhi",type, "disp"); // 3D Edge / 2D Corner type
-        pp_queryarr_default("val.xloyhi", val , "0.0"); // 3D Edge / 2D Corner value
+        pp.queryarr_default("type.xloyhi",type, {"disp"}); // 3D Edge / 2D Corner type
+        pp.queryarr_default("val.xloyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
         set(type,val,Face::XLO_YHI); 
 
-        pp_queryarr_default("type.xhiylo",type, "disp"); // 3D Edge / 2D Corner type
-        pp_queryarr_default("val.xhiylo", val , "0.0"); // 3D Edge / 2D Corner value
+        pp.queryarr_default("type.xhiylo",type, {"disp"}); // 3D Edge / 2D Corner type
+        pp.queryarr_default("val.xhiylo", val , {"0.0"}); // 3D Edge / 2D Corner value
         set(type,val,Face::XHI_YLO); 
 
-        pp_queryarr_default("type.xhiyhi",type, "disp"); // 3D Edge / 2D Corner type
-        pp_queryarr_default("val.xhiyhi", val , "0.0"); // 3D Edge / 2D Corner value
+        pp.queryarr_default("type.xhiyhi",type, {"disp"}); // 3D Edge / 2D Corner type
+        pp.queryarr_default("val.xhiyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
         set(type,val,Face::XHI_YHI); 
 
 #if AMREX_SPACEDIM==3
-        pp_queryarr_default("type.xloylozlo",type,"disp"); // 3D Corner type
-        pp_queryarr_default("val.xloylozlo",val,"0.0"); // 3D Corner value
+        pp.queryarr_default("type.xloylozlo",type,{"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xloylozlo",val,{"0.0"}); // 3D Corner value
         set(type,val,Face::XLO_YLO_ZLO);
 
-        pp_queryarr_default("type.xloylozhi",type, "disp");  // 3D Corner type
-        pp_queryarr_default("val.xloylozhi", val , "0.0");  // 3D Corner value
+        pp.queryarr_default("type.xloylozhi",type, {"disp"});  // 3D Corner type
+        pp.queryarr_default("val.xloylozhi", val , {"0.0"});  // 3D Corner value
         set(type,val,Face::XLO_YLO_ZHI); 
 
-        pp_queryarr_default("type.xloyhizlo",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xloyhizlo", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xloyhizlo",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xloyhizlo", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XLO_YHI_ZLO); 
 
-        pp_queryarr_default("type.xloyhizhi",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xloyhizhi", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xloyhizhi",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xloyhizhi", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XLO_YHI_ZHI); 
 
-        pp_queryarr_default("type.xhiylozlo",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xhiylozlo", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xhiylozlo",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xhiylozlo", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XHI_YLO_ZLO); 
 
-        pp_queryarr_default("type.xhiylozhi",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xhiylozhi", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xhiylozhi",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xhiylozhi", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XHI_YLO_ZHI); 
 
-        pp_queryarr_default("type.xhiyhizlo",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xhiyhizlo", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xhiyhizlo",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xhiyhizlo", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XHI_YHI_ZLO); 
 
-        pp_queryarr_default("type.xhiyhizhi",type, "disp"); // 3D Corner type
-        pp_queryarr_default("val.xhiyhizhi", val , "0.0"); // 3D Corner value
+        pp.queryarr_default("type.xhiyhizhi",type, {"disp"}); // 3D Corner type
+        pp.queryarr_default("val.xhiyhizhi", val , {"0.0"}); // 3D Corner value
         set(type,val,Face::XHI_YHI_ZHI); 
 
-        pp_queryarr_default("type.ylozlo",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.ylozlo", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.ylozlo",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.ylozlo", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::YLO_ZLO); 
 
-        pp_queryarr_default("type.ylozhi",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.ylozhi", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.ylozhi",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.ylozhi", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::YLO_ZHI); 
 
-        pp_queryarr_default("type.yhizlo",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.yhizlo", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.yhizlo",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.yhizlo", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::YHI_ZLO); 
 
-        pp_queryarr_default("type.yhizhi",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.yhizhi", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.yhizhi",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.yhizhi", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::YHI_ZHI); 
 
-        pp_queryarr_default("type.zloxlo",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.zloxlo", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.zloxlo",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.zloxlo", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::ZLO_XLO); 
 
-        pp_queryarr_default("type.zloxhi",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.zloxhi", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.zloxhi",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.zloxhi", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::ZLO_XHI); 
 
-        pp_queryarr_default("type.zhixlo",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.zhixlo", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.zhixlo",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.zhixlo", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::ZHI_XLO); 
 
-        pp_queryarr_default("type.zhixhi",type, "disp"); // 3D Edge type
-        pp_queryarr_default("val.zhixhi", val , "0.0"); // 3D Edge value
+        pp.queryarr_default("type.zhixhi",type, {"disp"}); // 3D Edge type
+        pp.queryarr_default("val.zhixhi", val , {"0.0"}); // 3D Edge value
         set(type,val,Face::ZHI_XHI); 
 #endif
 
@@ -565,7 +565,7 @@ public:
 
     }
     Expression(IO::ParmParse &pp, std::string name): Expression()
-    {pp_queryclass(name,*this);}
+    {pp.queryclass(name,*this);}
 };
 }
 }

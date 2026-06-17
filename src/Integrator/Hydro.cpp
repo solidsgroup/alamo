@@ -1,5 +1,6 @@
 
 #include "Hydro.H"
+#include "AMReX_MultiFab.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -12,7 +13,15 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
-#if AMREX_SPACEDIM == 2
+#include "AMReX_TimeIntegrator.H"
+
+#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Transport/Transport.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/EOS.H"
+#include "Model/Gas/EOS/CPG.H"
 
 namespace Integrator
 {
@@ -33,13 +42,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // momentum-based refinement
         // pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
 
-        std::string scheme_str;
-        // time integration scheme to use
-        pp.query_validate("scheme",scheme_str, {"forwardeuler","ssprk3","rk4"});
-        if (scheme_str == "forwardeuler") value.scheme = IntegrationScheme::ForwardEuler;
-        else if (scheme_str == "ssprk3") value.scheme = IntegrationScheme::SSPRK3;
-        else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
-
+        pp.forbid("scheme","use integration.type instead");
 
         // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
@@ -52,15 +55,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // density-based refinement
         pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
 
-        pp_query_required("gamma", value.gamma); // gamma for gamma law
+        pp_forbid("gamma", "replaced by gas->gamma(...)"); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
-        pp_query_required("mu", value.mu); // linear viscosity coefficient
+        pp_forbid("mu", "replaced with gas->dynamic_viscosity(...)"); // linear viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
         //pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
-        pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
+        pp_forbid("pref", "deprecated - use absolute pressure"); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
@@ -74,8 +77,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
         // Boundary condition for momentum
         pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
-        // Boundary condition for phase field order parameter
-        pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
+
+        if (!value.managed)
+        {
+            // Boundary condition for phase field order parameter
+            pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
+        }
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
@@ -88,8 +95,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         int nghost = 1;
 
-        value.RegisterNewFab(value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
-        value.RegisterNewFab(value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
+        if (!value.managed)
+        {
+            value.eta_mf = new Set::Field<Set::Scalar>();
+            value.eta_old_mf = new Set::Field<Set::Scalar>();
+            value.RegisterNewFab(*value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
+            value.RegisterNewFab(*value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
+        }
         value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
 
         value.RegisterNewFab(value.density_mf,     value.density_bc, 1, nghost, "density",     true , true);
@@ -102,6 +114,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
  
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "temperature",  true, false);
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
@@ -114,6 +127,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
+
+        value.RegisterNewFab(value.mass_fraction_mf,  &value.bc_nothing, 1, nghost, "mass_fraction",     true , true);
+        value.RegisterNewFab(value.mole_fraction_mf,  &value.bc_nothing, 1, nghost, "mole_fraction",     true , true);
+        value.RegisterNewFab(value.scratch_mf,  &value.bc_nothing, 1, nghost, "scratch",     false , false);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -128,8 +145,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // ORDER PARAMETER
 
-    // eta initial condition
-    pp.select_default<IC::Constant,IC::Laminate,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.eta_ic,value.geom);
+    if (!value.managed)
+    {
+        // eta initial condition
+        pp.select_default<IC::Constant,IC::Laminate,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.eta_ic,value.geom);
+    }
 
     // PRIMITIVE FIELD INITIAL CONDITIONS
 
@@ -165,7 +185,21 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
+    // Gas model (Thermo, Transport, and EOS)
+    pp.queryclass<Model::Gas::Gas>("gas", value.gas);
+    value.nspecies = value.gas.nspecies;
+    std::cout << value.gas.thermo->model_name() << "\n";
+    std::cout << value.gas.transport->model_name() << "\n";
+    std::cout << value.gas.eos->model_name() << "\n";
+    std::cout << value.nspecies << "\n";
 
+    std::string prescribedflowmode_str;
+    // 
+    pp.query_validate("prescribedflowmode",prescribedflowmode_str,{"absolute","relative"});
+    if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
+    else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
+
+    pp.queryarr_default("g",value.g,Set::Vector::Zero());
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -184,42 +218,47 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
  
-    eta_ic           ->Initialize(lev, eta_mf,     0.0);
-    eta_ic           ->Initialize(lev, eta_old_mf, 0.0);
+    if (!managed)
+    {
+        eta_ic           ->Initialize(lev, *eta_mf,     0.0);
+        eta_ic           ->Initialize(lev, *eta_old_mf, 0.0);
+    }
     etadot_mf[lev]   ->setVal(0.0);
 
     //flux_mf[lev]   ->setVal(0.0);
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
-    density_ic       ->Initialize(lev, density_mf, 0.0);
+    density_ic       ->Initialize(lev, density_mf,  0.0);
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
-
-    solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
+    solid.density_ic ->Initialize(lev, solid.density_mf,  0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
-    solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
+    solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
     ic_m0            ->Initialize(lev, m0_mf, 0.0);
-    ic_u0            ->Initialize(lev, u0_mf,    0.0);
-    ic_q             ->Initialize(lev, q_mf,            0.0);
+    ic_u0            ->Initialize(lev, u0_mf, 0.0);
+    ic_q             ->Initialize(lev, q_mf,  0.0);
 
     Source_mf[lev]   ->setVal(0.0);
 
-    Mix(lev);
+    if (managed)  { if (lev >= (int)mixed.size()) mixed.push_back(false);}
+    else  Mix(lev);
 }
 
 void Hydro::Mix(int lev)
 {
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    if (managed && mixed[lev]) return;
+
+    for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
-        Set::Patch<const Set::Scalar> eta       = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_old   = density_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       M         = momentum_mf.Patch(lev,mfi);
@@ -229,24 +268,44 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
-            rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
-            rho_old(i, j, k) = rho(i, j, k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
+            // Initially compute primitives (T,P,u) from given initial conditions
+            // But from then on, compute them from mixed values to avoid zero T conditions
+            // Except velocity - keep velocity from fluid values only
+            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
+            Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+            T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
+            Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
+
+            // Mix
+            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
+            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
-            E(i, j, k) =
-                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) 
-                + 
-                E_solid(i, j, k) * (1.0 - eta(i, j, k));
+            rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
+            rho_old(i, j, k) = rho(i, j, k);
+
+            E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
+            //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
+
+            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            //density = gas.ComputeD(rho, i, j, k);
+            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+            //v(i,j,k,0) = M(i,j,k,0)/density;
+            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
+        //Util::Abort(INFO);
     }
     c_max = 0.0;
     vx_max = 0.0;
@@ -255,7 +314,13 @@ void Hydro::Mix(int lev)
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
 {
-    eta_ic->Initialize(lev, eta_mf, time);
+    Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
+    eta_ic->Initialize(lev, *eta_mf, time);
+}
+
+void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
+{
+    Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }
 
 void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
@@ -285,305 +350,90 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
-    std::swap(eta_old_mf, eta_mf);
+    if (!managed) std::swap(*eta_old_mf, *eta_mf);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     
-    UpdateEta(lev, time);
+    //
+    // UPDATE ETA AND CALCULATE ETADOT
+    //
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    if (!managed) UpdateEta(lev, time);
+    if (managed) 
+    {
+        UpdateFluxes(lev,time,dt);
+        Mix(lev);
+    }
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
+        {   
+
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+            if (invert) etadot(i,j,k) *= 1.0;
+
         });
     }
 
 
-    if (scheme == IntegrationScheme::ForwardEuler) // forward euler
+    //
+    // DO TIME INTEGRATION (driving the RHS function)
+    //
+
+    // Organize references to the "new" solution
+    amrex::Vector<amrex::MultiFab> solution_new; 
+    solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+    // Organize references to the "old" solution
+    amrex::Vector<amrex::MultiFab> solution_old;
+    solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+    // Create the time integrator
+    amrex::TimeIntegrator timeintegrator(solution_new, time);
+
+    // Set the time integrator RHS - in this case, just relay to our current RHS function
+    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
     {
+        RHS(lev, time,
+            rhs_mf[0], rhs_mf[1], rhs_mf[2],
+            solution_mf[0],solution_mf[1],solution_mf[2]);
+    });
 
-        RHS(lev, time, 
-            *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
-
-        for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.validbox();
-        
-            Set::Patch<const Set::Scalar> rho_rhs = density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_rhs   = energy_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_rhs   = momentum_mf.Patch(lev,mfi);
-
-            Set::Patch<const Set::Scalar> rho_old = density_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_old   = energy_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_old   = momentum_old_mf.Patch(lev,mfi);
-
-            Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
-        
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {   
-                rho_new(i, j, k) = rho_old(i, j, k) + dt * rho_rhs(i,j,k);
-                M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
-                M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
-                E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
-            });
-        }
-    }
-
-
-    else if (scheme == IntegrationScheme::SSPRK3)
+    // Take care of filling boundaries during stages
+    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
     {
-        // Butcher Tableau
-        //     |
-        //  1  |  1    
-        // 1/2 | 1/4  1/4
-        // ---------------------
-        //     | 1/6  1/6  2/3
-        
-        Set::Scalar 
-            /* */  
-            /* */  c2 = 1.0 ,    a21 = 1.0,  
-            /* */  c3 = 0.5,     a31 = 0.25, a32 = 0.25, 
-            /*     ---------------------------------------------    */
-            /* */                b1 = 1./6,  b2 = 1./6., b3 = 2./3.;
+        density_bc->FillBoundary(stage_mf[0],0,1,time,0);   
+        stage_mf[0].FillBoundary(true);
+        momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
+        stage_mf[1].FillBoundary(true);
+        energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
+        stage_mf[2].FillBoundary(true);
+    });
+    
+    // Do the update
+    timeintegrator.advance(solution_old, solution_new, time, dt);
 
 
-        const amrex::BoxArray &ba = density_mf[lev]->boxArray();
-        const amrex::DistributionMapping &dm = density_mf[lev]->DistributionMap();
-        const int ng = density_mf[lev]->nGrow();
+    //
+    // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
+    //
 
-        // handles to old solution
-        const amrex::MultiFab &density_old = *density_old_mf[lev];
-        const amrex::MultiFab &momentum_old = *momentum_old_mf[lev];
-        const amrex::MultiFab &energy_old = *energy_old_mf[lev];
-
-        
-        // temporary storage
-        amrex::MultiFab density_k1(ba,dm,1,0), momentum_k1(ba,dm,2,0), energy_k1(ba,dm,1,0);
-        amrex::MultiFab density_k2(ba,dm,1,0), momentum_k2(ba,dm,2,0), energy_k2(ba,dm,1,0);
-        amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
-            
-        // buffer to hold combs of k1
-        amrex::MultiFab density_temp(ba,dm,1,ng), momentum_temp(ba,dm,2,ng), energy_temp(ba,dm,1,ng);
-
-        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
-        density_temp.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-        momentum_temp.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
-        energy_temp.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-
-        // handles to new solution
-        amrex::MultiFab &density_new = *density_mf[lev];
-        amrex::MultiFab &momentum_new = *momentum_mf[lev];
-        amrex::MultiFab &energy_new = *energy_mf[lev];
-
-
-        //
-        // Calculate K1
-        //
-        // k1 = RHS(t, yold)
-
-        RHS(lev,time,
-            density_k1,momentum_k1,energy_k1,
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
-
-
-        //
-        // Calculate K2
-        // 
-        // ytemp = yold + dt*( a21*k1 )
-        amrex::MultiFab::LinComb(density_temp,  1.0, density_old,  0, dt*a21, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_temp, 1.0, momentum_old, 0, dt*a21, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_temp,   1.0, energy_old,   0, dt*a21, energy_k1,   0, 0, 1, 0);
-        // fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time, 0); density_temp.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time, 0); momentum_temp.FillBoundary(true);
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time, 0); energy_temp.FillBoundary(true);
-        // k2 = RHS(t + c2*dt, ytemp)
-        RHS(lev,time + c2*dt,
-            density_k2, momentum_k2, energy_k2,
-            density_temp, momentum_temp, energy_temp);
-
-        //
-        // Calculate K3
-        //
-        // ytemp = yold + dt*( a31*k1 + a32*k2 )
-        //
-        // 1. ytemp = yold + dt*a31*k1
-        amrex::MultiFab::LinComb(density_temp,  1.0, density_old,  0, dt*a31, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_temp, 1.0, momentum_old, 0, dt*a31, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_temp,   1.0, energy_old,   0, dt*a31, energy_k1,   0, 0, 1, 0);
-        // 2. ytemp += dt*a32*k2
-        amrex::MultiFab::Saxpy(density_temp,  dt*a32, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_temp, dt*a32, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_temp,   dt*a32, energy_k2,   0, 0, 1, 0);
-        // 3. fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time+c2*dt, 0); density_temp.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time+c2*dt, 0); momentum_temp.FillBoundary(true);
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time+c2*dt, 0); energy_temp.FillBoundary(true);
-        // 4. k3 = RHS(t + c3*dt, ytemp)
-        RHS(lev,time + c3*dt,
-            density_k3, momentum_k3, energy_k3,
-            density_temp, momentum_temp, energy_temp);
-        
-        //
-        // Assemble to get ynew
-        //
-        // ynew = yold + dt*(b1*k1 + b2*k2 + b3*k3)
-        //
-        // 1. ynew = yold + dt*b1*k1
-        amrex::MultiFab::LinComb(density_new,  1.0, density_old,  0, dt*b1, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_new, 1.0, momentum_old, 0, dt*b1, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_new,   1.0, energy_old,   0, dt*b1, energy_k1,   0, 0, 1, 0);
-        // 2. ynew += dt*b2*k2
-        amrex::MultiFab::Saxpy(density_new,  dt*b2, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, dt*b2, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   dt*b2, energy_k2,   0, 0, 1, 0);
-        // 2. ynew += dt*b3*k3
-        amrex::MultiFab::Saxpy(density_new,  dt*b3, density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, dt*b3, momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   dt*b3, energy_k3,   0, 0, 1, 0);
-
-    }
-
-
-
-    else if (scheme == IntegrationScheme::RK4)
-    {
-        //
-        // RK4 time integration scheme:
-        //
-        
-        const amrex::BoxArray &ba = density_mf[lev]->boxArray();
-        const amrex::DistributionMapping &dm = density_mf[lev]->DistributionMap();
-        const int ng = density_mf[lev]->nGrow();
-
-        // handles to old solution
-        const amrex::MultiFab &density_old = *density_old_mf[lev];
-        const amrex::MultiFab &momentum_old = *momentum_old_mf[lev];
-        const amrex::MultiFab &energy_old = *energy_old_mf[lev];
-
-        // runge kutta stages
-        amrex::MultiFab density_k1(ba,dm,1,0), momentum_k1(ba,dm,2,0), energy_k1(ba,dm,1,0);
-        amrex::MultiFab density_k2(ba,dm,1,0), momentum_k2(ba,dm,2,0), energy_k2(ba,dm,1,0);
-        amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
-        amrex::MultiFab density_k4(ba,dm,1,0), momentum_k4(ba,dm,2,0), energy_k4(ba,dm,1,0);
-        
-        // temporary storage
-        amrex::MultiFab density_st(ba,dm,1,ng), momentum_st(ba,dm,2,ng), energy_st(ba,dm,1,ng);
-            
-        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
-        density_st.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-        momentum_st.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
-        energy_st.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-
-
-        // handles to new solution
-        amrex::MultiFab &density_new = *density_mf[lev];
-        amrex::MultiFab &momentum_new = *momentum_mf[lev];
-        amrex::MultiFab &energy_new = *energy_mf[lev];
-
-
-        //
-        // K1
-        // 
-
-        RHS(lev,time,
-            density_k1,momentum_k1,energy_k1,
-            density_old, momentum_old, energy_old);
-
-        //
-        // K2
-        //
-
-        // [state] = [old] + (dt/2)[k1]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k1,   0, 0, 1, 0);
-
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
-        
-
-        RHS(lev,time,
-            density_k2, momentum_k2, energy_k2,
-            density_st, momentum_st, energy_st);
-
-        //
-        // K3
-        //
-
-        // [state] = [old] + (dt/2)[k2]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k2,   0, 0, 1, 0);
-
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
-
-        RHS(lev,time,
-            density_k3, momentum_k3, energy_k3,
-            density_st, momentum_st, energy_st);
-        
-        //
-        // K4
-        //
-        
-        // [state] = [old] + (dt/2)[k3]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt, density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt, momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt, energy_k3,   0, 0, 1, 0);
-
-        density_bc-> FillBoundary(density_st,  0, 1, time, 0); density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->  FillBoundary(energy_st,   0, 1, time, 0); energy_st.FillBoundary(true);
-
-
-        RHS(lev,time,
-            density_k4, momentum_k4, energy_k4,
-            density_st, momentum_st, energy_st);
-
-        
-        // [new] = [old] + (dt/6)k1
-        amrex::MultiFab::LinComb(density_new,  1.0, density_old,  0, (dt/6.0), density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_new, 1.0, momentum_old, 0, (dt/6.0), momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_new,   1.0, energy_old,   0, (dt/6.0), energy_k1,   0, 0, 1, 0);
-
-        // [new] += (2 dt/6)k2
-        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k2,   0, 0, 1, 0);
-
-        // [new] += (2 dt/6)k3
-        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k3,   0, 0, 1, 0);
-                                 
-        // [new] += (dt/6)k4
-        amrex::MultiFab::Saxpy(density_new,  (dt/6.0), density_k4,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/6.0), momentum_k4, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/6.0), energy_k4,   0, 0, 1, 0);
-
-    }
-
-
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+    for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const Set::Scalar* DX = geom[lev].CellSize();
         
-        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
@@ -601,7 +451,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            if (eta(i,j,k) < cutoff)
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+
+            if (eta < cutoff)
             {
                 rho_new(i,j,k,0) = rho_solid(i,j,k,0);
                 M_new(i,j,k,0)   = M_solid(i,j,k,0);
@@ -610,12 +462,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
 
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
-            omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
+            omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
 
             if (dynamictimestep.on)
             {
-                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
+                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta + small)));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
             }
@@ -640,10 +492,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 const amrex::MultiFab &E_mf)
 {
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
@@ -651,32 +503,49 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k);
-            Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta(i,j,k)) * E_solid(i,j,k);
+            // Compute T and P primitives from mixed values
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
 
-            Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
-                                    M(i,j,k,1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
+            // Compute velocity from fluid values
+            scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta))/(eta + small);
+            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
+            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
+            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+            v(i,j,k,0) = Mx_fluid/density_fluid;
+            v(i,j,k,1) = My_fluid/density_fluid;
 
-            //THESE ARE FLUID VELOCITY AND PRESSURE
+            if (eta < small) 
+            {
+                v(i,j,k,0) *= eta;
+                v(i,j,k,1) *= eta;
 
-            v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
-            v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-            p(i,j,k)   = (etaE_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small))-pref;
+                #if AMREX_SPACEDIM == 3
+                    v(i,j,k,2) *= eta;
+                #endif
+            }
         });
     }
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         
@@ -701,9 +570,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> eta       = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -715,24 +586,59 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
-            //Diffuse Sources
-            Set::Vector grad_eta     = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            Set::Matrix hess_eta     = Numeric::Hessian(eta, i, j, k, 0, DX);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
-            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
+            //Diffuse Sources
+            Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+            Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX);
+            if (invert) grad_eta *= -1.0;
+            if (invert) hess_eta *= -1.0;
+            
+            #if AMREX_SPACEDIM == 2
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1));
+            #endif
+
+            #if AMREX_SPACEDIM == 3
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1), velocity(i, j, k, 2)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1), _u0(i, j, k, 2)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
+            #endif
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
+            if (prescribedflowmode == PrescribedFlowMode::Relative)
+            {
+                Set::Vector N = grad_eta / (grad_eta_mag + small);
+                // Set::Vector T(N(1), -N(0));
+                // u0 = N * u0(0) + T * u0(1);
 
-            Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
-            Set::Vector Pdot0 = Set::Vector::Zero(); 
+                #if AMREX_SPACEDIM == 2
+                    Set::Vector T(N(1), -N(0));
+                    u0 = N * u0(0) + T * u0(1);
+                #endif
+
+                #if AMREX_SPACEDIM == 3
+                    Set::Vector T;
+                    T(0) = N(1);
+                    T(1) = -N(0);
+                    T(2) = 0;
+                    u0 = N*u0(0) + T * u0(1);
+                    // Might not be physcially accurate, need to find how to extend to 3 dimensions
+                #endif
+            }
+
+
+            Set::Scalar mdot0 = m0(i,j,k)*grad_eta_mag;
+            Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
+
+            Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
             // sten is necessary here because sometimes corner ghost
             // cells don't get filled
@@ -749,18 +655,17 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
+            Set::Scalar lambda = 0.0; //-2.0/3.0*mu_eff;
             for (int p = 0; p<2; p++)
                 for (int q = 0; q<2; q++)
                     for (int r = 0; r<2; r++)
                         for (int s = 0; s<2; s++)
                         {
-                            Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
+                            Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
+                            div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
 
-                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
-            
+
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
             Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
@@ -789,26 +694,37 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y); 
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
-            
-            Solver::Local::Riemann::State state_xlo_fluid = (state_xlo - (1.0 - eta(i-1,j,k))*state_xlo_solid) / (eta(i-1,j,k) + small);
-            Solver::Local::Riemann::State state_x_fluid   = (state_x   - (1.0 - eta(i,j,k)  )*state_x_solid  ) / (eta(i,j,k)   + small);
-            Solver::Local::Riemann::State state_xhi_fluid = (state_xhi - (1.0 - eta(i+1,j,k))*state_xhi_solid) / (eta(i+1,j,k) + small);
 
-            Solver::Local::Riemann::State state_ylo_fluid = (state_ylo - (1.0 - eta(i,j-1,k))*state_ylo_solid) / (eta(i,j-1,k) + small);
-            Solver::Local::Riemann::State state_y_fluid =   (state_y   - (1.0 - eta(i,j,k)  )*state_y_solid  ) / (eta(i,j,k)   + small);
-            Solver::Local::Riemann::State state_yhi_fluid = (state_yhi - (1.0 - eta(i,j+1,k))*state_yhi_solid) / (eta(i,j+1,k) + small);
+            Solver::Local::Riemann::State state_xlo_fluid = invert ? 
+                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
+                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
+            Solver::Local::Riemann::State state_x_fluid   = invert ? 
+                (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)   + small): 
+                (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k)   + small);
+            Solver::Local::Riemann::State state_xhi_fluid = invert ? 
+                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small) : 
+                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
+            Solver::Local::Riemann::State state_ylo_fluid = invert ? 
+                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
+                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
+            Solver::Local::Riemann::State state_y_fluid =   invert ? 
+                (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
+                (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
+            Solver::Local::Riemann::State state_yhi_fluid = invert ? 
+                (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
+                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
             }
             catch(...)
             {
@@ -816,7 +732,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
             }
-
+                
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
@@ -828,7 +744,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 //(
                     drhof_dt +
                     // todo add drhos_dt term if want time-evolving rhos
-                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
+                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small)
                 // ) * dt;
                 ;
 
@@ -837,7 +753,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-                div_tau(0) * eta(i,j,k) +
+                div_tau(0) * eta +
+                g(0)*rho(i,j,k) +
                 Source(i, j, k, 1);
 
             M_rhs(i,j,k,0) = 
@@ -845,22 +762,23 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 // ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
+                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta + small)
                 // ) * dt;
                 ;
 
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-                div_tau(1) * eta(i,j,k) + 
+                div_tau(1) * eta + 
+                g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
-                
+
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
                 //( 
                     dMyf_dt +
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
+                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta+small)
                 // )*dt;
                 ;
 
@@ -874,7 +792,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //     ( 
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
-                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
+                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small)
                 // ) * dt;
                 ;
             
@@ -893,10 +811,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i," j=",j);
                 Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
                 Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, eta, small
                 Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
                 Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
-                Util::ParallelMessage(INFO,"eta ",eta(i,j,k));
+                Util::ParallelMessage(INFO,"eta ",eta);
                 Util::ParallelMessage(INFO,"etadot ",etadot(i,j,k));
                 Util::ParallelMessage(INFO,"Source ",Source(i,j,k,0));
                 Util::ParallelMessage(INFO,"state_x ",state_x); // <<<<
@@ -941,7 +859,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
 
             // todo - may need to move this for higher order schemes...
-            omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
+            omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
         });
     }
 }
@@ -964,10 +882,10 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
     // Eta criterion for refinement
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_mf)[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -1030,6 +948,3 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 }
-
-
-#endif
