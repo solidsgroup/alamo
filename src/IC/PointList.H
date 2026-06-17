@@ -86,22 +86,36 @@ public:
                 {   
                     Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
                     // std::cout << "X[n](1) = " << X[n](1) << ",X[n][1] = " << X[n][1] << std::endl;
-                    if ((X[n](1) > x(1) && X[n+1](1) > x(1)) || (X[n](1) < x(1) && X[n+1](1) < x(1)))
-                    {
-                        num_cross += 0;
-                    } else
-                    {
-                        double numerator = x(1) - b_edge[n];
+                    // if ((X[n](1) > x(1) && X[n+1](1) > x(1)) || (X[n](1) < x(1) && X[n+1](1) < x(1)))
+                    // {
+                    //     num_cross += 0;
+                    // } else
+                    // {
+                    //     double numerator = x(1) - b_edge[n];
 
-                        x_cross = numerator / m_edge[n];
+                    //     x_cross = numerator / m_edge[n];
 
-                        if (x_cross > x[0])
-                        {   // If the horxiontal ray crosses the intercept, add 1 to n_cross
-                            num_cross += 1;
-                        } else
-                        {
-                            num_cross += 0;
-                        }
+                    //     if (x_cross > x[0])
+                    //     {   // If the horxiontal ray crosses the intercept, add 1 to n_cross
+                    //         num_cross += 1;
+                    //     } else
+                    //     {
+                    //         num_cross += 0;
+                    //     }
+                    // }
+
+                    double x1 = X[n](0);
+                    double y1 = X[n](1);
+                    double x2 = X[n+1](0);
+                    double y2 = X[n+1](1);
+
+                    if ((y1 > x(1)) != (y2 > x(1)))
+                    {
+                        double x_cross =
+                            x1 + (x(1) - y1) * (x2 - x1) / (y2 - y1);
+
+                        if (x_cross > x(0))
+                            num_cross++;
                     }
 
                     // Computes the closest point on a line segment (X[n] → X[n+1]) to a query point x,
@@ -120,10 +134,10 @@ public:
                     // The resulting closest point x_int is then used to compute the Euclidean
                     // distance from P to the segment, and the minimum distance over all edges is tracked.
 
-                    double x1 = X[n](0);
-                    double y1 = X[n](1);
-                    double x2 = X[n+1](0);
-                    double y2 = X[n+1](1);
+                    // double x1 = X[n](0);
+                    // double y1 = X[n](1);
+                    // double x2 = X[n+1](0);
+                    // double y2 = X[n+1](1);
                     double px = x(0);
                     double py = x(1);
                     double dx = x2 - x1;
