@@ -55,21 +55,12 @@ public:
             else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
             else Util::Abort(INFO, "Unkonwn index type");
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
-            double small = 1e-8;
-            m_edge.resize(X.size() - 1);
-            b_edge.resize(X.size() - 1);
 
             if (X.back() != X.front())
             // The first and last point must match, if they do not add another point to the end
             {
                 X.push_back(X.front());
             }
-            for (unsigned int n = 0; n < X.size()-1; n++)
-                {   
-                    // Compute the slope and y intercept of each edge
-                    m_edge[n] = (X[n + 1](1) - X[n](1))/(X[n + 1](0) - X[n](0) + small);
-                    b_edge[n] = (X[n](1) - m_edge[n]*X[n](0));
-                }
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -234,13 +225,10 @@ public:
     }
 
 private:
-    std::vector<Set::Vector> X;
-    std::vector<Set::Scalar> R;
+    std::vector<Set::Vector> X; // Big X is a vector of vectors of each coordinate read into the file
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
-    std::vector<Set::Scalar> m_edge;
-    std::vector<Set::Scalar> b_edge;
     bool invert = false;
     
     double dist(double x1, double y1, double x2, double y2)
