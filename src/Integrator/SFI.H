@@ -7,7 +7,7 @@
 
 #include <limits>
 #include "Integrator/Integrator.H"
-#include "Model/Solid/Finite/NeoHookeanPredeformed.H"
+// #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "IO/ParmParse.H"
 
@@ -23,9 +23,10 @@ template<class PF>
 class SFI : 
     virtual public PF,
     virtual public Hydro,
-    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookean>
 {
-    using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
+    // using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
+    using model_type = Model::Solid::Finite::NeoHookean;
 public:
     SFI():
         PF(),
@@ -57,7 +58,7 @@ public:
         if (value.m_type != Type::Disable)
         {
             // elastic model of Steel
-            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_steel", value.elastic.model_steel);
+            pp.queryclass<Model::Solid::Finite::NeoHookean>("model_steel", value.elastic.model_steel);
             // Use Hydro's eta field as the psi field for the solver
             value.psi_on = false;
         }
@@ -208,8 +209,8 @@ protected:
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         model_type model_steel = elastic.model_steel;
-                        model_steel.F0 -= Set::Matrix::Identity();
-                        model_steel.F0 += Set::Matrix::Identity();
+                        // model_steel.F0 -= Set::Matrix::Identity();
+                        // model_steel.F0 += Set::Matrix::Identity();
                         model(i, j, k) = model_steel;
                     });
                 }
@@ -218,7 +219,7 @@ protected:
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         model_type model_steel = elastic.model_steel;
-                        model_steel.F0 *= Set::Matrix::Zero();
+                        // model_steel.F0 *= Set::Matrix::Zero();
                         model(i, j, k) = model_steel;
                     });
                 }

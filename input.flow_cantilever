@@ -1,16 +1,16 @@
 alamo.program = allencahn
 plot_file = ./output.cantilever
-amr.plot_dt = 0.25
+amr.plot_dt = 0.005
 # amr.plot_int = 1
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 4
 timestep  = 1e-2
-amr.n_cell = 16 8
-geometry.prob_lo = -6.0  0
-geometry.prob_hi =  6.0  6.0
+amr.n_cell = 24 8
+geometry.prob_lo = -9.0  0
+geometry.prob_hi =  9.0 6.0
 geometry.is_periodic = 0 0 0
 stop_time = 50.0
 # AMR parameters
@@ -20,15 +20,15 @@ amr.cell.all = 1
 alamo.program = allencahn
 plot_file = ./output.cantilever
 
-tstart = 10e-2
+tstart = 2e-2
 
 ## Allen-Cahn Model with no growth
 allencahn.ch.direction = 0
 allencahn.ch.direction_tstart = 0.0
 allencahn.alpha.ic.type = expression
-allencahn.alpha.ic.expression.constant.width = 0.2
+allencahn.alpha.ic.expression.constant.width = 0.4
 allencahn.alpha.ic.expression.constant.height = 3.0
-allencahn.alpha.ic.expression.constant.eps = 0.15
+allencahn.alpha.ic.expression.constant.eps = 0.2
 allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 
@@ -105,7 +105,7 @@ hydro.energy.bc.constant.type.xlo = neumann
 hydro.energy.bc.constant.type.ylo = neumann
 hydro.energy.bc.constant.type.yhi = neumann
 hydro.energy.bc.constant.val.xhi = 0.0
-hydro.energy.bc.constant.val.xlo = 100.0
+hydro.energy.bc.constant.val.xlo = 0.0
 hydro.energy.bc.constant.val.ylo = 0.0 
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
@@ -113,7 +113,7 @@ hydro.momentum.bc.constant.type.xlo = dirichlet neumann
 hydro.momentum.bc.constant.type.ylo = neumann dirichlet
 hydro.momentum.bc.constant.type.yhi = neumann dirichlet
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
-hydro.momentum.bc.constant.val.xlo = 0.0 0.0
+hydro.momentum.bc.constant.val.xlo = 30.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
 hydro.momentum.bc.constant.val.yhi = 0.0 0.0
 hydro.eta.ic.constant.value = 1.0
@@ -147,11 +147,11 @@ hydro.cfl_v   = 1.0
 elastic.type = static
 # Thermoelasticity
 elastic.on = 1
-elastic.interval = 50
+elastic.interval = 10
 # Elastic model params
-model_steel.mu = 14191.376
-model_steel.kappa = 15162.376
-model_steel.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
+model_steel.mu = 14191000.376
+model_steel.kappa = 15162000.376
+# model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 # Elastic solver information
 elastic.solver.verbose = 4
 elastic.solver.fixed_iter = 5000
@@ -161,11 +161,11 @@ elastic.print_model = 1
 elastic.print_residual = 1
 # Mechanics boundary conditions
 elastic.bc.type = constant
-elastic.bc.constant.type.xlo = trac trac 
+elastic.bc.constant.type.xlo = disp disp
 elastic.bc.constant.type.ylo = disp disp 
-elastic.bc.constant.type.yhi = trac trac
-elastic.bc.constant.type.xloylo = trac trac 
-elastic.bc.constant.type.xloyhi = trac trac
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp 
+elastic.bc.constant.type.xloyhi = disp disp
 # No traction on free surface
 elastic.traction = 0.0
 elastic.elastic_ref_threshold = 0.0005

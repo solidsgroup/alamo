@@ -1087,12 +1087,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 // ) * dt;
 
             // if (std::abs(dEf_dt) > 10000)
-            {
-                amrex::Print() << "dMyf_dt=" << dEf_dt
-                            << " i=" << i
-                            << " j=" << j
-                            << " \n";
-            }
+            // {
+            //     amrex::Print() << "dMyf_dt=" << dEf_dt
+            //                 << " i=" << i
+            //                 << " j=" << j
+            //                 << " \n";
+            // }
 
             // if (i == 89 && j == 85)
             // {
