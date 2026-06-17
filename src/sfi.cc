@@ -23,7 +23,7 @@ int main (int argc, char* argv[])
     Integrator::Integrator *integrator = nullptr;
 
     if      (program == "allencahn") pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
-    else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
+    // else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
     // else if (program == "flame")     pp.select_only<Integrator::SFI<Integrator::Flame>>(integrator);
     else
     {

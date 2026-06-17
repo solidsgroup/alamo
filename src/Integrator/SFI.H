@@ -9,6 +9,7 @@
 #include "Integrator/Integrator.H"
 // #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Model/Solid/Finite/NeoHookean.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
@@ -23,10 +24,12 @@ template<class PF>
 class SFI : 
     virtual public PF,
     virtual public Hydro,
-    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookean>
+    virtual public Base::Mechanics<Model::Solid::Linear::Isotropic>
+    // virtual public Base::Mechanics<Model::Solid::Finite::NeoHookean>
 {
     // using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
-    using model_type = Model::Solid::Finite::NeoHookean;
+    // using model_type = Model::Solid::Finite::NeoHookean;
+    using model_type = Model::Solid::Linear::Isotropic;
 public:
     SFI():
         PF(),
@@ -58,7 +61,8 @@ public:
         if (value.m_type != Type::Disable)
         {
             // elastic model of Steel
-            pp.queryclass<Model::Solid::Finite::NeoHookean>("model_steel", value.elastic.model_steel);
+            pp.queryclass<Model::Solid::Linear::Isotropic>("model_steel", value.elastic.model_steel);
+            // pp.queryclass<Model::Solid::Finite::NeoHookean>("model_steel", value.elastic.model_steel);
             // Use Hydro's eta field as the psi field for the solver
             value.psi_on = false;
         }

@@ -149,16 +149,16 @@ elastic.type = static
 elastic.on = 1
 elastic.interval = 10
 # Elastic model params
-model_steel.mu = 14191000.376
-model_steel.kappa = 15162000.376
+model_steel.E = 19000000000
+model_steel.nu = 0.2
 # model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 # Elastic solver information
 elastic.solver.verbose = 4
-elastic.solver.fixed_iter = 5000
-elastic.solver.nriters = 1
-elastic.solver.nrtolerance = 1E-5
-elastic.print_model = 1
-elastic.print_residual = 1
+# elastic.solver.fixed_iter = 5000
+# elastic.solver.nriters = 1
+# elastic.solver.nrtolerance = 1E-5
+# elastic.print_model = 1
+# elastic.print_residual = 1
 # Mechanics boundary conditions
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = disp disp
