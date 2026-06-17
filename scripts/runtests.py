@@ -2,7 +2,7 @@
 import sys
 
 sys.path.append('./scripts')
-from report import init_html, append_html, finalize_html
+from report import init_html, append_html, finalize_html, write_master_html
 
 import argparse
 import os, glob, subprocess
@@ -20,6 +20,34 @@ import fnmatch
 from sympy import capture
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
+
+#
+# Code snippit to suppress the "^C" when user presses control C
+#
+import sys
+import termios
+import atexit
+def disable_ctrl_echo():
+    if not sys.stdin.isatty():
+        return None
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    new = termios.tcgetattr(fd)
+    # Turn off echoing of control characters like ^C
+    new[3] = new[3] & ~termios.ECHOCTL
+    termios.tcsetattr(fd, termios.TCSADRAIN, new)
+    return fd, old
+def restore_ctrl_echo(state):
+    if state is None:
+        return
+    fd, old = state
+    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+# Disable at start
+_term_state = disable_ctrl_echo()
+# Ensure it gets restored no matter what
+atexit.register(lambda: restore_ctrl_echo(_term_state))
+
 
 class color:
     reset = "\033[0m"
@@ -49,7 +77,8 @@ def clean(text,max_length=60):
 #
 now = datetime.now()
 testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
-init_html()
+os.makedirs("report",exist_ok=True)
+init_html(html_path=f"report/{testid}.html")
 print("Test ID = ",testid)
 
 #
@@ -102,7 +131,7 @@ parser.add_argument('--no-coverage',default=False,action='store_true',help='Prev
 parser.add_argument('--memcheck',default=None,help='Run tests with memory checking. ')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
-parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--comp', default="clang++", help='Compiler. Options: [clang++], g++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 parser.add_argument('--post', default=None, help='Use a post script to post results')
 parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
@@ -157,6 +186,7 @@ def test(testdir):
 
     # Counters to track failed tests, skipped tests, passed tests, passed checks
     fails = 0
+    kills = 0
     skips = 0
     tests = 0
     checks = 0
@@ -185,7 +215,7 @@ def test(testdir):
             print("[{}PASS{}]".format(color.boldgreen,color.reset))
             tests += 1
             print("  └ Python test complete ")
-            return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+            return fails, kills, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
         except subprocess.CalledProcessError as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
@@ -197,7 +227,7 @@ def test(testdir):
         if os.path.isfile(f"{testdir}/input"):
             raise(Exception(f"Test {testdir} cannot have both input and input.py"))
 
-        return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+        return fails, kills, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
@@ -240,7 +270,7 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0,0,0,[]
+        return 0,0,0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
@@ -529,6 +559,12 @@ def test(testdir):
 
             write_log(stdout,stderr)
             tests += 1
+        except KeyboardInterrupt:
+            print(bs+"[{}KILL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'KILL'
+            kills += 1
+            continue
+
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless permit-timout
         # has been enabled - usually for profiling)
@@ -587,6 +623,7 @@ def test(testdir):
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
+            append_html(record)
             continue
         except DryRunException as e:
             print("")
@@ -805,11 +842,12 @@ def test(testdir):
     if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
     if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
+    if kills: sums.append("{}{} tests killed{}".format(color.red,kills,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
     if post_fails: sums.append("{}{} tests failed to post{}".format(color.lightgray,post_fails,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+    return fails, kills, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -820,6 +858,7 @@ tests = [str(pathlib.Path(f)) for f in tests]
 
 class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
+    kills = 0   # Number of jobs killed with Ctrl+C
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
     warnings = 0
@@ -845,8 +884,9 @@ for testdir in tests:
         print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
         continue
 
-    f, c, w, t, s, fa, sl, to, re = test(testdir)
+    f, k, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
+    stats.kills += k
     stats.tests += t
     stats.checks += c
     stats.warnings += w
@@ -862,6 +902,7 @@ print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
+if stats.kills:         print("{}{} tests killed{}".format(color.red,stats.kills,color.reset))
 if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warnings,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))

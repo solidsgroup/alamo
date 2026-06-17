@@ -68,16 +68,28 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
-      run: ./configure --dim=2 
+      run: ./configure --dim=2 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --comp=g++
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-2d-22-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-22-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       id: upload_report
@@ -99,16 +111,28 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
-      run: ./configure --dim=2 
+      run: ./configure --dim=2 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-2d-24-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       id: upload_report
@@ -130,16 +154,28 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure
-      run: ./configure --dim=3 
+      run: ./configure --dim=3 --comp=g++
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe"
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-3d-24-04
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-3d-24-04"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       id: upload_report
@@ -173,6 +209,18 @@ jobs:
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-2d-24-04-clang
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04-clang"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       id: upload_report
@@ -205,6 +253,18 @@ jobs:
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-2d-24-04-clang-fft
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="test-2d-24-04-clang-fft"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       id: upload_report

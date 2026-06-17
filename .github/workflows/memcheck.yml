@@ -27,14 +27,26 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=g++
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --comp=g++
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-asan-gcc
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="memcheck-2d-asan-gcc"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
@@ -64,6 +76,18 @@ jobs:
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-asan-clang
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="memcheck-2d-asan-clang"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
@@ -93,10 +117,21 @@ jobs:
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-msan-clang
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="memcheck-2d-msan-clang"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: memcheck-2d-msan-clang
         path: memcheck-2d-msan-clang
-
