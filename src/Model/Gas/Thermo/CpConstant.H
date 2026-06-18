@@ -11,10 +11,10 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class CpConstant : public Thermo {
+class CpConstant  // public Thermo
+{
 public:
     static constexpr const char* name = "cpconstant";
-    const char* model_name() const override { return name; }
 
 private:
     int nspecies = 1;
@@ -25,13 +25,11 @@ private:
     
 public:
     CpConstant() {} ;
-    CpConstant(int a_nspecies, IO::ParmParse& pp, std::string name) : CpConstant()
+    CpConstant(IO::ParmParse& pp, std::string name, int a_nspecies) : CpConstant()
     {
         nspecies = a_nspecies;
         pp.queryclass(name, *this);
     }
-
-    ~CpConstant() override = default;
 
     static void Parse(CpConstant & value, IO::ParmParse & pp)
     {
@@ -51,19 +49,25 @@ public:
     }
 
 public:
-    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    AMREX_GPU_HOST_DEVICE
+    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // Specific heat (constant pressure), J/(kmol-K)
         double cp = 0.0;
         for (int n=0; n<nspecies; ++n) cp += X(i,j,k,n) * cp_moles[n];
         return cp;
     }        
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    AMREX_GPU_HOST_DEVICE
+    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // Specific enthalpy, J/kmol)
         double h = 0.0;
         for (int n=0; n<nspecies; ++n) h += X(i,j,k,n) * (cp_moles[n] * (T - Tref[n]) + h0[n]);
         return h;
     }
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    AMREX_GPU_HOST_DEVICE
+    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // specific entropy, J/(kmol-K)
         double s = 0.0;
         for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);

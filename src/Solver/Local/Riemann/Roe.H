@@ -65,6 +65,7 @@ public:
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
+    AMREX_GPU_HOST_DEVICE
     Flux Solve(State lo, State hi, const Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) const
     {
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;

@@ -41,6 +41,7 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
+    AMREX_GPU_HOST_DEVICE
     Flux Solve(State lo, State hi, const Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) const
     {
         // Grab and label the input states

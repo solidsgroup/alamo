@@ -19,16 +19,17 @@ class Gas {
 protected:
 public:
     int nspecies;
+    double Rg;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
-    Thermo::Thermo *thermo = nullptr;
-    Transport::Transport *transport = nullptr;
-    EOS::EOS *eos = nullptr;
+    Thermo::Thermo<Thermo::CpConstant> thermo;
+    Transport::Transport<Transport::Mixture_Averaged> transport;
+    // [replace!] EOS::EOS *eos = nullptr;
 
 public:
-    virtual ~Gas() {
-        delete thermo;
-        delete transport;
-        delete eos;
+    Gas() {} ;
+    Gas(IO::ParmParse& pp, std::string name) : Gas()
+    {
+        pp.queryclass(name, *this);
     }
 
     static void Parse(Gas & value, IO::ParmParse & pp)
@@ -36,48 +37,54 @@ public:
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         value.nspecies = value.MW.size();
+        value.Rg = Set::Constant::Rg;
 
-        delete value.thermo;
-        value.thermo = nullptr;
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        // [replace!] pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
 
-        delete value.transport;
-        value.transport = nullptr;
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        // [replace!] pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
 
-        delete value.eos;
-        value.eos = nullptr;
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos, &value);
+        // [replace!] pp.select<EOS::CPG>("eos", value.eos, &value);
     }
     
 public:
     // Thermodynamic quantities
+    AMREX_GPU_HOST_DEVICE
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
     // Transport quantities
+    AMREX_GPU_HOST_DEVICE
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
 
     // EOS
+    AMREX_GPU_HOST_DEVICE
     double ComputeT(
             double density, double momentumx, double momentumy, double E, double Tguess,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
+    AMREX_GPU_HOST_DEVICE
     double ComputeT(
             double pressure, double density,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    AMREX_GPU_HOST_DEVICE
     double ComputeE(    
             double density, double momentumx, double momentumy, double T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
 // Universal methods inherent to Gas
 public:
+    AMREX_GPU_HOST_DEVICE
     void ComputeLocalFractions(
             Set::Patch<const Set::Scalar>& density_mf,
             Set::Patch<Set::Scalar>& mass_fraction_mf,
@@ -98,42 +105,51 @@ public:
             mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
         }
     }
+    AMREX_GPU_HOST_DEVICE
     double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
         for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
+    AMREX_GPU_HOST_DEVICE
     double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
         double rho = 0.0;
         for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
+    AMREX_GPU_HOST_DEVICE
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
         // Specific gas constant, J/(kg-K)
-        return Set::Constant::Rg/GetMW(X, i, j, k);
+        return Rg/GetMW(X, i, j, k);
     }
+    AMREX_GPU_HOST_DEVICE
     double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
         return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
+    AMREX_GPU_HOST_DEVICE
     double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
-        return cp_mol(T, X, i, j, k) - Set::Constant::Rg;
+        return cp_mol(T, X, i, j, k) - Rg;
     }
+    AMREX_GPU_HOST_DEVICE
     double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
         return cv_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
+    AMREX_GPU_HOST_DEVICE
     double gamma(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
         // Specific heat ratio
         return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
     }
+    AMREX_GPU_HOST_DEVICE
     double enthalpy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific enthalpy, J/kg
         return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
+    AMREX_GPU_HOST_DEVICE
     double entropy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific entropy, J/(kg-K)
         return entropy_mol(T, X, i, j, k) / GetMW(X, i, j, k);

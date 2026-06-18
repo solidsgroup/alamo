@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include "IO/ParmParse.H"
+#include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
@@ -36,31 +37,33 @@ namespace Model {
 namespace Gas {
 namespace Transport {
 
-class Mixture_Averaged : public Transport {
+class Mixture_Averaged // public Transport
+{
 public:
     static constexpr const char* name = "mixture_averaged";
-    virtual const char* model_name() const override { return name; }
 
 private:
     int nspecies;
-    std::vector<double> &MW;
-    Thermo::Thermo const * const thermo;
+    double Rg;
+    std::vector<double> MW;
+    Thermo::Thermo<Thermo::CpConstant> thermo;
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
 public:
-    Mixture_Averaged() = delete;
-    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
+    Mixture_Averaged() {};
+    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo,
+                     IO::ParmParse& pp, std::string name) 
         : nspecies(a_nspecies), MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
     {
         pp.queryclass(name, *this);
     }
 
-    ~Mixture_Averaged() override = default;
-
     static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
     {
+        value.Rg = Set::Constant::Rg;
+
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
         pp.query_validate("type", value.type, {"constant", "LJ"});
         if (value.type == "constant")
@@ -88,24 +91,27 @@ public:
     }
 
 private:
+    AMREX_GPU_HOST_DEVICE
     double collision_integral(double Tstar) const {
         double S =  1.16145 * pow(Tstar, -0.14874) 
                     + 0.52487 / exp(0.77320 * Tstar)
                     + 2.16178 / exp(2.43787 * Tstar);
         return S;
     }
+    AMREX_GPU_HOST_DEVICE
     double mu_enskog(double T, int i) const {
         return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
     }
+    AMREX_GPU_HOST_DEVICE
     double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
     {
-        if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
-        double cp = thermo->cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Set::Constant::Rg) / MW[n];
+        double cp = thermo.cp_mol(T, X, i, j, k);
+        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Rg) / MW[n];
     }
 
 public:
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    AMREX_GPU_HOST_DEVICE
+    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
@@ -154,7 +160,8 @@ public:
         return mu_mix;
     }
 
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    AMREX_GPU_HOST_DEVICE
+    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;
@@ -202,9 +209,10 @@ public:
         return k_mix;
     }
 
+    AMREX_GPU_HOST_DEVICE
     void diffusion_coeffs(
             Set::Patch<Set::Scalar>& DKM, double T, double P,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k)  const
     {
         // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
         for (int a = 0; a < nspecies; ++a) {

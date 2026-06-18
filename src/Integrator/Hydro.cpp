@@ -188,10 +188,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // Gas model (Thermo, Transport, and EOS)
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.nspecies = value.gas.nspecies;
-    std::cout << value.gas.thermo->model_name() << "\n";
-    std::cout << value.gas.transport->model_name() << "\n";
-    std::cout << value.gas.eos->model_name() << "\n";
-    std::cout << value.nspecies << "\n";
+    // std::cout << value.gas.thermo->model_name() << "\n";
+    // std::cout << value.gas.transport->model_name() << "\n";
+    // std::cout << value.gas.eos->model_name() << "\n";
+    // std::cout << value.nspecies << "\n";
 
     std::string prescribedflowmode_str;
     // 
@@ -603,7 +603,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
