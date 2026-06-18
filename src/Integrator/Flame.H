@@ -92,7 +92,6 @@ protected:
     int variable_pressure = -1;
 
     bool homogenized = false;
-    Set::Scalar massfraction = NAN;
 
     amrex::BoxArray prev_finest_ba;
     int prev_finest_level = -1;
@@ -125,7 +124,7 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
-        model_type model_ap, model_htpb, model_void, model_casing;
+        model_type model_prop, model_void, model_casing;
         Set::Scalar traction = NAN;
         // When 1, the interface traction follows the evolving chamber pressure
         // instead of the constant elastic.traction value.

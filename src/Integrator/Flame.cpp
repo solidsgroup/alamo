@@ -140,9 +140,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     if (value.propellant.get_name() == "homogenize")  value.homogenized = true;
 
-    // AP mass fraction for homogenized elastic model blending
-    pp_query_default("massfraction", value.massfraction, 0.8);
-
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
 
@@ -279,10 +276,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
-        // elastic model of AP
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
-        // elastic model of HTPB
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        // elastic model of the homogenized propellant (single material; replaces the
+        // former AP/HTPB rule-of-mixtures blend)
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_prop", value.elastic.model_prop);
         // elastic model of void (gas phase, lives where phi=1 and eta=0)
         if (value.homogenized)
             pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
@@ -434,22 +430,26 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 const Set::Scalar traction = elastic.traction_from_chamber ? chamber.pressure : elastic.traction;
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 
-                {   
+                {
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    rhs(i, j, k) = traction * grad_eta;
+                    // The solver enforces div(sigma) = rhs, so rhs = -b_phys (ALAMO sign
+                    // convention). grad_eta points from gas (eta=0) into the solid (eta=1),
+                    // i.e. radially inward at a burning surface. A chamber pressure must
+                    // COMPRESS the grain, so the physical body force is b_phys = +traction*grad_eta
+                    // (inward) and therefore rhs = -traction*grad_eta. The previous sign put
+                    // the grain in tension (verified by the static patch test).
+                    rhs(i, j, k) = -traction * grad_eta;
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    model_type model_ap = elastic.model_ap;
-                    model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - elastic.Telastic);
-                    model_ap.F0 += Set::Matrix::Identity();
-                    model_type model_htpb = elastic.model_htpb;
-                    model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - elastic.Telastic);
-                    model_htpb.F0 += Set::Matrix::Identity();
+                    // Single homogenized propellant model. Apply the thermoelastic
+                    // eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
+                    model_type model_prop = elastic.model_prop;
+                    model_prop.F0 -= Set::Matrix::Identity();
+                    model_prop.F0 *= (temp_avg - elastic.Telastic);
+                    model_prop.F0 += Set::Matrix::Identity();
 
                     if (homogenized)
                     {
@@ -474,13 +474,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         Set::Scalar w_solid  = phi_avg * eta_avg;
                         Set::Scalar w_void   = phi_avg * (1. - eta_avg);
                         Set::Scalar w_casing = 1. - phi_avg;
-                        model(i, j, k) = (model_ap * massfraction + model_htpb * (1. - massfraction)) * w_solid
+                        model(i, j, k) = model_prop * w_solid
                                        + model_void * w_void
                                        + model_casing * w_casing;
                     }
                     else
                     {
-                        model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                        model(i, j, k) = model_prop;
                     }
                 });
             }
@@ -488,13 +488,10 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
-                    //phi_avg = phi(i,j,k,0);
-                    model_type model_ap = elastic.model_ap;
-                    model_ap.F0 *= Set::Matrix::Zero();
-                    model_type model_htpb = elastic.model_htpb;
-                    model_htpb.F0 *= Set::Matrix::Zero();
-                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
+                    // Elasticity disabled: build the propellant model with no eigenstrain.
+                    model_type model_prop = elastic.model_prop;
+                    model_prop.F0 *= Set::Matrix::Zero();
+                    model(i, j, k) = model_prop;
                 });
             }
         }
