@@ -10,9 +10,11 @@ filename = "disp_y_curve.curve"
 data = np.loadtxt(filename, skiprows=2)
 
 def analytic_solution(x):
-    a = 0.00000039
     l = 10.75
-    return -a*x**2*(x**2-4*l*x+6*l**2)
+    w = 2*0.000001
+    E = 9/4
+    I = 1/12
+    return -w*x**2/(24*E*I)*(x**2-4*l*x + 6*l**2)
 
 x_data = data[:, 0]
 y_data = data[:, 1]
@@ -47,5 +49,6 @@ ax2.set_title(
     f'L2 = {l2_error:.3e}, Max = {max_error:.3e}'
 )
 ax2.grid(True)
+plt.ylim(-10, 15)
 
 plt.show()

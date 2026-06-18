@@ -1,7 +1,7 @@
 alamo.program = allencahn
 plot_file = ./output.cantilever
-amr.plot_dt = 0.001
-# amr.plot_int = 1
+# amr.plot_dt = 0.001
+amr.plot_int = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
 amr.regrid_int = 100
@@ -109,11 +109,11 @@ hydro.energy.bc.constant.val.xlo = 0.0
 hydro.energy.bc.constant.val.ylo = 0.0 
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = dirichlet neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann
 hydro.momentum.bc.constant.type.ylo = neumann dirichlet
 hydro.momentum.bc.constant.type.yhi = neumann dirichlet
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
-hydro.momentum.bc.constant.val.xlo = 30.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
 hydro.momentum.bc.constant.val.yhi = 0.0 0.0
 hydro.eta.ic.constant.value = 1.0
@@ -149,7 +149,7 @@ elastic.type = static
 elastic.on = 1
 elastic.interval = 1
 # Elastic model params
-model_steel.E = 190_GPa
+model_steel.E = 190_MPa
 model_steel.nu = 0.3
 # model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 # Elastic solver information
@@ -158,7 +158,7 @@ elastic.solver.verbose = 4
 # elastic.solver.nriters = 1
 # elastic.solver.nrtolerance = 1E-5
 # elastic.print_model = 1
-# elastic.print_residual = 1
+elastic.print_residual = 1
 # Mechanics boundary conditions
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = disp disp
@@ -169,4 +169,4 @@ elastic.bc.constant.type.xloyhi = disp disp
 # No traction on free surface
 elastic.traction = 0.0
 elastic.elastic_ref_threshold = 0.0005
-elastic.zero_out_displacement = 0 # Zero out the displacement before each elastic solver iternation
+elastic.zero_out_displacement = 1 # Zero out the displacement before each elastic solver iternation
