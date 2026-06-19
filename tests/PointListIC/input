@@ -1,10 +1,17 @@
 
-#@  [2D-serial-level]
+#@  [2D-serial]
 #@  dim    = 2
 #@  nprocs = 1
 #@  check  = true
-#@  check-file = reference/reference-2d.csv
-#@  args   = stop_time=10.0
+#@  check-file = reference/reference-2d-serial.csv
+#@  args   = stop_time=0.0001
+
+#@  [2D-parallel]
+#@  dim    = 2
+#@  nprocs = 2
+#@  check  = true
+#@  check-file = reference/reference-2d-parallel.csv
+#@  args   = stop_time=0.0001
 
 alamo.program = allencahn
 
@@ -39,7 +46,7 @@ alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
 
 alpha.ic.type = pointlist
-alpha.ic.pointlist.file.name = ./NACA9612.xy
+alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
 alpha.ic.pointlist.file.unit = m
 alpha.ic.pointlist.verbose = 0
 alpha.ic.pointlist.mult = 0.9 # Scaling factor on polygon size, happens BEFORE rotation
