@@ -236,6 +236,7 @@ private:
         // Find distance between 2 points
         double dx = x2 - x1;
         double dy = y2 - y1;
+        
         return std::sqrt(dx*dx + dy*dy);
     }
 };
