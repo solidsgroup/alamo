@@ -47,7 +47,12 @@ public:
         delete bc_temp;
     }
 
-protected:
+    // NOTE: members below are public (rather than protected) because their
+    // override methods define extended __device__ lambdas, and the parameter
+    // structs are captured by value into device lambdas. nvcc forbids both an
+    // extended device lambda inside a private/protected member function and a
+    // captured variable whose type is a private/protected (or unnamed) member.
+public:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
@@ -98,7 +103,7 @@ protected:
     int end_initial_refine = 0;
 
     // Phase field model variables
-    struct {
+    struct pf_struct {
         Set::Scalar eps = NAN;
         Set::Scalar lambda = NAN;
         Set::Scalar kappa = NAN;
@@ -108,7 +113,7 @@ protected:
     } pf;
 
     // Thermal transport variables
-    struct {
+    struct thermal_struct {
         bool on = 0;
         Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
@@ -121,7 +126,7 @@ protected:
     } thermal;
 
     // Thermoelastic variables
-    struct {
+    struct elastic_struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
         model_type model_prop, model_void, model_casing;
@@ -147,7 +152,7 @@ protected:
     } elastic;
 
     // Chamber state variables (not inputs)
-    struct {
+    struct chamber_struct {
         // Integrated variables
         Set::Scalar volume = 0.0;
         Set::Scalar area = 0.0;
