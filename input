@@ -1,32 +1,18 @@
-#working input file with chamber model/variable pressure
-#SIM017: k_prop=1.5, h1=0, h2=8e6, At=2.5e-4, double_circle (annular BATES grain) — target ~8 MPa static
-#SIM016: k_prop=1.5, h1=0, h2=8e6, At=2.75e-4, double_circle (annular BATES grain) — target ~7 MPa static
-#SIM015: k_prop=1.5, h1=0, h2=8e6, At=3.0e-4, double_circle (annular BATES grain) — target ~6 MPa static
-#   double_circle geometry: annular gas port, inner r=0.033m, outer r=0.046m, perim=0.446m (2.49x simple_circle)
-#   Annular burn: inner perimeter shrinks + outer perimeter grows at equal rates → constant total area → static P
-#SIM014: k_prop=1.5, h1=0, h2=8e6, At=1e-4 — Pspike=5.05MPa, Pt10=8.63MPa (rising)
-#SIM013: k_prop=1.5, h1=0, h2=8e6, At=1.5e-4 — Pspike=3.13MPa, Pt10=5.33MPa (rising)
-#SIM012: k_prop=1.5, h1=0, h2=8e6, At=3e-4 — Pspike=1.42MPa, Pt10=2.34MPa (rising, grain burnback)
-#SIM011: k_prop=1.5, h1=0, h2=8e6, At=2e-4, simple_circle — Ppeak=2.26MPa, Pt5=2.48MPa, Pt10=3.79MPa RISING (correct)
-#SIM010: k_prop=1.5, h1=0, h2=8e6, At=2e-4, simple_circle — Ppeak=2.26MPa, Pt5=2.48MPa RISING (correct)
-#SIM006: At=2e-4, k_prop~0.15, simple_circle → Pss=3.14MPa, Ppeak=12.44MPa (reference for At=2e-4 with simple circle)
-#Key: sim007-009 INVALID — multifin2.bmp caused curvature-driven shape change, not real combustion
-
 alamo.program = flame
-plot_file = output
-amr.plot_dt = 0.1
+plot_file = output_star_testing_void_stiffness
+amr.plot_dt = 0.01
 #amr.plot_int = 1
 amr.max_level = 3
-amr.nsubsteps = 4 # 4x time substepping
-amr.blocking_factor = 4
-amr.base_regrid_int = 100
-amr.grid_eff = 1
+amr.nsubsteps = 2
+amr.blocking_factor = 8
+amr.base_regrid_int = 10
+amr.grid_eff = 0.7
 amr.node.all = 1
-amr.refinement_criterion = 0.05
-amr.refinement_criterion_temp = 5.0_K
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
 #amr.refinement_restriction = 0.3
-amr.phi_refinement_criterion = 0.6
-amr.n_cell = 96 96 96
+amr.phi_refinement_criterion = 0.2
+amr.n_cell = 64 64 64
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
 geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
@@ -37,14 +23,14 @@ system.length = m
 system.time = s
 
 # Timestep and duration
-timestep = 2.0e-4_s
-stop_time = 7.0_s
+timestep = 1.0e-4_s
+stop_time = 6.5_s
 
 # Phase field parameters
-pf.eps = 1.667e-4_m
+pf.eps = 5.0e-5_m
 pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = bmp
-pf.eta.ic.bmp.filename = simple_circle.bmp
+pf.eta.ic.bmp.filename = star.bmp
 pf.eta.ic.bmp.fit = stretch
 pf.eta.ic.bmp.channel = g
 phi.ic.type = bmp
@@ -78,20 +64,21 @@ propellant.homogenize.dispersion2 = 1.2_kg/m^3   # rho_gas (air-like density)
 propellant.homogenize.dispersion3 = 1000_J/kg/K  # cp_gas (air-like heat capacity)
 
 # h1=0: removes pressure-dependent heat flux (stable by construction with n=0.373<1)
-propellant.homogenize.h1 = 5.0e5_W/m^2
+propellant.homogenize.h1 = 1.5e6_W/m^2
 propellant.homogenize.h2 = 8.0e6_W/m^2
 
 propellant.homogenize.P_reference = 1_MPa
 
 propellant.homogenize.rho_prop = 1745.0_kg/m^3 # density
-propellant.homogenize.k_prop = 1.5000_W/m/K
+propellant.homogenize.k_prop = 1.5_W/m/K
 propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
-propellant.homogenize.m_prop = 1.2e3_cm/s
-propellant.homogenize.mlocal_prop = 0.05_kg/m^2/s # [???] kg/s
-propellant.homogenize.E_prop = 2800.0_K # activation energy for Arrhenius Law
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s # [???] kg/s
+propellant.homogenize.E_prop = 3500.0_K
 propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
 propellant.homogenize.pressure_exponent = 0.372531
-# bound not set → default 0K (burning starts from cold); gas thermal CFL fixed by dispersion params
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
 
 thermal.on = 1
 thermal.Tref = 300 #[K]
@@ -114,7 +101,7 @@ temp.ic.constant.value=300_K #[K]
 
 # Laser source term
 laser.ic.type = expression
-laser.ic.expression.region0 = "(t < 0.03) * (200000)"
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
 thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
 
@@ -122,11 +109,72 @@ thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) /
 
 # Pressure
 variable_pressure = 1
-chamber.pressure = 1.0_MPa # Initial pressure
-chamber.ballistic.At = 2.0e-4_m^2
+chamber.pressure = 0.101325_MPa # Initial pressure
+chamber.ballistic.At = 8.5e-4_m^2
 chamber.ballistic.T0 = 3200_K # [?] K
 chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
 chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
 
 # Thermoelasticity
-elastic.type = disable
+elastic.on = 1
+
+# Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
+# 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
+# burns back, which keeps the solve robust on evolving complex geometry.
+elastic.zero_out_displacement = 0
+
+elastic.type = static
+elastic.interval = 50
+elastic.tstart = 0.5e-4
+elastic.phirefinement = 100
+elastic.print_model = 1
+# Conditioning of the masked elastic operator on thin/complex grain features:
+# psi_floor keeps the gas-region operator non-singular (gas stress is ignored).
+elastic.use_psi = 1
+elastic.psi_floor = 0.05
+# Tolerance-based MLMG (replaces fixed_iter) with extra smoothing for the
+# high-contrast, spatially-varying stiffness field.
+elastic.solver.max_iter = 1000
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 200
+elastic.solver.nrtolerance = 1e-5
+elastic.solver.verbose = 4
+
+
+elastic.traction = 1.0_MPa
+# Set the interface traction dynamically from the evolving chamber pressure
+# (elastic.traction above is then ignored)
+elastic.traction_from_chamber = 1
+
+
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 4_MPa
+model_void.mu = 4_MPa
+
+# Stiff casing: fills the phi=0 region outside the fuel disk to provide
+# cylindrical confinement (and a rigid skeleton that conditions the operator).
+model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+model_casing.kappa = 5_GPa
+model_casing.mu = 2_GPa
+
+elastic.bc.type = constant
+
+elastic.bc.type = constant
+
+elastic.bc.constant.type.xhi = disp disp
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiyhi = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+
+
+
