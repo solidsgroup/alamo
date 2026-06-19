@@ -33,6 +33,13 @@ public:
 
     static void Parse(CpConstant & value, IO::ParmParse & pp)
     {
+        Parse(value, pp, value.nspecies);
+    }
+
+    static void Parse(CpConstant & value, IO::ParmParse & pp, int a_nspecies)
+    {
+        value.nspecies = a_nspecies;
+
         // heat capacity in moles (one per species)
         pp.queryarr_required("cp_moles",value.cp_moles,Unit::Energy()/Unit::Amount()/Unit::Temperature());
         // molar enthalpy (one per species)

@@ -70,7 +70,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k) {
                 ddw(i, j, k) = a_model;
 
 #ifdef AMREX_DEBUG
@@ -165,7 +165,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         auto m_psi_set = this->m_psi_set;
         auto m_psi_small = this->m_psi_small;
 
-        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(tilebox, [=,this] (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -513,7 +513,7 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
         auto m_psi_set = this->m_psi_set;
         auto m_psi_small = this->m_psi_small;
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {
             Set::Matrix gradu;
 

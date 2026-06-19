@@ -53,15 +53,14 @@ private:
 
 public:
     Mixture_Averaged() {};
-    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo,
-                     IO::ParmParse& pp, std::string name) 
-        : nspecies(a_nspecies), MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
-    {
-        pp.queryclass(name, *this);
-    }
 
-    static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
+    static void Parse(Mixture_Averaged & value, IO::ParmParse & pp,
+                      int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
     {
+        value.nspecies = a_nspecies;
+        value.MW = a_MW;
+        value.thermo = a_thermo;
+
         value.Rg = Set::Constant::Rg;
 
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory

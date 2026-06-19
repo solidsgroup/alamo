@@ -275,7 +275,7 @@ void Hydro::Mix(int lev)
         auto gas = this->gas;
         auto invert = this->invert;
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {  
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -374,7 +374,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         auto invert = this->invert;
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {   
 
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
@@ -458,7 +458,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Scalar *dt_max_handle = &dt_max;
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {   
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
@@ -525,7 +525,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 

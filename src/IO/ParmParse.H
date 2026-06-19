@@ -1227,11 +1227,11 @@ public:
     // template-based static dispatch.
     //
 
-    template <typename... OBJ, typename CLASS>
-    void select(std::string name, CLASS& value)
+    template <typename... OBJ, typename CLASS, typename... Args>
+    void select(std::string name, CLASS& value, Args&&... args)
     {
         pushPrefix(name);
-        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value, std::forward<Args>(args)...);
         popPrefix();
     }
 
@@ -1246,8 +1246,8 @@ private:
     // 
     // This is only for use by the "select" functions.
     // 
-    template <typename CLASS, int N, typename... OBJ>
-    void static_polymorphism_parser(CLASS& value)
+    template <typename CLASS, int N, typename... OBJ, typename... Args>
+    void static_polymorphism_parser(CLASS& value, Args&&... args)
     {
         if constexpr (N == 0)
         {
@@ -1271,12 +1271,14 @@ private:
         {
             if (value.selected == N)
             {
-                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                std::get<N>(value.obj).Parse(
+                    std::get<N>(value.obj), *this, std::forward<Args>(args)...);
                 popPrefix();
                 return;
             }
             else 
-                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(
+                    value, std::forward<Args>(args)...);
         }
         else Util::Abort(INFO);
     }

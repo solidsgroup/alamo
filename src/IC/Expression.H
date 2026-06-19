@@ -130,7 +130,7 @@ public:
             Set::Patch<Set::Vector> field = a_field.Patch(lev,mfi);
             for (unsigned int n = 0; n < AMREX_SPACEDIM; n++)
             {
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
                 {
                     Set::Vector x = Set::Position(i, j, k, IC<Set::Vector>::geom[lev], type);
                     if (coord == Expression::CoordSys::Cartesian)

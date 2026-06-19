@@ -356,7 +356,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                             // std::cout << "Applying neither" << std::endl;
 
                 });
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
@@ -374,7 +374,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             }
             else
             {
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     //phi_avg = phi(i,j,k,0);
@@ -479,7 +479,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
         {
             //
             // CALCULATE PHI-AVERAGED QUANTITIES
@@ -575,7 +575,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // Diagnostic fields
             Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
                 Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -649,7 +649,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
             {
                 Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
                 if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
@@ -667,7 +667,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(lev,mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
                 if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
@@ -756,7 +756,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
     if (variable_pressure) {
-        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(box, [=,this] (int i, int j, int k)
         {
             chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -772,7 +772,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
         });
     }
     else {
-        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(box, [=,this] (int i, int j, int k)
         {
             chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);

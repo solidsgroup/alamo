@@ -55,7 +55,7 @@ protected:
                 amrex::Array4<Model::Solid::Affine::Isotropic> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &temp = temp_old_mf[lev]->array(mfi);
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k) {
                     Set::Matrix F0 = Set::Matrix::Zero();
                     Set::Scalar tempavg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
                     for (int n = 0; n < eta.nComp(); n++)

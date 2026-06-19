@@ -656,12 +656,12 @@ if mpidist == "openmpi":
         
         if args.debug:
             generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O0 --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -Wno-pedantic -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
             ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         else:
             generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -Wno-pedantic -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
             ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         f.write(f"CXX_COMPILE_FLAGS = \n")
@@ -730,7 +730,11 @@ if args.perf:
 #
 if comp_basename == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.cuda:
+        f.write("CXX_COMPILE_FLAGS += -Wno-pedantic\n")
+        f.write("CXX_WARNING_SUPPRESSIONS += -Wno-inline\n")
+    else:
+        f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
@@ -837,7 +841,7 @@ if not args.compile_commands:
         for f in filelist:
             if f.endswith(".cc"): srcfiles.add(dirname+"/"+f)
             if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f)
-            if f.endswith(".H"): srcfiles.add(dirname+"/"+f)
+            if f.endswith(".cxx"): srcfiles.add(dirname+"/"+f)
     srcfiles = list(srcfiles)
 
     projectdir = os.getcwd()
@@ -854,9 +858,47 @@ if not args.compile_commands:
         otherflags.extend(["-isystem", f"{args.libpng}/include"])
 
     if args.amrex:
-        otherflags.append(f"-I{args.amrex}/include")
+        amrex_include = f"{args.amrex}/include"
     else:
-        otherflags.append(f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include")
+        amrex_include = f"./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+
+    if args.cuda:
+        clangd_dir = Path(".make/clangd")
+        clangd_dir.mkdir(parents=True, exist_ok=True)
+        amrex_config = Path(amrex_include) / "AMReX_Config.H"
+        clangd_config = clangd_dir / "AMReX_Config.H"
+        gpu_config_defines = (
+            "AMREX_USE_CUDA",
+            "AMREX_USE_GPU",
+            "AMREX_USE_GPU_RDC",
+            "AMREX_GPU_MAX_THREADS",
+            "BL_USE_CUDA",
+        )
+        if amrex_config.exists():
+            with open(amrex_config) as f_amrex_config:
+                amrex_config_lines = f_amrex_config.readlines()
+            clangd_config_lines = []
+            line_index = 0
+            while line_index < len(amrex_config_lines):
+                line = amrex_config_lines[line_index]
+                stripped_line = line.strip()
+                if any(stripped_line == f"#ifndef {config_define}" for config_define in gpu_config_defines):
+                    line_index += 1
+                    while line_index < len(amrex_config_lines):
+                        if amrex_config_lines[line_index].strip() == "#endif":
+                            line_index += 1
+                            break
+                        line_index += 1
+                    continue
+                clangd_config_lines.append(line)
+                line_index += 1
+            with open(clangd_config, "w") as f_clangd_config:
+                f_clangd_config.writelines(clangd_config_lines)
+            otherflags.append("-I.make/clangd")
+        else:
+            warning(f"Could not find {amrex_config}; compile_commands.json will use the GPU AMReX_Config.H")
+
+    otherflags.append(f"-I{amrex_include}")
 
     for pth in os.environ.get("CPLUS_INCLUDE_PATH", "").split(os.pathsep):
         if pth:

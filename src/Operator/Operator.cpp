@@ -397,7 +397,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(fine_bx, [=] (int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(fine_bx, [=,this] (int i, int j, int k) {
 
                 int I = i / 2, J = j / 2, K = k / 2;
 
@@ -569,7 +569,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
                 if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)

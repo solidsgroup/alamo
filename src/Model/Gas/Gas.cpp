@@ -34,10 +34,12 @@ double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i,
     // Dynamic viscosity, Pa-s
     return transport.dynamic_viscosity(T, X, i , j, k);
 }
+AMREX_GPU_HOST_DEVICE
 double Gas::thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Thermal conductivity coefficient, W/(m-K)
     return transport.thermal_conductivity(T, X, i , j, k);
 }
+AMREX_GPU_HOST_DEVICE
 void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k) {
     // Species diffusion coefficients, m^2/s
     return transport.diffusion_coeffs(DKM, T, P, X, i , j, k);
@@ -46,32 +48,23 @@ void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set
 // EOS
 double Gas::ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const {
-    // Temperature, K
-    // [replace!] if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-    // [replace!] return eos->ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
-    return NAN; // [replace!]
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const 
+{
+    return eos.ComputeT(density, momentumx, momentumy, E, Tguess, R(X,i,j,k), gamma(Tguess,X,i,j,k), rtol);
 }
 double Gas::ComputeT(
         double pressure, double density,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-    // Temperature, K
-    // [replace!] if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-    // [replace!] return eos->ComputeT(pressure, density, X, i , j, k);
-    return NAN; // [replace!]
+    return eos.ComputeT(pressure, density, R(X,i,j,k));
 }
 double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-    // Pressure, Pa
-    // [replace!] if (!eos) Util::Abort(INFO, "[Gas::ComputeP] No EOS model attached.");
-    // [replace!] return eos->ComputeP(density, T, X, i , j, k);
-    return NAN; // [replace!]
+    return eos.ComputeP(density, T, R(X,i,j,k));
 }
 double Gas::ComputeE(    
         double density, double momentumx, double momentumy, double T,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Energy, J/m^3
-    // [replace!] if (!eos) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
-    // [replace!] return eos->ComputeE(density, momentumx, momentumy, T, X, i , j, k);
+    return eos.ComputeE(density, momentumx, momentumy, T, R(X,i,j,k), gamma(T,X,i,j,k));
     return NAN; // [replace!]
 }
 

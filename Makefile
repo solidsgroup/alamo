@@ -38,7 +38,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++20 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline $(CXX_WARNING_SUPPRESSIONS) -Wextra -Wall -Wno-comment -std=c++20 $(METADATA_FLAGS)
 
 # Clang in C++20 adds a warning for failing to explicitly capture "this" in lambda functions.
 # Compliance will require changing ParallelFor calls from "[=]" to "[=,this]"

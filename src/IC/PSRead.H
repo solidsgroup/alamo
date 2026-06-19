@@ -55,7 +55,7 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                 Set::Scalar min_grain_id = 0;

@@ -68,7 +68,7 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
-                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=,this] (int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
@@ -156,7 +156,7 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
-                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=,this] (int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {

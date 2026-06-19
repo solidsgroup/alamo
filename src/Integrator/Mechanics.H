@@ -247,7 +247,7 @@ public:
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
 
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k) {
                     model(i, j, k) = MODEL::Zero();
                     for (unsigned int n = 0; n < models.size(); n++)
                         model(i, j, k) += eta(i, j, k, n) * models[n];

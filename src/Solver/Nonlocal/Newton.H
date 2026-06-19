@@ -72,7 +72,7 @@ public:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k) {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
                     Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
@@ -117,7 +117,7 @@ public:
                 amrex::Array4<const Set::Scalar>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>        const& rhs = a_rhs_mf[lev]->array(mfi);
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
@@ -212,7 +212,7 @@ public:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-                    amrex::LoopConcurrentOnCpu (bx, [=] (int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu (bx, [=,this] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -236,7 +236,7 @@ public:
                 {
                     const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
-                    amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary

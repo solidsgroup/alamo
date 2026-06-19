@@ -23,11 +23,11 @@ public:
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo<Thermo::CpConstant> thermo;
     Transport::Transport<Transport::Mixture_Averaged> transport;
-    // [replace!] EOS::EOS *eos = nullptr;
+    EOS::EOS<EOS::CPG> eos;
 
 public:
-    Gas() {} ;
-    Gas(IO::ParmParse& pp, std::string name) : Gas()
+    Gas() = default;
+    Gas(IO::ParmParse& pp, std::string name) 
     {
         pp.queryclass(name, *this);
     }
@@ -40,13 +40,13 @@ public:
         value.Rg = Set::Constant::Rg;
 
         // thermo model
-        // [replace!] pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
 
         // transport model
-        // [replace!] pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
 
         // eos model
-        // [replace!] pp.select<EOS::CPG>("eos", value.eos, &value);
+        pp.select<EOS::CPG>("eos", value.eos);
     }
     
 public:
