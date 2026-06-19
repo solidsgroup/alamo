@@ -146,23 +146,6 @@ private:
     bool m_psi_set = false;
 
     virtual void averageDownCoeffs () override;
-    void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
-    
-    /// \fn averageDownCoeffsSameAmrLevel
-    /// \brief Update coarse-level AMR coefficients with data from fine level
-    ///
-    /// This function is called before the solve, and it updates the Matrix4 coefficients
-    /// on coarse levels with averaged versions on the fine levels.
-    /// Typically, this is not necessary, since the coefficients are computed on each level
-    /// already. 
-    /// However, there are some cases where this messes up the multigrid solver.
-    /// (Phase field fracture is the primary example.)
-    /// 
-    /// This is disabled by default. In order to enable, call
-    ///    
-    ///     elasticoperator.SetAverageDownCoeffs(true);
-    ///
-    void averageDownCoeffsSameAmrLevel (int amrlev);
 
     void FillBoundaryCoeff (MultiTab& sigma, const amrex::Periodicity& p);
     void FillBoundaryCoeff (MultiFab& psi, const amrex::Periodicity& p);
@@ -179,6 +162,27 @@ private:
     bool m_bc_set = false;
     
 public:
+    // These two are public (rather than private) because they define extended
+    // __device__ lambdas (amrex::ParallelFor). nvcc forbids defining an extended
+    // device lambda inside a private/protected member function.
+    void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
+
+    /// \fn averageDownCoeffsSameAmrLevel
+    /// \brief Update coarse-level AMR coefficients with data from fine level
+    ///
+    /// This function is called before the solve, and it updates the Matrix4 coefficients
+    /// on coarse levels with averaged versions on the fine levels.
+    /// Typically, this is not necessary, since the coefficients are computed on each level
+    /// already.
+    /// However, there are some cases where this messes up the multigrid solver.
+    /// (Phase field fracture is the primary example.)
+    ///
+    /// This is disabled by default. In order to enable, call
+    ///
+    ///     elasticoperator.SetAverageDownCoeffs(true);
+    ///
+    void averageDownCoeffsSameAmrLevel (int amrlev);
+
     static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
         // Regularization offset value used in near-singular elastic solves.

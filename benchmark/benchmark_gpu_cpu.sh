@@ -32,7 +32,7 @@ mkdir -p "$OUT"
 
 # Locate the most recent CPU and CUDA alamo binaries.
 CPU_BIN="$(ls -t bin/alamo-2d-*-* 2>/dev/null | grep -v cuda | head -1)"
-GPU_BIN="$(ls -t bin/alamo-2d-cuda* 2>/dev/null | head -1)"
+GPU_BIN="$(ls -t bin/alamo_gpu-2d-cuda* 2>/dev/null | head -1)"
 
 NP="${NP:-1}"
 RUN="mpiexec -np ${NP}"

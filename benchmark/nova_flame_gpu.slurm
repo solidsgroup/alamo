@@ -46,9 +46,9 @@ module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 
 # --- Pick the matching-arch binary ------------------------------------------
-GPU_BIN="$(ls -t bin/alamo-2d*cuda${ARCH}*-g++ 2>/dev/null | head -1 || true)"
+GPU_BIN="$(ls -t bin/alamo_gpu-2d*cuda${ARCH}*-g++ 2>/dev/null | head -1 || true)"
 if [ -z "${GPU_BIN}" ]; then
-  echo "No bin/alamo-2d*cuda${ARCH}*-g++ found -- run benchmark/build_alamo_nova.sh first."
+  echo "No bin/alamo_gpu-2d*cuda${ARCH}*-g++ found -- run benchmark/build_alamo_nova.sh first."
   exit 1
 fi
 echo "GPU binary: ${GPU_BIN}  (GPU_TYPE=${GPU_TYPE} sm_${ARCH}, ${NRANKS} rank(s)/GPU, mode=${MODE})"

@@ -50,15 +50,20 @@ public:
         amrex::Array4<T const> const& crsearr = crse.const_array();
         amrex::Array4<T> const& finearr = fine.array();
         amrex::Array4<T> const& slopearr = slopefab.array();
+        amrex::Array4<T const> const& slopearr_const = slopefab.const_array();
 
+        // NOTE: the template argument T is deduced from the arguments rather than
+        // specified explicitly (e.g. nodebilin_slopes<T>). An explicit template
+        // argument list on these calls trips up nvcc's device-side parser when the
+        // call appears inside the AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG macro.
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(runon, cslope_bx, tbx,
             {
-                amrex::nodebilin_slopes<T>(tbx, slopearr, crsearr, crse_comp, ncomp, ratio);
+                amrex::nodebilin_slopes(tbx, slopearr, crsearr, crse_comp, ncomp, ratio);
             });
 
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(runon, fine_region, tbx,
             {
-                amrex::nodebilin_interp<T>(tbx, finearr, fine_comp, ncomp, slopearr, crsearr, crse_comp, ratio);
+                amrex::nodebilin_interp(tbx, finearr, fine_comp, ncomp, slopearr_const, crsearr, crse_comp, ratio);
             });
     }
     virtual void interp_face(const amrex::BaseFab<T>& /*crse*/,

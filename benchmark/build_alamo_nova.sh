@@ -9,8 +9,8 @@
 # build job that compiles BOTH the A100 (sm_80) and H200 (sm_90) binaries.
 # nvcc cross-compiles for both archs, so the build needs no GPU -- it runs on the
 # fast EPYC nodes. When the job finishes you'll have:
-#     bin/alamo-2d-profile-cuda80-g++   (A100)
-#     bin/alamo-2d-profile-cuda90-g++   (H200)
+#     bin/alamo_gpu-2d-profile-cuda80-g++   (A100)
+#     bin/alamo_gpu-2d-profile-cuda90-g++   (H200)
 # Both are --profile builds: fully optimized (--use_fast_math etc.) AND able to
 # emit TinyProfiler tables when you pass the profiler runtime params.
 # ============================================================================
@@ -74,7 +74,7 @@ cd "${ALAMO_DIR}"
 # configure clones AMReX into ext/ if missing; doing it here keeps the build
 # job network-free (it only compiles).
 echo -e "${YELLOW}Priming AMReX checkout (login node)...${NC}"
-./configure --comp="${COMP}" --cuda "$(echo ${ARCHES} | awk '{print $1}')" --profile >/tmp/alamo_prime.log 2>&1 || {
+./configure --comp="${COMP}" --dim 2 --cuda "$(echo ${ARCHES} | awk '{print $1}')" --profile --get-eigen >/tmp/alamo_prime.log 2>&1 || {
   echo -e "${RED}configure prime failed -- see /tmp/alamo_prime.log${NC}"; tail -20 /tmp/alamo_prime.log; exit 1; }
 echo -e "${GREEN}  AMReX present under ext/${NC}"
 
@@ -102,11 +102,11 @@ module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 for arch in ${ARCHES}; do
     echo "=== building cuda sm_\${arch} ==="
-    ./configure --comp=${COMP} --cuda \${arch} --profile
-    make -j${BUILD_JOBS}
+    ./configure --comp=${COMP} --dim 2 --cuda \${arch} --profile --get-eigen
+    make -j${BUILD_JOBS} bin/alamo_gpu
 done
 echo "=== build complete ==="
-ls -lh bin/alamo-2d*cuda* || true
+ls -lh bin/alamo_gpu-2d*cuda* || true
 END_OF_SBATCH
 
 echo -e "${BOLD}${GREEN}Submitting build job...${NC}"
@@ -117,6 +117,6 @@ echo -e "${BOLD}Next:${NC}"
 echo -e "  watch:   squeue -j ${JOBID}"
 echo -e "  log:     tail -f ${ALAMO_DIR}/alamo_build.${JOBID}.out"
 echo -e "  when done, the binaries are in ${ALAMO_DIR}/bin/ :"
-echo -e "     alamo-2d-profile-cuda80-g++   (A100)"
-echo -e "     alamo-2d-profile-cuda90-g++   (H200)"
+echo -e "     alamo_gpu-2d-profile-cuda80-g++   (A100)"
+echo -e "     alamo_gpu-2d-profile-cuda90-g++   (H200)"
 echo -e "  then run:  sbatch ${ALAMO_DIR}/benchmark/nova_flame_gpu.slurm   (edit GPU_TYPE first)"

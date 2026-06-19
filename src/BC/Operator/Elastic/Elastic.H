@@ -80,11 +80,13 @@ public:
 #define SQRT2INV 0.70710678118
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, const int &k,
                 const amrex::Box &domain) = 0;
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,

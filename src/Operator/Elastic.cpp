@@ -142,6 +142,12 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 {
     BL_PROFILE("Operator::Elastic::Fapply()");
 
+    // Copy members to locals so the GPU lambda below does not capture `this`.
+    const bool psi_set = m_psi_set;
+    const Set::Scalar psi_small = m_psi_small;
+    const bool uniform = m_uniform;
+    auto * const bc = m_bc;
+
     amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -189,7 +195,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             }
 
             Set::Scalar psi_avg = 1.0;
-            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
+            if (psi_set) psi_avg = (1.0 - psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + psi_small;
 
             // Stress tensor computed using the model fab
             Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
@@ -199,7 +205,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
-                f = (*m_bc)(u, gradu, sig, i, j, k, stencilbox);
+                f = (*bc)(u, gradu, sig, i, j, k, stencilbox);
             }
             else
             {
@@ -242,7 +248,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
                 f = (DDW(i, j, k) * gradgradu) * psi_avg;
 
-                if (!m_uniform)
+                if (!uniform)
                 {
                     MATRIX4
                         AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX, sten)),
@@ -252,10 +258,10 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                         +(Cgrad2 * gradu).col(1),
                         +(Cgrad3 * gradu).col(2))) * (psi_avg);
                 }
-                if (m_psi_set)
+                if (psi_set)
                 {
                     Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX);
-                    gradpsi *= (1.0 - m_psi_small);
+                    gradpsi *= (1.0 - psi_small);
                     f += (DDW(i, j, k) * gradu) * gradpsi;
                 }
 
@@ -280,7 +286,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     Util::Message(INFO,"DDW (i  ,j+1): ",DDW(i,j+1,k));
                     Util::Message(INFO,"DDW (i  ,j-1): ",DDW(i,j-1,k));
                     Util::Message(INFO,"psi_av: ",psi_avg);
-                    Util::Message(INFO,"psi_set: ",m_psi_set);
+                    Util::Message(INFO,"psi_set: ",psi_set);
                     Util::Message(INFO,"  =================  ");
                         Util::Abort(INFO);
                 }
@@ -298,6 +304,11 @@ void
 Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 {
     BL_PROFILE("Operator::Elastic::Diagonal()");
+
+    // Copy members to locals so the GPU lambda below does not capture `this`.
+    const bool psi_set = m_psi_set;
+    const Set::Scalar psi_small = m_psi_small;
+    auto * const bc = m_bc;
 
     amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -339,7 +350,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
             Set::Scalar psi_avg = 1.0;
-            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
+            if (psi_set) psi_avg = (1.0 - psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + psi_small;
 
 
 
@@ -355,7 +366,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                     Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*m_bc)(u, gradu[p], sig, i, j, k, stencilbox);
+                    f = (*bc)(u, gradu[p], sig, i, j, k, stencilbox);
                     diag(i, j, k, p) = f(p);
                 }
                 else
@@ -417,9 +428,9 @@ Elastic<SYM>::FFlux(int /*amrlev*/, const MFIter& /*mfi*/,
     amrex::BaseFab<amrex::Real> AMREX_D_DECL(&fxfab = *sigmafab[0],
         &fyfab = *sigmafab[1],
         &fzfab = *sigmafab[2]);
-    AMREX_D_TERM(fxfab.setVal(0.0);,
-        fyfab.setVal(0.0);,
-        fzfab.setVal(0.0););
+    AMREX_D_TERM(fxfab.setVal<amrex::RunOn::Host>(0.0);,
+        fyfab.setVal<amrex::RunOn::Host>(0.0);,
+        fzfab.setVal<amrex::RunOn::Host>(0.0););
 
 }
 
@@ -494,6 +505,10 @@ Elastic<SYM>::Stress(int amrlev,
     BL_PROFILE("Operator::Elastic::Stress()");
     SetHomogeneous(a_homogeneous);
 
+    // Copy members to locals so the GPU lambda below does not capture `this`.
+    const bool psi_set = m_psi_set;
+    const Set::Scalar psi_small = m_psi_small;
+
     const amrex::Real* DX = m_geom[amrlev][0].CellSize();
     amrex::Box domain(m_geom[amrlev][0].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -521,7 +536,7 @@ Elastic<SYM>::Stress(int amrlev,
             }
 
             Set::Scalar psi_avg = 1.0;
-            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
+            if (psi_set) psi_avg = (1.0 - psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + psi_small;
             Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
 
             if (voigt)

@@ -40,12 +40,16 @@ make
 ```
 
 GPU (CUDA, with profiling). Requires the **CUDA toolkit** (`nvcc`) and an
-NVIDIA GPU; `--cuda` auto-detects the local compute capability via `nvidia-smi`:
+NVIDIA GPU; `--cuda` auto-detects the local compute capability via `nvidia-smi`.
+CUDA builds only compile `alamo_gpu.cc` (the Flame-only entry point) and its
+actual dependency closure -- the other integrators (AllenCahn, CahnHilliard,
+Dendrite, ...) pulled in by the general-purpose `alamo.cc` launcher aren't
+needed for chamber/Flame runs and were never made nvcc-clean:
 
 ```bash
 ./configure --cuda --profile          # or --cuda 86 to pin sm_86
 make
-# -> bin/alamo-2d-cuda86-<comp>
+# -> bin/alamo_gpu-2d-cuda86-<comp>
 ```
 
 Both binaries coexist (the POSTFIX differs).
@@ -60,7 +64,7 @@ the step-N write -- the requested compute/IO overlap, with no source changes
 `amrex::WriteMultiLevelPlotfile`, which honors `async_out`).
 
 ```bash
-mpiexec -np 1 ./bin/alamo-2d-cuda86-g++ input \
+mpiexec -np 1 ./bin/alamo_gpu-2d-cuda86-g++ input \
     amrex.async_out=1 tiny_profiler.device_synchronize_around_region=1
 ```
 

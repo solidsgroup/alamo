@@ -19,7 +19,7 @@ namespace Numeric
 {
 
 enum StencilType { Lo, Hi, Central };
-static std::array<StencilType, AMREX_SPACEDIM>
+static constexpr std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
 XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
@@ -40,7 +40,7 @@ ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, Stencil
 
 [[nodiscard]]
 static
-AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::array<StencilType, AMREX_SPACEDIM>
 GetStencil(const int i, const int j, const int k, const amrex::Box domain)
 {
@@ -70,7 +70,7 @@ struct Stencil
 template<class T>
 struct Stencil<T, 1, 0, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE 
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE 
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -83,7 +83,7 @@ struct Stencil<T, 1, 0, 0>
         else
             return (f(i + 1, j, k, m) - f(i - 1, j, k, m)) * 0.5 / dx[0];
     };
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static std::pair<Set::Scalar,T>
     Dsplit( const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -111,7 +111,7 @@ struct Stencil<T, 1, 0, 0>
 template<class T>
 struct Stencil<T, 0, 1, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -124,7 +124,7 @@ struct Stencil<T, 0, 1, 0>
         else
             return (f(i, j + 1, k, m) - f(i, j - 1, k, m)) * 0.5 / dx[1];
     };
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static std::pair<Set::Scalar,T>
     Dsplit(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -152,7 +152,7 @@ struct Stencil<T, 0, 1, 0>
 template<class T>
 struct Stencil<T, 0, 0, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -165,7 +165,7 @@ struct Stencil<T, 0, 0, 1>
         else
             return (f(i, j, k + 1, m) - f(i, j, k - 1, m)) * 0.5 / dx[2];
     };
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static std::pair<Set::Scalar, T>
     Dsplit(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -197,7 +197,7 @@ struct Stencil<T, 0, 0, 1>
 template<class T>
 struct Stencil<T, 2, 0, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -213,7 +213,7 @@ struct Stencil<T, 2, 0, 0>
 template<class T>
 struct Stencil<T, 0, 2, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -229,7 +229,7 @@ struct Stencil<T, 0, 2, 0>
 template<class T>
 struct Stencil<T, 0, 0, 2>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -245,7 +245,7 @@ struct Stencil<T, 0, 0, 2>
 template<class T>
 struct Stencil<T, 1, 1, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -264,7 +264,7 @@ struct Stencil<T, 1, 1, 0>
 template<class T>
 struct Stencil<T, 1, 0, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -283,7 +283,7 @@ struct Stencil<T, 1, 0, 1>
 template<class T>
 struct Stencil<T, 0, 1, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -307,7 +307,7 @@ struct Stencil<T, 0, 1, 1>
 template<class T>
 struct Stencil<T, 4, 0, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -319,7 +319,7 @@ struct Stencil<T, 4, 0, 0>
 template<class T>
 struct Stencil<T, 0, 4, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -331,7 +331,7 @@ struct Stencil<T, 0, 4, 0>
 template<class T>
 struct Stencil<T, 0, 0, 4>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -346,7 +346,7 @@ struct Stencil<T, 0, 0, 4>
 template<class T>
 struct Stencil<T, 3, 1, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -364,7 +364,7 @@ struct Stencil<T, 3, 1, 0>
 template<class T>
 struct Stencil<T, 1, 3, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -382,7 +382,7 @@ struct Stencil<T, 1, 3, 0>
 template<class T>
 struct Stencil<T, 0, 3, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -398,7 +398,7 @@ struct Stencil<T, 0, 3, 1>
 template<class T>
 struct Stencil<T, 0, 1, 3>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -414,7 +414,7 @@ struct Stencil<T, 0, 1, 3>
 template<class T>
 struct Stencil<T, 1, 0, 3>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -431,7 +431,7 @@ struct Stencil<T, 1, 0, 3>
 template<class T>
 struct Stencil<T, 3, 0, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -448,7 +448,7 @@ struct Stencil<T, 3, 0, 1>
 template<class T>
 struct Stencil<T, 2, 2, 0>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -466,7 +466,7 @@ struct Stencil<T, 2, 2, 0>
 template<class T>
 struct Stencil<T, 0, 2, 2>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -483,7 +483,7 @@ struct Stencil<T, 0, 2, 2>
 template<class T>
 struct Stencil<T, 2, 0, 2>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -502,7 +502,7 @@ struct Stencil<T, 2, 0, 2>
 template<class T>
 struct Stencil<T, 2, 1, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -519,7 +519,7 @@ struct Stencil<T, 2, 1, 1>
 template<class T>
 struct Stencil<T, 1, 2, 1>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -536,7 +536,7 @@ struct Stencil<T, 1, 2, 1>
 template<class T>
 struct Stencil<T, 1, 1, 2>
 {
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -550,12 +550,12 @@ struct Stencil<T, 1, 1, 2>
     };
 };
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Scalar
 Laplacian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
     const Set::Scalar dx[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM>& stencil = DefaultType)
+    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Scalar ret = 0.0;
     ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx, stencil));
@@ -568,7 +568,7 @@ Laplacian(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 Laplacian(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -585,12 +585,12 @@ Laplacian(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix>& dw,
     const int& i, const int& j, const int& k,
     const Set::Scalar DX[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM>& stencil = DefaultType)
+    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Vector ret = Set::Vector::Zero();
 
@@ -657,7 +657,7 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Scalar
 Divergence(const amrex::Array4<const Set::Scalar> &f,
     const int &i, const int &j, const int &k, const int &m,
@@ -676,7 +676,7 @@ Divergence(const amrex::Array4<const Set::Scalar> &f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -694,7 +694,7 @@ Gradient(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 CellGradientOnNode(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -716,7 +716,7 @@ CellGradientOnNode(const amrex::Array4<const Set::Scalar>& f,
 
 
 template<class T>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::array<T, AMREX_SPACEDIM>
 CellGradientOnNode(const amrex::Array4<const T>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -739,7 +739,7 @@ CellGradientOnNode(const amrex::Array4<const T>& f,
 
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -763,7 +763,7 @@ Gradient(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -785,7 +785,7 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::pair<Set::Vector,Set::Matrix>
 GradientSplit(  const amrex::Array4<const Set::Vector>& f,
                 const int& i, const int& j, const int& k,
@@ -815,7 +815,7 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -835,7 +835,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -855,7 +855,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -875,7 +875,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3
 Gradient(const amrex::Array4<const Set::Matrix>& f,
     const int& i, const int& j, const int& k,
@@ -898,13 +898,13 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 }
 
 template<class T>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::array<T,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
                     std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType);
 
 template<>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::array<Set::Matrix,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
                     std::array<StencilType, AMREX_SPACEDIM> stencil)
@@ -930,7 +930,7 @@ Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
 }
 
 template<>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::array<Set::Matrix3,AMREX_SPACEDIM>
 Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
                     std::array<StencilType, AMREX_SPACEDIM> stencil)
@@ -964,7 +964,7 @@ Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
 
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3
 NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
     const int& i, const int& j, const int& k,
@@ -986,7 +986,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3
 MatrixGradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -1038,7 +1038,7 @@ MatrixGradient(const amrex::Array4<const Set::Scalar>& f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 Hessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -1063,7 +1063,7 @@ Hessian(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3
 Hessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -1113,7 +1113,7 @@ Hessian(const amrex::Array4<const Set::Scalar>& f,
 
 // Returns Hessian of a vector field.
 // Return value: ret[i](j,k) = ret_{i,jk}
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3
 Hessian(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -1156,7 +1156,7 @@ Hessian(const amrex::Array4<const Set::Vector>& f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 FieldToMatrix(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1178,7 +1178,7 @@ FieldToMatrix(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix
 FieldToMatrix(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1200,7 +1200,7 @@ FieldToMatrix(const amrex::Array4<Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 FieldToVector(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1216,7 +1216,7 @@ FieldToVector(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 FieldToVector(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1232,7 +1232,7 @@ FieldToVector(const amrex::Array4<Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void
 MatrixToField(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -1250,7 +1250,7 @@ MatrixToField(const amrex::Array4<Set::Scalar>& f,
 #endif
 }
 
-AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void
 VectorToField(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -1276,7 +1276,7 @@ Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
 }
 
 template<>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix3 Divergence<2, Set::Sym::Isotropic>(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic>>& C,
     const int i, const int j, const int k, const Set::Scalar dx[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> stencil)
@@ -1314,14 +1314,14 @@ Set::Matrix3 Divergence<2, Set::Sym::Isotropic>(const amrex::Array4<const Set::M
 
 
 template<int dim>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix4<dim, Set::Sym::Full>
 DoubleHessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
     const Set::Scalar dx[AMREX_SPACEDIM]);
 
 template<>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix4<2, Set::Sym::Full>
 DoubleHessian<2>(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -1342,7 +1342,7 @@ DoubleHessian<2>(const amrex::Array4<const Set::Scalar>& f,
 }
 
 template<>
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix4<3, Set::Sym::Full>
 DoubleHessian<3>(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -1386,10 +1386,10 @@ struct Interpolate
 {
 public:
     template<class T>
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T CellToNodeAverage(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
-            std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+            std::array<StencilType, AMREX_SPACEDIM> stencil = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) })
     {
         int AMREX_D_DECL(
             ilo = (stencil[0] == Numeric::StencilType::Lo ? 0 : 1),
@@ -1405,10 +1405,10 @@ public:
         )) * fac;
     }
     template<class T>
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T CellToNodeAverage(const amrex::Array4<T>& f,
             const int& i, const int& j, const int& k, const int& m,
-            std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+            std::array<StencilType, AMREX_SPACEDIM> stencil = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) })
     {
         int AMREX_D_DECL(
             ilo = (stencil[0] == Numeric::StencilType::Lo ? 0 : 1),
@@ -1424,7 +1424,7 @@ public:
         )) * fac;
     }
     template<class T>
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T NodeToCellAverage(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m)
     {
@@ -1437,7 +1437,7 @@ public:
         )) * fac;
     }
     template<class T>
-    [[nodiscard]] AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         static T NodeToCellAverage(const amrex::Array4<T>& f,
             const int& i, const int& j, const int& k, const int& m)
     {
