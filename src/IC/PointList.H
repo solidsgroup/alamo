@@ -202,15 +202,15 @@ public:
         pp.query_default("invert",value.invert,false); 
 
         // X-offset 
-        pp.queryarr_default("x0",value.x0,"0 0 0", Unit::Length());
+        pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
 
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
 
         // Center of rigid-body rotation 
-        pp.queryarr_default("rotation.center",value.rotation.center,"0 0 0", Unit::Length());
+        pp.queryarr_default("rotation.center",value.rotation.center,"0.0 0.0 0.0", Unit::Length());
         
-        // Amount of rotation about rotation center
+        // Amount of rotation about rotation center (clockwise)
         pp.query_default("rotation.angle",value.rotation.angle,"0.0", Unit::Angle());
 
 
