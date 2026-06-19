@@ -256,7 +256,8 @@ protected:
 
     // Dynamic timestep adjustment
 
-    struct {
+public:
+    struct dynamictimestep_st{
         // user params
         bool on = false;
         int verbose = -1;
@@ -267,7 +268,7 @@ protected:
         // internal variables
         std::vector<Set::Scalar> dt_limit_min;
         std::vector<Set::Scalar> previous_timesteps;
-    } dynamictimestep; /// Params for the dynamic timestp
+    }; dynamictimestep_st dynamictimestep; /// Params for the dynamic timestp
     void DynamicTimestep_SyncTimeStep(int lev, Set::Scalar dt_min)
     {
         if (!dynamictimestep.on) return;
