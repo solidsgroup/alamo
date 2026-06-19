@@ -86,10 +86,10 @@ protected:
         if (a_time > tstart && !hydro_initialized)
         {
             for (int lev = 0; lev <= finest_level; lev++)
-            {
+            {   
+                Base::Mechanics<model_type>::Initialize(lev);
                 Hydro::Initialize(lev);
                 Hydro::Mix(lev);
-                Base::Mechanics<model_type>::Initialize(lev);
             }
             hydro_initialized = true;
         }
@@ -121,10 +121,10 @@ protected:
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         PF::Advance(a_lev, a_time, a_dt);
+        Base::Mechanics<model_type>::Advance(a_lev, a_time, a_dt);
         if (hydro_initialized) {
             Hydro::Advance(a_lev, a_time, a_dt);
         }
-        Base::Mechanics<model_type>::Advance(a_lev, a_time, a_dt);
     }
 
     void TagCellsForRefinement(int a_lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
@@ -191,24 +191,41 @@ protected:
             // Match Flame's pattern - FillBoundary on inputs before MFIter
             (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
 
+	    // Util::Message(INFO,(*Hydro::eta_mf)[lev]->nGrow());
+	    // Util::Message(INFO,Hydro::pressure_mf[lev]->nGrow());
+	    // Util::Message(INFO,model_mf[lev]->nGrow());
+	    // Util::Message(INFO,rhs_mf[lev]->nGrow());
+            rhs_mf[lev]->setVal(Set::Vector::Zero());
+
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box smallbox = mfi.nodaltilebox();
-                amrex::Box bx = mfi.grownnodaltilebox() & domain; // TODO ask Dr.R about this change
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
 
                 // Match Flame's Patch() pattern exactly
                 Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
                 Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
-                Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);  // TODO ask Dr. R about this change
+                Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);
                 Set::Patch<const Set::Scalar> pres  = Hydro::pressure_mf.Patch(lev, mfi);
 
                 if (elastic.on)
                 {
                     amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                        Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                        Set::Scalar pres_avg = Numeric::Interpolate::CellToNodeAverage(pres, i, j, k, 0);
-                        rhs(i, j, k) = (elastic.traction) * grad_eta + pres_avg*grad_eta;
+		      Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+		      Set::Scalar pres_avg = Numeric::Interpolate::CellToNodeAverage(pres, i, j, k, 0);
+		      //rhs(i, j, k) = (elastic.traction) * grad_eta + pres_avg*grad_eta;
+		      rhs(i, j, k) = (elastic.traction) * grad_eta;
+		      if(rhs(i,j,k) != rhs(i,j,k))
+			Util::Abort(INFO,"nan detected");
+		      if (lev== 3 && i== 111 && j==48 )
+		       	{
+			  Util::Message(INFO,rhs(i,j,k).transpose());
+			  Util::Message(INFO,grad_eta.transpose());
+			  Util::Message(INFO, pres_avg);
+			  Util::Message(INFO, elastic.traction);
+			}
+
                     });
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
@@ -229,6 +246,8 @@ protected:
                 }
             }
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            //Util::RealFillBoundary(*rhs_mf[lev],geom[lev]);
+	    rhs_mf[lev]->FillBoundaryAndSync();
         }
     }
 

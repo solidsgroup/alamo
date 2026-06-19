@@ -10,8 +10,8 @@ filename = "disp_y_curve.curve"
 data = np.loadtxt(filename, skiprows=2)
 
 def analytic_solution(x):
-    l = 10.75
-    w = 2*0.000001
+    l = 14.5
+    w = 0.000001
     E = 9/4
     I = 1/12
     return -w*x**2/(24*E*I)*(x**2-4*l*x + 6*l**2)
@@ -20,7 +20,7 @@ x_data = data[:, 0]
 y_data = data[:, 1]
 
 y_analytic = analytic_solution(x_data)
-error = (y_data - y_analytic)/(y_analytic)*100
+error = (y_data - y_analytic)/(np.max(np.abs(y_analytic)))*100
 
 l2_error = np.sqrt(np.mean(error**2))
 max_error = np.max(np.abs(error))
@@ -46,9 +46,9 @@ ax2.set_xlabel('x')
 ax2.set_ylabel('Error')
 ax2.set_title(
     f'Pointwise Error\n'
-    f'L2 = {l2_error:.3e}, Max = {max_error:.3e}'
+    f'L2 = {l2_error:.3f}, Max = {max_error:.3f}'
 )
 ax2.grid(True)
-plt.ylim(-10, 15)
+# plt.ylim(-10, 15)
 
 plt.show()
