@@ -32,20 +32,15 @@ public:
     {}
     
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_K (const Set::Scalar /*phi*/) 
-    {return this->K;}
+    Set::Scalar get_K (const Set::Scalar /*phi*/) const    {return this->K;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_rho (const Set::Scalar /*phi*/) 
-    {return this->rho;}
+    Set::Scalar get_rho (const Set::Scalar /*phi*/) const    {return this->rho;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_cp (const Set::Scalar /*phi*/) 
-    {return this->cp;}
+    Set::Scalar get_cp (const Set::Scalar /*phi*/) const    {return this->cp;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) 
-    {return this->qdot;}
+    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) const    {return this->qdot;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_L (Set::Scalar /*phi*/, Set::Scalar /*T*/) 
-    {return L;}
+    Set::Scalar get_L (Set::Scalar /*phi*/, Set::Scalar /*T*/) const    {return L;}
 
     static void Parse(Constant& value, IO::ParmParse& pp)
     {

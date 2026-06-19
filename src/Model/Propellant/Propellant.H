@@ -68,8 +68,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_K (const Set::Scalar phi)
-    {
+    Set::Scalar get_K (const Set::Scalar phi) const    {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I) return std::get<I>(obj).get_K(phi);
@@ -81,8 +80,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_rho (const Set::Scalar phi)
-    {
+    Set::Scalar get_rho (const Set::Scalar phi) const    {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I) return std::get<I>(obj).get_rho(phi);
@@ -94,8 +92,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_cp (const Set::Scalar phi)
-    {
+    Set::Scalar get_cp (const Set::Scalar phi) const    {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I) return std::get<I>(obj).get_cp(phi);
@@ -107,8 +104,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_qdot (const Set::Scalar mdot, const Set::Scalar phi) 
-    {
+    Set::Scalar get_qdot (const Set::Scalar mdot, const Set::Scalar phi) const    {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I) return std::get<I>(obj).get_qdot(mdot,phi);
@@ -120,8 +116,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_L (const Set::Scalar phi, const Set::Scalar T) 
-    {
+    Set::Scalar get_L (const Set::Scalar phi, const Set::Scalar T) const    {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I) return std::get<I>(obj).get_L(phi,T);

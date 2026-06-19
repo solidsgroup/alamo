@@ -37,7 +37,8 @@ public:
         Util::Abort(INFO);
         return NAN;
     }
-    void set_pressure(const Set::Scalar a_P) 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    void set_pressure(const Set::Scalar a_P)
     {
         this->Pbar = a_P/Pref;
         
@@ -54,9 +55,11 @@ public:
         return;
     }
     
-    AMREX_FORCE_INLINE
-    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
-    {
+    // NOTE: device-callable; kept free of host-only Util::* helpers so it can
+    // run inside GPU kernels. NaN diagnostics removed; detect via host-side
+    // post-kernel reduction instead.
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) const    {
         Set::Scalar qflux = k1 * phi +
             k2 * (1.0 - phi) +
             (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
@@ -64,33 +67,11 @@ public:
         Set::Scalar mdota = fabs(mdot);
         Set::Scalar mbase = tanh(4.0 * mdota / (mlocal + 1.e-20));
 
-        if (mbase != mbase) { // Check for NaN
-            Util::Message(INFO, "mdota = ", mdota);
-            Util::Message(INFO, "mlocal = ", mlocal);
-            Util::Message(INFO, "mdot = ", mdot);
-            Util::Message(INFO, "mlocal_ap = ", mlocal_ap);
-            Util::Message(INFO, "mlocal_htpb = ", mlocal_htpb);
-            Util::Message(INFO, "mlocal_comb = ", mlocal_comb);
-            Util::Abort(INFO,"NaN detected in mbase");
-        }
-
-        Set::Scalar qdot = mbase * qflux;
-
-        if (qdot != qdot) { // Check for NaN
-            Util::Message(INFO, "mdot = ", mdot);
-            Util::Message(INFO, "phi = ", phi);
-            Util::Message(INFO, "qflux = ", qflux);
-            Util::Message(INFO, "mlocal = ", mlocal);
-            Util::Message(INFO, "mbase = ", mbase);
-            Util::Abort(INFO,"NaN detected in qdot");
-        }
-
-        return qdot;
+        return mbase * qflux;
     }
 
-    AMREX_FORCE_INLINE
-    Set::Scalar get_qflux(const Set::Scalar phi) 
-    {
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_qflux(const Set::Scalar phi) const    {
 
         Set::Scalar qflux = k1 * phi +
             k2 * (1.0 - phi) +
@@ -101,26 +82,22 @@ public:
 
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_K (const Set::Scalar phi)
-    {
+    Set::Scalar get_K (const Set::Scalar phi) const    {
         return k_ap * phi + k_htpb * (1.0 - phi);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_rho (const Set::Scalar phi)
-    {
+    Set::Scalar get_rho (const Set::Scalar phi) const    {
         return rho_ap * phi + rho_htpb * (1.0 - phi); 
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_cp (const Set::Scalar phi)
-    {
+    Set::Scalar get_cp (const Set::Scalar phi) const    {
         return cp_ap * phi + cp_htpb * (1.0 - phi);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
-    {
+    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) const    {
         Set::Scalar L = NAN;
         if (mob_ap) L = m_ap * Pbar * exp(-E_ap / T) * phi;
         else L = m_ap * exp(-E_ap / T) * phi;

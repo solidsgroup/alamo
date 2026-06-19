@@ -325,6 +325,10 @@ void Flame::Initialize(int lev)
 
         Util::Message(INFO, "pf.relax_steps=", pf.relax_steps, " lev=", lev, " dt_relax=", dt_relax);
 
+        // GPU: copy POD members into locals so the relax kernel captures by value.
+        auto pf = this->pf;
+        const Set::Scalar small = this->small;
+
         for (int s = 0; s < pf.relax_steps; s++)
         {
             // Use plain FillBoundary (not bc_eta) because bc_eta geometry is not yet defined
@@ -422,7 +426,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Scalar Tcutoff = thermal.Tcutoff;
+
+            // GPU: copy members into locals so the model-build kernels below
+            // capture by value instead of the host `this` pointer.
+            auto       elastic     = this->elastic;
+            const bool homogenized = this->homogenized;
 
             if (elastic.on)
             {
@@ -589,6 +597,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     propellant.set_pressure(chamber.pressure);
 
+    // GPU: device lambdas may not capture the host `this` pointer. Copy the POD
+    // phase-field params, the propellant model, and the `small` floor into locals
+    // (shadowing the members), and pull the thermal scalars used inside kernels
+    // into named locals so the kernels below capture by value, not via `this`.
+    auto              propellant      = this->propellant;
+    auto              pf              = this->pf;
+    const Set::Scalar small           = this->small;
+    const bool        thermal_on      = thermal.on;
+    const Set::Scalar thermal_hc      = thermal.hc;
+    const Set::Scalar thermal_Tcutoff = thermal.Tcutoff;
+    const Set::Scalar thermal_Tfluid  = thermal.Tfluid;
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -615,7 +635,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
             Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-            Set::Scalar T = thermal.on ? temp(i,j,k) : NAN;
+            Set::Scalar T = thermal_on ? temp(i,j,k) : NAN;
 
             Set::Scalar K = propellant.get_K(phi_avg);
 
@@ -628,12 +648,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
             L_out(i, j, k) = L;
-            if (L != L) {
-                Util::Message(INFO, "phi = ", phi_avg);
-                Util::Message(INFO, "T = ", T);
-                Util::Message(INFO, "L = ", L);
-                Util::Abort(INFO,"NaN detected in mobility");
-            }
+            // (device kernel) per-cell NaN aborts removed for GPU portability;
+            // NaN propagation is surfaced by the max/min monitoring in TimeStepComplete.
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -647,7 +663,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
                 df_deta = 0.0;
             }
-            if (thermal.on && T < thermal.Tcutoff) {
+            if (thermal_on && T < thermal_Tcutoff) {
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
             }
@@ -655,15 +671,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
-            if (etanew(i, j, k) != etanew(i, j, k)) { // Check for NaN
-                Util::Message(INFO, "L = ", L);
-                Util::Message(INFO, "df_deta = ", df_deta);
-                Util::Message(INFO, "eta = ", eta(i,j,k));
-                Util::Abort(INFO,"NaN detected in etanew");
-                }
-
-
-            if (thermal.on)
+            if (thermal_on)
             {
                 //
                 // Calculate thermal diffisivity and store for later gradient
@@ -684,14 +692,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
-                heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
-                if (heatflux(i,j,k) != heatflux(i,j,k)) { // Check for NaN
-                    Util::Message(INFO, "hc = ", thermal.hc);
-                    Util::Message(INFO, "q0 = ", q0);
-                    Util::Message(INFO, "K = ", K);
-                    Util::Message(INFO, "laser = ", laser(i,j,k));
-                    Util::Abort(INFO,"NaN detected in heatflux");
-                }
+                heatflux(i,j,k) = ( thermal_hc*q0 + laser(i,j,k) ) / K;
 
                 if (temp(i,j,k) > Tcutoff)
                 {
@@ -743,29 +744,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
                 dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
 
-                if (dTdt != dTdt) { // Check for NaN
-                    Util::Message(INFO, "grad_eta = ", grad_eta);
-                    Util::Message(INFO, "grad_temp = ", grad_temp);
-                    Util::Message(INFO, "lap_temp = ", lap_temp);
-                    Util::Message(INFO, "grad_alpha = ", grad_alpha);
-                    Util::Message(INFO, "alpha = ", alpha(i,j,k));
-                    Util::Message(INFO, "heatflux = ", heatflux(i,j,k));
-                    Util::Message(INFO, "eta = ", eta(i,j,k));
-                    Util::Abort(INFO,"NaN detected in dTdt");
-                }
-
-
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 temps(i, j, k) = temps(i, j, k) + dt * Tsolid;
-                tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
-
-                if (tempnew(i, j, k) != tempnew(i, j, k)) { // Check for NaN
-                    Util::Message(INFO, "dTdt = ", dTdt);
-                    Util::Message(INFO, "Tsolid = ", Tsolid);
-                    Util::Message(INFO, "temps = ", temps(i,j,k));
-                    Util::Message(INFO, "temp = ", temp(i,j,k));
-                    Util::Abort(INFO,"NaN detected in tempnew");
-                }
+                tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal_Tfluid;
 
             });
         }
@@ -782,6 +763,17 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
+    // GPU: pull refinement-criterion members into locals (shadowing the members)
+    // plus the thermal scalars used in kernels, so the tag kernels capture by
+    // value instead of the host `this` pointer.
+    const Set::Scalar m_refinement_criterion       = this->m_refinement_criterion;
+    const Set::Scalar t_refinement_criterion       = this->t_refinement_criterion;
+    const Set::Scalar t_refinement_restriction     = this->t_refinement_restriction;
+    const Set::Scalar phi_refinement_criterion     = this->phi_refinement_criterion;
+    const Set::Scalar thermal_Tcutoff              = thermal.Tcutoff;
+    const Set::Scalar thermal_phi_ref_initial      = thermal.phi_refinement_criterion_inital;
+    const Set::Scalar thermal_end_initial_refine_t = thermal.end_initial_refine_time;
+
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -794,7 +786,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal.Tcutoff*0.9)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal_Tcutoff*0.9)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
 
@@ -855,7 +847,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal.phi_refinement_criterion_inital) && time < thermal.end_initial_refine_time)
+            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) && time < thermal_end_initial_refine_t)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -922,37 +914,30 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
-    if (variable_pressure) {
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+
+    // GPU: accumulating into chamber.* members directly inside a ParallelFor is a
+    // parallel race on the device. Use an AMReX sum-reduction over the box (works
+    // on CPU and GPU) and add the per-box partial sums to the members on the host.
+    // The previous variable_pressure / else branches performed identical
+    // accumulation, so they are collapsed here.
+    amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+    amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+    using ReduceTuple = typename decltype(reduce_data)::Type;
+
+    reduce_op.eval(box, reduce_data,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
         {
-            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
-            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar normgrad = grad.lpNorm<2>();
-            Set::Scalar da = normgrad * dv;
-            chamber.area += da;
-
-            // Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
-            // Set::Scalar mnormgrad = mgrad.lpNorm<2>();
-            // Set::Scalar dm = mnormgrad * dv;
-            //chamber.massflux += dm;
-
-            // new - chamber model
-            chamber.mdot += mdot(i, j, k, 0) * dv;
-            //chamber.volume += volume;
+            Set::Scalar dvol  = (1.0 - eta(i, j, k, 0)) * dv;
+            Set::Vector grad  = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar darea = grad.lpNorm<2>() * dv;
+            Set::Scalar dmdot = mdot(i, j, k, 0) * dv;
+            return {dvol, darea, dmdot};
         });
-    }
-    else {
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
-            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar normgrad = grad.lpNorm<2>();
-            Set::Scalar da = normgrad * dv;
-            chamber.area += da;
 
-            chamber.mdot += mdot(i, j, k, 0) * dv;
-        });
-    }
+    ReduceTuple hv = reduce_data.value(reduce_op);
+    chamber.volume += amrex::get<0>(hv);
+    chamber.area   += amrex::get<1>(hv);
+    chamber.mdot   += amrex::get<2>(hv);
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator

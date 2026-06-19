@@ -1,0 +1,34 @@
+# ============================================================================
+# GPU benchmarking / async-IO input fragment for the Flame (chamber) solver.
+#
+# Append these lines to any chamber input (or `#include` style: paste at top)
+# to enable (a) asynchronous plotfile output so the GPU marches step N+1 while
+# the CPU drains IO for step N, and (b) AMReX TinyProfiler wall-clock / holdup
+# attribution.
+#
+# These are all AMReX runtime parameters in the `amrex.*` namespace and require
+# NO source changes -- WritePlotFile() already routes through
+# amrex::WriteMultiLevelPlotfile, which honors async_out.
+# ============================================================================
+
+# --- Asynchronous IO --------------------------------------------------------
+# Hand plotfile/checkpoint writes to a background thread. The main thread (which
+# launches GPU kernels) returns immediately and begins the next step's compute,
+# overlapping step N+1 on the GPU with the disk write of step N on the CPU.
+amrex.async_out = 1
+# Number of files written in parallel by the async writer (tune to your FS /
+# stripe count; 0 lets AMReX pick a default).
+amrex.async_out_nfiles = 0
+
+# --- Profiling / holdup attribution ----------------------------------------
+# Requires a build configured with --profile (AMReX TinyProfiler). When set,
+# AMReX synchronizes the device around each BL_PROFILE region so GPU kernel
+# time is attributed to the right region instead of bleeding into the next one.
+# Turn OFF for production runs (the syncs cost ~us per region).
+tiny_profiler.device_synchronize_around_region = 1
+
+# --- Memory arena (GPU) -----------------------------------------------------
+# Use a managed (unified) arena so host-side diagnostics (MultiFab::max/min in
+# TimeStepComplete) and the async writer can touch field data without explicit
+# copies. Set to 0 for device-only arenas once correctness is confirmed.
+amrex.the_arena_is_managed = 1

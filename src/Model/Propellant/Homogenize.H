@@ -28,70 +28,51 @@ public:
     }
 
     Set::Scalar Pbar = NAN;
-    void set_pressure(const Set::Scalar P) 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    void set_pressure(const Set::Scalar P)
     {
         this->Pbar = P/P_reference;
         k4 = h1 * Pbar + h2;
     }
-    
-    virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
-    {
-        Set::Scalar qdot = NAN;
 
+    // NOTE: device-callable evaluators below must remain free of host-only
+    // helpers (Util::Message/Util::Abort, Unit::*). NaN diagnostics that lived
+    // here previously were removed so this code can run inside GPU kernels;
+    // detect NaNs via a post-kernel reduction on the host instead.
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) const    {
         Set::Scalar qflux = k4 * phi;
         Set::Scalar mdota = fabs(mdot);
         Set::Scalar mbase = tanh(4.0 * mdota / (mlocal + 1.e-20));
 
-        qdot = mbase * qflux;
-
-        if (qdot != qdot)
-        {
-            Util::Message(INFO, "mdot = ", mdot);
-            Util::Message(INFO, "phi = ", phi);
-            Util::Message(INFO, "k4 = ", k4);
-            Util::Message(INFO, "mdota = ", mdota);
-            Util::Message(INFO, "mlocal = ", mlocal);
-        }
-
-        return qdot;
+        return mbase * qflux;
     }
 
-    Set::Scalar get_K (const Set::Scalar phi)
-    {
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_K (const Set::Scalar phi) const    {
         return k_prop * phi + dispersion1 * (1. - phi);
     }
 
-    Set::Scalar get_rho (const Set::Scalar phi)
-    {
-        return rho_prop * phi + dispersion2 * (1. - phi); 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho (const Set::Scalar phi) const    {
+        return rho_prop * phi + dispersion2 * (1. - phi);
     }
 
-    Set::Scalar get_cp (const Set::Scalar phi)
-    {
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_cp (const Set::Scalar phi) const    {
         return cp_prop * phi + dispersion3 * (1. - phi);
     }
 
-    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
-    {
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) const    {
         Set::Scalar L = NAN;
         if (mob_prop == 1) L = m_prop * pow(Pbar, pressure_exponent) * exp(-E_prop / T) * phi;
         else L = m_prop * exp(-E_prop / T) * phi;
         // Smooth quench cutoff: tanh sigmoid centered on bound with width bound_width.
         // Avoids the bistable interface ring caused by a hard step in L.
-        Set::Scalar damping = 0.5 * (1.0 + std::tanh((T - bound) / bound_width));
+        Set::Scalar damping = 0.5 * (1.0 + tanh((T - bound) / bound_width));
         L *= damping;
-        
-        if (L != L)
-        {
-            Util::Message(INFO,phi);
-            Util::Message(INFO,Unit::Temperature(T));
-            Util::Message(INFO,Pbar);
-            Util::Message(INFO,Unit::Temperature(E_prop));
-            Util::Message(INFO,phi);
-            Util::Message(INFO,Unit::Velocity(m_prop));
-            Util::Abort(INFO,L / Unit::Pressure() / Unit::Time());
-        }
-            
+
         return L;
     }
 

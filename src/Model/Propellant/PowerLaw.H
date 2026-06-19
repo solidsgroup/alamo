@@ -53,17 +53,16 @@ public:
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_K (const Set::Scalar /*phi*/) {return NAN;}
+    Set::Scalar get_K (const Set::Scalar /*phi*/) const {return NAN;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_rho (const Set::Scalar /*phi*/) {return NAN;}
+    Set::Scalar get_rho (const Set::Scalar /*phi*/) const {return NAN;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_cp (const Set::Scalar /*phi*/) {return NAN;}
+    Set::Scalar get_cp (const Set::Scalar /*phi*/) const {return NAN;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) {return NAN;}
+    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) const {return NAN;}
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_L (Set::Scalar phi, Set::Scalar /*T*/) 
-    {
+    Set::Scalar get_L (Set::Scalar phi, Set::Scalar /*T*/) const    {
         Set::Scalar L = NAN;
         // if (homogeneousSystem == 1) {
         //     Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
