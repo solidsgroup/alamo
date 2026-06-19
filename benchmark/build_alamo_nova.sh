@@ -1,0 +1,106 @@
+#!/bin/bash
+# ============================================================================
+# build_alamo_nova.sh  --  download + build the GPU (chamber-gpu) Alamo on NOVA
+#
+# Run this ON THE NOVA LOGIN NODE:   sh build_alamo_nova.sh
+#
+# It (1) clones/updates the chamber-gpu branch, (2) primes the AMReX checkout on
+# the login node (the only step that needs internet), then (3) submits a CPU
+# build job that compiles BOTH the A100 (sm_80) and H200 (sm_90) binaries.
+# nvcc cross-compiles for both archs, so the build needs no GPU -- it runs on the
+# fast EPYC nodes. When the job finishes you'll have:
+#     bin/alamo-2d-profile-cuda80-g++   (A100)
+#     bin/alamo-2d-profile-cuda90-g++   (H200)
+# Both are --profile builds: fully optimized (--use_fast_math etc.) AND able to
+# emit TinyProfiler tables when you pass the profiler runtime params.
+# ============================================================================
+set -euo pipefail
+
+# Colors
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
+
+# ---- Config (override via env, e.g. ALAMO_DIR=~/proj/alamo sh build_alamo_nova.sh) ----
+REPO_URL="${REPO_URL:-git@github.com:solidsgroup/alamo.git}"  # use https://github.com/... if no SSH key on NOVA
+BRANCH="${BRANCH:-chamber-gpu}"
+ALAMO_DIR="${ALAMO_DIR:-$HOME/alamo-gpu}"
+ACCOUNT="${ACCOUNT:-brunnels}"
+BUILD_PARTITION="${BUILD_PARTITION:-nova}"   # CPU EPYC nodes; build needs no GPU
+ARCHES="${ARCHES:-80 90}"                    # 80=A100, 90=H200
+BUILD_JOBS="${BUILD_JOBS:-32}"
+COMP="${COMP:-g++}"                          # nvcc host compiler (gcc is the safe choice)
+EMAIL="${EMAIL:-jackplum@iastate.edu}"
+
+echo -e "${BOLD}${BLUE}=== Alamo GPU build setup (NOVA) ===${NC}"
+echo -e "  repo=${REPO_URL}  branch=${BRANCH}"
+echo -e "  dir=${ALAMO_DIR}  archs='${ARCHES}'  account=${ACCOUNT}  build-partition=${BUILD_PARTITION}"
+
+# ---- Modules (EDIT to match `module avail` on NOVA if names differ) ----------
+echo -e "${YELLOW}Loading modules...${NC}"
+module purge 2>/dev/null || true
+module load cuda    2>/dev/null || module load cuda/12   2>/dev/null || echo -e "${RED}  WARN: load a cuda module manually${NC}"
+module load gcc     2>/dev/null || module load gcc/12    2>/dev/null || echo -e "${RED}  WARN: load a gcc module manually${NC}"
+module load openmpi 2>/dev/null || module load openmpi4  2>/dev/null || echo -e "${RED}  WARN: load an openmpi module manually${NC}"
+module list 2>&1 | sed 's/^/    /' || true
+
+# ---- 1. Clone or update -----------------------------------------------------
+if [ -d "${ALAMO_DIR}/.git" ]; then
+  echo -e "${YELLOW}Updating existing clone...${NC}"
+  git -C "${ALAMO_DIR}" fetch origin "${BRANCH}"
+  git -C "${ALAMO_DIR}" checkout "${BRANCH}"
+  git -C "${ALAMO_DIR}" pull --ff-only origin "${BRANCH}"
+else
+  echo -e "${YELLOW}Cloning ${BRANCH}...${NC}"
+  git clone --branch "${BRANCH}" "${REPO_URL}" "${ALAMO_DIR}"
+fi
+cd "${ALAMO_DIR}"
+
+# ---- 2. Prime the AMReX checkout on the login node (needs internet) ---------
+# configure clones AMReX into ext/ if missing; doing it here keeps the build
+# job network-free (it only compiles).
+echo -e "${YELLOW}Priming AMReX checkout (login node)...${NC}"
+./configure --comp="${COMP}" --cuda "$(echo ${ARCHES} | awk '{print $1}')" --profile >/tmp/alamo_prime.log 2>&1 || {
+  echo -e "${RED}configure prime failed -- see /tmp/alamo_prime.log${NC}"; tail -20 /tmp/alamo_prime.log; exit 1; }
+echo -e "${GREEN}  AMReX present under ext/${NC}"
+
+# ---- 3. Generate + submit the build job -------------------------------------
+SB="${ALAMO_DIR}/build_alamo_gpu.sbatch"
+cat > "${SB}" <<END_OF_SBATCH
+#!/bin/bash
+#SBATCH -A ${ACCOUNT}
+#SBATCH -J alamo_build
+#SBATCH -D ${ALAMO_DIR}
+#SBATCH --partition=${BUILD_PARTITION}
+#SBATCH -N 1
+#SBATCH -n ${BUILD_JOBS}
+#SBATCH --mem=128G
+#SBATCH --time=04:00:00
+#SBATCH --output=alamo_build.%j.out
+#SBATCH --error=alamo_build.%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=${EMAIL}
+set -euo pipefail
+cd ${ALAMO_DIR}
+module purge 2>/dev/null || true
+module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
+module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
+module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
+for arch in ${ARCHES}; do
+    echo "=== building cuda sm_\${arch} ==="
+    ./configure --comp=${COMP} --cuda \${arch} --profile
+    make -j${BUILD_JOBS}
+done
+echo "=== build complete ==="
+ls -lh bin/alamo-2d*cuda* || true
+END_OF_SBATCH
+
+echo -e "${BOLD}${GREEN}Submitting build job...${NC}"
+JOBID=$(sbatch --parsable "${SB}")
+echo -e "${GREEN}  submitted job ${JOBID} on partition ${BUILD_PARTITION} (account ${ACCOUNT})${NC}"
+echo ""
+echo -e "${BOLD}Next:${NC}"
+echo -e "  watch:   squeue -j ${JOBID}"
+echo -e "  log:     tail -f ${ALAMO_DIR}/alamo_build.${JOBID}.out"
+echo -e "  when done, the binaries are in ${ALAMO_DIR}/bin/ :"
+echo -e "     alamo-2d-profile-cuda80-g++   (A100)"
+echo -e "     alamo-2d-profile-cuda90-g++   (H200)"
+echo -e "  then run:  sbatch ${ALAMO_DIR}/benchmark/nova_flame_gpu.slurm   (edit GPU_TYPE first)"

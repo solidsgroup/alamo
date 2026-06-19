@@ -4,7 +4,30 @@ This directory holds the tooling to build the `Integrator::Flame` (chamber)
 solver for NVIDIA GPUs, run it with overlapped async IO, and benchmark CPU vs
 GPU wall-clock with performance flame graphs.
 
-## 1. Build
+## 0. NOVA quickstart (ISU)
+
+On the NOVA **login node**:
+
+```bash
+# 1. download + build both A100 (sm_80) and H200 (sm_90) binaries (submits a
+#    CPU build job on the `nova` partition, account brunnels):
+sh benchmark/build_alamo_nova.sh         # clones to ~/alamo-gpu by default
+#    (override: ALAMO_DIR=~/proj/alamo REPO_URL=https://github.com/solidsgroup/alamo.git ...)
+
+# 2. once the build job finishes (squeue -j <id>), run on a GPU:
+sbatch --gres=gpu:a100:1 --ntasks=1            benchmark/nova_flame_gpu.slurm   # A100
+GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 benchmark/nova_flame_gpu.slurm # H200
+MODE=fast     sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu.slurm # max speed
+
+# 3. CPU baseline for the comparison:
+sbatch benchmark/nova_flame_cpu.slurm
+```
+
+Account `brunnels`, partition `nova`, email pre-filled. If GitHub SSH isn't set
+up on NOVA, set `REPO_URL=https://github.com/solidsgroup/alamo.git`. Module names
+(`cuda`/`gcc`/`openmpi`) may need tweaking to match `module avail`.
+
+## 1. Build (manual / non-NOVA)
 
 CPU (baseline, with profiling):
 
