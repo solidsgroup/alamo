@@ -11,34 +11,25 @@ class Gas; // Forward declare Gas
 
 namespace EOS {
 
-class CPG : public EOS {
+class CPG
+{
 public:
     static constexpr const char* name = "cpg";
-    virtual const char* model_name() const override { return name; }
 
 private:
-    Gas const * const gas;
 
 public:
-    CPG() = delete;
-    CPG(Gas *a_gas, IO::ParmParse& pp, std::string name) : gas(a_gas)
-    {
-        pp.queryclass(name, *this);
-    }
-
-    ~CPG() override = default;
-
     static void Parse(CPG & /*value*/, IO::ParmParse & /*pp*/) {}
 
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double /*rtol=1e-12*/) const override;
+                    double R, double gamma, double /*rtol=1e-12*/) const;
     double ComputeT(double pressure, double density,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
+                    double R) const;
     double ComputeP(double density, double T,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
+                    double R) const;
     double ComputeE(double density, double momentumx, double momentumy, double T,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
+                    double R, double gamma) const;
 
 }; // class CPG
 

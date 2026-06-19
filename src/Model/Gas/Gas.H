@@ -19,16 +19,20 @@ class Gas {
 protected:
 public:
     int nspecies;
+    double Rg;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
-    Thermo::Thermo *thermo = nullptr;
-    Transport::Transport *transport = nullptr;
-    EOS::EOS *eos = nullptr;
+    Thermo::Thermo<Thermo::CpConstant> thermo;
+    Transport::Transport<Transport::Mixture_Averaged> transport;
+    EOS::EOS<EOS::CPG> eos;
 
 public:
-    virtual ~Gas() {
-        delete thermo;
-        delete transport;
-        delete eos;
+    Gas() 
+    {
+        this->Rg = Set::Constant::Rg;
+    }
+    Gas(IO::ParmParse& pp, std::string name) : Gas()
+    {
+        pp.queryclass(name, *this);
     }
 
     static void Parse(Gas & value, IO::ParmParse & pp)
@@ -37,20 +41,14 @@ public:
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         value.nspecies = value.MW.size();
 
-        delete value.thermo;
-        value.thermo = nullptr;
         // thermo model
         pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
 
-        delete value.transport;
-        value.transport = nullptr;
         // transport model
         pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
 
-        delete value.eos;
-        value.eos = nullptr;
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos, &value);
+        pp.select<EOS::CPG>("eos", value.eos);
     }
     
 public:
@@ -112,7 +110,7 @@ public:
     }
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
         // Specific gas constant, J/(kg-K)
-        return Set::Constant::Rg/GetMW(X, i, j, k);
+        return Rg/GetMW(X, i, j, k);
     }
     double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
@@ -120,7 +118,7 @@ public:
     }
     double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
-        return cp_mol(T, X, i, j, k) - Set::Constant::Rg;
+        return cp_mol(T, X, i, j, k) - Rg;
     }
     double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
