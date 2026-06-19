@@ -145,7 +145,7 @@ public:
         pp.query_default("tol_abs",value.tol_abs,1E-8);
     }
 
-protected:
+public:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
@@ -205,7 +205,6 @@ protected:
             if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
 
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
-
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
 
@@ -266,6 +265,10 @@ protected:
             std::swap(*disp_mf[lev], *disp_old_mf[lev]);
             std::swap(*vel_mf[lev], *vel_old_mf[lev]);
 
+            auto bc = this->bc;
+            auto mu_newton = this->mu_newton;
+            auto mu_dashpot = this->mu_dashpot;
+            auto rho = this->rho;
 
             for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -281,7 +284,7 @@ protected:
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
@@ -419,6 +422,9 @@ protected:
         Set::Vector da(DX[1] * DX[2], 0, 0);
 #endif
 
+        auto trac_hi = this->trac_hi;
+        auto disp_hi = this->disp_hi;
+
         const Dim3 /*lo= amrex::lbound(domain),*/ hi = amrex::ubound(domain);
         const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
@@ -453,6 +459,8 @@ protected:
     {
         BL_PROFILE("Integrator::Base::Mechanics::TagCellsForRefinement");
         if (m_type == Type::Disable) return;
+
+        auto m_elastic_ref_threshold = this->m_elastic_ref_threshold;
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();

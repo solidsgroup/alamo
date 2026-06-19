@@ -64,6 +64,17 @@ public:
         Set::Vector domlo(AMREX_D_DECL(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1],0.0));
         Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1],0.0));
 
+        Set::Vector cellsize(geom[lev].CellSize());
+
+        const auto bmp = this->bmp;;
+        const auto fit = this->fit;
+        const auto coord_lo = this->coord_lo;
+        const auto coord_hi = this->coord_hi;
+        const auto channel = this->channel;
+        const auto min = this->min;
+        const auto max = this->max;
+        const auto scaling_factor = this->scaling_factor;
+
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
@@ -73,19 +84,19 @@ public:
 
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE (int i, int j, int k) 
             {
                 Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((Set::Scalar)(i)) * cellsize(0);
+                    x(1) = domlo(1) + ((Set::Scalar)(j)) * cellsize(1);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((Set::Scalar)(i) + 0.5) * cellsize(0);
+                    x(1) = domlo(1) + ((Set::Scalar)(j) + 0.5) * cellsize(1);
                 }
 
                 //Set::Scalar x, y;

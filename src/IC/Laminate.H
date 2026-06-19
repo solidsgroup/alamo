@@ -5,6 +5,7 @@
 #ifndef IC_LAMINATE_H_
 #define IC_LAMINATE_H_
 
+#include "AMReX_Loop.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
@@ -33,7 +34,7 @@ public:
             amrex::IndexType type = a_field[lev]->ixType();
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
 
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
 

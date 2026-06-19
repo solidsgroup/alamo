@@ -19,6 +19,40 @@ class Matrix4<2, Sym::Major>
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
 
+    #if AMREX_SPACEDIM == 2
+    AMREX_GPU_HOST_DEVICE
+    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    AMREX_GPU_HOST_DEVICE
+    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    AMREX_GPU_HOST_DEVICE
+    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    #endif
+    
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k, const int l) const
     {
@@ -35,9 +69,10 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     Scalar &operator()(const int i, const int j, const int k, const int l)
     {
@@ -54,40 +89,9 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
-
-    #if AMREX_SPACEDIM == 2
-    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    #endif
-    
     void Print(std::ostream &os)
     {
         os.precision(4);
@@ -132,6 +136,7 @@ public:
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
     void operator/=(const Set::Scalar &alpha)        { for (int i = 0; i < 10; i++) data[i] /= alpha; }
 
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2, Sym::Major> Increment()
     {
         Matrix4<2, Sym::Major> ret;
@@ -148,18 +153,21 @@ public:
         ret.Randomize();
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2, Sym::Major> Zero()
     {
         Matrix4<2, Sym::Major> ret;
         for (int i = 0; i < 10; i++) ret.data[i] = 0.0;
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar Norm()
     {
         Set::Scalar normsq = 0.0;
         for (int i = 0; i < 10; i++) normsq += data[i]*data[i];
         return std::sqrt(normsq);
     }
+    AMREX_GPU_HOST_DEVICE
     bool contains_nan() const
     {
         if (std::isnan(data[ 0])) return true;
@@ -175,12 +183,12 @@ public:
         return false;
     }
 
-    friend Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
-    friend Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
-    friend Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
-    friend Matrix4<2, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<2, Sym::Major> &a);
-    friend Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
-    friend Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<2, Sym::Major> &a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b)
@@ -242,6 +250,7 @@ public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
     
     #if AMREX_SPACEDIM == 3
+    AMREX_GPU_HOST_DEVICE
     Matrix4(const Matrix4<3,Sym::Isotropic> &in)
     {
         // TODO: very inefficient, need to optimize
@@ -251,6 +260,7 @@ public:
         for (int l = 0; l < 3; l++)
             (*this)(i,j,k,l) = in(i,j,k,l);
     }
+    AMREX_GPU_HOST_DEVICE
     Matrix4(const Matrix4<3,Sym::Diagonal> &in)
     {
         // TODO: very inefficient, need to optimize
@@ -260,6 +270,7 @@ public:
         for (int l = 0; l < 3; l++)
             (*this)(i,j,k,l) = in(i,j,k,l);
     }
+    AMREX_GPU_HOST_DEVICE
     Matrix4(const Matrix4<3,Sym::MajorMinor> &in)
     {
         // TODO: very inefficient, need to optimize
@@ -271,6 +282,7 @@ public:
     }
     #endif
 
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     Scalar &operator()(const int i, const int j, const int k, const int l)
     {
@@ -323,10 +335,11 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
     
 
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k, const int l) const
     {
@@ -379,9 +392,10 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar Norm()
     {
         Set::Scalar retsq = 0;
@@ -437,6 +451,7 @@ public:
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
     void operator/=(const Set::Scalar &alpha)        { for (int i = 0; i < 45; i++) data[i] /= alpha; }
 
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3, Sym::Major> Increment()
     {
         Matrix4<3, Sym::Major> ret;
@@ -453,18 +468,21 @@ public:
         ret.Randomize();
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3, Sym::Major> Zero()
     {
         Matrix4<3, Sym::Major> ret;
         for (int i = 0; i < 45; i++) ret.data[i] = 0.0;
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar norm()
     {
         Set::Scalar normsq = 0.0;
         for (int i = 0; i < 45; i++) normsq += data[i]*data[i];
         return std::sqrt(normsq);
     }
+    AMREX_GPU_HOST_DEVICE
     bool contains_nan() const
     {
         for (int i = 0; i < 45; i++)
@@ -472,12 +490,12 @@ public:
         return false;
     }
 
-    friend Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
-    friend Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
-    friend Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
-    friend Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
-    friend Matrix4<3, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<3, Sym::Major> &a);
-    friend Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
+    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<3, Sym::Major> &a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
 };
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 

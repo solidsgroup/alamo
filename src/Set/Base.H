@@ -23,6 +23,20 @@ using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using Matrix3d = Eigen::Matrix3d;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
+
+template<class W, class DW>
+struct Jet {
+    W zero;     // or "grad"
+    DW first; // or "jacobian" or "hessian" depending on context
+
+    AMREX_GPU_HOST_DEVICE
+    Jet() = default;
+
+    AMREX_GPU_HOST_DEVICE
+    Jet(const W v, const DW d) : zero(v), first(d) {}
+};
+
+
 AMREX_FORCE_INLINE
 Set::Matrix reduce(const Set::Matrix3d &in)
 {
@@ -42,22 +56,28 @@ Set::Matrix3d expand(const Set::Matrix &in)
 class Quaternion : public Eigen::Quaterniond
 {
 public:
+    AMREX_GPU_HOST_DEVICE
     Quaternion()
         : Eigen::Quaterniond() {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(Set::Scalar w, Set::Scalar x, Set::Scalar y, Set::Scalar z)
         : Eigen::Quaterniond(w,x,y,z) {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(const Eigen::Matrix3d &R)
         : Eigen::Quaterniond(R) {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(Eigen::Quaterniond &q)
         : Eigen::Quaterniond(q.w(),q.x(),q.y(),q.z()) {}
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     void operator = (const Eigen::Quaterniond &rhs)
     {
         w() = rhs.w(); x() = rhs.x(); y() = rhs.y(); z() = rhs.z();
     }
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     void operator += (const Quaternion &rhs)
     {
         w() += rhs.w(); x() += rhs.x(); y() += rhs.y(); z() += rhs.z();
@@ -67,13 +87,14 @@ public:
     // {
     //     w += alpha; x *= alpha; y *= alpha; z *= alpha;
     // }
-    friend Quaternion operator * (const Set::Scalar alpha, const Quaternion b);
-    friend Quaternion operator * (const Quaternion b,const Set::Scalar alpha);
-    friend Quaternion operator + (const Quaternion a, const Quaternion b);
-    friend Quaternion operator - (const Quaternion a, const Quaternion b);
-    friend bool operator == (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator * (const Set::Scalar alpha, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator * (const Quaternion b,const Set::Scalar alpha);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator + (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator - (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (const Quaternion a, const Quaternion b);
 };
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator * (const Set::Scalar alpha, const Quaternion b)
 {
     Quaternion ret;
@@ -81,6 +102,7 @@ Quaternion operator * (const Set::Scalar alpha, const Quaternion b)
     return ret;
 }    
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator * (const Quaternion b, const Set::Scalar alpha)
 {
     Quaternion ret;
@@ -88,6 +110,7 @@ Quaternion operator * (const Quaternion b, const Set::Scalar alpha)
     return ret;
 }    
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator + (const Quaternion a, const Quaternion b)
 {
     Quaternion ret;
@@ -96,6 +119,7 @@ Quaternion operator + (const Quaternion a, const Quaternion b)
 }    
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator - (const Quaternion a, const Quaternion b)
 {
     Quaternion ret;
@@ -104,6 +128,7 @@ Quaternion operator - (const Quaternion a, const Quaternion b)
 }    
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 bool operator == (const Quaternion a, const Quaternion b)
 {
     if (fabs((a.w() - b.w())/(a.w()+a.w())) > 1E-8) return false;
@@ -114,7 +139,22 @@ bool operator == (const Quaternion a, const Quaternion b)
 }
 
 
-[[maybe_unused]] static Scalar Garbage = NAN;
+#ifdef AMREX_DEVICE_COMPILE
+AMREX_GPU_DEVICE inline Scalar DeviceGarbage = NAN;
+#else
+AMREX_GPU_HOST inline Scalar HostGarbage = NAN;
+#endif
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Scalar& Garbage()
+{
+#ifdef AMREX_DEVICE_COMPILE
+    return DeviceGarbage;
+#else
+    return HostGarbage;
+#endif
+}
 
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
@@ -134,10 +174,38 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
                 geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
     }
+    amrex::Abort("Set::Position: Unsupported index type");
     return Set::Vector::Zero(); 
 }
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
+Vector Position(const int &i, const int &j, const int &k,
+                const Set::Vector &prob_lo,
+                const Set::Vector &cell_size,
+                const amrex::IndexType &ixType)
+{
+    (void)k;
+    if (ixType == amrex::IndexType::TheNodeType())
+    {
+        return Vector(AMREX_D_DECL(
+                prob_lo(0) + ((amrex::Real)(i)) * cell_size(0),
+                prob_lo(1) + ((amrex::Real)(j)) * cell_size(1),
+                prob_lo(2) + ((amrex::Real)(k)) * cell_size(2)));
+    }
+    else if (ixType == amrex::IndexType::TheCellType())
+    {
+        return Vector(AMREX_D_DECL(
+                prob_lo(0) + ((amrex::Real)(i) + 0.5) * cell_size(0),
+                prob_lo(1) + ((amrex::Real)(j) + 0.5) * cell_size(1),
+                prob_lo(2) + ((amrex::Real)(k) + 0.5) * cell_size(2)));
+    }
+    amrex::Abort("Set::Position: Unsupported index type");
+    return Set::Vector::Zero(); 
+}
+
+AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Vector Normal(  AMREX_D_DECL(bool xmin,bool ymin, bool zmin),
                 AMREX_D_DECL(bool xmax,bool ymax, bool zmax))
 {
@@ -188,6 +256,7 @@ Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &g
                 geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
     }
+    amrex::Abort("Set::Position: Unsupported index type");
     return Set::Vector::Zero(); 
 }
 

@@ -6,6 +6,7 @@
 #ifndef IC_PSREAD_H_
 #define IC_PSREAD_H_
 
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -54,7 +55,7 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                 Set::Scalar min_grain_id = 0;

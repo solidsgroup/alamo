@@ -48,7 +48,6 @@ public:
         m_psi = &a_psi;
     }
 
-private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,
         const Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
@@ -73,7 +72,7 @@ private:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
                     Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
@@ -118,7 +117,7 @@ private:
                 amrex::Array4<const Set::Scalar>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>        const& rhs = a_rhs_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
@@ -165,7 +164,7 @@ private:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
@@ -213,7 +212,7 @@ private:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu (bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -237,7 +236,7 @@ private:
                 {
                     const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -275,7 +274,6 @@ private:
     }
 
 
-public:
     Set::Scalar solve(const Set::Field<Set::Vector>& a_u_mf,
         const Set::Field<Set::Vector>& a_b_mf,
         Set::Field<T>& a_model_mf,
@@ -626,7 +624,6 @@ public:
     }
 
 
-public:
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym>* m_elastic;
@@ -634,7 +631,6 @@ public:
 
     Set::Field<Set::Scalar>* m_psi = nullptr;
 
-public:
     // These paramters control a standard Newton-Raphson solve.
     // 
     // **Note**: 
