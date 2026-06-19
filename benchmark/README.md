@@ -10,9 +10,11 @@ On the NOVA **login node**:
 
 ```bash
 # 1. download + build both A100 (sm_80) and H200 (sm_90) binaries (submits a
-#    CPU build job on the `nova` partition, account brunnels):
-sh benchmark/build_alamo_nova.sh         # clones to ~/alamo-gpu by default
-#    (override: ALAMO_DIR=~/proj/alamo REPO_URL=https://github.com/solidsgroup/alamo.git ...)
+#    CPU build job on the `nova` partition, account brunnels). Builds in the
+#    current directory -- cd to where you want it first:
+mkdir -p /work/brunnels/jackplum/alamo && cd /work/brunnels/jackplum/alamo
+sh /path/to/build_alamo_nova.sh          # HTTPS clone by default (no SSH key)
+#    (override: ALAMO_DIR=/abs/path  REPO_URL=git@github.com:solidsgroup/alamo.git ...)
 
 # 2. once the build job finishes (squeue -j <id>), run on a GPU:
 sbatch --gres=gpu:a100:1 --ntasks=1            benchmark/nova_flame_gpu.slurm   # A100

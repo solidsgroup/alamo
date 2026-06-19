@@ -19,10 +19,15 @@ set -euo pipefail
 # Colors
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 
-# ---- Config (override via env, e.g. ALAMO_DIR=~/proj/alamo sh build_alamo_nova.sh) ----
-REPO_URL="${REPO_URL:-git@github.com:solidsgroup/alamo.git}"  # use https://github.com/... if no SSH key on NOVA
+# ---- Config (override via env, e.g. ALAMO_DIR=/some/path sh build_alamo_nova.sh) ----
+# Defaults to HTTPS (no SSH key needed). If the repo is private, cache a GitHub
+# token first (e.g. `git config --global credential.helper store` then one auth'd
+# clone) or set REPO_URL to the SSH form.
+REPO_URL="${REPO_URL:-https://github.com/solidsgroup/alamo.git}"
 BRANCH="${BRANCH:-chamber-gpu}"
-ALAMO_DIR="${ALAMO_DIR:-$HOME/alamo-gpu}"
+# Build in the directory the script is run from (e.g. cd /work/brunnels/jackplum/alamo
+# then run this). Override with ALAMO_DIR=/abs/path.
+ALAMO_DIR="${ALAMO_DIR:-$PWD}"
 ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"   # CPU EPYC nodes; build needs no GPU
 ARCHES="${ARCHES:-80 90}"                    # 80=A100, 90=H200
@@ -42,15 +47,26 @@ module load gcc     2>/dev/null || module load gcc/12    2>/dev/null || echo -e 
 module load openmpi 2>/dev/null || module load openmpi4  2>/dev/null || echo -e "${RED}  WARN: load an openmpi module manually${NC}"
 module list 2>&1 | sed 's/^/    /' || true
 
-# ---- 1. Clone or update -----------------------------------------------------
+# ---- 1. Get the source into ALAMO_DIR (the current directory) ---------------
+mkdir -p "${ALAMO_DIR}"
+ALAMO_DIR="$(cd "${ALAMO_DIR}" && pwd)"   # absolutize
+echo -e "${YELLOW}Building in ${ALAMO_DIR}${NC}"
 if [ -d "${ALAMO_DIR}/.git" ]; then
-  echo -e "${YELLOW}Updating existing clone...${NC}"
+  echo -e "${YELLOW}Updating existing checkout in place...${NC}"
   git -C "${ALAMO_DIR}" fetch origin "${BRANCH}"
   git -C "${ALAMO_DIR}" checkout "${BRANCH}"
   git -C "${ALAMO_DIR}" pull --ff-only origin "${BRANCH}"
+elif [ -f "${ALAMO_DIR}/configure" ] && [ -d "${ALAMO_DIR}/src" ]; then
+  echo -e "${GREEN}  existing Alamo source found -- building in place${NC}"
 else
-  echo -e "${YELLOW}Cloning ${BRANCH}...${NC}"
-  git clone --branch "${BRANCH}" "${REPO_URL}" "${ALAMO_DIR}"
+  # Populate the current directory as a chamber-gpu checkout. Using init+fetch
+  # (not `git clone`) so it works even though this dir already holds the script.
+  echo -e "${YELLOW}Fetching ${BRANCH} into ${ALAMO_DIR}...${NC}"
+  git -C "${ALAMO_DIR}" init -q
+  git -C "${ALAMO_DIR}" remote add origin "${REPO_URL}" 2>/dev/null \
+    || git -C "${ALAMO_DIR}" remote set-url origin "${REPO_URL}"
+  git -C "${ALAMO_DIR}" fetch --depth 1 origin "${BRANCH}"
+  git -C "${ALAMO_DIR}" checkout -b "${BRANCH}" FETCH_HEAD
 fi
 cd "${ALAMO_DIR}"
 
