@@ -1,7 +1,7 @@
 //
 // Fill a domain based on a list of points to form a closed 2D shape.
 // The distance from each point to the nearest edge is found and an error function is then used to compute
-// the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions
+// the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions for a single closed polgyon
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -55,6 +55,29 @@ public:
             else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
             else Util::Abort(INFO, "Unkonwn index type");
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+
+            for (unsigned int n = 0; n < X.size(); n++) 
+            {
+                for (unsigned int n = 0; n < X.size(); n++)
+                {
+                    double x = X[n][0];
+                    double y = X[n][1];
+
+                    double cx = rotation.center[0];
+                    double cy = rotation.center[1];
+
+                    double theta = rotation.angle;
+
+                    double cos_t = std::cos(theta);
+                    double sin_t = std::sin(theta);
+
+                    double x_shifted = x - cx;
+                    double y_shifted = y - cy;
+
+                    X[n][0] = cx + x_shifted * cos_t - y_shifted * sin_t;
+                    X[n][1] = cy + x_shifted * sin_t + y_shifted * cos_t;
+                }
+            }
 
             if (X.back() != X.front())
             // The first and last point must match, if they do not add another point to the end
@@ -162,11 +185,11 @@ public:
     {
         std::string filename;
         int verbose = 0;
-        // Diffuseness of the sphere boundary
+        // Diffuseness of the solid boundary
         pp.query_default("eps", value.eps, "0.0", Unit::Length());
 
         pp.forbid("filename", "use file.name instead");
-        // Location of .xyzr file
+        // Location of .xy file
         pp.query_file("file.name", filename); 
 
         // Verbosity (used in parser only)
@@ -175,7 +198,7 @@ public:
         // Unitless coordinate multiplier
         pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
 
-        // Whether to invert (1 outside instead of inside spheres)
+        // Whether to invert (make IC 1 outside of solid instead of inside solid)
         pp.query_default("invert",value.invert,false); 
 
         // X-offset 
@@ -183,6 +206,13 @@ public:
 
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
+
+        // Center of rigid-body rotation 
+        pp.queryarr_default("rotation.center",value.rotation.center,"0 0 0", Unit::Length());
+        
+        // Amount of rotation about rotation center
+        pp.query_default("rotation.angle",value.rotation.angle,"0.0", Unit::Angle());
+
 
         Unit unit = Unit::Length();
         // Units of length in the file
@@ -230,13 +260,18 @@ private:
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
     bool invert = false;
+
+    struct{
+        Set::Vector center;
+        Set::Scalar angle;
+    } rotation;
     
     double dist(double x1, double y1, double x2, double y2)
     {   
         // Find distance between 2 points
         double dx = x2 - x1;
         double dy = y2 - y1;
-        
+
         return std::sqrt(dx*dx + dy*dy);
     }
 };
