@@ -1,0 +1,192 @@
+alamo.program = flame
+plot_file = output_nova_centre_bore
+amr.plot_dt = 0.01
+#amr.plot_int = 1
+amr.max_level = 3
+amr.nsubsteps = 2
+amr.blocking_factor = 8
+amr.base_regrid_int = 10
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
+#amr.refinement_restriction = 0.3
+amr.phi_refinement_criterion = 0.2
+amr.n_cell = 64 64 64
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
+geometry.prob_hi = 0.1754_m 0.1754_m 0.1754_m # [m]
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+# Timestep and duration
+timestep = 1.0e-4_s
+stop_time = 6.5_s
+
+# Phase field parameters
+pf.eps = 5.0e-5_m
+pf.lambda = 0.001_J/m^2
+pf.eta.ic.type = bmp
+pf.eta.ic.bmp.filename = simple_circle.bmp
+pf.eta.ic.bmp.fit = stretch
+pf.eta.ic.bmp.channel = g
+phi.ic.type = bmp
+phi.ic.bmp.filename = simple_circle.bmp
+phi.ic.bmp.fit = stretch
+phi.ic.bmp.channel = g
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0 # Allen-Cahn pre-relax: disabled (BMP IC gives correct interface width at fine level)
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+# Eta boundary condition
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+
+propellant.homogenize.P_reference = 0.101325_MPa
+
+propellant.type = homogenize
+
+propellant.homogenize.dispersion1 = 0.025_W/m/K # k_gas (air-like); alpha_gas=0.025/1200=2e-5 m²/s satisfies thermal CFL on all levels
+propellant.homogenize.dispersion2 = 1.2_kg/m^3   # rho_gas (air-like density)
+propellant.homogenize.dispersion3 = 1000_J/kg/K  # cp_gas (air-like heat capacity)
+
+# h1=0: removes pressure-dependent heat flux (stable by construction with n=0.373<1)
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+
+propellant.homogenize.P_reference = 1_MPa
+
+propellant.homogenize.rho_prop = 1745.0_kg/m^3 # density
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s # [???] kg/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+thermal.on = 1
+thermal.Tref = 300 #[K]
+thermal.Tfluid = 300 #[K] (matches grain IC to prevent cold-start thermal spike)
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+
+
+# Temperature initial conditions
+temp.ic.type="constant"
+temp.ic.constant.value=300_K #[K]
+
+# Laser source term
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+
+
+
+
+# Pressure
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa # Initial pressure
+chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.T0 = 3200_K # [?] K
+chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# Thermoelasticity
+elastic.on = 1
+
+# Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
+# 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
+# burns back, which keeps the solve robust on evolving complex geometry.
+elastic.zero_out_displacement = 0
+
+elastic.type = static
+elastic.interval = 50
+elastic.tstart = 0.5e-4
+elastic.phirefinement = 100
+elastic.print_model = 1
+# Conditioning of the masked elastic operator on thin/complex grain features:
+# psi_floor keeps the gas-region operator non-singular (gas stress is ignored).
+elastic.use_psi = 1
+elastic.psi_floor = 0.05
+# Tolerance-based MLMG (replaces fixed_iter) with extra smoothing for the
+# high-contrast, spatially-varying stiffness field.
+elastic.solver.max_iter = 1000
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 200
+elastic.solver.nrtolerance = 1e-5
+elastic.solver.verbose = 4
+
+
+elastic.traction = 1.0_MPa
+# Set the interface traction dynamically from the evolving chamber pressure
+# (elastic.traction above is then ignored)
+elastic.traction_from_chamber = 1
+
+
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 4_MPa
+model_void.mu = 4_MPa
+
+# Stiff casing: fills the phi=0 region outside the fuel disk to provide
+# cylindrical confinement (and a rigid skeleton that conditions the operator).
+model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+model_casing.kappa = 5_GPa
+model_casing.mu = 2_GPa
+
+elastic.bc.type = constant
+
+elastic.bc.type = constant
+
+elastic.bc.constant.type.xhi = disp disp
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiyhi = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+
+
+# ============================================================================
+# NOVA / GPU run parameters
+# ============================================================================
+# Async IO, the managed GPU arena, and TinyProfiler device-sync are passed on
+# the SLURM launch line (see benchmark/nova_flame_gpu.slurm), NOT here, because:
+#   - amrex.async_out=1 aborts unless MPI provides MPI_THREAD_MULTIPLE (NOVA does)
+#   - amrex.the_arena_is_managed / tiny_profiler.* are only consumed by GPU /
+#     --profile builds; alamo's strict unused-input check would abort a plain
+#     CPU build if they appeared here.
+# Keeping them out of this file makes the input runnable on any build/MPI.
+
+
+
