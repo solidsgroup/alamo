@@ -356,7 +356,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                             // std::cout << "Applying neither" << std::endl;
 
                 });
-                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
@@ -374,7 +374,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             }
             else
             {
-                amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     //phi_avg = phi(i,j,k,0);
@@ -649,7 +649,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
                 if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)

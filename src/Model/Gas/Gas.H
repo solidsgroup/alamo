@@ -26,8 +26,11 @@ public:
     EOS::EOS<EOS::CPG> eos;
 
 public:
-    Gas() = default;
-    Gas(IO::ParmParse& pp, std::string name) 
+    Gas() 
+    {
+        this->Rg = Set::Constant::Rg;
+    }
+    Gas(IO::ParmParse& pp, std::string name) : Gas()
     {
         pp.queryclass(name, *this);
     }
@@ -37,7 +40,6 @@ public:
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         value.nspecies = value.MW.size();
-        value.Rg = Set::Constant::Rg;
 
         // thermo model
         pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);

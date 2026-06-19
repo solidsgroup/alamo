@@ -11,7 +11,7 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class CpConstant  // public Thermo
+class CpConstant 
 {
 public:
     static constexpr const char* name = "cpconstant";
@@ -25,16 +25,7 @@ private:
     
 public:
     CpConstant() {} ;
-    CpConstant(IO::ParmParse& pp, std::string name, int a_nspecies) : CpConstant()
-    {
-        nspecies = a_nspecies;
-        pp.queryclass(name, *this);
-    }
 
-    static void Parse(CpConstant & value, IO::ParmParse & pp)
-    {
-        Parse(value, pp, value.nspecies);
-    }
 
     static void Parse(CpConstant & value, IO::ParmParse & pp, int a_nspecies)
     {

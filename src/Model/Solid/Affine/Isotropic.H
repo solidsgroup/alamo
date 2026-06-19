@@ -56,7 +56,7 @@ public:
         AMREX_IF_ON_HOST( out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0; )
     }
     AMREX_GPU_HOST_DEVICE
-    bool ContainsNan() 
+    bool ContainsNan() override
     {
         for (int p = 0; p < AMREX_SPACEDIM; ++p)
             for (int q = 0; q < AMREX_SPACEDIM; ++q)

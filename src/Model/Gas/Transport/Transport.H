@@ -58,8 +58,8 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P,
-                          Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, double T, double P,
+                            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {

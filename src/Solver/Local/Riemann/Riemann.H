@@ -24,10 +24,10 @@ struct State {
     State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E)
         : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E) {}
     AMREX_GPU_HOST_DEVICE
-    State(Set::Patch<const Set::Scalar> &density_mf, 
-          Set::Patch<const Set::Scalar> &momentum_mf, 
-          Set::Patch<const Set::Scalar> &energy_mf, 
-          int i, int j, int k, int direction)
+    State(  Set::Patch<const Set::Scalar> &density_mf, 
+            Set::Patch<const Set::Scalar> &momentum_mf, 
+            Set::Patch<const Set::Scalar> &energy_mf, 
+            int i, int j, int k, int direction)
     {
         rho = density_mf(i,j,k);
         if (direction == 0)

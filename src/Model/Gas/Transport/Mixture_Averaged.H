@@ -52,16 +52,17 @@ private:
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
 public:
-    Mixture_Averaged() {};
+    Mixture_Averaged()
+    {
+        Rg = Set::Constant::Rg;
+    }
 
-    static void Parse(Mixture_Averaged & value, IO::ParmParse & pp,
-                      int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
+    static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
+                        int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
     {
         value.nspecies = a_nspecies;
         value.MW = a_MW;
         value.thermo = a_thermo;
-
-        value.Rg = Set::Constant::Rg;
 
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
         pp.query_validate("type", value.type, {"constant", "LJ"});

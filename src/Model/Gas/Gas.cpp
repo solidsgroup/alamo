@@ -50,22 +50,27 @@ double Gas::ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const 
 {
-    return eos.ComputeT(density, momentumx, momentumy, E, Tguess, R(X,i,j,k), gamma(Tguess,X,i,j,k), rtol);
+    // Temperature, K
+    return eos.ComputeT(density, momentumx, momentumy, E, R(X,i,j,k), gamma(Tguess,X,i,j,k), rtol);
 }
 double Gas::ComputeT(
         double pressure, double density,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
+    // Temperature, K
     return eos.ComputeT(pressure, density, R(X,i,j,k));
 }
-double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
+    // Pressure, Pa
     return eos.ComputeP(density, T, R(X,i,j,k));
 }
 double Gas::ComputeE(    
         double density, double momentumx, double momentumy, double T,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
     // Energy, J/m^3
     return eos.ComputeE(density, momentumx, momentumy, T, R(X,i,j,k), gamma(T,X,i,j,k));
-    return NAN; // [replace!]
 }
 
 } // namespace Gas

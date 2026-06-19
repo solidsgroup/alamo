@@ -56,7 +56,7 @@ public:
     }
     AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>
-    DDW(const Set::Matrix & /*gradu*/) const 
+    DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }

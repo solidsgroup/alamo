@@ -25,15 +25,15 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
+    double ComputeT(double density, double momentumx, double momentumy, double E, 
                     double R, double gamma, double rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeT(density,momentumx,momentumy,E,Tguess,R,gamma, rtol);
+                return std::get<I>(obj).ComputeT(density,momentumx,momentumy,E,R,gamma, rtol);
             else
-                return ComputeT<I+1>(density,momentumx,momentumy,E,Tguess,R,gamma, rtol);
+                return ComputeT<I+1>(density,momentumx,momentumy,E,R,gamma, rtol);
         }
         else {
             Util::Abort(INFO, selected);
@@ -67,6 +67,7 @@ public:
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
     double ComputeP(double density, double T, double R) const
+    // Energy, J/m^3
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -80,7 +81,6 @@ public:
             return NAN;
         }
     }
-
 
     template<int I = 0>
     AMREX_FORCE_INLINE
