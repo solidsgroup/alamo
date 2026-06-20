@@ -7,6 +7,18 @@
 #include "IO/ParmParse.H"
 #include "Numeric/Stencil.H"
 
+#ifdef ALAMO_GPU
+#define ALAMO_NEWTON_FOR amrex::ParallelFor
+#define ALAMO_NEWTON_DEVICE AMREX_GPU_DEVICE
+#define ALAMO_NEWTON_BC_EVAL(elastic, bc_type, u, gradu, sigma, i, j, k, bx) \
+    ::BC::Operator::Elastic::Elastic::eval(bc_type, u, gradu, sigma, i, j, k, bx)
+#else
+#define ALAMO_NEWTON_FOR amrex::LoopConcurrentOnCpu
+#define ALAMO_NEWTON_DEVICE
+#define ALAMO_NEWTON_BC_EVAL(elastic, bc_type, u, gradu, sigma, i, j, k, bx) \
+    (elastic)->GetBC()(u, gradu, sigma, i, j, k, bx)
+#endif
+
 namespace Solver
 {
 namespace Nonlocal
@@ -72,7 +84,7 @@ public:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+                ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k) {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
                     Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
@@ -117,7 +129,10 @@ public:
                 amrex::Array4<const Set::Scalar>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>        const& rhs = a_rhs_mf[lev]->array(mfi);
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+#ifdef ALAMO_GPU
+                auto m_bc_type = m_elastic->GetBC().GetBcTypeArray();
+#endif
+                ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
@@ -125,7 +140,7 @@ public:
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
-                        Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
+                        Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
@@ -208,18 +223,21 @@ public:
                 amrex::Array4<const Set::Vector>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>        const& rhs = a_rhs_mf[lev]->array(mfi);
+#ifdef ALAMO_GPU
+                auto m_bc_type = m_elastic->GetBC().GetBcTypeArray();
+#endif
 
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-                    amrex::LoopConcurrentOnCpu (bx, [=] (int i, int j, int k)
+                    ALAMO_NEWTON_FOR (bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
+                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
@@ -236,7 +254,7 @@ public:
                 {
                     const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
-                    amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                    ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -248,7 +266,7 @@ public:
                             {
                                 psiavg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
                             }
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
+                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else

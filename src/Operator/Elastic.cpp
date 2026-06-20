@@ -5,6 +5,21 @@
 #include "Set/Set.H"
 
 #include "Numeric/Stencil.H"
+
+#ifdef ALAMO_GPU
+#define ALAMO_ELASTIC_OP_FOR amrex::ParallelFor
+#define ALAMO_ELASTIC_OP_CAPTURE [=]
+#define ALAMO_ELASTIC_OP_DEVICE AMREX_GPU_DEVICE
+#define ALAMO_ELASTIC_OP_BC_EVAL(bc, bc_type, u, gradu, sigma, i, j, k, bx) \
+    ::BC::Operator::Elastic::Elastic::eval(bc_type, u, gradu, sigma, i, j, k, bx)
+#else
+#define ALAMO_ELASTIC_OP_FOR amrex::LoopConcurrentOnCpu
+#define ALAMO_ELASTIC_OP_CAPTURE [=]
+#define ALAMO_ELASTIC_OP_DEVICE
+#define ALAMO_ELASTIC_OP_BC_EVAL(bc, bc_type, u, gradu, sigma, i, j, k, bx) \
+    (*(bc))(u, gradu, sigma, i, j, k, bx)
+#endif
+
 namespace Operator
 {
 template<int SYM>
@@ -70,7 +85,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k) {
+            ALAMO_ELASTIC_OP_FOR(bx, ALAMO_ELASTIC_OP_CAPTURE ALAMO_ELASTIC_OP_DEVICE (int i, int j, int k) {
                 ddw(i, j, k) = a_model;
 
 #ifdef AMREX_DEBUG
@@ -164,8 +179,14 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
         auto m_psi_set = this->m_psi_set;
         auto m_psi_small = this->m_psi_small;
+        auto m_uniform = this->m_uniform;
+#ifdef ALAMO_GPU
+        auto m_bc_type = this->m_bc->GetBcTypeArray();
+#else
+        auto m_bc = this->m_bc;
+#endif
 
-        amrex::LoopConcurrentOnCpu(tilebox, [=,this] (int i, int j, int k) {
+        ALAMO_ELASTIC_OP_FOR(tilebox, ALAMO_ELASTIC_OP_CAPTURE ALAMO_ELASTIC_OP_DEVICE (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -202,7 +223,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
-                f = (*m_bc)(u, gradu, sig, i, j, k, stencilbox);
+                f = ALAMO_ELASTIC_OP_BC_EVAL(m_bc, m_bc_type, u, gradu, sig, i, j, k, stencilbox);
             }
             else
             {
@@ -322,9 +343,13 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
         auto m_psi_set = this->m_psi_set;
         auto m_psi_small = this->m_psi_small;
+#ifdef ALAMO_GPU
+        auto m_bc_type = this->m_bc->GetBcTypeArray();
+#else
         auto m_bc = this->m_bc;
+#endif
 
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 
             // Determine if a special stencil will be necessary for first derivatives
@@ -361,7 +386,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                     Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*m_bc)(u, gradu[p], sig, i, j, k, stencilbox);
+                    f = ALAMO_ELASTIC_OP_BC_EVAL(m_bc, m_bc_type, u, gradu[p], sig, i, j, k, stencilbox);
                     diag(i, j, k, p) = f(p);
                 }
                 else
@@ -513,7 +538,7 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
         auto m_psi_set = this->m_psi_set;
         auto m_psi_small = this->m_psi_small;
-        amrex::LoopConcurrentOnCpu(bx, [=,this] (int i, int j, int k)
+        ALAMO_ELASTIC_OP_FOR(bx, ALAMO_ELASTIC_OP_CAPTURE ALAMO_ELASTIC_OP_DEVICE (int i, int j, int k)
         {
             Set::Matrix gradu;
 

@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = output_testing_chamber_stress_rod_and_tube
+plot_file = output_star_testing_void_stiffness
 amr.plot_dt = 0.01
 #amr.plot_int = 1
 amr.max_level = 3
@@ -30,7 +30,7 @@ stop_time = 6.5_s
 pf.eps = 5.0e-5_m
 pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = bmp
-pf.eta.ic.bmp.filename = double_circle.bmp
+pf.eta.ic.bmp.filename = star.bmp
 pf.eta.ic.bmp.fit = stretch
 pf.eta.ic.bmp.channel = g
 phi.ic.type = bmp
@@ -122,20 +122,20 @@ elastic.on = 1
 # Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
 # 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
 # burns back, which keeps the solve robust on evolving complex geometry.
-elastic.zero_out_displacement = 1
+elastic.zero_out_displacement = 0
 
 elastic.type = static
-elastic.interval = 25
+elastic.interval = 50
 elastic.tstart = 0.5e-4
 elastic.phirefinement = 100
 elastic.print_model = 1
 # Conditioning of the masked elastic operator on thin/complex grain features:
 # psi_floor keeps the gas-region operator non-singular (gas stress is ignored).
-elastic.use_psi = 0
-elastic.psi_floor = 0.0
+elastic.use_psi = 1
+elastic.psi_floor = 0.05
 # Tolerance-based MLMG (replaces fixed_iter) with extra smoothing for the
 # high-contrast, spatially-varying stiffness field.
-elastic.solver.max_iter = 200
+elastic.solver.max_iter = 1000
 elastic.solver.pre_smooth = 4
 elastic.solver.post_smooth = 4
 elastic.solver.nriters = 200
@@ -149,27 +149,24 @@ elastic.traction = 1.0_MPa
 elastic.traction_from_chamber = 1
 
 
-model_ap.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
-model_ap.kappa = 150_MPa
-model_ap.mu = 140_MPa
-
-model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
-model_htpb.kappa = 210_MPa
-model_htpb.mu = 8_MPa
-
-massfraction = 0.8 # % AP, TEMPORARY
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
 
 model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-model_void.kappa = 3_MPa
-model_void.mu = 1.5_MPa
+model_void.kappa = 4_MPa
+model_void.mu = 4_MPa
 
 # Stiff casing: fills the phi=0 region outside the fuel disk to provide
 # cylindrical confinement (and a rigid skeleton that conditions the operator).
 model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
-model_casing.kappa = 0.5_GPa
-model_casing.mu = 0.5_GPa
+model_casing.kappa = 5_GPa
+model_casing.mu = 2_GPa
 
 elastic.bc.type = constant
+
+elastic.bc.type = constant
+
 elastic.bc.constant.type.xhi = disp disp
 elastic.bc.constant.type.xlo = disp disp
 elastic.bc.constant.type.ylo = disp disp

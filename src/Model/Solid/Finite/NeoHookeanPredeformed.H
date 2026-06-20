@@ -14,29 +14,55 @@ namespace Finite
 class NeoHookeanPredeformed : public NeoHookean
 {
 public:
-    NeoHookeanPredeformed() = default;
-    NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
-    ~NeoHookeanPredeformed() = default;
+    AMREX_GPU_HOST_DEVICE NeoHookeanPredeformed() = default;
+    AMREX_GPU_HOST_DEVICE NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
+    AMREX_GPU_HOST_DEVICE ~NeoHookeanPredeformed() = default;
 
-    Set::Scalar W(const Set::Matrix& F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Scalar W(const Set::Matrix& F) const
     {
-        return NeoHookean::W(F * F0.inverse());
+        return NeoHookean::W(RelativeF(F));
     }
-    Set::Matrix DW(const Set::Matrix& F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix DW(const Set::Matrix& F) const
     {
-        return NeoHookean::DW(F * F0.inverse());
+        return NeoHookean::DW(RelativeF(F));
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const
     {
-        return NeoHookean::DDW(F * F0.inverse());
+        return NeoHookean::DDW(RelativeF(F));
     }
-    void Print(std::ostream& out) const 
+    AMREX_GPU_HOST_DEVICE
+    void Print(std::ostream& out) const
     {
-        out << "mu = " << mu << " kappa = " << kappa << " F0 = " << F0;
+        AMREX_IF_ON_HOST( out << "mu = " << mu << " kappa = " << kappa << " F0 = " << F0; )
     }
 
 public:
     Set::Matrix F0 = Set::Matrix::Identity();
+
+private:
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix RelativeF(const Set::Matrix& F) const
+    {
+#if AMREX_SPACEDIM==2
+        const Set::Scalar det = F0(0, 0) * F0(1, 1) - F0(0, 1) * F0(1, 0);
+        Set::Matrix F0inv;
+        F0inv(0, 0) =  F0(1, 1) / det;
+        F0inv(0, 1) = -F0(0, 1) / det;
+        F0inv(1, 0) = -F0(1, 0) / det;
+        F0inv(1, 1) =  F0(0, 0) / det;
+
+        Set::Matrix ret;
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j)
+                ret(i, j) = F(i, 0) * F0inv(0, j) + F(i, 1) * F0inv(1, j);
+        return ret;
+#elif AMREX_SPACEDIM==3
+        return F * F0.inverse();
+#endif
+    }
 
 public:
     static NeoHookeanPredeformed Zero()

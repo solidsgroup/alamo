@@ -29,7 +29,34 @@ Account `brunnels`, partition `nova`, email pre-filled. If GitHub SSH isn't set
 up on NOVA, set `REPO_URL=https://github.com/solidsgroup/alamo.git`. Module names
 (`cuda`/`gcc`/`openmpi`) may need tweaking to match `module avail`.
 
-## 1. Build (manual / non-NOVA)
+## 1. Local workstation build
+
+For quick testing on the local NVIDIA GPU, build a binary for the detected
+compute capability. On this workstation that is currently `sm_86`, so the helper
+produces `bin/alamo_gpu-2d-cuda86-g++` instead of the NOVA-only `cuda80`/`cuda90`
+binaries:
+
+```bash
+benchmark/build_alamo_local_gpu.sh          # detects local arch and smoke-tests
+PROFILE=1 benchmark/build_alamo_local_gpu.sh # profiler-enabled local build
+SMOKE=0 benchmark/build_alamo_local_gpu.sh   # build only
+```
+
+Equivalent manual form:
+
+```bash
+./configure --comp=g++ --dim 2 --cuda local
+make -j$(nproc) bin/alamo_gpu
+```
+
+`--cuda`, `--cuda auto`, `--cuda local`, and `--cuda native` all auto-detect via
+`nvidia-smi`. You can still pin an architecture explicitly, e.g. `--cuda 86`.
+CUDA builds now embed PTX in addition to the native cubin; that helps smoke tests
+when a binary is run on a newer compatible GPU, but benchmark numbers should use
+a binary built for the exact target (`sm_80` for A100, `sm_90` for H200, `sm_86`
+for the local RTX A1000).
+
+## 2. Build (manual / non-NOVA)
 
 CPU (baseline, with profiling):
 
@@ -41,20 +68,21 @@ make
 
 GPU (CUDA, with profiling). Requires the **CUDA toolkit** (`nvcc`) and an
 NVIDIA GPU; `--cuda` auto-detects the local compute capability via `nvidia-smi`.
+For local workstation testing prefer the helper above.
 CUDA builds only compile `alamo_gpu.cc` (the Flame-only entry point) and its
 actual dependency closure -- the other integrators (AllenCahn, CahnHilliard,
 Dendrite, ...) pulled in by the general-purpose `alamo.cc` launcher aren't
 needed for chamber/Flame runs and were never made nvcc-clean:
 
 ```bash
-./configure --cuda --profile          # or --cuda 86 to pin sm_86
+./configure --cuda local --profile    # or --cuda 86 to pin sm_86
 make
 # -> bin/alamo_gpu-2d-cuda86-<comp>
 ```
 
 Both binaries coexist (the POSTFIX differs).
 
-## 2. Run with async IO + profiling
+## 3. Run with async IO + profiling
 
 Append `benchmark/async_profile.inputs` to your chamber input, or pass the
 params on the command line. Async output (`amrex.async_out=1`) hands plotfile
@@ -68,10 +96,10 @@ mpiexec -np 1 ./bin/alamo_gpu-2d-cuda86-g++ input \
     amrex.async_out=1 tiny_profiler.device_synchronize_around_region=1
 ```
 
-## 3. Benchmark CPU vs GPU
+## 4. Benchmark CPU vs GPU
 
 ```bash
-benchmark/benchmark_gpu_cpu.sh input 50      # 50 steps on each available binary
+benchmark/benchmark_gpu_cpu.sh input 50      # prefers a CUDA binary matching this GPU
 ```
 
 This runs the same input on the CPU and CUDA binaries, captures the AMReX
@@ -144,6 +172,7 @@ Done and CPU-verified on branch `chamber-gpu`:
   links on CPU and the center-bore run is **bit-for-bit identical** to before the
   port.
 
-**Only remaining step:** final `nvcc` compile + on-GPU runtime validation on a
-CUDA-toolkit machine (NOVA). The dev box used here has the driver `libcuda.so`
-but no `nvcc`, so the `--cuda` build could not be compiled/run locally.
+Local testing now has a separate helper (`benchmark/build_alamo_local_gpu.sh`)
+that builds for the workstation GPU architecture. Production benchmark binaries
+for the compute cluster should still be built natively for A100/H200 with
+`benchmark/build_alamo_nova.sh`.

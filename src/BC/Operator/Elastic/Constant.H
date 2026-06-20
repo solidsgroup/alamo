@@ -23,6 +23,20 @@
 #include "Numeric/Interpolator/Linear.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
+#ifdef ALAMO_GPU
+#define ALAMO_ELASTIC_BC_FOR amrex::ParallelFor
+#define ALAMO_ELASTIC_BC_DEVICE AMREX_GPU_DEVICE
+#define ALAMO_ELASTIC_BC_TYPE(face, dir) bc_type[face][dir]
+#define ALAMO_ELASTIC_BC_VAL(face, dir) bc_val[face][dir]
+#define ALAMO_ELASTIC_BC_PERIODIC(dir) periodic[dir]
+#else
+#define ALAMO_ELASTIC_BC_FOR amrex::LoopConcurrentOnCpu
+#define ALAMO_ELASTIC_BC_DEVICE
+#define ALAMO_ELASTIC_BC_TYPE(face, dir) m_bc_type[face][dir]
+#define ALAMO_ELASTIC_BC_VAL(face, dir) m_bc_val[face][dir](m_time)
+#define ALAMO_ELASTIC_BC_PERIODIC(dir) a_geom.isPeriodic(dir)
+#endif
+
 namespace BC
 {
 namespace Operator
@@ -106,12 +120,23 @@ public:
             amrex::Box domain(a_geom.growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+#ifdef ALAMO_GPU
+            amrex::GpuArray<amrex::GpuArray<Type, AMREX_SPACEDIM>, m_nfaces> bc_type;
+            amrex::GpuArray<amrex::GpuArray<Set::Scalar, AMREX_SPACEDIM>, m_nfaces> bc_val;
+            for (int face = 0; face < m_nfaces; ++face)
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                {
+                    bc_type[face][dir] = m_bc_type[face][dir];
+                    bc_val[face][dir] = m_bc_val[face][dir](m_time);
+                }
+            const amrex::GpuArray<int, AMREX_SPACEDIM> periodic = a_geom.isPeriodicArray();
+#endif
             for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
-                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
+                ALAMO_ELASTIC_BC_FOR(bx, [=] ALAMO_ELASTIC_BC_DEVICE (int i, int j, int k) noexcept {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
@@ -162,21 +187,21 @@ public:
 
                     #endif
 
-                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(0) && ALAMO_ELASTIC_BC_PERIODIC(1))
                     {
                         if (face == Face::XLO || face == Face::XHI ||
                             face == Face::YLO || face == Face::YHI) continue;
                     }
-                    if (a_geom.isPeriodic(0))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
                     }
-                    if (a_geom.isPeriodic(1))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(1))
                     {
                         if (face == Face::YLO || face==Face::YHI) continue;
                     }
                     #if AMREX_SPACEDIM == 3
-                    if (a_geom.isPeriodic(2))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(2))
                     {
                         if (face == Face::ZLO || face==Face::ZHI) continue;
                     }
@@ -184,10 +209,10 @@ public:
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && ALAMO_ELASTIC_BC_TYPE(face, dir) == Type::Displacement) 
                             rhs(i,j,k)(dir) = 0.0;
                         else 
-                            rhs(i,j,k)(dir) = m_bc_val[face][dir](m_time);
+                            rhs(i,j,k)(dir) = ALAMO_ELASTIC_BC_VAL(face, dir);
                     }
                 }
             });
@@ -203,13 +228,24 @@ public:
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+#ifdef ALAMO_GPU
+            amrex::GpuArray<amrex::GpuArray<Type, AMREX_SPACEDIM>, m_nfaces> bc_type;
+            amrex::GpuArray<amrex::GpuArray<Set::Scalar, AMREX_SPACEDIM>, m_nfaces> bc_val;
+            for (int face = 0; face < m_nfaces; ++face)
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                {
+                    bc_type[face][dir] = m_bc_type[face][dir];
+                    bc_val[face][dir] = m_bc_val[face][dir](m_time);
+                }
+            const amrex::GpuArray<int, AMREX_SPACEDIM> periodic = a_geom.isPeriodicArray();
+#endif
             for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
-                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
+                ALAMO_ELASTIC_BC_FOR(bx, [=] ALAMO_ELASTIC_BC_DEVICE (int i, int j, int k) noexcept {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
@@ -260,88 +296,40 @@ public:
 
                     #endif
                     
-                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(0) && ALAMO_ELASTIC_BC_PERIODIC(1))
                     {
                         if (face == Face::XLO || face == Face::XHI ||
                             face == Face::YLO || face == Face::YHI) continue;
                     }
-                    if (a_geom.isPeriodic(0))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
                     }
-                    if (a_geom.isPeriodic(1))
+                    if (ALAMO_ELASTIC_BC_PERIODIC(1))
                     {
                         if (face == Face::YLO || face==Face::YHI) continue;
                     }
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && ALAMO_ELASTIC_BC_TYPE(face, dir) == Type::Displacement) 
                             rhs(i,j,k,dir) = 0.0;
                         else 
-                            rhs(i,j,k,dir) = m_bc_val[face][dir](m_time);
+                            rhs(i,j,k,dir) = ALAMO_ELASTIC_BC_VAL(face, dir);
                     }
                 }
             });
         }                    
     }
 
-    virtual
+#ifndef ALAMO_GPU
     AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
-                const int &i, const int &j, [[maybe_unused]] const int &k,
+                const int &i, const int &j, const int &k,
                 const amrex::Box &domain) override
     {
-        amrex::IntVect m(AMREX_D_DECL(i,j,k));
-        const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
-
-        // Corners
-        #if AMREX_SPACEDIM == 2
-        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
-        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
-        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
-        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
-        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
-        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
-        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
-        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
-        
-        #elif AMREX_SPACEDIM == 3
-        
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XLO_YLO_ZLO];
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XLO_YLO_ZHI];
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XLO_YHI_ZLO];
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XLO_YHI_ZHI];
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XHI_YLO_ZLO];
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XHI_YLO_ZHI];
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XHI_YHI_ZLO];
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XHI_YHI_ZHI];
-        
-        if (m[1] == lo.y && m[2] == lo.z)                  return m_bc_type[Face::YLO_ZLO];
-        if (m[1] == lo.y && m[2] == hi.z)                  return m_bc_type[Face::YLO_ZHI];
-        if (m[1] == hi.y && m[2] == lo.z)                  return m_bc_type[Face::YHI_ZLO];
-        if (m[1] == hi.y && m[2] == hi.z)                  return m_bc_type[Face::YHI_ZHI];
-        if (m[2] == lo.z && m[0] == lo.x)                  return m_bc_type[Face::ZLO_XLO];
-        if (m[2] == lo.z && m[0] == hi.x)                  return m_bc_type[Face::ZLO_XHI];
-        if (m[2] == hi.z && m[0] == lo.x)                  return m_bc_type[Face::ZHI_XLO];
-        if (m[2] == hi.z && m[0] == hi.x)                  return m_bc_type[Face::ZHI_XHI];
-        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
-        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
-        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
-        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
-        
-        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
-        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
-        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
-        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
-        if (m[2] == lo.z)                                  return m_bc_type[Face::ZLO];
-        if (m[2] == hi.z)                                  return m_bc_type[Face::ZHI];
-        
-        #endif        
-
-        return {AMREX_D_DECL(Type::None,Type::None,Type::None)};
+        return Elastic::typeOf(m_bc_type, i, j, k, domain);
     }
-
 
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
@@ -351,92 +339,21 @@ public:
                 const int &i, const int &j, const int &k,
                 const amrex::Box &domain) override
     {
-        (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
-        //Set::Vector f;
-
-        const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-        
-        amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
-        // Corners
-        #if AMREX_SPACEDIM == 2
-        
-        if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV));
-        if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV));
-        if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV));
-        if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV));
-        
-        if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0));
-        if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0));
-        if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1));
-        if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1));
-        
-        #elif AMREX_SPACEDIM == 3
-        
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YLO_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,-SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YLO_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,+SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YHI_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,-SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YHI_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,+SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YLO_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,-SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YLO_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,+SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YHI_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,-SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YHI_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,+SQRT3INV));
-        
-        if (m[1] == lo.y && m[2] == lo.z)                  return set(m_bc_type[Face::YLO_ZLO],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,-SQRT2INV));
-        if (m[1] == lo.y && m[2] == hi.z)                  return set(m_bc_type[Face::YLO_ZHI],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,+SQRT2INV));
-        if (m[1] == hi.y && m[2] == lo.z)                  return set(m_bc_type[Face::YHI_ZLO],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,-SQRT2INV));
-        if (m[1] == hi.y && m[2] == hi.z)                  return set(m_bc_type[Face::YHI_ZHI],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,+SQRT2INV));
-        if (m[2] == lo.z && m[0] == lo.x)                  return set(m_bc_type[Face::ZLO_XLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       -SQRT2INV));
-        if (m[2] == lo.z && m[0] == hi.x)                  return set(m_bc_type[Face::ZLO_XHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       -SQRT2INV));
-        if (m[2] == hi.z && m[0] == lo.x)                  return set(m_bc_type[Face::ZHI_XLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       +SQRT2INV));
-        if (m[2] == hi.z && m[0] == hi.x)                  return set(m_bc_type[Face::ZHI_XHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       +SQRT2INV));
-        if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV,0       ));
-        if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV,0       ));
-        if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV,0       ));
-        if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV,0       ));
-        
-        if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0, 0));
-        if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0, 0));
-        if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1, 0));
-        if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1, 0));
-        if (m[2] == lo.z)                                  return set(m_bc_type[Face::ZLO],         u, gradu, sigma, Set::Vector( 0, 0,-1));
-        if (m[2] == hi.z)                                  return set(m_bc_type[Face::ZHI],         u, gradu, sigma, Set::Vector( 0, 0,+1));
-        
-        #endif
-        
-        Util::Abort(INFO,"Boundary condition error");
-        return Set::Vector::Zero();
+        return Elastic::eval(m_bc_type, u, gradu, sigma, i, j, k, domain);
     }
 
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
+    Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type,
                     const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
     {
-        Set::Vector f = Set::Vector::Zero();
-        for (int i = 0; i < AMREX_SPACEDIM; i++)
-        {
-            if      (bc_type[i] == Type::Displacement) 
-                f(i) = u(i);
-            else if (bc_type[i] == Type::Traction)
-                f(i) = (sigma*n)(i);
-            else if (bc_type[i] == Type::Neumann)
-                f(i) = (gradu*n)(i);
-            else
-                continue;
-        }
-        return f;
+        return Elastic::set(bc_type, u, gradu, sigma, n);
     }
+#endif
+
 
 protected:
     
-    #if AMREX_SPACEDIM==2
-    static const int m_nfaces = 8;
-    #elif AMREX_SPACEDIM==3
-    static const int m_nfaces = 26;
-    #endif
-
-    std::array<std::array<Type,                                      AMREX_SPACEDIM>, m_nfaces> m_bc_type; 
     std::array<std::array<Numeric::Interpolator::Linear<Set::Scalar>,AMREX_SPACEDIM>, m_nfaces> m_bc_val; 
 
 public:

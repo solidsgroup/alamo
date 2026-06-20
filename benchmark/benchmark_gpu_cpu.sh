@@ -30,9 +30,19 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="benchmark/results_${STAMP}"
 mkdir -p "$OUT"
 
-# Locate the most recent CPU and CUDA alamo binaries.
+# Locate the most recent CPU binary and prefer a CUDA binary matching this GPU.
 CPU_BIN="$(ls -t bin/alamo-2d-*-* 2>/dev/null | grep -v cuda | head -1)"
-GPU_BIN="$(ls -t bin/alamo_gpu-2d-cuda* 2>/dev/null | head -1)"
+LOCAL_ARCH="${CUDA_ARCH:-}"
+if [ -z "${LOCAL_ARCH}" ] && command -v nvidia-smi >/dev/null 2>&1; then
+  LOCAL_ARCH="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d '. ' || true)"
+fi
+GPU_BIN=""
+if [ -n "${LOCAL_ARCH}" ]; then
+  GPU_BIN="$(ls -t bin/alamo_gpu-2d*cuda${LOCAL_ARCH}* 2>/dev/null | head -1 || true)"
+fi
+if [ -z "${GPU_BIN}" ]; then
+  GPU_BIN="$(ls -t bin/alamo_gpu-2d*cuda* 2>/dev/null | head -1 || true)"
+fi
 
 NP="${NP:-1}"
 RUN="mpiexec -np ${NP}"
@@ -43,6 +53,9 @@ echo "=== Flame CPU/GPU benchmark ==="
 echo "input=${INPUT}  max_step=${MAXSTEP}  results=${OUT}"
 echo "CPU binary: ${CPU_BIN:-<none>}"
 echo "GPU binary: ${GPU_BIN:-<none>}"
+if [ -n "${LOCAL_ARCH}" ]; then
+  echo "local CUDA arch: sm_${LOCAL_ARCH}"
+fi
 
 run_one () {  # $1=label  $2=binary  $3=extra-launch-prefix
   local label="$1" bin="$2" pre="${3:-}"

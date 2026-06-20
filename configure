@@ -114,6 +114,9 @@ def normalize_cuda_arch(cuda_arch):
         raise Exception(error(f"CUDA architecture must be numeric, e.g. 75 or 80, but got {cuda_arch!r}"))
     return cuda_arch
 
+def cuda_arch_is_auto(cuda_arch):
+    return str(cuda_arch).strip().lower() in ("auto", "local", "native")
+
 def detect_cuda_arch(required=True):
     """Detect the local NVIDIA GPU compute capability for CUDA builds."""
     nvidia_smi = shutil.which("nvidia-smi")
@@ -210,7 +213,7 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
-parser.add_argument('--cuda',dest='cuda',const='auto',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture. If no architecture is given, auto-detect the local NVIDIA GPU compute capability.")
+parser.add_argument('--cuda',dest='cuda',const='auto',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture. If no architecture is given, auto-detect the local NVIDIA GPU compute capability. Use --cuda local or --cuda native as explicit aliases for auto-detection.")
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
@@ -223,7 +226,7 @@ parser.set_defaults(**defaults)
 args=parser.parse_args()
 
 if args.cuda:
-    if args.cuda is True or str(args.cuda).strip().lower() == "auto":
+    if args.cuda is True or cuda_arch_is_auto(args.cuda):
         args.cuda = detect_cuda_arch()
         message("CUDA Architecture", f"auto-detected sm_{args.cuda}")
     else:
@@ -237,6 +240,43 @@ if args.cuda:
                 "Local CUDA runs may fail; use --cuda or --cuda "
                 f"{detected_cuda_arch} for this machine."
             )
+
+CUDA_HOME = None
+CUDA_INCLUDE = None
+CUDA_LIBDIRS = []
+CUDA_STUBDIRS = []
+if args.cuda:
+    CUDA_HOME = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH")
+    nvcc_path = shutil.which("nvcc")
+    if not CUDA_HOME and nvcc_path:
+        CUDA_HOME = str(Path(nvcc_path).resolve().parents[1])
+    if CUDA_HOME:
+        cuda_home_path = Path(CUDA_HOME)
+        include_candidates = [
+            cuda_home_path / "include",
+            cuda_home_path / "lib" / "cuda" / "include",
+        ]
+        CUDA_INCLUDE = next((str(path) for path in include_candidates if path.is_dir()), None)
+        CUDA_LIBDIRS = [
+            str(path) for path in (
+                cuda_home_path / "lib64",
+                cuda_home_path / "lib",
+                cuda_home_path / "lib" / "cuda" / "lib64",
+                cuda_home_path / "lib" / "x86_64-linux-gnu",
+            ) if path.is_dir()
+        ]
+        CUDA_STUBDIRS = [
+            str(path) for path in (
+                cuda_home_path / "lib64" / "stubs",
+                cuda_home_path / "lib" / "stubs",
+            ) if path.is_dir()
+        ]
+    if CUDA_HOME:
+        message("CUDA Home", CUDA_HOME)
+    if CUDA_INCLUDE:
+        message("CUDA Include", CUDA_INCLUDE)
+    if CUDA_LIBDIRS:
+        message("CUDA Libdirs", ":".join(CUDA_LIBDIRS))
 
 # Accept a path or a versioned name (e.g. /spack/.../bin/g++-15) as --comp by
 # normalizing to the bare compiler name for type checks. Invocations still
@@ -655,17 +695,20 @@ if mpidist == "openmpi":
 
         
         if args.debug:
-            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O0 --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O0 --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=[sm_{args.cuda},compute_{args.cuda}] -DALAMO_GPU"
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
             ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         else:
-            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=[sm_{args.cuda},compute_{args.cuda}] -DALAMO_GPU"
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
             ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         f.write(f"CXX_COMPILE_FLAGS = \n")
-        f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} -lcuda -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
+        cuda_runtime_dirs = " ".join(f"-L{path} -Wl,-rpath,{path}" for path in CUDA_LIBDIRS)
+        cuda_stub_dirs = " ".join(f"-L{path}" for path in CUDA_STUBDIRS)
+        cuda_link_dirs = " ".join(part for part in (cuda_runtime_dirs, cuda_stub_dirs) if part)
+        f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} {cuda_link_dirs} -lcuda -lcudart -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
         f.write(f"CC = {ompicc} \n")
         f.write(f"COMP_CMD = {ompicc} -c\n")
         f.write(f"LINK_CMD = {ompilink} \n")

@@ -39,8 +39,13 @@ public:
     ~TensionTest() {};
 
     using Constant::Init;
+#ifdef ALAMO_GPU
+    using Elastic::operator();
+    using Elastic::set;
+#else
     using Constant::operator();
     using Constant::set;
+#endif
 
     enum LoadingMode {TRAC,DISP};
 

@@ -37,22 +37,34 @@ template<Set::Sym SYM>
 class Solid
 {
 public:
-    Solid() = default;
-
-    ~Solid() = default;
+    // De-virtualized for GPU: models are dispatched statically through the
+    // concrete type held by Set::Field<T>, so the hierarchy carries no vtable
+    // and the objects are trivially device-copyable. Concrete models shadow
+    // W/DW/DDW/Print below.
+    AMREX_GPU_HOST_DEVICE Solid() = default;
+    AMREX_GPU_HOST_DEVICE Solid(const Solid & base) = default;
+    AMREX_GPU_HOST_DEVICE ~Solid() = default;
 
     static constexpr Set::Sym sym = SYM;
 
-    Set::Scalar W(const Set::Matrix &) const      
+    AMREX_GPU_HOST_DEVICE Set::Scalar W(const Set::Matrix &) const
     {Util::Abort(INFO,"W not implemented"); return 0.0;};
-    Set::Matrix DW(const Set::Matrix &) const         
-    {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
-    {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
-    
+    AMREX_GPU_HOST_DEVICE Set::Matrix DW(const Set::Matrix &) const
+    {
+        Util::Abort(INFO, "DW not implemented");
+        return Set::Matrix::Zero();
+    };
+    AMREX_GPU_HOST_DEVICE Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const
+    {
+        Util::Abort(INFO, "DDW not implemented");
+        return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();
+    };
+
+    AMREX_GPU_HOST_DEVICE
     void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
-    // Todo: implement for all models and make this pure virtual
+    // Todo: implement for all models
+    AMREX_GPU_HOST_DEVICE
     bool ContainsNan() {return true;};
 
 
@@ -65,9 +77,10 @@ public:
         a.Print(out);
         return out;
     }
+    AMREX_GPU_HOST_DEVICE
     void Print(std::ostream &out) const
     {
-        out << "No print function written for this model.";
+        AMREX_IF_ON_HOST( out << "No print function written for this model.";)
     }
 
 public: 

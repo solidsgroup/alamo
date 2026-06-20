@@ -14,21 +14,26 @@ namespace Finite
 class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
-    NeoHookean() = default;
-    NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    ~NeoHookean() = default;
+    AMREX_GPU_HOST_DEVICE NeoHookean() {};
+    AMREX_GPU_HOST_DEVICE NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    AMREX_GPU_HOST_DEVICE ~NeoHookean() = default;
 
-    Set::Scalar W(const Set::Matrix& a_F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Scalar W(const Set::Matrix& a_F) const
     {
 #if AMREX_SPACEDIM==2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
+        const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
+        const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
+        const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
+                             + a_F(0, 1) * a_F(0, 1)
+                             + a_F(1, 0) * a_F(1, 0)
+                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+        Set::Scalar w = 0.0;
+        w += 0.5 * mu * (tr / J23 - 3.);
+        w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
+        return w;
 #elif AMREX_SPACEDIM==3
         Eigen::Matrix3d F = a_F;
-#endif
 
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
@@ -36,18 +41,34 @@ public:
         w += 0.5 * mu * ((F * F.transpose()).trace() / J23 - 3.);
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
+#endif
     }
-    Set::Matrix DW(const Set::Matrix& a_F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix DW(const Set::Matrix& a_F) const
     {
 #if AMREX_SPACEDIM==2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
+        const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
+        const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
+        const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
+                             + a_F(0, 1) * a_F(0, 1)
+                             + a_F(1, 0) * a_F(1, 0)
+                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+        Set::Matrix FinvT;
+        FinvT(0, 0) =  a_F(1, 1) / J;
+        FinvT(0, 1) = -a_F(1, 0) / J;
+        FinvT(1, 0) = -a_F(0, 1) / J;
+        FinvT(1, 1) =  a_F(0, 0) / J;
+
+        Set::Matrix r_dw;
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j)
+            {
+                r_dw(i, j) = mu * (a_F(i, j) / J23 - tr * FinvT(i, j) / (3. * J23))
+                           + kappa * (J - 1) * J * FinvT(i, j);
+            }
+        return r_dw;
 #elif AMREX_SPACEDIM==3
         Eigen::Matrix3d F = a_F;
-#endif
 
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
@@ -58,28 +79,47 @@ public:
         dw += mu * (F / J23 - (F * F.transpose()).trace() * FinvT / (3. * J23));
         dw += kappa * (J - 1) * J * FinvT;
 
-#if AMREX_SPACEDIM==2
-        Set::Matrix r_dw;
-        r_dw(0, 0) = dw(0, 0);
-        r_dw(0, 1) = dw(0, 1);
-        r_dw(1, 0) = dw(1, 0);
-        r_dw(1, 1) = dw(1, 1);
-        return r_dw;
-#elif AMREX_SPACEDIM==3
         return dw;
 #endif
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const 
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const
     {
 #if AMREX_SPACEDIM==2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
+        const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
+        const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
+        const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
+                             + a_F(0, 1) * a_F(0, 1)
+                             + a_F(1, 0) * a_F(1, 0)
+                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+        Set::Matrix FinvT;
+        FinvT(0, 0) =  a_F(1, 1) / J;
+        FinvT(0, 1) = -a_F(1, 0) / J;
+        FinvT(1, 0) = -a_F(0, 1) / J;
+        FinvT(1, 1) =  a_F(0, 0) / J;
+
+        Set::Matrix4<2, Set::Sym::Major> r_ddw;
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
+                for (int k = 0; k < 2; k++)
+                    for (int l = 0; l < 2; l++)
+                    {
+                        Set::Scalar t1 = 0.0, t2 = 0.0;
+
+                        if (i == k && j == l) t1 += 1.0;
+                        t1 -= (2. / 3.) * a_F(i, j) * FinvT(k, l);
+                        t1 -= (2. / 3.) * FinvT(i, j) * a_F(k, l);
+                        t1 += (2. / 9.) * tr * FinvT(i, j) * FinvT(k, l);
+                        t1 += (1. / 3.) * tr * FinvT(i, l) * FinvT(k, j);
+
+                        t2 += (2. * J - 1.) * FinvT(i, j) * FinvT(k, l);
+                        t2 += (1. - J) * FinvT(i, l) * FinvT(k, j);
+
+                        r_ddw(i, j, k, l) = (mu / J23) * t1 + kappa * J * t2;
+                    }
+        return r_ddw;
 #elif AMREX_SPACEDIM==3
         Eigen::Matrix3d F = a_F;
-#endif
 
         Set::Matrix4<3, Set::Sym::Major> ddw;
         Set::Scalar J = F.determinant();
@@ -105,21 +145,13 @@ public:
 
                         ddw(i, j, k, l) = (mu / J23) * t1 + kappa * J * t2;
                     }
-#if AMREX_SPACEDIM==2
-        Set::Matrix4<2, Set::Sym::Major> r_ddw;
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    for (int l = 0; l < 2; l++)
-                        r_ddw(i, j, k, l) = ddw(i, j, k, l);
-        return r_ddw;
-#elif AMREX_SPACEDIM==3
         return ddw;
 #endif
     }
-    void Print(std::ostream& out) const 
+    AMREX_GPU_HOST_DEVICE
+    void Print(std::ostream& out) const
     {
-        out << "mu = " << mu << " kappa = " << kappa;
+        AMREX_IF_ON_HOST(out << "mu = " << mu << " kappa = " << kappa;)
     }
 
 public:
@@ -154,11 +186,8 @@ public:
         // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
         // bulk modulus \(K\).
         // You can currently specify (mu and kappa), (lambda and mu), or (E and nu).
-        // Units are pressure for the stiffness moduli (lambda, mu, E, kappa) and
-        // dimensionless for Poisson's ratio (nu). Bare (unit-less) numbers are still
-        // accepted and pass through unchanged.
-        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli,
-                            {Unit::Pressure(), Unit::Pressure(), Unit::Pressure(), Unit::Less(), Unit::Pressure()});
+        // std::vector{Unit::Pressure, Unit::Pressure, Unit::Pressure, Unit::Less, Unit::Pressure};
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli, std::vector<Unit>{Unit::Pressure(), Unit::Pressure(), Unit::Pressure(), Unit::Less(), Unit::Pressure()});
 
 
         if (moduli[0].first == "mu" && moduli[1].first == "kappa")

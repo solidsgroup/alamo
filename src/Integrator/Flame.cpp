@@ -498,7 +498,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {
                     // Elasticity disabled: build the propellant model with no eigenstrain.
                     model_type model_prop = elastic.model_prop;
-                    model_prop.F0 *= Set::Matrix::Zero();
+                    for (int ii = 0; ii < AMREX_SPACEDIM; ++ii)
+                    {
+                        for (int jj = 0; jj < AMREX_SPACEDIM; ++jj)
+                        {
+                            model_prop.F0(ii, jj) = 0.0;
+                        }
+                    }
                     model(i, j, k) = model_prop;
                 });
             }
