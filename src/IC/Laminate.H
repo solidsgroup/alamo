@@ -27,6 +27,8 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::Laminate");
+
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();

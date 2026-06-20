@@ -56,6 +56,8 @@ public:
 
     virtual void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar) override
     {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::Trig scalar");
+
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
         const Set::Scalar AMREX_D_DECL(L1 = IC<Set::Scalar>::geom[lev].ProbHi()[0] - IC<Set::Scalar>::geom[lev].ProbLo()[0],
@@ -110,6 +112,8 @@ public:
     }
     virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar) override
     {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::Trig vector");
+
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
         const Set::Scalar AMREX_D_DECL(L1 = IC<Set::Vector>::geom[lev].ProbHi()[0] - IC<Set::Vector>::geom[lev].ProbLo()[0],

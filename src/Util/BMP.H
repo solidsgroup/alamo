@@ -46,9 +46,9 @@ public:
                     m_min[1] = std::min(m_min[1], data_host[i/3 + nx*j][1]);
                     m_min[2] = std::min(m_min[2], data_host[i/3 + nx*j][2]);
 
-                    m_max[0] = std::min(m_max[0], data_host[i/3 + nx*j][0]);
-                    m_max[1] = std::min(m_max[1], data_host[i/3 + nx*j][1]);
-                    m_max[2] = std::min(m_max[2], data_host[i/3 + nx*j][2]);
+                    m_max[0] = std::max(m_max[0], data_host[i/3 + nx*j][0]);
+                    m_max[1] = std::max(m_max[1], data_host[i/3 + nx*j][1]);
+                    m_max[2] = std::max(m_max[2], data_host[i/3 + nx*j][2]);
                 }
             }
             fclose(f);

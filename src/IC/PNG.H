@@ -49,6 +49,7 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::PNG");
 
 #ifndef ALAMO_NOPNG
         Set::Vector DX(geom[lev].CellSize());

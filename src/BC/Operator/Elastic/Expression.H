@@ -59,6 +59,8 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
+            ALAMO_GPU_UNSUPPORTED_HOST_LOOP("BC::Operator::Elastic::Expression vector");
+
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -147,6 +149,8 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
+            ALAMO_GPU_UNSUPPORTED_HOST_LOOP("BC::Operator::Elastic::Expression scalar");
+
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);

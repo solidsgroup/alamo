@@ -36,9 +36,8 @@ public:
     }
 
     // NOTE: device-callable evaluators below must remain free of host-only
-    // helpers (Util::Message/Util::Abort, Unit::*). NaN diagnostics that lived
-    // here previously were removed so this code can run inside GPU kernels;
-    // detect NaNs via a post-kernel reduction on the host instead.
+    // helpers (Util::Message/Util::Abort, Unit::*). Callers should flag
+    // non-finite outputs and abort after the kernel on the host.
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) const    {
         Set::Scalar qflux = k4 * phi;
@@ -155,5 +154,4 @@ public:
 
 
 #endif
-
 

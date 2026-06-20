@@ -43,6 +43,8 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::PSRead");
+
         Set::Vector size = Set::Size(geom[lev]);
         int ncomp = a_phi[lev]->nComp();
 

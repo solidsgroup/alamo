@@ -80,6 +80,14 @@ make
 # -> bin/alamo_gpu-2d-cuda86-<comp>
 ```
 
+For correctness gates, build a no-fast-math CUDA binary:
+
+```bash
+./configure --comp=g++ --dim 2 --cuda local --cuda-fp strict
+make
+# -> bin/alamo_gpu-2d-nofast-cuda86-g++
+```
+
 Both binaries coexist (the POSTFIX differs).
 
 ## 3. Run with async IO + profiling
@@ -132,9 +140,70 @@ goes (compute / IO / solver / regrid). The driver script also records total
 wall-clock per run in `summary.txt`. For finer GPU/RAM/IO attribution use the
 `nsys` trace (kernel time, memcpy/HtoD-DtoH stalls, CPU gaps).
 
+## Correctness gate
+
+Before optimizing, compare CPU and GPU scalar diagnostics from the same short
+Flame run:
+
+```bash
+benchmark/golden_compare_flame.sh input 1
+```
+
+The harness writes isolated CPU/GPU plot directories under
+`benchmark/golden_<stamp>/` and compares `thermo.dat` with
+`benchmark/compare_thermo.py`. Override binaries or tolerances with:
+
+```bash
+CPU_BIN=bin/alamo-2d-clang++ \
+GPU_BIN=bin/alamo_gpu-2d-nofast-cuda86-g++ \
+ABS_TOL=1e-8 REL_TOL=1e-6 \
+benchmark/golden_compare_flame.sh input 1
+```
+
+Guarded CUDA-unsupported IC/BC paths should fail before entering host-loop
+writes:
+
+```bash
+GPU_BIN=bin/alamo_gpu-2d-nofast-cuda86-g++ benchmark/test_gpu_guarded_ic.sh input
+```
+
+For a standardized multi-case baseline suite, record current CPU/GPU references
+and later check future changes against them:
+
+```bash
+python3 benchmark/baseline_suite.py list
+python3 benchmark/baseline_suite.py record
+python3 benchmark/baseline_suite.py check
+python3 benchmark/baseline_suite.py report
+```
+
+References are small JSON summaries under `benchmark/baseline_references/`;
+full run logs and plot directories go under `benchmark/baseline_runs/`.
+Set `CPU_NP`, `GPU_FAST_NP`, and `GPU_STRICT_NP` to record fair per-profile
+MPI sizes. The local G0 baseline uses:
+
+```bash
+CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py record
+CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py check
+CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py report
+```
+
+The G0 baseline of record is summarized in `benchmark/G0_BASELINE_OF_RECORD.md`.
+For the required Nsight Compute occupancy/register capture, use:
+
+```bash
+benchmark/g0_ncu_capture.sh
+```
+
+This requires NVIDIA performance counter access. If `ncu` reports
+`ERR_NVGPUCTRPERM`, enable counter access on the host or run the capture on a
+permitted NOVA node.
+
 ## Optimization knobs (making the GPU win big)
 
-- **Never build with `--debug`.** `--use_fast_math` (fast `exp`/`tanh`/`pow`
+- **Use `--cuda-fp strict` for correctness gates.** This omits `--use_fast_math`
+  and adds `--fmad=false`, producing a separate `nofast` binary.
+- **Never build performance runs with `--debug`.** `--use_fast_math` (fast `exp`/`tanh`/`pow`
   intrinsics — a large win for the Arrhenius mobility and heat-flux kernels)
   lives only in the non-debug nvcc path, alongside `--ptxas-options=-O3`,
   `-O3 -finline-limit`, and `-maxrregcount=255`. `nova_flame_gpu.slurm` builds

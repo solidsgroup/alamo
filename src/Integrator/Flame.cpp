@@ -653,6 +653,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
+        Util::DeviceErrorFlag advance_error;
+        int* advance_error_flag = advance_error.dataPtr();
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -673,8 +675,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
             L_out(i, j, k) = L;
-            // (device kernel) per-cell NaN aborts removed for GPU portability;
-            // NaN propagation is surfaced by the max/min monitoring in TimeStepComplete.
+            if (std::isnan(K) || std::isinf(K) ||
+                std::isnan(rho) || std::isinf(rho) ||
+                std::isnan(cp) || std::isinf(cp) ||
+                std::isnan(L) || std::isinf(L))
+            {
+                Util::SetDeviceError(advance_error_flag);
+            }
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -695,6 +702,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+            if (std::isnan(etanew(i, j, k)) || std::isinf(etanew(i, j, k)))
+            {
+                Util::SetDeviceError(advance_error_flag);
+            }
 
             if (thermal_on)
             {
@@ -703,12 +714,20 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
 
                 alpha(i, j, k) = K / rho / cp; 
+                if (std::isnan(alpha(i, j, k)) || std::isinf(alpha(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
 
                 //
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
                 //
             
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
+                if (std::isnan(mdot(i, j, k)) || std::isinf(mdot(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
 
         
 
@@ -718,6 +737,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal_hc*q0 + laser(i,j,k) ) / K;
+                if (std::isnan(q0) || std::isinf(q0) ||
+                    std::isnan(heatflux(i, j, k)) || std::isinf(heatflux(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
 
                 if (temp(i,j,k) > Tcutoff)
                 {
@@ -727,6 +751,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
 
         });
+        Util::AbortIfDeviceError(advance_error, INFO,
+            "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
 
     } // MFi For loop 
 
@@ -755,6 +781,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // Diagnostic fields
             Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
+            Util::DeviceErrorFlag thermal_error;
+            int* thermal_error_flag = thermal_error.dataPtr();
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
@@ -772,8 +801,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 temps(i, j, k) = temps(i, j, k) + dt * Tsolid;
                 tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal_Tfluid;
+                if (std::isnan(dTdt) || std::isinf(dTdt) ||
+                    std::isnan(temps(i, j, k)) || std::isinf(temps(i, j, k)) ||
+                    std::isnan(tempnew(i, j, k)) || std::isinf(tempnew(i, j, k)))
+                {
+                    Util::SetDeviceError(thermal_error_flag);
+                }
 
             });
+            Util::AbortIfDeviceError(thermal_error, INFO,
+                "non-finite value detected in Flame::Advance thermal kernel at lev=", lev);
         }
     }
  
@@ -799,82 +836,74 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar thermal_phi_ref_initial      = thermal.phi_refinement_criterion_inital;
     const Set::Scalar thermal_end_initial_refine_t = thermal.end_initial_refine_time;
 
-    // Eta criterion for refinement
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<char> const& tags = a_tags.array(mfi);
-        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+    const bool thermal_on = thermal.on;
+    const bool phi_refinement_on = elastic.phirefinement;
 
-        if (thermal.on) {
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal_Tcutoff*0.9)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
-
-        } else {
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
-        }
-    }
-
-    // Phi criterion for refinement 
-    if (elastic.phirefinement) {
-        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.tilebox();
-            amrex::Array4<char> const& tags = a_tags.array(mfi);
-            Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-                if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
-                    tags(i, j, k) = amrex::TagBox::SET;
-            });
-        }
-    }
-
-
-    // Thermal criterion for refinement 
-    if (thermal.on) {
+    if (thermal_on) {
         for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
-            Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> phi  = phi_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
+                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
+
+                bool tag = false;
+                tag = tag ||
+                    (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
+                     eta(i, j, k) >= t_refinement_restriction &&
+                     temp(i, j, k) > thermal_Tcutoff * 0.9);
+                tag = tag ||
+                    (phi_refinement_on &&
+                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                tag = tag ||
+                    (tempgrad.lpNorm<2>() * dr > t_refinement_criterion &&
+                     eta(i, j, k) >= t_refinement_restriction);
+                tag = tag ||
+                    ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
+                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
+                     time < thermal_end_initial_refine_t);
+
+                if (tag)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
     }
-
-        // Refine at start
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<char> const& tags = a_tags.array(mfi);
-        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    else {
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
-            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) && time < thermal_end_initial_refine_t)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
+
+                bool tag = false;
+                tag = tag ||
+                    (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
+                     eta(i, j, k) >= t_refinement_restriction);
+                tag = tag ||
+                    (phi_refinement_on &&
+                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                tag = tag ||
+                    ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
+                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
+                     time < thermal_end_initial_refine_t);
+
+                if (tag)
+                    tags(i, j, k) = amrex::TagBox::SET;
+            });
+        }
     }
 }
 
@@ -966,4 +995,3 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-

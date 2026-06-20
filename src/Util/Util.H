@@ -15,6 +15,8 @@
 #include "Util/String.H"
 
 #include "AMReX.H"
+#include <AMReX_GpuAtomic.H>
+#include <AMReX_GpuMemory.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_iMultiFab.H>
@@ -23,6 +25,15 @@
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
 #define TEST(x) #x, x
+
+#ifdef ALAMO_GPU
+#define ALAMO_GPU_UNSUPPORTED_HOST_LOOP(name) \
+    do { \
+        Util::Abort(INFO, name, " is not supported in CUDA builds because it writes device-arena fabs from a host LoopConcurrentOnCpu path."); \
+    } while (false)
+#else
+#define ALAMO_GPU_UNSUPPORTED_HOST_LOOP(name) do {} while (false)
+#endif
 
 
 #ifndef ALAMO_SINGLE_DEFINITION
@@ -53,6 +64,26 @@ void Terminate(const char * msg, int signal, bool backtrace);
 
 AMREX_GPU_HOST_DEVICE
 void Abort (const char * msg);
+
+class DeviceErrorFlag
+{
+public:
+    DeviceErrorFlag() : m_flag(0) {}
+
+    [[nodiscard]] int* dataPtr() { return m_flag.dataPtr(); }
+    [[nodiscard]] int value() const { return m_flag.dataValue(); }
+
+private:
+    amrex::Gpu::DeviceScalar<int> m_flag;
+};
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void SetDeviceError(int* flag)
+{
+    if (flag == nullptr) return;
+    AMREX_IF_ON_DEVICE((amrex::Gpu::Atomic::AddNoRet(flag, 1);))
+    AMREX_IF_ON_HOST((*flag = 1;))
+}
 
 template<typename... Args>
 AMREX_GPU_HOST_DEVICE
@@ -109,8 +140,14 @@ void Abort (const char * file, const char * func, int line, Args const &... args
     }
     Abort("Fatal Error");
 #else
-    // todo!
+    amrex::Abort();
 #endif
+}
+
+template<typename... Args>
+void AbortIfDeviceError(const DeviceErrorFlag& flag, const char* file, const char* func, int line, Args const&... args)
+{
+    if (flag.value() != 0) Util::Abort(file, func, line, args...);
 }
 
 template<typename... Args>
@@ -135,7 +172,7 @@ void ParallelAbort (std::string file, std::string func, int line, Args const &..
 
     Abort("Fatal Error");
 #else
-    // todo!
+    amrex::Abort();
 #endif
 }
 
@@ -163,7 +200,7 @@ void Message (const char * file, const char * func, int line, Args const &... ar
         std::cout << info << message << std::endl;
     }
 #else
-    // todo!
+    // Device-side messages are intentionally suppressed.
 #endif
 }
 
@@ -218,7 +255,7 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
 #else
-    // todo!
+    // Device-side messages are intentionally suppressed.
 #endif
 }
 
@@ -246,7 +283,7 @@ void Warning (std::string file, std::string func, int line, Args const &... args
         std::cout << info << message << std::endl;
     }
 #else
-    // todo!
+    // Device-side warnings are intentionally suppressed.
 #endif
 }
 
@@ -279,7 +316,7 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
         std::throw_with_nested(std::runtime_error("IO::Exception"));
     }
 #else
-    // todo!
+    amrex::Abort();
 #endif
 }
 
@@ -313,7 +350,7 @@ void AssertException (std::string file, std::string func, int line, std::string 
         Exception(file,func,line,"Fatal Error");
     }
 #else
-    // todo!
+    amrex::Abort();
 #endif
 }
 
