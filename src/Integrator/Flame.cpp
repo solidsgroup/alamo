@@ -536,40 +536,59 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar a_time, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
 
-    Util::Message(INFO, "MONITOR thermal.on=", thermal.on);
     if (thermal.on)
     {
-        thermo_max_temp     = 0.0;
-        thermo_mdot_max     = 0.0;
-        thermo_heatflux_max = 0.0;
-        thermo_L_max        = 0.0;
-        thermo_eta_min      = 1.0;
+        // Chamber thermo diagnostics written to thermo.dat. The five min/max
+        // reductions over every level are accumulated into a single fused device
+        // pass (one ReduceData, one host sync) instead of separate per-level
+        // MultiFab::min/max calls that each launch a kernel and synchronize. Each
+        // rank reduces only its local boxes; the MPI all-reduce below then matches
+        // the global result MultiFab::min/max produced. The per-layer debug print
+        // has been removed. The 0.0/1.0 floors are preserved so the output stays
+        // bit-identical to the previous code (max/min are order-independent).
+        amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
+                         amrex::ReduceOpMax, amrex::ReduceOpMin> reduce_op;
+        amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar,
+                          Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+        using ReduceTuple = typename decltype(reduce_data)::Type;
+
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            Set::Scalar max_temp = temp_mf[lev]->max(0);
-            Set::Scalar min_temp = temp_mf[lev]->min(0);
-            Set::Scalar max_mdot = mdot_mf[lev]->max(0);
-            Set::Scalar max_heatflux = heatflux_mf[lev]->max(0);
-            Set::Scalar max_L = L_mf[lev]->max(0);
-            Set::Scalar min_eta = eta_mf[lev]->min(0);
-            thermo_max_temp     = std::max(thermo_max_temp,     max_temp);
-            thermo_mdot_max     = std::max(thermo_mdot_max,     max_mdot);
-            thermo_heatflux_max = std::max(thermo_heatflux_max, max_heatflux);
-            thermo_L_max        = std::max(thermo_L_max,        max_L);
-            thermo_eta_min      = std::min(thermo_eta_min,      min_eta);
-            Util::Message(INFO, "t=", std::setw(10), std::setprecision(4), std::fixed, a_time,
-            " lev=", std::setw(2), lev,
-            " T=[", std::setw(8), std::setprecision(2), Unit::Temperature(min_temp),
-            ",", std::setw(8), std::setprecision(2), Unit::Temperature(max_temp), "]",
-            " mdot_max=", std::setw(10), std::setprecision(4), max_mdot,
-            " heatflux_max=", std::setw(10), std::setprecision(4), max_heatflux,
-            " L_max=", std::setw(10), std::setprecision(4), max_L,
-            " eta_min=", std::setw(10), std::setprecision(4), min_eta);
+            for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& box = mfi.tilebox();
+                Set::Patch<const Set::Scalar> temp     = temp_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> mdot     = mdot_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> L        = L_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> eta      = eta_mf.Patch(lev, mfi);
+                reduce_op.eval(box, reduce_data,
+                    [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
+                    {
+                        return { temp(i, j, k, 0), mdot(i, j, k, 0), heatflux(i, j, k, 0),
+                                 L(i, j, k, 0), eta(i, j, k, 0) };
+                    });
+            }
         }
+
+        ReduceTuple hv = reduce_data.value(reduce_op);
+        thermo_max_temp     = std::max(Set::Scalar(0.0), amrex::get<0>(hv));
+        thermo_mdot_max     = std::max(Set::Scalar(0.0), amrex::get<1>(hv));
+        thermo_heatflux_max = std::max(Set::Scalar(0.0), amrex::get<2>(hv));
+        thermo_L_max        = std::max(Set::Scalar(0.0), amrex::get<3>(hv));
+        thermo_eta_min      = std::min(Set::Scalar(1.0), amrex::get<4>(hv));
+
+        // MultiFab::min/max all-reduce internally; replicate that so the value is
+        // correct under MPI (the CPU correctness baseline runs np8, GPU runs np1).
+        amrex::ParallelDescriptor::ReduceRealMax(thermo_max_temp);
+        amrex::ParallelDescriptor::ReduceRealMax(thermo_mdot_max);
+        amrex::ParallelDescriptor::ReduceRealMax(thermo_heatflux_max);
+        amrex::ParallelDescriptor::ReduceRealMax(thermo_L_max);
+        amrex::ParallelDescriptor::ReduceRealMin(thermo_eta_min);
     }
 
     if (variable_pressure)
