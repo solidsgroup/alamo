@@ -317,9 +317,9 @@ void Flame::Initialize(int lev)
 
     if (pf.relax_steps > 0)
     {
-        const Set::Scalar* DX = geom[lev].CellSize();
-        Set::Scalar dx_min = DX[0];
-        for (int d = 1; d < AMREX_SPACEDIM; d++) dx_min = std::min(dx_min, DX[d]);
+        Set::Vector DX(geom[lev].CellSize());
+        Set::Scalar dx_min = DX(0);
+        for (int d = 1; d < AMREX_SPACEDIM; d++) dx_min = std::min(dx_min, DX(d));
         const Set::Scalar L_relax = 1.0;
         const Set::Scalar dt_relax = 0.5 * dx_min * dx_min / (4.0 * L_relax * pf.eps * pf.kappa);
 
@@ -347,7 +347,7 @@ void Flame::Initialize(int lev)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_val = eta(i, j, k);
-                    Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
+                    Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
                     // Use symmetric double-well w_sym = eta^2*(1-eta)^2 for pre-relax.
                     // The simulation's w(eta) has w(0)=0 != w(1)=1 (asymmetric), which would
                     // drive the grain (eta=1) to be consumed by the gas (eta=0) during pre-relax.
@@ -400,7 +400,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     {
         amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
-        const Set::Scalar* DX = geom[lev].CellSize();
+        Set::Vector DX(geom[lev].CellSize());
 
         phi_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
@@ -439,7 +439,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 
                 {
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX.data());
                     // The solver enforces div(sigma) = rhs, so rhs = -b_phys (ALAMO sign
                     // convention). grad_eta points from gas (eta=0) into the solid (eta=1),
                     // i.e. radially inward at a burning surface. A chamber pressure must
@@ -606,7 +606,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
-    const Set::Scalar* DX = geom[lev].CellSize();
+    Set::Vector DX(geom[lev].CellSize());
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
 
@@ -687,7 +687,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // EVOLVE PHASE FIELD (ETA)
             // 
 
-            Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
+            Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             
             if (df_deta < 0) {
@@ -787,11 +787,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
-                Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-                Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX.data());
+                Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX.data());
                 Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
+                Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX.data(), sten);
                 Set::Scalar dTdt = 0.0;
                 dTdt += grad_eta.dot(grad_temp * alpha(i, j, k));
                 dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
@@ -822,8 +822,8 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
-    const Set::Scalar* DX = geom[lev].CellSize();
-    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    Set::Vector DX(geom[lev].CellSize());
+    Set::Scalar dr = sqrt(AMREX_D_TERM(DX(0) * DX(0), +DX(1) * DX(1), +DX(2) * DX(2)));
 
     // GPU: pull refinement-criterion members into locals (shadowing the members)
     // plus the thermal scalars used in kernels, so the tag kernels capture by
@@ -850,9 +850,9 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-                Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
+                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
+                Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX.data());
 
                 bool tag = false;
                 tag = tag ||
@@ -885,8 +885,8 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
+                Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
 
                 bool tag = false;
                 tag = tag ||
@@ -964,8 +964,8 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     
     Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
 
-    const Set::Scalar* DX = geom[amrlev].CellSize();
-    Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+    Set::Vector DX(geom[amrlev].CellSize());
+    Set::Scalar dv = AMREX_D_TERM(DX(0), *DX(1), *DX(2));
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
 
@@ -982,7 +982,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
         [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
         {
             Set::Scalar dvol  = (1.0 - eta(i, j, k, 0)) * dv;
-            Set::Vector grad  = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Vector grad  = Numeric::Gradient(eta, i, j, k, 0, DX.data());
             Set::Scalar darea = grad.lpNorm<2>() * dv;
             Set::Scalar dmdot = mdot(i, j, k, 0) * dv;
             return {dvol, darea, dmdot};
