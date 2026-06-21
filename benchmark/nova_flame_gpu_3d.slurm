@@ -3,7 +3,7 @@
 #SBATCH -J flame_gpu_3d
 #SBATCH --partition=nova
 #SBATCH --nodes=1
-#SBATCH --time=04:00:00
+#SBATCH --time=00:30:00
 #SBATCH --output=flame_gpu_3d.%j.out
 #SBATCH --error=flame_gpu_3d.%j.err
 #SBATCH --mail-type=END,FAIL

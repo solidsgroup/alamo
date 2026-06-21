@@ -6,7 +6,7 @@
 #SBATCH --ntasks=16                 # MPI ranks = domain decomposition
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=32G
-#SBATCH --time=04:00:00
+#SBATCH --time=00:30:00
 #SBATCH --output=flame_cpu_3d.%j.out
 #SBATCH --error=flame_cpu_3d.%j.err
 #SBATCH --mail-type=END,FAIL

@@ -3,7 +3,7 @@
 #SBATCH -J flame_gpu_3d_multi
 #SBATCH --partition=nova
 #SBATCH --nodes=1
-#SBATCH --time=04:00:00
+#SBATCH --time=00:30:00
 #SBATCH --output=flame_gpu_3d_multi.%j.out
 #SBATCH --error=flame_gpu_3d_multi.%j.err
 #SBATCH --mail-type=END,FAIL
@@ -12,12 +12,13 @@
 # editing GPU_TYPE/NGPUS, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres + tasks on the command
 # line to match NGPUS (1 MPI rank per GPU):
-#   NGPUS=4 sbatch --gres=gpu:a100:4 --ntasks=4 --ntasks-per-node=4 benchmark/nova_flame_gpu_3d_multi.slurm
-# or use the matching values below (defaults: 4x A100, 1 rank/GPU).
+#   NGPUS=2 sbatch --gres=gpu:a100:2 --ntasks=2 --ntasks-per-node=2 benchmark/nova_flame_gpu_3d_multi.slurm
+# or use the matching values below (defaults: 2x A100, 1 rank/GPU).
 # ===========================================================================
 # Multi-GPU (1 MPI rank per GPU) 3D run of the Flame case on NOVA.
 # This is the multi-GPU 3D sibling of nova_flame_gpu.slurm, parameterized for N
-# GPUs for the roadmap-3.4 strong/weak scaling study (problem-size x GPU-count).
+# GPUs for later scaling studies (problem-size x GPU-count). Multi-node
+# verification is deferred for now.
 # Build the 3D binaries first with benchmark/build_alamo_nova_3d.sh.
 #
 # Examples:
@@ -32,7 +33,7 @@ cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
 GPU_TYPE="${GPU_TYPE:-a100}"        # a100 (sm_80) or h200 (sm_90)
 INPUT="${INPUT:-input_3d_flame}"
 # NGPUS: number of GPUs = number of MPI ranks (1 rank per GPU, roadmap 3.4).
-NGPUS="${NGPUS:-4}"
+NGPUS="${NGPUS:-2}"
 # MODE: bench = profiled, accurate per-region holdups (device syncs, slower).
 #       fast  = max-speed production: pure device arena, no profiler sync.
 MODE="${MODE:-bench}"

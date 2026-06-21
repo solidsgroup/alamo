@@ -22,7 +22,7 @@
 #                      (e.g. a100, h100, h200; default a100).
 #   GPUS_PER_NODE=4    GPU slots per NOVA node for multi-node allocations.
 #   SIZES="128 256 512"   grid sizes (strong mode sweeps all; weak maps to GPUS).
-#   GPUS="1 2 4 8"        GPU counts to sweep.
+#   GPUS="1 2"            GPU counts to sweep.
 #   OUT=commands.txt      output file for the emitted command matrix.
 #   DEPENDENCY=...        optional SLURM dependency applied to every submitted job
 #                         (bare jobid or full sbatch dependency syntax).
@@ -38,7 +38,7 @@ MODE="${MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-a100}"
 GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
 SIZES="${SIZES:-128 256 512}"
-GPUS="${GPUS:-1 2 4 8}"
+GPUS="${GPUS:-1 2}"
 OUT="${OUT:-commands.txt}"
 DEPENDENCY="${DEPENDENCY:-}"
 GPU_DEPENDENCY="${GPU_DEPENDENCY:-${DEPENDENCY}}"
@@ -130,13 +130,9 @@ emit() {
     local depopt=""
     local sbatch_opts=()
     if [[ "$kind" == "gpu" ]]; then
-        local nodes=$(( (ngpus + GPUS_PER_NODE - 1) / GPUS_PER_NODE ))
+        local nodes=1
         local gpus_on_node="$ngpus"
         local tasks_per_node="$ngpus"
-        if [[ "$gpus_on_node" -gt "$GPUS_PER_NODE" ]]; then
-            gpus_on_node="$GPUS_PER_NODE"
-            tasks_per_node="$GPUS_PER_NODE"
-        fi
         dependency="$GPU_DEPENDENCY"
         sbatch_opts+=(--nodes="${nodes}" --gres="gpu:${GPU_TYPE}:${gpus_on_node}" --ntasks="${ngpus}" --ntasks-per-node="${tasks_per_node}")
     else

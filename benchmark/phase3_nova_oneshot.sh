@@ -21,7 +21,7 @@ ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
 SWEEP_MODE="${SWEEP_MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-a100}"
 SIZES="${SIZES:-128 256 512}"
-GPUS="${GPUS:-1 2 4 8}"
+GPUS="${GPUS:-1 2}"
 OUT="${OUT:-commands.txt}"
 BUILD_ONLY="${BUILD_ONLY:-0}"
 DRY_RUN=0
@@ -39,7 +39,7 @@ Env knobs:
   SWEEP_MODE  strong|weak (default: strong)
   GPU_TYPE    a100|h200 (default: a100)
   SIZES       size list for strong scaling (default: "128 256 512")
-  GPUS        GPU list (default: "1 2 4 8")
+  GPUS        GPU list (default: "1 2")
   OUT         sweep command output file (default: commands.txt)
   BUILD_ONLY  set to 1 to submit the build and stop
 EOF
