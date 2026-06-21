@@ -24,6 +24,9 @@ cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 INPUT="${INPUT:-input_3d_flame}"
 BUILD_CPU_IF_MISSING="${BUILD_CPU_IF_MISSING:-1}"
+# NOVA's current pmix launch reports MPI_THREAD_SINGLE, so async_out must
+# default off. Set ASYNC_OUT=1 only after confirming MPI_THREAD_MULTIPLE.
+ASYNC_OUT="${ASYNC_OUT:-0}"
 
 module purge 2>/dev/null || true
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
@@ -44,8 +47,8 @@ if [ -z "${CPU_BIN}" ]; then
 fi
 echo "CPU binary: ${CPU_BIN}  (${SLURM_NTASKS} ranks)"
 
-# async_out gives compute/IO overlap; NOVA's MPI provides MPI_THREAD_MULTIPLE.
-OVERRIDES="amrex.async_out=1 amrex.async_out_nfiles=0 \
+# async_out requires MPI_THREAD_MULTIPLE at runtime.
+OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
            tiny_profiler.device_synchronize_around_region=1"
 
 echo "=== launching ${SLURM_NTASKS} MPI rank(s) ==="

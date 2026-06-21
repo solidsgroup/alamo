@@ -36,6 +36,9 @@ NGPUS="${NGPUS:-4}"
 # MODE: bench = profiled, accurate per-region holdups (device syncs, slower).
 #       fast  = max-speed production: pure device arena, no profiler sync.
 MODE="${MODE:-bench}"
+# NOVA's current pmix launch reports MPI_THREAD_SINGLE, so async_out must
+# default off. Set ASYNC_OUT=1 only after confirming MPI_THREAD_MULTIPLE.
+ASYNC_OUT="${ASYNC_OUT:-0}"
 
 case "${GPU_TYPE}" in
   a100) ARCH=80 ;;
@@ -60,13 +63,13 @@ fi
 echo "GPU binary: ${GPU_BIN}  (GPU_TYPE=${GPU_TYPE} sm_${ARCH}, ${NRANKS} rank(s) = ${NRANKS} GPU(s), 1 rank/GPU, mode=${MODE})"
 
 # --- Runtime overrides ------------------------------------------------------
-# async_out : background-thread IO so the GPU runs step N+1 during step N write
+# async_out requires MPI_THREAD_MULTIPLE at runtime.
 if [ "${MODE}" = "fast" ]; then
   # pure device arena (no host page-migration), no profiler syncs = fastest.
-  OVERRIDES="amrex.async_out=1 amrex.async_out_nfiles=0 amrex.the_arena_is_managed=0"
+  OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 amrex.the_arena_is_managed=0"
 else
   # managed arena + per-region device sync for accurate TinyProfiler holdups.
-  OVERRIDES="amrex.async_out=1 amrex.async_out_nfiles=0 \
+  OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
              amrex.the_arena_is_managed=1 \
              tiny_profiler.device_synchronize_around_region=1"
 fi
