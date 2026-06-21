@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+#
+# phase3_scaling_sweep.sh -- Phase-3 crossover sweep driver (roadmap 3.5).
+#
+# Sweeps problem size x GPU count to find where the 3D GPU build beats the CPU
+# node. This script is STAGED FOR NOVA: by default it is a DRY RUN that only
+# emits the matrix of sbatch commands into commands.txt -- it submits NOTHING and
+# is a no-op without SLURM. Pass --submit (on a SLURM host) to actually sbatch.
+#
+# It references task-001 inputs and task-002 SLURM scripts BY NAME ONLY; it does
+# not create them. Run it from the repo root (alongside benchmark/).
+#
+#   inputs (task 001):  input_3d_flame_128, input_3d_flame_256, input_3d_flame_512
+#   scripts (task 002): nova_flame_gpu_3d.slurm        (single GPU, GPUS=1)
+#                       nova_flame_gpu_3d_multi.slurm  (multi  GPU, GPUS>1)
+#                       nova_flame_cpu_3d.slurm        (CPU-node baseline)
+#
+# Env knobs:
+#   MODE=strong|weak   strong (default) = fixed size, vary GPUS;
+#                      weak             = size grows with GPUS.
+#   GPU_TYPE=...       GPU type label passed through to the SLURM scripts
+#                      (e.g. a100, h100, h200; default a100).
+#   SIZES="128 256 512"   grid sizes (strong mode sweeps all; weak maps to GPUS).
+#   GPUS="1 2 4 8"        GPU counts to sweep.
+#   OUT=commands.txt      output file for the emitted command matrix.
+#   DEPENDENCY=...        optional SLURM dependency applied to every submitted job
+#                         (bare jobid or full sbatch dependency syntax).
+#
+set -euo pipefail
+
+# ---- defaults ---------------------------------------------------------------
+MODE="${MODE:-strong}"
+GPU_TYPE="${GPU_TYPE:-a100}"
+SIZES="${SIZES:-128 256 512}"
+GPUS="${GPUS:-1 2 4 8}"
+OUT="${OUT:-commands.txt}"
+DEPENDENCY="${DEPENDENCY:-}"
+
+SCRIPT_GPU_SINGLE="benchmark/nova_flame_gpu_3d.slurm"
+SCRIPT_GPU_MULTI="benchmark/nova_flame_gpu_3d_multi.slurm"
+SCRIPT_CPU="benchmark/nova_flame_cpu_3d.slurm"
+
+# ---- arg parse --------------------------------------------------------------
+SUBMIT=0
+for arg in "$@"; do
+    case "$arg" in
+        --submit) SUBMIT=1 ;;
+        --dry-run) SUBMIT=0 ;;
+        -h|--help)
+            sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+            echo
+            echo "Usage: bash benchmark/phase3_scaling_sweep.sh [--dry-run|--submit]"
+            echo "  --dry-run (default): write \$OUT, submit nothing."
+            echo "  --submit           : sbatch each command (requires SLURM)."
+            exit 0
+            ;;
+        *)
+            echo "error: unknown argument '$arg' (try --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+if [[ "$MODE" != "strong" && "$MODE" != "weak" ]]; then
+    echo "error: MODE must be 'strong' or 'weak' (got '$MODE')" >&2
+    exit 2
+fi
+
+# ---- banner -----------------------------------------------------------------
+echo "============================================================"
+echo " Phase-3 scaling/crossover sweep (roadmap 3.5)"
+echo " STAGED FOR NOVA -- this is a no-op without SLURM."
+echo "   MODE       = $MODE"
+echo "   GPU_TYPE   = $GPU_TYPE"
+echo "   SIZES      = $SIZES"
+echo "   GPUS       = $GPUS"
+echo "   OUT        = $OUT"
+if [[ -n "$DEPENDENCY" ]]; then
+    echo "   DEPENDENCY = $DEPENDENCY"
+fi
+if [[ "$SUBMIT" -eq 1 ]]; then
+    echo "   ACTION     = SUBMIT (sbatch each command)"
+else
+    echo "   ACTION     = DRY RUN (write commands only; submit nothing)"
+fi
+echo "============================================================"
+
+# ---- helper: emit one command ----------------------------------------------
+# args: input, ngpus, script, tag
+emit() {
+    local input="$1" ngpus="$2" script="$3" tag="$4"
+    local depopt=""
+    local deptext=""
+    if [[ -n "$DEPENDENCY" ]]; then
+        case "$DEPENDENCY" in
+            afterok:*|afterany:*|afternotok:*|singleton|expand:*)
+                deptext="$DEPENDENCY"
+                ;;
+            *)
+                deptext="afterok:$DEPENDENCY"
+                ;;
+        esac
+        depopt="--dependency=${deptext}"
+    fi
+    local cmd="INPUT=${input} NGPUS=${ngpus} GPU_TYPE=${GPU_TYPE} sbatch ${depopt} ${script}"
+    printf '# %s\n%s\n' "$tag" "$cmd" >> "$OUT"
+    if [[ "$SUBMIT" -eq 1 ]]; then
+        if command -v sbatch >/dev/null 2>&1; then
+            echo "submitting: $cmd"
+            INPUT="${input}" NGPUS="${ngpus}" GPU_TYPE="${GPU_TYPE}" \
+                sbatch ${depopt} "${script}"
+        else
+            echo "WARN: --submit requested but 'sbatch' not found; skipping: $cmd" >&2
+        fi
+    fi
+}
+
+# map a GPU count to a problem size for weak scaling (size grows with GPUS).
+weak_size_for_gpus() {
+    case "$1" in
+        1) echo 128 ;;
+        2) echo 256 ;;
+        4) echo 512 ;;
+        8) echo 512 ;;   # cap at largest provided input; document on NOVA
+        *) echo 512 ;;
+    esac
+}
+
+# ---- build the command matrix ----------------------------------------------
+: > "$OUT"
+{
+    echo "# Phase-3 scaling sweep command matrix"
+    echo "# generated by benchmark/phase3_scaling_sweep.sh"
+    echo "# MODE=$MODE GPU_TYPE=$GPU_TYPE SIZES='$SIZES' GPUS='$GPUS'"
+    echo "# inputs: input_3d_flame_<size> (task 001); scripts: nova_flame_*_3d*.slurm (task 002)"
+    echo "#"
+} >> "$OUT"
+
+if [[ "$MODE" == "strong" ]]; then
+    # Strong scaling: each fixed size run across all GPU counts.
+    for size in $SIZES; do
+        input="input_3d_flame_${size}"
+        for n in $GPUS; do
+            if [[ "$n" -le 1 ]]; then
+                emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "strong size=${size} gpu x${n}"
+            else
+                emit "$input" "$n" "$SCRIPT_GPU_MULTI" "strong size=${size} gpu x${n}"
+            fi
+        done
+        # CPU-node baseline for this size (one per size).
+        emit "$input" "0" "$SCRIPT_CPU" "strong size=${size} cpu-node baseline"
+    done
+else
+    # Weak scaling: size grows with GPU count.
+    for n in $GPUS; do
+        size="$(weak_size_for_gpus "$n")"
+        input="input_3d_flame_${size}"
+        if [[ "$n" -le 1 ]]; then
+            emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "weak gpu x${n} size=${size}"
+        else
+            emit "$input" "$n" "$SCRIPT_GPU_MULTI" "weak gpu x${n} size=${size}"
+        fi
+    done
+    # CPU-node baseline at the largest weak size for reference.
+    big_size="$(weak_size_for_gpus 8)"
+    emit "input_3d_flame_${big_size}" "0" "$SCRIPT_CPU" "weak cpu-node baseline size=${big_size}"
+fi
+
+echo
+echo "Wrote command matrix to: $OUT"
+if [[ "$SUBMIT" -eq 0 ]]; then
+    echo "(dry run -- nothing submitted; re-run with --submit on a SLURM host)"
+fi

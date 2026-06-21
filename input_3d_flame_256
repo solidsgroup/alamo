@@ -1,0 +1,143 @@
+####################################################################################
+# input_3d_flame_256 — 3D GPU Flame crossover-sweep variant (Phase 3, roadmap 3.3)
+#
+# Purpose: mid-grid variant of input_3d_flame for the Phase-3 problem-size sweep.
+#   Identical to input_3d_flame except amr.n_cell (this variant duplicates the
+#   canonical grid; the named _128/_256/_512 series gives the sweep a uniform scheme).
+#   Wide-shallow box strategy.
+#
+# Grid: n_cell = 256 256 128 (wide in x-y, thin in z), max_level = 1,
+#       blocking_factor = 32, max_grid_size = 128.
+#
+# Constraints (verified):
+#   - Analytic (Expression) ICs only — IC::BMP is 2D-only and breaks in 3D.
+#   - Full 3D boundary conditions on all six faces (xlo/xhi/ylo/yhi/zlo/zhi).
+#   - elastic.type = disable : per D1 elastic is CPU-resident (device hits CUDA-719);
+#     model/bc blocks OMITTED so ALAMO's strict parser does not abort.
+####################################################################################
+
+alamo.program = flame
+plot_file = output_3d_flame_256
+
+amr.plot_int = -1
+amr.max_level = 1
+amr.blocking_factor = 32
+amr.max_grid_size = 128
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.n_cell = 256 256 128
+amr.thermo.int = 1
+amr.thermo.plot_int = -1
+
+# Wide-shallow box: wide in x-y, thin in z.
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 0.1754_m 0.1754_m 0.0877_m
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+timestep = 1.0e-4_s
+stop_time = 6.5_s
+
+# Phase field parameters
+pf.eps = 5.0e-5_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+# eta IC: central cylindrical bore along z. solid (eta=1) outside a radius-0.03 m
+# bore, gas (eta=0) inside; smooth tanh interface.
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.cx = 0.0877
+pf.eta.ic.expression.constant.cy = 0.0877
+pf.eta.ic.expression.constant.rb = 0.03
+pf.eta.ic.expression.constant.w  = 0.005
+pf.eta.ic.expression.region0 = "0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)"
+
+# phi IC: fuel disk (phi=1) of radius 0.08 m, casing (phi=0) outside.
+phi.ic.type = expression
+phi.ic.expression.constant.cx = 0.0877
+phi.ic.expression.constant.cy = 0.0877
+phi.ic.expression.constant.rd = 0.08
+phi.ic.expression.constant.w  = 0.005
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((rd - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# eta BCs — all six 3D faces.
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.type.zlo = dirichlet
+pf.eta.bc.constant.type.zhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+pf.eta.bc.constant.val.zlo = 1.0
+pf.eta.bc.constant.val.zhi = 1.0
+
+# Propellant model (unchanged from 2D reference)
+propellant.type = homogenize
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# Thermal
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.type.zlo = dirichlet
+thermal.temp.bc.constant.type.zhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+thermal.temp.bc.constant.val.zlo = 300_K
+thermal.temp.bc.constant.val.zhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0
+
+# Pressure / chamber
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa
+chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# Elastic DISABLED for the GPU path (D1: elastic is CPU-resident, and the device
+# elastic solve hits CUDA-719). type=disable makes Mechanics early-return from every
+# elastic path. IMPORTANT: with type=disable the elastic model/bc blocks must be
+# OMITTED — ALAMO's strict parser flags them as unused entries and aborts.
+# (elastic.on=0 alone is NOT enough: the Static solve still runs and crashes.)
+elastic.type = disable
