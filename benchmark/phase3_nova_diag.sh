@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# phase3_nova_diag.sh -- submit focused NOVA diagnostics for Phase-3 CUDA 700.
+#
+# This does not run the full scaling sweep. It submits one tiny single-GPU A100
+# diagnostic job per requested tool so the first illegal access can be localized.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
+
+GPU_TYPE="${GPU_TYPE:-a100}"
+INPUT="${INPUT:-input_3d_flame_128}"
+TOOLS="${TOOLS:-blocking sanitizer}"
+MANAGED_ARENA="${MANAGED_ARENA:-1}"
+DEPENDENCY="${DEPENDENCY:-}"
+DRY_RUN=0
+
+usage() {
+    cat <<'EOF'
+Usage: bash benchmark/phase3_nova_diag.sh [--dry-run]
+
+Submits focused single-GPU diagnostics for the Phase-3 CUDA error 700 failure.
+Run from the NOVA checkout after the 3D GPU binary has been built.
+
+Env knobs:
+  ALAMO_DIR      repo root / working tree (default: repo root inferred)
+  GPU_TYPE       a100|h200 (default: a100)
+  INPUT          input file (default: input_3d_flame_128)
+  TOOLS          "blocking", "sanitizer", or both (default: "blocking sanitizer")
+  MANAGED_ARENA  1|0 passed to amrex.the_arena_is_managed (default: 1)
+  DEPENDENCY     optional Slurm dependency, bare job id or full afterok:...
+EOF
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=1 ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown argument '$arg' (try --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "${GPU_TYPE}" in
+    a100|h200) ;;
+    *) echo "error: GPU_TYPE must be a100 or h200 (got ${GPU_TYPE})" >&2; exit 2 ;;
+esac
+
+dependency_opt() {
+    local dependency="${1:-}"
+    local deptext=""
+    if [[ -z "$dependency" ]]; then
+        return 0
+    fi
+    case "$dependency" in
+        afterok:*|afterany:*|afternotok:*|singleton|expand:*)
+            deptext="$dependency"
+            ;;
+        *)
+            deptext="afterok:$dependency"
+            ;;
+    esac
+    printf '%s' "--dependency=${deptext}"
+}
+
+cd "${ALAMO_DIR}"
+
+echo "============================================================"
+echo " Phase-3 NOVA CUDA-700 diagnostics"
+echo " repo          = ${ALAMO_DIR}"
+echo " GPU_TYPE      = ${GPU_TYPE}"
+echo " INPUT         = ${INPUT}"
+echo " TOOLS         = ${TOOLS}"
+echo " MANAGED_ARENA = ${MANAGED_ARENA}"
+echo " DRY_RUN       = ${DRY_RUN}"
+if [[ -n "${DEPENDENCY}" ]]; then
+    echo " DEPENDENCY    = ${DEPENDENCY}"
+fi
+echo "============================================================"
+
+for tool in ${TOOLS}; do
+    case "${tool}" in
+        blocking|sanitizer) ;;
+        *) echo "error: unknown diagnostic tool '${tool}'" >&2; exit 2 ;;
+    esac
+
+    sbatch_opts=(--nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1)
+    depopt="$(dependency_opt "${DEPENDENCY}")"
+    if [[ -n "${depopt}" ]]; then
+        sbatch_opts+=("${depopt}")
+    fi
+
+    echo
+    echo "Diagnostic: ${tool}"
+    printf 'Command: INPUT=%q GPU_TYPE=%q DIAG_TOOL=%q MANAGED_ARENA=%q sbatch' \
+      "${INPUT}" "${GPU_TYPE}" "${tool}" "${MANAGED_ARENA}"
+    printf ' %q' "${sbatch_opts[@]}"
+    printf ' benchmark/nova_flame_gpu_3d_diag.slurm\n'
+
+    if [[ "${DRY_RUN}" -eq 0 ]]; then
+        INPUT="${INPUT}" GPU_TYPE="${GPU_TYPE}" DIAG_TOOL="${tool}" MANAGED_ARENA="${MANAGED_ARENA}" \
+          sbatch "${sbatch_opts[@]}" benchmark/nova_flame_gpu_3d_diag.slurm
+    fi
+done
