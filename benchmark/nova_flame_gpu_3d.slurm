@@ -3,6 +3,9 @@
 #SBATCH -J flame_gpu_3d
 #SBATCH --partition=nova
 #SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=24
 #SBATCH --time=00:30:00
 #SBATCH --output=flame_gpu_3d.%j.out
 #SBATCH --error=flame_gpu_3d.%j.err
@@ -11,7 +14,7 @@
 # NOTE: GPU count / type / gres are set dynamically below via --export or by
 # editing GPU_TYPE/NGPU, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres on the command line:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --ntasks-per-node=1 benchmark/nova_flame_gpu_3d.slurm
+#   sbatch --gres=gpu:a100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
 # or use the matching values below (defaults: 1x A100).
 # ===========================================================================
 # Single-GPU (1 MPI rank per GPU) 3D run of the Flame case on NOVA.
@@ -19,9 +22,9 @@
 # This is the 3D sibling of nova_flame_gpu.slurm (3D binary glob + input_3d_flame).
 #
 # Examples:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu_3d.slurm
-#   GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 benchmark/nova_flame_gpu_3d.slurm
-#   MODE=fast sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu_3d.slurm
+#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
+#   GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
+#   MODE=fast sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
 # ===========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"

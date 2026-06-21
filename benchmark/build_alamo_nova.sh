@@ -31,7 +31,7 @@ ALAMO_DIR="${ALAMO_DIR:-$PWD}"
 ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"   # CPU EPYC nodes; build needs no GPU
 ARCHES="${ARCHES:-80 90}"                    # 80=A100, 90=H200
-BUILD_JOBS="${BUILD_JOBS:-32}"
+BUILD_JOBS="${BUILD_JOBS:-64}"
 COMP="${COMP:-g++}"                          # nvcc host compiler (gcc is the safe choice)
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
 
@@ -87,7 +87,8 @@ cat > "${SB}" <<END_OF_SBATCH
 #SBATCH -D ${ALAMO_DIR}
 #SBATCH --partition=${BUILD_PARTITION}
 #SBATCH -N 1
-#SBATCH -n ${BUILD_JOBS}
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=${BUILD_JOBS}
 #SBATCH --mem=128G
 #SBATCH --time=04:00:00
 #SBATCH --output=alamo_build.%j.out
@@ -103,7 +104,7 @@ module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 for arch in ${ARCHES}; do
     echo "=== building cuda sm_\${arch} ==="
     ./configure --comp=${COMP} --dim 2 --cuda \${arch} --profile --get-eigen
-    make -j${BUILD_JOBS} bin/alamo_gpu
+    make -j\${SLURM_CPUS_PER_TASK:-${BUILD_JOBS}} bin/alamo_gpu
 done
 echo "=== build complete ==="
 ls -lh bin/alamo_gpu-2d*cuda* || true

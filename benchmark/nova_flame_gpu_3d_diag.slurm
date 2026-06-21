@@ -5,6 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=24
 #SBATCH --time=00:30:00
 #SBATCH --output=flame_gpu_3d_diag.%j.out
 #SBATCH --error=flame_gpu_3d_diag.%j.err
@@ -19,9 +20,9 @@
 #
 # Example:
 #   DIAG_TOOL=blocking INPUT=input_3d_flame_128 GPU_TYPE=a100 \
-#     sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu_3d_diag.slurm
+#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d_diag.slurm
 #   DIAG_TOOL=sanitizer INPUT=input_3d_flame_128 GPU_TYPE=a100 \
-#     sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu_3d_diag.slurm
+#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d_diag.slurm
 
 set -euo pipefail
 

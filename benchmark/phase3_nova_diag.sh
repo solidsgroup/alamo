@@ -16,6 +16,7 @@ INPUT="${INPUT:-input_3d_flame_128}"
 TOOLS="${TOOLS:-blocking sanitizer}"
 MANAGED_ARENA="${MANAGED_ARENA:-1}"
 DEPENDENCY="${DEPENDENCY:-}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-24}"
 DRY_RUN=0
 
 usage() {
@@ -32,6 +33,7 @@ Env knobs:
   TOOLS          "blocking", "sanitizer", or both (default: "blocking sanitizer")
   MANAGED_ARENA  1|0 passed to amrex.the_arena_is_managed (default: 1)
   DEPENDENCY     optional Slurm dependency, bare job id or full afterok:...
+  GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 24)
 EOF
 }
 
@@ -53,6 +55,10 @@ case "${GPU_TYPE}" in
     a100|h200) ;;
     *) echo "error: GPU_TYPE must be a100 or h200 (got ${GPU_TYPE})" >&2; exit 2 ;;
 esac
+if ! [[ "${GPU_NODE_CPUS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "error: GPU_NODE_CPUS must be a positive integer (got ${GPU_NODE_CPUS})" >&2
+    exit 2
+fi
 
 dependency_opt() {
     local dependency="${1:-}"
@@ -80,6 +86,7 @@ echo " GPU_TYPE      = ${GPU_TYPE}"
 echo " INPUT         = ${INPUT}"
 echo " TOOLS         = ${TOOLS}"
 echo " MANAGED_ARENA = ${MANAGED_ARENA}"
+echo " GPU_NODE_CPUS = ${GPU_NODE_CPUS}"
 echo " DRY_RUN       = ${DRY_RUN}"
 if [[ -n "${DEPENDENCY}" ]]; then
     echo " DEPENDENCY    = ${DEPENDENCY}"
@@ -92,7 +99,7 @@ for tool in ${TOOLS}; do
         *) echo "error: unknown diagnostic tool '${tool}'" >&2; exit 2 ;;
     esac
 
-    sbatch_opts=(--nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1)
+    sbatch_opts=(--nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${GPU_NODE_CPUS}")
     depopt="$(dependency_opt "${DEPENDENCY}")"
     if [[ -n "${depopt}" ]]; then
         sbatch_opts+=("${depopt}")

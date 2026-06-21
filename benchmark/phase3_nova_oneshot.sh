@@ -129,7 +129,7 @@ cat > "$CPU_BUILD_SCRIPT" <<'EOF'
 #SBATCH --partition=nova
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=64
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
 #SBATCH --output=alamo_cpu_build_3d.%j.out
@@ -146,7 +146,7 @@ module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 echo "=== configuring 3D CPU build ==="
 ./configure --comp=g++ --dim 3 --profile --get-eigen
 echo "=== building 3D CPU binary ==="
-make -j"${SLURM_CPUS_PER_TASK:-16}"
+make -j"${SLURM_CPUS_PER_TASK:-64}"
 echo "=== CPU binaries ==="
 ls -lh bin/alamo-3d*-g++ 2>/dev/null | grep -v cuda
 EOF

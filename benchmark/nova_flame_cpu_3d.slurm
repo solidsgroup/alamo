@@ -3,7 +3,7 @@
 #SBATCH -J flame_cpu_3d
 #SBATCH --partition=nova
 #SBATCH --nodes=1
-#SBATCH --ntasks=16                 # MPI ranks = domain decomposition
+#SBATCH --ntasks=64                 # MPI ranks = domain decomposition
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=32G
 #SBATCH --time=00:30:00
@@ -42,7 +42,7 @@ if [ -z "${CPU_BIN}" ]; then
   fi
   echo "No CPU binary -- building (./configure --comp=g++ --dim 3 --profile --get-eigen && make)"
   ./configure --comp=g++ --dim 3 --profile --get-eigen
-  make -j"${SLURM_CPUS_ON_NODE:-16}"
+  make -j"${SLURM_CPUS_ON_NODE:-64}"
   CPU_BIN="$(ls -t bin/alamo-3d*-g++ | grep -v cuda | head -1)"
 fi
 echo "CPU binary: ${CPU_BIN}  (${SLURM_NTASKS} ranks)"
