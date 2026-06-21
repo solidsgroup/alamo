@@ -20,21 +20,29 @@
 #                      weak             = size grows with GPUS.
 #   GPU_TYPE=...       GPU type label passed through to the SLURM scripts
 #                      (e.g. a100, h100, h200; default a100).
+#   GPUS_PER_NODE=4    GPU slots per NOVA node for multi-node allocations.
 #   SIZES="128 256 512"   grid sizes (strong mode sweeps all; weak maps to GPUS).
 #   GPUS="1 2 4 8"        GPU counts to sweep.
 #   OUT=commands.txt      output file for the emitted command matrix.
 #   DEPENDENCY=...        optional SLURM dependency applied to every submitted job
 #                         (bare jobid or full sbatch dependency syntax).
+#   GPU_DEPENDENCY=...    optional dependency for GPU jobs only; defaults to
+#                         DEPENDENCY.
+#   CPU_DEPENDENCY=...    optional dependency for CPU jobs only; defaults to
+#                         DEPENDENCY.
 #
 set -euo pipefail
 
 # ---- defaults ---------------------------------------------------------------
 MODE="${MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-a100}"
+GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
 SIZES="${SIZES:-128 256 512}"
 GPUS="${GPUS:-1 2 4 8}"
 OUT="${OUT:-commands.txt}"
 DEPENDENCY="${DEPENDENCY:-}"
+GPU_DEPENDENCY="${GPU_DEPENDENCY:-${DEPENDENCY}}"
+CPU_DEPENDENCY="${CPU_DEPENDENCY:-${DEPENDENCY}}"
 
 SCRIPT_GPU_SINGLE="benchmark/nova_flame_gpu_3d.slurm"
 SCRIPT_GPU_MULTI="benchmark/nova_flame_gpu_3d_multi.slurm"
@@ -65,6 +73,10 @@ if [[ "$MODE" != "strong" && "$MODE" != "weak" ]]; then
     echo "error: MODE must be 'strong' or 'weak' (got '$MODE')" >&2
     exit 2
 fi
+if ! [[ "$GPUS_PER_NODE" =~ ^[1-9][0-9]*$ ]]; then
+    echo "error: GPUS_PER_NODE must be a positive integer (got '$GPUS_PER_NODE')" >&2
+    exit 2
+fi
 
 # ---- banner -----------------------------------------------------------------
 echo "============================================================"
@@ -72,11 +84,18 @@ echo " Phase-3 scaling/crossover sweep (roadmap 3.5)"
 echo " STAGED FOR NOVA -- this is a no-op without SLURM."
 echo "   MODE       = $MODE"
 echo "   GPU_TYPE   = $GPU_TYPE"
+echo "   GPUS_PER_NODE = $GPUS_PER_NODE"
 echo "   SIZES      = $SIZES"
 echo "   GPUS       = $GPUS"
 echo "   OUT        = $OUT"
 if [[ -n "$DEPENDENCY" ]]; then
     echo "   DEPENDENCY = $DEPENDENCY"
+fi
+if [[ -n "$GPU_DEPENDENCY" && "$GPU_DEPENDENCY" != "$DEPENDENCY" ]]; then
+    echo "   GPU_DEPENDENCY = $GPU_DEPENDENCY"
+fi
+if [[ -n "$CPU_DEPENDENCY" && "$CPU_DEPENDENCY" != "$DEPENDENCY" ]]; then
+    echo "   CPU_DEPENDENCY = $CPU_DEPENDENCY"
 fi
 if [[ "$SUBMIT" -eq 1 ]]; then
     echo "   ACTION     = SUBMIT (sbatch each command)"
@@ -86,29 +105,71 @@ fi
 echo "============================================================"
 
 # ---- helper: emit one command ----------------------------------------------
-# args: input, ngpus, script, tag
-emit() {
-    local input="$1" ngpus="$2" script="$3" tag="$4"
-    local depopt=""
+# Normalize a bare job id into Slurm's dependency syntax.
+dependency_opt() {
+    local dependency="${1:-}"
     local deptext=""
-    if [[ -n "$DEPENDENCY" ]]; then
-        case "$DEPENDENCY" in
-            afterok:*|afterany:*|afternotok:*|singleton|expand:*)
-                deptext="$DEPENDENCY"
-                ;;
-            *)
-                deptext="afterok:$DEPENDENCY"
-                ;;
-        esac
-        depopt="--dependency=${deptext}"
+    if [[ -z "$dependency" ]]; then
+        return 0
     fi
-    local cmd="INPUT=${input} NGPUS=${ngpus} GPU_TYPE=${GPU_TYPE} sbatch ${depopt} ${script}"
+    case "$dependency" in
+        afterok:*|afterany:*|afternotok:*|singleton|expand:*)
+            deptext="$dependency"
+            ;;
+        *)
+            deptext="afterok:$dependency"
+            ;;
+    esac
+    printf '%s' "--dependency=${deptext}"
+}
+
+# args: input, ngpus, script, tag, kind
+emit() {
+    local input="$1" ngpus="$2" script="$3" tag="$4" kind="$5"
+    local dependency=""
+    local depopt=""
+    local sbatch_opts=()
+    if [[ "$kind" == "gpu" ]]; then
+        local nodes=$(( (ngpus + GPUS_PER_NODE - 1) / GPUS_PER_NODE ))
+        local gpus_on_node="$ngpus"
+        local tasks_per_node="$ngpus"
+        if [[ "$gpus_on_node" -gt "$GPUS_PER_NODE" ]]; then
+            gpus_on_node="$GPUS_PER_NODE"
+            tasks_per_node="$GPUS_PER_NODE"
+        fi
+        dependency="$GPU_DEPENDENCY"
+        sbatch_opts+=(--nodes="${nodes}" --gres="gpu:${GPU_TYPE}:${gpus_on_node}" --ntasks="${ngpus}" --ntasks-per-node="${tasks_per_node}")
+    else
+        dependency="$CPU_DEPENDENCY"
+    fi
+
+    depopt="$(dependency_opt "$dependency")"
+    if [[ -n "$depopt" ]]; then
+        sbatch_opts+=("$depopt")
+    fi
+
+    local sbatch_opts_text=""
+    if [[ "${#sbatch_opts[@]}" -gt 0 ]]; then
+        printf -v sbatch_opts_text ' %q' "${sbatch_opts[@]}"
+    fi
+
+    local cmd
+    if [[ "$kind" == "gpu" ]]; then
+        cmd="INPUT=${input} NGPUS=${ngpus} GPU_TYPE=${GPU_TYPE} sbatch${sbatch_opts_text} ${script}"
+    else
+        cmd="INPUT=${input} BUILD_CPU_IF_MISSING=0 sbatch${sbatch_opts_text} ${script}"
+    fi
     printf '# %s\n%s\n' "$tag" "$cmd" >> "$OUT"
     if [[ "$SUBMIT" -eq 1 ]]; then
         if command -v sbatch >/dev/null 2>&1; then
             echo "submitting: $cmd"
-            INPUT="${input}" NGPUS="${ngpus}" GPU_TYPE="${GPU_TYPE}" \
-                sbatch ${depopt} "${script}"
+            if [[ "$kind" == "gpu" ]]; then
+                INPUT="${input}" NGPUS="${ngpus}" GPU_TYPE="${GPU_TYPE}" \
+                    sbatch "${sbatch_opts[@]}" "${script}"
+            else
+                INPUT="${input}" BUILD_CPU_IF_MISSING=0 \
+                    sbatch "${sbatch_opts[@]}" "${script}"
+            fi
         else
             echo "WARN: --submit requested but 'sbatch' not found; skipping: $cmd" >&2
         fi
@@ -131,7 +192,7 @@ weak_size_for_gpus() {
 {
     echo "# Phase-3 scaling sweep command matrix"
     echo "# generated by benchmark/phase3_scaling_sweep.sh"
-    echo "# MODE=$MODE GPU_TYPE=$GPU_TYPE SIZES='$SIZES' GPUS='$GPUS'"
+    echo "# MODE=$MODE GPU_TYPE=$GPU_TYPE GPUS_PER_NODE=$GPUS_PER_NODE SIZES='$SIZES' GPUS='$GPUS'"
     echo "# inputs: input_3d_flame_<size> (task 001); scripts: nova_flame_*_3d*.slurm (task 002)"
     echo "#"
 } >> "$OUT"
@@ -142,13 +203,13 @@ if [[ "$MODE" == "strong" ]]; then
         input="input_3d_flame_${size}"
         for n in $GPUS; do
             if [[ "$n" -le 1 ]]; then
-                emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "strong size=${size} gpu x${n}"
+                emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "strong size=${size} gpu x${n}" "gpu"
             else
-                emit "$input" "$n" "$SCRIPT_GPU_MULTI" "strong size=${size} gpu x${n}"
+                emit "$input" "$n" "$SCRIPT_GPU_MULTI" "strong size=${size} gpu x${n}" "gpu"
             fi
         done
         # CPU-node baseline for this size (one per size).
-        emit "$input" "0" "$SCRIPT_CPU" "strong size=${size} cpu-node baseline"
+        emit "$input" "0" "$SCRIPT_CPU" "strong size=${size} cpu-node baseline" "cpu"
     done
 else
     # Weak scaling: size grows with GPU count.
@@ -156,14 +217,14 @@ else
         size="$(weak_size_for_gpus "$n")"
         input="input_3d_flame_${size}"
         if [[ "$n" -le 1 ]]; then
-            emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "weak gpu x${n} size=${size}"
+            emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "weak gpu x${n} size=${size}" "gpu"
         else
-            emit "$input" "$n" "$SCRIPT_GPU_MULTI" "weak gpu x${n} size=${size}"
+            emit "$input" "$n" "$SCRIPT_GPU_MULTI" "weak gpu x${n} size=${size}" "gpu"
         fi
     done
     # CPU-node baseline at the largest weak size for reference.
     big_size="$(weak_size_for_gpus 8)"
-    emit "input_3d_flame_${big_size}" "0" "$SCRIPT_CPU" "weak cpu-node baseline size=${big_size}"
+    emit "input_3d_flame_${big_size}" "0" "$SCRIPT_CPU" "weak cpu-node baseline size=${big_size}" "cpu"
 fi
 
 echo

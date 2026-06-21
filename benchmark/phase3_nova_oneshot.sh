@@ -6,7 +6,8 @@
 # checked out). It will:
 #   1) print the local Phase-3 memory budget table,
 #   2) submit the 3D NOVA build job,
-#   3) submit the Phase-3 sweep matrix with an afterok dependency on the build.
+#   3) submit one serialized CPU build job,
+#   4) submit the Phase-3 sweep matrix with afterok dependencies on the builds.
 #
 # The actual work is done by:
 #   - benchmark/build_alamo_nova_3d.sh
@@ -91,14 +92,17 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "=== Dry run only ==="
     echo "Would submit:"
     echo "  sh ${ROOT_DIR}/benchmark/build_alamo_nova_3d.sh"
-    echo "  DEPENDENCY=<build-jobid> MODE=${SWEEP_MODE} GPU_TYPE=${GPU_TYPE} \\"
+    echo "  sbatch --dependency=afterok:<gpu-build-jobid> <cpu-build-job>"
+    echo "  GPU_DEPENDENCY=<gpu-build-jobid> CPU_DEPENDENCY=<cpu-build-jobid> \\"
+    echo "    MODE=${SWEEP_MODE} GPU_TYPE=${GPU_TYPE} \\"
     echo "    SIZES='${SIZES}' GPUS='${GPUS}' OUT='${OUT}' \\"
     echo "    bash ${ROOT_DIR}/benchmark/phase3_scaling_sweep.sh --submit"
     exit 0
 fi
 
 BUILD_LOG="$(mktemp -t phase3_nova_build.XXXXXX.log)"
-trap 'rm -f "$BUILD_LOG"' EXIT
+CPU_BUILD_SCRIPT="$(mktemp -t phase3_nova_cpu_build.XXXXXX.sbatch)"
+trap 'rm -f "$BUILD_LOG" "$CPU_BUILD_SCRIPT"' EXIT
 
 echo
 echo "=== Submitting 3D build job ==="
@@ -118,9 +122,49 @@ if [[ "$BUILD_ONLY" -eq 1 ]]; then
     exit 0
 fi
 
+cat > "$CPU_BUILD_SCRIPT" <<'EOF'
+#!/bin/bash
+#SBATCH -A brunnels
+#SBATCH -J alamo_cpu_build_3d
+#SBATCH --partition=nova
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --time=02:00:00
+#SBATCH --output=alamo_cpu_build_3d.%j.out
+#SBATCH --error=alamo_cpu_build_3d.%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jackplum@iastate.edu
+set -euo pipefail
+cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
+
+module purge 2>/dev/null || true
+module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
+module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
+
+echo "=== configuring 3D CPU build ==="
+./configure --comp=g++ --dim 3 --profile --get-eigen
+echo "=== building 3D CPU binary ==="
+make -j"${SLURM_CPUS_PER_TASK:-16}"
+echo "=== CPU binaries ==="
+ls -lh bin/alamo-3d*-g++ 2>/dev/null | grep -v cuda
+EOF
+
 echo
-echo "=== Submitting Phase-3 sweep matrix (afterok build) ==="
-DEPENDENCY="$BUILD_JOBID" \
+echo "=== Submitting 3D CPU build job (afterok GPU build) ==="
+CPU_BUILD_JOBID="$(sbatch --parsable --dependency="afterok:${BUILD_JOBID}" "$CPU_BUILD_SCRIPT")"
+CPU_BUILD_JOBID="${CPU_BUILD_JOBID%%;*}"
+if [[ -z "$CPU_BUILD_JOBID" ]]; then
+    echo "error: could not parse CPU build job id" >&2
+    exit 1
+fi
+echo "CPU build job id: ${CPU_BUILD_JOBID}"
+
+echo
+echo "=== Submitting Phase-3 sweep matrix (afterok GPU/CPU builds) ==="
+GPU_DEPENDENCY="$BUILD_JOBID" \
+CPU_DEPENDENCY="$CPU_BUILD_JOBID" \
 MODE="$SWEEP_MODE" \
 GPU_TYPE="$GPU_TYPE" \
 SIZES="$SIZES" \
@@ -130,5 +174,6 @@ bash "${ROOT_DIR}/benchmark/phase3_scaling_sweep.sh" --submit
 
 echo
 echo "All jobs staged."
-echo "Build job:  ${BUILD_JOBID}"
-echo "Sweep file: ${OUT}"
+echo "GPU build job: ${BUILD_JOBID}"
+echo "CPU build job: ${CPU_BUILD_JOBID}"
+echo "Sweep file:    ${OUT}"
