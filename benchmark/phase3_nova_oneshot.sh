@@ -20,6 +20,11 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
 SWEEP_MODE="${SWEEP_MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-a100}"
+GPUS_PER_NODE="${GPUS_PER_NODE:-2}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-72}"
+CPU_RANKS="${CPU_RANKS:-96}"
+SMALL_GPUS="${SMALL_GPUS:-1}"
+LARGE_GPUS="${LARGE_GPUS:-1 2}"
 SIZES="${SIZES:-128 256 512}"
 GPUS="${GPUS:-1 2}"
 OUT="${OUT:-commands.txt}"
@@ -36,12 +41,17 @@ completes successfully.
 
 Env knobs:
   ALAMO_DIR   repo root / working tree (default: repo root inferred from script)
-  SWEEP_MODE  strong|weak (default: strong)
-  GPU_TYPE    a100|h200 (default: a100)
-  SIZES       size list for strong scaling (default: "128 256 512")
-  GPUS        GPU list (default: "1 2")
-  OUT         sweep command output file (default: commands.txt)
-  BUILD_ONLY  set to 1 to submit the build and stop
+  SWEEP_MODE     strong|weak (default: strong)
+  GPU_TYPE       v100|a100|h200 (default: a100)
+  GPUS_PER_NODE  GPU slots per node for sweep resource sizing (default: 2)
+  GPU_NODE_CPUS  CPU cores on one GPU node; split across GPU ranks (default: 72)
+  CPU_RANKS      CPU MPI ranks for the full-node baseline (default: 96)
+  SMALL_GPUS     GPU counts for non-512 strong-scaling sizes (default: "1")
+  LARGE_GPUS     GPU counts for 512 strong-scaling size (default: "1 2")
+  SIZES          size list for strong scaling (default: "128 256 512")
+  GPUS           GPU list for weak scaling (default: "1 2")
+  OUT            sweep command output file (default: commands.txt)
+  BUILD_ONLY     set to 1 to submit the build and stop
 EOF
 }
 
@@ -64,19 +74,40 @@ if [[ "$SWEEP_MODE" != "strong" && "$SWEEP_MODE" != "weak" ]]; then
     echo "error: SWEEP_MODE must be 'strong' or 'weak' (got '$SWEEP_MODE')" >&2
     exit 2
 fi
+case "$GPU_TYPE" in
+    v100|a100|h200) ;;
+    *) echo "error: GPU_TYPE must be v100, a100, or h200 (got '$GPU_TYPE')" >&2; exit 2 ;;
+esac
+if ! [[ "$GPUS_PER_NODE" =~ ^[1-9][0-9]*$ ]]; then
+    echo "error: GPUS_PER_NODE must be a positive integer (got '$GPUS_PER_NODE')" >&2
+    exit 2
+fi
+if ! [[ "$GPU_NODE_CPUS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "error: GPU_NODE_CPUS must be a positive integer (got '$GPU_NODE_CPUS')" >&2
+    exit 2
+fi
+if ! [[ "$CPU_RANKS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "error: CPU_RANKS must be a positive integer (got '$CPU_RANKS')" >&2
+    exit 2
+fi
 
 cd "$ALAMO_DIR"
 
 echo "============================================================"
 echo " Phase-3 NOVA one-shot launcher"
 echo " repo        = $ALAMO_DIR"
-echo " sweep mode  = $SWEEP_MODE"
-echo " GPU_TYPE    = $GPU_TYPE"
-echo " SIZES       = $SIZES"
-echo " GPUS        = $GPUS"
-echo " OUT         = $OUT"
-echo " BUILD_ONLY  = $BUILD_ONLY"
-echo " DRY_RUN     = $DRY_RUN"
+echo " sweep mode    = $SWEEP_MODE"
+echo " GPU_TYPE      = $GPU_TYPE"
+echo " GPUS_PER_NODE = $GPUS_PER_NODE"
+echo " GPU_NODE_CPUS = $GPU_NODE_CPUS"
+echo " CPU_RANKS     = $CPU_RANKS"
+echo " SMALL_GPUS    = $SMALL_GPUS"
+echo " LARGE_GPUS    = $LARGE_GPUS"
+echo " SIZES         = $SIZES"
+echo " GPUS          = $GPUS"
+echo " OUT           = $OUT"
+echo " BUILD_ONLY    = $BUILD_ONLY"
+echo " DRY_RUN       = $DRY_RUN"
 echo "============================================================"
 
 echo
@@ -94,7 +125,9 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  sh ${ROOT_DIR}/benchmark/build_alamo_nova_3d.sh"
     echo "  sbatch --dependency=afterok:<gpu-build-jobid> <cpu-build-job>"
     echo "  GPU_DEPENDENCY=<gpu-build-jobid> CPU_DEPENDENCY=<cpu-build-jobid> \\"
-    echo "    MODE=${SWEEP_MODE} GPU_TYPE=${GPU_TYPE} \\"
+    echo "    MODE=${SWEEP_MODE} GPU_TYPE=${GPU_TYPE} GPUS_PER_NODE=${GPUS_PER_NODE} \\"
+    echo "    GPU_NODE_CPUS=${GPU_NODE_CPUS} CPU_RANKS=${CPU_RANKS} \\"
+    echo "    SMALL_GPUS='${SMALL_GPUS}' LARGE_GPUS='${LARGE_GPUS}' \\"
     echo "    SIZES='${SIZES}' GPUS='${GPUS}' OUT='${OUT}' \\"
     echo "    bash ${ROOT_DIR}/benchmark/phase3_scaling_sweep.sh --submit"
     exit 0
@@ -167,6 +200,11 @@ GPU_DEPENDENCY="$BUILD_JOBID" \
 CPU_DEPENDENCY="$CPU_BUILD_JOBID" \
 MODE="$SWEEP_MODE" \
 GPU_TYPE="$GPU_TYPE" \
+GPUS_PER_NODE="$GPUS_PER_NODE" \
+GPU_NODE_CPUS="$GPU_NODE_CPUS" \
+CPU_RANKS="$CPU_RANKS" \
+SMALL_GPUS="$SMALL_GPUS" \
+LARGE_GPUS="$LARGE_GPUS" \
 SIZES="$SIZES" \
 GPUS="$GPUS" \
 OUT="$OUT" \
