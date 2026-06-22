@@ -158,5 +158,3 @@ echo -e "  A100 run job    : ${RUN_JOBID}"
 echo -e "  watch           : squeue -u \$USER"
 echo -e "  run log         : tail -f ${ALAMO_DIR}/cone_a100.${RUN_JOBID}.out"
 echo -e "  output          : ${ALAMO_DIR}/${PLOT_FILE}_${RUN_JOBID}/"
-echo
-echo -e "  (tip: cancel the stuck H200 job with  scancel <jobid>  if you no longer want it.)"
