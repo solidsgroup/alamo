@@ -46,6 +46,8 @@ private:
         Set::Scalar kappa_M = NAN;
         Set::Scalar q = NAN;
         Set::Scalar V = 0.0;
+        bool spectral = false;
+        Set::Scalar S = 0.0;
     } agglom;
 };
 }

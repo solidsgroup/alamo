@@ -2,7 +2,7 @@ alamo.program = agglomeration
 plot_file = tests/Agglomeration/output
 
 # AMR parameters
-amr.plot_dt = 1.0e-9
+#amr.plot_dt = 1.0e-9
 amr.blocking_factor = 16
 amr.thermo.plot_dt = 1.0e-9
 flame.amr.refinement_criterion = 1e-1
@@ -115,7 +115,7 @@ flame.elastic.phirefinement = 0
 
 # DDCH agglomeration parameters
 p = 1.0
-epsilon = 1.0e-6
+epsilon = 1.0e-3
 omega = 2.5
 gamma = 6.0
 kappa_g = 1.0e-2
@@ -127,6 +127,18 @@ q = 3.0
 alpha.ic.type = random
 alpha.ic.random.offset = 1.55e-1
 alpha.ic.random.mult = 5.0e-2
+# alpha.ic.type = voronoi
+# alpha.ic.voronoi.number_of_grains = 20
+# alpha.ic.voronoi.alpha = 1.0
+# alpha.ic.voronoi.type = partition
+S = 1E-14
+
+# alpha IC: 7 circles read from XYZR file
+alpha.ic.type = psread
+alpha.ic.psread.file.unit =10_um
+alpha.ic.psread.file.name = tests/Agglomeration/conference_paper.xyzr
+alpha.ic.psread.eps = 5.0e-6
+
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant

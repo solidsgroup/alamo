@@ -77,6 +77,9 @@ private:
     Set::Scalar refinement_threshold = NAN; 
 
     std::string method; 
+
+    Set::Scalar tstart = NAN;
+    Set::Scalar tstart_timestep = NAN;
 };
 }
 #endif

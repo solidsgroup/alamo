@@ -35,8 +35,8 @@ geometry.prob_hi =  0.5  0.5  -0.5
 
 geometry.is_periodic = 1 1 1
 
-timestep  = 0.000001
-stop_time = 1.0
+timestep  = 0.00001
+stop_time = 1.0E100
 
 eta.bc.constant.type.xlo = periodic
 eta.bc.constant.type.xhi = periodic
@@ -45,9 +45,14 @@ eta.bc.constant.type.yhi = periodic
 eta.bc.constant.type.zlo = periodic
 eta.bc.constant.type.zhi = periodic
 
+eta.ic.type = random
 eta.ic.random.offset = -1.0
 eta.ic.random.mult   = 2.0
 
-gamma = 0.00005
+eta.ic.type = expression
+eta.ic.expression.region0 = "-1 + 2*(y<0.05) * (y>-0.05) * (x < 0.4) * (x > -0.4)"
+
+
+gamma = 0.0001
 
 refinement_threshold = 0.01

@@ -130,6 +130,11 @@ public:
             value.Define(value.number_of_grains,1.0);
         }
         pp_query("seed",value.seed); // Random seed to use
+
+        std::string type_str;
+        pp.query_validate("type", type_str, {"values","partition"});
+        if (type_str == "values") value.type = Type::Values;
+        else if (type_str == "partition") value.type = Type::Partition;
     }
     
 private:

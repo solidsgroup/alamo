@@ -1,4 +1,6 @@
+#include "IC/Expression.H"
 #include <AMReX_MLPoisson.H>
+#include <limits>
 
 #ifdef ALAMO_FFT
 #include <AMReX_FFT.H>
@@ -32,12 +34,15 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random>("eta.ic", value.ic, value.geom);
+    pp.select_default<IC::Random,IC::Expression>("eta.ic", value.ic, value.geom);
     // boundary condition for :math:`\eta`
     pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
 
     // Which method to use - realspace or spectral method.
     pp.query_validate("method",value.method,{"realspace","spectral"});
+
+    pp.query_default("tstart",value.tstart,1E100);
+    pp.query_default("tstart_timestep",value.tstart_timestep,-1.0);
 
     value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta",true);
     value.RegisterNewFab(value.intermediate, value.bc, 1, 1, "int",true);
@@ -59,7 +64,7 @@ CahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
 
 void
-CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
+CahnHilliard::AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(etaold_mf[lev], etanew_mf[lev]);
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -69,6 +74,10 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<const amrex::Real> const& eta = etaold_mf[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& inter    = intermediate[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& etanew    = etanew_mf[lev]->array(mfi);
+
+        if (time > tstart)
+            if (tstart_timestep > 0)
+                SetTimestep(tstart_timestep);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -80,6 +89,19 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
                 - eta(i,j,k)
                 - gamma*lap_eta;
 
+            Set::Scalar M = 1.0;
+            Set::Scalar small = 1E-8;
+            if (time > tstart)
+            {
+                //inter(i,j,k) *= 0.25*(1+eta(i,j,k))*(1+eta(i,j,k));//*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
+                inter(i,j,k) *= (1+eta(i,j,k))*(1+eta(i,j,k))*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
+                //inter(i,j,k) *= (1+eta(i,j,k))*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
+
+                inter(i,j,k) = std::max(small,inter(i,j,k));
+                inter(i,j,k) = std::min(1.0  ,inter(i,j,k));
+            }
+
+            inter(i,j,k) *= M;
 
             etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
         });
@@ -88,6 +110,8 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX);
 
             etanew(i,j,k) = eta(i,j,k) + dt*lap_inter;
+            etanew(i,j,k) = std::max(-1.0, etanew(i,j,k));
+            etanew(i,j,k) = std::min( 1.0, etanew(i,j,k));
         });
     }
 }
