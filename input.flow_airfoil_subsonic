@@ -8,17 +8,14 @@ amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 4
 timestep  = 1e-2
-amr.n_cell = 24 8
-geometry.prob_lo = -9.0  0
-geometry.prob_hi =  9.0 6.0
+amr.n_cell = 40 40
+geometry.prob_lo = -2.0 -2.0
+geometry.prob_hi =  2.0  2.0
 geometry.is_periodic = 0 0 0
 stop_time = 50.0
 # AMR parameters
 
 amr.cell.all = 1
-
-alamo.program = allencahn
-plot_file = ./output.cantilever
 
 tstart = 2e-2
 
@@ -27,14 +24,14 @@ allencahn.ch.direction = 0
 allencahn.ch.direction_tstart = 0.0
 allencahn.alpha.ic.type = pointlist
 allencahn.alpha.ic.type = pointlist
-allencahn.alpha.ic.pointlist.file.name = ./NACA5065.xy
+allencahn.alpha.ic.pointlist.file.name = ./NACA5605.xy
 allencahn.alpha.ic.pointlist.file.unit = m
 allencahn.alpha.ic.pointlist.verbose = 0
 allencahn.alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
 allencahn.alpha.ic.pointlist.invert = 0 # Don't invert the initial field
 allencahn.alpha.ic.pointlist.x0 = 0.0 0.0 0.0 # X-offset, no offset in this test
 allencahn.alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
-allencahn.alpha.ic.pointlist.rotation.angle = 10_deg # Rotatation angle of polygon
+allencahn.alpha.ic.pointlist.rotation.angle = 45_deg # Rotatation angle of polygon
 allencahn.alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
 
 allencahn.alpha.bc.constant.type.xlo = neumann
@@ -149,35 +146,4 @@ hydro.cfl_v   = 1.0
 
 
 # Enable elasticity
-elastic.type = static
-# Thermoelasticity
-elastic.on = 1
-elastic.interval = 1
-# Elastic model params
-model_steel.E = 190_Pa
-model_steel.nu = 0.3
-# model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-# Elastic solver information
-elastic.solver.verbose = 4
-# elastic.solver.fixed_iter = 5000
-# elastic.solver.nriters = 1
-# elastic.solver.nrtolerance = 1E-5
-# elastic.print_model = 1
-elastic.print_residual = 1
-# Mechanics boundary conditions
-elastic.bc.type = constant
-elastic.bc.constant.type.xlo = disp disp
-elastic.bc.constant.type.ylo = disp disp 
-elastic.bc.constant.type.yhi = disp disp
-elastic.bc.constant.type.xloylo = disp disp 
-elastic.bc.constant.type.xloyhi = disp disp
-# No traction on free surface
-elastic.traction = 0.0
-elastic.elastic_ref_threshold = 0.0005
-#elastic.zero_out_displacement = 1 # Zero out the displacement before each elastic solver iternation
-
-#elastic.solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
-#elastic.solver.tol_rel = 1e-7
-#elastic.solver.average_down_coeffs = 1
-#elastic.solver.normalize_ddw = 1
-#elasticop.small=1.e-3
+elastic.type = disable

@@ -58,25 +58,25 @@ public:
 
             for (unsigned int n = 0; n < X.size(); n++) 
             {
-                for (unsigned int n = 0; n < X.size(); n++)
-                {
-                    double x = X[n][0];
-                    double y = X[n][1];
+                double x = X[n][0];
+                double y = X[n][1];
 
-                    double cx = rotation.center[0];
-                    double cy = rotation.center[1];
+                double cx = rotation.center[0];
+                double cy = rotation.center[1];
 
-                    double theta = rotation.angle;
+                double theta = rotation.angle;
 
-                    double cos_t = std::cos(theta);
-                    double sin_t = std::sin(theta);
+                double cos_t = std::cos(theta);
+                double sin_t = std::sin(theta);
 
-                    double x_shifted = x - cx;
-                    double y_shifted = y - cy;
+                Util::Message(INFO, cos_t);
+                Util::Message(INFO, sin_t);
 
-                    X[n][0] = cx + x_shifted * cos_t - y_shifted * sin_t;
-                    X[n][1] = cy + x_shifted * sin_t + y_shifted * cos_t;
-                }
+                double x_shifted = x - cx;
+                double y_shifted = y - cy;
+
+                X[n][0] = cx + x_shifted * cos_t - y_shifted * sin_t;
+                X[n][1] = cy + x_shifted * sin_t + y_shifted * cos_t;
             }
 
             if (X.back() != X.front())

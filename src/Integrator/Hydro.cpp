@@ -281,28 +281,28 @@ void Hydro::Mix(int lev)
             T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "Mix Func INIT DEBUG (89,85):"
-                            << "\n  eta_patch=" << eta_patch(i,j,k)
-                            << " eta=" << eta
-                            << "\n  density(before)=" << density
-                            << " rho_solid=" << rho_solid(i,j,k)
-                            << " p=" << p(i,j,k)
-                            << " T=" << T(i,j,k)
-                            << "\n  v_x=" << v(i,j,k,0)
-                            << " v_y=" << v(i,j,k,1)
-                            << " E=" << E(i,j,k)
-                            << "\n  E_fluid=" << E_fluid
-                            << " E_solid=" << E_solid(i,j,k)
-                            << "\n  E_mixed(before)=" << E_fluid*eta + E_solid(i,j,k)*(1.0-eta)
-                            << "\n  M_solid_x=" << M_solid(i,j,k,0)
-                            << " M_solid_y=" << M_solid(i,j,k,1)
-                            << "\n  M_x(before)=" << (rho(i,j,k)*v(i,j,k,0))*eta + M_solid(i,j,k,0)*(1.0-eta)
-                            << " M_y(before)=" << (rho(i,j,k)*v(i,j,k,1))*eta + M_solid(i,j,k,1)*(1.0-eta)
-                            << "\n  rho_mixed(before)=" << eta*rho(i,j,k) + (1.0-eta)*rho_solid(i,j,k)
-                            << "\n";
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "Mix Func INIT DEBUG (89,85):"
+            //                 << "\n  eta_patch=" << eta_patch(i,j,k)
+            //                 << " eta=" << eta
+            //                 << "\n  density(before)=" << density
+            //                 << " rho_solid=" << rho_solid(i,j,k)
+            //                 << " p=" << p(i,j,k)
+            //                 << " T=" << T(i,j,k)
+            //                 << "\n  v_x=" << v(i,j,k,0)
+            //                 << " v_y=" << v(i,j,k,1)
+            //                 << " E=" << E(i,j,k)
+            //                 << "\n  E_fluid=" << E_fluid
+            //                 << " E_solid=" << E_solid(i,j,k)
+            //                 << "\n  E_mixed(before)=" << E_fluid*eta + E_solid(i,j,k)*(1.0-eta)
+            //                 << "\n  M_solid_x=" << M_solid(i,j,k,0)
+            //                 << " M_solid_y=" << M_solid(i,j,k,1)
+            //                 << "\n  M_x(before)=" << (rho(i,j,k)*v(i,j,k,0))*eta + M_solid(i,j,k,0)*(1.0-eta)
+            //                 << " M_y(before)=" << (rho(i,j,k)*v(i,j,k,1))*eta + M_solid(i,j,k,1)*(1.0-eta)
+            //                 << "\n  rho_mixed(before)=" << eta*rho(i,j,k) + (1.0-eta)*rho_solid(i,j,k)
+            //                 << "\n";
+            // }
 
             M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
             M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
@@ -313,17 +313,17 @@ void Hydro::Mix(int lev)
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "Mix Func INIT RESULT (89,85):"
-                            << "\n  density(after)=" << rho(i,j,k)
-                            << " M_x(after)=" << M(i,j,k,0)
-                            << " M_y(after)=" << M(i,j,k,1)
-                            << " E(after)=" << E(i,j,k)
-                            << "\n  E/eta=" << E(i,j,k) / (eta)
-                            << " E_solid/eta=" << E_solid(i,j,k) / (eta)
-                            << "\n";
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "Mix Func INIT RESULT (89,85):"
+            //                 << "\n  density(after)=" << rho(i,j,k)
+            //                 << " M_x(after)=" << M(i,j,k,0)
+            //                 << " M_y(after)=" << M(i,j,k,1)
+            //                 << " E(after)=" << E(i,j,k)
+            //                 << "\n  E/eta=" << E(i,j,k) / (eta)
+            //                 << " E_solid/eta=" << E_solid(i,j,k) / (eta)
+            //                 << "\n";
+            // }
         });
         // amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         // {  
@@ -582,15 +582,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;
 
-            if (i == 89 && j == 85)
-            {
-                amrex::Print() << "Velocity at (89,85):"
-                            << "\n  v(i,j,k,0)=" << v(i,j,k,0)
-                            << "\n  v(i,j,k,1)=" << v(i,j,k,1)
-                            << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
-                            << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
-                            << "\n";
-            }
+            // if (i == 89 && j == 85)
+            // {
+            //     amrex::Print() << "Velocity at (89,85):"
+            //                 << "\n  v(i,j,k,0)=" << v(i,j,k,0)
+            //                 << "\n  v(i,j,k,1)=" << v(i,j,k,1)
+            //                 << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
+            //                 << "\n  v(i,j,k,0) *= eta=" << v(i,j,k,0) * eta
+            //                 << "\n";
+            // }
 
             if (eta < small) 
             {
