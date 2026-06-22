@@ -400,7 +400,7 @@ fi
 echo "=== launching cone run ==="
 /usr/bin/time -v srun --mpi=pmix -n "\${NRANKS}" --gpus-per-task=1 \\
     "\${GPU_BIN}" "\${INPUT}" \\
-    max_step=${MAX_STEP} plot_file=${PLOT_FILE}_\${SLURM_JOB_ID} \\
+    plot_file=${PLOT_FILE}_\${SLURM_JOB_ID} \\
     \${OVERRIDES}
 echo "=== done -- plotfiles in ${PLOT_FILE}_\${SLURM_JOB_ID} (open celloutput.visit / nodeoutput.visit) ==="
 EOF_SB
