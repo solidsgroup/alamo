@@ -3,14 +3,14 @@ plot_file = ./output.airfoil_subsonic
 # amr.plot_dt = 0.001
 amr.plot_int = 1
 amr.max_grid_size = 500000
-amr.blocking_factor = 8
+amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 4
 timestep  = 1e-2
-amr.n_cell = 40 40
-geometry.prob_lo = -2.0 -2.0
-geometry.prob_hi =  2.0  2.0
+amr.n_cell = 80 40 
+geometry.prob_lo = -0.5 -1.0
+geometry.prob_hi =  3.5  1.0
 geometry.is_periodic = 0 0 0
 stop_time = 50.0
 # AMR parameters
@@ -23,7 +23,6 @@ tstart = 2e-2
 allencahn.ch.direction = 0
 allencahn.ch.direction_tstart = 0.0
 allencahn.alpha.ic.type = pointlist
-allencahn.alpha.ic.type = pointlist
 allencahn.alpha.ic.pointlist.file.name = ./NACA5605.xy
 allencahn.alpha.ic.pointlist.file.unit = m
 allencahn.alpha.ic.pointlist.verbose = 0
@@ -31,8 +30,8 @@ allencahn.alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happen
 allencahn.alpha.ic.pointlist.invert = 0 # Don't invert the initial field
 allencahn.alpha.ic.pointlist.x0 = 0.0 0.0 0.0 # X-offset, no offset in this test
 allencahn.alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
-allencahn.alpha.ic.pointlist.rotation.angle = 45_deg # Rotatation angle of polygon
-allencahn.alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
+allencahn.alpha.ic.pointlist.rotation.angle = -20.0_deg # Rotatation angle of polygon
+allencahn.alpha.ic.pointlist.eps = 0.01_m # Diffuse boundary thickness
 
 allencahn.alpha.bc.constant.type.xlo = neumann
 allencahn.alpha.bc.constant.type.xhi = neumann
@@ -65,7 +64,7 @@ hydro.gas.transport.mixture_averaged.k = 0.023_W/m/K
 hydro.gas.eos.type = cpg
 
 hydro.density.ic.type = constant
-hydro.density.ic.constant.value = 5.0
+hydro.density.ic.constant.value = 1.0
 # hydro.density.ic.expression.region0 = "30.0" # * (0.98027677 * (x<-2.0) + (x>=-2))"
 hydro.velocity.ic.type = expression
 hydro.velocity.ic.expression.constant.eps   = 0.02
@@ -126,7 +125,7 @@ hydro.omega_refinement_criterion = 0.1
 hydro.gradu_refinement_criterion = 0.1
 
 hydro.solid.momentum.ic.constant.value = 0.0
-hydro.solid.density.ic.constant.value = 5.0
+hydro.solid.density.ic.constant.value = 1.0
 hydro.solid.energy.ic.constant.value = 2500.0
 
 hydro.m0.ic.constant.value = 0.0
