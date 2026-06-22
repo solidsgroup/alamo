@@ -22,7 +22,7 @@ plot_file = output
 ### MESHING ###
 
 amr.plot_int = 1
-amr.max_level = 2
+amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
