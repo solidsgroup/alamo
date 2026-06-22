@@ -30,8 +30,8 @@
 alamo.program = flame
 plot_file = output_3d_cone
 
-amr.plot_int = 1
-max_step = 10
+# amr.plot_int = 1            # disabled -- use time-based plotting (amr.plot_dt) instead
+amr.plot_dt = 0.01_s          # write a plotfile every 0.01 s of simulation time
 amr.max_level = 2
 amr.blocking_factor = 16
 amr.max_grid_size = 128
@@ -39,7 +39,8 @@ amr.grid_eff = 0.7
 amr.node.all = 1
 amr.n_cell = 128 128 64
 amr.thermo.int = 1
-amr.thermo.plot_int = 1
+# amr.thermo.plot_int = 1     # disabled -- use time-based thermo plotting instead
+amr.thermo.plot_dt = 0.01_s
 
 # Domain: wide-shallow box. x-y is the circular cross-section (motor width),
 #   z is the motor axis (motor height). Cubic cells.

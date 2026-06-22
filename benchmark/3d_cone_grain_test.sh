@@ -162,7 +162,6 @@ alamo.program = flame
 plot_file = output_3d_cone
 
 amr.plot_dt = 0.01
-max_step = 10
 amr.max_level = 2
 amr.blocking_factor = 16
 amr.max_grid_size = 128
