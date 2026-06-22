@@ -11,7 +11,7 @@
 # Optional environment variables:
 #   BUNDLE_DIR   bundle directory to package. If unset, the script picks the
 #                newest analysis/phase3_nova_bundle_* directory under the
-#                directory containing this script.
+#                repo root; if none exist, it falls back to the repo root.
 #   OUT_DIR      where to write the tarball locally before scp (default: /tmp)
 #   TAR_NAME     tarball filename (default: phase3_nova_bundle_<timestamp>.tar.gz)
 #   SCP_DEST     required scp destination, e.g. jackplum@kermit:/home/jackplum/Downloads/
@@ -20,6 +20,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
 ts="$(date +%Y%m%d_%H%M%S)"
 out_dir="${OUT_DIR:-/tmp}"
 tar_name="${TAR_NAME:-phase3_nova_bundle_${ts}.tar.gz}"
@@ -36,12 +37,12 @@ if [[ -n "${BUNDLE_DIR:-}" ]]; then
   bundle_dir="$BUNDLE_DIR"
 else
   mapfile -t bundle_candidates < <(
-    find "$script_dir" -maxdepth 1 -mindepth 1 -type d -name 'phase3_nova_bundle_*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{print $2}'
+    find "$repo_root/analysis" -maxdepth 1 -mindepth 1 -type d -name 'phase3_nova_bundle_*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{print $2}'
   )
   if [[ "${#bundle_candidates[@]}" -gt 0 ]]; then
     bundle_dir="${bundle_candidates[0]}"
   else
-    bundle_dir="$script_dir"
+    bundle_dir="$repo_root"
   fi
 fi
 
@@ -134,7 +135,7 @@ fi
 
 if [[ -z "$scp_dest" ]]; then
   echo "error: SCP_DEST is required, for example:" >&2
-  echo "  SCP_DEST=jackplum@kermit:/home/jackplum/Downloads/" >&2
+  echo "  SCP_DEST=jackplum@10.24.220.162:/home/jackplum/Downloads/" >&2
   exit 1
 fi
 
