@@ -49,8 +49,8 @@ PARTITION="${PARTITION:-nova}"
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
 GPU_TYPE="${GPU_TYPE:-h200}"               # v100 (sm_70) | a100 (sm_80) | h200 (sm_90)
 GPUS="${GPUS:-1}"                          # single GPU for this test
-CPUS_PER_TASK="${CPUS_PER_TASK:-72}"       # host cores for the rank
-RUN_TIME="${RUN_TIME:-02:00:00}"
+CPUS_PER_TASK="${CPUS_PER_TASK:-32}"       # host cores for the rank
+RUN_TIME="${RUN_TIME:-16:00:00}"
 INPUT="${INPUT:-input_3d_cone}"
 PLOT_FILE="${PLOT_FILE:-output_3d_cone}"
 MODE="${MODE:-fast}"                       # fast (lean) | bench (TinyProfiler-friendly)
@@ -161,7 +161,7 @@ else
 alamo.program = flame
 plot_file = output_3d_cone
 
-amr.plot_int = 1
+amr.plot_dt = 0.01
 max_step = 10
 amr.max_level = 2
 amr.blocking_factor = 16
@@ -362,7 +362,7 @@ cat > "${RUN_SB}" <<EOF_SB
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:${GPU_TYPE}:${GPUS}
 #SBATCH --cpus-per-task=${CPUS_PER_TASK}
-#SBATCH --mem=0
+#SBATCH --mem=128G
 #SBATCH --time=${RUN_TIME}
 #SBATCH --output=cone_${GPU_TYPE}.%j.out
 #SBATCH --error=cone_${GPU_TYPE}.%j.err
@@ -400,7 +400,7 @@ fi
 echo "=== launching cone run ==="
 /usr/bin/time -v srun --mpi=pmix -n "\${NRANKS}" --gpus-per-task=1 \\
     "\${GPU_BIN}" "\${INPUT}" \\
-    max_step=${MAX_STEP} amr.plot_int=${PLOT_INT} plot_file=${PLOT_FILE}_\${SLURM_JOB_ID} \\
+    max_step=${MAX_STEP} plot_file=${PLOT_FILE}_\${SLURM_JOB_ID} \\
     \${OVERRIDES}
 echo "=== done -- plotfiles in ${PLOT_FILE}_\${SLURM_JOB_ID} (open celloutput.visit / nodeoutput.visit) ==="
 EOF_SB
