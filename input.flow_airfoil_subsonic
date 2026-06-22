@@ -1,0 +1,183 @@
+alamo.program = allencahn
+plot_file = ./output.airfoil_subsonic
+# amr.plot_dt = 0.001
+amr.plot_int = 1
+amr.max_grid_size = 500000
+amr.blocking_factor = 8
+amr.regrid_int = 100
+amr.grid_eff = 0.7
+amr.max_level = 4
+timestep  = 1e-2
+amr.n_cell = 24 8
+geometry.prob_lo = -9.0  0
+geometry.prob_hi =  9.0 6.0
+geometry.is_periodic = 0 0 0
+stop_time = 50.0
+# AMR parameters
+
+amr.cell.all = 1
+
+alamo.program = allencahn
+plot_file = ./output.cantilever
+
+tstart = 2e-2
+
+## Allen-Cahn Model with no growth
+allencahn.ch.direction = 0
+allencahn.ch.direction_tstart = 0.0
+allencahn.alpha.ic.type = pointlist
+allencahn.alpha.ic.type = pointlist
+allencahn.alpha.ic.pointlist.file.name = ./NACA5065.xy
+allencahn.alpha.ic.pointlist.file.unit = m
+allencahn.alpha.ic.pointlist.verbose = 0
+allencahn.alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
+allencahn.alpha.ic.pointlist.invert = 0 # Don't invert the initial field
+allencahn.alpha.ic.pointlist.x0 = 0.0 0.0 0.0 # X-offset, no offset in this test
+allencahn.alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
+allencahn.alpha.ic.pointlist.rotation.angle = 10_deg # Rotatation angle of polygon
+allencahn.alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
+
+allencahn.alpha.bc.constant.type.xlo = neumann
+allencahn.alpha.bc.constant.type.xhi = neumann
+allencahn.alpha.bc.constant.type.ylo = neumann
+allencahn.alpha.bc.constant.type.yhi = neumann
+allencahn.alpha.bc.constant.val.xlo = 0.0
+allencahn.alpha.bc.constant.val.xhi = 0.0
+allencahn.alpha.bc.constant.val.ylo = 0.0
+allencahn.alpha.bc.constant.val.yhi = 0.0
+
+allencahn.ch.L = 0.0
+allencahn.ch.kappa = 0.002
+allencahn.ch.lambda = 0.05
+
+### HYDRO PARAM ###
+
+### GAS MODEL ###
+hydro.solver.type = hllc
+system.amount = kmol
+hydro.gas.mw = 28.0_g/mol
+hydro.gas.thermo.type = cpconstant
+hydro.gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+hydro.gas.thermo.cpconstant.h0 = 0.0
+hydro.gas.thermo.cpconstant.s0 = 0.0
+hydro.gas.thermo.cpconstant.Tref = 0.0_K
+hydro.gas.transport.type = mixture_averaged
+hydro.gas.transport.mixture_averaged.type = constant
+hydro.gas.transport.mixture_averaged.mu = 0.01_Pa*s
+hydro.gas.transport.mixture_averaged.k = 0.023_W/m/K
+hydro.gas.eos.type = cpg
+
+hydro.density.ic.type = constant
+hydro.density.ic.constant.value = 5.0
+# hydro.density.ic.expression.region0 = "30.0" # * (0.98027677 * (x<-2.0) + (x>=-2))"
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps   = 0.02
+hydro.velocity.ic.expression.constant.x0    = -0.2
+hydro.velocity.ic.expression.region0 = "0.0" # "0.8 * (0.5 - 0.5*erf((x-x0)/eps))"
+hydro.velocity.ic.expression.region1 = "0.0"
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "1000.0" # * 40.0 * (0.9724967 * (x<-2.0) + (x>=-2))"
+
+### ETA BC  ###
+
+hydro.pf.eta.bc.constant.type.xlo = neumann
+hydro.pf.eta.bc.constant.type.xhi = neumann
+hydro.pf.eta.bc.constant.type.ylo = neumann
+hydro.pf.eta.bc.constant.type.yhi = neumann
+hydro.pf.eta.bc.constant.type.zlo = neumann
+hydro.pf.eta.bc.constant.type.zhi = neumann
+hydro.pf.eta.bc.constant.val.xlo = 0.0
+hydro.pf.eta.bc.constant.val.xhi = 0.0
+hydro.pf.eta.bc.constant.val.ylo = 0.0
+hydro.pf.eta.bc.constant.val.yhi = 0.0
+hydro.pf.eta.bc.constant.val.zlo = 0.0
+hydro.pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = neumann
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.val.xhi = 0.0
+hydro.density.bc.constant.val.xlo = 0.0
+hydro.density.bc.constant.val.ylo = 0.0 
+hydro.density.bc.constant.val.yhi = 0.0
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = neumann
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.energy.bc.constant.val.xhi = 0.0
+hydro.energy.bc.constant.val.xlo = 0.0
+hydro.energy.bc.constant.val.ylo = 0.0 
+hydro.energy.bc.constant.val.yhi = 0.0
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.val.xhi = 0.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0 0.0
+hydro.momentum.bc.constant.val.ylo = 0.0 0.0
+hydro.momentum.bc.constant.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+
+### HYDRO REFINEMENT CRITERIA ###
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 0.1
+hydro.gradu_refinement_criterion = 0.1
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 5.0
+hydro.solid.energy.ic.constant.value = 2500.0
+
+hydro.m0.ic.constant.value = 0.0
+hydro.u0.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-8
+hydro.cutoff=0.5
+hydro.lagrange=0.0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 2E-4
+dynamictimestep.min  = 1E-12
+hydro.cfl   = 10.0
+hydro.cfl_v   = 1.0
+
+
+# Enable elasticity
+elastic.type = static
+# Thermoelasticity
+elastic.on = 1
+elastic.interval = 1
+# Elastic model params
+model_steel.E = 190_Pa
+model_steel.nu = 0.3
+# model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+# Elastic solver information
+elastic.solver.verbose = 4
+# elastic.solver.fixed_iter = 5000
+# elastic.solver.nriters = 1
+# elastic.solver.nrtolerance = 1E-5
+# elastic.print_model = 1
+elastic.print_residual = 1
+# Mechanics boundary conditions
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp 
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp 
+elastic.bc.constant.type.xloyhi = disp disp
+# No traction on free surface
+elastic.traction = 0.0
+elastic.elastic_ref_threshold = 0.0005
+#elastic.zero_out_displacement = 1 # Zero out the displacement before each elastic solver iternation
+
+#elastic.solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
+#elastic.solver.tol_rel = 1e-7
+#elastic.solver.average_down_coeffs = 1
+#elastic.solver.normalize_ddw = 1
+#elasticop.small=1.e-3

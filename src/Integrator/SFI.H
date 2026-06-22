@@ -217,14 +217,14 @@ protected:
 		      //rhs(i, j, k) = (elastic.traction) * grad_eta + pres_avg*grad_eta;
 		      rhs(i, j, k) = (elastic.traction) * grad_eta;
 		      if(rhs(i,j,k) != rhs(i,j,k))
-			Util::Abort(INFO,"nan detected");
-		      if (lev== 3 && i== 111 && j==48 )
-		       	{
-			  Util::Message(INFO,rhs(i,j,k).transpose());
-			  Util::Message(INFO,grad_eta.transpose());
-			  Util::Message(INFO, pres_avg);
-			  Util::Message(INFO, elastic.traction);
-			}
+                Util::Abort(INFO,"nan detected");
+                if (lev== 3 && i== 111 && j==48 )
+                    {
+                Util::Message(INFO,rhs(i,j,k).transpose());
+                Util::Message(INFO,grad_eta.transpose());
+                Util::Message(INFO, pres_avg);
+                Util::Message(INFO, elastic.traction);
+                }
 
                     });
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
