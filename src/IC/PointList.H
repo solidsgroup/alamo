@@ -56,29 +56,6 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
 
-            for (unsigned int n = 0; n < X.size(); n++) 
-            {
-                for (unsigned int n = 0; n < X.size(); n++)
-                {
-                    double x = X[n][0];
-                    double y = X[n][1];
-
-                    double cx = rotation.center[0];
-                    double cy = rotation.center[1];
-
-                    double theta = rotation.angle;
-
-                    double cos_t = std::cos(theta);
-                    double sin_t = std::sin(theta);
-
-                    double x_shifted = x - cx;
-                    double y_shifted = y - cy;
-
-                    X[n][0] = cx + x_shifted * cos_t - y_shifted * sin_t;
-                    X[n][1] = cy + x_shifted * sin_t + y_shifted * cos_t;
-                }
-            }
-
             if (X.back() != X.front())
             // The first and last point must match, if they do not add another point to the end
             {
@@ -210,7 +187,7 @@ public:
         // Center of rigid-body rotation 
         pp.queryarr_default("rotation.center",value.rotation.center,"0.0 0.0 0.0", Unit::Length());
         
-        // Amount of rotation about rotation center (clockwise)
+        // Amount of rotation about rotation center (counter-clockwise)
         pp.query_default("rotation.angle",value.rotation.angle,"0.0", Unit::Angle());
 
 
@@ -241,6 +218,20 @@ public:
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
                 X = value.x0 + value.mult*X;
+
+                Set::Scalar cx = value.rotation.center[0];
+                Set::Scalar cy = value.rotation.center[1];
+
+                Set::Scalar theta = value.rotation.angle;
+
+                Set::Scalar cos_t = std::cos(theta);
+                Set::Scalar sin_t = std::sin(theta);
+
+                Set::Scalar x_shifted = x - cx;
+                Set::Scalar y_shifted = y - cy;
+
+                X[0] = cx + x_shifted * cos_t - y_shifted * sin_t;
+                X[1] = cy + x_shifted * sin_t + y_shifted * cos_t;
 
                 value.X.push_back(X);
                 if (verbose > 0)
