@@ -1,0 +1,177 @@
+####################################################################################
+# input_3d_cone — 3D GPU Flame test: conical propellant grain (NEW geometry)
+#
+# Geometry (NEW, never run before):
+#   A SOLID CONE of propellant (eta=1) standing on the nozzle end, surrounded by
+#   combustion gas (eta=0). The cone:
+#     - base (large end) sits on the nozzle face, z = 0
+#     - apex (point) terminates at z = 0.75 * H  (cone height = 75% of motor height)
+#     - base radius = 0.25 * W = 50% of the motor-grain width (diameter)
+#   The cone is generated analytically (Expression IC) — no BMP (BMP is 2D-only).
+#
+#   Motor grain = cylinder of radius R_motor (phi=1) inscribed in the square domain;
+#   the square corners are casing (phi=0). The cone is well inside this cylinder.
+#
+# Coordinate convention: z is the motor axis. Nozzle/base at z=0 (bottom),
+#   apex points up. x-y is the circular cross-section, centred at (cx,cy).
+#
+# Physics: PHASE-FIELD REGRESSION ONLY. Elastic is DISABLED (elastic.type=disable,
+#   per D1: elastic is CPU-resident and the device elastic solve hits CUDA-719).
+#   With type=disable the elastic model/bc blocks MUST be omitted or the strict
+#   parser aborts.
+#
+# Grid: n_cell = 128 128 64, max_level = 2. Cubic cells:
+#   dx = dy = 0.1754/128 = 1.370e-3 m ;  dz = 0.0877/64 = 1.370e-3 m.
+#
+# Purpose: LOCAL GPU correctness smoke (10 steps, plot every step) to verify the
+#   cone IC is correct and regresses before scaling up on NOVA.
+####################################################################################
+
+alamo.program = flame
+plot_file = output_3d_cone
+
+amr.plot_int = 1
+max_step = 10
+amr.max_level = 2
+amr.blocking_factor = 16
+amr.max_grid_size = 128
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.n_cell = 128 128 64
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+
+# Domain: wide-shallow box. x-y is the circular cross-section (motor width),
+#   z is the motor axis (motor height). Cubic cells.
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 0.1754_m 0.1754_m 0.0877_m
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+timestep = 1.0e-4_s
+stop_time = 6.5_s
+
+# Phase field parameters
+pf.eps = 5.0e-5_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+####################################################################################
+# eta IC — SOLID CONE of propellant (eta=1 solid, eta=0 gas), smooth tanh interface.
+#
+#   cx, cy : motor axis (centre of the square cross-section)
+#   rb     : cone base radius = 0.25 * W = 0.0425 m  (base diameter = 0.085 m = 50% W)
+#   zap    : apex height = 0.75 * H = 0.0658 m       (cone height = 75% of motor)
+#   w      : interface half-width (~ equilibrium width eps*sqrt(kappa/lambda)=1.6e-3)
+#
+#   Local cone radius at height z:  rc(z) = rb * (1 - z/zap).
+#   eta = 0.5 + 0.5*tanh( (rc(z) - rho) / w ),  rho = sqrt((x-cx)^2 + (y-cy)^2).
+#   For z > zap, rc(z) < 0 so eta -> 0 automatically (gas above the apex), i.e. the
+#   tanh naturally closes the cone tip; no separate top cutoff is needed.
+####################################################################################
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.cx  = 0.0877
+pf.eta.ic.expression.constant.cy  = 0.0877
+pf.eta.ic.expression.constant.rb  = 0.0425
+pf.eta.ic.expression.constant.zap = 0.0658
+pf.eta.ic.expression.constant.w   = 0.002
+pf.eta.ic.expression.region0 = "0.5 + 0.5*tanh((rb*(1.0 - z/zap) - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# eta BCs — Neumann (zero-flux) on all six faces.
+#   The cone is interior and surrounded by gas, so the walls must NOT pin eta to
+#   solid. Zero-flux at z=0 also makes the cone base inhibited (does not burn
+#   through the nozzle face), which is the physical case for a base-bonded grain.
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+####################################################################################
+# phi IC — motor-grain mask (phi=1 inside the cylindrical motor, phi=0 casing).
+#   Cylinder radius R = 0.085 m (motor width ~ domain width); corners are casing.
+#   phi gates the combustion physics (get_L, get_qdot all scale by phi).
+####################################################################################
+phi.ic.type = expression
+phi.ic.expression.constant.cx = 0.0877
+phi.ic.expression.constant.cy = 0.0877
+phi.ic.expression.constant.R  = 0.085
+phi.ic.expression.constant.w  = 0.003
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((R - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# Refinement criteria
+amr.refinement_criterion = 0.001
+amr.refinement_criterion_temp = 0.001_K
+
+# Propellant model (homogenized; unchanged from the 2D/3D reference)
+propellant.type = homogenize
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# Thermal
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.type.zlo = dirichlet
+thermal.temp.bc.constant.type.zhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+thermal.temp.bc.constant.val.zlo = 300_K
+thermal.temp.bc.constant.val.zhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+# Laser ignition: uniform volumetric heat for t < 0.025 s to light the grain.
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0
+
+# Pressure / chamber
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa
+chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# Elastic DISABLED for the GPU path (D1). With type=disable the elastic model/bc
+# blocks must be OMITTED or ALAMO's strict parser aborts on unused entries.
+elastic.type = disable

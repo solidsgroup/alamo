@@ -812,16 +812,31 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
     if (max_plot_level >= 0) nlevels = std::min(nlevels, max_plot_level);
 
     int ccomponents = 0, ncomponents = 0, bfcomponents_cell = 0, bfcomponents = 0;
-    amrex::Vector<std::string> cnames, nnames, bfnames_cell, bfnames;
+    // Cell fields are averaged to nodes for the node plotfile, which requires at
+    // least one ghost cell. Zero-ghost cell fields are (correctly) skipped from
+    // the node data below, so they must also be skipped from the node name list
+    // and node component count -- track those separately. Otherwise the node
+    // names/components and the node data misalign, and the unwritten trailing
+    // components are emitted as uninitialized (garbage) memory.
+    int ccomponents_node = 0;
+    amrex::Vector<std::string> cnames, nnames, bfnames_cell, bfnames, cnames_node;
     for (int i = 0; i < cell.number_of_fabs; i++)
     {
         if (!cell.writeout_array[i]) continue;
         ccomponents += cell.ncomp_array[i];
+        const bool node_eligible = cell.nghost_array[i] >= 1;
+        if (node_eligible) ccomponents_node += cell.ncomp_array[i];
         if (cell.ncomp_array[i] > 1)
             for (int j = 0; j < cell.ncomp_array[i]; j++)
+            {
                 cnames.push_back(cell.name_array[i][j]);
+                if (node_eligible) cnames_node.push_back(cell.name_array[i][j]);
+            }
         else
+        {
             cnames.push_back(cell.name_array[i][0]);
+            if (node_eligible) cnames_node.push_back(cell.name_array[i][0]);
+        }
     }
     for (int i = 0; i < node.number_of_fabs; i++)
     {
@@ -940,7 +955,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             amrex::BoxArray ngrids = grids[ilev];
             ngrids.convert(amrex::IntVect::TheNodeVector());
             int ncomp = ncomponents + bfcomponents;
-            if (node.all) ncomp += ccomponents + bfcomponents_cell;
+            if (node.all) ncomp += ccomponents_node + bfcomponents_cell;
 
             amrex::BoxArray ngrids_ghost = ngrids;
             ngrids_ghost.grow(print_ghost_nodes);
@@ -1025,7 +1040,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
     {
         amrex::Vector<std::string> allnames = nnames;
         allnames.insert(allnames.end(), bfnames.begin(), bfnames.end());
-        if (node.all) allnames.insert(allnames.end(), cnames.begin(), cnames.end());
+        if (node.all) allnames.insert(allnames.end(), cnames_node.begin(), cnames_node.end());
         WriteMultiLevelPlotfile(plotfilename[0] + plotfilename[1] + "node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
             Geom(), time, iter, refRatio());
 
