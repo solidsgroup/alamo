@@ -181,8 +181,8 @@ public:
         // X-offsed, applied after the rotation
         pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
 
-        if (pp.contains("x0"))
-            pp_queryarr("x0",value.x0); // Coordinate offset
+        // if (pp.contains("x0"))
+        //     pp_queryarr("x0",value.x0); // Coordinate offset
 
         // Center of rigid-body rotation 
         pp.queryarr_default("rotation.center",value.rotation.center,"0.0 0.0 0.0", Unit::Length());
