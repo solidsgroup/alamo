@@ -6,7 +6,7 @@
 # Run on the NOVA login node from the repo root:
 #     sh benchmark/run_3d_cone_a100.sh
 #
-# This is the run-only sibling of 3d_cone_grain_test.sh, retargeted to A100
+# This is the run-only sibling of run_3d_cone_h200.sh, retargeted to A100
 # (more plentiful than H200). It does NOT re-run the full build orchestration:
 #   - if an A100 (cuda80) binary already exists, it just submits the run;
 #   - if not (your one-shot built ARCHES=90 / H200 only), it submits an sm_80

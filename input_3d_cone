@@ -167,7 +167,7 @@ thermal.hc = 1.0
 # Pressure / chamber
 variable_pressure = 1
 chamber.pressure = 0.101325_MPa
-chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.At = 3.69565e-5_m^2
 chamber.ballistic.T0 = 3200_K
 chamber.ballistic.R = 287_J/kg/K
 chamber.ballistic.gamma = 1.25

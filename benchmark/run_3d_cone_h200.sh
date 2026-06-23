@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 3d_cone_grain_test.sh  --  one-shot NOVA driver for the 3D conical-grain Flame
-#                            test on a single H200 (sm_90).
+# run_3d_cone_h200.sh  --  one-shot NOVA driver for the 3D conical-grain Flame
+#                           test on a single H200 (sm_90).
 #
 # Run this ON THE NOVA LOGIN NODE from the repo root:
-#     sh benchmark/3d_cone_grain_test.sh
+#     sh benchmark/run_3d_cone_h200.sh
 #
 # It mirrors the existing Phase-3 NOVA flow (build_alamo_nova_3d.sh +
 # nova_flame_gpu_3d.slurm + phase3_nova_oneshot.sh) but targets ONE simulation:
@@ -63,7 +63,7 @@ DRY_RUN="${DRY_RUN:-0}"
 
 usage() {
     cat <<'EOF'
-Usage: sh benchmark/3d_cone_grain_test.sh [--dry-run] [--build-only] [--skip-build]
+Usage: sh benchmark/run_3d_cone_h200.sh [--dry-run] [--build-only] [--skip-build]
 
 One-shot NOVA launcher for the 3D conical-grain Flame test on a single H200.
 Writes input_3d_cone, submits the 3D GPU build, then submits the run (afterok).
@@ -296,7 +296,7 @@ thermal.hc = 1.0
 # Pressure / chamber
 variable_pressure = 1
 chamber.pressure = 0.101325_MPa
-chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.At = 3.69565e-5_m^2
 chamber.ballistic.T0 = 3200_K
 chamber.ballistic.R = 287_J/kg/K
 chamber.ballistic.gamma = 1.25
