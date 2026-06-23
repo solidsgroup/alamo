@@ -1,3 +1,4 @@
+#include "IC/StarAftGrain.H"
 #include "Flame.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
@@ -128,7 +129,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>("pf.eta.ic",value.ic_eta,value.geom);
 
 
     // Select reduced order model to capture heat feedback
@@ -237,7 +238,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
-    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
+   pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
         ("phi.ic",value.ic_phi,value.geom);
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
