@@ -172,13 +172,13 @@ public:
         // Verbosity (used in parser only)
         pp.query_default("verbose", verbose, 0); 
 
-        // Unitless coordinate multiplier
+        // Unitless coordinate multiplier, applied after the rotation
         pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
 
         // Whether to invert (make IC 1 outside of solid instead of inside solid)
         pp.query_default("invert",value.invert,false); 
 
-        // X-offset 
+        // X-offsed, applied after the rotation
         pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
 
         if (pp.contains("x0"))
@@ -217,7 +217,6 @@ public:
                 #endif
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
-                X = value.x0 + value.mult*X;
 
                 Set::Scalar cx = value.rotation.center[0];
                 Set::Scalar cy = value.rotation.center[1];
@@ -232,6 +231,8 @@ public:
 
                 X[0] = cx + x_shifted * cos_t - y_shifted * sin_t;
                 X[1] = cy + x_shifted * sin_t + y_shifted * cos_t;
+
+                X = value.x0 + value.mult*X;
 
                 value.X.push_back(X);
                 if (verbose > 0)
