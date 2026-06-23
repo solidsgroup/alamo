@@ -127,6 +127,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
 
+    // Allen-Cahn mobility L is computed and written into L_mf every Advance
+    // regardless of the thermal model, so L_mf must be registered
+    // unconditionally. It was previously created only inside the thermal.on
+    // block, which left it null and segfaulted Advance (L_out write) when
+    // thermal.on=0. nghost=0 so the BC is only nominal; reuse bc_eta.
+    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field);
+
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
 
@@ -176,8 +183,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-
-        value.RegisterNewFab(value.L_mf, value.bc_temp, 1, 0, "L", value.plot_field);
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -276,15 +281,29 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
-        // elastic model of the homogenized propellant (single material; replaces the
-        // former AP/HTPB rule-of-mixtures blend)
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_prop", value.elastic.model_prop);
-        // elastic model of void (gas phase, lives where phi=1 and eta=0)
+        // Elastic model schema follows the propellant resolution:
+        //  - homogenized (grain scale): one model_prop + void + casing, blended
+        //    by the three-material partition of unity in UpdateModel.
+        //  - resolved (mesoscale, e.g. fullfeedback): per-phase model_ap and
+        //    model_htpb, blended by the species field phi (rule of mixtures).
+        // This keeps both the full-grain and mesoscale AP/HTPB use-cases working
+        // from one integrator (resolved was the original behavior; homogenized
+        // replaced it -- now both are supported).
         if (value.homogenized)
+        {
+            // elastic model of the homogenized propellant (single material)
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_prop", value.elastic.model_prop);
+            // elastic model of void (gas phase, lives where phi=1 and eta=0)
             pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
-        // elastic model of casing (stiff confinement outside the fuel disk, phi=0)
-        if (value.homogenized)
+            // elastic model of casing (stiff confinement outside the fuel disk, phi=0)
             pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_casing", value.elastic.model_casing);
+        }
+        else
+        {
+            // resolved AP/HTPB elastic models (phi=1 -> AP, phi=0 -> HTPB)
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        }
 
         // Use (floored) eta as the psi field to weight the elastic operator and zero
         // out the gas region. psi_mf is filled from eta in UpdateModel. When use_psi=0
@@ -452,15 +471,16 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    // Single homogenized propellant model. Apply the thermoelastic
-                    // eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
-                    model_type model_prop = elastic.model_prop;
-                    model_prop.F0 -= Set::Matrix::Identity();
-                    model_prop.F0 *= (temp_avg - elastic.Telastic);
-                    model_prop.F0 += Set::Matrix::Identity();
 
                     if (homogenized)
                     {
+                        // Single homogenized propellant model. Apply the thermoelastic
+                        // eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
+                        model_type model_prop = elastic.model_prop;
+                        model_prop.F0 -= Set::Matrix::Identity();
+                        model_prop.F0 *= (temp_avg - elastic.Telastic);
+                        model_prop.F0 += Set::Matrix::Identity();
+
                         model_type model_void = elastic.model_void;
                         model_void.F0 -= Set::Matrix::Identity();
                         model_void.F0 *= (temp_avg - elastic.Telastic);
@@ -488,7 +508,20 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     }
                     else
                     {
-                        model(i, j, k) = model_prop;
+                        // Resolved AP/HTPB mesoscale model: blend the two per-phase
+                        // elastic models by the species field phi (rule of mixtures),
+                        // phi=1 -> AP, phi=0 -> HTPB. Each phase carries the same
+                        // thermoelastic eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 -= Set::Matrix::Identity();
+                        model_ap.F0 *= (temp_avg - elastic.Telastic);
+                        model_ap.F0 += Set::Matrix::Identity();
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 -= Set::Matrix::Identity();
+                        model_htpb.F0 *= (temp_avg - elastic.Telastic);
+                        model_htpb.F0 += Set::Matrix::Identity();
+                        model(i, j, k) = model_ap * phi_avg
+                                       + model_htpb * (1. - phi_avg);
                     }
                 });
             }
@@ -496,16 +529,22 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    // Elasticity disabled: build the propellant model with no eigenstrain.
-                    model_type model_prop = elastic.model_prop;
+                    // Elasticity disabled: build the propellant model with no
+                    // eigenstrain (F0 = 0), mode-aware so the schema that was
+                    // actually parsed is honored (homogenized model_prop vs the
+                    // resolved model_ap/model_htpb blend). Not used for forcing.
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    model_type m = homogenized
+                                 ? elastic.model_prop
+                                 : elastic.model_ap * phi_avg + elastic.model_htpb * (1. - phi_avg);
                     for (int ii = 0; ii < AMREX_SPACEDIM; ++ii)
                     {
                         for (int jj = 0; jj < AMREX_SPACEDIM; ++jj)
                         {
-                            model_prop.F0(ii, jj) = 0.0;
+                            m.F0(ii, jj) = 0.0;
                         }
                     }
-                    model(i, j, k) = model_prop;
+                    model(i, j, k) = m;
                 });
             }
         }
@@ -675,10 +714,20 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
             L_out(i, j, k) = L;
-            if (std::isnan(K) || std::isinf(K) ||
-                std::isnan(rho) || std::isinf(rho) ||
-                std::isnan(cp) || std::isinf(cp) ||
-                std::isnan(L) || std::isinf(L))
+            // L (mobility) is always used by the eta evolution, so validate it
+            // unconditionally. K/rho/cp are thermal quantities that are
+            // legitimately NAN for burn-rate-only propellant models (e.g.
+            // PowerLaw, whose get_K/get_rho/get_cp return NAN) and are only
+            // consumed inside the thermal_on block below -- validating them
+            // unconditionally spuriously aborts a thermal.on=0 run.
+            if (std::isnan(L) || std::isinf(L))
+            {
+                Util::SetDeviceError(advance_error_flag);
+            }
+            if (thermal_on &&
+                (std::isnan(K) || std::isinf(K) ||
+                 std::isnan(rho) || std::isinf(rho) ||
+                 std::isnan(cp) || std::isinf(cp)))
             {
                 Util::SetDeviceError(advance_error_flag);
             }

@@ -52,6 +52,7 @@ public:
     // structs are captured by value into device lambdas. nvcc forbids both an
     // extended device lambda inside a private/protected member function and a
     // captured variable whose type is a private/protected (or unnamed) member.
+    // See docs/gpu_device_capture_conventions.md for the capture convention.
 public:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
@@ -129,7 +130,14 @@ public:
     struct elastic_struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
+        // Grain-scale (homogenized propellant) elastic models: a single
+        // homogenized propellant material plus the void (combustion gas) and
+        // casing (confinement) phases for the three-material partition.
         model_type model_prop, model_void, model_casing;
+        // Mesoscale (resolved AP/HTPB propellant) elastic models, blended by the
+        // species field phi. Used instead of model_prop when the propellant is
+        // not homogenized (e.g. propellant.type = fullfeedback). See UpdateModel.
+        model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         // When 1, the interface traction follows the evolving chamber pressure
         // instead of the constant elastic.traction value.
