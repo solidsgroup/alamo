@@ -1,5 +1,6 @@
 #include "IC/Expression.H"
 #include <AMReX_MLPoisson.H>
+#include <algorithm>
 #include <limits>
 
 #ifdef ALAMO_FFT
@@ -30,6 +31,8 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("gamma",value.gamma, 0.0005);
     // Mobility
     pp.query_default("L",    value.L,     1.0);
+    pp.query_validate("mobility", value.mobility, {"constant", "singly_degenerate"});
+    pp.query_default("mobility_floor", value.mobility_floor, 0.0);
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
@@ -67,53 +70,59 @@ void
 CahnHilliard::AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(etaold_mf[lev], etanew_mf[lev]);
+    etaold_mf[lev]->FillBoundary(geom[lev].periodicity());
     const Set::Scalar* DX = geom[lev].CellSize();
+
+    if (time > tstart && tstart_timestep > 0)
+        SetTimestep(tstart_timestep);
+
     for ( amrex::MFIter mfi(*etanew_mf[lev],true); mfi.isValid(); ++mfi )
     {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<const amrex::Real> const& eta = etaold_mf[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& inter    = intermediate[lev]->array(mfi);
-        amrex::Array4<amrex::Real> const& etanew    = etanew_mf[lev]->array(mfi);
-
-        if (time > tstart)
-            if (tstart_timestep > 0)
-                SetTimestep(tstart_timestep);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar lap_eta = Numeric::Laplacian(eta,i,j,k,0,DX);
-            
-
-            inter(i,j,k) =
-                eta(i,j,k)*eta(i,j,k)*eta(i,j,k)
-                - eta(i,j,k)
-                - gamma*lap_eta;
-
-            Set::Scalar M = 1.0;
-            Set::Scalar small = 1E-8;
-            if (time > tstart)
-            {
-                //inter(i,j,k) *= 0.25*(1+eta(i,j,k))*(1+eta(i,j,k));//*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
-                inter(i,j,k) *= (1+eta(i,j,k))*(1+eta(i,j,k))*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
-                //inter(i,j,k) *= (1+eta(i,j,k))*(1.0 - eta(i,j,k))*(1.0-eta(i,j,k));
-
-                inter(i,j,k) = std::max(small,inter(i,j,k));
-                inter(i,j,k) = std::min(1.0  ,inter(i,j,k));
-            }
-
-            inter(i,j,k) *= M;
-
-            etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
+            inter(i,j,k) = eta(i,j,k)*eta(i,j,k)*eta(i,j,k) - eta(i,j,k) - gamma*lap_eta;
         });
+    }
+
+    intermediate[lev]->FillBoundary(geom[lev].periodicity());
+
+    for ( amrex::MFIter mfi(*etanew_mf[lev],true); mfi.isValid(); ++mfi )
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<const amrex::Real> const& eta = etaold_mf[lev]->array(mfi);
+        amrex::Array4<const amrex::Real> const& inter = intermediate[lev]->array(mfi);
+        amrex::Array4<amrex::Real> const& etanew = etanew_mf[lev]->array(mfi);
+        const bool singly_degenerate = mobility == "singly_degenerate";
+        const Set::Scalar L_local = L;
+        const Set::Scalar M_floor = mobility_floor;
 
         amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
             Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX);
+            Set::Scalar rhs = L_local * lap_inter;
 
-            etanew(i,j,k) = eta(i,j,k) + dt*lap_inter;
+            if (singly_degenerate)
+            {
+                Set::Scalar alpha = 0.5 * (eta(i,j,k) + 1.0);
+                Set::Scalar M = L_local * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + M_floor;
+                Set::Scalar dM_deta = 0.5 * L_local * 2.0 * alpha * (1.0 - alpha) * (1.0 - 2.0 * alpha);
+                Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                Set::Vector grad_inter = Numeric::Gradient(inter, i, j, k, 0, DX);
+
+                rhs = M * lap_inter + dM_deta * grad_eta.dot(grad_inter);
+            }
+
+            etanew(i,j,k) = eta(i,j,k) + dt*rhs;
             etanew(i,j,k) = std::max(-1.0, etanew(i,j,k));
             etanew(i,j,k) = std::min( 1.0, etanew(i,j,k));
         });
     }
+
+    etanew_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 #ifdef ALAMO_FFT

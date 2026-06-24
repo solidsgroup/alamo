@@ -73,10 +73,12 @@ private:
     IC::IC<Set::Scalar> *ic; /// eta's ic object
     
     Set::Scalar gamma = NAN; 
-    Set::Scalar L     = NAN; 
+    Set::Scalar L     = NAN;
+    Set::Scalar mobility_floor = 0.0;
     Set::Scalar refinement_threshold = NAN; 
 
-    std::string method; 
+    std::string method;
+    std::string mobility = "constant";
 
     Set::Scalar tstart = NAN;
     Set::Scalar tstart_timestep = NAN;

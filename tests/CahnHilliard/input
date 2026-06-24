@@ -28,10 +28,10 @@ amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 64 64 0
+amr.n_cell = 160 48 0
 
-geometry.prob_lo = -0.5 -0.5  -0.5
-geometry.prob_hi =  0.5  0.5  -0.5
+geometry.prob_lo = -1.25 -0.375 -0.5
+geometry.prob_hi =  1.25  0.375 -0.5
 
 geometry.is_periodic = 1 1 1
 
@@ -50,8 +50,10 @@ eta.ic.random.offset = -1.0
 eta.ic.random.mult   = 2.0
 
 eta.ic.type = expression
-eta.ic.expression.region0 = "-1 + 2*(y<0.05) * (y>-0.05) * (x < 0.4) * (x > -0.4)"
+eta.ic.expression.region0 = "-1 + 2*0.0625*(1+tanh((x+1.0)/0.01))*(1-tanh((x-1.0)/0.01))*(1+tanh((y+0.02)/0.01))*(1-tanh((y-0.02)/0.01))"
 
+mobility = singly_degenerate
+mobility_floor = 0.0
 
 gamma = 0.0001
 
