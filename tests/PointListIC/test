@@ -11,8 +11,8 @@ path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
 testlib.validate(path=path,
                  outdir=outdir,
-                 start=[-0.25, 0.3, 0],
-                 end=[0.75, -0.6, 0],
+                 start=[-0.1, -0.2, 0],
+                 end=[0.9, 0.8, 0],
                  vars=["alpha"],
                  tolerance=[0.05],
                  abs_tolerance=[0.05],

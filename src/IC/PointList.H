@@ -56,29 +56,6 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
 
-            for (unsigned int n = 0; n < X.size(); n++) 
-            {
-                for (unsigned int n = 0; n < X.size(); n++)
-                {
-                    double x = X[n][0];
-                    double y = X[n][1];
-
-                    double cx = rotation.center[0];
-                    double cy = rotation.center[1];
-
-                    double theta = rotation.angle;
-
-                    double cos_t = std::cos(theta);
-                    double sin_t = std::sin(theta);
-
-                    double x_shifted = x - cx;
-                    double y_shifted = y - cy;
-
-                    X[n][0] = cx + x_shifted * cos_t - y_shifted * sin_t;
-                    X[n][1] = cy + x_shifted * sin_t + y_shifted * cos_t;
-                }
-            }
-
             if (X.back() != X.front())
             // The first and last point must match, if they do not add another point to the end
             {
@@ -195,17 +172,17 @@ public:
         // Verbosity (used in parser only)
         pp.query_default("verbose", verbose, 0); 
 
-        // Unitless coordinate multiplier
+        // Unitless coordinate multiplier, applied after the rotation
         pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
 
         // Whether to invert (make IC 1 outside of solid instead of inside solid)
         pp.query_default("invert",value.invert,false); 
 
-        // X-offset 
+        // X-offsed, applied after the rotation
         pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
 
-        if (pp.contains("x0"))
-            pp_queryarr("x0",value.x0); // Coordinate offset
+        // if (pp.contains("x0"))
+        //     pp_queryarr("x0",value.x0); // Coordinate offset
 
         // Center of rigid-body rotation 
         pp.queryarr_default("rotation.center",value.rotation.center,"0.0 0.0 0.0", Unit::Length());
@@ -240,6 +217,21 @@ public:
                 #endif
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
+
+                Set::Scalar cx = value.rotation.center[0];
+                Set::Scalar cy = value.rotation.center[1];
+
+                Set::Scalar theta = value.rotation.angle;
+
+                Set::Scalar cos_t = std::cos(theta);
+                Set::Scalar sin_t = std::sin(theta);
+
+                Set::Scalar x_shifted = x - cx;
+                Set::Scalar y_shifted = y - cy;
+
+                X[0] = cx + x_shifted * cos_t - y_shifted * sin_t;
+                X[1] = cy + x_shifted * sin_t + y_shifted * cos_t;
+
                 X = value.x0 + value.mult*X;
 
                 value.X.push_back(X);
