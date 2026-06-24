@@ -1,5 +1,5 @@
 alamo.program = allencahn
-plot_file = ./output.airfoil_subsonic
+plot_file = ./output.airfoil_subsonic_restart
 # amr.plot_dt = 0.001
 amr.plot_int = 25
 amr.max_grid_size = 500000
