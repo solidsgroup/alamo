@@ -23,19 +23,20 @@ plot_file = tests/CahnHilliard/output
 
 ### MESHING ###
 
-amr.plot_dt = 0.0001
-amr.max_level = 1
+amr.plot_dt = 0.1
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 160 48 0
+#amr.n_cell = 160 48 0
+amr.n_cell = 320 96 0
 
 geometry.prob_lo = -1.25 -0.375 -0.5
 geometry.prob_hi =  1.25  0.375 -0.5
 
 geometry.is_periodic = 1 1 1
 
-timestep  = 0.00001
+timestep  = 0.0001
 stop_time = 1.0E100
 
 eta.bc.constant.type.xlo = periodic
@@ -52,6 +53,7 @@ eta.ic.random.mult   = 2.0
 eta.ic.type = expression
 eta.ic.expression.region0 = "-1 + 2*0.0625*(1+tanh((x+1.0)/0.01))*(1-tanh((x-1.0)/0.01))*(1+tanh((y+0.02)/0.01))*(1-tanh((y-0.02)/0.01))"
 
+method = spectral
 mobility = singly_degenerate
 mobility_floor = 0.0
 
