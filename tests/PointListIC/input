@@ -28,8 +28,8 @@ amr.blocking_factor = 2
 amr.grid_eff = 0.8
 amr.n_cell = 16 16 0
 
-geometry.prob_lo = -0.25_m -0.6_m 0.0_m # [ m ] 
-geometry.prob_hi =  0.75_m  0.4_m 0.0_m # [ m ]
+geometry.prob_lo = -0.1_m -0.2_m 0.0_m # [ m ] 
+geometry.prob_hi =  0.9_m  0.8_m 0.0_m # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -51,7 +51,7 @@ alpha.ic.pointlist.file.unit = m
 alpha.ic.pointlist.verbose = 0
 alpha.ic.pointlist.mult = 0.9 # Scaling factor on polygon size, happens BEFORE rotation
 alpha.ic.pointlist.invert = 0 # Don't invert the initial field
-alpha.ic.pointlist.x0 = 0.0 0.0 0.0 # X-offset, no offset in this test
+alpha.ic.pointlist.x0 = 0.05_m 0.05_m 0.0_m # X-offset
 alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
 alpha.ic.pointlist.rotation.angle = 45_deg # Rotatation angle of polygon
 alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
