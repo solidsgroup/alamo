@@ -107,6 +107,7 @@ protected:
         Set::Scalar Tfluid = NAN;
         Set::Scalar Tcutoff = NAN;
         Set::Scalar end_initial_refine_time = NAN;
+        Set::Scalar phi_refinement_criterion_inital = NAN;
         Set::Field<Set::Scalar> has_exceeded_Tcutoff;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
@@ -118,6 +119,8 @@ protected:
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
+        Set::Scalar etacutoff = NAN;
+        Set::Scalar apply_chamber_pressure = NAN;
     } elastic;
 
     // Chamber state variables (not inputs)

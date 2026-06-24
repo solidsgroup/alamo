@@ -1,0 +1,63 @@
+
+#@  [2D-serial]
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = true
+#@  check-file = reference/reference-2d-serial.csv
+#@  args   = stop_time=0.0001
+
+#@  [2D-parallel]
+#@  dim    = 2
+#@  nprocs = 2
+#@  check  = true
+#@  check-file = reference/reference-2d-parallel.csv
+#@  args   = stop_time=0.0001
+
+alamo.program = allencahn
+
+### OUTPUT ###
+
+plot_file = output
+
+### MESHING ###
+
+amr.plot_int = 1
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
+amr.n_cell = 16 16 0
+
+geometry.prob_lo = -0.1_m -0.2_m 0.0_m # [ m ] 
+geometry.prob_hi =  0.9_m  0.8_m 0.0_m # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+timestep  = 0.0001
+stop_time = 0.0001
+
+alpha.bc.constant.type.xlo = neumann
+alpha.bc.constant.type.xhi = neumann
+alpha.bc.constant.type.ylo = neumann
+alpha.bc.constant.type.yhi = neumann
+alpha.bc.constant.val.xlo = 0.0
+alpha.bc.constant.val.xhi = 0.0
+alpha.bc.constant.val.ylo = 0.0
+alpha.bc.constant.val.yhi = 0.0
+
+alpha.ic.type = pointlist
+alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
+alpha.ic.pointlist.file.unit = m
+alpha.ic.pointlist.verbose = 0
+alpha.ic.pointlist.mult = 0.9 # Scaling factor on polygon size, happens BEFORE rotation
+alpha.ic.pointlist.invert = 0 # Don't invert the initial field
+alpha.ic.pointlist.x0 = 0.05_m 0.05_m 0.0_m # X-offset
+alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
+alpha.ic.pointlist.rotation.angle = 45_deg # Rotatation angle of polygon
+alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
+
+ch.direction_tstart = 0.0
+ch.direction = 0
+ch.L = 0.0
+ch.kappa = 0.0001_J/m
+ch.lambda = 1.0_Pa

@@ -23,7 +23,7 @@ except ImportError as e:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "26.02"
+amrex_current_version = "26.06"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -116,7 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
-parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc (or a path to one of these executables)')
+parser.add_argument('--comp', default="clang++", help='Compiler. Options: [g++], clang++, icc (or a path to one of these executables)')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify an AMReX fork')
