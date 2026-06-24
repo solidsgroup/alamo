@@ -10,6 +10,7 @@
 #include "IO/ParmParse.H"
 #include "IC/Random.H"
 #include "Set/Set.H"
+#include "Operator/Spectral/FFT.H"
 
 namespace Integrator
 {
@@ -46,17 +47,9 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     // FFT Boilerplate
     //
-    amrex::FFT::R2C my_fft(this->geom[lev].Domain());
-    auto const &[cba, cdm] = my_fft.getSpectralDataLayout();
-    const Set::Scalar* DX = geom[lev].CellSize();
-    amrex::Box const & domain = this->geom[lev].Domain();
-    Set::Scalar
-        AMREX_D_DECL(
-            pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-            pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
-            pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
-    Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
-    
+        
+    Operator::Spectral::FFT fft(geom,refRatio(),lev);
+
     //
     // Compute the gradient of the chemical potential in realspace
     //
@@ -76,14 +69,14 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     // FFT of eta
     // 
-    amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > eta_hat_mf(cba, cdm, 1, 0);
-    my_fft.forward(*eta_mf[lev], eta_hat_mf);
+    amrex::FabArray<amrex::BaseFab<Set::Complex>> eta_hat_mf = fft.MakeSpectralFab();
+    fft.Forward(*eta_mf[lev],eta_hat_mf);
 
     //
     // FFT of chemical potential gradient
     //
-    amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > chempot_hat_mf(cba, cdm, 1, 0);
-    my_fft.forward(*grad_chempot_mf[lev], chempot_hat_mf);
+    amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > chempot_hat_mf = fft.MakeSpectralFab();
+    fft.Forward(*grad_chempot_mf[lev], chempot_hat_mf);
 
     //
     // Perform update in spectral coordinatees
@@ -95,28 +88,20 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & eta_hat   =  eta_hat_mf.array(mfi);
         amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & N_hat     =  chempot_hat_mf.array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
+        fft.ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p, Set::Scalar omega2) {
 
-            // Get spectral coordinates
-            AMREX_D_TERM(
-                Set::Scalar k1 = m * pi_Lx;,
-                Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
-                Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
-
-            Set::Scalar omega2 = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3 * k3);
             Set::Scalar omega4 = omega2*omega2;
             Set::Scalar omega6 = omega2*omega2*omega2;
 
             eta_hat(m, n, p) = eta_hat(m, n, p) - dt * omega2 * N_hat(m, n, p);
             eta_hat(m,n,p) /= 1.0 + dt * ((q0*q0*q0*q0 - eps)*omega2  - 2.0* q0*q0 * omega4 + omega6);
-            eta_hat(m,n,p) *= scaling;
         });
     }
 
     //
     // Transform solution back to realspace
     //
-    my_fft.backward(eta_hat_mf, *eta_mf[lev]);
+    fft.Backward(eta_hat_mf, *eta_mf[lev]);
 }
 #else
 void
