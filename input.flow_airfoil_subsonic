@@ -1,18 +1,19 @@
 alamo.program = allencahn
 plot_file = ./output.airfoil_subsonic
-# amr.plot_dt = 0.001
-amr.plot_int = 25
+amr.plot_dt = 0.005
+# amr.plot_int = 100
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 4
+amr.max_plot_level = 3
 timestep  = 1e-5
-amr.n_cell = 80 40 
-geometry.prob_lo = -0.5 -1.0
-geometry.prob_hi =  3.5  1.0
+amr.n_cell = 80 80 
+geometry.prob_lo = -0.5 -2.0
+geometry.prob_hi =  3.5  2.0
 geometry.is_periodic = 0 0 0
-stop_time = 1.0
+stop_time = 0.8
 # AMR parameters
 
 amr.cell.all = 1
@@ -111,8 +112,8 @@ hydro.energy.bc.constant.val.ylo = 0.0
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
 hydro.momentum.bc.constant.type.xlo = dirichlet neumann
-hydro.momentum.bc.constant.type.ylo = neumann dirichlet
-hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.type.ylo = neumann neumann
+hydro.momentum.bc.constant.type.yhi = neumann neumann
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
 hydro.momentum.bc.constant.val.xlo = 30.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
