@@ -49,6 +49,7 @@ ax2.set_title(
     f'L2 = {l2_error:.3f}, Max = {max_error:.3f}'
 )
 ax2.grid(True)
+plt.savefig('cant_elastic_valid.png',dpi=1000,bbox_inches='tight')
 # plt.ylim(-10, 15)
 
 plt.show()
