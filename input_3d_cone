@@ -65,7 +65,7 @@ pf.w0 = 0.0_1
 small = 1E-4
 
 ####################################################################################
-# eta IC — SOLID CONE of propellant (eta=1 solid, eta=0 gas), smooth tanh interface.
+# eta IC — CONICAL VOID (eta=0 void in center, eta=1 solid propellant), smooth tanh interface.
 #
 #   cx, cy : motor axis (centre of the square cross-section)
 #   rb     : cone base radius = 0.25 * W = 0.0425 m  (base diameter = 0.085 m = 50% W)
@@ -73,9 +73,9 @@ small = 1E-4
 #   w      : interface half-width (~ equilibrium width eps*sqrt(kappa/lambda)=1.6e-3)
 #
 #   Local cone radius at height z:  rc(z) = rb * (1 - z/zap).
-#   eta = 0.5 + 0.5*tanh( (rc(z) - rho) / w ),  rho = sqrt((x-cx)^2 + (y-cy)^2).
-#   For z > zap, rc(z) < 0 so eta -> 0 automatically (gas above the apex), i.e. the
-#   tanh naturally closes the cone tip; no separate top cutoff is needed.
+#   eta = 0.5 + 0.5*tanh( (rho - rc(z)) / w ),  rho = sqrt((x-cx)^2 + (y-cy)^2).
+#   For z > zap, rc(z) < 0 so eta -> 1 automatically (solid above the apex), i.e. the
+#   tanh naturally caps the cone tip; no separate top cutoff is needed.
 ####################################################################################
 pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.cx  = 0.0877
@@ -83,7 +83,7 @@ pf.eta.ic.expression.constant.cy  = 0.0877
 pf.eta.ic.expression.constant.rb  = 0.0425
 pf.eta.ic.expression.constant.zap = 0.0658
 pf.eta.ic.expression.constant.w   = 0.002
-pf.eta.ic.expression.region0 = "0.5 + 0.5*tanh((rb*(1.0 - z/zap) - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+pf.eta.ic.expression.region0 = "0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb*(1.0 - z/zap))/w)"
 
 # eta BCs — Neumann (zero-flux) on all six faces.
 #   The cone is interior and surrounded by gas, so the walls must NOT pin eta to
