@@ -1,12 +1,12 @@
 alamo.program = allencahn
-plot_file = ./output.airfoil_subsonic_long
+plot_file = ./output.airfoil_subsonic
 amr.plot_dt = 0.005
 # amr.plot_int = 100
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 4
+amr.max_level = 3
 amr.max_plot_level = 3
 timestep  = 1e-5
 amr.n_cell = 80 80 
@@ -24,7 +24,7 @@ tstart = 1e-4
 allencahn.ch.direction = 0
 allencahn.ch.direction_tstart = 0.0
 allencahn.alpha.ic.type = pointlist
-allencahn.alpha.ic.pointlist.file.name = ./NACA5605.xy
+allencahn.alpha.ic.pointlist.file.name = ./NACA8420.xy
 allencahn.alpha.ic.pointlist.file.unit = m
 allencahn.alpha.ic.pointlist.verbose = 0
 allencahn.alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
@@ -134,7 +134,7 @@ hydro.u0.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
-hydro.cutoff=0.1
+hydro.cutoff=0.5
 hydro.lagrange=0.0
 
 dynamictimestep.on = 1
