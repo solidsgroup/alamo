@@ -18,10 +18,11 @@ MANAGED_ARENA="${MANAGED_ARENA:-1}"
 DEPENDENCY="${DEPENDENCY:-}"
 GPU_NODE_CPUS="${GPU_NODE_CPUS:-32}"
 DRY_RUN=0
+SCAVENGER=0
 
 usage() {
     cat <<'EOF'
-Usage: bash benchmark/phase3_nova_diag.sh [--dry-run]
+Usage: bash benchmark/phase3_nova_diag.sh [--dry-run] [--scavenger]
 
 Submits focused single-GPU diagnostics for the Phase-3 CUDA error 700 failure.
 Run from the NOVA checkout after the 3D GPU binary has been built.
@@ -31,6 +32,7 @@ Env knobs:
   GPU_TYPE       v100|a100|h200 (default: v100)
   INPUT          input file (default: input_3d_centre_bore_128)
   TOOLS          "blocking", "sanitizer", "ncu", "nsys", or any combo (default: "blocking sanitizer")
+  --scavenger    submit to the scavenger partition instead of nova
   MANAGED_ARENA  1|0 passed to amrex.the_arena_is_managed (default: 1)
   DEPENDENCY     optional Slurm dependency, bare job id or full afterok:...
   GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 72)
@@ -40,6 +42,7 @@ EOF
 for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
+        --scavenger) SCAVENGER=1 ;;
         -h|--help)
             usage
             exit 0
@@ -87,6 +90,7 @@ echo " INPUT         = ${INPUT}"
 echo " TOOLS         = ${TOOLS}"
 echo " MANAGED_ARENA = ${MANAGED_ARENA}"
 echo " GPU_NODE_CPUS = ${GPU_NODE_CPUS}"
+echo " SCAVENGER     = ${SCAVENGER}"
 echo " DRY_RUN       = ${DRY_RUN}"
 if [[ -n "${DEPENDENCY}" ]]; then
     echo " DEPENDENCY    = ${DEPENDENCY}"
@@ -100,6 +104,9 @@ for tool in ${TOOLS}; do
     esac
 
     sbatch_opts=(--nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${GPU_NODE_CPUS}")
+    if [[ "${SCAVENGER}" -eq 1 ]]; then
+        sbatch_opts+=(--partition=scavenger)
+    fi
     depopt="$(dependency_opt "${DEPENDENCY}")"
     if [[ -n "${depopt}" ]]; then
         sbatch_opts+=("${depopt}")

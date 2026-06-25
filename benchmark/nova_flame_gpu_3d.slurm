@@ -5,8 +5,9 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
-#SBATCH --time=00:30:00
+#SBATCH --cpus-per-task=72
+#SBATCH --mem=0
+#SBATCH --time=02:00:00
 #SBATCH --output=flame_gpu_3d.%j.out
 #SBATCH --error=flame_gpu_3d.%j.err
 #SBATCH --mail-type=END,FAIL
@@ -14,45 +15,40 @@
 # NOTE: GPU count / type / gres are set dynamically below via --export or by
 # editing GPU_TYPE/NGPU, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres on the command line:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
-# or use the matching values below (defaults: 1x A100).
-# ===========================================================================
-# Single-GPU (1 MPI rank per GPU) 3D run of the Flame case on NOVA.
+#   sbatch --gres=gpu:v100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d.slurm
+# ==========================================================================
+# Single-GPU (1 MPI rank per GPU) 3D run of the Flame center-bore case on NOVA.
 # Build the 3D binaries first with benchmark/build_alamo_nova_3d.sh.
-# This is the 3D sibling of nova_flame_gpu.slurm (3D binary glob + input_3d_flame).
+# This is the 3D sibling of nova_flame_gpu.slurm (3D binary glob + center-bore inputs).
 #
 # Examples:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
-#   GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
-#   MODE=fast sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d.slurm
-# ===========================================================================
+#   sbatch --gres=gpu:v100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d.slurm
+#   GPU_TYPE=v100 MODE=fast sbatch --gres=gpu:v100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d.slurm
+#   sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d.slurm
+# ==========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
 
-# --- Selectors (override via --export=ALL,VAR=...) --------------------------
-GPU_TYPE="${GPU_TYPE:-a100}"        # a100 (sm_80) or h200 (sm_90)
-INPUT="${INPUT:-input_3d_flame}"
-# MODE: bench = profiled, accurate per-region holdups (device syncs, slower).
-#       fast  = max-speed production: pure device arena, no profiler sync.
+GPU_TYPE="${GPU_TYPE:-v100}"        # v100 (sm_70), a100 (sm_80) or h200 (sm_90)
+INPUT="${INPUT:-input_3d_centre_bore_128}"
 MODE="${MODE:-bench}"
-# NOVA's current pmix launch reports MPI_THREAD_SINGLE, so async_out must
-# default off. Set ASYNC_OUT=1 only after confirming MPI_THREAD_MULTIPLE.
 ASYNC_OUT="${ASYNC_OUT:-0}"
+PROFILE_KIND="${PROFILE_KIND:-summary}"
+TIME_CMD="${TIME_CMD:-/usr/bin/time -v}"
 
 case "${GPU_TYPE}" in
+  v100) ARCH=70 ;;
   a100) ARCH=80 ;;
   h200) ARCH=90 ;;
-  *) echo "Unknown GPU_TYPE=${GPU_TYPE} (use a100 or h200)"; exit 1 ;;
+  *) echo "Unknown GPU_TYPE=${GPU_TYPE} (use v100, a100 or h200)"; exit 1 ;;
 esac
 NRANKS="${SLURM_NTASKS:-1}"
 
-# --- Modules (match build_alamo_nova_3d.sh) ---------------------------------
 module purge 2>/dev/null || true
 module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 
-# --- Pick the matching-arch binary ------------------------------------------
 GPU_BIN="$(ls -t bin/alamo_gpu-3d*cuda${ARCH}*-g++ 2>/dev/null | head -1 || true)"
 if [ -z "${GPU_BIN}" ]; then
   echo "No bin/alamo_gpu-3d*cuda${ARCH}*-g++ found -- run benchmark/build_alamo_nova_3d.sh first."
@@ -60,22 +56,20 @@ if [ -z "${GPU_BIN}" ]; then
 fi
 echo "GPU binary: ${GPU_BIN}  (GPU_TYPE=${GPU_TYPE} sm_${ARCH}, ${NRANKS} rank(s)/GPU, mode=${MODE})"
 
-# --- Runtime overrides ------------------------------------------------------
-# async_out requires MPI_THREAD_MULTIPLE at runtime.
 if [ "${MODE}" = "fast" ]; then
-  # pure device arena (no host page-migration), no profiler syncs = fastest.
   OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 amrex.the_arena_is_managed=0"
 else
-  # managed arena + per-region device sync for accurate TinyProfiler holdups.
-  OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
-             amrex.the_arena_is_managed=1 \
-             tiny_profiler.device_synchronize_around_region=1"
+  OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0              amrex.the_arena_is_managed=1              tiny_profiler.device_synchronize_around_region=1"
 fi
 
-# Optional Nsight Systems trace: NSYS_PREFIX="nsys profile --force-overwrite true -o flame_gpu_3d_${SLURM_JOB_ID} --"
-NSYS_PREFIX="${NSYS_PREFIX:-}"
+if [ -z "${NSYS_PREFIX:-}" ]; then
+  if [ "${PROFILE_KIND}" = "nsys" ]; then
+    NSYS_PREFIX="nsys profile --force-overwrite true --trace=cuda,nvtx,osrt,mpi --sample=none --cpuctxsw=none -o flame_gpu_3d_${SLURM_JOB_ID}"
+  else
+    NSYS_PREFIX=""
+  fi
+fi
 
 echo "=== launching ==="
-time ${NSYS_PREFIX} srun --mpi=pmix -n "${NRANKS}" --gpus-per-task=1 \
-     "${GPU_BIN}" "${INPUT}" ${OVERRIDES}
+${TIME_CMD} ${NSYS_PREFIX} srun --mpi=pmix -n "${NRANKS}" --gpus-per-task=1      "${GPU_BIN}" "${INPUT}" ${OVERRIDES}
 echo "=== done ==="
