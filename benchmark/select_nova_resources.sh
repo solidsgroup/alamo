@@ -80,6 +80,25 @@ _nova_gres_count() {
     fi
 }
 
+# Extract an integer TRES count from a comma-separated CfgTRES/AllocTRES string.
+# Supports keys like "gres/gpu" and "gres/gpu:h200". Prints 0 if absent.
+_nova_tres_count() {
+    local str="$1" key="$2" token
+    if [[ -z "${str}" || "${str}" == "(null)" ]]; then
+        echo 0
+        return
+    fi
+    for token in ${str//,/ }; do
+        case "${token}" in
+            "${key}="*)
+                printf '%s' "${token#*=}" | sed 's/[^0-9].*$//'
+                return 0
+                ;;
+        esac
+    done
+    echo 0
+}
+
 # Is a scontrol State=... string usable right now (idle/mixed, not
 # draining/down/maintenance/unresponsive)?
 _nova_state_ok() {
@@ -123,7 +142,7 @@ _nova_probe_nodes() {
         return 1
     fi
 
-    local node line state cputot cpualloc realmem allocmem freemem gres gresused gtype total used
+    local node line state cputot cpualloc realmem allocmem freemem gres gresused cfgtres alloctres gtype total used
     for node in "${NOVA_NODE_NAMES[@]}"; do
         line="$(scontrol show node -o "${node}" 2>/dev/null || true)"
         [[ -z "${line}" ]] && continue
@@ -136,6 +155,8 @@ _nova_probe_nodes() {
         freemem="$(_nova_field FreeMem "${line}")"
         gres="$(_nova_field Gres "${line}")"
         gresused="$(_nova_field GresUsed "${line}")"
+        cfgtres="$(_nova_field CfgTRES "${line}")"
+        alloctres="$(_nova_field AllocTRES "${line}")"
 
         NOVA_NODE_STATE["${node}"]="${state}"
         NOVA_NODE_CPU_TOTAL["${node}"]="${cputot:-0}"
@@ -152,8 +173,18 @@ _nova_probe_nodes() {
         fi
 
         for gtype in "${NOVA_GPU_CANDIDATES[@]}"; do
-            total="$(_nova_gres_count "${gres}" "${gtype}")"
-            used="$(_nova_gres_count "${gresused}" "${gtype}")"
+            total="$(_nova_tres_count "${cfgtres}" "gres/gpu:${gtype}")"
+            if [[ "${total}" -eq 0 ]]; then
+                total="$(_nova_gres_count "${gres}" "${gtype}")"
+            fi
+
+            used="$(_nova_tres_count "${alloctres}" "gres/gpu:${gtype}")"
+            if [[ "${used}" -eq 0 ]]; then
+                used="$(_nova_gres_count "${gresused}" "${gtype}")"
+            fi
+            if [[ "${used}" -eq 0 && "${alloctres}" != "(null)" ]]; then
+                used="$(_nova_tres_count "${alloctres}" "gres/gpu")"
+            fi
             NOVA_NODE_GPU_TOTAL["${node}|${gtype}"]="${total}"
             NOVA_NODE_GPU_USED["${node}|${gtype}"]="${used}"
         done
