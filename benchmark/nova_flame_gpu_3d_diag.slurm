@@ -210,9 +210,14 @@ case "${DIAG_TOOL}" in
     echo "=== nsys report will be written to ${OUT_BASE}/ ==="
 
     echo "=== profiling input: ${PROFILE_INPUT} ==="
+    # --trace=cuda only: osrt requires nsys process injection which conflicts with
+    # OpenMPI's UCX plugin dlopen (boost raises "Expected shared object name, found
+    # a path delimiter" and aborts). CUDA trace is sufficient for A1 metrics.
+    # OMPI_MCA_opal_common_ucx_opal_mem_hooks=0: belt-and-suspenders UCX hook disable.
+    OMPI_MCA_opal_common_ucx_opal_mem_hooks=0 \
     srun --mpi=pmix -n 1 --gpus-per-task=1 \
       "${NSYS}" profile \
-        --trace=cuda,osrt,nvtx \
+        --trace=cuda,nvtx \
         --cuda-memory-usage=false \
         --output "${OUT_BASE}/nsys_report" \
         --force-overwrite true \
