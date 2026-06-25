@@ -396,6 +396,18 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
         tmpfab.resize(tmpbx, fine.nComp());
+        // GPU FIX (root cause of the multi-box MLMG divergence): this per-box
+        // temporary lives only within one MFIter iteration, but AMReX's non-tiled
+        // GPU MFIter cycles through a pool of CUDA streams across iterations. Without
+        // an Elixir, tmpfab's device memory is freed at the end of this iteration and
+        // can be reused by a later iteration running on a *different* stream while the
+        // interpolation/plus kernels below are still in flight -> a cross-stream race
+        // that corrupts the interpolated correction (deterministically wrong on CPU's
+        // single stream = never; nondeterministically wrong on GPU). The garbage
+        // correction is then amplified by the BC-penalty diagonal into a 1e20 blow-up.
+        // The Elixir keeps tmpfab alive until its own stream has finished. (restriction
+        // writes its result directly, with no temp, which is why it is unaffected.)
+        amrex::Gpu::Elixir tmpfab_eli = tmpfab.elixir();
         tmpfab.setVal<amrex::RunOn::Device>(0.0);
         const amrex::FArrayBox& crsefab = (*cmf)[mfi];
 

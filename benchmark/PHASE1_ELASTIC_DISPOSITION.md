@@ -1,5 +1,16 @@
 # Phase 1 Elastic Disposition
 
+> **✅ The 2048² GPU divergence reported here is SOLVED (2026-06-25).** Root cause:
+> a GPU cross-stream use-after-free race on a per-box temporary in
+> `Operator<Grid::Node>::interpolation()`; fixed with one line (`tmpfab.elixir()`).
+> It was never a fast-math, conditioning, or CPU-vs-GPU-perf question — it was a
+> multi-box-only transfer-temp lifetime bug. The "CPU-resident elastic" disposition
+> below is **obsolete**; elastic runs correctly on GPU multi-box. See
+> `benchmark/GPU_BRANCH_GUIDE.md` (D1 section) and
+> `benchmark/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md`. The perf
+> numbers below (CPU np8 2.27–3.40× faster) remain valid data for the separate
+> "is device-elastic worth it" question.
+
 Date: 2026-06-20
 
 Roadmap: `/home/jackplum/Desktop/GPU-OPT-ROADMAP.txt`
@@ -182,3 +193,13 @@ CPU baseline; it does not survive a fair multi-core comparison.
   divergence is root-caused (operator/conditioning, not a build flag) and (b)
   a GPU implementation is shown to beat a fully-subscribed CPU node — neither
   condition currently holds.
+
+**Relationship to `docs/gpu_elastic_device_port_plan.md`:** that plan
+("Option B", full device-native elastic) is a controlled experimental branch
+exploring whether de-virtualization fixes the device crash, not a
+reopening of this D1 verdict. Progress there (e.g. completing a step-60 run)
+shows the solve *runs*, not that it *wins* — it must still clear the three
+hard gates that plan now states (no-fast-math convergence at high res, a
+fair N-rank CPU comparison, `ncu` data on the actual target GPU) before D1
+flips. Until then, CPU-resident elastic remains the standing, mainline
+disposition.
