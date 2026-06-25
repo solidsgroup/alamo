@@ -1,38 +1,28 @@
 #!/usr/bin/env bash
 # ============================================================================
-# run_3d_cone_h200.sh  --  one-shot NOVA driver for the 3D conical-grain Flame
-#                           test on a single H200 (sm_90).
+# run_3d_cone.sh  --  NOVA launcher for the 3D conical-grain Flame test that
+#                      dynamically picks its own hardware.
 #
 # Run this ON THE NOVA LOGIN NODE from the repo root:
-#     sh benchmark/run_3d_cone_h200.sh
+#     bash benchmark/run_3d_cone.sh
 #
-# It mirrors the existing Phase-3 NOVA flow (build_alamo_nova_3d.sh +
-# nova_flame_gpu_3d.slurm + phase3_nova_oneshot.sh) but targets ONE simulation:
-# the new solid-cone propellant grain (phase-field regression only, elastic
-# DISABLED). It will:
-#   1) write the exact input deck (input_3d_cone) into the repo root, so the run
-#      is self-contained and does not depend on the deck being committed,
-#   2) submit the 3D GPU build job (build_alamo_nova_3d.sh) -- by default for the
-#      H200 arch only (sm_90) to keep the build short,
-#   3) submit a single-H200 run of input_3d_cone with an afterok dependency on
-#      the build.
+# Replaces run_3d_cone_h200.sh / run_3d_cone_a100.sh / run_3d_cone_any_gpu.sh,
+# which all requested a fixed, hand-picked hardware profile. This script
+# instead asks the cluster what's actually free right now (via
+# select_nova_resources.sh) and submits the closest-to-preferred profile that
+# can start immediately:
+#   - GPU:  h200 preferred, a100 fallback (a100-pcie is never selected -- its
+#     CUDA arch on NOVA is unconfirmed)
+#   - CPUs: 32 preferred, 16 minimum
+#   - RAM:  128G preferred, 64G minimum
+# If nothing matches any profile right now, it falls back to submitting the
+# most-preferred profile (h200/32/128G) and lets it queue normally -- it will
+# still run, just not necessarily immediately.
 #
-# The case (identical to the locally-verified 10-step smoke):
-#   - SOLID CONE of propellant (eta=1), base on the nozzle (z=0), apex at 75% of
-#     motor height, base diameter 50% of motor width; surrounded by gas (eta=0).
-#   - Grid 128x128x64, max_level=2, cubic cells. Analytic (Expression) ICs.
-#   - elastic.type=disable (GPU phase-field path only; no CUDA-719).
-#
-# ----------------------------------------------------------------------------
-# IMPORTANT -- source sync:
-#   build_alamo_nova_3d.sh builds from a fresh `origin/${BRANCH}` checkout. This
-#   script embeds the INPUT deck, so the deck always travels with you. But the
-#   node-output alignment fix in src/Integrator/Integrator.cpp is a SOURCE change
-#   -- it is only present in the NOVA build if it has been committed and pushed
-#   to origin/${BRANCH}. Without it the *cell* output is still correct (it always
-#   was); only the *node* plotfile would show the old shifted/garbage fields.
-#   Push that commit before relying on nodeoutput.visit on NOVA. (SKIP_BUILD=1
-#   reuses an already-built local binary and sidesteps the pull entirely.)
+# It then:
+#   1) writes the input deck (input_3d_cone),
+#   2) builds ONLY the GPU binary needed for the selected GPU type,
+#   3) submits the run with the selected GPU/CPU/RAM, afterok the build.
 # ============================================================================
 set -euo pipefail
 
@@ -42,31 +32,42 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ---- knobs ----------------------------------------------------------------
-ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"      # repo root / working tree
-BRANCH="${BRANCH:-chamber-gpu}"            # branch the build pulls/builds
+ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
+BRANCH="${BRANCH:-chamber-gpu}"
 ACCOUNT="${ACCOUNT:-brunnels}"
 PARTITION="${PARTITION:-nova}"
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
-GPU_TYPE="${GPU_TYPE:-h200}"               # v100 (sm_70) | a100 (sm_80) | h200 (sm_90)
-GPUS="${GPUS:-1}"                          # single GPU for this test
-CPUS_PER_TASK="${CPUS_PER_TASK:-32}"       # host cores for the rank
+GPUS="${GPUS:-1}"
 RUN_TIME="${RUN_TIME:-16:00:00}"
 INPUT="${INPUT:-input_3d_cone}"
 PLOT_FILE="${PLOT_FILE:-output_3d_cone}"
-MODE="${MODE:-fast}"                       # fast (lean) | bench (TinyProfiler-friendly)
-MAX_STEP="${MAX_STEP:-10}"                 # faithful to the local smoke; bump for a real burn
-PLOT_INT="${PLOT_INT:-1}"
-ARCHES="${ARCHES:-90}"                     # build only H200 by default; "70 80 90" for all
-SKIP_BUILD="${SKIP_BUILD:-0}"              # 1 = reuse existing binary, no build job, no pull
-BUILD_ONLY="${BUILD_ONLY:-0}"             # 1 = submit build and stop
+MODE="${MODE:-fast}"
+SKIP_BUILD="${SKIP_BUILD:-0}"
+BUILD_ONLY="${BUILD_ONLY:-0}"
 DRY_RUN="${DRY_RUN:-0}"
+EXPLAIN="${EXPLAIN:-0}"
+
+# Hardware cutoffs -- consumed by select_nova_resources.sh.
+export MIN_CPUS="${MIN_CPUS:-16}"
+export PREF_CPUS="${PREF_CPUS:-32}"
+export MIN_MEM_GB="${MIN_MEM_GB:-64}"
+export PREF_MEM_GB="${PREF_MEM_GB:-128}"
+export PARTITION
 
 usage() {
     cat <<'EOF'
-Usage: sh benchmark/run_3d_cone_h200.sh [--dry-run] [--build-only] [--skip-build]
+Usage: bash benchmark/run_3d_cone.sh [--dry-run] [--build-only] [--skip-build] [--explain]
 
-One-shot NOVA launcher for the 3D conical-grain Flame test on a single H200.
-Writes input_3d_cone, submits the 3D GPU build, then submits the run (afterok).
+One-shot NOVA launcher for the 3D conical-grain Flame test. Dynamically
+selects GPU type (h200 preferred, a100 fallback), CPU count (32 preferred,
+16 minimum), and RAM (128G preferred, 64G minimum) based on what's free on
+the cluster right now, then builds and submits.
+
+Flags:
+  --explain     print the full per-node availability matrix before deciding
+  --dry-run     print actions, submit nothing
+  --build-only  submit the build and stop
+  --skip-build  reuse an existing binary, no build job
 
 Env knobs (defaults in brackets):
   ALAMO_DIR     repo root / working tree            [repo root from script path]
@@ -74,18 +75,20 @@ Env knobs (defaults in brackets):
   ACCOUNT       slurm account                        [brunnels]
   PARTITION     slurm partition                      [nova]
   EMAIL         slurm mail-user                      [jackplum@iastate.edu]
-  GPU_TYPE      v100 | a100 | h200                   [h200]
-  CPUS_PER_TASK host cores for the GPU rank          [72]
-  RUN_TIME      walltime for the run job             [02:00:00]
+  GPUS          number of GPUs per rank              [1]
+  RUN_TIME      walltime for the run job             [16:00:00]
   INPUT         input deck name                      [input_3d_cone]
   PLOT_FILE     plotfile prefix                      [output_3d_cone]
   MODE          fast | bench                         [fast]
-  MAX_STEP      number of steps                      [10]
-  PLOT_INT      plot interval                        [1]
-  ARCHES        cuda arches to build ("70 80 90")    [90]
-  SKIP_BUILD    1 = reuse existing binary, no build  [0]
-  BUILD_ONLY    1 = submit build and stop            [0]
-  DRY_RUN       1 = print what would happen, submit nothing [0]
+  MIN_CPUS / PREF_CPUS      hard floor / preferred CPU count   [16 / 32]
+  MIN_MEM_GB / PREF_MEM_GB  hard floor / preferred RAM in GB   [64 / 128]
+  FORCE_GPU_TYPE / FORCE_CPUS / FORCE_MEM_GB
+                manual override -- skip cluster probing entirely and use
+                these values (e.g. FORCE_GPU_TYPE=a100 FORCE_CPUS=16
+                FORCE_MEM_GB=64)
+  SKIP_BUILD    1 = reuse existing binary, no build   [0]
+  BUILD_ONLY    1 = submit build and stop             [0]
+  DRY_RUN       1 = print actions, submit nothing     [0]
 EOF
 }
 
@@ -94,30 +97,58 @@ for arg in "$@"; do
         --dry-run)    DRY_RUN=1 ;;
         --build-only) BUILD_ONLY=1 ;;
         --skip-build) SKIP_BUILD=1 ;;
+        --explain)    EXPLAIN=1 ;;
         -h|--help)    usage; exit 0 ;;
         *) echo "error: unknown argument '$arg' (try --help)" >&2; exit 2 ;;
     esac
 done
 
-case "${GPU_TYPE}" in
-    v100) ARCH=70 ;;
-    a100) ARCH=80 ;;
-    h200) ARCH=90 ;;
-    *) echo "error: GPU_TYPE must be v100, a100 or h200 (got '${GPU_TYPE}')" >&2; exit 2 ;;
-esac
-
 ALAMO_DIR="$(cd "${ALAMO_DIR}" && pwd)"
 
 echo -e "${BOLD}${BLUE}============================================================${NC}"
-echo -e "${BOLD}${BLUE} 3D conical-grain Flame test -- NOVA one-shot${NC}"
+echo -e "${BOLD}${BLUE} 3D conical-grain Flame test -- NOVA dynamic launcher${NC}"
 echo -e "  repo        = ${ALAMO_DIR}"
 echo -e "  branch      = ${BRANCH}"
-echo -e "  GPU_TYPE    = ${GPU_TYPE} (sm_${ARCH}), GPUS=${GPUS}"
-echo -e "  input       = ${INPUT}  (max_step=${MAX_STEP}, plot_int=${PLOT_INT})"
-echo -e "  mode        = ${MODE}   ARCHES='${ARCHES}'"
 echo -e "  account     = ${ACCOUNT}  partition=${PARTITION}"
+echo -e "  CPU cutoffs = min=${MIN_CPUS} pref=${PREF_CPUS}"
+echo -e "  RAM cutoffs = min=${MIN_MEM_GB}G pref=${PREF_MEM_GB}G"
 echo -e "  SKIP_BUILD=${SKIP_BUILD}  BUILD_ONLY=${BUILD_ONLY}  DRY_RUN=${DRY_RUN}"
 echo -e "${BOLD}${BLUE}============================================================${NC}"
+
+# ---------------------------------------------------------------------------
+# 0) Ask the cluster what's free right now and pick GPU/CPU/RAM.
+# ---------------------------------------------------------------------------
+echo
+echo -e "${YELLOW}=== Selecting hardware profile ===${NC}"
+# shellcheck source=./select_nova_resources.sh
+source "${SCRIPT_DIR}/select_nova_resources.sh"
+
+if [[ "${EXPLAIN}" -eq 1 ]]; then
+    echo -e "${BLUE}--- node availability ---${NC}"
+    _nova_explain || true
+    echo
+fi
+
+select_nova_resources
+
+case "${SELECTED_GPU_TYPE}" in
+    h200) ARCH=90 ;;
+    a100) ARCH=80 ;;
+    *) echo -e "${RED}error: unexpected SELECTED_GPU_TYPE='${SELECTED_GPU_TYPE}'${NC}" >&2; exit 1 ;;
+esac
+CPUS_PER_TASK="${SELECTED_CPUS}"
+MEM_GB="${SELECTED_MEM_GB}"
+
+if [[ "${SELECTED_IMMEDIATE}" -eq 1 ]]; then
+    AVAIL_NOTE="immediately available now on ${SELECTED_NODE}"
+elif [[ "${SELECTED_IMMEDIATE}" -eq -1 ]]; then
+    AVAIL_NOTE="manual FORCE_* override"
+else
+    AVAIL_NOTE="nothing free at any profile right now -- will queue normally"
+fi
+
+echo -e "${GREEN}  selected: GPU=${SELECTED_GPU_TYPE} (sm_${ARCH})  CPUs=${CPUS_PER_TASK}  RAM=${MEM_GB}G${NC}"
+echo -e "${GREEN}  reason:   ${AVAIL_NOTE}${NC}"
 
 # ---------------------------------------------------------------------------
 # 1) Materialize the exact input deck into the repo root.
@@ -310,22 +341,22 @@ EOF_INPUT
 fi
 
 # ---------------------------------------------------------------------------
-# 2) Submit the 3D GPU build job (unless SKIP_BUILD=1).
+# 2) Submit the build job for ONLY the selected arch (unless SKIP_BUILD=1).
 # ---------------------------------------------------------------------------
 BUILD_JOBID=""
 if [[ "${SKIP_BUILD}" -eq 1 ]]; then
     echo
-    echo -e "${YELLOW}=== SKIP_BUILD=1: not submitting a build; expecting an existing H200 binary ===${NC}"
+    echo -e "${YELLOW}=== SKIP_BUILD=1: not submitting a build; expecting an existing sm_${ARCH} binary ===${NC}"
 else
     echo
-    echo -e "${YELLOW}=== Submitting 3D GPU build job (ARCHES='${ARCHES}') ===${NC}"
+    echo -e "${YELLOW}=== Submitting GPU build job (ARCHES=${ARCH}) ===${NC}"
     if [[ "${DRY_RUN}" -eq 1 ]]; then
-        echo "  (dry run) would run: ARCHES='${ARCHES}' ACCOUNT='${ACCOUNT}' BRANCH='${BRANCH}' \\"
+        echo "  (dry run) would run: ARCHES='${ARCH}' ACCOUNT='${ACCOUNT}' BRANCH='${BRANCH}' \\"
         echo "                       sh ${ROOT_DIR}/benchmark/build_alamo_nova_3d.sh"
     else
         BUILD_LOG="$(mktemp -t cone_nova_build.XXXXXX.log)"
         trap 'rm -f "${BUILD_LOG}"' EXIT
-        ARCHES="${ARCHES}" ACCOUNT="${ACCOUNT}" BRANCH="${BRANCH}" \
+        ARCHES="${ARCH}" ACCOUNT="${ACCOUNT}" BRANCH="${BRANCH}" \
         BUILD_PARTITION="${PARTITION}" EMAIL="${EMAIL}" ALAMO_DIR="${ALAMO_DIR}" \
             sh "${ROOT_DIR}/benchmark/build_alamo_nova_3d.sh" 2>&1 | tee "${BUILD_LOG}"
         BUILD_JOBID="$(grep -oE 'submitted job [0-9]+' "${BUILD_LOG}" | tail -1 | awk '{print $3}')"
@@ -344,36 +375,38 @@ if [[ "${BUILD_ONLY}" -eq 1 ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 3) Write + submit the single-H200 run job (afterok the build).
+# 3) Write + submit the run job on the selected GPU/CPU/RAM (afterok build).
 # ---------------------------------------------------------------------------
-RUN_SB="${ALAMO_DIR}/run_3d_cone_${GPU_TYPE}.sbatch"
+RUN_SB="${ALAMO_DIR}/run_3d_cone.sbatch"
 echo
 echo -e "${YELLOW}=== Writing run job ${RUN_SB} ===${NC}"
 if [[ "${DRY_RUN}" -ne 1 ]]; then
 cat > "${RUN_SB}" <<EOF_SB
 #!/bin/bash
 #SBATCH -A ${ACCOUNT}
-#SBATCH -J cone_${GPU_TYPE}
+#SBATCH -J cone_${SELECTED_GPU_TYPE}
 #SBATCH -D ${ALAMO_DIR}
 #SBATCH --partition=${PARTITION}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:${GPU_TYPE}:${GPUS}
+#SBATCH --gres=gpu:${SELECTED_GPU_TYPE}:${GPUS}
 #SBATCH --cpus-per-task=${CPUS_PER_TASK}
-#SBATCH --mem=128G
+#SBATCH --mem=${MEM_GB}G
 #SBATCH --time=${RUN_TIME}
-#SBATCH --output=cone_${GPU_TYPE}.%j.out
-#SBATCH --error=cone_${GPU_TYPE}.%j.err
+#SBATCH --output=cone_${SELECTED_GPU_TYPE}.%j.out
+#SBATCH --error=cone_${SELECTED_GPU_TYPE}.%j.err
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=${EMAIL}
-# Single-H200 (1 MPI rank / GPU) 3D conical-grain Flame run.
-# Sibling of benchmark/nova_flame_gpu_3d.slurm, pinned to input_3d_cone.
+# Single-GPU (1 MPI rank/GPU) 3D conical-grain Flame run.
+# Hardware (GPU=${SELECTED_GPU_TYPE}, cpus=${CPUS_PER_TASK}, mem=${MEM_GB}G) was
+# chosen dynamically by select_nova_resources.sh based on cluster state at
+# submit time (${AVAIL_NOTE}).
 set -euo pipefail
 cd "\${SLURM_SUBMIT_DIR:-${ALAMO_DIR}}"
 
 ARCH=${ARCH}
-GPU_TYPE=${GPU_TYPE}
+GPU_TYPE=${SELECTED_GPU_TYPE}
 INPUT=${INPUT}
 MODE=${MODE}
 NRANKS="\${SLURM_NTASKS:-1}"
@@ -385,7 +418,7 @@ module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
 
 GPU_BIN="\$(ls -t bin/alamo_gpu-3d*cuda\${ARCH}*-g++ 2>/dev/null | head -1 || true)"
 if [ -z "\${GPU_BIN}" ]; then
-  echo "No bin/alamo_gpu-3d*cuda\${ARCH}*-g++ found -- build did not produce an H200 binary."
+  echo "No bin/alamo_gpu-3d*cuda\${ARCH}*-g++ found -- build did not produce a \${GPU_TYPE} binary."
   exit 1
 fi
 echo "GPU binary: \${GPU_BIN}  (GPU_TYPE=\${GPU_TYPE} sm_\${ARCH}, \${NRANKS} rank/GPU, mode=\${MODE})"
@@ -425,8 +458,9 @@ echo -e "${GREEN}  run job id: ${RUN_JOBID}${NC}"
 
 echo
 echo -e "${BOLD}${GREEN}=== Staged ===${NC}"
+echo -e "  hardware  : GPU=${SELECTED_GPU_TYPE} (sm_${ARCH})  CPUs=${CPUS_PER_TASK}  RAM=${MEM_GB}G  (${AVAIL_NOTE})"
 [[ -n "${BUILD_JOBID}" ]] && echo -e "  build job : ${BUILD_JOBID}"
 echo -e "  run job   : ${RUN_JOBID}"
 echo -e "  watch     : squeue -u \$USER"
-echo -e "  run log   : tail -f ${ALAMO_DIR}/cone_${GPU_TYPE}.${RUN_JOBID}.out"
+echo -e "  run log   : tail -f ${ALAMO_DIR}/cone_${SELECTED_GPU_TYPE}.${RUN_JOBID}.out"
 echo -e "  output    : ${ALAMO_DIR}/${PLOT_FILE}_${RUN_JOBID}/  (celloutput.visit, nodeoutput.visit)"
