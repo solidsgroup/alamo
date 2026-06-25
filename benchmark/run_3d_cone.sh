@@ -46,6 +46,7 @@ SKIP_BUILD="${SKIP_BUILD:-0}"
 BUILD_ONLY="${BUILD_ONLY:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 EXPLAIN="${EXPLAIN:-0}"
+A100_ONLY="${A100_ONLY:-0}"
 
 # Hardware cutoffs -- consumed by select_nova_resources.sh.
 export MIN_CPUS="${MIN_CPUS:-16}"
@@ -56,7 +57,7 @@ export PARTITION
 
 usage() {
     cat <<'EOF'
-Usage: bash benchmark/run_3d_cone.sh [--dry-run] [--build-only] [--skip-build] [--explain]
+Usage: bash benchmark/run_3d_cone.sh [--dry-run] [--build-only] [--skip-build] [--explain] [--a100]
 
 One-shot NOVA launcher for the 3D conical-grain Flame test. Dynamically
 selects GPU type (h200 preferred, a100 fallback), CPU count (32 preferred,
@@ -68,6 +69,7 @@ Flags:
   --dry-run     print actions, submit nothing
   --build-only  submit the build and stop
   --skip-build  reuse an existing binary, no build job
+  --a100        skip H200 nodes entirely and search only for A100s
 
 Env knobs (defaults in brackets):
   ALAMO_DIR     repo root / working tree            [repo root from script path]
@@ -98,6 +100,7 @@ for arg in "$@"; do
         --build-only) BUILD_ONLY=1 ;;
         --skip-build) SKIP_BUILD=1 ;;
         --explain)    EXPLAIN=1 ;;
+        --a100)       A100_ONLY=1 ;;
         -h|--help)    usage; exit 0 ;;
         *) echo "error: unknown argument '$arg' (try --help)" >&2; exit 2 ;;
     esac
@@ -112,7 +115,7 @@ echo -e "  branch      = ${BRANCH}"
 echo -e "  account     = ${ACCOUNT}  partition=${PARTITION}"
 echo -e "  CPU cutoffs = min=${MIN_CPUS} pref=${PREF_CPUS}"
 echo -e "  RAM cutoffs = min=${MIN_MEM_GB}G pref=${PREF_MEM_GB}G"
-echo -e "  SKIP_BUILD=${SKIP_BUILD}  BUILD_ONLY=${BUILD_ONLY}  DRY_RUN=${DRY_RUN}"
+echo -e "  SKIP_BUILD=${SKIP_BUILD}  BUILD_ONLY=${BUILD_ONLY}  DRY_RUN=${DRY_RUN}  A100_ONLY=${A100_ONLY}"
 echo -e "${BOLD}${BLUE}============================================================${NC}"
 
 # ---------------------------------------------------------------------------
@@ -120,6 +123,9 @@ echo -e "${BOLD}${BLUE}=========================================================
 # ---------------------------------------------------------------------------
 echo
 echo -e "${YELLOW}=== Selecting hardware profile ===${NC}"
+if [[ "${A100_ONLY}" -eq 1 ]]; then
+    export NOVA_GPU_CANDIDATES_OVERRIDE="a100"
+fi
 # shellcheck source=./select_nova_resources.sh
 source "${SCRIPT_DIR}/select_nova_resources.sh"
 

@@ -44,8 +44,13 @@ PREF_CPUS="${PREF_CPUS:-32}"
 MIN_MEM_GB="${MIN_MEM_GB:-64}"
 PREF_MEM_GB="${PREF_MEM_GB:-128}"
 
-# GPU candidates, most-preferred first.
-NOVA_GPU_CANDIDATES=(h200 a100)
+# GPU candidates, most-preferred first. Allow callers to override the search
+# order with NOVA_GPU_CANDIDATES_OVERRIDE="a100" or "h200 a100".
+if [[ -n "${NOVA_GPU_CANDIDATES_OVERRIDE:-}" ]]; then
+    read -r -a NOVA_GPU_CANDIDATES <<< "${NOVA_GPU_CANDIDATES_OVERRIDE}"
+else
+    NOVA_GPU_CANDIDATES=(h200 a100)
+fi
 
 # CPU/RAM profiles, most-preferred first.
 NOVA_PROFILE_CPUS=("${PREF_CPUS}" "${PREF_CPUS}" "${MIN_CPUS}" "${MIN_CPUS}")
