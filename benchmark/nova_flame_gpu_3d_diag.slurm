@@ -98,27 +98,30 @@ trap finish EXIT
 export CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-0}"
 export CUDA_DEVICE_WAITS_ON_EXCEPTION="${CUDA_DEVICE_WAITS_ON_EXCEPTION:-0}"
 
-# Elastic-enabled overrides for profiling modes (A1): elastic solve runs every step
-# so ncu/nsys capture Fapply/Diagonal/Newton kernels within 2–10 steps.
-ELASTIC_ON="elastic.type=static elastic.on=1 elastic.interval=1 elastic.tstart=0.0 \
-            elastic.solver.verbose=0 elastic.print_model=0 \
-            elastic.solver.max_iter=100 elastic.solver.nriters=20"
-
 OVERRIDES_SHORT="max_step=1 stop_time=1e-12_s plot_file=output_diag \
                  amr.plot_int=-1 amr.thermo.plot_int=-1 \
                  amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
                  amrex.the_arena_is_managed=${MANAGED_ARENA} \
                  tiny_profiler.device_synchronize_around_region=1"
 
+# ncu/nsys profiling: use the elastic-enabled input variant so no CLI overrides
+# are needed to initialize the elastic solver.  The _elastic input has elastic.interval=1
+# and elastic.tstart=0.0 so the solve fires on step 1.
+PROFILE_INPUT="${ROOT_DIR}/${INPUT/_128/_128_elastic}"
+if [ ! -f "${PROFILE_INPUT}" ]; then
+    PROFILE_INPUT="${INPUT_PATH}"
+    echo "WARN: elastic input ${PROFILE_INPUT} not found; falling back to ${INPUT_PATH} (elastic may not run)"
+fi
+
 OVERRIDES_PROFILE="max_step=2 stop_time=1e99 amr.plot_int=-1 amr.thermo.plot_int=-1 \
                    amrex.async_out=0 amrex.the_arena_is_managed=${MANAGED_ARENA} \
                    tiny_profiler.device_synchronize_around_region=0 \
-                   ${ELASTIC_ON}"
+                   elastic.solver.verbose=0"
 
 OVERRIDES_NSYS="max_step=10 stop_time=1e99 amr.plot_int=-1 amr.thermo.plot_int=-1 \
                 amrex.async_out=0 amrex.the_arena_is_managed=${MANAGED_ARENA} \
                 tiny_profiler.device_synchronize_around_region=0 \
-                ${ELASTIC_ON}"
+                elastic.solver.verbose=0"
 
 echo "=== diagnostic configuration ==="
 echo "repo          = ${ROOT_DIR}"
@@ -165,6 +168,7 @@ case "${DIAG_TOOL}" in
     OUT_BASE="${PROFILE_DIR}/ncu_${SLURM_JOB_ID:-manual}"
     mkdir -p "${OUT_BASE}"
     echo "=== ncu profiles will be written to ${OUT_BASE}/ ==="
+    echo "=== profiling input: ${PROFILE_INPUT} ==="
 
     ncu_run() {
       local label="$1" regex="$2"
@@ -180,7 +184,7 @@ case "${DIAG_TOOL}" in
           --print-kernel-base demangled \
           --export "${OUT_BASE}/${label}" \
           --force-overwrite \
-          "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_PROFILE}
+          "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE}
     }
 
     ncu_run "flame_advance"    ".*Flame.*Advance.*|.*flame.*advance.*"
@@ -205,13 +209,14 @@ case "${DIAG_TOOL}" in
     mkdir -p "${OUT_BASE}"
     echo "=== nsys report will be written to ${OUT_BASE}/ ==="
 
+    echo "=== profiling input: ${PROFILE_INPUT} ==="
     srun --mpi=pmix -n 1 --gpus-per-task=1 \
       "${NSYS}" profile \
         --trace=cuda,osrt,nvtx \
         --cuda-memory-usage=false \
         --output "${OUT_BASE}/nsys_report" \
         --force-overwrite true \
-        "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_NSYS}
+        "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_NSYS}
 
     echo "=== nsys stats summary ==="
     "${NSYS}" stats \
