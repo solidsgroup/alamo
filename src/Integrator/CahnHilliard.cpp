@@ -1,14 +1,11 @@
 #include <AMReX_MLPoisson.H>
 
-#ifdef ALAMO_FFT
-#include <AMReX_FFT.H>
-#endif
-
 #include "CahnHilliard.H"
 #include "BC/Constant.H"
 #include "IO/ParmParse.H"
 #include "IC/Random.H"
 #include "Numeric/Stencil.H"
+#include "Operator/Spectral/FFT.H"
 #include "Set/Set.H"
 
 namespace Integrator
@@ -52,7 +49,9 @@ CahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (method == "realspace")
         AdvanceReal(lev, time, dt);
     else if (method == "spectral")
-        AdvanceSpectral(lev, time, dt);
+    {
+        if (lev == finest_level) AdvanceSpectral(lev, time, dt);
+    }
     else
         Util::Abort(INFO,"Invalid method: ",method);
 }
@@ -94,22 +93,9 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 
 #ifdef ALAMO_FFT
 void
-CahnHilliard::AdvanceSpectral (int lev, Set::Scalar /*time*/, Set::Scalar dt)
+CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
 {
-    //
-    // FFT Boilerplate
-    //
-    amrex::FFT::R2C my_fft(this->geom[lev].Domain());
-    auto const &[cba, cdm] = my_fft.getSpectralDataLayout();
-    const Set::Scalar* DX = geom[lev].CellSize();
-    amrex::Box const & domain = this->geom[lev].Domain();
-    Set::Scalar
-        AMREX_D_DECL(
-            pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-            pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
-            pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
-    Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
-    
+    Operator::Spectral::FFT fft(geom, refRatio(), lev);
 
     //
     // Compute the gradient of the chemical potential in realspace
@@ -130,14 +116,14 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     // FFT of eta
     // 
-    amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > eta_hat_mf(cba, cdm, 1, 0);
-    my_fft.forward(*etanew_mf[lev], eta_hat_mf);
+    amrex::FabArray<amrex::BaseFab<Set::Complex> > eta_hat_mf = fft.MakeSpectralFab();
+    fft.Forward(etanew_mf, lev, eta_hat_mf, 0, 0, time);
 
     //
     // FFT of chemical potential gradient
     //
-    amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > chempot_hat_mf(cba, cdm, 1, 0);
-    my_fft.forward(*intermediate[lev], chempot_hat_mf);
+    amrex::FabArray<amrex::BaseFab<Set::Complex> > chempot_hat_mf = fft.MakeSpectralFab();
+    fft.Forward(intermediate, lev, chempot_hat_mf, 0, 0, time);
 
     //
     // Perform update in spectral coordinatees
@@ -147,38 +133,23 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
         const amrex::Box &bx = mfi.tilebox();
 
-        Util::Message(INFO, bx);
         
-        amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & eta_hat     =  eta_hat_mf.array(mfi);
-        amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & chempot_hat =  chempot_hat_mf.array(mfi);
+        amrex::Array4<Set::Complex> const & eta_hat     =  eta_hat_mf.array(mfi);
+        amrex::Array4<Set::Complex> const & chempot_hat =  chempot_hat_mf.array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
-
-
-            // Get spectral coordinates
-            AMREX_D_TERM(
-                Set::Scalar k1 = m * pi_Lx;,
-                Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
-                Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
-
-
-            Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
-                        
-            Set::Scalar bilap = lap*lap;
+        fft.ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p, Set::Scalar omega2) {
+            Set::Scalar omega4 = omega2 * omega2;
 
             eta_hat(m, n, p) =
-                (eta_hat(m, n, p) - L * lap * chempot_hat(m, n, p) * dt) /
-                (1.0 + L * gamma * bilap * dt);
-                
-
-            eta_hat(m,n,p) *= scaling;
+                (eta_hat(m, n, p) - L * omega2 * chempot_hat(m, n, p) * dt) /
+                (1.0 + L * gamma * omega4 * dt);
         });
     }
 
     //
     // Transform solution back to realspace
     //
-    my_fft.backward(eta_hat_mf, *etanew_mf[lev]);
+    fft.Backward(eta_hat_mf, etanew_mf, lev);
 }
 #else
 void
@@ -203,8 +174,6 @@ CahnHilliard::Initialize (int lev)
 void
 CahnHilliard::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
-    if (method == "spectral") return;
-
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
