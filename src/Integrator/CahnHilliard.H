@@ -32,7 +32,7 @@
 namespace Integrator
 {
 
-class CahnHilliard : public Integrator
+class CahnHilliard : virtual public Integrator
 {
 public:
     static constexpr const char* name = "cahnhilliard";
@@ -62,15 +62,15 @@ protected:
     void AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt);
     /// Mark any cells that need to be refined
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
-
-private:
+    /// Optional spatial multiplier for degenerate mobility. Defaults to one everywhere.
+    virtual void FillMobilityMask(int lev, amrex::MultiFab& mask);
 
     Set::Field<Set::Scalar> etanew_mf;     /// The new value for eta this timestep
     Set::Field<Set::Scalar> etaold_mf;     /// Last timestep's value for eta
     Set::Field<Set::Scalar> intermediate;  /// Intermediate field used for CH kinetics
 
-    BC::BC<Set::Scalar> *bc; /// eta's bc object
-    IC::IC<Set::Scalar> *ic; /// eta's ic object
+    BC::BC<Set::Scalar> *bc = nullptr; /// eta's bc object
+    IC::IC<Set::Scalar> *ic = nullptr; /// eta's ic object
     
     Set::Scalar gamma = NAN; 
     Set::Scalar L     = NAN;
@@ -80,6 +80,10 @@ private:
 
     std::string method;
     std::string mobility = "constant";
+    std::string input_name = "eta";
+    std::string field_name = "eta";
+    std::string old_field_name = "eta_old";
+    std::string intermediate_name = "int";
 
     Set::Scalar tstart = NAN;
     Set::Scalar tstart_timestep = NAN;

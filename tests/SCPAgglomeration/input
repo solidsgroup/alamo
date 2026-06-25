@@ -1,0 +1,162 @@
+#@
+#@  [serial]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.0001_s
+#@
+
+alamo.program = flame
+
+plot_file = tests/SCPAgglomeration/output
+system.length = mm
+system.time = s
+
+# Fully resolved single-level grid; no AMR patches.
+# The AP packing from SCPSpheresElastic lives in 0 <= x,y <= 1 mm.
+# Add x-padding on both ends so periodic boundaries do not sit on the burn region.
+amr.max_level = 0
+amr.n_cell = 384 256 1
+amr.max_grid_size = 128
+amr.blocking_factor = 16
+amr.plot_dt = 0.002_s
+amr.regrid_int = 1000000
+amr.base_regrid_int = 1000000
+amr.grid_eff = 1.0
+amr.refinement_criterion = 1.0e100
+amr.refinement_criterion_temp = 1.0e100
+amr.phi_refinement_criterion = 1.0e100
+amr.cell.all = 1
+amr.node.all = 1
+
+geometry.prob_lo = -0.00025_m 0.00000_m 0.00000_m
+geometry.prob_hi =  0.00125_m 0.00100_m 0.00050_m
+geometry.is_periodic = 1 1 1
+
+timestep = 1.0e-6_s
+stop_time = 0.01_s
+
+# Flame phase-field parameters from SCPSpheresElastic.
+pf.eps = 0.000001_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1.0e-4
+
+# Propellant slab with burned/gas padding on both periodic x ends.
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.xlo = 0.00000_m
+pf.eta.ic.expression.constant.xhi = 0.00100_m
+pf.eta.ic.expression.constant.eps = 0.000002_m
+pf.eta.ic.expression.region0 = "0.5*(erf((x-xlo)/eps) - erf((x-xhi)/eps))"
+
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = periodic
+pf.eta.bc.constant.type.xhi = periodic
+pf.eta.bc.constant.type.ylo = periodic
+pf.eta.bc.constant.type.yhi = periodic
+pf.eta.bc.constant.type.zlo = periodic
+pf.eta.bc.constant.type.zhi = periodic
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+# AP/binder species field from SCPSpheresElastic.
+phi.ic.type = psread
+phi.ic.psread.file.unit = m
+phi.ic.psread.file.name = tests/SCPSpheresElastic/2d.xyzr
+phi.ic.psread.eps = 1.13e-5_m
+
+# Full-feedback propellant model from SCPSpheresElastic.
+propellant.type = fullfeedback
+propellant.fullfeedback.m_ap = 1.45e5_m/s
+propellant.fullfeedback.m_htpb = 1.04e2_m/s
+propellant.fullfeedback.E_ap = 11000.0_K
+propellant.fullfeedback.E_htpb = 7500.0_K
+propellant.fullfeedback.rho_ap = 1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb = 920.0_kg/m^3
+propellant.fullfeedback.k_ap = 0.4186e0_W/m/K
+propellant.fullfeedback.k_htpb = 0.13_W/m/K
+propellant.fullfeedback.cp_ap = 1297.9_J/kg/K
+propellant.fullfeedback.cp_htpb = 2418.29_J/kg/K
+propellant.fullfeedback.a1 =  1.11400_1
+propellant.fullfeedback.a2 =  0.46000_1
+propellant.fullfeedback.a3 =  2.79700_1
+propellant.fullfeedback.b1 =  0.32300_1
+propellant.fullfeedback.b2 =  0.42000_1
+propellant.fullfeedback.b3 =  0.32250_1
+propellant.fullfeedback.c1 = -0.09906_1
+propellant.fullfeedback.mlocal_ap = 1000.0_kg/m^3/s
+propellant.fullfeedback.mlocal_comb = 0.0_kg/m^3/s
+propellant.fullfeedback.phi.zeta_0 = 1.13e-5_m
+propellant.fullfeedback.phi.zeta = 1.13e-5_m
+propellant.fullfeedback.Pref = 1.0_MPa
+
+thermal.on = 1
+thermal.Tref = 300.0_K
+thermal.Tfluid = 300.0
+thermal.Tcutoff = 0.0_K
+thermal.end_initial_refine_time = 1.0e100_s
+thermal.hc = 1.0e7_W/m^2
+
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = periodic
+thermal.temp.bc.constant.type.xhi = periodic
+thermal.temp.bc.constant.type.ylo = periodic
+thermal.temp.bc.constant.type.yhi = periodic
+thermal.temp.bc.constant.type.zlo = periodic
+thermal.temp.bc.constant.type.zhi = periodic
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0
+thermal.temp.bc.constant.val.zhi = 0.0
+
+temp.ic.type = constant
+temp.ic.constant.value = 500_K
+
+laser.ic.type = constant
+laser.ic.constant.value = 1.0e6_W/m^2
+
+chamber.pressure = 4.0_MPa
+variable_pressure = 0
+
+# No mechanics for this agglomeration test ground yet.
+elastic.type = disable
+
+# Decoupled singly-degenerate Cahn-Hilliard agglomeration field.
+agglomeration.on = 1
+agglomeration.method = spectral
+agglomeration.mobility = singly_degenerate
+agglomeration.gamma = 1.0e-4
+agglomeration.L = 10.0
+agglomeration.mobility_floor = 1.0e-6
+agglomeration.spectral_stabilization = 0.01
+agglomeration.refinement_threshold = 1.0e100
+agglomeration.tstart = 1.0e100
+agglomeration.tstart_timestep = -1.0
+
+agglomeration.alpha.ic.type = random
+agglomeration.alpha.ic.random.offset = -1.0
+agglomeration.alpha.ic.random.mult = 2.0
+
+agglomeration.alpha.bc.type = constant
+agglomeration.alpha.bc.constant.type.xlo = periodic
+agglomeration.alpha.bc.constant.type.xhi = periodic
+agglomeration.alpha.bc.constant.type.ylo = periodic
+agglomeration.alpha.bc.constant.type.yhi = periodic
+agglomeration.alpha.bc.constant.type.zlo = periodic
+agglomeration.alpha.bc.constant.type.zhi = periodic
+agglomeration.alpha.bc.constant.val.xlo = 0.0
+agglomeration.alpha.bc.constant.val.xhi = 0.0
+agglomeration.alpha.bc.constant.val.ylo = 0.0
+agglomeration.alpha.bc.constant.val.yhi = 0.0
+agglomeration.alpha.bc.constant.val.zlo = 0.0
+agglomeration.alpha.bc.constant.val.zhi = 0.0
+
+amr.abort_on_nan = 1

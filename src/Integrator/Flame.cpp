@@ -15,12 +15,15 @@
 #include "Model/Propellant/Propellant.H"
 #include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
+#include "AMReX_MultiFabUtil.H"
+#include <algorithm>
 #include <cmath>
 
 namespace Integrator
 {
 
 Flame::Flame() : 
+    CahnHilliard(),
     Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -222,6 +225,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
+    pp.query_default("agglomeration.on", value.agglomeration.on, false);
+    if (value.agglomeration.on)
+    {
+        value.input_name = "alpha";
+        value.field_name = "agglom.alpha";
+        value.old_field_name = "agglom.alpha_old";
+        value.intermediate_name = "agglom.int";
+        pp.queryclass<CahnHilliard>("agglomeration", value);
+    }
+
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
 
@@ -299,6 +312,136 @@ void Flame::Initialize(int lev)
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
+    if (agglomeration.on)
+        InitializeAgglomeration(lev);
+}
+
+void Flame::InitializeAgglomeration(int lev)
+{
+    BL_PROFILE("Integrator::Flame::InitializeAgglomeration");
+    CahnHilliard::Initialize(lev);
+    RestrictAgglomerationToBinder(lev);
+    agglomeration.active_alpha_mean = ComputeAgglomerationActiveMean(lev);
+
+    if (method == "realspace")
+        MultiFab::Copy(*etaold_mf[lev], *etanew_mf[lev], 0, 0, 1, etaold_mf[lev]->nGrow());
+}
+
+void Flame::FillMobilityMask(int lev, amrex::MultiFab& mask)
+{
+    BL_PROFILE("Integrator::Flame::FillMobilityMask");
+
+    mask.setVal(0.0);
+    MultiFab cell_based_phi(mask.boxArray(), mask.DistributionMap(), 1, 0);
+    average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[lev], 0, 1, 0);
+
+    for (amrex::MFIter mfi(mask, true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> mask_arr = mask.array(mfi);
+        Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
+            Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+            mask_arr(i, j, k) = unburned_fraction * (1.0 - ap_fraction);
+        });
+    }
+}
+
+Set::Scalar Flame::ComputeAgglomerationActiveMean(int lev)
+{
+    BL_PROFILE("Integrator::Flame::ComputeAgglomerationActiveMean");
+
+    MultiFab active(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+    MultiFab active_alpha(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+    MultiFab cell_based_phi(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+    average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[lev], 0, 1, 0);
+
+    for (amrex::MFIter mfi(active, true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> active_arr = active.array(mfi);
+        Set::Patch<Set::Scalar> active_alpha_arr = active_alpha.array(mfi);
+        Set::Patch<const Set::Scalar> alpha = etanew_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
+            Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+            Set::Scalar active_binder_fraction = unburned_fraction * (1.0 - ap_fraction);
+            active_arr(i, j, k) = active_binder_fraction;
+            active_alpha_arr(i, j, k) = active_binder_fraction * alpha(i, j, k);
+        });
+    }
+
+    Set::Scalar active_sum = active.sum(0, false);
+    if (active_sum <= 0.0) return -1.0;
+    return active_alpha.sum(0, false) / active_sum;
+}
+
+void Flame::CorrectAgglomerationActiveMean(int lev, Set::Scalar target_mean)
+{
+    BL_PROFILE("Integrator::Flame::CorrectAgglomerationActiveMean");
+
+    Set::Scalar active_mean = ComputeAgglomerationActiveMean(lev);
+    Set::Scalar correction = target_mean - active_mean;
+    MultiFab cell_based_phi(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+    average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[lev], 0, 1, 0);
+
+    for (amrex::MFIter mfi(*etanew_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
+            Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+            Set::Scalar active_binder_fraction = unburned_fraction * (1.0 - ap_fraction);
+            if (active_binder_fraction > 0.0)
+            {
+                Set::Scalar corrected_alpha = std::max(-1.0, std::min(1.0, alpha(i, j, k) + correction));
+                alpha(i, j, k) = active_binder_fraction * (corrected_alpha + 1.0) - 1.0;
+            }
+        });
+    }
+
+    etanew_mf[lev]->FillBoundary(geom[lev].periodicity());
+}
+
+void Flame::RestrictAgglomerationToBinder(int lev)
+{
+    BL_PROFILE("Integrator::Flame::RestrictAgglomerationToBinder");
+
+    int nGrow = etanew_mf[lev]->nGrow();
+    MultiFab cell_based_phi(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, nGrow);
+    average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[lev], 0, 1, nGrow);
+
+    for (amrex::MFIter mfi(*etanew_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
+            Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+            Set::Scalar active_binder_fraction = unburned_fraction * (1.0 - ap_fraction);
+            Set::Scalar bounded_alpha = std::max(-1.0, std::min(1.0, alpha(i, j, k)));
+            alpha(i, j, k) = active_binder_fraction * (bounded_alpha + 1.0) - 1.0;
+        });
+    }
+
+    etanew_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
@@ -588,6 +731,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         }
     }
  
+    if (agglomeration.on)
+    {
+        RestrictAgglomerationToBinder(lev);
+        CahnHilliard::Advance(lev, time, dt);
+        RestrictAgglomerationToBinder(lev);
+        CorrectAgglomerationActiveMean(lev, agglomeration.active_alpha_mean);
+    }
+
 } //Function
 
 
@@ -660,7 +811,10 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         }
     }
 
-        // Refine at start
+    if (agglomeration.on)
+        CahnHilliard::TagCellsForRefinement(lev, a_tags, time, ngrow);
+
+    // Refine at start
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();

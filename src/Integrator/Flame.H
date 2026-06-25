@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "Integrator/Integrator.H"
+#include "Integrator/CahnHilliard.H"
 #include "BC/BC.H"
 #include "IC/IC.H"
 #include "Set/Set.H"
@@ -20,6 +21,7 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
+                virtual public CahnHilliard,
                 virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
 {
 
@@ -55,6 +57,11 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
+    void InitializeAgglomeration(int lev);
+    void RestrictAgglomerationToBinder(int lev);
+    Set::Scalar ComputeAgglomerationActiveMean(int lev);
+    void CorrectAgglomerationActiveMean(int lev, Set::Scalar target_mean);
+    void FillMobilityMask(int lev, amrex::MultiFab& mask) override;
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -132,6 +139,11 @@ protected:
         // Intensive variables
         Set::Scalar pressure = NAN;
     } chamber;
+
+    struct {
+        bool on = false;
+        Set::Scalar active_alpha_mean = NAN;
+    } agglomeration;
 
 
     // Propellant model

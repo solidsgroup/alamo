@@ -35,22 +35,34 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
+    pp.query_default("input_name", value.input_name, value.input_name);
+
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random,IC::Expression>("eta.ic", value.ic, value.geom);
+    pp.select_default<IC::Random,IC::Expression>(value.input_name + ".ic", value.ic, value.geom);
     // boundary condition for :math:`\eta`
-    pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
+    pp.select_default<BC::Constant>(value.input_name + ".bc", value.bc, 1);
 
     // Which method to use - realspace or spectral method.
     pp.query_validate("method",value.method,{"realspace","spectral"});
 
     pp.query_default("tstart",value.tstart,1E100);
     pp.query_default("tstart_timestep",value.tstart_timestep,-1.0);
+    pp.query_default("field_name", value.field_name, value.field_name);
+    pp.query_default("old_field_name", value.old_field_name, value.old_field_name);
+    pp.query_default("intermediate_name", value.intermediate_name, value.intermediate_name);
 
-    value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta",true);
-    value.RegisterNewFab(value.intermediate, value.bc, 1, 1, "int",true);
+    value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, value.field_name,true);
+    value.RegisterNewFab(value.intermediate, value.bc, 1, 1, value.intermediate_name,true);
 
     if (value.method == "realspace")
-        value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, "eta_old",false);
+        value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, value.old_field_name,false);
+}
+
+
+void
+CahnHilliard::FillMobilityMask(int /*lev*/, amrex::MultiFab& mask)
+{
+    mask.setVal(1.0);
 }
 
 void
@@ -92,6 +104,14 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt)
 
     intermediate[lev]->FillBoundary(geom[lev].periodicity());
 
+    std::unique_ptr<amrex::MultiFab> mobility_mask;
+    if (mobility == "singly_degenerate")
+    {
+        mobility_mask = std::make_unique<amrex::MultiFab>(
+            etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+        FillMobilityMask(lev, *mobility_mask);
+    }
+
     for ( amrex::MFIter mfi(*etanew_mf[lev],true); mfi.isValid(); ++mfi )
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -99,6 +119,7 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const amrex::Real> const& inter = intermediate[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& etanew = etanew_mf[lev]->array(mfi);
         const bool singly_degenerate = mobility == "singly_degenerate";
+        amrex::Array4<const amrex::Real> const mask = singly_degenerate ? mobility_mask->const_array(mfi) : amrex::Array4<const amrex::Real>();
         const Set::Scalar L_local = L;
         const Set::Scalar M_floor = mobility_floor;
 
@@ -108,9 +129,10 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt)
 
             if (singly_degenerate)
             {
-                Set::Scalar alpha = 0.5 * (eta(i,j,k) + 1.0);
-                Set::Scalar M = L_local * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + M_floor;
-                Set::Scalar dM_deta = 0.5 * L_local * 2.0 * alpha * (1.0 - alpha) * (1.0 - 2.0 * alpha);
+                Set::Scalar alpha = std::max(0.0, std::min(1.0, 0.5 * (eta(i,j,k) + 1.0)));
+                Set::Scalar active = mask(i,j,k);
+                Set::Scalar M = active * (L_local * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + M_floor);
+                Set::Scalar dM_deta = active * 0.5 * L_local * 2.0 * alpha * (1.0 - alpha) * (1.0 - 2.0 * alpha);
                 Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
                 Set::Vector grad_inter = Numeric::Gradient(inter, i, j, k, 0, DX);
 
@@ -174,6 +196,7 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
     else if (mobility == "singly_degenerate")
     {
         amrex::Vector<std::unique_ptr<amrex::MultiFab> > flux_mf(lev + 1);
+        amrex::Vector<std::unique_ptr<amrex::MultiFab> > mobility_mask(lev + 1);
 
         for (int ilev = 0; ilev <= lev; ++ilev)
         {
@@ -195,6 +218,9 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
             intermediate[ilev]->FillBoundary(geom[ilev].periodicity());
             flux_mf[ilev] = std::make_unique<amrex::MultiFab>(
                 etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), AMREX_SPACEDIM, 0);
+            mobility_mask[ilev] = std::make_unique<amrex::MultiFab>(
+                etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), 1, 0);
+            FillMobilityMask(ilev, *mobility_mask[ilev]);
 
             for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
             {
@@ -202,13 +228,14 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<const amrex::Real> const& eta = etanew_mf[ilev]->array(mfi);
                 amrex::Array4<const amrex::Real> const& inter = intermediate[ilev]->array(mfi);
                 amrex::Array4<amrex::Real> const& flux = flux_mf[ilev]->array(mfi);
+                amrex::Array4<const amrex::Real> const& mask = mobility_mask[ilev]->const_array(mfi);
                 const Set::Scalar L_local = L;
                 const Set::Scalar M_floor = mobility_floor;
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar alpha = 0.5 * (eta(i,j,k) + 1.0);
-                    Set::Scalar M = L_local * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + M_floor;
+                    Set::Scalar alpha = std::max(0.0, std::min(1.0, 0.5 * (eta(i,j,k) + 1.0)));
+                    Set::Scalar M = mask(i,j,k) * (L_local * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + M_floor);
                     Set::Vector grad_inter = Numeric::Gradient(inter, i, j, k, 0, DX);
                     AMREX_D_TERM(
                         flux(i,j,k,0) = M * grad_inter(0);,
@@ -259,6 +286,19 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
         }
 
         fft.Backward(eta_hat_mf, etanew_mf, lev);
+
+        for (int ilev = 0; ilev <= lev; ++ilev)
+        {
+            for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                amrex::Array4<amrex::Real> const& eta = etanew_mf[ilev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    eta(i,j,k) = std::max(-1.0, std::min(1.0, eta(i,j,k)));
+                });
+            }
+        }
     }
     else
         Util::Abort(INFO,"Invalid mobility: ",mobility);
