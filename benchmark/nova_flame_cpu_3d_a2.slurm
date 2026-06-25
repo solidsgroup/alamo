@@ -11,6 +11,10 @@
 #SBATCH --error=flame_cpu_3d_a2.%j.err
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=jackplum@iastate.edu
+# The partition defaults to nova; pass --partition=scavenger to sbatch to use
+# the scavenger queue (or use phase_a2_sweep.sh --scavenger --submit):
+#   sbatch benchmark/nova_flame_cpu_3d_a2.slurm
+#   sbatch --partition=scavenger benchmark/nova_flame_cpu_3d_a2.slurm
 # ===========================================================================
 # A2 CPU baseline 3D Flame+Elastic run on NOVA (GPU_ROADMAP_V2 Phase A2).
 #
@@ -22,8 +26,10 @@
 # Inputs: input_3d_centre_bore_128_a2, input_3d_centre_bore_256_a2
 #
 # Env knobs:
-#   INPUT               input file (default input_3d_centre_bore_128_a2)
+#   INPUT                 input file (default input_3d_centre_bore_128_a2)
 #   BUILD_CPU_IF_MISSING  1 = build in-job if no CPU binary found (default 1)
+#   PARTITION             nova | scavenger  (informational; actual partition set
+#                         at sbatch time via --partition or --scavenger sweep flag)
 # ===========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
@@ -32,6 +38,7 @@ INPUT="${INPUT:-input_3d_centre_bore_128_a2}"
 BUILD_CPU_IF_MISSING="${BUILD_CPU_IF_MISSING:-1}"
 ASYNC_OUT="${ASYNC_OUT:-0}"
 TIME_CMD="${TIME_CMD:-/usr/bin/time -v}"
+PARTITION="${SLURM_JOB_PARTITION:-${PARTITION:-nova}}"
 
 module purge 2>/dev/null || true
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
@@ -49,7 +56,7 @@ if [ -z "${CPU_BIN}" ]; then
   CPU_BIN="$(ls -t bin/alamo-3d*-g++ | grep -v cuda | head -1)"
 fi
 echo "CPU binary: ${CPU_BIN}  (${SLURM_NTASKS} ranks)"
-echo "Input: ${INPUT}"
+echo "Partition: ${PARTITION}  Input: ${INPUT}"
 
 OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
            tiny_profiler.device_synchronize_around_region=1"

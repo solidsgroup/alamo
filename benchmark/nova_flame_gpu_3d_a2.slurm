@@ -12,8 +12,11 @@
 #SBATCH --error=flame_gpu_3d_a2.%j.err
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=jackplum@iastate.edu
-# NOTE: GPU count / type / gres are set dynamically on the sbatch command line:
+# NOTE: GPU count / type / gres are set dynamically on the sbatch command line.
+# The partition defaults to nova; pass --partition=scavenger to sbatch to use
+# the scavenger queue (or use phase_a2_sweep.sh --scavenger --submit):
 #   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_a2.slurm
+#   sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_a2.slurm
 # ==========================================================================
 # A2 single-GPU 3D Flame+Elastic baseline run on NOVA (GPU_ROADMAP_V2 Phase A2).
 #
@@ -29,6 +32,8 @@
 #   NGPUS        number of GPUs / MPI ranks  (default 1)
 #   MODE         bench | fast  (bench = managed arena + TinyProfiler sync)
 #   PROFILE_KIND summary | nsys  (nsys wraps with nsys profile)
+#   PARTITION    nova | scavenger  (informational; actual partition set at sbatch
+#                time via --partition=<value> or phase_a2_sweep.sh --scavenger)
 # ==========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
@@ -39,6 +44,7 @@ MODE="${MODE:-bench}"
 ASYNC_OUT="${ASYNC_OUT:-0}"
 PROFILE_KIND="${PROFILE_KIND:-summary}"
 TIME_CMD="${TIME_CMD:-/usr/bin/time -v}"
+PARTITION="${SLURM_JOB_PARTITION:-${PARTITION:-nova}}"
 
 case "${GPU_TYPE}" in
   v100) ARCH=70 ;;
@@ -59,7 +65,7 @@ if [ -z "${GPU_BIN}" ]; then
   exit 1
 fi
 echo "GPU binary: ${GPU_BIN}  (GPU_TYPE=${GPU_TYPE} sm_${ARCH}, ${NRANKS} rank(s), mode=${MODE})"
-echo "Input: ${INPUT}"
+echo "Partition: ${PARTITION}  Input: ${INPUT}"
 
 if [ "${MODE}" = "fast" ]; then
   OVERRIDES="amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 amrex.the_arena_is_managed=0"

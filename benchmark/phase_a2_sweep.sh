@@ -14,6 +14,11 @@
 # Inputs:  input_3d_centre_bore_128_a2, input_3d_centre_bore_256_a2
 # Scripts: benchmark/nova_flame_gpu_3d_a2.slurm, benchmark/nova_flame_cpu_3d_a2.slurm
 #
+# Flags:
+#   --submit           sbatch each command (requires SLURM; default: dry run)
+#   --dry-run          write $OUT only, submit nothing (default)
+#   --scavenger        use the scavenger partition instead of nova
+#
 # Env knobs:
 #   GPU_TYPE=a100        GPU type for GRES (default a100)
 #   GPU_NODE_CPUS=72     CPU cores on one NOVA GPU node
@@ -34,6 +39,7 @@ OUT="${OUT:-a2_commands.txt}"
 DEPENDENCY="${DEPENDENCY:-}"
 GPU_DEPENDENCY="${GPU_DEPENDENCY:-${DEPENDENCY}}"
 CPU_DEPENDENCY="${CPU_DEPENDENCY:-${DEPENDENCY}}"
+PARTITION="${PARTITION:-nova}"
 
 SCRIPT_GPU="benchmark/nova_flame_gpu_3d_a2.slurm"
 SCRIPT_CPU="benchmark/nova_flame_cpu_3d_a2.slurm"
@@ -41,14 +47,16 @@ SCRIPT_CPU="benchmark/nova_flame_cpu_3d_a2.slurm"
 SUBMIT=0
 for arg in "$@"; do
     case "$arg" in
-        --submit)  SUBMIT=1 ;;
-        --dry-run) SUBMIT=0 ;;
+        --submit)     SUBMIT=1 ;;
+        --dry-run)    SUBMIT=0 ;;
+        --scavenger)  PARTITION=scavenger ;;
         -h|--help)
-            sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
             echo
-            echo "Usage: bash benchmark/phase_a2_sweep.sh [--dry-run|--submit]"
+            echo "Usage: bash benchmark/phase_a2_sweep.sh [--dry-run|--submit] [--scavenger]"
             echo "  --dry-run (default): write \$OUT, submit nothing."
             echo "  --submit           : sbatch each command (requires SLURM)."
+            echo "  --scavenger        : submit to scavenger partition instead of nova."
             exit 0
             ;;
         *)
@@ -70,6 +78,7 @@ echo "   GPU_TYPE      = $GPU_TYPE"
 echo "   GPU_NODE_CPUS = $GPU_NODE_CPUS"
 echo "   CPU_RANKS     = $CPU_RANKS"
 echo "   SIZES         = $SIZES"
+echo "   PARTITION     = $PARTITION"
 echo "   OUT           = $OUT"
 if [[ -n "$DEPENDENCY" ]]; then
     echo "   DEPENDENCY    = $DEPENDENCY"
@@ -109,19 +118,19 @@ emit_gpu() {
     local cpus_per_task="${GPU_NODE_CPUS}"
     local depopt
     depopt="$(dependency_opt "${GPU_DEPENDENCY}")"
-    local sbatch_opts=(--nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${cpus_per_task}" --mem=0)
+    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${cpus_per_task}" --mem=0)
     [[ -n "$depopt" ]] && sbatch_opts+=("$depopt")
 
     local sbatch_opts_text=""
     printf -v sbatch_opts_text ' %q' "${sbatch_opts[@]}"
 
-    local cmd="INPUT=${input} GPU_TYPE=${GPU_TYPE} NGPUS=1 sbatch${sbatch_opts_text} ${SCRIPT_GPU}"
-    printf '# A2 size=%s gpu x1 (%s)\n%s\n\n' "$size" "$GPU_TYPE" "$cmd" >> "$OUT"
+    local cmd="INPUT=${input} GPU_TYPE=${GPU_TYPE} NGPUS=1 PARTITION=${PARTITION} sbatch${sbatch_opts_text} ${SCRIPT_GPU}"
+    printf '# A2 size=%s gpu x1 (%s) partition=%s\n%s\n\n' "$size" "$GPU_TYPE" "$PARTITION" "$cmd" >> "$OUT"
 
     if [[ "$SUBMIT" -eq 1 ]]; then
         if command -v sbatch >/dev/null 2>&1; then
             echo "submitting: $cmd"
-            INPUT="${input}" GPU_TYPE="${GPU_TYPE}" NGPUS=1 \
+            INPUT="${input}" GPU_TYPE="${GPU_TYPE}" NGPUS=1 PARTITION="${PARTITION}" \
                 sbatch "${sbatch_opts[@]}" "${SCRIPT_GPU}"
         else
             echo "WARN: --submit requested but 'sbatch' not found; skipping: $cmd" >&2
@@ -133,19 +142,19 @@ emit_cpu() {
     local input="$1" size="$2"
     local depopt
     depopt="$(dependency_opt "${CPU_DEPENDENCY}")"
-    local sbatch_opts=(--nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem=0)
+    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem=0)
     [[ -n "$depopt" ]] && sbatch_opts+=("$depopt")
 
     local sbatch_opts_text=""
     printf -v sbatch_opts_text ' %q' "${sbatch_opts[@]}"
 
-    local cmd="INPUT=${input} BUILD_CPU_IF_MISSING=0 sbatch${sbatch_opts_text} ${SCRIPT_CPU}"
-    printf '# A2 size=%s cpu-node baseline (%s ranks)\n%s\n\n' "$size" "$CPU_RANKS" "$cmd" >> "$OUT"
+    local cmd="INPUT=${input} BUILD_CPU_IF_MISSING=0 PARTITION=${PARTITION} sbatch${sbatch_opts_text} ${SCRIPT_CPU}"
+    printf '# A2 size=%s cpu-node baseline (%s ranks) partition=%s\n%s\n\n' "$size" "$CPU_RANKS" "$PARTITION" "$cmd" >> "$OUT"
 
     if [[ "$SUBMIT" -eq 1 ]]; then
         if command -v sbatch >/dev/null 2>&1; then
             echo "submitting: $cmd"
-            INPUT="${input}" BUILD_CPU_IF_MISSING=0 \
+            INPUT="${input}" BUILD_CPU_IF_MISSING=0 PARTITION="${PARTITION}" \
                 sbatch "${sbatch_opts[@]}" "${SCRIPT_CPU}"
         else
             echo "WARN: --submit requested but 'sbatch' not found; skipping: $cmd" >&2
@@ -157,7 +166,7 @@ emit_cpu() {
 {
     echo "# Phase-A2 combined flame+elastic crossover command matrix"
     echo "# generated by benchmark/phase_a2_sweep.sh"
-    echo "# GPU_TYPE=$GPU_TYPE  CPU_RANKS=$CPU_RANKS  SIZES='$SIZES'"
+    echo "# GPU_TYPE=$GPU_TYPE  CPU_RANKS=$CPU_RANKS  SIZES='$SIZES'  PARTITION=$PARTITION"
     echo "# scripts: nova_flame_gpu_3d_a2.slurm, nova_flame_cpu_3d_a2.slurm"
     echo "#"
 } >> "$OUT"
