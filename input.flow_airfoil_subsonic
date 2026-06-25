@@ -1,5 +1,5 @@
 alamo.program = allencahn
-plot_file = ./output.airfoil_subsonic
+plot_file = ./output.airfoil_supersonic
 amr.plot_dt = 0.005
 # amr.plot_int = 100
 amr.max_grid_size = 500000
@@ -115,7 +115,7 @@ hydro.momentum.bc.constant.type.xlo = dirichlet neumann
 hydro.momentum.bc.constant.type.ylo = neumann neumann
 hydro.momentum.bc.constant.type.yhi = neumann neumann
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
-hydro.momentum.bc.constant.val.xlo = 30.0 0.0
+hydro.momentum.bc.constant.val.xlo = 100.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
 hydro.momentum.bc.constant.val.yhi = 0.0 0.0
 hydro.eta.ic.constant.value = 1.0
@@ -135,7 +135,7 @@ hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.5
-hydro.lagrange=0.0
+hydro.lagrange=2000.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
