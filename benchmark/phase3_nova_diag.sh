@@ -2,7 +2,7 @@
 #
 # phase3_nova_diag.sh -- submit focused NOVA diagnostics for Phase-3 CUDA 700.
 #
-# This does not run the full scaling sweep. It submits one tiny single-GPU A100
+# This does not run the full scaling sweep. It submits one tiny single-GPU V100
 # diagnostic job per requested tool so the first illegal access can be localized.
 
 set -euo pipefail
@@ -11,12 +11,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
 
-GPU_TYPE="${GPU_TYPE:-a100}"
-INPUT="${INPUT:-input_3d_flame_128}"
-TOOLS="${TOOLS:-blocking sanitizer}"
+GPU_TYPE="${GPU_TYPE:-v100}"
+INPUT="${INPUT:-input_3d_centre_bore_128}"
+TOOLS="${TOOLS:-blocking sanitizer}"  # also: ncu nsys
 MANAGED_ARENA="${MANAGED_ARENA:-1}"
 DEPENDENCY="${DEPENDENCY:-}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-24}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-32}"
 DRY_RUN=0
 
 usage() {
@@ -28,12 +28,12 @@ Run from the NOVA checkout after the 3D GPU binary has been built.
 
 Env knobs:
   ALAMO_DIR      repo root / working tree (default: repo root inferred)
-  GPU_TYPE       a100|h200 (default: a100)
-  INPUT          input file (default: input_3d_flame_128)
-  TOOLS          "blocking", "sanitizer", or both (default: "blocking sanitizer")
+  GPU_TYPE       v100|a100|h200 (default: v100)
+  INPUT          input file (default: input_3d_centre_bore_128)
+  TOOLS          "blocking", "sanitizer", "ncu", "nsys", or any combo (default: "blocking sanitizer")
   MANAGED_ARENA  1|0 passed to amrex.the_arena_is_managed (default: 1)
   DEPENDENCY     optional Slurm dependency, bare job id or full afterok:...
-  GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 24)
+  GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 72)
 EOF
 }
 
@@ -52,8 +52,8 @@ for arg in "$@"; do
 done
 
 case "${GPU_TYPE}" in
-    a100|h200) ;;
-    *) echo "error: GPU_TYPE must be a100 or h200 (got ${GPU_TYPE})" >&2; exit 2 ;;
+    v100|a100|h200) ;;
+    *) echo "error: GPU_TYPE must be v100, a100 or h200 (got ${GPU_TYPE})" >&2; exit 2 ;;
 esac
 if ! [[ "${GPU_NODE_CPUS}" =~ ^[1-9][0-9]*$ ]]; then
     echo "error: GPU_NODE_CPUS must be a positive integer (got ${GPU_NODE_CPUS})" >&2
@@ -95,7 +95,7 @@ echo "============================================================"
 
 for tool in ${TOOLS}; do
     case "${tool}" in
-        blocking|sanitizer) ;;
+        blocking|sanitizer|ncu|nsys) ;;
         *) echo "error: unknown diagnostic tool '${tool}'" >&2; exit 2 ;;
     esac
 

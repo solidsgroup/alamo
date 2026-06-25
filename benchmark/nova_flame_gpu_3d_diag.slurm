@@ -5,40 +5,49 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
-#SBATCH --time=00:30:00
+#SBATCH --cpus-per-task=32
+#SBATCH --time=01:00:00
 #SBATCH --output=flame_gpu_3d_diag.%j.out
 #SBATCH --error=flame_gpu_3d_diag.%j.err
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=jackplum@iastate.edu
 #
-# Single-GPU diagnostic run for Phase-3 CUDA error 700 failures.
+# Single-GPU diagnostic / profiling run.  DIAG_TOOL selects the mode:
 #
-# This intentionally runs the smallest 3D Flame case for one step with
-# CUDA_LAUNCH_BLOCKING enabled and writes all runtime artifacts into a per-job
-# directory. Use benchmark/phase3_nova_diag.sh to submit the common variants.
+#   blocking  -- CUDA_LAUNCH_BLOCKING=1, 1 step  (correctness / CUDA error location)
+#   sanitizer -- compute-sanitizer memcheck,  1 step
+#   ncu       -- Nsight Compute kernel profiles, 2 steps, elastic enabled
+#                outputs to benchmark/profiles_alpha1/ncu_<jobid>/
+#   nsys      -- Nsight Systems timeline, 10 steps, elastic enabled
+#                outputs to benchmark/profiles_alpha1/nsys_<jobid>/
 #
-# Example:
-#   DIAG_TOOL=blocking INPUT=input_3d_flame_128 GPU_TYPE=a100 \
-#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d_diag.slurm
-#   DIAG_TOOL=sanitizer INPUT=input_3d_flame_128 GPU_TYPE=a100 \
-#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu_3d_diag.slurm
+# Example (correctness):
+#   DIAG_TOOL=blocking INPUT=input_3d_centre_bore_128 GPU_TYPE=v100 \
+#     sbatch --gres=gpu:v100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_diag.slurm
+#
+# Example (A1 profiling, A100):
+#   DIAG_TOOL=ncu INPUT=input_3d_flame_128 GPU_TYPE=a100 \
+#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_diag.slurm
+#   DIAG_TOOL=nsys INPUT=input_3d_flame_128 GPU_TYPE=a100 \
+#     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_diag.slurm
 
 set -euo pipefail
 
 ROOT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 cd "${ROOT_DIR}"
 
-GPU_TYPE="${GPU_TYPE:-a100}"          # a100 (sm_80) or h200 (sm_90)
-INPUT="${INPUT:-input_3d_flame_128}"
-DIAG_TOOL="${DIAG_TOOL:-blocking}"    # blocking | sanitizer
+GPU_TYPE="${GPU_TYPE:-v100}"          # v100 (sm_70), a100 (sm_80) or h200 (sm_90)
+INPUT="${INPUT:-input_3d_centre_bore_128}"
+DIAG_TOOL="${DIAG_TOOL:-blocking}"    # blocking | sanitizer | ncu | nsys
+PROFILE_DIR="${PROFILE_DIR:-${ROOT_DIR}/benchmark/profiles_alpha1}"
 MANAGED_ARENA="${MANAGED_ARENA:-1}"
 ASYNC_OUT="${ASYNC_OUT:-0}"
 
 case "${GPU_TYPE}" in
+  v100) ARCH=70 ;;
   a100) ARCH=80 ;;
   h200) ARCH=90 ;;
-  *) echo "Unknown GPU_TYPE=${GPU_TYPE} (use a100 or h200)"; exit 1 ;;
+  *) echo "Unknown GPU_TYPE=${GPU_TYPE} (use v100, a100 or h200)"; exit 1 ;;
 esac
 
 module purge 2>/dev/null || true
@@ -86,14 +95,30 @@ finish() {
 }
 trap finish EXIT
 
-export CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-1}"
+export CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-0}"
 export CUDA_DEVICE_WAITS_ON_EXCEPTION="${CUDA_DEVICE_WAITS_ON_EXCEPTION:-0}"
 
-OVERRIDES="max_step=1 stop_time=1e-12_s plot_file=output_diag \
-           amr.plot_int=-1 amr.thermo.plot_int=-1 \
-           amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
-           amrex.the_arena_is_managed=${MANAGED_ARENA} \
-           tiny_profiler.device_synchronize_around_region=1"
+# Elastic-enabled overrides for profiling modes (A1): elastic solve runs every step
+# so ncu/nsys capture Fapply/Diagonal/Newton kernels within 2–10 steps.
+ELASTIC_ON="elastic.type=static elastic.on=1 elastic.interval=1 elastic.tstart=0.0 \
+            elastic.solver.verbose=0 elastic.print_model=0 \
+            elastic.solver.max_iter=100 elastic.solver.nriters=20"
+
+OVERRIDES_SHORT="max_step=1 stop_time=1e-12_s plot_file=output_diag \
+                 amr.plot_int=-1 amr.thermo.plot_int=-1 \
+                 amrex.async_out=${ASYNC_OUT} amrex.async_out_nfiles=0 \
+                 amrex.the_arena_is_managed=${MANAGED_ARENA} \
+                 tiny_profiler.device_synchronize_around_region=1"
+
+OVERRIDES_PROFILE="max_step=2 stop_time=1e99 amr.plot_int=-1 amr.thermo.plot_int=-1 \
+                   amrex.async_out=0 amrex.the_arena_is_managed=${MANAGED_ARENA} \
+                   tiny_profiler.device_synchronize_around_region=0 \
+                   ${ELASTIC_ON}"
+
+OVERRIDES_NSYS="max_step=10 stop_time=1e99 amr.plot_int=-1 amr.thermo.plot_int=-1 \
+                amrex.async_out=0 amrex.the_arena_is_managed=${MANAGED_ARENA} \
+                tiny_profiler.device_synchronize_around_region=0 \
+                ${ELASTIC_ON}"
 
 echo "=== diagnostic configuration ==="
 echo "repo          = ${ROOT_DIR}"
@@ -103,16 +128,17 @@ echo "input         = ${INPUT_PATH}"
 echo "gpu_type      = ${GPU_TYPE} sm_${ARCH}"
 echo "diag_tool     = ${DIAG_TOOL}"
 echo "managed_arena = ${MANAGED_ARENA}"
-echo "CUDA_LAUNCH_BLOCKING=${CUDA_LAUNCH_BLOCKING}"
-echo "overrides     = ${OVERRIDES}"
+echo "profile_dir   = ${PROFILE_DIR}"
 echo
 
 case "${DIAG_TOOL}" in
   blocking)
+    export CUDA_LAUNCH_BLOCKING=1
     echo "=== launching with CUDA_LAUNCH_BLOCKING ==="
     time srun --mpi=pmix -n 1 --gpus-per-task=1 \
-      "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES}
+      "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_SHORT}
     ;;
+
   sanitizer)
     SANITIZER="$(command -v compute-sanitizer || true)"
     if [ -z "${SANITIZER}" ]; then
@@ -125,10 +151,85 @@ case "${DIAG_TOOL}" in
     echo "=== launching under ${SANITIZER} ==="
     time srun --mpi=pmix -n 1 --gpus-per-task=1 \
       "${SANITIZER}" --tool memcheck --error-exitcode 99 \
-      "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES}
+      "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_SHORT}
     ;;
+
+  ncu)
+    NCU="$(command -v ncu 2>/dev/null || true)"
+    if [ -z "${NCU}" ]; then
+      echo "ncu not found in PATH -- load the nsight-compute module or check PATH" >&2
+      exit 1
+    fi
+    echo "ncu = ${NCU}  ($(${NCU} --version 2>&1 | head -1))"
+    mkdir -p "${PROFILE_DIR}"
+    OUT_BASE="${PROFILE_DIR}/ncu_${SLURM_JOB_ID:-manual}"
+    mkdir -p "${OUT_BASE}"
+    echo "=== ncu profiles will be written to ${OUT_BASE}/ ==="
+
+    ncu_run() {
+      local label="$1" regex="$2"
+      echo "--- ncu: ${label} (regex: ${regex}) ---"
+      srun --mpi=pmix -n 1 --gpus-per-task=1 \
+        "${NCU}" \
+          --target-processes all \
+          --set default \
+          --kernel-name-base function \
+          --kernel-name "regex:${regex}" \
+          --launch-count 4 \
+          --csv --page raw \
+          --print-kernel-base demangled \
+          --export "${OUT_BASE}/${label}" \
+          --force-overwrite \
+          "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_PROFILE}
+    }
+
+    ncu_run "flame_advance"    ".*Flame.*Advance.*|.*flame.*advance.*"
+    ncu_run "elastic_fapply"   ".*Elastic.*Fapply.*|.*elastic.*fapply.*"
+    ncu_run "elastic_diagonal" ".*Elastic.*Diagonal.*|.*elastic.*diagonal.*"
+    ncu_run "newton_prepare"   ".*Newton.*prepareForSolve.*|.*newton.*prepare.*"
+    ncu_run "operator_interp"  ".*interpolat.*"
+
+    echo "=== ncu complete; profiles in ${OUT_BASE}/ ==="
+    ls -lh "${OUT_BASE}/" || true
+    ;;
+
+  nsys)
+    NSYS="$(command -v nsys 2>/dev/null || true)"
+    if [ -z "${NSYS}" ]; then
+      echo "nsys not found in PATH -- load the nsight-systems module or check PATH" >&2
+      exit 1
+    fi
+    echo "nsys = ${NSYS}  ($(${NSYS} --version 2>&1 | head -1))"
+    mkdir -p "${PROFILE_DIR}"
+    OUT_BASE="${PROFILE_DIR}/nsys_${SLURM_JOB_ID:-manual}"
+    mkdir -p "${OUT_BASE}"
+    echo "=== nsys report will be written to ${OUT_BASE}/ ==="
+
+    srun --mpi=pmix -n 1 --gpus-per-task=1 \
+      "${NSYS}" profile \
+        --trace=cuda,osrt,nvtx \
+        --cuda-memory-usage=false \
+        --output "${OUT_BASE}/nsys_report" \
+        --force-overwrite true \
+        "${GPU_BIN}" "${INPUT_PATH}" ${OVERRIDES_NSYS}
+
+    echo "=== nsys stats summary ==="
+    "${NSYS}" stats \
+      --report cuda_api_sum,cuda_gpu_kern_sum,osrt_sum \
+      --format csv \
+      --output "${OUT_BASE}/nsys_stats" \
+      "${OUT_BASE}/nsys_report.nsys-rep" 2>/dev/null || \
+    "${NSYS}" stats \
+      --report cuda_api_sum,cuda_gpu_kern_sum \
+      --format csv \
+      "${OUT_BASE}/nsys_report.nsys-rep" | tee "${OUT_BASE}/nsys_stats_stdout.csv" || true
+
+    echo "=== nsys complete; report in ${OUT_BASE}/ ==="
+    ls -lh "${OUT_BASE}/" || true
+    ;;
+
   *)
-    echo "Unknown DIAG_TOOL=${DIAG_TOOL} (use blocking or sanitizer)"
+    echo "Unknown DIAG_TOOL=${DIAG_TOOL} (use blocking | sanitizer | ncu | nsys)"
     exit 2
     ;;
 esac
