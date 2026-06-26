@@ -1,7 +1,7 @@
 .. raw:: html
 
    <p align="center">
-       <img src="https://www.solids.group/wp-content/uploads/2025/03/alamo3-inv.png" alt="alamo" width="400">
+       <img src="docs/source/alamo3-inv.svg" alt="alamo" width="400">
    </p>
 
    <p align="center">
