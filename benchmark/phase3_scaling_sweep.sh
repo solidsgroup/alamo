@@ -20,7 +20,8 @@
 #   GPU_TYPE=...       GPU type label passed through to the SLURM scripts
 #                      (default v100 on the currently observed NOVA GPU nodes).
 #   GPUS_PER_NODE=2    GPU slots per NOVA GPU node.
-#   GPU_NODE_CPUS=72   CPU cores on one NOVA GPU node; split across GPU ranks.
+#   GPU_NODE_CPUS=32   CPUs requested per GPU node, split across GPU ranks
+#                      (node has 72; we don't need them all for a 1-GPU run).
 #   CPU_RANKS=96       CPU ranks for the full wide-node baseline.
 #   SIZES="128 256 512"   grid sizes for the strong sweep.
 #   SMALL_GPUS="1"     GPU counts for the smaller resolutions.
@@ -39,7 +40,7 @@ set -euo pipefail
 MODE="${MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-v100}"
 GPUS_PER_NODE="${GPUS_PER_NODE:-2}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-72}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-32}"
 CPU_RANKS="${CPU_RANKS:-96}"
 SMALL_GPUS="${SMALL_GPUS:-1}"
 LARGE_GPUS="${LARGE_GPUS:-1 2}"
