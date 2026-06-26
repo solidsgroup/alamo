@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=02:00:00
 #SBATCH --output=flame_gpu_3d.%j.out
@@ -15,7 +15,7 @@
 # NOTE: GPU count / type / gres are set dynamically below via --export or by
 # editing GPU_TYPE/NGPU, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres on the command line:
-#   sbatch --gres=gpu:v100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d.slurm
+#   sbatch --gres=gpu:v100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d.slurm
 # ==========================================================================
 # Single-GPU (1 MPI rank per GPU) 3D run of the Flame center-bore case on NOVA.
 # Build the 3D binaries first with benchmark/build_alamo_nova_3d.sh.
