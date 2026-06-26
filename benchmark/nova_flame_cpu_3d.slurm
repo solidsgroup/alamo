@@ -39,9 +39,14 @@ if [ -z "${CPU_BIN}" ]; then
     echo "The Phase-3 one-shot should have submitted alamo_cpu_build_3d before this job."
     exit 1
   fi
-  echo "No CPU binary -- building (./configure --comp=g++ --dim 3 --profile --get-eigen && make)"
+  # The CPU build is the -flto path. A high -j launches many memory-hungry LTO
+  # link jobs at once and OOMs the node, leaving truncated objects
+  # ("lto1: error: ...file too short"). Cap the parallelism and build ONLY the
+  # bin/alamo target we actually launch (not every program).
+  CPU_BUILD_JOBS="${CPU_BUILD_JOBS:-8}"
+  echo "No CPU binary -- building bin/alamo (-flto, -j${CPU_BUILD_JOBS} to bound LTO link memory)"
   ./configure --comp=g++ --dim 3 --profile --get-eigen
-  make -j"${SLURM_CPUS_ON_NODE:-96}"
+  make -j"${CPU_BUILD_JOBS}" bin/alamo
   CPU_BIN="$(ls -t bin/alamo-3d*-g++ | grep -v cuda | head -1)"
 fi
 echo "CPU binary: ${CPU_BIN}  (${SLURM_NTASKS} ranks)"

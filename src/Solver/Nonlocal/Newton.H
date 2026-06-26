@@ -177,7 +177,9 @@ public:
         {
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
-            const Set::Scalar* dx = linop->Geom(lev).CellSize();
+            // NB: this kernel captures DX (a Set::Vector copied into the device
+            // closure) and uses DX.data(); a raw Geom().CellSize() host pointer
+            // would be invalid on device. The old `dx` local is therefore gone.
             Set::Vector DX(linop->Geom(lev).CellSize());
 #ifdef ALAMO_GPU
             Util::DeviceErrorFlag prepare_error;

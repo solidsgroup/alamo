@@ -12,8 +12,11 @@
 #     bin/alamo_gpu-3d-profile-cuda70-g++   (V100)
 #     bin/alamo_gpu-3d-profile-cuda80-g++   (A100)
 #     bin/alamo_gpu-3d-profile-cuda90-g++   (H200)
-# Both are --profile builds: fully optimized (--use_fast_math etc.) AND able to
-# emit TinyProfiler tables when you pass the profiler runtime params.
+#     bin/alamo-3d-profile-g++              (CPU baseline for the crossover)
+# All are --profile builds: fully optimized (--use_fast_math etc. on GPU) AND able
+# to emit TinyProfiler tables when you pass the profiler runtime params. The CPU
+# baseline is built here too so nova_flame_cpu_3d.slurm never has to build in-job.
+# Override arches with e.g. ARCHES=80 (A100 only) for a faster build.
 # This is the 3D sibling of build_alamo_nova.sh (configure uses --dim 3).
 # ============================================================================
 set -euo pipefail
@@ -27,6 +30,7 @@ ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"
 ARCHES="${ARCHES:-70 80 90}"                    # 70=V100, 80=A100, 90=H200
 BUILD_JOBS="${BUILD_JOBS:-64}"
+CPU_BUILD_JOBS="${CPU_BUILD_JOBS:-8}"           # bounded -j for the CPU (-flto) baseline; a high -j OOMs the node
 COMP="${COMP:-g++}"
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
 
@@ -40,6 +44,16 @@ module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || echo -e "${RE
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || echo -e "${RED}  WARN: load a gcc module manually${NC}"
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || echo -e "${RED}  WARN: load an openmpi module manually${NC}"
 module list 2>&1 | sed 's/^/    /' || true
+
+# Fail loudly if CUDA didn't load. Without nvcc on PATH, ./configure --cuda
+# silently falls back to a CPU-only build (wrong binaries, and the -flto CPU
+# path then OOMs at high -j). Refuse rather than waste a build job.
+if ! command -v nvcc >/dev/null 2>&1; then
+  echo -e "${RED}ERROR: nvcc not found after module load.${NC}" >&2
+  echo -e "${RED}  Load a CUDA module first (e.g. 'module avail cuda' then 'module load cuda'), then re-run.${NC}" >&2
+  exit 1
+fi
+echo -e "${GREEN}  nvcc: $(command -v nvcc)${NC}"
 
 mkdir -p "${ALAMO_DIR}"
 ALAMO_DIR="$(cd "${ALAMO_DIR}" && pwd)"
@@ -87,13 +101,24 @@ module purge 2>/dev/null || true
 module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
+if ! command -v nvcc >/dev/null 2>&1; then
+    echo "ERROR: nvcc not found in build job after module load -- refusing to silently build a CPU-only binary. Fix the cuda module name and resubmit." >&2
+    exit 1
+fi
+# GPU (CUDA) binaries. The nvcc path is -fno-lto, so a high -j is safe.
 for arch in ${ARCHES}; do
     echo "=== building cuda sm_\${arch} (3D) ==="
     ./configure --comp=${COMP} --dim 3 --cuda \${arch} --profile --get-eigen
     make -j\${SLURM_CPUS_PER_TASK:-${BUILD_JOBS}} bin/alamo_gpu
 done
+# CPU baseline binary for the GPU-vs-CPU crossover (what nova_flame_cpu_3d.slurm
+# launches). This is the -flto path, so build ONLY bin/alamo with a bounded -j;
+# a high -j here OOMs the node -> "lto1: error: ...file too short".
+echo "=== building CPU baseline bin/alamo (3D, -flto, -j${CPU_BUILD_JOBS}) ==="
+./configure --comp=${COMP} --dim 3 --profile --get-eigen
+make -j${CPU_BUILD_JOBS} bin/alamo
 echo "=== build complete ==="
-ls -lh bin/alamo_gpu-3d*cuda* || true
+ls -lh bin/alamo_gpu-3d*cuda* bin/alamo-3d*-g++ || true
 END_OF_SBATCH
 
 echo -e "${BOLD}${GREEN}Submitting build job...${NC}"
@@ -107,4 +132,5 @@ echo -e "  when done, the binaries are in ${ALAMO_DIR}/bin/ :"
 echo -e "     alamo_gpu-3d-profile-cuda70-g++   (V100)"
 echo -e "     alamo_gpu-3d-profile-cuda80-g++   (A100)"
 echo -e "     alamo_gpu-3d-profile-cuda90-g++   (H200)"
+echo -e "     alamo-3d-profile-g++              (CPU baseline)"
 echo -e "  then run:  sbatch ${ALAMO_DIR}/benchmark/nova_flame_gpu_3d.slurm   (edit GPU_TYPE first)"
