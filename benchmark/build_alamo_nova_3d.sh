@@ -115,6 +115,11 @@ done
 # launches). This is the -flto path, so build ONLY bin/alamo with a bounded -j;
 # a high -j here OOMs the node -> "lto1: error: ...file too short".
 echo "=== building CPU baseline bin/alamo (3D, -flto, -j${CPU_BUILD_JOBS}) ==="
+# Start the -flto build from clean objects: a prior OOM'd build can leave a
+# truncated .o that make treats as up-to-date, so the LTO link would fail again
+# ("file too short"). Only the CPU obj dir is wiped; the GPU dirs built above
+# (obj-3d-profile-cudaNN-g++) are untouched.
+rm -rf obj/obj-3d-profile-${COMP}
 ./configure --comp=${COMP} --dim 3 --profile --get-eigen
 make -j${CPU_BUILD_JOBS} bin/alamo
 echo "=== build complete ==="
