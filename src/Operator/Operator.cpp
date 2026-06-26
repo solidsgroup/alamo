@@ -3,6 +3,10 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
+#include <AMReX_ParallelDescriptor.H>
+#include <AMReX_Reduce.H>
+#include <cmath>
+#include <cstdlib>
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
@@ -16,6 +20,255 @@ using namespace amrex;
 #define ALAMO_OPERATOR_FOR amrex::LoopConcurrentOnCpu
 #define ALAMO_OPERATOR_DEVICE
 #endif
+
+namespace
+{
+int AlamoEnvInt(const char* name)
+{
+    const char* value = std::getenv(name);
+    return value ? std::atoi(value) : 0;
+}
+
+int AlamoMLCorrectionDiagLimit()
+{
+    return AlamoEnvInt("ALAMO_ML_COR_DIAG");
+}
+
+int AlamoMLResidualDiagLimit()
+{
+    return AlamoEnvInt("ALAMO_ML_RESID_DIAG");
+}
+
+int AlamoMLSpatialDiagLimit()
+{
+    return AlamoEnvInt("ALAMO_ML_SPATIAL_DIAG");
+}
+
+bool AlamoMLZeroCrseGhosts()
+{
+    return AlamoEnvInt("ALAMO_ML_ZERO_CRSE_GHOSTS") != 0;
+}
+
+void AlamoPrintMFNorms(const char* prefix, const char* label, const amrex::MultiFab& mf)
+{
+    const amrex::IntVect ng(0);
+    const int ncomp = mf.nComp();
+    const amrex::Real norminf = mf.norminf(0, ncomp, ng);
+    const amrex::Real l2 = std::sqrt(amrex::Dot(mf, 0, ncomp, ng));
+    const int valid_contains_nan = mf.contains_nan(0, ncomp, 0);
+    const int valid_contains_inf = mf.contains_inf(0, ncomp, 0);
+    const int grown_contains_nan = mf.contains_nan(0, ncomp, mf.nGrowVect());
+    const int grown_contains_inf = mf.contains_inf(0, ncomp, mf.nGrowVect());
+
+    Util::Message(INFO, prefix, label,
+        " ncomp=", ncomp,
+        " nboxes=", mf.boxArray().size(),
+        " ngrow=", mf.nGrowVect(),
+        " norminf=", norminf,
+        " l2=", l2,
+        " valid_contains_nan=", valid_contains_nan,
+        " valid_contains_inf=", valid_contains_inf,
+        " grown_contains_nan=", grown_contains_nan,
+        " grown_contains_inf=", grown_contains_inf,
+        " ghost_contains_nan=", (grown_contains_nan && !valid_contains_nan),
+        " ghost_contains_inf=", (grown_contains_inf && !valid_contains_inf));
+
+    for (int n = 0; n < ncomp; ++n)
+    {
+        const amrex::Real comp_norminf = mf.norminf(n, 1, ng);
+        const amrex::Real comp_l2 = std::sqrt(amrex::Dot(mf, n, 1, ng));
+        Util::Message(INFO, prefix, label,
+            " comp=", n,
+            " min=", mf.min(n, 0),
+            " max=", mf.max(n, 0),
+            " norminf=", comp_norminf,
+            " l2=", comp_l2);
+    }
+}
+
+void AlamoZeroGhostsPreserveValid(amrex::MultiFab& mf)
+{
+    if (mf.nGrowVect() == amrex::IntVect::TheZeroVector()) return;
+
+    amrex::MultiFab valid(mf.boxArray(), mf.DistributionMap(), mf.nComp(), 0);
+    amrex::MultiFab::Copy(valid, mf, 0, 0, mf.nComp(), 0);
+    mf.setVal(0.0, mf.nGrowVect());
+    amrex::MultiFab::Copy(mf, valid, 0, 0, mf.nComp(), 0);
+}
+
+void AlamoPrintCorrectionDiagMF(const char* label, const amrex::MultiFab& mf)
+{
+    AlamoPrintMFNorms("ALAMO_ML_COR_DIAG ", label, mf);
+}
+
+void AlamoPrintSpatialDiagMF(const char* label, int call, int amrlev, int mglev,
+    const amrex::MultiFab& mf, const amrex::Geometry& geom)
+{
+    amrex::Box domain = geom.Domain();
+    domain.convert(amrex::IntVect::TheNodeVector());
+
+    Util::Message(INFO, "ALAMO_ML_SPATIAL_DIAG call=", call,
+        " amrlev=", amrlev,
+        " mglev=", mglev,
+        " field=", label,
+        " domain=", domain,
+        " nboxes=", mf.boxArray().size(),
+        " ngrow=", mf.nGrowVect());
+
+    const int domlo0 = domain.smallEnd(0);
+    const int domhi0 = domain.bigEnd(0);
+#if AMREX_SPACEDIM >= 2
+    const int domlo1 = domain.smallEnd(1);
+    const int domhi1 = domain.bigEnd(1);
+#endif
+#if AMREX_SPACEDIM >= 3
+    const int domlo2 = domain.smallEnd(2);
+    const int domhi2 = domain.bigEnd(2);
+#endif
+
+    for (int n = 0; n < mf.nComp(); ++n)
+    {
+        const amrex::Real min_value = mf.min(n, 0);
+        const amrex::Real max_value = mf.max(n, 0);
+        const amrex::IntVect min_index = mf.minIndex(n, 0);
+        const amrex::IntVect max_index = mf.maxIndex(n, 0);
+
+        amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
+                         amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum,
+                         amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum,
+                         amrex::ReduceOpSum> reduce_op;
+        amrex::ReduceData<amrex::Real, amrex::Real, amrex::Real, amrex::Real,
+                          amrex::Real, amrex::Real, amrex::Real, amrex::Real,
+                          amrex::Real, amrex::Real> reduce_data(reduce_op);
+        using ReduceTuple = typename decltype(reduce_data)::Type;
+
+        for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            const int bxlo0 = bx.smallEnd(0);
+            const int bxhi0 = bx.bigEnd(0);
+#if AMREX_SPACEDIM >= 2
+            const int bxlo1 = bx.smallEnd(1);
+            const int bxhi1 = bx.bigEnd(1);
+#endif
+#if AMREX_SPACEDIM >= 3
+            const int bxlo2 = bx.smallEnd(2);
+            const int bxhi2 = bx.bigEnd(2);
+#endif
+            auto const& fab = mf.const_array(mfi);
+
+            reduce_op.eval(bx, reduce_data,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
+                {
+                    const amrex::Real value = std::abs(fab(i, j, k, n));
+                    const bool on_domain_boundary =
+                        (i == domlo0 || i == domhi0)
+#if AMREX_SPACEDIM >= 2
+                        || (j == domlo1 || j == domhi1)
+#endif
+#if AMREX_SPACEDIM >= 3
+                        || (k == domlo2 || k == domhi2)
+#endif
+                        ;
+                    const bool on_box_boundary =
+                        (i == bxlo0 || i == bxhi0)
+#if AMREX_SPACEDIM >= 2
+                        || (j == bxlo1 || j == bxhi1)
+#endif
+#if AMREX_SPACEDIM >= 3
+                        || (k == bxlo2 || k == bxhi2)
+#endif
+                        ;
+
+                    amrex::Real neighbor_jump = 0.0;
+                    if (i > bxlo0) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i, j, k, n) - fab(i - 1, j, k, n)));
+                    if (i < bxhi0) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i + 1, j, k, n) - fab(i, j, k, n)));
+#if AMREX_SPACEDIM >= 2
+                    if (j > bxlo1) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i, j, k, n) - fab(i, j - 1, k, n)));
+                    if (j < bxhi1) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i, j + 1, k, n) - fab(i, j, k, n)));
+#endif
+#if AMREX_SPACEDIM >= 3
+                    if (k > bxlo2) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i, j, k, n) - fab(i, j, k - 1, n)));
+                    if (k < bxhi2) neighbor_jump = amrex::max(neighbor_jump, std::abs(fab(i, j, k + 1, n) - fab(i, j, k, n)));
+#endif
+
+                    return {
+                        on_domain_boundary ? value : 0.0,
+                        on_box_boundary ? value : 0.0,
+                        (!on_domain_boundary && !on_box_boundary) ? value : 0.0,
+                        neighbor_jump,
+                        value,
+                        on_domain_boundary ? value : 0.0,
+                        on_box_boundary ? value : 0.0,
+                        1.0,
+                        on_domain_boundary ? 1.0 : 0.0,
+                        on_box_boundary ? 1.0 : 0.0
+                    };
+                });
+        }
+
+        ReduceTuple hv = reduce_data.value(reduce_op);
+        amrex::Real domain_boundary_max = amrex::get<0>(hv);
+        amrex::Real box_boundary_max = amrex::get<1>(hv);
+        amrex::Real interior_max = amrex::get<2>(hv);
+        amrex::Real neighbor_jump_max = amrex::get<3>(hv);
+        amrex::Real sum_abs = amrex::get<4>(hv);
+        amrex::Real domain_boundary_sum_abs = amrex::get<5>(hv);
+        amrex::Real box_boundary_sum_abs = amrex::get<6>(hv);
+        amrex::Real count = amrex::get<7>(hv);
+        amrex::Real domain_boundary_count = amrex::get<8>(hv);
+        amrex::Real box_boundary_count = amrex::get<9>(hv);
+
+        amrex::ParallelDescriptor::ReduceRealMax(domain_boundary_max);
+        amrex::ParallelDescriptor::ReduceRealMax(box_boundary_max);
+        amrex::ParallelDescriptor::ReduceRealMax(interior_max);
+        amrex::ParallelDescriptor::ReduceRealMax(neighbor_jump_max);
+        amrex::ParallelDescriptor::ReduceRealSum(sum_abs);
+        amrex::ParallelDescriptor::ReduceRealSum(domain_boundary_sum_abs);
+        amrex::ParallelDescriptor::ReduceRealSum(box_boundary_sum_abs);
+        amrex::ParallelDescriptor::ReduceRealSum(count);
+        amrex::ParallelDescriptor::ReduceRealSum(domain_boundary_count);
+        amrex::ParallelDescriptor::ReduceRealSum(box_boundary_count);
+
+        const amrex::Real abs_min = std::abs(min_value);
+        const amrex::Real abs_max = std::abs(max_value);
+        const amrex::Real max_abs = amrex::max(abs_min, abs_max);
+        const amrex::IntVect& max_abs_index = (abs_min > abs_max) ? min_index : max_index;
+        const amrex::Real inv_sum_abs = (sum_abs > 0.0) ? (1.0 / sum_abs) : 0.0;
+        const amrex::Real inv_max_abs = (max_abs > 0.0) ? (1.0 / max_abs) : 0.0;
+
+        Util::Message(INFO, "ALAMO_ML_SPATIAL_DIAG ", label,
+            " comp=", n,
+            " min=", min_value,
+            " min_index=", min_index,
+            " max=", max_value,
+            " max_index=", max_index,
+            " max_abs=", max_abs,
+            " max_abs_index=", max_abs_index,
+            " domain_boundary_max_abs=", domain_boundary_max,
+            " box_boundary_max_abs=", box_boundary_max,
+            " interior_max_abs=", interior_max,
+            " neighbor_jump_max=", neighbor_jump_max,
+            " neighbor_jump_over_max_abs=", neighbor_jump_max * inv_max_abs,
+            " sum_abs=", sum_abs,
+            " domain_boundary_sum_abs_frac=", domain_boundary_sum_abs * inv_sum_abs,
+            " box_boundary_sum_abs_frac=", box_boundary_sum_abs * inv_sum_abs,
+            " count=", count,
+            " domain_boundary_count=", domain_boundary_count,
+            " box_boundary_count=", box_boundary_count);
+    }
+}
+
+void AlamoPrintResidualDiagMF(const char* label, int call, int amrlev, int mglev,
+    const amrex::MultiFab& mf)
+{
+    Util::Message(INFO, "ALAMO_ML_RESID_DIAG call=", call,
+        " amrlev=", amrlev,
+        " mglev=", mglev,
+        " field=", label);
+    AlamoPrintMFNorms("ALAMO_ML_RESID_DIAG ", label, mf);
+}
+}
 
 namespace Operator {
 
@@ -304,6 +557,27 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
+#if AMREX_SPACEDIM == 2
+                if ((I == lo.x || I == hi.x) && (J == lo.y || J == hi.y)) // Corner
+                {
+                    cdata(I, J, K, n) = fdata(i, j, k, n);
+                }
+                else if (J == lo.y || J == hi.y) // Y boundary
+                {
+                    cdata(I, J, K, n) = 0.25 * fdata(i - 1, j, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i + 1, j, k, n);
+                }
+                else if (I == lo.x || I == hi.x) // X boundary
+                {
+                    cdata(I, J, K, n) = 0.25 * fdata(i, j - 1, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i, j + 1, k, n);
+                }
+                else // Interior
+                {
+                    cdata(I, J, K, n) =
+                        (+fdata(i - 1, j - 1, k, n) + 2.0 * fdata(i, j - 1, k, n) + fdata(i + 1, j - 1, k, n)
+                            + 2.0 * fdata(i - 1, j, k, n) + 4.0 * fdata(i, j, k, n) + 2.0 * fdata(i + 1, j, k, n)
+                            + fdata(i - 1, j + 1, k, n) + 2.0 * fdata(i, j + 1, k, n) + fdata(i + 1, j + 1, k, n)) / 16.0;
+                }
+#else
                 if ((I == lo.x || I == hi.x) &&
                     (J == lo.y || J == hi.y) &&
                     (K == lo.z || K == hi.z)) // Corner
@@ -359,6 +633,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
                         fdata(i + 1, j, k, n) + fdata(i, j + 1, k, n) + fdata(i, j, k + 1, n)) / 16.0
                     +
                     fdata(i, j, k, n) / 8.0;
+#endif
             });
         }
     }
@@ -378,13 +653,56 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
     amrex::Box fdomain = m_geom[amrlev][fmglev].growPeriodicDomain(2);
     fdomain.convert(amrex::IntVect::TheNodeVector());
 
-    bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
+    static int diag_call = 0;
+    const int diag_limit = AlamoMLCorrectionDiagLimit();
+    const int spatial_diag_limit = AlamoMLSpatialDiagLimit();
+    const bool diag_enabled = diag_call < diag_limit;
+    const bool spatial_diag_enabled = diag_call < spatial_diag_limit;
+    if (diag_enabled || spatial_diag_enabled)
+    {
+        Util::Message(INFO, "ALAMO_ML_COR_DIAG interpolation_call=", diag_call,
+            " amrlev=", amrlev,
+            " fmglev=", fmglev,
+            " crse_mglev=", fmglev + 1);
+    }
+    if (diag_enabled)
+    {
+        AlamoPrintCorrectionDiagMF("crse_after_bottom", crse);
+        AlamoPrintCorrectionDiagMF("fine_before_interp", fine);
+    }
+    if (spatial_diag_enabled)
+    {
+        AlamoPrintSpatialDiagMF("crse_after_bottom", diag_call, amrlev, fmglev + 1, crse, m_geom[amrlev][fmglev + 1]);
+        AlamoPrintSpatialDiagMF("fine_before_interp", diag_call, amrlev, fmglev, fine, m_geom[amrlev][fmglev]);
+    }
+
+    MultiFab sanitized_crse;
+    const MultiFab* source_crse = &crse;
+    if (AlamoMLZeroCrseGhosts())
+    {
+        sanitized_crse.define(crse.boxArray(), crse.DistributionMap(),
+            crse.nComp(), crse.nGrowVect());
+        MultiFab::Copy(sanitized_crse, crse, 0, 0, crse.nComp(), crse.nGrowVect());
+        AlamoZeroGhostsPreserveValid(sanitized_crse);
+        source_crse = &sanitized_crse;
+
+        Util::Message(INFO, "ALAMO_ML_COR_DIAG zeroed coarse correction ghosts before interpolation",
+            " amrlev=", amrlev,
+            " fmglev=", fmglev,
+            " crse_mglev=", fmglev + 1);
+        if (diag_enabled)
+            AlamoPrintCorrectionDiagMF("crse_after_bottom_ghosts_zeroed", *source_crse);
+        if (spatial_diag_enabled)
+            AlamoPrintSpatialDiagMF("crse_after_bottom_ghosts_zeroed", diag_call, amrlev, fmglev + 1, *source_crse, m_geom[amrlev][fmglev + 1]);
+    }
+
+    bool need_parallel_copy = !amrex::isMFIterSafe(*source_crse, fine);
     MultiFab cfine;
-    const MultiFab* cmf = &crse;
+    const MultiFab* cmf = source_crse;
     if (need_parallel_copy) {
         const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-        cfine.define(ba, fine.DistributionMap(), crse.nComp(), crse.nGrow());
-        cfine.ParallelCopy(crse);
+        cfine.define(ba, fine.DistributionMap(), source_crse->nComp(), source_crse->nGrow());
+        cfine.ParallelCopy(*source_crse);
         cmf = &cfine;
     }
 
@@ -422,6 +740,17 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
                 int I = i / 2, J = j / 2, K = k / 2;
 
+#if AMREX_SPACEDIM == 2
+                if (i % 2 == 0 && j % 2 == 0) // Coincident
+                    fdata(i, j, k, n) = cdata(I, J, K, n);
+                else if (j % 2 == 0) // X edge
+                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n));
+                else if (i % 2 == 0) // Y edge
+                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I, J + 1, K, n));
+                else // Center
+                    fdata(i, j, k, n) = 0.25 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n) +
+                        cdata(I, J + 1, K, n) + cdata(I + 1, J + 1, K, n));
+#else
                 if (i % 2 == 0 && j % 2 == 0 && k % 2 == 0) // Coincident
                     fdata(i, j, k, n) = cdata(I, J, K, n);
                 else if (j % 2 == 0 && k % 2 == 0) // X Edge
@@ -444,6 +773,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
                         cdata(I + 1, J, K, n) + cdata(I, J + 1, K, n) + cdata(I, J, K + 1, n) +
                         cdata(I, J + 1, K + 1, n) + cdata(I + 1, J, K + 1, n) + cdata(I + 1, J + 1, K, n) +
                         cdata(I + 1, J + 1, K + 1, n));
+#endif
 
             });
         }
@@ -453,6 +783,19 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
     fine.setMultiGhost(true);
     fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
     nodalSync(amrlev, fmglev, fine);
+
+    if (diag_enabled)
+    {
+        AlamoPrintCorrectionDiagMF("fine_after_interp_sync", fine);
+    }
+    if (spatial_diag_enabled)
+    {
+        AlamoPrintSpatialDiagMF("fine_after_interp_sync", diag_call, amrlev, fmglev, fine, m_geom[amrlev][fmglev]);
+    }
+    if (diag_enabled || spatial_diag_enabled)
+    {
+        ++diag_call;
+    }
 }
 
 void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
@@ -670,12 +1013,60 @@ void
 Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
     BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
 {
+    static int resid_diag_call = 0;
+    const int resid_diag_limit = AlamoMLResidualDiagLimit();
+    const int spatial_diag_limit = AlamoMLSpatialDiagLimit();
+    const bool resid_diag_enabled = resid_diag_call < resid_diag_limit;
+    const bool spatial_diag_enabled = resid_diag_call < spatial_diag_limit;
+    const int this_resid_diag_call = resid_diag_call;
+
+    if (resid_diag_enabled)
+    {
+        Util::Message(INFO, "ALAMO_ML_RESID_DIAG correctionResidual_begin call=", this_resid_diag_call,
+            " amrlev=", amrlev,
+            " mglev=", mglev,
+            " resid_ngrow=", resid.nGrow(),
+            " x_ngrow=", x.nGrow(),
+            " b_ngrow=", b.nGrow());
+        AlamoPrintResidualDiagMF("correction_x_before_apply", this_resid_diag_call, amrlev, mglev, x);
+        AlamoPrintResidualDiagMF("correction_b_rhs", this_resid_diag_call, amrlev, mglev, b);
+    }
+    if (spatial_diag_enabled)
+    {
+        AlamoPrintSpatialDiagMF("correction_x_before_apply", this_resid_diag_call, amrlev, mglev, x, m_geom[amrlev][mglev]);
+    }
+
     resid.setVal(0.0);
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+
+    if (resid_diag_enabled)
+    {
+        AlamoPrintResidualDiagMF("correction_Ax_after_apply", this_resid_diag_call, amrlev, mglev, resid);
+    }
+    if (spatial_diag_enabled)
+    {
+        AlamoPrintSpatialDiagMF("correction_Ax_after_apply", this_resid_diag_call, amrlev, mglev, resid, m_geom[amrlev][mglev]);
+    }
+
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+
+    if (resid_diag_enabled)
+    {
+        AlamoPrintResidualDiagMF("correction_resid_after_xpay", this_resid_diag_call, amrlev, mglev, resid);
+    }
+
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
+
+    if (resid_diag_enabled)
+    {
+        AlamoPrintResidualDiagMF("correction_resid_after_sync", this_resid_diag_call, amrlev, mglev, resid);
+    }
+    if (resid_diag_enabled || spatial_diag_enabled)
+    {
+        ++resid_diag_call;
+    }
 }
 
 
