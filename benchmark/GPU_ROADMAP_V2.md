@@ -44,7 +44,11 @@ What is **proven** (cite, don't re-litigate):
   (`src/Operator/Operator.cpp:728`, one-line `elixir()` fix, commit
   `c00f69086`). Verified end-to-end: box sweep + real 3-material operator +
   300-step flame+elastic chamber sim all converge ~1e-9. `GPU_BRANCH_GUIDE.md`
-  (D1 section).
+  (D1 section). **NB (2026-06-26): that verification was all 2D.** The **3D**
+  elastic device path was broken by a separate bug (`F.inverse().transpose()`
+  faulting on device, `NeoHookean.H`) until fixed this date — it had never been
+  run, since every 3D crossover used `elastic.type=disable`. See
+  `docs/llm/changelog/2026-06-26-3d-elastic-gpu-fix.md`.
 - **Branch DoD is 5/5 DONE**, CPU regression suite green (118 run, 92 verified,
   0 failed). `PHASE5_BRANCH_DONE.md`.
 
@@ -190,6 +194,15 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
   it for the wall-clock headline.
 - **Artifact:** `benchmark/PHASE_A2_combined_crossover.md` (parallels
   `PHASE3_R3_crossover.md`).
+- **⚠️ Prerequisite hit + cleared (2026-06-26):** the very first attempt to run 3D
+  elastic on GPU crashed immediately (`CUDA error 719` on the first elastic solve).
+  Root cause: a chained Eigen expression `F.inverse().transpose()` faults on device;
+  two sites in `src/Model/Solid/Finite/NeoHookean.H` (3D `DW`/`DDW`). Fixed by
+  materializing the inverse first. This was the **first time the 3D combined device
+  path was ever exercised** — exactly the "unmeasured" gap this task exists to close.
+  Full writeup: `docs/llm/changelog/2026-06-26-3d-elastic-gpu-fix.md`. Before running
+  A2 on NOVA, rebuild the **3D strict/nofast** binary with the fix (only the 3D fast
+  binary was rebuilt locally) and re-confirm ≥10 stable solves.
 
 **A3 — Lock the standing metric set + wire perf-regression into GPU CI**
 - **Goal:** make §5 a per-run artifact, not a manual ritual; catch regressions
@@ -206,18 +219,29 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
 - **Depends:** A1 (defines what's captured), A2 (first real combined row).
 - **Artifact:** updated `perf_regression_track.py`, workflow job, first CI row.
 
-**A4 — Sibling elixir-race audit (correctness insurance)**
-- **Goal:** ensure the `interpolation()` race was the only instance of the
-  pattern that bit elastic.
-- **Steps:** grep ALAMO custom GPU `MFIter` loops for a temporary
-  `FArrayBox`/`BaseFab` (`.resize(` / `FArrayBox ` inside `for (MFIter`) used in
-  a device kernel without an `elixir()`; for each hit, decide elixir-needed or
-  safe-by-construction (writes its own output directly, like `restriction()`).
-  Add `elixir()` where the temp feeds an async device kernel.
-- **Done-when:** an audit table of every in-loop device temp with a verdict;
-  any fix verified by re-running the forced-multi-box elastic case.
+**A4 — Sibling GPU-only-fault audit (correctness insurance)**
+- **Goal:** ensure the known device-only faults (the `interpolation()` elixir race
+  **and** the `F.inverse().transpose()` expression-template fault) were the only
+  instances of their patterns. Two distinct "works-on-CPU, faults-on-GPU" bug
+  classes have now bitten elastic — treat the audit as covering both.
+- **Steps:**
+  1. *Elixir race:* grep ALAMO custom GPU `MFIter` loops for a temporary
+     `FArrayBox`/`BaseFab` (`.resize(` / `FArrayBox ` inside `for (MFIter`) used in
+     a device kernel without an `elixir()`; for each hit, decide elixir-needed or
+     safe-by-construction (writes its own output directly, like `restriction()`).
+     Add `elixir()` where the temp feeds an async device kernel.
+  2. *Chained Eigen expressions on device:* `grep -rn "\.inverse()\.\|\.transpose()\.\|\.cross()\.\|\.eval()\." src --include=*.H --include=*.cpp`
+     and inspect any in a `AMREX_GPU_*DEVICE` path. Nested Eigen expression templates
+     (e.g. `Transpose<Inverse<Matrix3>>`) can fault on device even when each piece is
+     device-safe alone. Fix by forcing evaluation to a concrete matrix first (two
+     statements, or `.eval()`). As of 2026-06-26 only the two `NeoHookean.H` sites
+     existed and are fixed.
+- **Done-when:** an audit table of every in-loop device temp **and** every chained
+  Eigen expression in a device path, each with a verdict; any fix verified by
+  re-running the forced-multi-box elastic case (2D) and a 3D elastic smoke run.
 - **Depends:** none.
-- **Artifact:** `benchmark/elixir_race_audit.md`.
+- **Artifact:** `benchmark/elixir_race_audit.md` (rename/extend to cover both classes).
+- **See:** `docs/llm/changelog/2026-06-26-3d-elastic-gpu-fix.md`.
 
 ### Phase B — Characterize the combined workload
 

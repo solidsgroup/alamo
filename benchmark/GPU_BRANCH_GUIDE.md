@@ -4,9 +4,16 @@ This is the top-level map of the `chamber-gpu` branch: what it is, how to build
 it, what is safe to run, and where the supporting evidence lives. It indexes
 existing documents rather than duplicating them — follow the links for detail.
 
-Roadmap: `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases 0-5). This guide corresponds to
-roadmap step **5.3 (Documentation)**; the companion checklist is
-`benchmark/PHASE5_BRANCH_DONE.md` (step 5.4).
+Roadmap: `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases 0-5, **complete** — all 5 DoD
+items DONE). This guide corresponds to roadmap step **5.3 (Documentation)**; the
+companion checklist is `benchmark/PHASE5_BRANCH_DONE.md` (step 5.4).
+
+**Forward plan (alpha-1.0 → beta):** `benchmark/GPU_ROADMAP_V2.md` — the
+measurement-driven v2 roadmap (Phases A–D). The headline gap it closes: every
+perf number so far is *one solver at a time* (phase-field crossover ran with
+elastic disabled; elastic is correctness-fixed but never benchmarked on A100).
+Phase A re-baselines combined flame+elastic on A100 and finally unblocks
+`ncu`/`nsys` counters on NOVA.
 
 ## Branch policy: never merged
 

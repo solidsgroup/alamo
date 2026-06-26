@@ -6,6 +6,34 @@ line below is done, delete it and (if it closed out a phase) add an entry to
 
 ## In flight
 
+**GPU test suite — ✅ GREEN 2026-06-26 (9/9; was 5P/4F).** The deferred 4-failure
+snapshot below is fully analyzed and fixed. Four failures = four different bugs:
+3 stale-input decks (F2/C1/C3: old `m_ap`-era Homogenize params + `model_ap/htpb`
+elastic schema → current `*_prop` + `model_prop/void/casing`) and one checkpoint
+deck (C2). Two **real source defects** were found and fixed in
+`src/Integrator/Integrator.cpp`: (1) `Restart()` node-fab out-of-bounds
+(`name_array[i][j]` with `i`=restart-fab-index) → segfault on every node-fab
+restart; (2) headerless `thermo.dat` on restart (header gated on `step==0`).
+Two issues documented + deferred: the GPU boundary-traction diagnostic race in
+`Base::Mechanics::Integrate()` (shared infra; C1 compares physics columns
+instead) and C2 bit-exact restart physics reproduction (Flame doesn't checkpoint
+`temp_old`/`temps`/chamber-ODE). Also: elastic MLMG diverges on the small smoke
+grids at >1000× stiffness contrast (CPU+GPU both — lowered casing to 500 MPa).
+Writeups: `benchmark/GPU_TEST_SUITE_FIXES.md` (full analysis),
+`benchmark/GPU_TEST_PERF_TRACKING.md` (perf baseline),
+`changelog/2026-06-26-gpu-test-suite-fixes.md`. CPU 2D + GPU strict 2D binaries
+rebuilt with the source fixes. Working-tree edits uncommitted.
+
+**3D elastic on GPU — ✅ FIXED 2026-06-26 (roadmap-v2 A2 prerequisite).** First
+attempt to run 3D combined flame+elastic on GPU crashed on the first elastic solve
+(`CUDA error 719`). Root cause: chained Eigen expression `F.inverse().transpose()`
+faults on device — 2 sites in `src/Model/Solid/Finite/NeoHookean.H` (3D `DW`/`DDW`),
+fixed by materializing the inverse first. **Same bug class as the elixir UAF** (works
+on CPU, faults on GPU); the 2D elastic "RESOLVED" claim below did NOT cover 3D.
+`bin/alamo_gpu-3d-cuda86-g++` rebuilt with the fix (3D nofast/strict NOT yet rebuilt).
+Full writeup + a **deferred** GPU-test-suite snapshot (5P/4F, analysis postponed):
+`changelog/2026-06-26-3d-elastic-gpu-fix.md`. Working-tree edit uncommitted.
+
 **Phase 1 — ✅ RESOLVED 2026-06-25: GPU elastic works on device (D1 reversal
 fulfilled).** The 2048²/multi-box GPU elastic MLMG divergence is root-caused and
 FIXED: a GPU **cross-stream use-after-free race** on the per-box temporary

@@ -72,7 +72,11 @@ public:
 
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
-        Eigen::Matrix3d FinvT = F.inverse().transpose();
+        // NOTE: the chained expression F.inverse().transpose() (a nested
+        // Transpose<Inverse<Matrix3>> expression template) faults on the GPU
+        // ("unspecified launch failure"). Materialize the inverse first.
+        Eigen::Matrix3d Finv = F.inverse();
+        Eigen::Matrix3d FinvT = Finv.transpose();
 
         Eigen::Matrix3d dw = Eigen::Matrix3d::Zero();
 
@@ -124,7 +128,11 @@ public:
         Set::Matrix4<3, Set::Sym::Major> ddw;
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
-        Eigen::Matrix3d FinvT = F.inverse().transpose();
+        // NOTE: the chained expression F.inverse().transpose() (a nested
+        // Transpose<Inverse<Matrix3>> expression template) faults on the GPU
+        // ("unspecified launch failure"). Materialize the inverse first.
+        Eigen::Matrix3d Finv = F.inverse();
+        Eigen::Matrix3d FinvT = Finv.transpose();
         for (int i = 0; i < 3; i++)
             for (int j = 0; j < 3; j++)
                 for (int k = 0; k < 3; k++)

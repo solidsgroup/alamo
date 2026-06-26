@@ -1,6 +1,7 @@
 #ifndef SOLVER_NONLOCAL_NEWTON
 #define SOLVER_NONLOCAL_NEWTON
 
+#include <cstdlib>
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -73,6 +74,10 @@ public:
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
+#ifdef ALAMO_GPU
+            Util::DeviceErrorFlag prepare_error;
+            int* prepare_error_flag = prepare_error.dataPtr();
+#endif
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
@@ -106,6 +111,12 @@ public:
                         dw(i, j, k) = model(i, j, k).DW(F);
                         ddw(i, j, k) = model(i, j, k).DDW(F);
                     }
+#ifdef ALAMO_GPU
+                    else
+                    {
+                        Util::SetDeviceError(prepare_error_flag);
+                    }
+#endif
                 });
             }
 
@@ -168,6 +179,10 @@ public:
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
+#ifdef ALAMO_GPU
+            Util::DeviceErrorFlag prepare_error;
+            int* prepare_error_flag = prepare_error.dataPtr();
+#endif
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
@@ -183,7 +198,7 @@ public:
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
-                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
                     Set::Matrix kinvar;
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
                         kinvar = gradu; // gradu
@@ -191,11 +206,21 @@ public:
                         kinvar = 0.5 * (gradu + gradu.transpose()); // epsilon
                     else if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
                         kinvar = gradu + Set::Matrix::Identity(); // F
+#ifdef ALAMO_GPU
+                    else
+                    {
+                        kinvar = Set::Matrix::Zero();
+                        Util::SetDeviceError(prepare_error_flag);
+                    }
+#endif
 
                     dw(i, j, k) = model(i, j, k).DW(kinvar);
                     ddw(i, j, k) = model(i, j, k).DDW(kinvar);
 
                 });
+#ifdef ALAMO_GPU
+                Util::AbortIfDeviceError(prepare_error, INFO, "Solver::Nonlocal::Newton::prepareForSolve() detected an invalid model state on device");
+#endif
             }
 
             a_dw_mf[lev]->setMultiGhost(true);
