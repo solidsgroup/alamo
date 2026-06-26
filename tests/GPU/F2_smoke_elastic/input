@@ -1,0 +1,135 @@
+alamo.program = flame
+plot_file = output
+
+system.length = m
+system.time = s
+
+amr.plot_int = -1
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+amr.max_level = 1
+amr.n_cell = 8 8 8
+amr.blocking_factor = 4
+amr.max_grid_size = 64
+amr.base_regrid_int = 100
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.refinement_criterion = 0.05
+amr.refinement_criterion_temp = 10.0
+amr.phi_refinement_criterion = 0.6
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 0.001 0.001 0.001
+geometry.is_periodic = 0 0 0
+
+timestep = 1.0e-5_s
+stop_time = 1e9_s
+
+pf.eps = 0.00008_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+pf.eta.ic.type = bmp
+pf.eta.ic.bmp.filename = simple_circle.bmp
+pf.eta.ic.bmp.fit = stretch
+pf.eta.ic.bmp.channel = g
+
+phi.ic.type = bmp
+phi.ic.bmp.filename = base_circle0.bmp
+phi.ic.bmp.fit = stretch
+phi.ic.bmp.channel = g
+
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+
+propellant.type = homogenize
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0
+
+variable_pressure = 0
+chamber.pressure = 1.0_MPa
+
+elastic.on = 1
+elastic.zero_out_displacement = 0
+elastic.type = static
+elastic.interval = 5
+elastic.phirefinement = 100
+elastic.print_model = 0
+elastic.use_psi = 1
+elastic.psi_floor = 0.05
+elastic.solver.max_iter = 1000
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 200
+elastic.solver.nrtolerance = 1e-5
+elastic.solver.verbose = 0
+elastic.traction = 1.0_MPa
+elastic.traction_from_chamber = 0
+
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 4_MPa
+model_void.mu = 4_MPa
+
+model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+model_casing.kappa = 500_MPa
+model_casing.mu = 300_MPa
+
+elastic.bc.type = constant
+elastic.bc.constant.type.xhi = disp disp
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiyhi = disp disp
+elastic.bc.constant.type.xhiylo = disp disp

@@ -665,12 +665,16 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    if (tmp_name_array[i] == node.name_array[i][j])
-                    {
-                        match = true;
-                        Util::Message(INFO, "Initializing ", node.name_array[i][j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
-                        amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, 0, 1, total_nghost);
-                    }
+                    // NOTE: a previous version had an extra match block here that
+                    // indexed node.name_array[i][j] with i = the restart-file fab
+                    // index (0..tmp_numfabs-1) used as the *fab* axis. name_array is
+                    // sized by node.number_of_fabs, so whenever the checkpoint holds
+                    // more fabs than this integrator registers (e.g. a nodal plotfile
+                    // that bundled phi with the Mechanics nodal outputs), name_array[i]
+                    // was out of bounds and the restart segfaulted. The inner k-loop
+                    // below already does the correct (fab j, comp k) name match and
+                    // copy, exactly mirroring the cell-fab path, so the buggy block was
+                    // removed.
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
                         if (tmp_name_array[i] == node.name_array[j][k])
@@ -1180,7 +1184,21 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
             ))
     {
         std::ofstream outfile;
-        if (step == 0)
+        // Write a fresh file with a header column line when starting from
+        // scratch (step 0) OR when the thermo file does not yet exist / is empty.
+        // The latter covers a restart into a new plot directory, which begins at
+        // step>0: without this the header was never emitted and the resulting
+        // thermo.dat was headerless (its first data row got misread as column
+        // names). An append into an existing non-empty file (continuation in the
+        // same dir) still appends without a duplicate header.
+        bool need_header = (step == 0);
+        if (!need_header)
+        {
+            std::ifstream probe(plot_file + "/thermo.dat");
+            need_header = !probe.is_open() ||
+                          probe.peek() == std::ifstream::traits_type::eof();
+        }
+        if (need_header)
         {
             outfile.open(plot_file + "/thermo.dat", std::ios_base::out);
             outfile << "time";
