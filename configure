@@ -143,7 +143,7 @@ parser.add_argument('--fft',default=False,action='store_true',help="Compile with
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
-parser.add_argument('--hdf5', default=False,action='store_true',help='Compile with HDF5 support')
+parser.add_argument('--hdf5', default=False, action='store_true', help='Compile with HDF5 support')
 parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
 parser.set_defaults(**defaults)
 
