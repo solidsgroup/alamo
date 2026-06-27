@@ -72,3 +72,6 @@ alamovenv/
 .claude_fab_probe.py
 sweep_*/
 backtraces_*/
+
+# local A100-spoof gate run artifacts
+benchmark/_a100_gate_*/

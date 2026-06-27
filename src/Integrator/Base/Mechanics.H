@@ -213,7 +213,10 @@ public:
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            const amrex::Real* DX = geom[lev].CellSize();
+            // Device-safe cell size: DX is a Set::Vector copied into the device
+            // closure; DX.data() is valid on device (a raw Geom().CellSize()
+            // host pointer would fault when dereferenced in the kernel).
+            Set::Vector DX(geom[lev].CellSize());
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
@@ -230,13 +233,13 @@ public:
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
                     {
-                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX, sten);
+                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX.data(), sten);
                         stress(i, j, k) = model(i, j, k).DW(F);
                         strain(i, j, k) = F;
                     }
                     else
                     {
-                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
+                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX.data(), sten);
                         stress(i, j, k) = model(i, j, k).DW(gradu);
                         strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
                     }
@@ -253,7 +256,7 @@ public:
     {
         BL_PROFILE("Integrator::Base::Mechanics::Advance");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
-        const amrex::Real* DX = geom[lev].CellSize();
+        Set::Vector DX(geom[lev].CellSize()); // device-safe cell size (copied into device closure)
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
@@ -287,7 +290,7 @@ public:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
-                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
+                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX.data(),sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
                     //ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
                 });
@@ -317,7 +320,7 @@ public:
                                 Set::Vector N = Set::Normal(AMREX_D_DECL(xmin,ymin,zmin),
                                                             AMREX_D_DECL(xmax,ymax,zmax));
                                 
-                                auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX,sten);
+                                auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX.data(),sten);
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
@@ -355,7 +358,7 @@ public:
                         //Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
                         
                         //Set::Vector f = ddw(i,j,k)*gradgradu;
-                        Set::Vector f = Numeric::Divergence(sig, i, j, k, DX);
+                        Set::Vector f = Numeric::Divergence(sig, i, j, k, DX.data());
 
                         //MATRIX4 AMREX_D_DECL(
                         //    Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
@@ -366,7 +369,7 @@ public:
                         //                    +(Cgrad2*gradu).col(1),
                         //                    +(Cgrad3*gradu).col(2));
                         
-                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
+                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX.data());
                         f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
                         
                         Set::Vector udotdot = f / rho;
@@ -422,36 +425,110 @@ public:
         Set::Vector da(DX[1] * DX[2], 0, 0);
 #endif
 
-        auto trac_hi = this->trac_hi;
-        auto disp_hi = this->disp_hi;
-
         const Dim3 /*lo= amrex::lbound(domain),*/ hi = amrex::ubound(domain);
         const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
         amrex::Array4<const Set::Matrix> const& stress = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Vector> const& disp = (*disp_mf[amrlev]).array(mfi);
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
+
+        // GPU: trac_hi / disp_hi are host-resident members.  Accumulating into them
+        // directly inside a ParallelFor dereferences a host pointer on the device
+        // (CUDA illegal memory access -- error 700) and races between nodes.  Mirror
+        // the sum-reduction pattern used in Flame::Integrate: compute per-box partial
+        // sums on the device, then add them to the host members afterwards.  These are
+        // "extensive" integrated variables, so IntegrateVariables zeroes them and sums
+        // them across ranks.  The trac contribution is a genuine face integral (sum);
+        // the disp diagnostic samples the last face node (matching the prior CPU
+        // serial-loop "last write wins").  NOTE the warning above: this diagnostic is
+        // only well-defined for a single box (see RegisterIntegratedVariable).
 #if AMREX_SPACEDIM == 2
-            if (i == hi.x && j < boxhi.y)
-            {
-                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
-                disp_hi[0] = disp(i, j, k);
-            }
-            if (j == hi.y && i < boxhi.x)
-            {
-                trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
-                disp_hi[1] = disp(i, j, k);
-            }
+        {
+            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
+                             amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+            reduce_op.eval(box, reduce_data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
+                    if (i == hi.x && j < boxhi.y)
+                    {
+                        Set::Vector t = (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
+                        tx = t(0); ty = t(1);
+                        if (j == boxhi.y - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
+                    }
+                    return {tx, ty, dx, dy};
+                });
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            trac_hi[0](0) += amrex::get<0>(hv);
+            trac_hi[0](1) += amrex::get<1>(hv);
+            disp_hi[0](0) += amrex::get<2>(hv);
+            disp_hi[0](1) += amrex::get<3>(hv);
+        }
+        {
+            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
+                             amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+            reduce_op.eval(box, reduce_data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
+                    if (j == hi.y && i < boxhi.x)
+                    {
+                        Set::Vector t = (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+                        tx = t(0); ty = t(1);
+                        if (i == boxhi.x - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
+                    }
+                    return {tx, ty, dx, dy};
+                });
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            trac_hi[1](0) += amrex::get<0>(hv);
+            trac_hi[1](1) += amrex::get<1>(hv);
+            disp_hi[1](0) += amrex::get<2>(hv);
+            disp_hi[1](1) += amrex::get<3>(hv);
+        }
 #elif AMREX_SPACEDIM == 3
-            if (i == hi.x && (j < boxhi.y && k < boxhi.z))
-            {
-                trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
-                    + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
-                disp_hi[0] = disp(i, j, k);
-            }
+        {
+            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+            reduce_op.eval(box, reduce_data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    Set::Scalar tx = 0.0, ty = 0.0, tz = 0.0;
+                    if (i == hi.x && j < boxhi.y && k < boxhi.z)
+                    {
+                        Set::Vector t = (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
+                            + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
+                        tx = t(0); ty = t(1); tz = t(2);
+                    }
+                    return {tx, ty, tz};
+                });
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            trac_hi[0](0) += amrex::get<0>(hv);
+            trac_hi[0](1) += amrex::get<1>(hv);
+            trac_hi[0](2) += amrex::get<2>(hv);
+        }
+        {
+            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+            reduce_op.eval(box, reduce_data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    Set::Scalar dx = 0.0, dy = 0.0;
+                    if (i == hi.x && j == boxhi.y - 1 && k == boxhi.z - 1)
+                    {
+                        dx = disp(i, j, k)(0); dy = disp(i, j, k)(1);
+                    }
+                    return {dx, dy};
+                });
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            disp_hi[0](0) += amrex::get<0>(hv);
+            disp_hi[0](1) += amrex::get<1>(hv);
+        }
 #endif
-        });
 
     }
 
