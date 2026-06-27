@@ -23,9 +23,6 @@
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_TimeIntegrator.H>
-#ifdef ALAMO_FFT
-#include <AMReX_FFT.H>
-#endif
 
 // Alamo Includes
 #include "Set/Base.H"
@@ -39,6 +36,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "Numeric/Stencil.H"
+#include "Operator/Spectral/FFT.H"
 
 namespace Integrator
 {
@@ -180,44 +178,20 @@ protected:
     void
     AdvanceSpectral(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
-        Util::Assert(INFO,TEST(lev == 0), "Only single level currently supported");
-        
-        amrex::Box const & domain = this->geom[lev].Domain();
-
-        amrex::FFT::R2C my_fft(this->geom[lev].Domain());
-        auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
-        amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
-        my_fft.forward(*temp_mf[lev], Temp_hat);
-
-        const Set::Scalar* DX = geom[lev].CellSize();
-
-        Set::Scalar
-            AMREX_D_DECL(
-                pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-                pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
-                pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
-
-        Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
+        Operator::Spectral::FFT fft(geom,refRatio(),lev);
+        amrex::FabArray<amrex::BaseFab<Set::Complex>> Temp_hat = fft.MakeSpectralFab();
+        fft.Forward(*temp_mf[lev], Temp_hat);
 
         for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box &bx = mfi.tilebox();
-            amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
+            amrex::Array4<Set::Complex> const & T_hat =  Temp_hat.array(mfi);
 
-                AMREX_D_TERM(
-                    Set::Scalar k1 = m * pi_Lx;,
-                    Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
-                    Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
-
-                Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
-
-                Set::Scalar factor = exp( - alpha * dt * lap); 
-                T_hat(m,n,p) *= factor*scaling;
-            });
+            fft.ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p, Set::Scalar lap) {
+                    T_hat(m,n,p) *= exp( - alpha * dt * lap);
+                });
         }
-
-        my_fft.backward(Temp_hat, *temp_mf[lev]);
+        fft.Backward(Temp_hat, *temp_mf[lev]);
     }
 #else
     void
