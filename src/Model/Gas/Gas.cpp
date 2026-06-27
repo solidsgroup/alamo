@@ -48,7 +48,7 @@ double Gas::ComputeT(
         Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const 
 {
     // Temperature, K
-    return eos.ComputeT(density, momentumx, momentumy, E, Tguess, R(X,i,j,k), gamma(Tguess,X,i,j,k), rtol);
+    return eos.ComputeT(*this, density, momentumx, momentumy, E, Tguess, X, i, j, k, rtol);
 }
 double Gas::ComputeT(
         double pressure, double density,

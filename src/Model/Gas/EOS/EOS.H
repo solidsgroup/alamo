@@ -22,18 +22,18 @@ private:
 
 public:
     // Temperature, K
-    template<int I = 0>
+    template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
-                    double R, double gamma, double rtol) const
+    double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeT(density,momentumx,momentumy,E,Tguess,R,gamma, rtol);
+                return std::get<I>(obj).ComputeT(gas,density,momentumx,momentumy,E,Tguess,X,i,j,k,rtol);
             else
-                return ComputeT<I+1>(density,momentumx,momentumy,E,Tguess,R,gamma, rtol);
+                return ComputeT<GAS, I+1>(gas,density,momentumx,momentumy,E,Tguess,X,i,j,k,rtol);
         }
         else {
             Util::Abort(INFO, selected);
