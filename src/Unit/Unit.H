@@ -220,6 +220,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit Density()     { return Mass() / Volume(); }
     static Unit SpecificWeight() { return Force() / Volume(); }
     static Unit Work()        { return Energy(); }
+    static Unit SurfaceEnergy()  { return Force() / Length(); } 
     // Thermodynamics
     static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
     static Unit MolarHeatCapacity()       {return Energy() / Amount() / Temperature() ;}

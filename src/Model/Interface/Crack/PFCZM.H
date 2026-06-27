@@ -88,8 +88,8 @@ public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
     {
         pp.query_default("czm_order", value.czm_order, 1.0); //Order 1, 1.5, or 2 (Wu 2024, JMPS)
-        pp.query_default("G_c",value._Gc,1.0e3); // Fracture energy in N/m
-        pp.query_default("zeta",value.zeta,1.e-5); // Lengthscale regularization in m
+        pp.query_default("G_c",value._Gc,"1.0e3_N/m", Unit::SurfaceEnergy()); // Fracture energy in N/m
+        pp.query_default("zeta",value.zeta,"1.e-5_m", Unit::Length()); // Lengthscale regularization in m
 
         Set::Scalar fracture_strength = NAN;
         
@@ -105,7 +105,7 @@ public:
         if (value._mixed_mode)
         {
             // Young's modulus
-            pp.query_default("E", youngs, 2.e11);
+            pp.query_default("E", youngs, "2.e11_Pa", Unit::Pressure());
             
             // Poisson's ratio $\nu$
             pp.query_default("nu", nu, 0.3);
@@ -126,13 +126,13 @@ public:
             if (value._failure_surface == FSType::WANG2023)
             {
                 // Fracture strength
-                pp.query_default("fracture_strength", fracture_strength, 1.e6);
+                pp.query_default("fracture_strength", fracture_strength, "1.e6_Pa", Unit::Pressure());
                 
                 // $\chi$ value
                 pp.query_default("chi", value._chi, 1.0);
                 
                 // Compressive strength
-                pp.query_default("compressive_strength", compressive_strength,4.e8);
+                pp.query_default("compressive_strength", compressive_strength, "4.e8", Unit::Pressure());
                 value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
                 tensile_strength = fracture_strength / value.k1;
@@ -172,9 +172,9 @@ public:
         else
         {
             // Young's modulus
-            pp.query_default("E", youngs, 2.e11);
+            pp.query_default("E", youngs, "2.e11_Pa", Unit::Pressure());
             // fracture strength beyond which softening starts [Pa]
-            pp.query_default("fracture_strength", fracture_strength,1.e6);   
+            pp.query_default("fracture_strength", fracture_strength, "1.e6_Pa", Unit::Pressure());   
         }
         
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);

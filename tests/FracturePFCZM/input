@@ -5,6 +5,9 @@
 
 alamo.program = fracture
 
+system.time = s
+system.length = m
+
 timestep = 5e-5
 stop_time = 0.6
 
@@ -20,8 +23,8 @@ amr.nsubsteps = 1
 amr.node.any = 0
 amr.cell.all = 1
 
-geometry.prob_lo = -0.125 -0.125
-geometry.prob_hi = 0.125 0.125
+geometry.prob_lo = -0.125_m -0.125_m
+geometry.prob_hi = 0.125_m 0.125_m
 geometry.is_periodic = 0 0
 
 crack.refinement_threshold = 0.1
@@ -33,9 +36,9 @@ crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-crack.model1.G_c = 5.e2
-crack.model1.fracture_strength = 3.16e8
-crack.model1.E = 4.e11
+crack.model1.G_c = 5.e2_N/m
+crack.model1.fracture_strength = 3.16e8_Pa
+crack.model1.E = 4.e11_Pa
 crack.model1.zeta = 2.e-4
 crack.model1.mobility = 5.0e-2
 crack.model1.gtype = wu_linear
@@ -43,10 +46,10 @@ crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
 crack.ic.type = notch
-crack.ic.notch.center = -0.125 0
+crack.ic.notch.center = -0.125_m 0_m
 crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.05
-crack.ic.notch.thickness = 2.e-3
+crack.ic.notch.length = 0.05_m
+crack.ic.notch.thickness = 2.e-3_m
 
 crack.ic.notch.eps = 5.e-4
 crack.ic.notch.mollifier = erf
@@ -71,9 +74,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 8.e-5
-bc.constant.val.xloyhi =    0.0 8.e-5
-bc.constant.val.xhiyhi =    0.0 8.e-5
+bc.constant.val.yhi =       0.0 8.e-5_m
+bc.constant.val.xloyhi =    0.0 8.e-5_m
+bc.constant.val.xhiyhi =    0.0 8.e-5_m
 
 #
 # Solver inputs

@@ -375,7 +375,7 @@ public:
         value.nLength.clear();
 
         amrex::Vector<Set::Scalar> center;
-        pp_queryarr("center", center); // Center of notch
+        pp.queryarr("center", center, Unit::Length()); // Center of notch
 
         if (center.size() >= AMREX_SPACEDIM)
         {
@@ -387,7 +387,7 @@ public:
             Util::Abort(INFO, "Insufficient values in center");
 
         amrex::Vector<Set::Scalar> orientation;
-        pp_queryarr("orientation", orientation); // Vector describing notch orientation
+        pp.queryarr("orientation", orientation, Unit::Length()); // Vector describing notch orientation
 
         if (orientation.size() >= AMREX_SPACEDIM && orientation.size() == center.size())
         {
@@ -402,9 +402,9 @@ public:
             if (value.nOrientation[i].lpNorm<2>() <= 0.)
                 value.nOrientation[i] = Set::Vector::Random();
 
-        pp_queryarr("thickness", value.nThickness); // Thickness of notch
-        pp_queryarr("length", value.nLength);       // Length of notch
-        pp_queryarr("radius", value.nRadius);       // Radius of notch ends
+        pp.queryarr("thickness", value.nThickness, Unit::Length()); // Thickness of notch
+        pp.queryarr("length", value.nLength, Unit::Length());       // Length of notch
+        pp.queryarr("radius", value.nRadius, Unit::Length());       // Radius of notch ends
         pp_query("eps", value.eps);                 // Magnitude of mollifier
 
         if (value.nThickness.size() == 0)
@@ -459,7 +459,7 @@ public:
             value.eps = 1.e-5;
 
         std::string mollifier;
-        pp_query("mollifier", mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}
+        pp.query("mollifier", mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}
         if (mollifier == "Dirac" || mollifier == "dirac")
             value.moll = Mollifier::Dirac;
         else if (mollifier == "gauss" || mollifier == "Gauss")
