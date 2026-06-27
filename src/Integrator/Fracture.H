@@ -274,14 +274,11 @@ public:
         if (!elastic_do_solve_now)
         {
             crack.crack_prop_iter++;
-            //StopClock();
             return;
         }
 
-        //RestartClock();
-
         // Doing an elastic solve
-        Base::Mechanics<brittle_model>::TimeStepBegin(a_time/*(double)loadstep*/, a_step);
+        Base::Mechanics<brittle_model>::TimeStepBegin(a_time, a_step);
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
@@ -798,7 +795,7 @@ protected:
         Set::Field<Set::Scalar> energy_pristine_mf;
         Set::Field<Set::Scalar> history_var_mf;
         Set::Field<Set::Scalar> driving_force_mf;
-        
+
         std::vector<pfczm_crack_type> cracktype;
 
         std::vector<std::string> ic_type;
