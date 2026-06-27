@@ -326,7 +326,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
     stencilbox.convert(amrex::IntVect::TheNodeVector());
 
-    const Real* DX = m_geom[amrlev][mglev].CellSize();
+    Set::Vector DX(m_geom[amrlev][mglev].CellSize()); // device-safe cell size (copied into device closure)
 #ifdef AMREX_DEBUG
 #ifdef ALAMO_GPU
     Util::DeviceErrorFlag fapply_error;
@@ -520,9 +520,9 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             // Fill gradu
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
-                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(U, i, j, k, p, DX, sten));,
-                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(U, i, j, k, p, DX, sten));,
-                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(U, i, j, k, p, DX, sten)););
+                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(U, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(U, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(U, i, j, k, p, DX.data(), sten)););
             }
 
             Set::Scalar psi_avg = 1.0;
@@ -552,18 +552,18 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                 {
                     // Diagonal terms:
                     AMREX_D_TERM(
-                        gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
-                        gradgradu(p, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(U, i, j, k, p, DX));,
-                        gradgradu(p, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(U, i, j, k, p, DX)););
+                        gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX.data()));,
+                        gradgradu(p, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(U, i, j, k, p, DX.data()));,
+                        gradgradu(p, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(U, i, j, k, p, DX.data())););
 
                     // Off-diagonal terms:
                     AMREX_D_TERM(
                         ,// 2D
-                        gradgradu(p, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(U, i, j, k, p, DX));
+                        gradgradu(p, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(U, i, j, k, p, DX.data()));
                         gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
                         ,// 3D
-                        gradgradu(p, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(U, i, j, k, p, DX));
-                        gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
+                        gradgradu(p, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(U, i, j, k, p, DX.data()));
+                        gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX.data()));
                         gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
                         gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
                 }
@@ -615,16 +615,16 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                 if (!m_uniform)
                 {
                     MATRIX4
-                        AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX, sten)),
-                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX, sten)),
-                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX, sten)));
+                        AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
+                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
+                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten)));
                     f += (AMREX_D_TERM((Cgrad1 * gradu).col(0),
                         +(Cgrad2 * gradu).col(1),
                         +(Cgrad3 * gradu).col(2))) * (psi_avg);
                 }
                 if (m_psi_set)
                 {
-                    Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX);
+                    Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
                     gradpsi *= (1.0 - m_psi_small);
                     f += (DDW(i, j, k) * gradu) * gradpsi;
                 }
@@ -797,7 +797,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
     amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
     stencilbox.convert(amrex::IntVect::TheNodeVector());
 
-    const Real* DX = m_geom[amrlev][mglev].CellSize();
+    Set::Vector DX(m_geom[amrlev][mglev].CellSize()); // device-safe cell size (copied into device closure)
 #ifdef AMREX_DEBUG
 #ifdef ALAMO_GPU
     Util::DeviceErrorFlag diagonal_error;
@@ -831,10 +831,10 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                 sten = Numeric::GetStencil(i, j, k, stencilbox);
 
             // gradu(i,j) = u_{i,j)
-            std::array<Set::Matrix,AMREX_SPACEDIM> gradu = Numeric::Gradient_Diagonal<Set::Matrix>(DX, sten);  
+            std::array<Set::Matrix,AMREX_SPACEDIM> gradu = Numeric::Gradient_Diagonal<Set::Matrix>(DX.data(), sten);  
 
             // gradgradu[k](l,j) = u_{k,lj}
-            std::array<Set::Matrix3,AMREX_SPACEDIM>  gradgradu = Numeric::Gradient_Diagonal<Set::Matrix3>(DX); 
+            std::array<Set::Matrix3,AMREX_SPACEDIM>  gradgradu = Numeric::Gradient_Diagonal<Set::Matrix3>(DX.data()); 
 
 
             Set::Vector f = Set::Vector::Zero();
@@ -953,7 +953,7 @@ Elastic<SYM>::Strain(int amrlev,
 {
     BL_PROFILE("Operator::Elastic::Strain()");
 
-    const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+    Set::Vector DX(m_geom[amrlev][0].CellSize()); // device-safe cell size (copied into device closure)
     amrex::Box domain(m_geom[amrlev][0].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -973,9 +973,9 @@ Elastic<SYM>::Strain(int amrlev,
             // Fill gradu
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
-                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX, sten)););
+                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX.data(), sten)););
             }
 
             Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
@@ -1015,7 +1015,7 @@ Elastic<SYM>::Stress(int amrlev,
     BL_PROFILE("Operator::Elastic::Stress()");
     SetHomogeneous(a_homogeneous);
 
-    const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+    Set::Vector DX(m_geom[amrlev][0].CellSize()); // device-safe cell size (copied into device closure)
     amrex::Box domain(m_geom[amrlev][0].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -1038,9 +1038,9 @@ Elastic<SYM>::Stress(int amrlev,
             // Fill gradu
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
-                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX, sten)););
+                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX.data(), sten)););
             }
 
             Set::Scalar psi_avg = 1.0;
@@ -1084,7 +1084,7 @@ Elastic<SYM>::Energy(int amrlev,
     amrex::Box domain(m_geom[amrlev][0].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
 
-    const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+    Set::Vector DX(m_geom[amrlev][0].CellSize()); // device-safe cell size (copied into device closure)
 
     for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -1102,9 +1102,9 @@ Elastic<SYM>::Energy(int amrlev,
             // Fill gradu
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
-                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX, sten));,
-                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX, sten)););
+                AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                    gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX.data(), sten)););
             }
 
             Set::Matrix eps = .5 * (gradu + gradu.transpose());

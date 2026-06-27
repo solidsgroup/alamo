@@ -1,7 +1,6 @@
 #ifndef SOLVER_NONLOCAL_NEWTON
 #define SOLVER_NONLOCAL_NEWTON
 
-#include <cstdlib>
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -72,7 +71,7 @@ public:
         {
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
-            const Set::Scalar* dx = linop->Geom(lev).CellSize();
+            // Device-safe cell size (see note on the Set::Vector overload below).
             Set::Vector DX(linop->Geom(lev).CellSize());
 #ifdef ALAMO_GPU
             Util::DeviceErrorFlag prepare_error;
@@ -92,7 +91,7 @@ public:
                 ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k) {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
-                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
 
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
                     {
@@ -130,7 +129,8 @@ public:
         {
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
-            const Set::Scalar* dx = linop->Geom(lev).CellSize();
+            // Device-safe cell size (see note on the Set::Vector overload below).
+            Set::Vector DX(linop->Geom(lev).CellSize());
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -149,14 +149,14 @@ public:
                     // Do this if on the domain boundary
                     if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                     {
-                        Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+                        Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
                         Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
                     {
-                        Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx);
+                        Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data());
                         for (int p = 0; p < AMREX_SPACEDIM; p++) rhs(i, j, k, p) = b(i, j, k, p) - divdw(p);
                     }
                 });
@@ -241,7 +241,10 @@ public:
         {
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
-            const Set::Scalar* dx = linop->Geom(lev).CellSize();
+            // Device-safe cell size: DX is a Set::Vector copied into the device
+            // closure; DX.data() is valid on device. A raw Geom().CellSize()
+            // host pointer would fault when dereferenced in these kernels.
+            Set::Vector DX(linop->Geom(lev).CellSize());
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -263,13 +266,13 @@ public:
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
                             Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
                         {
-                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx, sten);
+                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data(), sten);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
                         }
                     });
@@ -287,7 +290,7 @@ public:
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
                             Set::Scalar psiavg = 1.0;
                             if (AMREX_D_TERM(i > boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k < boxhi.z))
                             {
@@ -298,11 +301,11 @@ public:
                         }
                         else
                         {
-                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx, sten);
+                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data(), sten);
                             if (AMREX_D_TERM(i > boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k < boxhi.z))
                             {
                                 divdw *= Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
-                                Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, dx);
+                                Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
                                 divdw += dw(i, j, k) * gradpsi;
                             }
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
@@ -576,7 +579,8 @@ public:
         {
             BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-            const amrex::Real* DX = linop->Geom(lev).CellSize();
+            // Device-safe cell size: a Set::Vector copied into the device closure.
+            Set::Vector DX(linop->Geom(lev).CellSize());
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -595,9 +599,9 @@ public:
                     // Fill gradu
                     for (int p = 0; p < AMREX_SPACEDIM; p++)
                     {
-                        AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX, sten));,
-                            gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX, sten));,
-                            gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX, sten)););
+                        AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                            gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                            gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX.data(), sten)););
                     }
 
                     if (C(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
@@ -619,7 +623,8 @@ public:
         {
             BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-            const amrex::Real* DX = linop->Geom(lev).CellSize();
+            // Device-safe cell size: a Set::Vector copied into the device closure.
+            Set::Vector DX(linop->Geom(lev).CellSize());
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -638,9 +643,9 @@ public:
                     // Fill gradu
                     for (int p = 0; p < AMREX_SPACEDIM; p++)
                     {
-                        AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX, sten));,
-                            gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX, sten));,
-                            gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX, sten)););
+                        AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                            gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(u, i, j, k, p, DX.data(), sten));,
+                            gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(u, i, j, k, p, DX.data(), sten)););
                     }
 
                     Set::Matrix sig = Set::Matrix::Zero();

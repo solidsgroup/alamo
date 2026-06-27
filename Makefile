@@ -68,18 +68,12 @@ HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 
-# CUDA builds only need the chamber-gpu (Flame) entry point. alamo.cc and the
-# other top-level mains (mechanics/hydro/thermoelastic/topop/fracture/sfi/test)
-# pull in every other Integrator (AllenCahn, CahnHilliard, Dendrite, ...),
-# none of which chamber/Flame needs and none of which have been made
-# nvcc-clean. Restrict SRC/SRC_MAIN to alamo_gpu.cc's actual dependency
-# closure so the CUDA build doesn't try to compile unrelated code.
+# CUDA builds compile the selected GPU-clean integrator policy instead of the
+# all-integrator CPU launcher.
 ifneq (,$(findstring cuda,$(POSTFIX)))
-SRC_MAIN = src/alamo_gpu.cc
-SRC = src/BC/BC.cpp src/BC/Constant.cpp src/IO/FileNameParse.cpp \
-      src/IO/ParmParse.cpp src/IO/WriteMetaData.cpp src/Integrator/Flame.cpp \
-      src/Integrator/Integrator.cpp src/Operator/Elastic.cpp \
-      src/Operator/Operator.cpp src/Set/Set.cpp src/Util/Util.cpp
+include src/GPU/IntegratorPolicy.mk
+SRC_MAIN = $(ALAMO_GPU_MAIN)
+SRC = $(ALAMO_GPU_SOURCES)
 endif
 
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX)))

@@ -215,6 +215,7 @@ parser.add_argument('--verbose',default=False,action='store_true',help="Show ful
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.add_argument('--cuda',dest='cuda',const='auto',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture. If no architecture is given, auto-detect the local NVIDIA GPU compute capability. Use --cuda local or --cuda native as explicit aliases for auto-detection.")
 parser.add_argument('--cuda-fp',dest='cuda_fp',choices=['fast','strict'],default='fast',help="CUDA floating-point mode: fast uses --use_fast_math for performance; strict omits fast-math and disables FMA contraction for correctness gates [fast].")
+parser.add_argument('--gpu-integrator',dest='gpu_integrator',choices=['flame'],default='flame',help="GPU-clean integrator closure to build for CUDA configurations [flame].")
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
@@ -357,6 +358,9 @@ if args.cuda and args.cuda_fp == "strict": postfix += "-nofast"
 if args.cuda: postfix += f"-cuda{args.cuda}"
 postfix += "-" + comp_basename
 f.write("POSTFIX = " + postfix + '\n')
+if args.cuda:
+    f.write("ALAMO_GPU_INTEGRATOR = " + args.gpu_integrator + "\n")
+    message("GPU Integrator", args.gpu_integrator)
 
 #
 # Current Repo settings
