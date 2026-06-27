@@ -3,6 +3,32 @@
 Goal: catch **A100/NOVA-class GPU defects locally** before spending NOVA time, on the
 chamber-gpu high-performance test branch.
 
+## The host-pointer-on-device bug class (instances found + fixed)
+
+Every NOVA error-700 on this branch so far is the same class: a **host pointer
+dereferenced inside a device kernel**. The local A1000 hides it (HMM migrates the page,
+see below); the A100 faults. The compute-sanitizer gate is HMM-immune and catches all of
+them. Known instances, all fixed on `chamber-gpu`:
+
+| Site | What was wrong | Fix | Commit |
+|---|---|---|---|
+| `Base::Mechanics::Integrate` | host members `trac_hi`/`disp_hi` (array decays to host ptr) written in a device `ParallelFor` | `amrex::ReduceOps` sum-reduction, add to host members afterward | `76ae550e0` |
+| `Solver::Nonlocal::Newton` (`prepareForSolve`, `rhs`, `DW`) | `const Real* dx = Geom().CellSize()` host pointer dereferenced in the elastic device kernels | copy into `Set::Vector DX(...CellSize())` (by-value, device-resident) and pass `DX.data()` | `54a941433` |
+| `Operator::Elastic` (`Fapply`, `Diagonal`, `Strain`, `Stress`, `Energy`) | same `CellSize()` host-pointer deref across the MLMG operator kernels | same `Set::Vector DX` + `DX.data()` idiom (precedent: `Mechanics.H`, `TopOp.H`) | `54a941433` |
+
+The `Set::Vector DX(ptr)` idiom works because the small Eigen vector is captured **by
+value** into the `[=]` device closure, so `DX.data()` points at the device-resident copy
+rather than the host `Geometry`'s cell-size array. These conversions are value-preserving
+(CPU output unchanged) and were verified by the gate: memcheck = 0 errors through the
+multi-box elastic solve, which exercises exactly these kernels.
+
+Two companion changes shipped alongside: `src/alamo_gpu.cc` drops an obsolete diagnostic
+probe (an env-gated CUDA device-stack bump that was chasing the now-explained
+`Newton.H:196` "unspecified launch failure"); and the CUDA build's integrator closure
+was refactored out of the `Makefile` into `src/GPU/IntegratorPolicy.mk` + a
+`configure --gpu-integrator` flag (currently `flame` only) -- behavior-preserving (the
+`flame` source list is identical to the old hardcoded one), just explicit and extensible.
+
 ## The problem we are solving
 
 The `Base::Mechanics::Integrate` traction-diagnostic bug (a device kernel writing to
@@ -41,8 +67,8 @@ error checks (no CUDA error is ever raised, because from the driver's view the a
 A tiered, HMM-immune pre-NOVA correctness gate built around compute-sanitizer.
 
 ```
-bash benchmark/local_a100_gate.sh                 # tiers 1 2 3 (default)
-TIERS="1 2" bash benchmark/local_a100_gate.sh     # quick: smoke + memcheck
+bash benchmark/local_a100_gate.sh                 # default: tiers 1 2 (smoke + memcheck)
+TIERS="1 2 3" bash benchmark/local_a100_gate.sh   # thorough: + racecheck/initcheck (slow)
 ALLOW_HMM_DISABLE=1 TIERS=4 bash benchmark/local_a100_gate.sh   # root: real hard-fault spoof
 ```
 
