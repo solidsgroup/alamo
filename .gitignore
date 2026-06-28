@@ -78,3 +78,4 @@ benchmark/_a100_gate_*/
 
 # local GPU A/B profiling artifacts
 benchmark/local_ab_*/
+benchmark/local_amr_shape_*/

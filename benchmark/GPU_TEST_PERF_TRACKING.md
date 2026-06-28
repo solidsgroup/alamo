@@ -250,6 +250,59 @@ Notes:
 
 ---
 
+## Iteration 5 — 2026-06-28 — local AMR-shape sweep and rejected code probes
+
+- **Scope:** local phase-field-only profiling after Iteration 4. No solver-code
+  checkpoint was kept in this iteration.
+- **Why:** the remaining optimized P2 profile is still launch/sync dominated:
+  `cudaLaunchKernel` and `cudaStreamSynchronize` account for most CUDA API time,
+  while AMR FillPatch/FillPatchInterp remains the largest non-Advance region.
+
+### Local AMR-shape signal
+
+Same optimized binary as Iteration 4, P2 AMR thermal-on input, 30 steps,
+3 wall-clock repeats on the local RTX A1000:
+
+| Variant | Median wall | Speedup vs current P2 default |
+|---------|------------:|------------------------------:|
+| Current P2 default (`max_level=3`, default subcycling) | 1.320 s | 1.00x |
+| `amr.nsubsteps=1` | 0.880 s | **1.50x** |
+| `amr.max_level=1 amr.n_cell="256 256 4" amr.nsubsteps=1` | 0.830 s | **1.59x** |
+| Uniform fine, `amr.max_level=0 amr.n_cell="512 512 4"` | 0.860 s | **1.54x** |
+
+Nsight Systems on the default P2 shape vs non-subcycling AMR:
+
+| Metric | Default | `amr.nsubsteps=1` | Delta |
+|--------|--------:|------------------:|------:|
+| `cudaLaunchKernel` calls | 31,505 | 8,585 | **72.8% fewer** |
+| CUDA API total time | 752.2 ms | 399.3 ms | **46.9% lower** |
+| memcpy/memset API calls | 8,042 | 2,042 | **74.6% fewer** |
+| `cudaStreamSynchronize` calls | 38,010 | 9,840 | **74.1% fewer** |
+| GPU kernel aggregate time | 495.2 ms | 125.0 ms | **74.8% lower** |
+
+Read: the v2 roadmap AMR hypothesis holds locally. Deep subcycling AMR is still
+the dominant remaining structural wall-clock lever for the phase-field GPU path.
+This should become an accuracy-checked B2 recommendation before changing
+production input defaults.
+
+### Rejected probes
+
+| Probe | Result | Decision |
+|-------|--------|----------|
+| Replace Flame `MFIter(..., true)` with `amrex::TilingIfNotGPU()` | Direct previous-vs-current A/B: P2 1.360 s → 1.350 s, P1 flat; launch/mem/sync counts unchanged | Reverted; no structural wall-clock gain |
+| Mark `temps_mf` non-evolving | C4 failed (`eta` max rel error 0.1937, `temp` 0.2879), direct A/B was neutral/slower | Reverted; `temps_mf` participates in AMR state consistency despite being zero-ghost/write-disabled |
+
+Validation after reverting rejected probes:
+
+| Test | Result | Notes |
+|------|--------|-------|
+| CUDA profile rebuild | PASS | `make -j8` |
+| C4 AMR correctness | PASS | CPU vs GPU contour compare, `eta=0.0000`, `temp=0.0000` |
+
+Artifacts are local-only and ignored under `benchmark/local_amr_shape_*/`.
+
+---
+
 ## Iteration template (copy for the next fix-set)
 
 ```
