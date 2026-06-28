@@ -173,9 +173,11 @@ case "${DIAG_TOOL}" in
     # AMReX launches every GPU kernel through one wrapper (amrex::launch_global),
     # so ncu only ever sees the function name "launch_global" -- matching on
     # --kernel-name-base function never selects the physics kernels (that bug left
-    # every ncu_*/ empty while the job still exited 0). Target the TinyProfiler
-    # NVTX *region* instead: the --profile build emits NVTX push/pop ranges named
-    # exactly like the TinyProfiler rows (Operator::Elastic::Fapply(), ...).
+    # every ncu_*/ empty while the job still exited 0). Fix: don't match by name at
+    # all -- profile a bounded WINDOW of launches (--launch-skip/--launch-count) and
+    # read the *demangled* names in post; they carry the enclosing function (Fapply,
+    # Fsmooth, interpolation, ...). (NVTX --nvtx-include was tried and never matched
+    # AMReX's deeply-nested push/pop ranges -- "No kernels were profiled".)
     #
     # Metric set + section files. Two gotchas on this ncu (Nsight Compute 2025.1.1):
     #   - there is NO set named "default" anymore (sets are basic/detailed/full/
@@ -196,42 +198,34 @@ case "${DIAG_TOOL}" in
     echo "=== ncu --list-sets ==="
     "${NCU}" --list-sets ${SECTION_DIR:+--section-folder "${SECTION_DIR}"} 2>&1 | head -20 || true
 
-    NCU_FAILS=0
-    ncu_run() {
-      local label="$1" nvtx="$2"
-      echo "--- ncu: ${label} (nvtx-include: ${nvtx}) ---"
-      srun --mpi=pmix -n 1 --gpus-per-task=1 \
-        "${NCU}" \
-          --target-processes all \
-          "${METRIC_ARGS[@]}" \
-          --nvtx --nvtx-include "${nvtx}" \
-          --launch-count 4 \
-          --csv --page raw \
-          --print-kernel-base demangled \
-          --export "${OUT_BASE}/${label}" \
-          --force-overwrite \
-          "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE} || true
-      if [ -s "${OUT_BASE}/${label}.ncu-rep" ]; then
-        echo "    ncu: ${label} -> $(du -h "${OUT_BASE}/${label}.ncu-rep" | cut -f1)"
-      else
-        echo "!!! ncu: ${label} produced NO report -- see 'No kernels were profiled' / 'No metrics' warnings above" >&2
-        NCU_FAILS=$((NCU_FAILS + 1))
-      fi
-    }
-
-    # Targets are NVTX region-name globs (matched against TinyProfiler ranges).
-    # Fapply is ~60% of the combined step; flame_advance (~0.1%) is not worth a pass.
-    ncu_run "elastic_fapply"   "*Fapply*/"
-    ncu_run "operator_interp"  "*interpolation*/"
-    ncu_run "elastic_diagonal" "*Diagonal*/"
-    ncu_run "bottom_bicgstab"  "*bicgstab*/"
+    # One pass: profile launches [skip, skip+count) with no name/NVTX filter. The
+    # elastic solve dominates the stream, so a small window catches Fapply (+ the
+    # other hot kernels). Identify them by demangled name in the summary below.
+    NCU_SKIP="${NCU_SKIP:-0}"
+    NCU_COUNT="${NCU_COUNT:-60}"
+    OUT_REP="${OUT_BASE}/elastic_kernels"
+    echo "--- ncu: profiling launches [skip ${NCU_SKIP}, count ${NCU_COUNT}], set=${NCU_SET:-basic} ---"
+    srun --mpi=pmix -n 1 --gpus-per-task=1 \
+      "${NCU}" \
+        --target-processes all \
+        "${METRIC_ARGS[@]}" \
+        --launch-skip "${NCU_SKIP}" \
+        --launch-count "${NCU_COUNT}" \
+        --print-kernel-base demangled \
+        --export "${OUT_REP}" \
+        --force-overwrite \
+        "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE} || true
 
     echo "=== ncu complete; profiles in ${OUT_BASE}/ ==="
     ls -lh "${OUT_BASE}/" || true
-    if [ "${NCU_FAILS}" -gt 0 ]; then
-      echo "=== ncu: ${NCU_FAILS} pass(es) produced no data (see warnings above) ===" >&2
+    if [ ! -s "${OUT_REP}.ncu-rep" ]; then
+      echo "=== ncu: NO report written (${OUT_REP}.ncu-rep) -- see warnings above ===" >&2
       exit 1
     fi
+    echo "=== per-kernel SoL summary (grep Fapply / Fsmooth / interpolation) ==="
+    "${NCU}" -i "${OUT_REP}.ncu-rep" --csv --page raw --print-kernel-base demangled \
+      --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active \
+      2>/dev/null | head -120 || true
     ;;
 
   nsys)

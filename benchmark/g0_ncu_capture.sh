@@ -34,11 +34,12 @@ COMMON_ARGS=(
 )
 
 # AMReX launches all GPU work via amrex::launch_global, so ncu only sees the
-# function name "launch_global" -- name-regex matching never hits the physics
-# kernels (leaves the export empty while ncu still exits 0). Target the
-# TinyProfiler NVTX region instead. Note: Nsight Compute 2025.x has no "default"
-# set (it's basic/detailed/full/...), so "--set default" collects nothing; use
-# basic (override NCU_SET=full|detailed). --section-folder guards section lookup.
+# function name "launch_global" -- name-regex (and NVTX --nvtx-include) matching
+# never hits the physics kernels. Instead profile a bounded WINDOW of launches
+# (--launch-skip/--launch-count) and identify kernels by demangled name in post.
+# Note: Nsight Compute 2025.x has no "default" set (it's basic/detailed/full/...),
+# so "--set default" collects nothing; use basic (override NCU_SET=full|detailed).
+# --section-folder guards section lookup.
 NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
 SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
 if [ -n "${SECTION_DIR}" ]; then
@@ -49,33 +50,25 @@ else
     echo "ncu sections = NOT FOUND near ${NCU_DIR} -- using explicit --metrics"
 fi
 
-NCU_FAILS=0
-run_ncu() {
-    local label="$1"
-    local nvtx="$2"
-    local plot_dir="${OUT}_${label}_plot"
-    "${NCU}" \
-        --target-processes all \
-        "${METRIC_ARGS[@]}" \
-        --nvtx --nvtx-include "${nvtx}" \
-        --launch-count 4 \
-        --csv \
-        --page raw \
-        --print-kernel-base demangled \
-        --export "${OUT}_${label}" \
-        --force-overwrite \
-        mpiexec -np 1 "${GPU_BIN}" "${COMMON_ARGS[@]}" "plot_file=${plot_dir}" || true
-    if [ -s "${OUT}_${label}.ncu-rep" ]; then
-        echo "    ncu: ${label} -> $(du -h "${OUT}_${label}.ncu-rep" | cut -f1)"
-    else
-        echo "!!! ncu: ${label} produced NO report -- check 'No kernels were profiled' / 'No metrics' warnings above" >&2
-        NCU_FAILS=$((NCU_FAILS + 1))
-    fi
-}
-
+NCU_SKIP="${NCU_SKIP:-0}"
+NCU_COUNT="${NCU_COUNT:-60}"
+OUT_REP="${OUT}_elastic_kernels"
 mkdir -p "$(dirname "${OUT}")"
-run_ncu "elastic_fapply"   "*Fapply*/"
-run_ncu "operator_interp"  "*interpolation*/"
-run_ncu "elastic_diagonal" "*Diagonal*/"
-run_ncu "bottom_bicgstab"  "*bicgstab*/"
-[ "${NCU_FAILS}" -eq 0 ] || { echo "ncu: ${NCU_FAILS} pass(es) produced no data" >&2; exit 1; }
+echo "--- ncu: profiling launches [skip ${NCU_SKIP}, count ${NCU_COUNT}], set=${NCU_SET:-basic} ---"
+"${NCU}" \
+    --target-processes all \
+    "${METRIC_ARGS[@]}" \
+    --launch-skip "${NCU_SKIP}" \
+    --launch-count "${NCU_COUNT}" \
+    --print-kernel-base demangled \
+    --export "${OUT_REP}" \
+    --force-overwrite \
+    mpiexec -np 1 "${GPU_BIN}" "${COMMON_ARGS[@]}" "plot_file=${OUT_REP}_plot" || true
+if [ ! -s "${OUT_REP}.ncu-rep" ]; then
+    echo "ncu: NO report written (${OUT_REP}.ncu-rep) -- see warnings above" >&2
+    exit 1
+fi
+echo "=== per-kernel SoL summary (grep Fapply / Fsmooth / interpolation) ==="
+"${NCU}" -i "${OUT_REP}.ncu-rep" --csv --page raw --print-kernel-base demangled \
+    --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active \
+    2>/dev/null | head -120 || true
