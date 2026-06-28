@@ -36,12 +36,13 @@ COMMON_ARGS=(
 # AMReX launches all GPU work via amrex::launch_global, so ncu only sees the
 # function name "launch_global" -- name-regex matching never hits the physics
 # kernels (leaves the export empty while ncu still exits 0). Target the
-# TinyProfiler NVTX region instead. "--set default" also needs ncu's section
-# files; locate them and pass --section-folder, else fall back to --metrics.
+# TinyProfiler NVTX region instead. Note: Nsight Compute 2025.x has no "default"
+# set (it's basic/detailed/full/...), so "--set default" collects nothing; use
+# basic (override NCU_SET=full|detailed). --section-folder guards section lookup.
 NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
 SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
 if [ -n "${SECTION_DIR}" ]; then
-    METRIC_ARGS=(--set "${NCU_SET:-default}" --section-folder "${SECTION_DIR}")
+    METRIC_ARGS=(--set "${NCU_SET:-basic}" --section-folder "${SECTION_DIR}")
     echo "ncu sections = ${SECTION_DIR}"
 else
     METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}")

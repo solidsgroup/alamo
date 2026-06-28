@@ -177,14 +177,17 @@ case "${DIAG_TOOL}" in
     # NVTX *region* instead: the --profile build emits NVTX push/pop ranges named
     # exactly like the TinyProfiler rows (Operator::Elastic::Fapply(), ...).
     #
-    # "--set default" also needs ncu's .section/.set files, which this CUDA-module
-    # ncu may not locate on its own ("No metrics to collect found in sections").
-    # Find them next to the install and pass --section-folder; if absent, fall back
-    # to an explicit --metrics list (which needs no section files).
+    # Metric set + section files. Two gotchas on this ncu (Nsight Compute 2025.1.1):
+    #   - there is NO set named "default" anymore (sets are basic/detailed/full/
+    #     roofline/...). "--set default" enables nothing -> "No metrics to collect
+    #     found in sections" -> "No kernels were profiled". Use basic; override with
+    #     NCU_SET=full (roofline + full memory workload) or NCU_SET=detailed.
+    #   - pass --section-folder (the install's sections dir) in case ncu can't find
+    #     it on its own; fall back to explicit --metrics if even that is missing.
     NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
     SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
     if [ -n "${SECTION_DIR}" ]; then
-      METRIC_ARGS=(--set "${NCU_SET:-default}" --section-folder "${SECTION_DIR}")
+      METRIC_ARGS=(--set "${NCU_SET:-basic}" --section-folder "${SECTION_DIR}")
       echo "ncu sections  = ${SECTION_DIR}"
     else
       METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}")
