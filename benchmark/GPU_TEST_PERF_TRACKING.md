@@ -72,6 +72,64 @@ Notes:
 
 ---
 
+## Iteration 2 — 2026-06-28 — local phase-field structural speedup checkpoint
+
+- **Scope:** phase-field / Flame path only; elastic solver intentionally untouched.
+- **Branch/worktree:** `codex/gpu-pf-structural-speedups` in
+  `/home/jackplum/Projects/alamo-pf-gpu-opt`.
+- **HW:** local NVIDIA RTX A1000, sm_86, 8188 MiB. Use for A/B directionality and
+  launch/API deltas; leave NOVA for major version-scale A100 benchmarks.
+- **Harness:** `benchmark/local_pf_gpu_ab.sh` compares explicit `BASE_BIN` and
+  `OPT_BIN`, runs local wall-clock repeats, and can collect Nsight Systems
+  `cuda_api_sum` / `cuda_gpu_kern_sum` reports.
+
+### Local A/B signal
+
+Input decks are the existing phase-field-only GPU perf cases with
+`elastic.type=disable`.
+
+| Case | Steps | Baseline median | Optimized median | Delta |
+|------|------:|----------------:|-----------------:|------:|
+| P1 no-AMR thermal-on | 60 | 0.970 s | 0.940 s | 1.03x / 3.1% faster |
+| P2 AMR3 thermal-on | 30 | 2.010 s | 1.470 s | **1.37x / 26.9% faster** |
+
+Nsight Systems on P2 AMR3, 30 steps:
+
+| Metric | Baseline | Optimized | Delta |
+|--------|---------:|----------:|------:|
+| `cudaLaunchKernel` calls | 108,035 | 38,555 | **64.3% fewer** |
+| CUDA API total time | 1607.5 ms | 832.2 ms | **48.2% lower** |
+| memcpy/memset API calls | 29,644 | 13,804 | **53.4% fewer** |
+| GPU kernel aggregate time | 483.8 ms | 522.1 ms | noise / not the win source |
+
+TinyProfiler attribution on P2 AMR3:
+
+| Region | Baseline | Optimized | Read |
+|--------|---------:|----------:|------|
+| `Integrator::FillPatch` calls | 6300 | 1350 | static/non-evolving field registration removed repeated generic state fill work |
+| `FillPatchTwoLevels` inclusive | 0.916 s | 0.208 s | main AMR structural win |
+| `FillPatchSingleLevel` calls | 9180 | 2070 | launch count follows field-count reduction |
+| `FabArray::FillBoundary()` calls | 15710 | 3650 | BC/fill launch churn reduced |
+| `Integrador::Flame::Advance` inclusive | 0.299 s | 0.222 s | phase/thermal kernel path modestly faster |
+
+Validation:
+
+| Test | Result | Notes |
+|------|--------|-------|
+| F1 smoke flame-only | PASS | profile CUDA binary, 19 steps |
+| C4 AMR correctness | PASS | CPU vs GPU contour compare, `eta=0.0000`, `temp=0.0000`; used the available profile CUDA binary as the strict override in this worktree |
+| Harness smoke | PASS | `REPEATS=1 RUN_NSYS=0 P2_STEPS=5 P1_STEPS=5` |
+
+Notes:
+- The speedup mechanism is launch/API/fill reduction, not a raw stencil kernel
+  throughput improvement.
+- Forcing `thermal.on=0` onto the thermal perf input aborts in both the clean
+  baseline and optimized binaries, so it is not used as an A/B signal.
+- Raw local Nsight reports are intentionally ignored by git under
+  `benchmark/local_ab_*/`.
+
+---
+
 ## Iteration template (copy for the next fix-set)
 
 ```

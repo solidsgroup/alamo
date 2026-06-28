@@ -38,9 +38,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     
-
-    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
-
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
     for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -48,9 +45,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         amrex::Box bx = mfi.tilebox();
         Set::Patch<Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_old_mf.Patch(lev,mfi);
-
-        Set::Scalar *df_max_handle = &df_max;
-
         Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
         Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
@@ -244,13 +238,11 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
                 // Final Eta Update
                 etanew(i, j, k, m) = eta(i,j,k,m) +  dt * totaldf;
-                *df_max_handle = std::max(df_max, std::fabs(totaldf));
             }
         });
     }
 
     if (shearcouple.on && time >= mechanics.tstart) UpdateEigenstrain(lev);
-    //this->DynamicTimestep_SyncDrivingForce(lev,df_max);
 }
 
 template <class model_type>
@@ -313,12 +305,16 @@ void PhaseFieldMicrostructure<model_type>::TagCellsForRefinement(int lev, amrex:
         amrex::Array4<const amrex::Real> const& etanew = (*eta_mf[lev]).array(mfi);
         amrex::Array4<char> const& tags = a_tags.array(mfi);
 
-        for (int n = 0; n < number_of_grains; n++)
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(etanew, i, j, k, n, DX);
-
-            if (dxnorm * grad.lpNorm<2>() > ref_threshold)
-                tags(i, j, k) = amrex::TagBox::SET;
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            for (int n = 0; n < number_of_grains; n++)
+            {
+                Set::Vector grad = Numeric::Gradient(etanew, i, j, k, n, DX);
+                if (dxnorm * grad.lpNorm<2>() > ref_threshold)
+                {
+                    tags(i, j, k) = amrex::TagBox::SET;
+                    break;
+                }
+            }
         });
     }
 }

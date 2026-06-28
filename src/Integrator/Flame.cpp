@@ -120,19 +120,19 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // does CellToNodeAverage(eta) over the model's grown box, which reaches one
     // cell past a 2-ghost buffer at interior grid edges. temp already uses 3.
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 3, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
-    value.RegisterNewFab(value.psi_mf, value.bc_eta, 1, 2, "psi", true);
+    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false, false);
+    value.RegisterNewFab(value.psi_mf, value.bc_eta, 1, 2, "psi", true, false);
 
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
-    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
+    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", false, false);
 
     // Allen-Cahn mobility L is computed and written into L_mf every Advance
     // regardless of the thermal model, so L_mf must be registered
     // unconditionally. It was previously created only inside the thermal.on
     // block, which left it null and segfaulted Advance (L_out write) when
     // thermal.on=0. nghost=0 so the BC is only nominal; reuse bc_eta.
-    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field);
+    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field, false);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
@@ -176,13 +176,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
             
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
-        value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
+        value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false, false);
         value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
 
-        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
-        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
-        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
-        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
+        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field, false);
+        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field, false);
+        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field, false);
+        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field, false);
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -193,7 +193,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.thermo_L_max,        "L_max",         false);
         value.RegisterIntegratedVariable(&value.thermo_eta_min,      "eta_min",       false);
 
-        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", 0); // Used to determine where regression has started
+        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", false, false); // Used to determine where regression has started
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -245,7 +245,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
         ("phi.ic",value.ic_phi,value.geom);
 
-    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
+    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true, false);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
@@ -668,96 +668,85 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     auto              propellant      = this->propellant;
     auto              pf              = this->pf;
     const Set::Scalar small           = this->small;
-    const bool        thermal_on      = thermal.on;
     const Set::Scalar thermal_hc      = thermal.hc;
     const Set::Scalar thermal_Tcutoff = thermal.Tcutoff;
     const Set::Scalar thermal_Tfluid  = thermal.Tfluid;
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    Util::DeviceErrorFlag advance_error;
+    int* advance_error_flag = advance_error.dataPtr();
+
+    if (thermal.on)
     {
-        const amrex::Box& bx = mfi.tilebox();
-        // Phase fields
-        Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
-        // Heat transfer fields
-        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
-        // Diagnostic fields
-        Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev, mfi);
-
-        Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
-        Set::Scalar Tcutoff = thermal.Tcutoff;
-
-        Util::DeviceErrorFlag advance_error;
-        int* advance_error_flag = advance_error.dataPtr();
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
-            //
-            // CALCULATE PHI-AVERAGED QUANTITIES
-            //
-            Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-            Set::Scalar T = thermal_on ? temp(i,j,k) : NAN;
+            const amrex::Box& bx = mfi.tilebox();
+            // Phase fields
+            Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
+            // Heat transfer fields
+            Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
+            // Diagnostic fields
+            Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev, mfi);
 
-            Set::Scalar K = propellant.get_K(phi_avg);
+            Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
+            Set::Scalar Tcutoff = thermal.Tcutoff;
 
-            Set::Scalar rho = propellant.get_rho(phi_avg);
-
-            Set::Scalar cp = propellant.get_cp(phi_avg);
-
-            //
-            // CALCULATE MOBILITY
-            // 
-            Set::Scalar L = propellant.get_L(  phi_avg, T);
-            L_out(i, j, k) = L;
-            // L (mobility) is always used by the eta evolution, so validate it
-            // unconditionally. K/rho/cp are thermal quantities that are
-            // legitimately NAN for burn-rate-only propellant models (e.g.
-            // PowerLaw, whose get_K/get_rho/get_cp return NAN) and are only
-            // consumed inside the thermal_on block below -- validating them
-            // unconditionally spuriously aborts a thermal.on=0 run.
-            if (std::isnan(L) || std::isinf(L))
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Util::SetDeviceError(advance_error_flag);
-            }
-            if (thermal_on &&
-                (std::isnan(K) || std::isinf(K) ||
-                 std::isnan(rho) || std::isinf(rho) ||
-                 std::isnan(cp) || std::isinf(cp)))
-            {
-                Util::SetDeviceError(advance_error_flag);
-            }
+                //
+                // CALCULATE PHI-AVERAGED QUANTITIES
+                //
+                Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                Set::Scalar T = temp(i,j,k);
 
-            // 
-            // EVOLVE PHASE FIELD (ETA)
-            // 
+                Set::Scalar K = propellant.get_K(phi_avg);
 
-            Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
-            Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
-            
-            if (df_deta < 0) {
-                // Prevent eta from increasing/healing. A bug was found where if the diffuse thickness was too large compared to a void
-                // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
-                df_deta = 0.0;
-            }
-            if (thermal_on && T < thermal_Tcutoff) {
-                // If the temperature is lower then the cutoff temperature don't evolve the eta field
-                df_deta = 0.0;
-            }
-            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
-            if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
-            if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-            if (std::isnan(etanew(i, j, k)) || std::isinf(etanew(i, j, k)))
-            {
-                Util::SetDeviceError(advance_error_flag);
-            }
+                Set::Scalar rho = propellant.get_rho(phi_avg);
 
-            if (thermal_on)
-            {
+                Set::Scalar cp = propellant.get_cp(phi_avg);
+
+                //
+                // CALCULATE MOBILITY
+                // 
+                Set::Scalar L = propellant.get_L(  phi_avg, T);
+                L_out(i, j, k) = L;
+                if (std::isnan(L) || std::isinf(L) ||
+                    std::isnan(K) || std::isinf(K) ||
+                    std::isnan(rho) || std::isinf(rho) ||
+                    std::isnan(cp) || std::isinf(cp))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
+
+                // 
+                // EVOLVE PHASE FIELD (ETA)
+                // 
+
+                Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
+                Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
+                
+                if (df_deta < 0) {
+                    // Prevent eta from increasing/healing. A bug was found where if the diffuse thickness was too large compared to a void
+                    // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
+                    df_deta = 0.0;
+                }
+                if (T < thermal_Tcutoff) {
+                    // If the temperature is lower then the cutoff temperature don't evolve the eta field
+                    df_deta = 0.0;
+                }
+                etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+                if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
+                if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+                if (std::isnan(etanew(i, j, k)) || std::isinf(etanew(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
+
                 //
                 // Calculate thermal diffisivity and store for later gradient
                 //
@@ -797,13 +786,47 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     exceeded_Tcutoff(i,j,k) = 1;
                 }
 
-            }
+            });
+        } // MFi For loop 
+    }
+    else
+    {
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev, mfi);
 
-        });
-        Util::AbortIfDeviceError(advance_error, INFO,
-            "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                Set::Scalar L = propellant.get_L(phi_avg, NAN);
+                L_out(i, j, k) = L;
+                if (std::isnan(L) || std::isinf(L))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
 
-    } // MFi For loop 
+                Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
+                Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
+                
+                if (df_deta < 0) {
+                    df_deta = 0.0;
+                }
+                etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+                if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
+                if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+                if (std::isnan(etanew(i, j, k)) || std::isinf(etanew(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
+            });
+        } // MFi For loop 
+    }
+    Util::AbortIfDeviceError(advance_error, INFO,
+        "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
 
 
     //
@@ -812,6 +835,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (thermal.on)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
+
+        Util::DeviceErrorFlag thermal_error;
+        int* thermal_error_flag = thermal_error.dataPtr();
 
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
@@ -829,9 +855,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
             // Diagnostic fields
             Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
-
-            Util::DeviceErrorFlag thermal_error;
-            int* thermal_error_flag = thermal_error.dataPtr();
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -858,9 +881,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 }
 
             });
-            Util::AbortIfDeviceError(thermal_error, INFO,
-                "non-finite value detected in Flame::Advance thermal kernel at lev=", lev);
         }
+        Util::AbortIfDeviceError(thermal_error, INFO,
+            "non-finite value detected in Flame::Advance thermal kernel at lev=", lev);
     }
  
 } //Function
@@ -887,6 +910,8 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     const bool thermal_on = thermal.on;
     const bool phi_refinement_on = elastic.phirefinement;
+    const bool initial_refinement_on = time < thermal_end_initial_refine_t;
+    const bool needs_phi_gradient = phi_refinement_on || initial_refinement_on;
 
     if (thermal_on) {
         for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
@@ -900,24 +925,31 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX.data());
+                Set::Scalar gradeta_dr = gradeta.lpNorm<2>() * dr;
+                Set::Scalar tempgrad_dr = tempgrad.lpNorm<2>() * dr;
+                Set::Scalar gradphi_dr = 0.0;
+                if (needs_phi_gradient)
+                {
+                    Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
+                    gradphi_dr = gradphi.lpNorm<2>() * dr;
+                }
 
                 bool tag = false;
                 tag = tag ||
-                    (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
+                    (gradeta_dr * 2 > m_refinement_criterion &&
                      eta(i, j, k) >= t_refinement_restriction &&
                      temp(i, j, k) > thermal_Tcutoff * 0.9);
                 tag = tag ||
                     (phi_refinement_on &&
-                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                     gradphi_dr >= phi_refinement_criterion);
                 tag = tag ||
-                    (tempgrad.lpNorm<2>() * dr > t_refinement_criterion &&
+                    (tempgrad_dr > t_refinement_criterion &&
                      eta(i, j, k) >= t_refinement_restriction);
                 tag = tag ||
-                    ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
-                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
-                     time < thermal_end_initial_refine_t);
+                    (initial_refinement_on &&
+                     (gradeta_dr * 2 > m_refinement_criterion ||
+                      gradphi_dr >= thermal_phi_ref_initial));
 
                 if (tag)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -935,19 +967,25 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
+                Set::Scalar gradeta_dr = gradeta.lpNorm<2>() * dr;
+                Set::Scalar gradphi_dr = 0.0;
+                if (needs_phi_gradient)
+                {
+                    Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX.data());
+                    gradphi_dr = gradphi.lpNorm<2>() * dr;
+                }
 
                 bool tag = false;
                 tag = tag ||
-                    (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
+                    (gradeta_dr * 2 > m_refinement_criterion &&
                      eta(i, j, k) >= t_refinement_restriction);
                 tag = tag ||
                     (phi_refinement_on &&
-                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                     gradphi_dr >= phi_refinement_criterion);
                 tag = tag ||
-                    ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
-                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
-                     time < thermal_end_initial_refine_t);
+                    (initial_refinement_on &&
+                     (gradeta_dr * 2 > m_refinement_criterion ||
+                      gradphi_dr >= thermal_phi_ref_initial));
 
                 if (tag)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -961,16 +999,16 @@ void Flame::Regrid(int lev, Set::Scalar time)
     BL_PROFILE("Integrator::Flame::Regrid");
 
     ic_phi->Initialize(lev, phi_mf, time);
-    ic_eta->Initialize(lev, eta_0_mf, time);
 
     if (thermal.on) {
-    /* 
-    This regrid function works by using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
-    eta will change and when regridding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
-    eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgionally
-    there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "squares" of voids instead of
-    circles/spheres when using .xyzr files as the inital condition.
-    */
+        ic_eta->Initialize(lev, eta_0_mf, time);
+        /*
+        This regrid function works by using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
+        eta will change and when regridding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital
+        eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgionally
+        there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "squares" of voids instead of
+        circles/spheres when using .xyzr files as the inital condition.
+        */
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();

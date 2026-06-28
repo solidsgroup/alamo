@@ -75,3 +75,6 @@ backtraces_*/
 
 # local A100-spoof gate run artifacts
 benchmark/_a100_gate_*/
+
+# local GPU A/B profiling artifacts
+benchmark/local_ab_*/
