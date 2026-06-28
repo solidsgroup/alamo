@@ -33,6 +33,8 @@ REPEATS="${REPEATS:-3}"
 P2_STEPS="${P2_STEPS:-30}"
 P1_STEPS="${P1_STEPS:-60}"
 RUN_NSYS="${RUN_NSYS:-1}"
+PERF_GATE="${PERF_GATE:-0}"
+GATE_MIN_P2_SPEEDUP="${GATE_MIN_P2_SPEEDUP:-1.10}"
 
 P2_INPUT="tests/GPU/P2_perf_2d_hiRes_AMR3/input"
 P1_INPUT="tests/GPU/P1_perf_2d_hiRes_noAMR/input"
@@ -53,6 +55,8 @@ fi
   echo "p2_steps=$P2_STEPS"
   echo "p1_steps=$P1_STEPS"
   echo "repeats=$REPEATS"
+  echo "perf_gate=$PERF_GATE"
+  echo "gate_min_p2_speedup=$GATE_MIN_P2_SPEEDUP"
 } >> "$OUT/environment.txt"
 
 WALL="$OUT/wall_repeats.csv"
@@ -116,22 +120,65 @@ if [[ "$RUN_NSYS" == "1" && -n "$NSYS_BIN" ]]; then
   done
 fi
 
-python3 - "$OUT" <<'PY'
+python3 - "$OUT" "$PERF_GATE" "$GATE_MIN_P2_SPEEDUP" <<'PY'
 import csv
 import pathlib
 import statistics
 import sys
 
 out = pathlib.Path(sys.argv[1])
+perf_gate = sys.argv[2] == "1"
+gate_min_p2_speedup = float(sys.argv[3])
 rows = list(csv.DictReader((out / "wall_repeats.csv").open()))
+summary_rows = []
 print("case,label,n,median_s,mean_s,stdev_s")
 for case in sorted({row["case"] for row in rows}):
     for label in ("base", "opt"):
         samples = [float(row["wall_s"]) for row in rows
                    if row["case"] == case and row["label"] == label]
         stdev = statistics.stdev(samples) if len(samples) > 1 else 0.0
+        summary_rows.append({
+            "case": case,
+            "label": label,
+            "n": len(samples),
+            "median_s": statistics.median(samples),
+            "mean_s": statistics.mean(samples),
+            "stdev_s": stdev,
+        })
         print(f"{case},{label},{len(samples)},{statistics.median(samples):.3f},"
               f"{statistics.mean(samples):.3f},{stdev:.3f}")
+
+with (out / "summary.csv").open("w", newline="") as fh:
+    writer = csv.DictWriter(
+        fh, fieldnames=["case", "label", "n", "median_s", "mean_s", "stdev_s"])
+    writer.writeheader()
+    for row in summary_rows:
+        writer.writerow(row)
+
+medians = {(row["case"], row["label"]): row["median_s"] for row in summary_rows}
+speedups = {}
+for case in sorted({row["case"] for row in summary_rows}):
+    base = medians.get((case, "base"))
+    opt = medians.get((case, "opt"))
+    if base and opt:
+        speedups[case] = base / opt
+
+with (out / "speedups.csv").open("w", newline="") as fh:
+    writer = csv.DictWriter(fh, fieldnames=["case", "speedup"])
+    writer.writeheader()
+    for case, speedup in sorted(speedups.items()):
+        writer.writerow({"case": case, "speedup": speedup})
+
+if speedups:
+    print("case,speedup")
+    for case, speedup in sorted(speedups.items()):
+        print(f"{case},{speedup:.3f}")
+
+p2_speedup = speedups.get("p2_amr_thermal_on")
+if perf_gate and (p2_speedup is None or p2_speedup < gate_min_p2_speedup):
+    found = "missing" if p2_speedup is None else f"{p2_speedup:.3f}"
+    print(f"FAIL: p2_amr_thermal_on speedup {found} < {gate_min_p2_speedup:.3f}")
+    sys.exit(1)
 PY
 
 echo "artifacts=$OUT"

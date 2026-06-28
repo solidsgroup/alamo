@@ -172,6 +172,36 @@ Validation:
 
 ---
 
+## Local phase-field GPU perf gate
+
+Use the workstation gate for structural phase-field changes before spending NOVA
+time. It is intentionally local and phase-field-only; NOVA remains the venue for
+major version-scale A100 benchmarks and large 3D confirmation.
+
+```bash
+cd /home/jackplum/Projects/alamo-pf-gpu-opt
+BASE_BIN=/home/jackplum/Projects/alamo-pf-gpu-base/bin/alamo_gpu-2d-profile-cuda86-g++ \
+OPT_BIN=/home/jackplum/Projects/alamo-pf-gpu-opt/bin/alamo_gpu-2d-profile-cuda86-g++ \
+REPEATS=3 RUN_NSYS=1 P2_STEPS=30 P1_STEPS=60 \
+PERF_GATE=1 GATE_MIN_P2_SPEEDUP=1.10 \
+benchmark/local_pf_gpu_ab.sh
+```
+
+Artifacts:
+- `wall_repeats.csv` has raw timings.
+- `summary.csv` has median/mean/stdev by case and label.
+- `speedups.csv` has median baseline/optimized speedups.
+- `nsys_p2_{base,opt}/` contains CUDA API/kernel summaries when `RUN_NSYS=1`.
+
+Gate behavior:
+- Default mode (`PERF_GATE=0`) is exploratory and never fails on performance.
+- Gate mode (`PERF_GATE=1`) fails if `p2_amr_thermal_on` speedup is below
+  `GATE_MIN_P2_SPEEDUP`.
+- Smoke-verified locally on 2026-06-28 with `REPEATS=1 RUN_NSYS=0 P2_STEPS=5
+  P1_STEPS=5 PERF_GATE=1 GATE_MIN_P2_SPEEDUP=1.05`; observed P2 speedup 1.289x.
+
+---
+
 ## Iteration template (copy for the next fix-set)
 
 ```
