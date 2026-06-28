@@ -179,24 +179,30 @@ case "${DIAG_TOOL}" in
     # Fsmooth, interpolation, ...). (NVTX --nvtx-include was tried and never matched
     # AMReX's deeply-nested push/pop ranges -- "No kernels were profiled".)
     #
-    # Metric set + section files. Two gotchas on this ncu (Nsight Compute 2025.1.1):
-    #   - there is NO set named "default" anymore (sets are basic/detailed/full/
-    #     roofline/...). "--set default" enables nothing -> "No metrics to collect
-    #     found in sections" -> "No kernels were profiled". Use basic; override with
-    #     NCU_SET=full (roofline + full memory workload) or NCU_SET=detailed.
-    #   - pass --section-folder (the install's sections dir) in case ncu can't find
-    #     it on its own; fall back to explicit --metrics if even that is missing.
+    # Metric set is version-dependent: ncu 2022.x exposes 'default', ncu 2025.x
+    # exposes 'basic' (both have detailed/full). Auto-pick the lightest available
+    # SoL+Occupancy set from --list-sets unless NCU_SET overrides; fall back to an
+    # explicit --metrics list if no named set is found. --section-folder guards the
+    # case where ncu can't locate its sections dir on its own.
     NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
     SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
-    if [ -n "${SECTION_DIR}" ]; then
-      METRIC_ARGS=(--set "${NCU_SET:-basic}" --section-folder "${SECTION_DIR}")
-      echo "ncu sections  = ${SECTION_DIR}"
-    else
-      METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}")
-      echo "ncu sections  = NOT FOUND near ${NCU_DIR} -- using explicit --metrics"
-    fi
+    SF_ARGS=(); [ -n "${SECTION_DIR}" ] && SF_ARGS=(--section-folder "${SECTION_DIR}")
+    echo "ncu sections  = ${SECTION_DIR:-<ncu default lookup>}"
     echo "=== ncu --list-sets ==="
-    "${NCU}" --list-sets ${SECTION_DIR:+--section-folder "${SECTION_DIR}"} 2>&1 | head -20 || true
+    SETS_AVAIL="$("${NCU}" --list-sets "${SF_ARGS[@]}" 2>&1)"; echo "${SETS_AVAIL}" | head -20
+    NCU_SET_USE="${NCU_SET:-}"
+    if [ -z "${NCU_SET_USE}" ]; then
+      for cand in basic default detailed full; do
+        echo "${SETS_AVAIL}" | grep -qE "^${cand}[[:space:]]" && { NCU_SET_USE="${cand}"; break; }
+      done
+    fi
+    if [ -n "${NCU_SET_USE}" ]; then
+      echo "ncu set       = ${NCU_SET_USE}"
+      METRIC_ARGS=(--set "${NCU_SET_USE}" "${SF_ARGS[@]}")
+    else
+      echo "ncu set       = <none found> -- using explicit --metrics"
+      METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}" "${SF_ARGS[@]}")
+    fi
 
     # One pass: profile launches [skip, skip+count) with no name/NVTX filter. The
     # elastic solve dominates the stream, so a small window catches Fapply (+ the

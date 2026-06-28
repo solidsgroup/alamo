@@ -37,17 +37,26 @@ COMMON_ARGS=(
 # function name "launch_global" -- name-regex (and NVTX --nvtx-include) matching
 # never hits the physics kernels. Instead profile a bounded WINDOW of launches
 # (--launch-skip/--launch-count) and identify kernels by demangled name in post.
-# Note: Nsight Compute 2025.x has no "default" set (it's basic/detailed/full/...),
-# so "--set default" collects nothing; use basic (override NCU_SET=full|detailed).
-# --section-folder guards section lookup.
+# Metric set is version-dependent: ncu 2022.x has 'default', 2025.x has 'basic'
+# (both have detailed/full). Auto-pick the lightest available set from --list-sets
+# unless NCU_SET overrides; explicit --metrics fallback if none found.
 NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
 SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
-if [ -n "${SECTION_DIR}" ]; then
-    METRIC_ARGS=(--set "${NCU_SET:-basic}" --section-folder "${SECTION_DIR}")
-    echo "ncu sections = ${SECTION_DIR}"
+SF_ARGS=(); [ -n "${SECTION_DIR}" ] && SF_ARGS=(--section-folder "${SECTION_DIR}")
+echo "ncu sections = ${SECTION_DIR:-<ncu default lookup>}"
+SETS_AVAIL="$("${NCU}" --list-sets "${SF_ARGS[@]}" 2>&1)"
+NCU_SET_USE="${NCU_SET:-}"
+if [ -z "${NCU_SET_USE}" ]; then
+    for cand in basic default detailed full; do
+        echo "${SETS_AVAIL}" | grep -qE "^${cand}[[:space:]]" && { NCU_SET_USE="${cand}"; break; }
+    done
+fi
+if [ -n "${NCU_SET_USE}" ]; then
+    echo "ncu set      = ${NCU_SET_USE}"
+    METRIC_ARGS=(--set "${NCU_SET_USE}" "${SF_ARGS[@]}")
 else
-    METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}")
-    echo "ncu sections = NOT FOUND near ${NCU_DIR} -- using explicit --metrics"
+    echo "ncu set      = <none found> -- using explicit --metrics"
+    METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}" "${SF_ARGS[@]}")
 fi
 
 NCU_SKIP="${NCU_SKIP:-0}"
