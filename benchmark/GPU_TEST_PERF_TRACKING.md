@@ -130,6 +130,48 @@ Notes:
 
 ---
 
+## Iteration 3 — 2026-06-28 — skip non-evolving AMR average-down
+
+- **Scope:** generic AMR synchronization change motivated by the phase-field
+  Flame deck. `Integrator::TimeStep` now averages down registered cell/node
+  fields only when their existing `evolving` flag is true, matching the behavior
+  that base fields already used.
+- **Why:** after fine-level subcycling, AMReX was still averaging down static
+  and diagnostic fields such as `phi`, `eta_old`, `eta_0`, `L`, `mdot`,
+  `alpha`, `heatflux`, and `laser`. Those fields were already removed from
+  per-step FillPatch in Iteration 2, but they still paid AMR average-down launch
+  cost.
+
+### Local A/B signal
+
+Fresh run with the same baseline binary and optimized worktree after the
+average-down change:
+
+| Case | Steps | Baseline median | Optimized median | Delta |
+|------|------:|----------------:|-----------------:|------:|
+| P1 no-AMR thermal-on | 60 | 0.840 s | 0.810 s | 1.04x / 3.6% faster |
+| P2 AMR3 thermal-on | 30 | 1.650 s | 1.140 s | **1.45x / 30.9% faster** |
+
+Nsight Systems on P2 AMR3, 30 steps:
+
+| Metric | Baseline | Optimized | Delta |
+|--------|---------:|----------:|------:|
+| `cudaLaunchKernel` calls | 108,035 | 31,835 | **70.5% fewer** |
+| CUDA API total time | 1205.3 ms | 743.4 ms | **38.3% lower** |
+| memcpy/memset API calls | 29,644 | 8,042 | **72.9% fewer** |
+| `amrex::average_down_w_geom` calls | 2769 | 669 | **75.8% fewer** |
+| `amrex::average_down_w_geom` inclusive | 0.139 s | 0.033 s | **76.1% lower** |
+
+Validation:
+
+| Test | Result | Notes |
+|------|--------|-------|
+| CUDA profile rebuild | PASS | `make -j8 bin/alamo_gpu` |
+| F1 smoke flame-only | PASS | profile CUDA binary, 19 steps |
+| C4 AMR correctness | PASS | CPU vs GPU contour compare, `eta=0.0000`, `temp=0.0000`; same profile-CUDA strict override caveat |
+
+---
+
 ## Iteration template (copy for the next fix-set)
 
 ```
