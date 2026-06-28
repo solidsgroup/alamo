@@ -202,6 +202,54 @@ Gate behavior:
 
 ---
 
+## Iteration 4 — 2026-06-28 — quiet chamber logs and skip disabled thermo diagnostics
+
+- **Scope:** Flame/chamber host-side wall-clock cleanup plus disabled-output
+  diagnostic gating.
+- **Changes:**
+  - Added `chamber.verbose` (default `0`) and gated the four per-step chamber
+    pressure/mass/volume/dpdt messages behind it.
+  - `Flame::TimeStepComplete` now computes max/min thermo diagnostics only when
+    a thermo row will be written on the next step. Profiling/perf runs that pass
+    `amr.thermo.plot_int=-1` no longer pay those reductions.
+- **Why:** long phase-field perf runs were writing four chamber messages every
+  step, and no-output A/B runs still computed non-extensive thermo diagnostics
+  that had no consumer.
+
+### Local A/B signal
+
+Fresh local run after Iteration 4:
+
+| Case | Steps | Baseline median | Optimized median | Delta |
+|------|------:|----------------:|-----------------:|------:|
+| P1 no-AMR thermal-on | 60 | 0.980 s | 0.940 s | 1.04x / 4.1% faster |
+| P2 AMR3 thermal-on | 30 | 2.030 s | 1.330 s | **1.53x / 34.5% faster** |
+
+Nsight Systems on P2 AMR3, 30 steps:
+
+| Metric | Baseline | Optimized | Delta |
+|--------|---------:|----------:|------:|
+| `cudaLaunchKernel` calls | 108,035 | 31,505 | **70.8% fewer** |
+| CUDA API total time | 1244.4 ms | 736.6 ms | **40.8% lower** |
+| memcpy/memset API calls | 29,644 | 8,042 | **72.9% fewer** |
+| chamber log lines | 120 | 0 | removed by default |
+
+Validation:
+
+| Test | Result | Notes |
+|------|--------|-------|
+| CUDA profile rebuild | PASS | `make -j8 bin/alamo_gpu` |
+| F1 smoke flame-only | PASS | normal thermo output still enabled |
+| C4 AMR correctness | PASS | CPU vs GPU contour compare, `eta=0.0000`, `temp=0.0000` |
+
+Notes:
+- Set `chamber.verbose=1` to restore the old per-step chamber messages.
+- The thermo-diagnostic gate affects only the non-extensive diagnostic reductions
+  in `TimeStepComplete`; chamber integrated variables are still computed before
+  advance as required by the variable-pressure model.
+
+---
+
 ## Iteration template (copy for the next fix-set)
 
 ```

@@ -211,6 +211,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
+    pp_query_default("chamber.verbose", value.chamber.verbose, 0);
 
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
@@ -575,11 +576,18 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
 
-    if (thermal.on)
+    const int next_step = a_iter + 1;
+    const Set::Scalar next_time = a_time + dt[0];
+    const bool thermo_write_next =
+        (thermo.plot_int > 0 && next_step % thermo.plot_int == 0) ||
+        (thermo.plot_dt > 0.0 &&
+         std::fabs(std::remainder(next_time, thermo.plot_dt)) < 0.5 * dt[0]);
+
+    if (thermal.on && thermo_write_next)
     {
         // Chamber thermo diagnostics written to thermo.dat. The five min/max
         // reductions over every level are accumulated into a single fused device
@@ -634,10 +642,13 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     {
         auto [new_pressure, current_dpdt] = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
         chamber.pressure = new_pressure;
-        Util::Message(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
-        Util::Message(INFO, "chamber.mdot = ", Unit::Mass(chamber.mdot) / Unit::Time());
-        Util::Message(INFO, "chamber.volume = ", Unit::Volume(chamber.volume));
-        Util::Message(INFO, "chamber.dpdt = ", current_dpdt);
+        if (chamber.verbose)
+        {
+            Util::Message(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
+            Util::Message(INFO, "chamber.mdot = ", Unit::Mass(chamber.mdot) / Unit::Time());
+            Util::Message(INFO, "chamber.volume = ", Unit::Volume(chamber.volume));
+            Util::Message(INFO, "chamber.dpdt = ", current_dpdt);
+        }
     }
 }
 

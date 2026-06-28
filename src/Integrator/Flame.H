@@ -168,6 +168,7 @@ public:
         Set::Scalar mdot = 0.0;
         // Intensive variables
         Set::Scalar pressure = NAN;
+        int verbose = 0;
 
         Model::Chamber::Ballistic  model;
 
