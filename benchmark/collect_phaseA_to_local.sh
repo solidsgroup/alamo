@@ -5,9 +5,10 @@
 # Run this ON NOVA from the alamo repo root after the A1 (ncu/nsys diag) and A2
 # (combined crossover) jobs have finished. It bundles:
 #   - benchmark/profiles_alpha1/   (ncu_*/ and nsys_*/ reports + CSVs -- A1)
-#   - flame_gpu_3d_diag.*.out      (A1 diag SLURM logs; confirms ncu/nsys ran)
-#   - flame_gpu_3d_a2.*.out        (A2 GPU crossover logs: TinyProfiler + time -v)
-#   - flame_cpu_3d_a2.*.out        (A2 CPU baseline logs)
+#   - flame_gpu_3d_diag.*.{out,err} (A1 diag SLURM logs; .err carries ncu/nsys
+#                                    tool errors -- e.g. why a profile came out empty)
+#   - flame_gpu_3d_a2.*.{out,err}   (A2 GPU crossover logs: TinyProfiler + time -v)
+#   - flame_cpu_3d_a2.*.{out,err}   (A2 CPU baseline logs)
 # into a timestamped tarball, then scp's it to the local box's Downloads dir.
 #
 # Usage:
@@ -49,7 +50,9 @@ fi
 shopt -s nullglob
 TARGETS=()
 [ -d benchmark/profiles_alpha1 ] && TARGETS+=("benchmark/profiles_alpha1")
-TARGETS+=( flame_gpu_3d_diag.*.out flame_gpu_3d_a2.*.out flame_cpu_3d_a2.*.out )
+TARGETS+=( flame_gpu_3d_diag.*.out flame_gpu_3d_diag.*.err \
+           flame_gpu_3d_a2.*.out   flame_gpu_3d_a2.*.err \
+           flame_cpu_3d_a2.*.out   flame_cpu_3d_a2.*.err )
 shopt -u nullglob
 
 if [ "${#TARGETS[@]}" -eq 0 ]; then

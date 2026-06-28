@@ -170,31 +170,65 @@ case "${DIAG_TOOL}" in
     echo "=== ncu profiles will be written to ${OUT_BASE}/ ==="
     echo "=== profiling input: ${PROFILE_INPUT} ==="
 
+    # AMReX launches every GPU kernel through one wrapper (amrex::launch_global),
+    # so ncu only ever sees the function name "launch_global" -- matching on
+    # --kernel-name-base function never selects the physics kernels (that bug left
+    # every ncu_*/ empty while the job still exited 0). Target the TinyProfiler
+    # NVTX *region* instead: the --profile build emits NVTX push/pop ranges named
+    # exactly like the TinyProfiler rows (Operator::Elastic::Fapply(), ...).
+    #
+    # "--set default" also needs ncu's .section/.set files, which this CUDA-module
+    # ncu may not locate on its own ("No metrics to collect found in sections").
+    # Find them next to the install and pass --section-folder; if absent, fall back
+    # to an explicit --metrics list (which needs no section files).
+    NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
+    SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
+    if [ -n "${SECTION_DIR}" ]; then
+      METRIC_ARGS=(--set "${NCU_SET:-default}" --section-folder "${SECTION_DIR}")
+      echo "ncu sections  = ${SECTION_DIR}"
+    else
+      METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}")
+      echo "ncu sections  = NOT FOUND near ${NCU_DIR} -- using explicit --metrics"
+    fi
+    echo "=== ncu --list-sets ==="
+    "${NCU}" --list-sets ${SECTION_DIR:+--section-folder "${SECTION_DIR}"} 2>&1 | head -20 || true
+
+    NCU_FAILS=0
     ncu_run() {
-      local label="$1" regex="$2"
-      echo "--- ncu: ${label} (regex: ${regex}) ---"
+      local label="$1" nvtx="$2"
+      echo "--- ncu: ${label} (nvtx-include: ${nvtx}) ---"
       srun --mpi=pmix -n 1 --gpus-per-task=1 \
         "${NCU}" \
           --target-processes all \
-          --set default \
-          --kernel-name-base function \
-          --kernel-name "regex:${regex}" \
+          "${METRIC_ARGS[@]}" \
+          --nvtx --nvtx-include "${nvtx}" \
           --launch-count 4 \
           --csv --page raw \
           --print-kernel-base demangled \
           --export "${OUT_BASE}/${label}" \
           --force-overwrite \
-          "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE}
+          "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE} || true
+      if [ -s "${OUT_BASE}/${label}.ncu-rep" ]; then
+        echo "    ncu: ${label} -> $(du -h "${OUT_BASE}/${label}.ncu-rep" | cut -f1)"
+      else
+        echo "!!! ncu: ${label} produced NO report -- see 'No kernels were profiled' / 'No metrics' warnings above" >&2
+        NCU_FAILS=$((NCU_FAILS + 1))
+      fi
     }
 
-    ncu_run "flame_advance"    ".*Flame.*Advance.*|.*flame.*advance.*"
-    ncu_run "elastic_fapply"   ".*Elastic.*Fapply.*|.*elastic.*fapply.*"
-    ncu_run "elastic_diagonal" ".*Elastic.*Diagonal.*|.*elastic.*diagonal.*"
-    ncu_run "newton_prepare"   ".*Newton.*prepareForSolve.*|.*newton.*prepare.*"
-    ncu_run "operator_interp"  ".*interpolat.*"
+    # Targets are NVTX region-name globs (matched against TinyProfiler ranges).
+    # Fapply is ~60% of the combined step; flame_advance (~0.1%) is not worth a pass.
+    ncu_run "elastic_fapply"   "*Fapply*/"
+    ncu_run "operator_interp"  "*interpolation*/"
+    ncu_run "elastic_diagonal" "*Diagonal*/"
+    ncu_run "bottom_bicgstab"  "*bicgstab*/"
 
     echo "=== ncu complete; profiles in ${OUT_BASE}/ ==="
     ls -lh "${OUT_BASE}/" || true
+    if [ "${NCU_FAILS}" -gt 0 ]; then
+      echo "=== ncu: ${NCU_FAILS} pass(es) produced no data (see warnings above) ===" >&2
+      exit 1
+    fi
     ;;
 
   nsys)
