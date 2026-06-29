@@ -1,18 +1,18 @@
 alamo.program = forcedmovement
 plot_file = ./output.forcedmovement
 # amr.plot_dt = 0.05
-amr.plot_int = 1
+amr.plot_int = 200
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 2
-timestep  = 1e+1
-amr.n_cell = 24 8
-geometry.prob_lo = -9.0  0
-geometry.prob_hi =  9.0 6.0
+timestep  = 1e-1
+amr.n_cell = 24 24
+geometry.prob_lo = -6.0 -6.0
+geometry.prob_hi =  6.0 6.0
 geometry.is_periodic = 0 0 0
-stop_time = 1e+2
+stop_time = 1e3
 # AMR parameters
 
 amr.cell.all = 1
@@ -20,11 +20,11 @@ amr.cell.all = 1
 tstart = 100000000
 
 ## forced movement
-forcedmovement.alpha.ic.type = expression
+forcedmovement.alpha.ic.type = pointlist
 forcedmovement.alpha.ic.expression.constant.width = 0.4
 forcedmovement.alpha.ic.expression.constant.height = 3.0
-forcedmovement.alpha.ic.expression.constant.eps = 0.8
-forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
+forcedmovement.alpha.ic.expressi
+# forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 
 forcedmovement.alpha.bc.constant.type.xlo = neumann
@@ -36,14 +36,17 @@ forcedmovement.alpha.bc.constant.val.xhi = 0.0
 forcedmovement.alpha.bc.constant.val.ylo = 0.0
 forcedmovement.alpha.bc.constant.val.yhi = 0.0
 
-forcedmovement.position_new.bc.constant.type.xlo = dirichlet
-forcedmovement.position_new.bc.constant.type.xhi = dirichlet
-forcedmovement.position_new.bc.constant.type.ylo = dirichlet
-forcedmovement.position_new.bc.constant.type.yhi = dirichlet
-forcedmovement.position_new.bc.constant.val.xlo = 0.0
-forcedmovement.position_new.bc.constant.val.xhi = 0.0
-forcedmovement.position_new.bc.constant.val.ylo = 0.0
-forcedmovement.position_new.bc.constant.val.yhi = 0.0
+forcedmovement.velocity.ic.type = constant
+forcedmovement.velocity.ic.constant.value = "0.01" "0.01"
+
+forcedmovement.velocity.bc.constant.type.xlo = neumann
+forcedmovement.velocity.bc.constant.type.xhi = neumann
+forcedmovement.velocity.bc.constant.type.ylo = neumann
+forcedmovement.velocity.bc.constant.type.yhi = neumann
+forcedmovement.velocity.bc.constant.val.xlo = 0.0
+forcedmovement.velocity.bc.constant.val.xhi = 0.0
+forcedmovement.velocity.bc.constant.val.ylo = 0.0
+forcedmovement.velocity.bc.constant.val.yhi = 0.0
 
 ### HYDRO PARAM ###
 

@@ -67,20 +67,25 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, value.geom); 
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, value.geom);
+        
+        // Set the initial condition for the velocity field
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("velocity.ic", value.velocity_ic, value.geom);
 
         // Use a constant BC object for temperature
         // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
         pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
-        pp.select_default<BC::Constant>("position_new.bc", value.position_new_bc, 2);
+        // pp.select_default<BC::Constant>("position_new_bc.bc", value.position_new_bc, 2);
+        pp.select_default<BC::Constant>("velocity.bc", value.velocity_bc, 2);
         // pp.select_default<BC::Constant>("alpha.bc", alpha.bc, 1);
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.alpha_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha", true);
         value.RegisterNewFab(value.alpha_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha_old", false);
-        value.RegisterNewFab(value.position_new_mf, value.position_new_bc, 2, value.number_of_ghost_cells, "position_new", true ,true, {"x","y"});
+        value.RegisterNewFab(value.velocity_mf, value.velocity_bc, 2, value.number_of_ghost_cells, "velocity_bc", true ,true, {"x","y"});
+        // value.RegisterNewFab(value.position_new_mf, value.position_new_bc, 2, value.number_of_ghost_cells, "position_new", true ,true, {"x","y"});
     }
 
 protected:
@@ -90,6 +95,7 @@ protected:
     {
         ic->Initialize(lev, alpha_mf);
         ic->Initialize(lev, alpha_old_mf);
+        velocity_ic->Initialize(lev, velocity_mf);
     }
 
     // Integrate the forced movement to update the alpha field
@@ -112,80 +118,68 @@ protected:
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
             Set::Patch<Set::Scalar> position_new = position_new_mf.Patch(lev,mfi);
-            Set::Patch<Set::Vector> velocity = velocity_mf.Patch(lev,mfi);
-            Set::Scalar vel_x = 0.01;
-            Set::Scalar vel_y = 0.01;
+            Set::Patch<Set::Scalar> velocity = velocity_mf.Patch(lev,mfi);
+            // Set::Scalar vel_x = 0.01;
+            // Set::Scalar vel_y = 0.01;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {   
-                Set::Vector vel = Set::Vector(vel_x, vel_y);
-                Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
-                Set::Vector dx = vel*dt;
-                position_new(i,j,k,0) = Center(0) + dx(0);
-                position_new(i,j,k,1) = Center(1) + dx(1);
-                // position_new(i,j,k) = Center + dx;
-            });
+            {
+                // Gather-form conservative remap:
+                // For target cell (i,j,k), pull mass from each of its 3x3 neighbors j,
+                // weighted by the fraction of neighbor j's displaced cell that overlaps
+                // this target cell. Each neighbor's weights sum to 1 over the stencil
+                // (tent function partition of unity), so this conserves alpha*V exactly
+                // (on a uniform-volume stencil) rather than diffusing it.
 
+                Set::Vector TargetCenter = Set::Position(i, j, k, geom[lev], type);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {   
-                Eigen::Matrix<double,5,3> A;
-                Eigen::Matrix<double,5,1> b;
+                Set::Scalar Q_new = 0.0; // accumulator for alpha*V gathered into this cell
 
-                A.setZero();
-                b.setZero();
-            
-                Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
-
-                static constexpr int off[5][2] = {
-                    { 0,  0},
-                    { 1,  0},
-                    { 0,  1},
-                    {-1,  0},
-                    { 0, -1}
-                };
-
-                for (int n = 0; n < 5; ++n)
+                for (int dj = -1; dj <= 1; ++dj)
+                for (int di = -1; di <= 1; ++di)
                 {
-                    int ii = i + off[n][0];
-                    int jj = j + off[n][1];
+                    int ii = i + di;
+                    int jj = j + dj;
 
-                    Set::Vector d;
-                    d(0) = position_new(ii,jj,k,0) - Center(0);
-                    d(1) = position_new(ii,jj,k,1) - Center(1);
+                    // Neighbor's own displacement (cell-centered velocity * dt)
+                    Set::Vector u_n;
+                    u_n(0) = velocity(ii,jj,k,0) * dt;
+                    u_n(1) = velocity(ii,jj,k,1) * dt;
 
-                    A(n,0) = 1.0;
-                    A(n,1) = d(0);
-                    A(n,2) = d(1);
+                    if (std::abs(u_n(0)) >= DX[0] || std::abs(u_n(1)) >= DX[1])
+                    {
+                        amrex::Print() << "WARNING: displacement exceeds cell width at ("
+                                        << i << "," << j << "," << k << "): "
+                                        << "u = (" << u_n(0) << ", " << u_n(1) << "), "
+                                        << "DX = (" << DX[0] << ", " << DX[1] << ")\n";
+                    }
 
-                    b(n) = alpha(ii,jj,k);
+                    // Neighbor's undeformed center
+                    Set::Vector NeighborCenter = Set::Position(ii, jj, k, geom[lev], type);
+
+                    // Displaced neighbor center
+                    Set::Scalar xC = NeighborCenter(0) + u_n(0);
+                    Set::Scalar yC = NeighborCenter(1) + u_n(1);
+
+                    // Offset of displaced neighbor center from THIS target cell's center
+                    Set::Scalar dx = xC - TargetCenter(0);
+                    Set::Scalar dy = yC - TargetCenter(1);
+
+                    // 1D tent overlap fractions (DX[0], DX[1] = cell widths)
+                    Set::Scalar fx = std::max(0.0, DX[0] - std::abs(dx)) / DX[0];
+                    Set::Scalar fy = std::max(0.0, DX[1] - std::abs(dy)) / DX[1];
+
+                    Set::Scalar F = fx * fy;
+
+                    if (F > 0.0)
+                    {
+                        Q_new += alpha(ii,jj,k) * F; // alpha*V with V cancelled (uniform V assumed)
+                    }
                 }
 
-                Eigen::Vector3d coeff = A.colPivHouseholderQr().solve(b);
-                double alphaCenter = coeff(0);
-
-                if (!std::isfinite(alphaCenter))
-                {   
-                    auto p0 = position_new(i,   j,   k);
-                    auto p1 = position_new(i+1, j,   k);
-                    auto p2 = position_new(i,   j+1, k);
-                    auto p3 = position_new(i-1, j,   k);
-                    auto p4 = position_new(i,   j-1, k);
-
-                    std::cout << "p0 = " << p0 << "\n";
-                    std::cout << "p1 = " << p1 << "\n";
-                    std::cout << "p2 = " << p2 << "\n";
-                    std::cout << "p3 = " << p3 << "\n";
-                    std::cout << "p4 = " << p4 << "\n";
-
-                    std::cout << "NaN at (" << i << "," << j << "," << k << ")\n";
-                    std::cout << "A =\n" << A << "\n";
-                    std::cout << "b = " << b.transpose() << "\n";
-                    std::cout << "rank = " << A.colPivHouseholderQr().rank() << "\n\n";
-                }
-
-                // Update
-                alpha_new(i, j, k) = alphaCenter;
+                // Update (V_new == V_old here since grid volumes are uniform on this level;
+                // if that ever changes, divide Q_new by V_new(i,j,k) explicitly)
+                alpha_new(i, j, k) = Q_new;
             });
         }
 
@@ -227,13 +221,14 @@ protected:
     Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
     Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
     IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
+    IC::IC<Set::Scalar>* velocity_ic;                  /// Object used to initialize velocity field
 
     Set::Field<Set::Scalar> &eta_mf = alpha_mf;
     Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
 
     Set::Field<Set::Vector> position_mf;
     Set::Field<Set::Scalar> position_new_mf; // Updated position of each point after move is applied
-    Set::Field<Set::Vector> velocity_mf; // Velocity of each point
+    Set::Field<Set::Scalar> velocity_mf; // Velocity of each point
 
 private:
     int number_of_components = 1;            // Number of components
@@ -243,6 +238,7 @@ private:
 
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
     BC::BC<Set::Scalar>* position_new_bc;
+    BC::BC<Set::Scalar>* velocity_bc;
 };
 } // namespace Integrator
 #endif
