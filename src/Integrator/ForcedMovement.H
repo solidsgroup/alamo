@@ -137,7 +137,7 @@ protected:
                 };
 
                 for (int n = 0; n < 5; ++n)
-{
+                {
                     int ii = i + off[n][0];
                     int jj = j + off[n][1];
 
