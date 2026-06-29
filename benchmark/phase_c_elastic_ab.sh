@@ -25,13 +25,14 @@
 # pass --submit on a SLURM host to actually submit.
 #
 # Flags:   --submit | --dry-run | --scavenger
-# Env:     GPU_TYPE=a100  GPU_NODE_CPUS=72  STOP_TIME=0.06  PARTITION=nova
+# Env:     GPU_TYPE=a100  GPU_NODE_CPUS=8  GPU_MEM=64G  STOP_TIME=0.06  PARTITION=nova
 #          OUT=phase_c_ab_commands.txt
 #
 set -euo pipefail
 
 GPU_TYPE="${GPU_TYPE:-a100}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-72}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-8}"
+GPU_MEM="${GPU_MEM:-64G}"
 STOP_TIME="${STOP_TIME:-0.06}"          # 0.06 s / 1e-4 = 600 steps => ~12 solves @interval=50
 PARTITION="${PARTITION:-nova}"
 OUT="${OUT:-phase_c_ab_commands.txt}"
@@ -77,7 +78,7 @@ echo "============================================================"
 } >> "$OUT"
 
 sbatch_opts=(--partition="${PARTITION}" --nodes=1 --gres="gpu:${GPU_TYPE}:1" \
-             --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${GPU_NODE_CPUS}" --mem=0 \
+             --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${GPU_NODE_CPUS}" --mem="${GPU_MEM}" \
              --time=01:00:00 -J flame_gpu_3d_phaseC)
 
 for v in "${VARIANTS[@]}"; do
