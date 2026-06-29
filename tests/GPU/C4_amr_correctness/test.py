@@ -15,7 +15,7 @@ if cpu_bin is None:
     env = os.environ.get("ALAMO_CPU_BIN")
     cpu_bin = Path(env) if env else None
 
-gpu_bin = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-nofast-cuda86-g++")
+gpu_bin = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-nofast-cuda*-g++")
 if gpu_bin is None:
     env = os.environ.get("ALAMO_GPU_STRICT_BIN")
     gpu_bin = Path(env) if env else None

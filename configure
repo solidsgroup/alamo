@@ -16,7 +16,7 @@ except ImportError as e:
         f"\nError: Missing required Python module: {e.name}\n"
         "Please install it and rerun configure.\n\n"
     )
-    sys.exit(1)    
+    sys.exit(1)
 
 #
 # Configuration parameters, mainly to specify default values:
@@ -809,10 +809,10 @@ if comp_basename =='clang++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
         f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
-        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -Wl,--no-as-needed -Wl,-u,ProfilerStart -l:libprofiler.so.0 -Wl,--as-needed\n")
     else:
         f.write("CXX_COMPILE_FLAGS += -O3\n")
-        f.write("LINKER_FLAGS += -flto \n")    
+        f.write("LINKER_FLAGS += -flto \n")
 if comp_basename =='icc':
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 

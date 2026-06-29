@@ -134,12 +134,12 @@ void AlamoPrintSpatialDiagMF(const char* label, int call, int amrlev, int mglev,
         const amrex::IntVect max_index = mf.maxIndex(n, 0);
 
         amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
-                         amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum,
-                         amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum,
-                         amrex::ReduceOpSum> reduce_op;
+                        amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum,
+                        amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum,
+                        amrex::ReduceOpSum> reduce_op;
         amrex::ReduceData<amrex::Real, amrex::Real, amrex::Real, amrex::Real,
-                          amrex::Real, amrex::Real, amrex::Real, amrex::Real,
-                          amrex::Real, amrex::Real> reduce_data(reduce_op);
+                        amrex::Real, amrex::Real, amrex::Real, amrex::Real,
+                        amrex::Real, amrex::Real> reduce_data(reduce_op);
         using ReduceTuple = typename decltype(reduce_data)::Type;
 
         for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

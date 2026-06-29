@@ -11,9 +11,9 @@ class Constant
 {
 public:
     static constexpr const char* name = "constant";
-    
+
     Constant() = default;
-    Constant(IO::ParmParse &pp, std::string name) 
+    Constant(IO::ParmParse &pp, std::string name)
     {
         pp_queryclass(name,*this);
     }
@@ -28,9 +28,9 @@ public:
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    void set_pressure(const Set::Scalar /*P*/) 
+    void set_pressure(const Set::Scalar /*P*/)
     {}
-    
+
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar /*phi*/) const    {return this->K;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -45,11 +45,11 @@ public:
     static void Parse(Constant& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
-        pp_query_required("K", value.K);   
-        pp_query_required("rho", value.rho);
-        pp_query_required("cp", value.cp);
-        pp_query_required("qdot", value.qdot);
-        pp_query_required("L", value.L);
+        pp_query_required("K", value.K);       // Thermal conductivity
+        pp_query_required("rho", value.rho);   // Density
+        pp_query_required("cp", value.cp);     // Specific heat capacity
+        pp_query_required("qdot", value.qdot); // Volumetric heat release rate
+        pp_query_required("L", value.L);       // Latent heat
     }
 
     Set::Scalar K = NAN;

@@ -70,7 +70,7 @@ public:
         
         // Specific gas constant for air [J/kg/K]
         pp.query_default("R",value.R, "0.000287_J/kg/K",
-                         Unit::Energy() / Unit::Mass() / Unit::Temperature());
+                        Unit::Energy() / Unit::Mass() / Unit::Temperature());
         
         // Initial temperature [K]
         pp.query_default("T0",value.T0,"300.0_K", Unit::Temperature());

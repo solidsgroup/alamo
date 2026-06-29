@@ -1196,7 +1196,7 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
         {
             std::ifstream probe(plot_file + "/thermo.dat");
             need_header = !probe.is_open() ||
-                          probe.peek() == std::ifstream::traits_type::eof();
+                        probe.peek() == std::ifstream::traits_type::eof();
         }
         if (need_header)
         {

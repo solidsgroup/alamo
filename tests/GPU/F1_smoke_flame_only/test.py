@@ -9,12 +9,12 @@ import testlib_gpu
 outdir = Path(sys.argv[1])
 input_file = Path(__file__).parent / "input"
 
-binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-cuda86-g++")
+binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-cuda*-g++")
 if binary is None:
     env_bin = os.environ.get("ALAMO_GPU_BIN")
     binary = Path(env_bin) if env_bin else None
 if binary is None:
-    print("SKIP: no GPU binary found (bin/alamo_gpu-2d-cuda86-g++)")
+    print("SKIP: no GPU binary found (bin/alamo_gpu-2d-cuda*-g++)")
     sys.exit(77)
 
 rc, log, elapsed = testlib_gpu.run_alamo(

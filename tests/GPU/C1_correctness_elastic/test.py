@@ -14,7 +14,7 @@ if cpu_bin is None:
     env = os.environ.get("ALAMO_CPU_BIN")
     cpu_bin = Path(env) if env else None
 
-gpu_bin = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-nofast-cuda86-g++")
+gpu_bin = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-nofast-cuda*-g++")
 if gpu_bin is None:
     env = os.environ.get("ALAMO_GPU_STRICT_BIN")
     gpu_bin = Path(env) if env else None
@@ -23,7 +23,7 @@ if cpu_bin is None:
     print("SKIP: CPU binary not found (bin/alamo-2d-g++)")
     sys.exit(77)
 if gpu_bin is None:
-    print("SKIP: GPU strict binary not found (bin/alamo_gpu-2d-nofast-cuda86-g++)")
+    print("SKIP: GPU strict binary not found (bin/alamo_gpu-2d-nofast-cuda*-g++)")
     sys.exit(77)
 
 NUM_STEPS = 30  # 30 steps -> 6 elastic solves at interval=5
@@ -64,20 +64,15 @@ if not ok_gpu:
     print("FAIL: GPU thermo insane:", gpu_issues)
     sys.exit(1)
 
-# Compare the deterministic physics columns only. The boundary-traction and
-# boundary-displacement diagnostics (trac_*/disp_*) are deliberately EXCLUDED:
-# they are accumulated by a non-atomic boundary reduction in the shared
-# Base::Mechanics::Integrate() (src/Integrator/Base/Mechanics.H), which races on
-# the GPU (concurrent `trac_hi[...] += ...` across boundary threads) and which
-# the framework itself flags as unreliable ("use the boxlib output instead",
-# Mechanics.H:405). They are a known-flaky diagnostic, not a physics field, and
-# carry no CPU/GPU bit-parity guarantee. The phase-field + thermal physics
-# (temperature, mdot, heat flux, mobility, burn area/volume/mass-flux, eta)
-# below IS deterministic and is what this parity test asserts. See
-# benchmark/GPU_TEST_SUITE_FIXES.md ("C1 traction-diagnostic race").
+# Compare deterministic physics and elastic boundary diagnostic columns. The
+# traction/displacement diagnostics are included here to guard the
+# Base::Mechanics::Integrate() device reduction path that previously triggered
+# CUDA error 700 and then had multi-box face-sampling semantics repaired.
 PHYSICS_COLS = [
     "time", "volume", "area", "mass_flux", "max_temp",
     "mdot_max", "heatflux_max", "L_max", "eta_min",
+    "disp_xhi_x", "disp_xhi_y", "disp_yhi_x", "disp_yhi_y",
+    "trac_xhi_x", "trac_xhi_y", "trac_yhi_x", "trac_yhi_y",
 ]
 cpu_phys = {c: cpu_thermo[c] for c in PHYSICS_COLS if c in cpu_thermo}
 gpu_phys = {c: gpu_thermo[c] for c in PHYSICS_COLS if c in gpu_thermo}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -17,20 +18,30 @@ from pathlib import Path
 # Binary discovery
 # ---------------------------------------------------------------------------
 
-def find_binary(root: Path, pattern: str) -> Path | None:
-    """Glob for a binary matching *pattern* under ``root/bin/``.
+def _natural_sort_key(path: Path) -> list[int | str]:
+    return [
+        int(part) if part.isdigit() else part
+        for part in re.split(r"(\d+)", path.name)
+    ]
 
-    Returns the lexicographically newest match (most specific arch suffix
-    sorts last alphabetically), or ``None`` if no match is found.
+
+def find_binary(root: Path, pattern: str) -> Path | None:
+    """Glob for a binary matching *pattern*.
+
+    Returns the natural-sort newest match, or ``None`` if no match is found.
+    Natural sorting keeps future CUDA suffixes such as ``cuda100`` newer than
+    ``cuda90``. Patterns may be relative to ``root`` (``bin/alamo-*``) or to
+    ``root/bin`` (``alamo-*``).
     """
-    bin_dir = root / "bin"
+    pattern_path = Path(pattern)
+    glob_root = root if pattern_path.parent != Path(".") else root / "bin"
     candidates = [
-        p for p in bin_dir.glob(pattern)
+        p for p in glob_root.glob(pattern)
         if p.is_file() and os.access(p, os.X_OK)
     ]
     if not candidates:
         return None
-    return sorted(candidates)[-1]
+    return sorted(candidates, key=_natural_sort_key)[-1]
 
 
 # ---------------------------------------------------------------------------

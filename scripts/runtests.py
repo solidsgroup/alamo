@@ -874,6 +874,9 @@ for testdir in tests:
     if (not os.path.isdir(testdir)):
         print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
         continue
+    if not os.path.isfile(testdir + "/input") and not os.path.isfile(testdir + "/input.py"):
+        print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
+        continue
     if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
         print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
         continue

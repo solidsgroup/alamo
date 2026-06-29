@@ -21,7 +21,7 @@
 namespace Integrator
 {
 
-Flame::Flame() : 
+Flame::Flame() :
     Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -39,7 +39,7 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("geometry.y_len","This is specified by geometry.prob_lo/hi");
     pp.forbid("amr.ghost_cells", "This should not be adjustable ");
 
-    pp.forbid("pf.gamma","use propellant.powerlaw.gamma"); 
+    pp.forbid("pf.gamma","use propellant.powerlaw.gamma");
 
     pp.forbid("pressure.r_ap",   "use propellant.powerlaw.r_ap");
     pp.forbid("pressure.r_htpb", "use propellant.powerlaw.r_htpb");
@@ -54,8 +54,8 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("thermal.m_htpb", "use propellant.fullfeedback.m_htpb");
     pp.forbid("thermal.E_ap",   "use propellant.fullfeedback.E_ap");
     pp.forbid("thermal.E_htpb", "use propellant.fullfeedback.E_htpb");
-    pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
-    pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
+    pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 ");
+    pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1");
 
     pp.forbid("pressure.a1", "use propellant.fullfeedback.a1 instead");
     pp.forbid("pressure.a2", "use propellant.fullfeedback.a2 instead");
@@ -64,24 +64,24 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("pressure.b2", "use propellant.fullfeedback.b2 instead");
     pp.forbid("pressure.b3", "use propellant.fullfeedback.b3 instead");
     pp.forbid("pressure.c1", "use propellant.fullfeedback.c1 instead");
-    pp.forbid("pressure.mob_ap", "no longer used"); 
-    pp.forbid("pressure.dependency", "use propellant.fullfeedback.pressure_dependency"); 
-    pp.forbid("pressure.h1", "use propellant.homogenize.h1 instead"); 
-    pp.forbid("pressure.h2", "use propellant.homogenize.h2 instead"); 
+    pp.forbid("pressure.mob_ap", "no longer used");
+    pp.forbid("pressure.dependency", "use propellant.fullfeedback.pressure_dependency");
+    pp.forbid("pressure.h1", "use propellant.homogenize.h1 instead");
+    pp.forbid("pressure.h2", "use propellant.homogenize.h2 instead");
     pp.forbid("thermal.mlocal_ap", "use propellant.homogenize.mlocal_ap");
     pp.forbid("thermal.mlocal_comb", "use propellant.homogenize.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
 
     pp.forbid("thermal.disperssion1", "use propellant.homogenize.dispersion1");
     pp.forbid("thermal.disperssion2", "use propellant.homogenize.dispersion2");
-    pp.forbid("thermal.disperssion3", "use propellant.homogenize.dispersion3"); 
+    pp.forbid("thermal.disperssion3", "use propellant.homogenize.dispersion3");
 
     pp.forbid("thermal.rho_ap", "use propellant.fullfeedback/homogenize.rho_ap ");
     pp.forbid("thermal.rho_htpb","use propellant.fullfeedback/homogenize.rho_htpb ");
     pp.forbid("thermal.k_ap",   "use propellant.fullfeedback/homogenize.k_ap ");
     pp.forbid("thermal.k_htpb", "use propellant.fullfeedback/homogenize.k_htpb ");
     pp.forbid("thermal.cp_ap", "use propellant.fullfeedback/homogenize.cp_ap ");
-    pp.forbid("thermal.cp_htpb","use propellant.fullfeedback/homogenize.cp_htpb "); 
+    pp.forbid("thermal.cp_htpb","use propellant.fullfeedback/homogenize.cp_htpb ");
 }
 
 
@@ -94,29 +94,29 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp.query_default("plot_field",value.plot_field,true); 
-        
+    pp.query_default("plot_field",value.plot_field,true);
+
     //
     // PHASE FIELD VARIABLES
     //
-        
+
     // Burn width thickness
-    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
+    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length());
     // Interface energy param
-    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area()); 
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area());
     // Chemical potential multiplier
-    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area()); 
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area());
     // Unburned rest energy
-    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
+    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less());
     // Barrier energy
-    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
+    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());
     // Burned rest energy
     pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());
     // Number of pure Allen-Cahn steps run at initialization to relax BMP sharp interface to equilibrium tanh profile
     pp.query_default("pf.relax_steps", value.pf.relax_steps, 0);
 
     // Boundary conditions for phase field order params
-    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
+    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 );
     // eta carries 3 ghost cells (not 2): the elastic model blend in UpdateModel
     // does CellToNodeAverage(eta) over the model's grown box, which reaches one
     // cell past a 2-ghost buffer at interior grid edges. temp already uses 3.
@@ -141,15 +141,15 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Select reduced order model to capture heat feedback
     pp.select<  Model::Propellant::Constant,
-                Model::Propellant::PowerLaw, 
-                Model::Propellant::FullFeedback, 
+                Model::Propellant::PowerLaw,
+                Model::Propellant::FullFeedback,
                 Model::Propellant::Homogenize>
         ("propellant",value.propellant);
 
     if (value.propellant.get_name() == "homogenize")  value.homogenized = true;
 
     // Whether to use the Thermal Transport Model
-    pp_query_default("thermal.on", value.thermal.on, false); 
+    pp_query_default("thermal.on", value.thermal.on, false);
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
@@ -175,7 +175,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
-            
+
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
         value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
@@ -211,7 +211,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
 
     // Constant pressure value
-    pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
+    pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure());
 
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
@@ -225,14 +225,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Refinement criterion for eta field, if thermal is on, cells will only be tagged for refinement if T>0.9*TCutoff,
     // and the gradient of eta > m_refinement_criterion at each cell
-    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
+    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001",
                         Unit::Less());
 
-    // Refinement criterion for temperature field    
+    // Refinement criterion for temperature field
     pp.query_default(   "amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
                         Unit::Temperature());
 
-    // Eta value to restrict the refinament for the temperature field 
+    // Eta value to restrict the refinament for the temperature field
     pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
                         Unit::Less());
 
@@ -240,16 +240,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
 
     // Minimum allowable threshold for $\eta$
-    pp_query_default("small", value.small, 1.0e-8); 
+    pp_query_default("small", value.small, 1.0e-8);
 
     // Initial condition for $\phi$ field.
-   pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
+    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
         ("phi.ic",value.ic_phi,value.geom);
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
-    pp_query_default("elastic.on", value.elastic.on, 0); 
+    pp_query_default("elastic.on", value.elastic.on, 0);
 
     // Body force (surface traction applied at the burn interface; pressure units).
     // Bare (unit-less) numbers are still accepted and pass through unchanged.
@@ -279,7 +279,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     if (value.m_type != Type::Disable)
     {
-        // Reference temperature for thermal expansion 
+        // Reference temperature for thermal expansion
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
         // Elastic model schema follows the propellant resolution:
@@ -504,8 +504,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         Set::Scalar w_void   = phi_avg * (1. - eta_avg);
                         Set::Scalar w_casing = 1. - phi_avg;
                         model(i, j, k) = model_prop * w_solid
-                                       + model_void * w_void
-                                       + model_casing * w_casing;
+                                        + model_void * w_void
+                                        + model_casing * w_casing;
                     }
                     else
                     {
@@ -522,7 +522,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         model_htpb.F0 *= (temp_avg - elastic.Telastic);
                         model_htpb.F0 += Set::Matrix::Identity();
                         model(i, j, k) = model_ap * phi_avg
-                                       + model_htpb * (1. - phi_avg);
+                                        + model_htpb * (1. - phi_avg);
                     }
                 });
             }
@@ -536,8 +536,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     // resolved model_ap/model_htpb blend). Not used for forcing.
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     model_type m = homogenized
-                                 ? elastic.model_prop
-                                 : elastic.model_ap * phi_avg + elastic.model_htpb * (1. - phi_avg);
+                                ? elastic.model_prop
+                                : elastic.model_ap * phi_avg + elastic.model_htpb * (1. - phi_avg);
                     for (int ii = 0; ii < AMREX_SPACEDIM; ++ii)
                     {
                         for (int jj = 0; jj < AMREX_SPACEDIM; ++jj)
@@ -564,7 +564,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 
     if (a_time > thermal.end_initial_refine_time)
-    {   
+    {
         if (!end_initial_refine) {
             for (int lev = 0; lev <= finest_level; ++lev)
                 Flame::Regrid(lev, a_time);
@@ -591,9 +591,9 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         // has been removed. The 0.0/1.0 floors are preserved so the output stays
         // bit-identical to the previous code (max/min are order-independent).
         amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
-                         amrex::ReduceOpMax, amrex::ReduceOpMin> reduce_op;
+                        amrex::ReduceOpMax, amrex::ReduceOpMin> reduce_op;
         amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar,
-                          Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+                        Set::Scalar, Set::Scalar> reduce_data(reduce_op);
         using ReduceTuple = typename decltype(reduce_data)::Type;
 
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -610,7 +610,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
                     [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
                     {
                         return { temp(i, j, k, 0), mdot(i, j, k, 0), heatflux(i, j, k, 0),
-                                 L(i, j, k, 0), eta(i, j, k, 0) };
+                                L(i, j, k, 0), eta(i, j, k, 0) };
                     });
             }
         }
@@ -674,6 +674,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     const Set::Scalar thermal_Tcutoff = thermal.Tcutoff;
     const Set::Scalar thermal_Tfluid  = thermal.Tfluid;
 
+    Util::DeviceErrorFlag advance_error;
+    int* advance_error_flag = advance_error.dataPtr();
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -693,9 +696,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
-        Util::DeviceErrorFlag advance_error;
-        int* advance_error_flag = advance_error.dataPtr();
-
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //
@@ -712,7 +712,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //
             // CALCULATE MOBILITY
-            // 
+            //
             Set::Scalar L = propellant.get_L(  phi_avg, T);
             L_out(i, j, k) = L;
             // L (mobility) is always used by the eta evolution, so validate it
@@ -727,22 +727,22 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
             if (thermal_on &&
                 (std::isnan(K) || std::isinf(K) ||
-                 std::isnan(rho) || std::isinf(rho) ||
-                 std::isnan(cp) || std::isinf(cp)))
+                std::isnan(rho) || std::isinf(rho) ||
+                std::isnan(cp) || std::isinf(cp)))
             {
                 Util::SetDeviceError(advance_error_flag);
             }
 
-            // 
+            //
             // EVOLVE PHASE FIELD (ETA)
-            // 
+            //
 
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
-            
+
             if (df_deta < 0) {
                 // Prevent eta from increasing/healing. A bug was found where if the diffuse thickness was too large compared to a void
-                // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
+                // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior
                 df_deta = 0.0;
             }
             if (thermal_on && T < thermal_Tcutoff) {
@@ -763,7 +763,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // Calculate thermal diffisivity and store for later gradient
                 //
 
-                alpha(i, j, k) = K / rho / cp; 
+                alpha(i, j, k) = K / rho / cp;
                 if (std::isnan(alpha(i, j, k)) || std::isinf(alpha(i, j, k)))
                 {
                     Util::SetDeviceError(advance_error_flag);
@@ -772,14 +772,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
                 //
-            
+
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
                 if (std::isnan(mdot(i, j, k)) || std::isinf(mdot(i, j, k)))
                 {
                     Util::SetDeviceError(advance_error_flag);
                 }
 
-        
+
 
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
@@ -801,18 +801,21 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
 
         });
-        Util::AbortIfDeviceError(advance_error, INFO,
-            "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
 
-    } // MFi For loop 
+    } // MFi For loop
+    Util::AbortIfDeviceError(advance_error, INFO,
+        "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
 
 
     //
     // THERMAL TRANSPORT
-    // 
+    //
     if (thermal.on)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
+
+        Util::DeviceErrorFlag thermal_error;
+        int* thermal_error_flag = thermal_error.dataPtr();
 
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
@@ -830,9 +833,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
             // Diagnostic fields
             Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
-
-            Util::DeviceErrorFlag thermal_error;
-            int* thermal_error_flag = thermal_error.dataPtr();
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -859,11 +859,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 }
 
             });
-            Util::AbortIfDeviceError(thermal_error, INFO,
-                "non-finite value detected in Flame::Advance thermal kernel at lev=", lev);
         }
+        Util::AbortIfDeviceError(thermal_error, INFO,
+            "non-finite value detected in Flame::Advance thermal kernel at lev=", lev);
     }
- 
+
 } //Function
 
 
@@ -907,18 +907,18 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
                 bool tag = false;
                 tag = tag ||
                     (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
-                     eta(i, j, k) >= t_refinement_restriction &&
-                     temp(i, j, k) > thermal_Tcutoff * 0.9);
+                    eta(i, j, k) >= t_refinement_restriction &&
+                    temp(i, j, k) > thermal_Tcutoff * 0.9);
                 tag = tag ||
                     (phi_refinement_on &&
-                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                    gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
                 tag = tag ||
                     (tempgrad.lpNorm<2>() * dr > t_refinement_criterion &&
-                     eta(i, j, k) >= t_refinement_restriction);
+                    eta(i, j, k) >= t_refinement_restriction);
                 tag = tag ||
                     ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
-                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
-                     time < thermal_end_initial_refine_t);
+                    gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
+                    time < thermal_end_initial_refine_t);
 
                 if (tag)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -941,14 +941,14 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
                 bool tag = false;
                 tag = tag ||
                     (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion &&
-                     eta(i, j, k) >= t_refinement_restriction);
+                    eta(i, j, k) >= t_refinement_restriction);
                 tag = tag ||
                     (phi_refinement_on &&
-                     gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
+                    gradphi.lpNorm<2>() * dr >= phi_refinement_criterion);
                 tag = tag ||
                     ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion ||
-                      gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
-                     time < thermal_end_initial_refine_t);
+                    gradphi.lpNorm<2>() * dr >= thermal_phi_ref_initial) &&
+                    time < thermal_end_initial_refine_t);
 
                 if (tag)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -958,16 +958,16 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 void Flame::Regrid(int lev, Set::Scalar time)
-{   
+{
     BL_PROFILE("Integrator::Flame::Regrid");
 
     ic_phi->Initialize(lev, phi_mf, time);
     ic_eta->Initialize(lev, eta_0_mf, time);
 
     if (thermal.on) {
-    /* 
+    /*
     This regrid function works by using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
-    eta will change and when regridding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
+    eta will change and when regridding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital
     eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgionally
     there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "squares" of voids instead of
     circles/spheres when using .xyzr files as the inital condition.
@@ -1011,7 +1011,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
     BL_PROFILE("Flame::Integrate");
-    
+
     Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
 
     Set::Vector DX(geom[amrlev].CellSize());

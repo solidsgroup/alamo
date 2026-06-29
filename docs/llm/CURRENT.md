@@ -6,6 +6,12 @@ line below is done, delete it and (if it closed out a phase) add an entry to
 
 ## In flight
 
+**NOVA scheduling defaults for ALAMO test/build scripts:** CPU-only NOVA jobs
+request 64 CPUs. GPU test jobs request 8 CPUs, with `--mem=32G` for 128^3 and
+smaller and `--mem=64G` for 256^3 and larger. Keep that shape in the NOVA
+Slurm wrappers so queue time stays low without under-requesting.
+
+
 **GPU test suite — ✅ GREEN 2026-06-26 (9/9; was 5P/4F).** The deferred 4-failure
 snapshot below is fully analyzed and fixed. Four failures = four different bugs:
 3 stale-input decks (F2/C1/C3: old `m_ap`-era Homogenize params + `model_ap/htpb`

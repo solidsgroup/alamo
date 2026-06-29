@@ -37,8 +37,8 @@ public:
         delete bc;
     }
 
-    // The mechanics integrator manages the solution of an elastic 
-    // solve using the MLMG solver. 
+    // The mechanics integrator manages the solution of an elastic
+    // solve using the MLMG solver.
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
         BL_PROFILE("Integrator::Base::Mechanics::Parse");
@@ -49,7 +49,7 @@ public:
             // Static: do full implicit solve.
             // Dynamic: evolve dynamic equations with explicit dynamics
             // Disable: do nothing.
-            pp_query_validate("type", type_str, {"disable","static","dynamic"}); 
+            pp_query_validate("type", type_str, {"disable","static","dynamic"});
             if (type_str == "static")        value.m_type = Type::Static;
             else if (type_str == "dynamic")  value.m_type = Type::Dynamic;
             else if (type_str == "disable")  value.m_type = Type::Disable;
@@ -105,7 +105,7 @@ public:
         // body force to be defined, in which case value.ic_rhs is set to
         // a nullptr. This should eventually be fixed - this is a stopgap.
         if (pp.contains("rhs.type"))
-            // initial condition for right hand side (body force) 
+            // initial condition for right hand side (body force)
             pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,value.geom);
 
         // Timestep interval for elastic solves (default - solve every time)
@@ -124,11 +124,11 @@ public:
         pp_query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
 
         // Whether to include residual output field
-        pp_query_default("print_residual", value.m_print_residual,false); 
+        pp_query_default("print_residual", value.m_print_residual,false);
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf, 1, 2, "res", false);
 
         // Whether to refine based on elastic solution
-        pp_query_default("elastic_ref_threshold", value.m_elastic_ref_threshold,0.01); 
+        pp_query_default("elastic_ref_threshold", value.m_elastic_ref_threshold,0.01);
 
         // Set this to true to zero out the displacement before each solve.
         // (This is a temporary fix - we need to figure out why this is needed.)
@@ -304,7 +304,7 @@ public:
 
                     if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                     {
-                        auto sten = Numeric::GetStencil(i,j,k,domain);                        
+                        auto sten = Numeric::GetStencil(i,j,k,domain);
 
                         auto bctype = bc->getType(i,j,k,domain);
 
@@ -316,12 +316,12 @@ public:
                             }
                             else if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Traction)
                             {
-                                
+
                                 Set::Vector N = Set::Normal(AMREX_D_DECL(xmin,ymin,zmin),
                                                             AMREX_D_DECL(xmax,ymax,zmax));
-                                
+
                                 auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX.data(),sten);
-                                
+
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
                                 Set::Matrix DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
@@ -338,7 +338,7 @@ public:
 
                                                 rhs(p) -= ddw(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
                                             }
-                                        
+
                                         rhs(p) -= DW_F0(p,q)*N(q);
                                     }
                                 Set::Vector delta_u = (A.inverse() * rhs);
@@ -356,7 +356,7 @@ public:
                     {
                         //Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX);
                         //Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
-                        
+
                         //Set::Vector f = ddw(i,j,k)*gradgradu;
                         Set::Vector f = Numeric::Divergence(sig, i, j, k, DX.data());
 
@@ -368,10 +368,10 @@ public:
                         //f += AMREX_D_TERM(  ( Cgrad1*gradu).col(0),
                         //                    +(Cgrad2*gradu).col(1),
                         //                    +(Cgrad3*gradu).col(2));
-                        
+
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX.data());
                         f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
-                        
+
                         Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
@@ -391,7 +391,7 @@ public:
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
-        
+
         model_mf[lev]->setMultiGhost(true);
         model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
     }
@@ -426,7 +426,6 @@ public:
 #endif
 
         const Dim3 /*lo= amrex::lbound(domain),*/ hi = amrex::ubound(domain);
-        const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
         amrex::Array4<const Set::Matrix> const& stress = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Vector> const& disp = (*disp_mf[amrlev]).array(mfi);
@@ -439,23 +438,23 @@ public:
         // "extensive" integrated variables, so IntegrateVariables zeroes them and sums
         // them across ranks.  The trac contribution is a genuine face integral (sum);
         // the disp diagnostic samples the last face node (matching the prior CPU
-        // serial-loop "last write wins").  NOTE the warning above: this diagnostic is
-        // only well-defined for a single box (see RegisterIntegratedVariable).
+        // serial-loop "last write wins" for a single box) but anchored to the
+        // global domain so multi-box face splits do not add one sample per box.
 #if AMREX_SPACEDIM == 2
         {
             amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
-                             amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+                            amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
             amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(box, reduce_data,
                 [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
                 {
                     Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
-                    if (i == hi.x && j < boxhi.y)
+                    if (i == hi.x && j < hi.y)
                     {
                         Set::Vector t = (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
                         tx = t(0); ty = t(1);
-                        if (j == boxhi.y - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
+                        if (j == hi.y - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
                     }
                     return {tx, ty, dx, dy};
                 });
@@ -467,18 +466,18 @@ public:
         }
         {
             amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
-                             amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+                            amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
             amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(box, reduce_data,
                 [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
                 {
                     Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
-                    if (j == hi.y && i < boxhi.x)
+                    if (j == hi.y && i < hi.x)
                     {
                         Set::Vector t = (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
                         tx = t(0); ty = t(1);
-                        if (i == boxhi.x - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
+                        if (i == hi.x - 1) { dx = disp(i, j, k)(0); dy = disp(i, j, k)(1); }
                     }
                     return {tx, ty, dx, dy};
                 });
@@ -497,7 +496,7 @@ public:
                 [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
                 {
                     Set::Scalar tx = 0.0, ty = 0.0, tz = 0.0;
-                    if (i == hi.x && j < boxhi.y && k < boxhi.z)
+                    if (i == hi.x && j < hi.y && k < hi.z)
                     {
                         Set::Vector t = (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
                             + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
@@ -518,7 +517,7 @@ public:
                 [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
                 {
                     Set::Scalar dx = 0.0, dy = 0.0;
-                    if (i == hi.x && j == boxhi.y - 1 && k == boxhi.z - 1)
+                    if (i == hi.x && j == hi.y - 1 && k == hi.z - 1)
                     {
                         dx = disp(i, j, k)(0); dy = disp(i, j, k)(1);
                     }

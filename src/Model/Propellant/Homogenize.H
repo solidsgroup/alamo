@@ -1,5 +1,5 @@
 //
-// 
+//
 //
 //
 //
@@ -22,7 +22,7 @@ public:
     static constexpr const char* name = "homogenize";
 
     Homogenize() = default;
-    Homogenize(IO::ParmParse &pp, std::string name) 
+    Homogenize(IO::ParmParse &pp, std::string name)
     {
         pp_queryclass(name,*this);
     }
@@ -78,19 +78,19 @@ public:
 
     static void Parse(Homogenize& value, IO::ParmParse& pp)
     {
-        
-        // K; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and 
+
+        // K; dispersion variables are use to create an inert region for the void grain case.
+        // An inert region is one that dissipates energy fast enough to remove regression and
         // thermal strain effects.
         pp.query_required("dispersion1", value.dispersion1, Unit::ThermalConductivity());
-        // rho; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and 
+        // rho; dispersion variables are use to create an inert region for the void grain case.
+        // An inert region is one that dissipates energy fast enough to remove regression and
         // thermal strain effects.
         pp.query_required("dispersion2", value.dispersion2, Unit::Density());
-        // cp; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and 
+        // cp; dispersion variables are use to create an inert region for the void grain case.
+        // An inert region is one that dissipates energy fast enough to remove regression and
         // thermal strain effects.
-        pp.query_required("dispersion3", value.dispersion3, Unit::SpecificHeatCapacity()); 
+        pp.query_required("dispersion3", value.dispersion3, Unit::SpecificHeatCapacity());
 
 
         // Prop Density
@@ -104,26 +104,26 @@ public:
         // Surrogate heat flux model parameter - Homogenized
         pp.query_default("h1", value.h1, "1.81_W/m^2",Unit::HeatFlux());
         // Surrogate heat flux model parameter - Homogenized
-        pp.query_default("h2", value.h2, "1.34_W/m^2",Unit::HeatFlux()); 
+        pp.query_default("h2", value.h2, "1.34_W/m^2",Unit::HeatFlux());
         // Reference pressure
-        pp.query_default("P_reference", value.P_reference, "1_MPa",Unit::Pressure()); 
+        pp.query_default("P_reference", value.P_reference, "1_MPa",Unit::Pressure());
 
-        // AP mass flux reference value 
+        // AP mass flux reference value
         pp.query_default("mlocal_prop", value.mlocal, "5e-1_kg/m^2/s",
-                         Unit::Mass()/Unit::Area()/Unit::Time()); 
-        
+                        Unit::Mass()/Unit::Area()/Unit::Time());
+
         // Prop Pre-exponential factor for Arrhenius Law
-        pp.query_required("m_prop", value.m_prop, Unit::Velocity()); 
+        pp.query_required("m_prop", value.m_prop, Unit::Velocity());
         // Prop Activation Energy for Arrhenius Law
-        pp.query_required("E_prop", value.E_prop, Unit::Temperature()); 
+        pp.query_required("E_prop", value.E_prop, Unit::Temperature());
         // Whether to include pressure to the arrhenius law [??]
-        pp.query_default("mob_prop", value.mob_prop,false); 
+        pp.query_default("mob_prop", value.mob_prop,false);
         // HTPB Activation Energy for Arrhenius Law
         pp.query_default("bound", value.bound,"0_K", Unit::Temperature());
         // Smoothing width for the bound cutoff (transition over ~bound_width Kelvin)
         pp.query_default("bound_width", value.bound_width,"50_K", Unit::Temperature());
 
-        pp.query_default("pressure_exponent", value.pressure_exponent,"0.5_1", Unit::Less());
+        pp.query_default("pressure_exponent", value.pressure_exponent,"0.5_1", Unit::Less()); // Pressure exponent for burn-rate scaling
     }
 
     // IO variables
@@ -154,4 +154,3 @@ public:
 
 
 #endif
-

@@ -118,6 +118,10 @@ public:
 #endif
                 });
             }
+#ifdef ALAMO_GPU
+            Util::AbortIfDeviceError(prepare_error, INFO,
+                "Solver::Nonlocal::Newton::prepareForSolve() detected an invalid scalar model state on device");
+#endif
 
             Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
             Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
@@ -220,10 +224,11 @@ public:
                     ddw(i, j, k) = model(i, j, k).DDW(kinvar);
 
                 });
-#ifdef ALAMO_GPU
-                Util::AbortIfDeviceError(prepare_error, INFO, "Solver::Nonlocal::Newton::prepareForSolve() detected an invalid model state on device");
-#endif
             }
+#ifdef ALAMO_GPU
+            Util::AbortIfDeviceError(prepare_error, INFO,
+                "Solver::Nonlocal::Newton::prepareForSolve() detected an invalid vector model state on device");
+#endif
 
             a_dw_mf[lev]->setMultiGhost(true);
             a_dw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
@@ -278,7 +283,7 @@ public:
                     });
                 }
                 // This is EXACTLY THE SAME AS THE ABOVE, excpet that we are now accounting
-                // for psi terms. The reason we do this is because there's no good way (yet) to 
+                // for psi terms. The reason we do this is because there's no good way (yet) to
                 // initialize patches if psi = nullptr
                 else
                 {
@@ -682,8 +687,8 @@ public:
     Set::Field<Set::Scalar>* m_psi = nullptr;
 
     // These paramters control a standard Newton-Raphson solve.
-    // 
-    // **Note**: 
+    //
+    // **Note**:
     // This class inherits all of the linear solve paramters
     // from its parent class, :ref:`Solver::Nonlocal::Linear`
     static void Parse(Newton<T>& value, amrex::ParmParse& pp)
@@ -694,7 +699,7 @@ public:
         pp_query("nriters", value.m_nriters);
 
         // Tolerance to use for newton-raphson convergence
-        pp_query("nrtolerance", value.m_nrtolerance); 
+        pp_query("nrtolerance", value.m_nrtolerance);
     }
 
 };

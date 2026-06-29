@@ -10,12 +10,12 @@ outdir = Path(sys.argv[1])
 input_file = Path(__file__).parent / "input"
 test_name = Path(__file__).parent.name
 
-binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-3d-cuda86-g++")
+binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-3d-cuda*-g++")
 if binary is None:
     env_bin = os.environ.get("ALAMO_GPU_3D_BIN")
     binary = Path(env_bin) if env_bin else None
 if binary is None:
-    print("SKIP: no 3D GPU binary found (bin/alamo_gpu-3d-cuda86-g++)")
+    print("SKIP: no 3D GPU binary found (bin/alamo_gpu-3d-cuda*-g++)")
     sys.exit(77)
 
 # Run for up to 5 minutes; accept timeout as OK for a perf test

@@ -20,7 +20,7 @@ int main (int argc, char* argv[])
     srand(2);
 
     std::string program;
-    pp.query_validate("alamo.program", program, {"flame"});
+    pp_query_validate("alamo.program", program, {"flame"}); // Program/integrator selector for the CUDA launcher
 
     Integrator::Integrator *integrator = nullptr;
     pp.select_only<Integrator::Flame>(integrator);

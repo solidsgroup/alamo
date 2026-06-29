@@ -10,7 +10,7 @@ outdir = Path(sys.argv[1])
 input_file = Path(__file__).parent / "input"
 test_name = Path(__file__).parent.name
 
-binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-cuda86-g++")
+binary = testlib_gpu.find_binary(ROOT, "bin/alamo_gpu-2d-cuda*-g++")
 if binary is None:
     env_bin = os.environ.get("ALAMO_GPU_BIN")
     binary = Path(env_bin) if env_bin else None

@@ -13,6 +13,7 @@ sudo apt install build-essential g++
 sudo apt install libopenmpi-dev 
 sudo apt install libeigen3-dev
 sudo apt install libpng-dev
+sudo apt install libfftw3-dev
 
 #
 # [optional] Install these packages if compiling with clang

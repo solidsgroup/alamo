@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import time
@@ -36,14 +37,21 @@ def _find_bin(pattern: str) -> Path | None:
         p for p in ROOT.glob(pattern)
         if p.is_file() and os.access(p, os.X_OK)
     ]
-    return sorted(candidates)[-1] if candidates else None
+    return sorted(candidates, key=_natural_sort_key)[-1] if candidates else None
+
+
+def _natural_sort_key(path: Path) -> list[int | str]:
+    return [
+        int(part) if part.isdigit() else part
+        for part in re.split(r"(\d+)", path.name)
+    ]
 
 
 def resolve_binaries() -> dict[str, Path | None]:
     return {
-        "ALAMO_GPU_BIN":        Path(os.environ["ALAMO_GPU_BIN"])        if "ALAMO_GPU_BIN"        in os.environ else _find_bin("bin/alamo_gpu-2d-cuda86-g++"),
-        "ALAMO_GPU_STRICT_BIN": Path(os.environ["ALAMO_GPU_STRICT_BIN"]) if "ALAMO_GPU_STRICT_BIN" in os.environ else _find_bin("bin/alamo_gpu-2d-nofast-cuda86-g++"),
-        "ALAMO_GPU_3D_BIN":     Path(os.environ["ALAMO_GPU_3D_BIN"])     if "ALAMO_GPU_3D_BIN"     in os.environ else _find_bin("bin/alamo_gpu-3d-cuda86-g++"),
+        "ALAMO_GPU_BIN":        Path(os.environ["ALAMO_GPU_BIN"])        if "ALAMO_GPU_BIN"        in os.environ else _find_bin("bin/alamo_gpu-2d-cuda*-g++"),
+        "ALAMO_GPU_STRICT_BIN": Path(os.environ["ALAMO_GPU_STRICT_BIN"]) if "ALAMO_GPU_STRICT_BIN" in os.environ else _find_bin("bin/alamo_gpu-2d-nofast-cuda*-g++"),
+        "ALAMO_GPU_3D_BIN":     Path(os.environ["ALAMO_GPU_3D_BIN"])     if "ALAMO_GPU_3D_BIN"     in os.environ else _find_bin("bin/alamo_gpu-3d-cuda*-g++"),
         "ALAMO_CPU_BIN":        Path(os.environ["ALAMO_CPU_BIN"])        if "ALAMO_CPU_BIN"        in os.environ else _find_bin("bin/alamo-2d-g++"),
     }
 

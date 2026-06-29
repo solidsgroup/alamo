@@ -25,9 +25,9 @@ public:
         const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
         const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
-                             + a_F(0, 1) * a_F(0, 1)
-                             + a_F(1, 0) * a_F(1, 0)
-                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+                            + a_F(0, 1) * a_F(0, 1)
+                            + a_F(1, 0) * a_F(1, 0)
+                            + a_F(1, 1) * a_F(1, 1) + 1.0;
         Set::Scalar w = 0.0;
         w += 0.5 * mu * (tr / J23 - 3.);
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
@@ -50,9 +50,9 @@ public:
         const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
         const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
-                             + a_F(0, 1) * a_F(0, 1)
-                             + a_F(1, 0) * a_F(1, 0)
-                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+                            + a_F(0, 1) * a_F(0, 1)
+                            + a_F(1, 0) * a_F(1, 0)
+                            + a_F(1, 1) * a_F(1, 1) + 1.0;
         Set::Matrix FinvT;
         FinvT(0, 0) =  a_F(1, 1) / J;
         FinvT(0, 1) = -a_F(1, 0) / J;
@@ -64,7 +64,7 @@ public:
             for (int j = 0; j < 2; ++j)
             {
                 r_dw(i, j) = mu * (a_F(i, j) / J23 - tr * FinvT(i, j) / (3. * J23))
-                           + kappa * (J - 1) * J * FinvT(i, j);
+                            + kappa * (J - 1) * J * FinvT(i, j);
             }
         return r_dw;
 #elif AMREX_SPACEDIM==3
@@ -93,9 +93,9 @@ public:
         const Set::Scalar J = a_F(0, 0) * a_F(1, 1) - a_F(0, 1) * a_F(1, 0);
         const Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         const Set::Scalar tr = a_F(0, 0) * a_F(0, 0)
-                             + a_F(0, 1) * a_F(0, 1)
-                             + a_F(1, 0) * a_F(1, 0)
-                             + a_F(1, 1) * a_F(1, 1) + 1.0;
+                            + a_F(0, 1) * a_F(0, 1)
+                            + a_F(1, 0) * a_F(1, 0)
+                            + a_F(1, 1) * a_F(1, 1) + 1.0;
         Set::Matrix FinvT;
         FinvT(0, 0) =  a_F(1, 1) / J;
         FinvT(0, 1) = -a_F(1, 0) / J;
