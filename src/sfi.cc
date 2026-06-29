@@ -2,6 +2,7 @@
 #include "Integrator/AllenCahn.H"
 #include "Integrator/Dendrite.H"
 #include "Integrator/Flame.H"
+#include "Integrator/ForcedMovement.H"
 #include "Util/Util.H"
 
 #if AMREX_SPACEDIM==2
@@ -23,6 +24,7 @@ int main (int argc, char* argv[])
     Integrator::Integrator *integrator = nullptr;
 
     if      (program == "allencahn") pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
+    else if (program == "forcedmovement") pp.select_only<Integrator::SFI<Integrator::ForcedMovement>>(integrator);
     // else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
     // else if (program == "flame")     pp.select_only<Integrator::SFI<Integrator::Flame>>(integrator);
     else
