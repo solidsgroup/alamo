@@ -222,6 +222,9 @@ body.SRPage, body.SRPage * {
 
 div.headertitle {
     padding: 5px 40px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 
 div.header, div.header * {
@@ -291,6 +294,9 @@ li.navelem a {
     margin-top: 30px;
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .memtitle, .memtitle *, .memtitle a:visited {
@@ -298,6 +304,9 @@ li.navelem a {
     background-image: none;
     color: var(--mem-title-font);
     background-color: var(--mem-title-bg);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .memproto {
@@ -672,4 +681,3 @@ a:target::before{
     position:sticky;
     top: 0;
 }*/ 
-
