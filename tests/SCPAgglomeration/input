@@ -18,7 +18,7 @@ amr.max_level = 0
 amr.n_cell = 384 256 1
 amr.max_grid_size = 128
 amr.blocking_factor = 16
-amr.plot_dt = 0.002_s
+amr.plot_dt = 0.0001_s
 amr.regrid_int = 1000000
 amr.base_regrid_int = 1000000
 amr.grid_eff = 1.0
@@ -33,7 +33,7 @@ geometry.prob_hi =  0.00125_m 0.00100_m 0.00050_m
 geometry.is_periodic = 1 1 1
 
 timestep = 1.0e-6_s
-stop_time = 0.01_s
+stop_time = 10_s
 
 # Flame phase-field parameters from SCPSpheresElastic.
 pf.eps = 0.000001_m
@@ -133,9 +133,10 @@ elastic.type = disable
 agglomeration.on = 1
 agglomeration.method = spectral
 agglomeration.mobility = singly_degenerate
-agglomeration.gamma = 1.0e-4
+agglomeration.gamma = 2.5e-4
 agglomeration.L = 10.0
 agglomeration.mobility_floor = 1.0e-6
+agglomeration.eta_mobility_cutoff = 0.5
 agglomeration.spectral_stabilization = 0.01
 agglomeration.refinement_threshold = 1.0e100
 agglomeration.tstart = 1.0e100

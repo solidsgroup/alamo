@@ -228,6 +228,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query_default("agglomeration.on", value.agglomeration.on, false);
     if (value.agglomeration.on)
     {
+        pp.query_default("agglomeration.eta_mobility_cutoff", value.agglomeration.eta_mobility_cutoff, 0.5);
         value.input_name = "alpha";
         value.field_name = "agglom.alpha";
         value.old_field_name = "agglom.alpha_old";
@@ -341,12 +342,14 @@ void Flame::FillMobilityMask(int lev, amrex::MultiFab& mask)
         Set::Patch<Set::Scalar> mask_arr = mask.array(mfi);
         Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+        Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
-            Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
-            mask_arr(i, j, k) = unburned_fraction * (1.0 - ap_fraction);
+            Set::Scalar intact_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+            mask_arr(i, j, k) = intact_fraction > eta_mobility_cutoff ?
+                0.0 : (1.0 - ap_fraction);
         });
     }
 }
@@ -733,10 +736,52 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
  
     if (agglomeration.on)
     {
-        RestrictAgglomerationToBinder(lev);
+        amrex::Vector<std::unique_ptr<amrex::MultiFab> > frozen_alpha(lev + 1);
+        if (method == "spectral" && lev == finest_level)
+        {
+            for (int ilev = 0; ilev <= lev; ++ilev)
+            {
+                frozen_alpha[ilev] = std::make_unique<amrex::MultiFab>(
+                    etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), 1, 0);
+                MultiFab::Copy(*frozen_alpha[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
+            }
+        }
+        else
+        {
+            frozen_alpha[lev] = std::make_unique<amrex::MultiFab>(
+                etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
+            MultiFab::Copy(*frozen_alpha[lev], *etanew_mf[lev], 0, 0, 1, 0);
+        }
+
         CahnHilliard::Advance(lev, time, dt);
-        RestrictAgglomerationToBinder(lev);
-        CorrectAgglomerationActiveMean(lev, agglomeration.active_alpha_mean);
+
+        for (int ilev = 0; ilev <= lev; ++ilev)
+        {
+            if (!frozen_alpha[ilev]) continue;
+
+            MultiFab cell_based_phi(etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), 1, 0);
+            average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[ilev], 0, 1, 0);
+
+            for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(ilev, mfi);
+                Set::Patch<const Set::Scalar> old_alpha = frozen_alpha[ilev]->array(mfi);
+                Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
+                Set::Patch<const Set::Scalar> eta = eta_mf.Patch(ilev, mfi);
+                Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
+                    Set::Scalar intact_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
+                    if (intact_fraction > eta_mobility_cutoff && ap_fraction < 1.0)
+                        alpha(i, j, k) = old_alpha(i, j, k);
+                });
+            }
+
+            etanew_mf[ilev]->FillBoundary(geom[ilev].periodicity());
+        }
     }
 
 } //Function
@@ -922,4 +967,3 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
