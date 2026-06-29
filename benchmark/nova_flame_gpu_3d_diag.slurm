@@ -170,31 +170,68 @@ case "${DIAG_TOOL}" in
     echo "=== ncu profiles will be written to ${OUT_BASE}/ ==="
     echo "=== profiling input: ${PROFILE_INPUT} ==="
 
-    ncu_run() {
-      local label="$1" regex="$2"
-      echo "--- ncu: ${label} (regex: ${regex}) ---"
-      srun --mpi=pmix -n 1 --gpus-per-task=1 \
-        "${NCU}" \
-          --target-processes all \
-          --set default \
-          --kernel-name-base function \
-          --kernel-name "regex:${regex}" \
-          --launch-count 4 \
-          --csv --page raw \
-          --print-kernel-base demangled \
-          --export "${OUT_BASE}/${label}" \
-          --force-overwrite \
-          "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE}
-    }
+    # AMReX launches every GPU kernel through one wrapper (amrex::launch_global),
+    # so ncu only ever sees the function name "launch_global" -- matching on
+    # --kernel-name-base function never selects the physics kernels (that bug left
+    # every ncu_*/ empty while the job still exited 0). Fix: don't match by name at
+    # all -- profile a bounded WINDOW of launches (--launch-skip/--launch-count) and
+    # read the *demangled* names in post; they carry the enclosing function (Fapply,
+    # Fsmooth, interpolation, ...). (NVTX --nvtx-include was tried and never matched
+    # AMReX's deeply-nested push/pop ranges -- "No kernels were profiled".)
+    #
+    # Metric set is version-dependent: ncu 2022.x exposes 'default', ncu 2025.x
+    # exposes 'basic' (both have detailed/full). Auto-pick the lightest available
+    # SoL+Occupancy set from --list-sets unless NCU_SET overrides; fall back to an
+    # explicit --metrics list if no named set is found. --section-folder guards the
+    # case where ncu can't locate its sections dir on its own.
+    NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
+    SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
+    SF_ARGS=(); [ -n "${SECTION_DIR}" ] && SF_ARGS=(--section-folder "${SECTION_DIR}")
+    echo "ncu sections  = ${SECTION_DIR:-<ncu default lookup>}"
+    echo "=== ncu --list-sets ==="
+    SETS_AVAIL="$("${NCU}" --list-sets "${SF_ARGS[@]}" 2>&1)"; echo "${SETS_AVAIL}" | head -20
+    NCU_SET_USE="${NCU_SET:-}"
+    if [ -z "${NCU_SET_USE}" ]; then
+      for cand in basic default detailed full; do
+        echo "${SETS_AVAIL}" | grep -qE "^${cand}[[:space:]]" && { NCU_SET_USE="${cand}"; break; }
+      done
+    fi
+    if [ -n "${NCU_SET_USE}" ]; then
+      echo "ncu set       = ${NCU_SET_USE}"
+      METRIC_ARGS=(--set "${NCU_SET_USE}" "${SF_ARGS[@]}")
+    else
+      echo "ncu set       = <none found> -- using explicit --metrics"
+      METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}" "${SF_ARGS[@]}")
+    fi
 
-    ncu_run "flame_advance"    ".*Flame.*Advance.*|.*flame.*advance.*"
-    ncu_run "elastic_fapply"   ".*Elastic.*Fapply.*|.*elastic.*fapply.*"
-    ncu_run "elastic_diagonal" ".*Elastic.*Diagonal.*|.*elastic.*diagonal.*"
-    ncu_run "newton_prepare"   ".*Newton.*prepareForSolve.*|.*newton.*prepare.*"
-    ncu_run "operator_interp"  ".*interpolat.*"
+    # One pass: profile launches [skip, skip+count) with no name/NVTX filter. The
+    # elastic solve dominates the stream, so a small window catches Fapply (+ the
+    # other hot kernels). Identify them by demangled name in the summary below.
+    NCU_SKIP="${NCU_SKIP:-0}"
+    NCU_COUNT="${NCU_COUNT:-60}"
+    OUT_REP="${OUT_BASE}/elastic_kernels"
+    echo "--- ncu: profiling launches [skip ${NCU_SKIP}, count ${NCU_COUNT}], set=${NCU_SET:-basic} ---"
+    srun --mpi=pmix -n 1 --gpus-per-task=1 \
+      "${NCU}" \
+        --target-processes all \
+        "${METRIC_ARGS[@]}" \
+        --launch-skip "${NCU_SKIP}" \
+        --launch-count "${NCU_COUNT}" \
+        --print-kernel-base demangled \
+        --export "${OUT_REP}" \
+        --force-overwrite \
+        "${GPU_BIN}" "${PROFILE_INPUT}" ${OVERRIDES_PROFILE} || true
 
     echo "=== ncu complete; profiles in ${OUT_BASE}/ ==="
     ls -lh "${OUT_BASE}/" || true
+    if [ ! -s "${OUT_REP}.ncu-rep" ]; then
+      echo "=== ncu: NO report written (${OUT_REP}.ncu-rep) -- see warnings above ===" >&2
+      exit 1
+    fi
+    echo "=== per-kernel SoL summary (grep Fapply / Fsmooth / interpolation) ==="
+    "${NCU}" -i "${OUT_REP}.ncu-rep" --csv --page raw --print-kernel-base demangled \
+      --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active \
+      2>/dev/null | head -120 || true
     ;;
 
   nsys)

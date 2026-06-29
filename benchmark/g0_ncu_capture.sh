@@ -33,27 +33,51 @@ COMMON_ARGS=(
     "elastic.solver.nriters=20"
 )
 
-run_ncu() {
-    local label="$1"
-    local kernel_regex="$2"
-    local plot_dir="${OUT}_${label}_plot"
-    "${NCU}" \
-        --target-processes all \
-        --set default \
-        --kernel-name-base function \
-        --kernel-name "regex:${kernel_regex}" \
-        --launch-count 4 \
-        --csv \
-        --page raw \
-        --print-kernel-base demangled \
-        --export "${OUT}_${label}" \
-        --force-overwrite \
-        mpiexec -np 1 "${GPU_BIN}" "${COMMON_ARGS[@]}" "plot_file=${plot_dir}"
-}
+# AMReX launches all GPU work via amrex::launch_global, so ncu only sees the
+# function name "launch_global" -- name-regex (and NVTX --nvtx-include) matching
+# never hits the physics kernels. Instead profile a bounded WINDOW of launches
+# (--launch-skip/--launch-count) and identify kernels by demangled name in post.
+# Metric set is version-dependent: ncu 2022.x has 'default', 2025.x has 'basic'
+# (both have detailed/full). Auto-pick the lightest available set from --list-sets
+# unless NCU_SET overrides; explicit --metrics fallback if none found.
+NCU_DIR="$(dirname "$(readlink -f "${NCU}")")"
+SECTION_DIR="$(find "${NCU_DIR}/.." -maxdepth 4 -name 'SpeedOfLight.section' -printf '%h\n' 2>/dev/null | head -1 || true)"
+SF_ARGS=(); [ -n "${SECTION_DIR}" ] && SF_ARGS=(--section-folder "${SECTION_DIR}")
+echo "ncu sections = ${SECTION_DIR:-<ncu default lookup>}"
+SETS_AVAIL="$("${NCU}" --list-sets "${SF_ARGS[@]}" 2>&1)"
+NCU_SET_USE="${NCU_SET:-}"
+if [ -z "${NCU_SET_USE}" ]; then
+    for cand in basic default detailed full; do
+        echo "${SETS_AVAIL}" | grep -qE "^${cand}[[:space:]]" && { NCU_SET_USE="${cand}"; break; }
+    done
+fi
+if [ -n "${NCU_SET_USE}" ]; then
+    echo "ncu set      = ${NCU_SET_USE}"
+    METRIC_ARGS=(--set "${NCU_SET_USE}" "${SF_ARGS[@]}")
+else
+    echo "ncu set      = <none found> -- using explicit --metrics"
+    METRIC_ARGS=(--metrics "${NCU_METRICS:-gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__waves_per_multiprocessor}" "${SF_ARGS[@]}")
+fi
 
+NCU_SKIP="${NCU_SKIP:-0}"
+NCU_COUNT="${NCU_COUNT:-60}"
+OUT_REP="${OUT}_elastic_kernels"
 mkdir -p "$(dirname "${OUT}")"
-run_ncu "flame_advance"    ".*Flame.*Advance.*|.*flame.*advance.*"
-run_ncu "elastic_fapply"   ".*Elastic.*Fapply.*|.*elastic.*fapply.*"
-run_ncu "elastic_diagonal" ".*Elastic.*Diagonal.*|.*elastic.*diagonal.*"
-run_ncu "newton_prepare"   ".*Newton.*prepareForSolve.*|.*newton.*prepare.*"
-run_ncu "operator_interp"  ".*interpolat.*"
+echo "--- ncu: profiling launches [skip ${NCU_SKIP}, count ${NCU_COUNT}], set=${NCU_SET:-basic} ---"
+"${NCU}" \
+    --target-processes all \
+    "${METRIC_ARGS[@]}" \
+    --launch-skip "${NCU_SKIP}" \
+    --launch-count "${NCU_COUNT}" \
+    --print-kernel-base demangled \
+    --export "${OUT_REP}" \
+    --force-overwrite \
+    mpiexec -np 1 "${GPU_BIN}" "${COMMON_ARGS[@]}" "plot_file=${OUT_REP}_plot" || true
+if [ ! -s "${OUT_REP}.ncu-rep" ]; then
+    echo "ncu: NO report written (${OUT_REP}.ncu-rep) -- see warnings above" >&2
+    exit 1
+fi
+echo "=== per-kernel SoL summary (grep Fapply / Fsmooth / interpolation) ==="
+"${NCU}" -i "${OUT_REP}.ncu-rep" --csv --page raw --print-kernel-base demangled \
+    --metrics gpu__time_duration.sum,sm__throughput.avg.pct_of_peak_sustained_elapsed,gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active \
+    2>/dev/null | head -120 || true

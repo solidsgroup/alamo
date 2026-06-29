@@ -6,7 +6,24 @@ Supersedes-as-forward-plan: the original `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases
 (`benchmark/PHASE5_BRANCH_DONE.md`). This v2 roadmap is the *next* arc:
 alpha-1.0 → beta.
 
-Created: 2026-06-25. Status: **DRAFT — Phase A not started.**
+Created: 2026-06-25. Updated: 2026-06-28.
+Status: **Phase A measured (A1+A2) · B1 gate PASSED · Phase C ACTIVE.**
+
+> ### 2026-06-28 — Phase A is measured. Full analysis: `benchmark/PHASE_A_FINDINGS.md`
+> The combined flame+elastic A100 profiling (nsys 11306663/11306722 + diag 11310480
+> + ncu 11318197) landed. Headlines that drive everything below:
+> - **`Operator::Elastic::Fapply` = 74.6% of GPU kernel time** (58% exclusive of the
+>   elastic solve). The elastic MLMG solve = **95.7% of evolve time.** Flame = **0.20%.**
+> - **GPU is 89.3% busy ⇒ compute/memory-bound**, not launch-bound.
+> - The solve **converges cleanly in ~10 V-cycles** (not grinding); the Krylov bottom
+>   solver is only ~7% of solve wall time. Cost is the **fine-level Fapply applies**
+>   (255 registers/thread ⇒ ~12.5% occupancy; ~2.5 KB/node uncoalesced AoS stiffness).
+> - **Combined GPU speedup measured: 22.9× per step (256³, 1 A100 vs 64-rank CPU)** —
+>   *better* than flame-only (13.1×). The Amdahl-cap fear is refuted.
+> - ⇒ **B1 gate PASSED (elastic ≈95% of wall).** Phase C kernel work is justified.
+>   **100% of the available time savings are in the elastic solve;** flame needs no
+>   GPU work. Levers + A/B harness: `PHASE_A_FINDINGS.md` §8,
+>   `input_3d_centre_bore_256_a2_tuned`, `benchmark/phase_c_elastic_ab.sh`.
 
 ---
 
@@ -161,6 +178,13 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
 - **Artifact:** git tag + `benchmark/ALPHA1_BASELINE.md`.
 
 **A1 — Unblock device counters on NOVA (ncu + nsys)**
+- **STATUS (2026-06-28): MOSTLY DONE.** `nsys` fully captured + analyzed
+  (`profiles_alpha1/nsys_11306663`, kernel taxonomy + 89.3% busy fraction in
+  `PHASE_A_FINDINGS.md`). `ncu` report `ncu_11318197/elastic_kernels.ncu-rep`
+  (183 MB) was produced on NOVA but the local ncu (2022.4.1) can't open it
+  (newer format) — the per-kernel Speed-of-Light (Fapply memory-vs-compute %)
+  still needs a NOVA-side re-export or `ncu-ui` 2025.x. Registers/thread (255 for
+  Fapply) came from the nsys kernel records instead. **Remaining:** the Fapply SoL.
 - **Goal:** obtain the counters that were blocked the entire Phase 0–5 project.
 - **Steps:** run `benchmark/g0_ncu_capture.sh` (prepared command) on a NOVA node
   where GPU performance counters are permitted; confirm `ncu` returns real
@@ -177,6 +201,15 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
   `PROFILE_NOTES.md` reading the numbers.
 
 **A2 — Combined flame+elastic A100 baseline-of-record (THE key measurement)**
+- **STATUS (2026-06-28): DONE (headline) — see `benchmark/PHASE_A_FINDINGS.md`.**
+  Combined GPU 256³ = **22.9× per step** vs 64-rank CPU; elastic fraction
+  `f ≈ 0.95` of GPU wall (Fapply 74.6% of kernel time). Stability clean (no
+  NaN/diverge; physics matches CPU modulo grid-resolution). **Caveats for a
+  publishable row:** (1) all four production a2 runs were SLURM-preempted/timed-out
+  so the breakdown comes from the `interval=1` diag + nsys traces, not a completed
+  run — a non-preemptible reservation is still wanted for a clean wall total;
+  (2) the CPU baseline has a 32-idle-rank load-imbalance bug (`Operator.cpp:459`)
+  that flatters the GPU ratio. Neither changes the optimization target.
 - **Goal:** the single number that turns "unmeasured" into a real combined
   speedup, plus the elastic wall-time fraction `f`.
 - **Steps:** re-run the Phase-3 crossover matrix **with elastic enabled**
@@ -250,6 +283,10 @@ Spends A1/A2 data to answer "where does the time go and what regime is optimal."
 ---
 
 **B1 — Elastic time-fraction & kernel breakdown**
+- **STATUS (2026-06-28): DONE — GATE PASSED.** `PHASE_A_FINDINGS.md` §2 is the
+  breakdown: elastic = **≈95% of GPU wall** (Fapply 74.6% of kernel time), flame
+  0.20%. Far above the 15% threshold ⇒ **Phase C is justified and unblocked.**
+  The Amdahl sensitivity is moot — elastic is the workload, not a slice.
 - **Goal:** decompose A2's combined number — is elastic a small slice or the
   bottleneck? This decides whether Phase C happens at all.
 - **Steps:** from A2's TinyProfiler split and A1's `ncu`, attribute GPU wall time
@@ -288,35 +325,68 @@ Spends A1/A2 data to answer "where does the time go and what regime is optimal."
 
 ### Phase C — Targeted, counter-justified kernel work
 
-**Gated by B1.** Only the levers the data proves matter. If B1 says elastic is a
-small fraction, C1/C2 are skipped or deferred.
+**Gate SATISFIED (B1, 2026-06-28): elastic ≈95% of wall.** All of Phase C is now
+in-scope. Prioritized lever list + expected gains: `PHASE_A_FINDINGS.md` §8. Order
+of attack: **C0 (cheap input levers, ship now) → C1 + C4 (kernel + reuse) →
+C2/C3 from the re-measured counter.** Never land a kernel change without an A100
+before/after.
 
 ---
 
-**C1 — Elastic `Fapply` register pressure / occupancy** *(conditional on B1)*
-- **Goal:** raise the ~33% register-limited occupancy of the most expensive
-  elastic kernel.
-- **Steps:** the G0 static dump shows `Operator::Elastic::Fapply` at 87–101
-  registers/thread (~33% occupancy) and `Diagonal` with 240 B stack spill
-  (`G0_BASELINE_OF_RECORD.md`). With A1's *achieved* occupancy in hand, try
-  `__launch_bounds__`/register capping, hoisting recomputed model terms,
-  shrinking live ranges; measure occupancy and wall/step delta each change.
-- **Done-when:** measured occupancy improvement with no correctness regression
-  (strict-build golden compare), or a documented "no win" with the counter
-  evidence.
-- **Depends:** A1, B1 (must say elastic matters).
-- **Artifact:** `benchmark/PHASE_C1_fapply_occupancy.md` + perf-regression rows.
+**C0 — Elastic solver input tuning** *(no source change — DO FIRST)* ✅ staged
+- **Goal:** cut the Fapply **call count** with zero risk before touching kernels.
+- **Steps:** the a2 baseline left `tol_rel/abs` at the 1e-8 default and `bottom_*`
+  unset (BiCGStab inherits 1e-8). Ship `input_3d_centre_bore_256_a2_tuned`
+  (tol 1e-6, `bottom_tol_rel=1e-4`/`bottom_max_iter=50`, `interval=100`) and run
+  `benchmark/phase_c_elastic_ab.sh` to attribute each lever vs the baseline at
+  256³/A100, gated on stress-field parity (`compare_thermo.py`).
+- **Done-when:** A/B table {baseline, tol, bottom, interval, all} → per-solve wall
+  + V-cycle count + stress delta; expected ~3–5× on the elastic solve.
+- **Depends:** none (executable now). **Artifact:** `benchmark/PHASE_C0_input_ab.md`.
 
-**C2 — Elastic MLMG launch reduction** *(conditional on B1)*
-- **Goal:** apply the wide-shallow lesson to the solver — each V-cycle fires many
-  small kernels.
-- **Steps:** from A1's per-V-cycle launch profile, test fewer/bigger boxes,
-  shallower coarsening (`max_coarsening_level`), and bottom-solver choice/tol on
-  the elastic solve's launch count and wall time.
-- **Done-when:** measured launches/step and wall/step reduction on the elastic
-  region, correctness preserved.
-- **Depends:** A1, B1.
-- **Artifact:** `benchmark/PHASE_C2_mlmg_launches.md`.
+**C1 — Elastic `Fapply` register pressure / occupancy** *(the structural win)*
+- **STATUS (2026-06-28): SOURCE STARTED on branch `chamber-gpu-elastic-opt`** (isolated
+  worktree `/home/jackplum/Projects/alamo-elastic-opt`; not in main, not committed). Two
+  **bit-identical** edits to `Fapply` landed and compile GPU-3D/sm_86 clean: (b) grad(C)
+  accumulated one direction at a time so only **one** `Matrix4` derivative temp is live
+  (was `Cgrad1/2/3` = 3 live = 135 doubles in 3D); plus a boundary-only **`sig`-sink** that
+  drops a `Matrix4·Matrix` product + a live `Set::Matrix` from every interior node (≈90% of
+  Fapply time). (a) the per-kernel `__launch_bounds__` register cap is **deferred** (can
+  regress; gate on the A1 ncu SoL). **Still owed: A100 before/after + strict golden compare.**
+  Detail: `benchmark/PHASE_C1_fapply_occupancy.md`.
+- **Goal:** raise the **~12.5%** occupancy of the kernel that is 74.6% of GPU time.
+- **MEASURED (2026-06-28):** runtime register count is **255/thread** (the CUDA
+  cap — the compiler is spilling), not the 87–101 in the G0 static dump ⇒ ~12.5%
+  theoretical occupancy (1 block/SM). Root cause located: the `!m_uniform` branch
+  of `Fapply` (`src/Operator/Elastic.cpp:615-624`) holds **4 live `Matrix4` temps**
+  (DDW + Cgrad1/2/3 = 180 doubles).
+- **Steps:** (a) `__launch_bounds__`/register cap on the Fapply launch; (b)
+  restructure the grad(C) accumulation to not materialize 3 full `Cgrad` `Matrix4`
+  temps — accumulate `(Cgrad_d·gradu).col(d)` one dimension at a time. Measure
+  achieved occupancy (needs the A1 ncu SoL re-export) + wall/step each change.
+- **Done-when:** occupancy up + wall/step down, strict-build golden compare clean,
+  or a documented "no win" with the counter. **Depends:** A1 SoL (nice-to-have).
+- **Artifact:** `benchmark/PHASE_C1_fapply_occupancy.md`.
+
+**C2 — Fapply memory layout (AoS → SoA) + uniform-node fast-path** *(biggest single
+kernel win; gate on the A1 ncu SoL)*
+- **Goal:** kill the ~2.5 KB/node of **uncoalesced** stiffness traffic in the
+  fine-level Fapply (`Array4<Matrix4>` is array-of-structs, 360 B/node stride).
+- **Steps:** (a) precompute a thin material-interface mask so the >90% of
+  interior-uniform nodes (3 piecewise-constant materials) skip the 6 neighbor
+  `Matrix4` loads + the grad(C) branch entirely; (b) if the ncu SoL confirms
+  memory-bound, store the 45 Matrix4 components as planes (SoA) so neighbor reads
+  coalesce. Also revisit `max_coarsening_level` / bottom-solver to trim the 27,840
+  tiny coarse Fapply launches (these are 66.8% of Fapply *calls* but only 5.3% of
+  its *time* — a launch-count, not wall, lever).
+- **Done-when:** measured wall/step reduction on the elastic region, correctness
+  preserved. **Depends:** A1 SoL, C1. **Artifact:** `benchmark/PHASE_C2_fapply_memory.md`.
+
+**C4 — Reuse the elastic operator across solves** *(setup-cost lever)*
+- **Goal:** stop rebuilding the operator every solve. `Mechanics::TimeStepBegin`
+  calls `Elastic::define()` (~2.4 GB alloc) + `prepareForSolve` per solve
+  (`Mechanics.H:200-209`); only the coefficients change. Hoist construction; only
+  re-`SetModel`. **Artifact:** `benchmark/PHASE_C4_operator_reuse.md`.
 
 **C3 — Phase-field launch levers, only if A1 reveals a new hotspot** *(conditional)*
 - **Goal:** revisit the previously-shelved 2D launch levers only if 3D ncu data
