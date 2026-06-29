@@ -715,7 +715,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
 
                 if (!exceeded_Tcutoff(i,j,k) && temp(i,j,k) < Tcutoff)
                 {
-                        eta(i, j, k) = eta_0(i, j, k);
+                    eta(i, j, k) = eta_0(i, j, k);
                 }
             });
     }

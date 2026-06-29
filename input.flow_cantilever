@@ -1,6 +1,6 @@
-alamo.program = forcedmovement
-plot_file = ./output.forcedmovement
-# amr.plot_dt = 0.05
+alamo.program = allencahn
+plot_file = ./output.cantilever
+# amr.plot_dt = 0.001
 amr.plot_int = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
@@ -12,38 +12,38 @@ amr.n_cell = 24 8
 geometry.prob_lo = -9.0  0
 geometry.prob_hi =  9.0 6.0
 geometry.is_periodic = 0 0 0
-stop_time = 1e-1
+stop_time = 50.0
 # AMR parameters
 
 amr.cell.all = 1
 
-tstart = 10
+alamo.program = allencahn
+plot_file = ./output.cantilever
 
-## forced movement
-forcedmovement.alpha.ic.type = expression
-forcedmovement.alpha.ic.expression.constant.width = 0.4
-forcedmovement.alpha.ic.expression.constant.height = 3.0
-forcedmovement.alpha.ic.expression.constant.eps = 0.2
-forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
+tstart = 2e-2
+
+## Allen-Cahn Model with no growth
+allencahn.ch.direction = 0
+allencahn.ch.direction_tstart = 0.0
+allencahn.alpha.ic.type = expression
+allencahn.alpha.ic.expression.constant.width = 0.4
+allencahn.alpha.ic.expression.constant.height = 3.0
+allencahn.alpha.ic.expression.constant.eps = 0.2
+allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 
-forcedmovement.alpha.bc.constant.type.xlo = neumann
-forcedmovement.alpha.bc.constant.type.xhi = neumann
-forcedmovement.alpha.bc.constant.type.ylo = neumann
-forcedmovement.alpha.bc.constant.type.yhi = neumann
-forcedmovement.alpha.bc.constant.val.xlo = 0.0
-forcedmovement.alpha.bc.constant.val.xhi = 0.0
-forcedmovement.alpha.bc.constant.val.ylo = 0.0
-forcedmovement.alpha.bc.constant.val.yhi = 0.0
+allencahn.alpha.bc.constant.type.xlo = neumann
+allencahn.alpha.bc.constant.type.xhi = neumann
+allencahn.alpha.bc.constant.type.ylo = neumann
+allencahn.alpha.bc.constant.type.yhi = neumann
+allencahn.alpha.bc.constant.val.xlo = 0.0
+allencahn.alpha.bc.constant.val.xhi = 0.0
+allencahn.alpha.bc.constant.val.ylo = 0.0
+allencahn.alpha.bc.constant.val.yhi = 0.0
 
-forcedmovement.position_new.bc.constant.type.xlo = neumann
-forcedmovement.position_new.bc.constant.type.xhi = neumann
-forcedmovement.position_new.bc.constant.type.ylo = neumann
-forcedmovement.position_new.bc.constant.type.yhi = neumann
-forcedmovement.position_new.bc.constant.val.xlo = 0.0
-forcedmovement.position_new.bc.constant.val.xhi = 0.0
-forcedmovement.position_new.bc.constant.val.ylo = 0.0
-forcedmovement.position_new.bc.constant.val.yhi = 0.0
+allencahn.ch.L = 0.0
+allencahn.ch.kappa = 0.002
+allencahn.ch.lambda = 0.05
 
 ### HYDRO PARAM ###
 
@@ -74,7 +74,7 @@ hydro.pressure.ic.type = expression
 hydro.pressure.ic.expression.constant.gamma = 1.4
 hydro.pressure.ic.expression.constant.E_solid = 5.0
 hydro.pressure.ic.expression.region0 = "1000.0" # * 40.0 * (0.9724967 * (x<-2.0) + (x>=-2))"
-hydro.eta.ic.constant.value = 1.0
+
 ### ETA BC  ###
 
 hydro.pf.eta.bc.constant.type.xlo = neumann
@@ -116,6 +116,7 @@ hydro.momentum.bc.constant.val.xhi = 0.0 0.0
 hydro.momentum.bc.constant.val.xlo = 0.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
 hydro.momentum.bc.constant.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 hydro.eta_refinement_criterion = 0.1
@@ -132,7 +133,7 @@ hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.5
-hydro.lagrange=1000.0
+hydro.lagrange=0.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
@@ -143,31 +144,31 @@ hydro.cfl_v   = 1.0
 
 
 # Enable elasticity
-elastic.type = disable
+elastic.type = static
 # Thermoelasticity
-# elastic.on = 1
-# elastic.interval = 1
+elastic.on = 1
+elastic.interval = 1
 # Elastic model params
-# model_steel.E = 190_Pa
-# model_steel.nu = 0.3
+model_steel.E = 190_Pa
+model_steel.nu = 0.3
 # model_steel.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 # Elastic solver information
-# elastic.solver.verbose = 4
+elastic.solver.verbose = 4
 # elastic.solver.fixed_iter = 5000
 # elastic.solver.nriters = 1
 # elastic.solver.nrtolerance = 1E-5
 # elastic.print_model = 1
-# elastic.print_residual = 1
+elastic.print_residual = 1
 # Mechanics boundary conditions
-# elastic.bc.type = constant
-# elastic.bc.constant.type.xlo = disp disp
-# elastic.bc.constant.type.ylo = disp disp 
-# elastic.bc.constant.type.yhi = disp disp
-# elastic.bc.constant.type.xloylo = disp disp 
-# elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp disp
+elastic.bc.constant.type.ylo = disp disp 
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp 
+elastic.bc.constant.type.xloyhi = disp disp
 # No traction on free surface
-# elastic.traction = 0.0
-# elastic.elastic_ref_threshold = 0.0005
+elastic.traction = 0.0
+elastic.elastic_ref_threshold = 0.0005
 #elastic.zero_out_displacement = 1 # Zero out the displacement before each elastic solver iternation
 
 #elastic.solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!

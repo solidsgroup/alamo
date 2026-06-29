@@ -73,11 +73,14 @@ public:
         // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
         pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
+        pp.select_default<BC::Constant>("position_new.bc", value.position_new_bc, 2);
+        // pp.select_default<BC::Constant>("alpha.bc", alpha.bc, 1);
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.alpha_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha", true);
         value.RegisterNewFab(value.alpha_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha_old", false);
+        value.RegisterNewFab(value.position_new_mf, value.position_new_bc, 2, value.number_of_ghost_cells, "position_new", true ,true, {"x","y"});
     }
 
 protected:
@@ -108,7 +111,7 @@ protected:
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
-            Set::Patch<Set::Vector> position_new = position_new_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> position_new = position_new_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector> velocity = velocity_mf.Patch(lev,mfi);
             Set::Scalar vel_x = 0.01;
             Set::Scalar vel_y = 0.01;
@@ -117,13 +120,15 @@ protected:
             {   
                 Set::Vector vel = Set::Vector(vel_x, vel_y);
                 Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
-                position_new(i,j,k) = Center + vel*dt;
+                Set::Vector dx = vel*dt;
+                position_new(i,j,k,0) = Center(0) + dx(0);
+                position_new(i,j,k,1) = Center(1) + dx(1);
+                // position_new(i,j,k) = Center + dx;
             });
 
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {   
-
                 Eigen::Matrix<double,5,3> A;
                 Eigen::Matrix<double,5,1> b;
                 Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
@@ -141,7 +146,9 @@ protected:
                     int ii = i + off[n][0];
                     int jj = j + off[n][1];
 
-                    Set::Vector d = position_new(ii,jj,k) - Center;
+                    Set::Vector d;
+                    d(0) = position_new(ii,jj,k,0) - Center(0);
+                    d(1) = position_new(ii,jj,k,1) - Center(1);
 
                     A(n,0) = 1.0;
                     A(n,1) = d(0);
@@ -198,7 +205,7 @@ protected:
     Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
 
     Set::Field<Set::Vector> position_mf;
-    Set::Field<Set::Vector> position_new_mf; // Updated position of each point after move is applied
+    Set::Field<Set::Scalar> position_new_mf; // Updated position of each point after move is applied
     Set::Field<Set::Vector> velocity_mf; // Velocity of each point
 
 private:
@@ -208,6 +215,7 @@ private:
     Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
+    BC::BC<Set::Scalar>* position_new_bc;
 };
 } // namespace Integrator
 #endif
