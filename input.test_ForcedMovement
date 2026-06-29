@@ -1,18 +1,18 @@
 alamo.program = forcedmovement
 plot_file = ./output.forcedmovement
 # amr.plot_dt = 0.05
-amr.plot_int = 200
+amr.plot_int = 500
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 2
+amr.max_level = 0
 timestep  = 1e-1
-amr.n_cell = 24 24
-geometry.prob_lo = -6.0 -6.0
-geometry.prob_hi =  6.0 6.0
+amr.n_cell = 80 80
+geometry.prob_lo = -2.0 -2.0
+geometry.prob_hi =  2.0 2.0
 geometry.is_periodic = 0 0 0
-stop_time = 1e3
+stop_time = 2e2
 # AMR parameters
 
 amr.cell.all = 1
@@ -21,9 +21,9 @@ tstart = 100000000
 
 ## forced movement
 forcedmovement.alpha.ic.type = pointlist
-forcedmovement.alpha.ic.expression.constant.width = 0.4
-forcedmovement.alpha.ic.expression.constant.height = 3.0
-forcedmovement.alpha.ic.expressi
+forcedmovement.alpha.ic.pointlist.file.name = square.xy
+forcedmovement.alpha.ic.pointlist.file.unit = m
+forcedmovement.alpha.ic.pointlist.eps = 0.1_m
 # forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 

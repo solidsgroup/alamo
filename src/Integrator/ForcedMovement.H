@@ -100,11 +100,15 @@ protected:
 
     // Integrate the forced movement to update the alpha field
     void Advance(int lev, Set::Scalar time, Set::Scalar dt)
-    {
+    {   
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
+        Util::RealFillBoundary(*(alpha_old_mf)[lev], geom[lev]);
+        Util::RealFillBoundary(*(velocity_mf)[lev], geom[lev]);
+        amrex::Real total_alpha_before = alpha_old_mf[lev]->sum();
 
         const Set::Scalar *DX = this->geom[lev].CellSize();
         // Evolve alpha
+
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
         {   
 
@@ -134,6 +138,9 @@ protected:
                 Set::Vector TargetCenter = Set::Position(i, j, k, geom[lev], type);
 
                 Set::Scalar Q_new = 0.0; // accumulator for alpha*V gathered into this cell
+
+                Set::Scalar weight_sum = 0.0;   // <-- track this explicitly
+                Set::Scalar F_stencil[3][3];    // cache weights, avoid recomputing
 
                 for (int dj = -1; dj <= 1; ++dj)
                 for (int di = -1; di <= 1; ++di)
@@ -171,20 +178,36 @@ protected:
 
                     Set::Scalar F = fx * fy;
 
-                    if (F > 0.0)
-                    {
-                        Q_new += alpha(ii,jj,k) * F; // alpha*V with V cancelled (uniform V assumed)
+                    F_stencil[dj+1][di+1] = F;
+                    weight_sum += F;
                     }
-                }
 
-                // Update (V_new == V_old here since grid volumes are uniform on this level;
-                // if that ever changes, divide Q_new by V_new(i,j,k) explicitly)
-                alpha_new(i, j, k) = Q_new;
+                    if (weight_sum > 1.0e-12)
+                    {
+                        for (int dj = -1; dj <= 1; ++dj)
+                        for (int di = -1; di <= 1; ++di)
+                        {
+                            int ii = i + di;
+                            int jj = j + dj;
+                            Q_new += alpha(ii,jj,k) * (F_stencil[dj+1][di+1] / weight_sum);
+                        }
+                    }
+                    else
+                    {
+                        // Degenerate case: no overlap found at all (shouldn't happen if
+                        // |u| < DX, but guard anyway)
+                        Q_new = alpha(i,j,k);
+                    }
+
+                    alpha_new(i, j, k) = Q_new;
             });
         }
 
+        amrex::Real total_alpha_after = alpha_mf[lev]->sum();
+        amrex::Print() << "Q before = " << total_alpha_before
+                    << "  Q after = " << total_alpha_after
+                    << "  drift = " << (total_alpha_after - total_alpha_before) << "\n";
         Util::RealFillBoundary(*(alpha_mf)[lev], geom[lev]);
-        Util::RealFillBoundary(*(alpha_old_mf)[lev], geom[lev]);
     }
 
     // Tag cells for mesh refinement based on temperature gradient
