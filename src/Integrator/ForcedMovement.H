@@ -1,0 +1,220 @@
+//
+//
+
+#ifndef INTEGRATOR_FORCEDMOVEMENT_H // Include guards
+#define INTEGRATOR_FORCEDMOVEMENT_H // 
+
+// Standard library includes
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+
+// AMReX Includes
+#include "AMReX.H"
+#include "AMReX_ParallelDescriptor.H"
+#include "AMReX_ParmParse.H"
+
+// Alamo Includes
+#include "IO/ParmParse.H"
+#include "Integrator/Integrator.H"
+#include "BC/Constant.H"
+#include "IC/IC.H"
+#include "IC/Sphere.H"
+#include "IC/Constant.H"
+#include "IC/Expression.H"
+#include "IC/BMP.H"
+#include "IC/PNG.H"
+#include "IC/PSRead.H"
+#include "Numeric/Stencil.H"
+#include "IC/Random.H"
+#include "Unit/Unit.H"
+#include "IC/PointList.H"
+
+namespace Integrator
+{
+
+/// This is the definition of the ForcedMovement class
+class ForcedMovement : virtual public Integrator
+{
+public:
+    static constexpr const char* name = "forcedmovement";
+
+    // Empty constructor
+    ForcedMovement() : Integrator()
+    {}
+
+    // Constructor that triggers parse
+    ForcedMovement(IO::ParmParse& pp) : ForcedMovement()
+    {
+        Parse(*this, pp);
+    }
+
+    ~ForcedMovement()
+    {
+        delete ic;
+        delete bc;
+    }
+
+    // The Parse function initializes the ForcedMovement object using
+    // a parser, pp. 
+    // Note that this is a static function, which means it does not have
+    // direct access to member variables. Instead, it initializes the variables
+    // inside the argument, "value", and so all references to member items are
+    // prefixed by "value."
+    static void Parse(ForcedMovement& value, IO::ParmParse& pp)
+    {
+        // Criterion for mesh refinement [0.01]
+        pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
+
+        // Value for :math:`L` (mobility)
+        pp.query_default("ch.L",value.ch.L, "1.0", 1.0 / Unit::Pressure()/Unit::Time());
+        // Value for :math:`\epsilon` (diffuse boundary width)
+        // pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
+        // Value for :math:`\kappa` (Interface energy parameter)
+        pp.query_default("ch.grad",value.ch.kappa, "1.0", Unit::Energy()/Unit::Length());
+        // Value for :math:`\lambda` (Chemical potential coefficient)
+        pp_query_default("ch.chempot",value.ch.lambda, "1.0", Unit::Pressure());
+        // Force directional growth: 0=no growth, 1=only positive, -1=only negative
+        pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
+        // Time to start forcing directional growth
+        pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
+
+
+        std::pair<std::string,Set::Scalar> ch_coeffs[2];
+        pp.query_exactly<2>({"ch.lambda","ch.kappa","ch.sigma","ch.eps"}, ch_coeffs,
+                            {Unit::Pressure(), Unit::Energy()/Unit::Length(), Unit::Energy()/Unit::Area(), Unit::Length()});
+
+        if (ch_coeffs[0].first == "ch.lambda" && ch_coeffs[1].first == "ch.kappa")
+        {
+            value.ch.lambda = ch_coeffs[0].second;
+            value.ch.kappa = ch_coeffs[1].second;
+        }
+        else if (ch_coeffs[0].first == "ch.sigma" && ch_coeffs[1].first == "ch.eps")
+        {
+            Set::Scalar sigma = ch_coeffs[0].second, eps = ch_coeffs[1].second;
+            value.ch.lambda = 4.0 * sigma / eps;
+            value.ch.kappa = sigma * eps / 2.0;
+        }
+        
+
+        // Set the initial condition for the alpha field
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, value.geom); 
+
+        // Use a constant BC object for temperature
+        // value.bc = new BC::Constant(1);
+        // :ref:`BC::Constant` parameters 
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
+
+        // Register the temperature and old temperature fields.
+        // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
+        value.RegisterNewFab(value.alpha_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha", true);
+        value.RegisterNewFab(value.alpha_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha_old", false);
+    }
+
+protected:
+
+    // Use the ic object to initialize the order parameter
+    void Initialize(int lev)
+    {
+        ic->Initialize(lev, alpha_mf);
+        ic->Initialize(lev, alpha_old_mf);
+    }
+
+    // Integrate the forced movement to update the alpha field
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
+    {
+        std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
+
+        const Set::Scalar *DX = this->geom[lev].CellSize();
+        // Evolve alpha
+        for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Scalar driving_force = 0.0;
+
+                // Chemical potential
+                Set::Scalar alpha_2 = alpha(i, j, k) * alpha(i, j, k);
+                Set::Scalar alpha_3 = alpha_2 * alpha(i, j, k);
+                driving_force += ch.lambda * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
+
+                // Gradient
+                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
+                driving_force -= ch.kappa * alpha_lap;
+
+                if (time >= ch.direction_tstart)
+                {
+                    if (ch.direction == 1)
+                        driving_force = std::min(0.0, driving_force);
+                    else if (ch.direction == -1)
+                        driving_force = std::max(0.0, driving_force);
+                }
+
+                // Update
+                alpha_new(i, j, k) =
+                    alpha(i, j, k) - ch.L * dt * driving_force;
+            });
+        }
+    }
+
+    // Tag cells for mesh refinement based on temperature gradient
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
+    {
+        // Get cell dimensions as done above.
+        const Set::Scalar* DX = geom[lev].CellSize();
+        // Calculate the diagonal.
+        Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+        // Iterate over the patches on this level
+        for (amrex::MFIter mfi(*alpha_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            // Get the box and handles as done above.
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<char>         const& tags = a_tags.array(mfi);
+            amrex::Array4<Set::Scalar>  const& alpha = (*alpha_mf[lev]).array(mfi);
+
+            // Iterate over the grid as done above.
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                // Calculate the temperature gradient.
+                Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, DX);
+
+                // Is the gradient * cell_size too big? If so, then
+                // mark this cell as needing refinement.
+                if (grad.lpNorm<2>() * dr > refinement_threshold)
+                    tags(i, j, k) = amrex::TagBox::SET;
+            });
+        }
+    }
+
+protected:
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
+
+    Set::Field<Set::Scalar> &eta_mf = alpha_mf;
+    Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
+
+    struct {
+        Set::Scalar L = NAN;
+        Set::Scalar eps = NAN;
+        Set::Scalar kappa = NAN;
+        Set::Scalar lambda = NAN;
+        Set::Scalar direction_tstart = NAN;
+        int direction = 0;
+    } ch;
+
+private:
+    int number_of_components = 1;            // Number of components
+    int number_of_ghost_cells = 2;           // Number of ghost cells
+
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
+
+    BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
+};
+} // namespace Integrator
+#endif
