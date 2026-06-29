@@ -66,37 +66,6 @@ public:
         // Criterion for mesh refinement [0.01]
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
-        // Value for :math:`L` (mobility)
-        pp.query_default("ch.L",value.ch.L, "1.0", 1.0 / Unit::Pressure()/Unit::Time());
-        // Value for :math:`\epsilon` (diffuse boundary width)
-        // pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
-        // Value for :math:`\kappa` (Interface energy parameter)
-        pp.query_default("ch.grad",value.ch.kappa, "1.0", Unit::Energy()/Unit::Length());
-        // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query_default("ch.chempot",value.ch.lambda, "1.0", Unit::Pressure());
-        // Force directional growth: 0=no growth, 1=only positive, -1=only negative
-        pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
-        // Time to start forcing directional growth
-        pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
-
-
-        std::pair<std::string,Set::Scalar> ch_coeffs[2];
-        pp.query_exactly<2>({"ch.lambda","ch.kappa","ch.sigma","ch.eps"}, ch_coeffs,
-                            {Unit::Pressure(), Unit::Energy()/Unit::Length(), Unit::Energy()/Unit::Area(), Unit::Length()});
-
-        if (ch_coeffs[0].first == "ch.lambda" && ch_coeffs[1].first == "ch.kappa")
-        {
-            value.ch.lambda = ch_coeffs[0].second;
-            value.ch.kappa = ch_coeffs[1].second;
-        }
-        else if (ch_coeffs[0].first == "ch.sigma" && ch_coeffs[1].first == "ch.eps")
-        {
-            Set::Scalar sigma = ch_coeffs[0].second, eps = ch_coeffs[1].second;
-            value.ch.lambda = 4.0 * sigma / eps;
-            value.ch.kappa = sigma * eps / 2.0;
-        }
-        
-
         // Set the initial condition for the alpha field
         pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, value.geom); 
 
@@ -128,35 +97,64 @@ protected:
         const Set::Scalar *DX = this->geom[lev].CellSize();
         // Evolve alpha
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.tilebox();
+        {   
+
+            amrex::Box bx;
+            amrex::IndexType type = alpha_mf[lev]->ixType();
+            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            else Util::Abort(INFO, "Unkonwn index type");
+
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
+            Set::Patch<Set::Vector> position_new = position_new_mf.Patch(lev,mfi);
+            Set::Patch<Set::Vector> velocity = velocity_mf.Patch(lev,mfi);
+            Set::Scalar vel_x = 0.01;
+            Set::Scalar vel_y = 0.01;
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Scalar driving_force = 0.0;
+            {   
+                Set::Vector vel = Set::Vector(vel_x, vel_y);
+                Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
+                position_new(i,j,k) = Center + vel*dt;
+            });
 
-                // Chemical potential
-                Set::Scalar alpha_2 = alpha(i, j, k) * alpha(i, j, k);
-                Set::Scalar alpha_3 = alpha_2 * alpha(i, j, k);
-                driving_force += ch.lambda * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
 
-                // Gradient
-                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
-                driving_force -= ch.kappa * alpha_lap;
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {   
 
-                if (time >= ch.direction_tstart)
-                {
-                    if (ch.direction == 1)
-                        driving_force = std::min(0.0, driving_force);
-                    else if (ch.direction == -1)
-                        driving_force = std::max(0.0, driving_force);
+                Eigen::Matrix<double,5,3> A;
+                Eigen::Matrix<double,5,1> b;
+                Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
+
+                static constexpr int off[5][2] = {
+                    { 0,  0},
+                    { 1,  0},
+                    { 0,  1},
+                    {-1,  0},
+                    { 0, -1}
+                };
+
+                for (int n = 0; n < 5; ++n)
+{
+                    int ii = i + off[n][0];
+                    int jj = j + off[n][1];
+
+                    Set::Vector d = position_new(ii,jj,k) - Center;
+
+                    A(n,0) = 1.0;
+                    A(n,1) = d(0);
+                    A(n,2) = d(1);
+
+                    b(n) = alpha(ii,jj,k);
                 }
 
+                Eigen::Vector3d coeff = A.colPivHouseholderQr().solve(b);
+                double alphaCenter = coeff(0);
+
                 // Update
-                alpha_new(i, j, k) =
-                    alpha(i, j, k) - ch.L * dt * driving_force;
+                alpha_new(i, j, k) = alphaCenter;
             });
         }
     }
@@ -198,6 +196,10 @@ protected:
 
     Set::Field<Set::Scalar> &eta_mf = alpha_mf;
     Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
+
+    Set::Field<Set::Vector> position_mf;
+    Set::Field<Set::Vector> position_new_mf; // Updated position of each point after move is applied
+    Set::Field<Set::Vector> velocity_mf; // Velocity of each point
 
     struct {
         Set::Scalar L = NAN;
