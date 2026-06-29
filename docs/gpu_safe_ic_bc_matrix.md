@@ -9,6 +9,7 @@ This is the Phase 0 support matrix for pure device-arena CUDA runs. "Supported" 
 | `BC::Constant` | Supported | Constant scalar/vector BC paths are device kernels. |
 | `BC::Operator::Elastic::Constant` | Supported | Elastic constant BC was made device-capturable for the chamber GPU path. |
 | `IC::Expression` scalar | Supported | Scalar expression initialization uses `amrex::ParallelFor`. |
+| `IC::StarAftGrain` | Supported | Star-aft grain (NAWC Motor No. 6). Station arrays are staged to `amrex::Gpu::DeviceVector` (Util::BMP pattern) and geometry is hoisted to locals so the `amrex::ParallelFor` lambda captures only device-valid data. |
 | `IC::Expression` vector | Guarded unsupported | Vector expression path still uses `LoopConcurrentOnCpu`; CUDA builds abort before entering it. |
 | `IC::PNG` | Guarded unsupported | Uses `LoopConcurrentOnCpu`; CUDA builds abort before entering it. |
 | `IC::PSRead` | Guarded unsupported | Uses `LoopConcurrentOnCpu`; CUDA builds abort before entering it. |

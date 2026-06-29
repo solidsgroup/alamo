@@ -77,14 +77,18 @@ public:
         Set::Scalar R1, Set::Scalar R3, Set::Scalar R4,
         int nfin, Set::Scalar half_angle)
     {
+        // Device-safe Pi: Set::Constant::Pi is an extern host global and is
+        // undefined in device code, so use a local constexpr literal here.
+        constexpr Set::Scalar pi = 3.14159265358979323846;
+
         Set::Scalar r     = std::sqrt(x * x + y * y);
         Set::Scalar theta = std::atan2(y, x);
 
         // Angular period of one fin
-        Set::Scalar period = 2.0 * Set::Constant::Pi / (Set::Scalar)nfin;
+        Set::Scalar period = 2.0 * pi / (Set::Scalar)nfin;
 
         // Map theta into [0, period) and find angular distance to nearest fin center
-        Set::Scalar theta_mod = std::fmod(theta + 4.0 * Set::Constant::Pi, period);
+        Set::Scalar theta_mod = std::fmod(theta + 4.0 * pi, period);
         Set::Scalar dtheta    = std::min(theta_mod, period - theta_mod);
 
         // Effective port radius at this angle:
@@ -113,37 +117,39 @@ public:
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) override
     {
         Util::Assert(INFO, TEST(stations.size() >= 2),
-                     "StarAftGrain: need at least 2 stations");
+                    "StarAftGrain: need at least 2 stations");
 
-        // Copy station data into flat arrays for GPU lambda capture
-        int nstations = (int)stations.size();
-        std::vector<Set::Scalar> st_z(nstations), st_R1(nstations);
-        std::vector<Set::Scalar> st_R3(nstations), st_R4(nstations);
-        std::vector<int>         st_star(nstations);
+        // Station data must live in device memory so the device lambda below
+        // captures valid *device* pointers. Raw std::vector::data() pointers are
+        // host memory and are illegal to dereference on the GPU. See IC::BMP /
+        // Util::BMP for the canonical "copy payload to device" pattern.
+        if ((int)d_z.size() != (int)stations.size()) UpdateDeviceData();
 
-        for (int s = 0; s < nstations; s++)
-        {
-            st_z[s]    = stations[s].z;
-            st_R1[s]   = stations[s].R1;
-            st_R3[s]   = stations[s].R3;
-            st_R4[s]   = stations[s].R4;
-            st_star[s] = stations[s].is_star ? 1 : 0;
-        }
-
-        // AMReX GPU-accessible copies
-        // Use simple host arrays - compatible with CPU builds
-        const Set::Scalar* p_z    = st_z.data();
-        const Set::Scalar* p_R1   = st_R1.data();
-        const Set::Scalar* p_R3   = st_R3.data();
-        const Set::Scalar* p_R4   = st_R4.data();
-        const int*         p_star = st_star.data();
+        // Device-resident, GPU-accessible station pointers (host pointers on a
+        // CPU build, since amrex::Gpu::DeviceVector is a host vector there).
+        const Set::Scalar* p_z    = d_z.data();
+        const Set::Scalar* p_R1   = d_R1.data();
+        const Set::Scalar* p_R3   = d_R3.data();
+        const Set::Scalar* p_R4   = d_R4.data();
+        const int*         p_star = d_star.data();
 
         const Set::Scalar  _eps        = eps;
         const Set::Scalar  _half_angle = half_angle;
         const int          _nfin       = nfin;
-        const int          _nstations  = nstations;
+        const int          _nstations  = (int)stations.size();
         const Set::Scalar  _z_motor_lo = z_motor_lo;
         const Set::Scalar  _R_case     = R_case;
+        // _z_motor_lo is only consumed by the 2D axial fallback in the lambda
+        // below; mark it used so 3D builds don't warn.
+        amrex::ignore_unused(_z_motor_lo);
+
+        // Hoist geometry into locals. Referencing geom[lev] inside the device
+        // lambda would capture `this` (geom is a reference member of IC) and
+        // dereference host memory on the device.
+        const Set::Vector _problo(AMREX_D_DECL(geom[lev].ProbLo()[0],
+                                                geom[lev].ProbLo()[1],
+                                                geom[lev].ProbLo()[2]));
+        const Set::Vector _cellsize(geom[lev].CellSize());
 
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -158,30 +164,26 @@ public:
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
 
-
-            Util::Message(INFO, "StarAftGrain: entering Add() loop, lev=", lev);
-            Util::Message(INFO, "StarAftGrain: exiting Add() loop");
-            
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 // Physical coordinates: x1,x2 are transverse; x3 is axial
                 Set::Scalar x1, x2, x3;
                 if (type == amrex::IndexType::TheCellType())
                 {
-                    x1 = geom[lev].ProbLo()[0] + ((Set::Scalar)i + 0.5) * geom[lev].CellSize()[0];
-                    x2 = geom[lev].ProbLo()[1] + ((Set::Scalar)j + 0.5) * geom[lev].CellSize()[1];
+                    x1 = _problo(0) + ((Set::Scalar)i + 0.5) * _cellsize(0);
+                    x2 = _problo(1) + ((Set::Scalar)j + 0.5) * _cellsize(1);
 #if AMREX_SPACEDIM > 2
-                    x3 = geom[lev].ProbLo()[2] + ((Set::Scalar)k + 0.5) * geom[lev].CellSize()[2];
+                    x3 = _problo(2) + ((Set::Scalar)k + 0.5) * _cellsize(2);
 #else
                     x3 = _z_motor_lo; // 2D fallback: use head-end station
 #endif
                 }
                 else
                 {
-                    x1 = geom[lev].ProbLo()[0] + (Set::Scalar)i * geom[lev].CellSize()[0];
-                    x2 = geom[lev].ProbLo()[1] + (Set::Scalar)j * geom[lev].CellSize()[1];
+                    x1 = _problo(0) + (Set::Scalar)i * _cellsize(0);
+                    x2 = _problo(1) + (Set::Scalar)j * _cellsize(1);
 #if AMREX_SPACEDIM > 2
-                    x3 = geom[lev].ProbLo()[2] + (Set::Scalar)k * geom[lev].CellSize()[2];
+                    x3 = _problo(2) + (Set::Scalar)k * _cellsize(2);
 #else
                     x3 = _z_motor_lo;
 #endif
@@ -277,7 +279,7 @@ public:
 
         // Fin half-angle [degrees] — converted to radians
         Set::Scalar half_angle_deg = 30.0;
-        pp.query_default("fin_half_angle_deg", half_angle_deg, 30.0);
+        pp.query_default("fin_half_angle_deg", half_angle_deg, 30.0); // Star-fin half angle in degrees
         value.half_angle = half_angle_deg * Set::Constant::Pi / 180.0;
 
         // -------------------------------------------------------------------
@@ -287,20 +289,20 @@ public:
         std::vector<Set::Scalar> z_arr, R1_arr, R3_arr, R4_arr;
         std::vector<int>         star_arr;
 
-        pp.queryarr("station.z",    z_arr);
-        pp.queryarr("station.R1",   R1_arr);
-        pp.queryarr("station.R3",   R3_arr);
-        pp.queryarr("station.R4",   R4_arr);
-        pp.queryarr("station.star", star_arr);
+        pp.queryarr("station.z",    z_arr);    // Axial station coordinates
+        pp.queryarr("station.R1",   R1_arr);   // Port bore radius at each station
+        pp.queryarr("station.R3",   R3_arr);   // Star valley radius at each station
+        pp.queryarr("station.R4",   R4_arr);   // Star tip radius at each station
+        pp.queryarr("station.star", star_arr); // Whether each station uses star geometry
 
-        Util::Assert(INFO, TEST(z_arr.size() == R1_arr.size()), 
-                     "StarAftGrain: station.z and station.R1 must have the same length");
+        Util::Assert(INFO, TEST(z_arr.size() == R1_arr.size()),
+                    "StarAftGrain: station.z and station.R1 must have the same length");
         Util::Assert(INFO, TEST(z_arr.size() == R3_arr.size()),
-                     "StarAftGrain: station.z and station.R3 must have the same length");
+                    "StarAftGrain: station.z and station.R3 must have the same length");
         Util::Assert(INFO, TEST(z_arr.size() == R4_arr.size()),
-                     "StarAftGrain: station.z and station.R4 must have the same length");
+                    "StarAftGrain: station.z and station.R4 must have the same length");
         Util::Assert(INFO, TEST(z_arr.size() == star_arr.size()),
-                     "StarAftGrain: station.z and station.star must have the same length");
+                    "StarAftGrain: station.z and station.star must have the same length");
 
         value.stations.clear();
         for (int s = 0; s < (int)z_arr.size(); s++)
@@ -316,22 +318,56 @@ public:
 
         // Sort stations by axial position just in case
         std::sort(value.stations.begin(), value.stations.end(),
-                  [](const Station& a, const Station& b){ return a.z < b.z; });
+                [](const Station& a, const Station& b){ return a.z < b.z; });
 
         Util::Message(INFO, "StarAftGrain: loaded ", value.stations.size(), " stations");
         Util::Message(INFO, "StarAftGrain: nfin = ", value.nfin,
-                      ", half_angle = ", half_angle_deg, " deg");
+                    ", half_angle = ", half_angle_deg, " deg");
         Util::Message(INFO, "StarAftGrain: R_case = ", value.R_case,
-                      " m, eps = ", value.eps, " m");
+                    " m, eps = ", value.eps, " m");
     }
 
 private:
+    // Copy the host-side station data into device-resident vectors so the Add()
+    // device lambda can capture valid device pointers. Mirrors Util::BMP, which
+    // stages its bitmap payload to an amrex::Gpu::DeviceVector. On CPU builds
+    // DeviceVector is a host vector and copyAsync is a plain memcpy, so this
+    // path is correct (and identical in effect) for both CPU and GPU.
+    void UpdateDeviceData()
+    {
+        const int n = (int)stations.size();
+        if (n == 0) return;
+
+        std::vector<Set::Scalar> h_z(n), h_R1(n), h_R3(n), h_R4(n);
+        std::vector<int>         h_star(n);
+        for (int s = 0; s < n; s++)
+        {
+            h_z[s]    = stations[s].z;
+            h_R1[s]   = stations[s].R1;
+            h_R3[s]   = stations[s].R3;
+            h_R4[s]   = stations[s].R4;
+            h_star[s] = stations[s].is_star ? 1 : 0;
+        }
+
+        d_z.resize(n);  d_R1.resize(n);  d_R3.resize(n);  d_R4.resize(n);  d_star.resize(n);
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_z.begin(),    h_z.end(),    d_z.begin());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_R1.begin(),   h_R1.end(),   d_R1.begin());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_R3.begin(),   h_R3.end(),   d_R3.begin());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_R4.begin(),   h_R4.end(),   d_R4.begin());
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice, h_star.begin(), h_star.end(), d_star.begin());
+        amrex::Gpu::streamSynchronize();
+    }
+
     std::vector<Station> stations;
     Set::Scalar          eps          = 0.001;   // Interface width [m]
     Set::Scalar          R_case       = 0.127;   // Outer case radius [m]
     Set::Scalar          z_motor_lo   = 0.0;     // Head-end axial position [m]
     int                  nfin         = 6;        // Number of star fins
     Set::Scalar          half_angle   = Set::Constant::Pi / 6.0; // 30 deg in radians
+
+    // Device-resident station data (populated lazily by UpdateDeviceData).
+    amrex::Gpu::DeviceVector<Set::Scalar> d_z, d_R1, d_R3, d_R4;
+    amrex::Gpu::DeviceVector<int>         d_star;
 };
 
 } // namespace IC

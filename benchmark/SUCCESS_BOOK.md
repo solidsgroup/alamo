@@ -2,7 +2,7 @@
 ## A Reference Manual of Changes That Worked
 
 **Branch:** `chamber-gpu` (permanent; never merged to master)
-**Period:** 2026-06-18 → 2026-06-28
+**Period:** 2026-06-18 → 2026-06-29
 **Authors:** jackplum64 + Claude (Sonnet 4.6)
 
 This document records every structural or strategic change that produced a
@@ -430,6 +430,59 @@ Caused a parse-time abort before any physics ran.
 provide the required fields.
 
 **Evidence:** Commit `2cacb50dd`. `benchmark/PHASE4_R4_dispatch.md`.
+
+---
+
+### 6.6 `IC::StarAftGrain`: Host Pointers + Host Globals in a Device Lambda
+
+**Bug:** The StarAftGrain IC (NAWC Motor No. 6) merged into `chamber-gpu` carried
+three device-unsafe constructs in `src/IC/StarAftGrain.H`, all in the `Add()`
+`amrex::ParallelFor`:
+
+1. **Host-pointer station arrays.** Per-station data (`z`, `R1`, `R3`, `R4`,
+   `is_star`) lived in `std::vector`s; their raw `.data()` pointers were captured
+   by value and dereferenced *inside* the `AMREX_GPU_DEVICE` lambda — a host-memory
+   read on the device (illegal on A100; HMM silently migrates it on the local
+   A1000, so it does not fault locally).
+2. **`geom[lev]` inside the lambda.** `geom` is a reference member of the `IC`
+   base, so referencing it under `[=]` captures `this` and dereferences host
+   memory on the device.
+3. **`Set::Constant::Pi` in device code.** `Pi` is an `extern const` host global
+   (`Set/Set.cpp`), undefined in device code. This one does not exist on CPU and
+   is invisible to a CPU build — it only surfaces under nvcc.
+
+**Fix (mirrors `IC::BMP` / `Util::BMP`, the GPU-supported reference):**
+
+1. Stage the station arrays into `amrex::Gpu::DeviceVector` members via
+   `amrex::Gpu::copyAsync(hostToDevice, …)` + `streamSynchronize()` (new lazy
+   `UpdateDeviceData()` helper); capture the device `.data()` pointers. On CPU
+   builds `DeviceVector` is a host vector and `copyAsync` is a memcpy, so the
+   path is identical there.
+2. Hoist `ProbLo`/`CellSize` into local `Set::Vector _problo`/`_cellsize` before
+   the lambda; index those inside.
+3. Replace `Set::Constant::Pi` with a local `constexpr Set::Scalar pi` literal in
+   the device `starSDF`.
+
+The input-file schema (`Parse` and every `staraftgrain.*` parameter) is unchanged.
+
+**Evidence:** Compiles clean CPU-2D and CUDA-3D/sm_86 (the nvcc build is what
+caught the `Set::Constant::Pi` device-code error — CPU build does not). Runtime
+gate: `compute-sanitizer memcheck` (HMM-immune A100 stand-in) on `nawc6_input.in`
+multi-box layout reached `Initialize()`, ran the IC device kernel + 2 flame
+steps, `ERROR SUMMARY: 0 errors`. `IC::StarAftGrain` added to the support matrix
+`docs/gpu_safe_ic_bc_matrix.md`.
+
+**Pattern (three traps a CPU build and a plain local GPU run both hide):**
+- A raw pointer into a host container captured by value is still a host pointer
+  on the device. Stage array payloads to `amrex::Gpu::DeviceVector` and capture
+  the device pointer (the `Util::BMP` idiom).
+- Touching any reference/pointer member (`geom`, `this->…`) inside a `[=]` device
+  lambda captures `this`. Hoist what you need into locals first.
+- Host globals (`extern const`) are undefined in device code even though they
+  compile fine on CPU. Use `constexpr` literals or device-safe constants.
+- A clean CPU compile and a local A1000 run can each pass all three. The reliable
+  gates are the **nvcc compile** (catches host-global-in-device) and
+  **compute-sanitizer** (HMM-immune; catches the host-pointer deref).
 
 ---
 
