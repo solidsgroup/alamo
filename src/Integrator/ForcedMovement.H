@@ -104,8 +104,8 @@ protected:
 
             amrex::Box bx;
             amrex::IndexType type = alpha_mf[lev]->ixType();
-            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
-            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            if (type == amrex::IndexType::TheCellType())      bx = mfi.tilebox();
+            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.nodaltilebox();
             else Util::Abort(INFO, "Unkonwn index type");
 
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
@@ -131,6 +131,10 @@ protected:
             {   
                 Eigen::Matrix<double,5,3> A;
                 Eigen::Matrix<double,5,1> b;
+
+                A.setZero();
+                b.setZero();
+            
                 Set::Vector Center = Set::Position(i, j, k, geom[lev], type);
 
                 static constexpr int off[5][2] = {
@@ -160,10 +164,33 @@ protected:
                 Eigen::Vector3d coeff = A.colPivHouseholderQr().solve(b);
                 double alphaCenter = coeff(0);
 
+                if (!std::isfinite(alphaCenter))
+                {   
+                    auto p0 = position_new(i,   j,   k);
+                    auto p1 = position_new(i+1, j,   k);
+                    auto p2 = position_new(i,   j+1, k);
+                    auto p3 = position_new(i-1, j,   k);
+                    auto p4 = position_new(i,   j-1, k);
+
+                    std::cout << "p0 = " << p0 << "\n";
+                    std::cout << "p1 = " << p1 << "\n";
+                    std::cout << "p2 = " << p2 << "\n";
+                    std::cout << "p3 = " << p3 << "\n";
+                    std::cout << "p4 = " << p4 << "\n";
+
+                    std::cout << "NaN at (" << i << "," << j << "," << k << ")\n";
+                    std::cout << "A =\n" << A << "\n";
+                    std::cout << "b = " << b.transpose() << "\n";
+                    std::cout << "rank = " << A.colPivHouseholderQr().rank() << "\n\n";
+                }
+
                 // Update
                 alpha_new(i, j, k) = alphaCenter;
             });
         }
+
+        Util::RealFillBoundary(*(alpha_mf)[lev], geom[lev]);
+        Util::RealFillBoundary(*(alpha_old_mf)[lev], geom[lev]);
     }
 
     // Tag cells for mesh refinement based on temperature gradient

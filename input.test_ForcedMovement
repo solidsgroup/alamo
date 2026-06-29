@@ -6,24 +6,24 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 4
-timestep  = 1e-2
+amr.max_level = 2
+timestep  = 1e+1
 amr.n_cell = 24 8
 geometry.prob_lo = -9.0  0
 geometry.prob_hi =  9.0 6.0
 geometry.is_periodic = 0 0 0
-stop_time = 1e-1
+stop_time = 1e+2
 # AMR parameters
 
 amr.cell.all = 1
 
-tstart = 10
+tstart = 100000000
 
 ## forced movement
 forcedmovement.alpha.ic.type = expression
 forcedmovement.alpha.ic.expression.constant.width = 0.4
 forcedmovement.alpha.ic.expression.constant.height = 3.0
-forcedmovement.alpha.ic.expression.constant.eps = 0.2
+forcedmovement.alpha.ic.expression.constant.eps = 0.8
 forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 
@@ -36,10 +36,10 @@ forcedmovement.alpha.bc.constant.val.xhi = 0.0
 forcedmovement.alpha.bc.constant.val.ylo = 0.0
 forcedmovement.alpha.bc.constant.val.yhi = 0.0
 
-forcedmovement.position_new.bc.constant.type.xlo = neumann
-forcedmovement.position_new.bc.constant.type.xhi = neumann
-forcedmovement.position_new.bc.constant.type.ylo = neumann
-forcedmovement.position_new.bc.constant.type.yhi = neumann
+forcedmovement.position_new.bc.constant.type.xlo = dirichlet
+forcedmovement.position_new.bc.constant.type.xhi = dirichlet
+forcedmovement.position_new.bc.constant.type.ylo = dirichlet
+forcedmovement.position_new.bc.constant.type.yhi = dirichlet
 forcedmovement.position_new.bc.constant.val.xlo = 0.0
 forcedmovement.position_new.bc.constant.val.xhi = 0.0
 forcedmovement.position_new.bc.constant.val.ylo = 0.0
