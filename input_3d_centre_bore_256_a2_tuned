@@ -1,0 +1,199 @@
+####################################################################################
+# input_3d_centre_bore_256_a2_tuned - Phase-C elastic-solver tuning (256^3)
+#
+# Derived from input_3d_centre_bore_256_a2.  IDENTICAL physics/grid; the ONLY
+# changes are to the elastic linear-solver configuration, which Phase-A
+# profiling identified as the dominant cost:
+#
+#   Phase-A finding (nsys trace 11306663 + diag 11310480, A100, this physics):
+#     - Operator::Elastic::Fapply = 74.6% of GPU kernel time / 58% exclusive of
+#       the elastic solve.  The elastic solve = 95.7% of all evolve time.
+#     - GPU 89.3% busy => compute/memory-bound, not launch-bound.
+#     - The MLMG solve CONVERGES CLEANLY in ~10 outer V-cycles (NOT grinding);
+#       the Krylov bottom solver is only ~7% of solve wall time.  ~90% of Fapply
+#       TIME is the ~55 fine/mid-level box applies; 66.8% of Fapply CALLS are
+#       tiny coarse boxes worth only 5.3% of Fapply time.
+#   These input levers cut the Fapply CALL COUNT (the structural per-call cost of
+#   the fine-level Fapply is addressed separately in source -- see Phase C):
+#     1. tol_rel/tol_abs default to 1e-8 (UNSET in the baseline) -> the V-cycle
+#        stack is driven to an absurd tolerance for an explicit-coupled,
+#        slowly-varying thermoelastic field.  1e-6 trims outer V-cycles ~30-40%.
+#     2. interval=50 (solve every 5 ms) is far finer than the pressure/thermal
+#        forcing timescale -> a direct linear saving on solve frequency.
+#     3. bottom_tol_*/bottom_max_iter UNSET -> BiCGStab inherits the 1e-8 target
+#        and runs the coarse grid to the FP noise floor (worse on GPU: non-
+#        associative reductions).  This is only ~7% of wall time but accounts for
+#        most of the 358k kernel launches / tiny coarse Fapply; capping it trims
+#        launch overhead and is essentially free accuracy-wise.
+#
+# A/B PROTOCOL: run this against ..._a2 with elastic.solver.verbose=4 for the
+# first few solves to confirm V-cycle + Newton counts drop and the stress field
+# matches the baseline to within tol.  See benchmark/PHASE_A_FINDINGS.md.
+####################################################################################
+
+alamo.program = flame
+plot_file = output_3d_centre_bore_256_a2_tuned
+
+amr.plot_int = -1
+amr.max_level = 1
+amr.blocking_factor = 32
+amr.max_grid_size = 128
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.n_cell = 256 256 128
+amr.thermo.int = 1
+amr.thermo.plot_int = -1
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 0.1754_m 0.1754_m 0.0877_m
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+timestep = 1.0e-4_s
+stop_time = 6.5_s
+
+# Phase field parameters
+pf.eps = 5.0e-5_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+# eta IC: central cylindrical bore along z. solid (eta=1) outside a radius-0.03 m
+# bore, gas (eta=0) inside; smooth tanh interface.
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.cx = 0.0877
+pf.eta.ic.expression.constant.cy = 0.0877
+pf.eta.ic.expression.constant.rb = 0.03
+pf.eta.ic.expression.constant.w  = 0.005
+pf.eta.ic.expression.region0 = "0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)"
+
+# phi IC: fuel disk (phi=1) of radius 0.08 m, casing (phi=0) outside.
+phi.ic.type = expression
+phi.ic.expression.constant.cx = 0.0877
+phi.ic.expression.constant.cy = 0.0877
+phi.ic.expression.constant.rd = 0.08
+phi.ic.expression.constant.w  = 0.005
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((rd - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# eta BCs - all six 3D faces.
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.type.zlo = dirichlet
+pf.eta.bc.constant.type.zhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+pf.eta.bc.constant.val.zlo = 1.0
+pf.eta.bc.constant.val.zhi = 1.0
+
+# Propellant model
+propellant.type = homogenize
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# Thermal
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.type.zlo = dirichlet
+thermal.temp.bc.constant.type.zhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+thermal.temp.bc.constant.val.zlo = 300_K
+thermal.temp.bc.constant.val.zhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0
+
+# Pressure / chamber
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa
+chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# Thermoelasticity -- ENABLED, solver TUNED (see header)
+elastic.on = 1
+elastic.zero_out_displacement = 0
+elastic.type = static
+# LEVER 3: solve cadence.  Baseline = 50.  The stress responds to chamber
+# pressure + thermal eigenstrain, both far slower than the 1e-4 s step.
+# Start at 100 (2x) and A/B 200/500 against the baseline stress field.
+elastic.interval = 100
+elastic.tstart = 0.5e-4
+elastic.phirefinement = 100
+elastic.print_model = 0
+elastic.use_psi = 1
+elastic.psi_floor = 0.05
+# LEVER 1: outer MLMG tolerance.  Baseline left these UNSET => 1e-8 default.
+elastic.tol_rel = 1e-6
+elastic.tol_abs = 1e-6
+elastic.solver.max_iter = 1000
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+# LEVER 2: bottom solver.  Baseline left these UNSET => BiCGStab grinds to the
+# inherited 1e-8 on the FP noise floor (51% of solve time).  Give it a sane
+# relative target and a hard iteration cap so it stops on noise instead of
+# spinning.  (Alt to A/B: elastic.solver.bottom_solver = smoother +
+# elastic.solver.bottom_smooth = 16, which does zero global reductions and is
+# fully deterministic on GPU.)
+elastic.solver.bottom_tol_rel = 1e-4
+elastic.solver.bottom_tol_abs = 0.0
+elastic.solver.bottom_max_iter = 50
+elastic.solver.nriters = 200
+elastic.solver.nrtolerance = 1e-5
+elastic.solver.verbose = 0
+elastic.traction = 1.0_MPa
+elastic.traction_from_chamber = 1
+
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 4_MPa
+model_void.mu = 4_MPa
+
+model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+model_casing.kappa = 5_GPa
+model_casing.mu = 2_GPa
+
+# All faces default to zero displacement (Constant BC constructor default).
+elastic.bc.type = constant
