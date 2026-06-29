@@ -18,7 +18,7 @@ int main (int argc, char* argv[])
     std::string program;
 
     // Validate/make sure the correct Alamo program/Inetrgator is used
-    pp.query_validate("alamo.program", program, { "allencahn", "dendrite", "flame" });
+    pp.query_validate("alamo.program", program, { "allencahn", "dendrite", "flame", "forcedmovement"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;

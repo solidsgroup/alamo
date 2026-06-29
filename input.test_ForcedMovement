@@ -1,5 +1,5 @@
-alamo.program = allencahn
-plot_file = ./output.cantilever
+alamo.program = forcedmovement
+plot_file = ./output.forcedmovement
 amr.plot_dt = 0.05
 # amr.plot_int = 1
 amr.max_grid_size = 500000
@@ -17,33 +17,28 @@ stop_time = 50.0
 
 amr.cell.all = 1
 
-alamo.program = allencahn
-plot_file = ./output.cantilever
+tstart = 10
 
-tstart = 2e-2
-
-## Allen-Cahn Model with no growth
-allencahn.ch.direction = 0
-allencahn.ch.direction_tstart = 0.0
-allencahn.alpha.ic.type = expression
-allencahn.alpha.ic.expression.constant.width = 0.4
-allencahn.alpha.ic.expression.constant.height = 3.0
-allencahn.alpha.ic.expression.constant.eps = 0.2
-allencahn.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
+## forced movement
+forcedmovement.alpha.ic.type = expression
+forcedmovement.alpha.ic.expression.constant.width = 0.4
+forcedmovement.alpha.ic.expression.constant.height = 3.0
+forcedmovement.alpha.ic.expression.constant.eps = 0.2
+forcedmovement.alpha.ic.expression.region0 = "1 - (0.5 + 0.5*erf((x + width)/eps))*(0.5 - 0.5*erf((x - width)/eps))*(0.5 - 0.5*erf((y - height)/eps))"
 # allencahn.alpha.ic.expression.region0 = "((0.5 + 0.5*erf((x - width)/eps))+(0.5 - 0.5*erf((x + width)/eps)))"
 
-allencahn.alpha.bc.constant.type.xlo = neumann
-allencahn.alpha.bc.constant.type.xhi = neumann
-allencahn.alpha.bc.constant.type.ylo = neumann
-allencahn.alpha.bc.constant.type.yhi = neumann
-allencahn.alpha.bc.constant.val.xlo = 0.0
-allencahn.alpha.bc.constant.val.xhi = 0.0
-allencahn.alpha.bc.constant.val.ylo = 0.0
-allencahn.alpha.bc.constant.val.yhi = 0.0
+forcedmovement.alpha.bc.constant.type.xlo = neumann
+forcedmovement.alpha.bc.constant.type.xhi = neumann
+forcedmovement.alpha.bc.constant.type.ylo = neumann
+forcedmovement.alpha.bc.constant.type.yhi = neumann
+forcedmovement.alpha.bc.constant.val.xlo = 0.0
+forcedmovement.alpha.bc.constant.val.xhi = 0.0
+forcedmovement.alpha.bc.constant.val.ylo = 0.0
+forcedmovement.alpha.bc.constant.val.yhi = 0.0
 
-allencahn.ch.L = 0.0
-allencahn.ch.kappa = 0.002
-allencahn.ch.lambda = 0.05
+forcedmovement.ch.L = 0.0
+forcedmovement.ch.kappa = 0.002
+forcedmovement.ch.lambda = 0.05
 
 ### HYDRO PARAM ###
 
@@ -109,11 +104,11 @@ hydro.energy.bc.constant.val.xlo = 0.0
 hydro.energy.bc.constant.val.ylo = 0.0 
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = dirichlet neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann
 hydro.momentum.bc.constant.type.ylo = neumann dirichlet
 hydro.momentum.bc.constant.type.yhi = neumann dirichlet
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
-hydro.momentum.bc.constant.val.xlo = 10.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
 hydro.momentum.bc.constant.val.yhi = 0.0 0.0
 

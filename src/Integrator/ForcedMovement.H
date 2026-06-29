@@ -201,15 +201,6 @@ protected:
     Set::Field<Set::Vector> position_new_mf; // Updated position of each point after move is applied
     Set::Field<Set::Vector> velocity_mf; // Velocity of each point
 
-    struct {
-        Set::Scalar L = NAN;
-        Set::Scalar eps = NAN;
-        Set::Scalar kappa = NAN;
-        Set::Scalar lambda = NAN;
-        Set::Scalar direction_tstart = NAN;
-        int direction = 0;
-    } ch;
-
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
