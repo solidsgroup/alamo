@@ -5,7 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 #SBATCH --time=01:00:00
 #SBATCH --output=flame_gpu_3d_diag.%j.out
 #SBATCH --error=flame_gpu_3d_diag.%j.err
@@ -22,14 +23,14 @@
 #                outputs to benchmark/profiles_alpha1/nsys_<jobid>/
 #
 # Example (correctness, nova partition):
-#   DIAG_TOOL=blocking INPUT=input_3d_centre_bore_128 GPU_TYPE=v100 sbatch --gres=gpu:v100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d_diag.slurm
+#   DIAG_TOOL=blocking INPUT=input_3d_centre_bore_128 GPU_TYPE=v100 sbatch --gres=gpu:v100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_diag.slurm
 #
 # Example (A1 profiling, A100, nova partition):
-#   DIAG_TOOL=ncu  INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d_diag.slurm
-#   DIAG_TOOL=nsys INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d_diag.slurm
+#   DIAG_TOOL=ncu  INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_diag.slurm
+#   DIAG_TOOL=nsys INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_diag.slurm
 #
 # Example (scavenger partition -- better queue times, preemptible):
-#   DIAG_TOOL=nsys INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=32 benchmark/nova_flame_gpu_3d_diag.slurm
+#   DIAG_TOOL=nsys INPUT=input_3d_flame_128 GPU_TYPE=a100 sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_diag.slurm
 
 set -euo pipefail
 

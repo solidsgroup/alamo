@@ -20,9 +20,8 @@
 #   GPU_TYPE=...       GPU type label passed through to the SLURM scripts
 #                      (default v100 on the currently observed NOVA GPU nodes).
 #   GPUS_PER_NODE=2    GPU slots per NOVA GPU node.
-#   GPU_NODE_CPUS=32   CPUs requested per GPU node, split across GPU ranks
-#                      (node has 72; we don't need them all for a 1-GPU run).
-#   CPU_RANKS=96       CPU ranks for the full wide-node baseline.
+#   GPU_NODE_CPUS=8    CPUs requested per GPU node, split across GPU ranks.
+#   CPU_RANKS=64       CPU ranks for the full wide-node baseline.
 #   SIZES="128 256 512"   grid sizes for the strong sweep.
 #   SMALL_GPUS="1"     GPU counts for the smaller resolutions.
 #   LARGE_GPUS="1 2"   GPU counts for the largest resolution.
@@ -40,8 +39,8 @@ set -euo pipefail
 MODE="${MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-v100}"
 GPUS_PER_NODE="${GPUS_PER_NODE:-2}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-32}"
-CPU_RANKS="${CPU_RANKS:-96}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-8}"
+CPU_RANKS="${CPU_RANKS:-64}"
 SMALL_GPUS="${SMALL_GPUS:-1}"
 LARGE_GPUS="${LARGE_GPUS:-1 2}"
 SIZES="${SIZES:-128 256 512}"
@@ -149,6 +148,12 @@ dependency_opt() {
 emit() {
     local input="$1" ngpus="$2" script="$3" tag="$4" kind="$5"
     local dependency="" depopt=""
+    local mem_gb
+    case "$input" in
+        *128*) mem_gb=32G ;;
+        *256*|*512*) mem_gb=64G ;;
+        *) mem_gb=64G ;;
+    esac
     local sbatch_opts=()
     if [[ "$kind" == "gpu" ]]; then
         local tasks_per_node="$ngpus"
@@ -157,10 +162,10 @@ emit() {
             cpus_per_task=1
         fi
         dependency="$GPU_DEPENDENCY"
-        sbatch_opts+=(--nodes=1 --gres="gpu:${GPU_TYPE}:${ngpus}" --ntasks="${ngpus}" --ntasks-per-node="${tasks_per_node}" --cpus-per-task="${cpus_per_task}" --mem=0)
+        sbatch_opts+=(--nodes=1 --gres="gpu:${GPU_TYPE}:${ngpus}" --ntasks="${ngpus}" --ntasks-per-node="${tasks_per_node}" --cpus-per-task="${cpus_per_task}" --mem="${mem_gb}")
     else
         dependency="$CPU_DEPENDENCY"
-        sbatch_opts+=(--nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem=0)
+        sbatch_opts+=(--nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem="${mem_gb}")
     fi
     if [[ "${SCAVENGER}" -eq 1 ]]; then
         sbatch_opts+=(--partition=scavenger)
@@ -239,25 +244,25 @@ if [[ "$MODE" == "strong" ]]; then
         input="$(input_for_size "$size")"
         for n in $(gpus_for_size "$size"); do
             if [[ "$n" -le 1 ]]; then
-                emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "strong size=${size} gpu x${n}" "gpu"
+                emit "$size" "$input" "$n" "$SCRIPT_GPU_SINGLE" "strong size=${size} gpu x${n}" "gpu"
             else
-                emit "$input" "$n" "$SCRIPT_GPU_MULTI" "strong size=${size} gpu x${n}" "gpu"
+                emit "$size" "$input" "$n" "$SCRIPT_GPU_MULTI" "strong size=${size} gpu x${n}" "gpu"
             fi
         done
-        emit "$input" "$CPU_RANKS" "$SCRIPT_CPU" "strong size=${size} cpu-node baseline" "cpu"
+        emit "$size" "$input" "$CPU_RANKS" "$SCRIPT_CPU" "strong size=${size} cpu-node baseline" "cpu"
     done
 else
     for n in $GPUS; do
         size="$(weak_size_for_gpus "$n")"
         input="$(input_for_size "$size")"
         if [[ "$n" -le 1 ]]; then
-            emit "$input" "$n" "$SCRIPT_GPU_SINGLE" "weak gpu x${n} size=${size}" "gpu"
+            emit "$size" "$input" "$n" "$SCRIPT_GPU_SINGLE" "weak gpu x${n} size=${size}" "gpu"
         else
-            emit "$input" "$n" "$SCRIPT_GPU_MULTI" "weak gpu x${n} size=${size}" "gpu"
+            emit "$size" "$input" "$n" "$SCRIPT_GPU_MULTI" "weak gpu x${n} size=${size}" "gpu"
         fi
     done
     big_size="$(weak_size_for_gpus 8)"
-    emit "$(input_for_size "$big_size")" "$CPU_RANKS" "$SCRIPT_CPU" "weak cpu-node baseline size=${big_size}" "cpu"
+    emit "$big_size" "$(input_for_size "$big_size")" "$CPU_RANKS" "$SCRIPT_CPU" "weak cpu-node baseline size=${big_size}" "cpu"
 fi
 
 echo

@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=2
 #SBATCH --ntasks-per-node=2
-#SBATCH --cpus-per-task=36
-#SBATCH --mem=0
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64G
 #SBATCH --time=02:00:00
 #SBATCH --output=flame_gpu_3d_multi.%j.out
 #SBATCH --error=flame_gpu_3d_multi.%j.err
@@ -16,7 +16,7 @@
 # editing GPU_TYPE/NGPUS, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres + tasks on the command
 # line to match NGPUS (1 MPI rank per GPU):
-#   NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --ntasks-per-node=2 --cpus-per-task=36 benchmark/nova_flame_gpu_3d_multi.slurm
+#   NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --ntasks-per-node=2 --cpus-per-task=4 benchmark/nova_flame_gpu_3d_multi.slurm
 # ==========================================================================
 # Multi-GPU (1 MPI rank per GPU) 3D run of the Flame case on NOVA.
 # This is the multi-GPU 3D sibling of nova_flame_gpu.slurm, parameterized for N
@@ -24,9 +24,9 @@
 # Build the 3D binaries first with benchmark/build_alamo_nova_3d.sh.
 #
 # Examples:
-#   NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --cpus-per-task=36 benchmark/nova_flame_gpu_3d_multi.slurm
-#   MODE=fast NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --cpus-per-task=36 benchmark/nova_flame_gpu_3d_multi.slurm
-#   NGPUS=2 sbatch --partition=scavenger --gres=gpu:a100:2 --ntasks=2 --cpus-per-task=36 benchmark/nova_flame_gpu_3d_multi.slurm
+#   NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --cpus-per-task=4 benchmark/nova_flame_gpu_3d_multi.slurm
+#   MODE=fast NGPUS=2 sbatch --gres=gpu:v100:2 --ntasks=2 --cpus-per-task=4 benchmark/nova_flame_gpu_3d_multi.slurm
+#   NGPUS=2 sbatch --partition=scavenger --gres=gpu:a100:2 --ntasks=2 --cpus-per-task=4 benchmark/nova_flame_gpu_3d_multi.slurm
 # ==========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"

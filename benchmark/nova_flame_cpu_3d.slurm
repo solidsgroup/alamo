@@ -3,9 +3,9 @@
 #SBATCH -J flame_cpu_3d
 #SBATCH --partition=nova
 #SBATCH --nodes=1
-#SBATCH --ntasks=96                 # MPI ranks = domain decomposition
+#SBATCH --ntasks=64                 # MPI ranks = domain decomposition
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=0
+#SBATCH --mem=64G
 #SBATCH --time=02:00:00
 #SBATCH --output=flame_cpu_3d.%j.out
 #SBATCH --error=flame_cpu_3d.%j.err

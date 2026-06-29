@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=64
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=0
+#SBATCH --mem=64G
 #SBATCH --time=08:00:00
 #SBATCH --output=flame_cpu_3d_a2.%j.out
 #SBATCH --error=flame_cpu_3d_a2.%j.err

@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72
-#SBATCH --mem=0
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
 #SBATCH --time=04:00:00
 #SBATCH --output=flame_gpu_3d_a2.%j.out
 #SBATCH --error=flame_gpu_3d_a2.%j.err
@@ -15,8 +15,8 @@
 # NOTE: GPU count / type / gres are set dynamically on the sbatch command line.
 # The partition defaults to nova; pass --partition=scavenger to sbatch to use
 # the scavenger queue (or use phase_a2_sweep.sh --scavenger --submit):
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_a2.slurm
-#   sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=72 benchmark/nova_flame_gpu_3d_a2.slurm
+#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_a2.slurm
+#   sbatch --partition=scavenger --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu_3d_a2.slurm
 # ==========================================================================
 # A2 single-GPU 3D Flame+Elastic baseline run on NOVA (GPU_ROADMAP_V2 Phase A2).
 #
@@ -84,6 +84,8 @@ if [ -z "${NSYS_PREFIX:-}" ]; then
 fi
 
 echo "=== launching A2 GPU ==="
+# EXTRA_ARGS (optional): extra ParmParse overrides appended last (last key wins),
+# e.g. EXTRA_ARGS="stop_time=0.06 elastic.solver.verbose=4" for a short A/B run.
 ${TIME_CMD} ${NSYS_PREFIX} srun --mpi=pmix -n "${NRANKS}" --gpus-per-task=1 \
-    "${GPU_BIN}" "${INPUT}" ${OVERRIDES}
+    "${GPU_BIN}" "${INPUT}" ${OVERRIDES} ${EXTRA_ARGS:-}
 echo "=== done ==="

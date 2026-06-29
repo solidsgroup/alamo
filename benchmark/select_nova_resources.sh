@@ -18,7 +18,7 @@
 # considered -- its CUDA compute capability on NOVA has not been confirmed,
 # so we can't be sure which binary it would need.)
 #
-# CPU/RAM profiles, most-preferred first: (PREF_CPUS, PREF_MEM_GB),
+# GPU job resource profiles, most-preferred first: (PREF_CPUS, PREF_MEM_GB),
 # (PREF_CPUS, MIN_MEM_GB), (MIN_CPUS, PREF_MEM_GB), (MIN_CPUS, MIN_MEM_GB).
 # MIN_CPUS/MIN_MEM_GB are hard floors -- this script never selects below them.
 #
@@ -39,10 +39,10 @@
 
 PARTITION="${PARTITION:-nova}"
 
-MIN_CPUS="${MIN_CPUS:-16}"
-PREF_CPUS="${PREF_CPUS:-32}"
-MIN_MEM_GB="${MIN_MEM_GB:-64}"
-PREF_MEM_GB="${PREF_MEM_GB:-128}"
+MIN_CPUS="${MIN_CPUS:-8}"
+PREF_CPUS="${PREF_CPUS:-8}"
+MIN_MEM_GB="${MIN_MEM_GB:-32}"
+PREF_MEM_GB="${PREF_MEM_GB:-64}"
 
 # GPU candidates, most-preferred first. Allow callers to override the search
 # order with NOVA_GPU_CANDIDATES_OVERRIDE="a100" or "h200 a100".

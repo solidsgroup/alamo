@@ -16,7 +16,7 @@ INPUT="${INPUT:-input_3d_centre_bore_128}"
 TOOLS="${TOOLS:-blocking sanitizer}"  # also: ncu nsys
 MANAGED_ARENA="${MANAGED_ARENA:-1}"
 DEPENDENCY="${DEPENDENCY:-}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-32}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-8}"
 DRY_RUN=0
 SCAVENGER=0
 
@@ -35,7 +35,7 @@ Env knobs:
   --scavenger    submit to the scavenger partition instead of nova
   MANAGED_ARENA  1|0 passed to amrex.the_arena_is_managed (default: 1)
   DEPENDENCY     optional Slurm dependency, bare job id or full afterok:...
-  GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 72)
+  GPU_NODE_CPUS  CPUs on one NOVA GPU node (default: 8)
 EOF
 }
 

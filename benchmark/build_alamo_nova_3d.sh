@@ -30,6 +30,7 @@ ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"
 ARCHES="${ARCHES:-70 80 90}"                    # 70=V100, 80=A100, 90=H200
 BUILD_JOBS="${BUILD_JOBS:-64}"
+BUILD_MEM="${BUILD_MEM:-64G}"
 CPU_BUILD_JOBS="${CPU_BUILD_JOBS:-8}"           # bounded -j for the CPU (-flto) baseline; a high -j OOMs the node
 COMP="${COMP:-g++}"
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
@@ -89,7 +90,7 @@ cat > "${SB}" <<END_OF_SBATCH
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=${BUILD_JOBS}
-#SBATCH --mem=128G
+#SBATCH --mem=${BUILD_MEM}
 #SBATCH --time=04:00:00
 #SBATCH --output=alamo_build_3d.%j.out
 #SBATCH --error=alamo_build_3d.%j.err

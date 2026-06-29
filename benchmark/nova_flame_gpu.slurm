@@ -5,7 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 #SBATCH --time=04:00:00
 #SBATCH --output=flame_gpu.%j.out
 #SBATCH --error=flame_gpu.%j.err
@@ -14,16 +15,16 @@
 # NOTE: GPU count / type / gres are set dynamically below via --export or by
 # editing GPU_TYPE/NGPU, then re-emitted into the job by the wrapper logic.
 # Because #SBATCH lines can't read variables, set the gres on the command line:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=24 benchmark/nova_flame_gpu.slurm
+#   sbatch --gres=gpu:a100:1 --ntasks=1 --ntasks-per-node=1 --cpus-per-task=8 benchmark/nova_flame_gpu.slurm
 # or use the matching values below (defaults: 1x A100).
 # ===========================================================================
 # Multi-GPU (1 MPI rank per GPU) run of the Flame center-bore case on NOVA.
 # Build the binaries first with benchmark/build_alamo_nova.sh.
 #
 # Examples:
-#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu.slurm
-#   GPU_TYPE=h200 sbatch --gres=gpu:h200:2 --ntasks=2 --ntasks-per-node=2 --cpus-per-task=12 benchmark/nova_flame_gpu.slurm
-#   MODE=fast sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=24 benchmark/nova_flame_gpu.slurm
+#   sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu.slurm
+#   GPU_TYPE=h200 sbatch --gres=gpu:h200:2 --ntasks=2 --ntasks-per-node=2 --cpus-per-task=8 benchmark/nova_flame_gpu.slurm
+#   MODE=fast sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 benchmark/nova_flame_gpu.slurm
 # ===========================================================================
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"

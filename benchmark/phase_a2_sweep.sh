@@ -21,7 +21,7 @@
 #
 # Env knobs:
 #   GPU_TYPE=a100        GPU type for GRES (default a100)
-#   GPU_NODE_CPUS=72     CPU cores on one NOVA GPU node
+#   GPU_NODE_CPUS=8      CPU cores on one NOVA GPU node
 #   CPU_RANKS=64         MPI ranks for the CPU baseline (match Phase-3 R3)
 #   SIZES="128 256"      Grid sizes to sweep (default both)
 #   OUT=a2_commands.txt  Output file for the sbatch command matrix
@@ -32,7 +32,7 @@
 set -euo pipefail
 
 GPU_TYPE="${GPU_TYPE:-a100}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-72}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-8}"
 CPU_RANKS="${CPU_RANKS:-64}"
 SIZES="${SIZES:-128 256}"
 OUT="${OUT:-a2_commands.txt}"
@@ -116,9 +116,15 @@ input_for_size() {
 emit_gpu() {
     local input="$1" size="$2"
     local cpus_per_task="${GPU_NODE_CPUS}"
+    local mem_gb
+    case "$size" in
+        128) mem_gb=32G ;;
+        256) mem_gb=64G ;;
+        *) mem_gb=64G ;;
+    esac
     local depopt
     depopt="$(dependency_opt "${GPU_DEPENDENCY}")"
-    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${cpus_per_task}" --mem=0)
+    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --gres="gpu:${GPU_TYPE}:1" --ntasks=1 --ntasks-per-node=1 --cpus-per-task="${cpus_per_task}" --mem="${mem_gb}")
     [[ -n "$depopt" ]] && sbatch_opts+=("$depopt")
 
     local sbatch_opts_text=""
@@ -140,9 +146,15 @@ emit_gpu() {
 
 emit_cpu() {
     local input="$1" size="$2"
+    local mem_gb
+    case "$size" in
+        128) mem_gb=32G ;;
+        256) mem_gb=64G ;;
+        *) mem_gb=64G ;;
+    esac
     local depopt
     depopt="$(dependency_opt "${CPU_DEPENDENCY}")"
-    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem=0)
+    local sbatch_opts=(--partition="${PARTITION}" --nodes=1 --ntasks="${CPU_RANKS}" --cpus-per-task=1 --mem="${mem_gb}")
     [[ -n "$depopt" ]] && sbatch_opts+=("$depopt")
 
     local sbatch_opts_text=""

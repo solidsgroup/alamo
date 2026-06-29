@@ -32,6 +32,7 @@ ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"   # CPU EPYC nodes; build needs no GPU
 ARCHES="${ARCHES:-80 90}"                    # 80=A100, 90=H200
 BUILD_JOBS="${BUILD_JOBS:-64}"
+BUILD_MEM="${BUILD_MEM:-64G}"
 COMP="${COMP:-g++}"                          # nvcc host compiler (gcc is the safe choice)
 EMAIL="${EMAIL:-jackplum@iastate.edu}"
 
@@ -89,7 +90,7 @@ cat > "${SB}" <<END_OF_SBATCH
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=${BUILD_JOBS}
-#SBATCH --mem=128G
+#SBATCH --mem=${BUILD_MEM}
 #SBATCH --time=04:00:00
 #SBATCH --output=alamo_build.%j.out
 #SBATCH --error=alamo_build.%j.err

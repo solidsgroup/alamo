@@ -21,8 +21,8 @@ ALAMO_DIR="${ALAMO_DIR:-${ROOT_DIR}}"
 SWEEP_MODE="${SWEEP_MODE:-strong}"
 GPU_TYPE="${GPU_TYPE:-a100}"
 GPUS_PER_NODE="${GPUS_PER_NODE:-2}"
-GPU_NODE_CPUS="${GPU_NODE_CPUS:-72}"
-CPU_RANKS="${CPU_RANKS:-96}"
+GPU_NODE_CPUS="${GPU_NODE_CPUS:-8}"
+CPU_RANKS="${CPU_RANKS:-64}"
 SMALL_GPUS="${SMALL_GPUS:-1}"
 LARGE_GPUS="${LARGE_GPUS:-1 2}"
 SIZES="${SIZES:-128 256 512}"
@@ -44,8 +44,8 @@ Env knobs:
   SWEEP_MODE     strong|weak (default: strong)
   GPU_TYPE       v100|a100|h200 (default: a100)
   GPUS_PER_NODE  GPU slots per node for sweep resource sizing (default: 2)
-  GPU_NODE_CPUS  CPU cores on one GPU node; split across GPU ranks (default: 72)
-  CPU_RANKS      CPU MPI ranks for the full-node baseline (default: 96)
+  GPU_NODE_CPUS  CPU cores on one GPU node; split across GPU ranks (default: 8)
+  CPU_RANKS      CPU MPI ranks for the full-node baseline (default: 64)
   SMALL_GPUS     GPU counts for non-512 strong-scaling sizes (default: "1")
   LARGE_GPUS     GPU counts for 512 strong-scaling size (default: "1 2")
   SIZES          size list for strong scaling (default: "128 256 512")
@@ -163,7 +163,7 @@ cat > "$CPU_BUILD_SCRIPT" <<'EOF'
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --time=02:00:00
 #SBATCH --output=alamo_cpu_build_3d.%j.out
 #SBATCH --error=alamo_cpu_build_3d.%j.err
