@@ -6,6 +6,7 @@
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
 
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -41,9 +42,11 @@ public:
     };
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
-    {   
+    {
+        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::PointList");
+
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {   
+        {
             if (AMREX_SPACEDIM != 2)
             {
                 amrex::Abort("This code only supports 2D (AMREX_SPACEDIM must be 2)");
@@ -62,7 +65,7 @@ public:
                 X.push_back(X.front());
             }
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                 Set::Scalar x_cross;
