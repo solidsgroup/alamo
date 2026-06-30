@@ -188,9 +188,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // Gas model (Thermo, Transport, and EOS)
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.nspecies = value.gas.nspecies;
-    std::cout << value.gas.thermo->model_name() << "\n";
-    std::cout << value.gas.transport->model_name() << "\n";
-    std::cout << value.gas.eos->model_name() << "\n";
     std::cout << value.nspecies << "\n";
 
     std::string prescribedflowmode_str;
