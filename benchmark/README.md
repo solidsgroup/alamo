@@ -17,9 +17,9 @@ sh /path/to/build_alamo_nova.sh          # HTTPS clone by default (no SSH key)
 #    (override: ALAMO_DIR=/abs/path  REPO_URL=git@github.com:solidsgroup/alamo.git ...)
 
 # 2. once the build job finishes (squeue -j <id>), run on a GPU:
-sbatch --gres=gpu:a100:1 --ntasks=1            benchmark/nova_flame_gpu.slurm   # A100
-GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 benchmark/nova_flame_gpu.slurm # H200
-MODE=fast     sbatch --gres=gpu:a100:1 --ntasks=1 benchmark/nova_flame_gpu.slurm # max speed
+sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G            benchmark/nova_flame_gpu.slurm   # A100
+GPU_TYPE=h200 sbatch --gres=gpu:h200:1 --ntasks=1 --cpus-per-task=8 --mem=32G benchmark/nova_flame_gpu.slurm # H200
+MODE=fast     sbatch --gres=gpu:a100:1 --ntasks=1 --cpus-per-task=8 --mem=32G benchmark/nova_flame_gpu.slurm # max speed
 
 # 3. CPU baseline for the comparison:
 sbatch benchmark/nova_flame_cpu.slurm
@@ -28,6 +28,10 @@ sbatch benchmark/nova_flame_cpu.slurm
 Account `brunnels`, partition `nova`, email pre-filled. If GitHub SSH isn't set
 up on NOVA, set `REPO_URL=https://github.com/solidsgroup/alamo.git`. Module names
 (`cuda`/`gcc`/`openmpi`) may need tweaking to match `module avail`.
+
+NOVA scheduling defaults for this branch: CPU-only jobs request 64 CPUs; GPU
+test jobs request 8 CPUs, with `--mem=32G` for 128^3 and smaller and
+`--mem=64G` for 256^3 and larger.
 
 ## 1. Local workstation build
 

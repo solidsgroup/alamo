@@ -334,6 +334,15 @@ before/after.
 ---
 
 **C0 — Elastic solver input tuning** *(no source change — DO FIRST)* ✅ staged
+- **STATUS (2026-06-30):** First NOVA Phase C sweep analyzed from
+  `gpu_3d_a2_logs.tgz`. On the 2026-06-29 one-hour `nova` jobs
+  (`11333287`-`11333291`), baseline `input_3d_centre_bore_256_a2` reached
+  5,600-5,800 steps before timeout, while `input_3d_centre_bore_256_a2_tuned`
+  reached 14,500 steps before the same wall limit, about **2.5x** more
+  completed timesteps. This is a strong positive signal, but C0 is **not done**:
+  the bundle lacks the full `{baseline, tol, bottom, interval, all}` matrix,
+  stress-field parity, and per-solve/V-cycle attribution. Detail:
+  `benchmark/PHASE_C0_input_ab.md`.
 - **Goal:** cut the Fapply **call count** with zero risk before touching kernels.
 - **Steps:** the a2 baseline left `tol_rel/abs` at the 1e-8 default and `bottom_*`
   unset (BiCGStab inherits 1e-8). Ship `input_3d_centre_bore_256_a2_tuned`

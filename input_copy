@@ -55,8 +55,6 @@ pf.eta.bc.constant.val.xhi = 1.0
 pf.eta.bc.constant.val.ylo = 1.0
 pf.eta.bc.constant.val.yhi = 1.0
 
-propellant.homogenize.P_reference = 0.101325_MPa
-
 propellant.type = homogenize
 
 propellant.homogenize.dispersion1 = 0.025_W/m/K # k_gas (air-like); alpha_gas=0.025/1200=2e-5 m²/s satisfies thermal CFL on all levels
@@ -117,14 +115,14 @@ chamber.ballistic.gamma = 1.25
 chamber.ballistic.pressure = 4.0e6_Pa
 
 # Thermoelasticity
-elastic.on = 1
+elastic.on = 0
 
 # Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
 # 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
 # burns back, which keeps the solve robust on evolving complex geometry.
 elastic.zero_out_displacement = 0
 
-elastic.type = static
+elastic.type = disable
 elastic.interval = 50
 elastic.tstart = 0.5e-4
 elastic.phirefinement = 100
@@ -154,8 +152,8 @@ model_prop.kappa = 162_MPa
 model_prop.mu = 113.6_MPa
 
 model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-model_void.kappa = 4_MPa
-model_void.mu = 4_MPa
+model_void.kappa = 20_MPa
+model_void.mu = 20_MPa
 
 # Stiff casing: fills the phi=0 region outside the fuel disk to provide
 # cylindrical confinement (and a rigid skeleton that conditions the operator).
