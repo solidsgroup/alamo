@@ -24,7 +24,7 @@ private:
     std::vector<std::array<std::array<double, 7>, 2>> coeffs;
     
 public:
-    NASA7();
+    NASA7() {};
 
     static void Parse(NASA7 & value, IO::ParmParse & pp)
     {

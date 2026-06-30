@@ -22,6 +22,11 @@ public:
 
     Transport() {} ;
 
+    const char* model_name() const
+    {
+        return selected >= 0 ? names[selected] : "";
+    }
+
     template<int I = 0>
     AMREX_FORCE_INLINE
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const

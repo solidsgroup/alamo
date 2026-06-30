@@ -1,6 +1,7 @@
 #ifndef MODEL_GAS_H_
 #define MODEL_GAS_H_
 
+#include <array>
 #include <vector>
 #include <cmath>
 #include <memory>
@@ -23,7 +24,7 @@ class Gas {
 protected:
 public:
     double Rg;
-    std::vector<double> MW;      // Species molecular weights, kg/kmol
+    std::array<double, NSPECIES> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
     Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
     EOS::EOS<EOS::CPG,EOS::TPG> eos;

@@ -5,6 +5,9 @@
 #include <vector>
 #include <memory>
 #include "IO/ParmParse.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Transport/Transport.H"
 
 namespace Model {
@@ -19,14 +22,21 @@ public:
 private:
     double Rg;
     std::array<double, NSPECIES> MW;
-    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
     Set::Scalar mw, lewis, prandtl, lambda_a, lambda_b;
 
 public:
     Rocfire()
-
-    static void Parse(Rocfire & value, IO::ParmParse & pp)
     {
+        Rg = Set::Constant::Rg;
+    }
+
+    static void Parse(Rocfire & value, IO::ParmParse & pp,
+                      const std::array<double,NSPECIES> &a_MW,
+                      const Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> &a_thermo)
+    {
+        value.MW = a_MW;
+        value.thermo = a_thermo;
         // molecular weight
         pp.query_default("mw", value.mw, "26.0_g/mol", Unit::Mass()/Unit::Amount());
         // prandtl number
@@ -54,7 +64,7 @@ public:
 
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        const double cp_mass = thermo->cp_mol(T, X, i, j, k) / mw;
+        const double cp_mass = thermo.cp_mol(T, X, i, j, k) / mw;
         return prandtl * thermal_conductivity(T, X, i, j, k) / cp_mass;
     }
 
@@ -65,10 +75,10 @@ public:
 
     void diffusion_coeffs(
             Set::Patch<Set::Scalar>& DKM, double T, double P,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k)
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         const double kappa = thermal_conductivity(T, X, i, j, k);
-        const double cp_mass = thermo->cp_mol(T, X, i, j, k) / mw;
+        const double cp_mass = thermo.cp_mol(T, X, i, j, k) / mw;
         const double rho = (P > 0.0 && T > 0.0) ? P * mixture_mw(X, i, j, k) / (Set::Constant::Rg * T) : 0.0;
         for (int a=0; a<NSPECIES; ++a)
         {

@@ -21,6 +21,11 @@ private:
     int selected = -1;
 
 public:
+    const char* model_name() const
+    {
+        return selected >= 0 ? names[selected] : "";
+    }
+
     // Temperature, K
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
@@ -71,9 +76,9 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeT(pressure, density, R);
+                return std::get<I>(obj).ComputeT_from_primitives(pressure, density, R);
             else
-                return ComputeT<I+1>(pressure, density, R);
+                return ComputeT_from_primitives<I+1>(pressure, density, R);
         }
         else {
             Util::Abort(INFO, selected);
@@ -103,18 +108,18 @@ public:
     }
 
     // Energy, J
-    template<int I = 0>
+    template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeE(double density, double momentumx, double momentumy, double T, 
-                    double R, double gamma) const
+    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeE(density, momentumx, momentumy, T, R, gamma);
+                return std::get<I>(obj).ComputeE(gas, density, momentumx, momentumy, T, X, i, j, k);
             else
-                return ComputeE<I+1>(density, momentumx, momentumy, T, R, gamma);
+                return ComputeE<GAS, I+1>(gas, density, momentumx, momentumy, T, X, i, j, k);
         }
         else {
             Util::Abort(INFO, selected);
@@ -123,18 +128,18 @@ public:
     }
 
     // Energy, J
-    template<int I = 0>
+    template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeE(double density, double momentumx, double momentumy, double momentumz, double T, 
-                    double R, double gamma) const
+    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double momentumz, double T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeE(density, momentumx, momentumy, momentumz, T, R, gamma);
+                return std::get<I>(obj).ComputeE(gas, density, momentumx, momentumy, momentumz, T, X, i, j, k);
             else
-                return ComputeE<I+1>(density, momentumx, momentumy, momentumz, T, R, gamma);
+                return ComputeE<GAS, I+1>(gas, density, momentumx, momentumy, momentumz, T, X, i, j, k);
         }
         else {
             Util::Abort(INFO, selected);

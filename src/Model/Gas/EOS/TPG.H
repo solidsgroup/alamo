@@ -13,16 +13,23 @@ namespace Gas {
 
 namespace EOS {
 
+namespace
+{
+    constexpr double sensible_reference_temperature = 298.15;
+}
+
 class TPG
 {
 public:
     static constexpr const char* name = "tpg";
 
 public:
+    static void Parse(TPG & /*value*/, IO::ParmParse & /*pp*/) {}
+
     template<typename GAS>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const override
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const
     {
         if (!std::isfinite(density) || density <= 0.0)
             Util::Abort(INFO, "Invalid density in TPG::ComputeT: ", density);
@@ -295,7 +302,6 @@ public:
         return E;
     }
 
-    template<typename GAS>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     double ComputeT_from_primitives(double pressure, double density,
                     double R) const
@@ -303,7 +309,6 @@ public:
         return pressure / density / R;
     }
 
-    template<typename GAS>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     double ComputeP(double density, double T,
                     double R) const

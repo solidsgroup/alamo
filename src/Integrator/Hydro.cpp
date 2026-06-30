@@ -240,9 +240,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         // Gas model (Thermo, Transport, and EOS)
         pp.queryclass<Model::Gas::Gas>("gas", value.gas);
-        Util::Message(INFO, "Model::Gas::EOS       = ", value.gas.eos->model_name());
-        Util::Message(INFO, "Model::Gas::Thermo    = ", value.gas.thermo->model_name());
-        Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport->model_name());
+        Util::Message(INFO, "Model::Gas::EOS       = ", value.gas.eos.model_name());
+        Util::Message(INFO, "Model::Gas::Thermo    = ", value.gas.thermo.model_name());
+        Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport.model_name());
         Util::Message(INFO, "NSPECIES = ", NSPECIES);
 
         pp.forbid("scheme","use integration.type instead");
@@ -1414,15 +1414,6 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
 
                         }
-
-            Source(i,j, k, 0) = mdot0;
-            Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
-            Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
-            Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
-
-            // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
 
             //Godunov flux
             //states of total fields

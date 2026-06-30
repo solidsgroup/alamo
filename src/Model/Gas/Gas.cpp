@@ -68,7 +68,7 @@ double Gas::ComputeE(
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
 {
     // Energy, J/m^3
-    return eos.ComputeE(density, momentumx, momentumy, T, R(X,i,j,k), gamma(T,X,i,j,k));
+    return eos.ComputeE(*this, density, momentumx, momentumy, T, X, i, j, k);
 }
 #elif AMREX_SPACEDIM == 3
 double Gas::ComputeT(
@@ -83,7 +83,7 @@ double Gas::ComputeE(
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
 {
     // Energy, J/m^3
-    return eos.ComputeE(density, momentumx, momentumy, momentumz, T, R(X,i,j,k), gamma(T,X,i,j,k));
+    return eos.ComputeE(*this, density, momentumx, momentumy, momentumz, T, X, i, j, k);
 }
 #endif
 double Gas::ComputeT_from_primitives(
