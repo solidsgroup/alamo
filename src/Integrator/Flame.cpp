@@ -455,8 +455,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
             rho_tot_gas(i,j,k) = rho_AP_gas(i,j,k)*phi + rho_HTPB_gas(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
 
-            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
-            solidrho(i,j,k) = m0(i,j,k);
+            m0(i,j,k,0) = hydro.rho_ap*phi; // example of setting value to m0
+            m0(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
+            solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
 
             Set::Vector u0;
             u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
