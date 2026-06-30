@@ -11,10 +11,10 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class CpConstant : public Thermo {
+class CpConstant 
+{
 public:
     static constexpr const char* name = "cpconstant";
-    const char* model_name() const override { return name; }
 
 private:
     std::vector<double> cp_moles;
@@ -24,12 +24,7 @@ private:
     
 public:
     CpConstant() {} ;
-    CpConstant(IO::ParmParse& pp, std::string name) : CpConstant()
-    {
-        pp.queryclass(name, *this);
-    }
 
-    ~CpConstant() override = default;
 
     static void Parse(CpConstant & value, IO::ParmParse & pp)
     {
@@ -49,33 +44,39 @@ public:
     }
 
 public:
-    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // Specific heat (constant pressure), J/(kmol-K)
         double cp = 0.0;
         for (int n=0; n<NSPECIES; ++n) cp += X(i,j,k,n) * cp_moles[n];
         return cp;
     }        
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // Specific enthalpy, J/kmol)
         double h = 0.0;
         for (int n=0; n<NSPECIES; ++n) h += X(i,j,k,n) * (cp_moles[n] * (T - Tref[n]) + h0[n]);
         return h;
     }
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
         // specific entropy, J/(kmol-K)
         double s = 0.0;
         for (int n=0; n<NSPECIES; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
         return s;
     }
-    double cp_mol_species(double /*T*/, int n) const override {
+    double cp_mol_species(double /*T*/, int n) const override
+    {
         // Specific heat (constant pressure) for species n, J/(kmol-K)
         return cp_moles[n];
     }
-    double enthalpy_mol_species(double T, int n) const override {
+    double enthalpy_mol_species(double T, int n) const override
+    {
         // Specific enthalpy for species n, J/kmol
         return cp_moles[n] * (T - Tref[n]) + h0[n];
     }
-    double entropy_mol_species(double T, int n) const override {
+    double entropy_mol_species(double T, int n) const override
+    {
         // specific entropy for species n, J/(kmol-K)
         return cp_moles[n] * std::log(T / Tref[n]) + s0[n];
     }

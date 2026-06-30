@@ -18,7 +18,7 @@
 #include "Color.H"
 #include "Numeric/Stencil.H"
 #include "Util/MPI.H"
-#include "mpi.h"
+#include <mpi.h>
 
 namespace Util
 {

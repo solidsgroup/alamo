@@ -84,6 +84,7 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
+#include "IC/PointList.H"
 #include "IC/Constant.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -144,7 +145,7 @@ public:
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             // Select the initial condition for eta
-            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
+            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead,IC::PointList>("ic",value.ic_eta,value.geom);
 
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
@@ -157,7 +158,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             // Select initial condition for psi field
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead,IC::PNG>("psi.ic",value.ic_psi,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead,IC::PNG,IC::PointList>("psi.ic",value.ic_psi,value.geom);
 
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);

@@ -692,7 +692,11 @@ public:
         {
             if (!contains(name.c_str()))
             {
-                add(name.c_str(),Util::String::Join(defaultvalue));
+                std::vector<Set::Scalar> def_data(AMREX_SPACEDIM);
+                for (unsigned int i = 0; i < def_data.size(); i++)
+                    def_data[i] = defaultvalue[i];
+                
+                add(name.c_str(),Util::String::Join(def_data));
                 value = defaultvalue;
                 return 0;
             }
@@ -705,14 +709,18 @@ public:
         return -1;
     }
     
-    int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix defaultvalue)
+    int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix def)
     {
         try
         {
             if (!contains(name.c_str()))
             {
-                add(name.c_str(),Util::String::Join(defaultvalue));
-                value = defaultvalue;
+                std::vector<Set::Scalar> def_data(AMREX_SPACEDIM*AMREX_SPACEDIM);
+                for (unsigned int i = 0; i < def_data.size(); i++)
+                    def_data[i] = def.data()[i];
+
+                add(name.c_str(),Util::String::Join(def_data));
+                value = def;
                 return 0;
             }
             return queryarr(name.c_str(),value);
@@ -1219,11 +1227,11 @@ public:
     // template-based static dispatch.
     //
 
-    template <typename... OBJ, typename CLASS>
-    void select(std::string name, CLASS& value)
+    template <typename... OBJ, typename CLASS, typename... Args>
+    void select(std::string name, CLASS& value, Args&&... args)
     {
         pushPrefix(name);
-        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value, std::forward<Args>(args)...);
         popPrefix();
     }
 
@@ -1238,8 +1246,8 @@ private:
     // 
     // This is only for use by the "select" functions.
     // 
-    template <typename CLASS, int N, typename... OBJ>
-    void static_polymorphism_parser(CLASS& value)
+    template <typename CLASS, int N, typename... OBJ, typename... Args>
+    void static_polymorphism_parser(CLASS& value, Args&&... args)
     {
         if constexpr (N == 0)
         {
@@ -1263,12 +1271,14 @@ private:
         {
             if (value.selected == N)
             {
-                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                std::get<N>(value.obj).Parse(
+                    std::get<N>(value.obj), *this, std::forward<Args>(args)...);
                 popPrefix();
                 return;
             }
             else 
-                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(
+                    value, std::forward<Args>(args)...);
         }
         else Util::Abort(INFO);
     }

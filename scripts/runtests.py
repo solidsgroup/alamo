@@ -131,7 +131,7 @@ parser.add_argument('--no-coverage',default=False,action='store_true',help='Prev
 parser.add_argument('--memcheck',default=None,help='Run tests with memory checking. ')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
-parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--comp', default="clang++", help='Compiler. Options: [clang++], g++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 parser.add_argument('--post', default=None, help='Use a post script to post results')
 parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
@@ -896,6 +896,9 @@ for testdir in tests:
         continue
     if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
         print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
+        continue
+    if not os.path.isfile(testdir + "/input") and not os.path.isfile(testdir + "/input.py"):
+        print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
         continue
     if os.path.isfile(testdir + "/input") and args.only_python:
         print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")

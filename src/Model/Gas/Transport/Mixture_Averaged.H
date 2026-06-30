@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include "IO/ParmParse.H"
+#include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
@@ -37,42 +38,50 @@ namespace Model {
 namespace Gas {
 namespace Transport {
 
-class Mixture_Averaged : public Transport {
+class Mixture_Averaged
+{
 public:
     static constexpr const char* name = "mixture_averaged";
-    virtual const char* model_name() const override { return name; }
 
 private:
-    std::vector<double> &MW;
-    Thermo::Thermo const * const thermo;
+    double Rg;
+    std::array<double, NSPECIES> MW;
+    Thermo::Thermo<Thermo::CpConstant> thermo;
     std::string type;
-    std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
-    std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    std::array<double, NSPECIES> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
+    std::array<double, NSPECIES> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
     double d_fact; // When type=constant, this is a correction factor such that self diffusion D_n = d_fact * mu_n/rho_mix
     Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
-    Mixture_Averaged() = delete;
-    Mixture_Averaged(std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
-        : MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
+    Mixture_Averaged()
     {
-        pp.queryclass(name, *this);
+        Rg = Set::Constant::Rg;
     }
 
-    ~Mixture_Averaged() override = default;
-
-    static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
+    static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
+                        int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
     {
+        value.nspecies = a_nspecies;
+        value.MW = a_MW;
+        value.thermo = a_thermo;
+
+        // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
         pp.query_validate("type", value.type, {"constant", "LJ"});
         if (value.type == "constant")
         {
+            // Dynamic viscosity if type=constant
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
+            // Thermal conductivity if type=constant
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            // Diffusion correction factor if type=constant
             pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
         }
         else if (value.type == "LJ")
         {
+            // Lennard-Jones diameter if type=LJ
             pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
+            // Lennard-Jones well depth if type=LJ
             pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
         }
         else
@@ -99,13 +108,12 @@ private:
     }
     double k_eucken(double T, int n) const 
     {
-        if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
-        double cp = thermo->cp_mol_species(T, n);
-        return mu_enskog(T, n) * (cp + 1.25 * Set::Constant::Rg) / MW[n];
+        double cp = thermo.cp_mol_species(T, n);
+        return mu_enskog(T, n) * (cp + 1.25 * Rg) / MW[n];
     }
 
 public:
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
@@ -154,7 +162,7 @@ public:
         return mu_mix;
     }
 
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;
@@ -204,7 +212,7 @@ public:
 
     void diffusion_coeffs(
             Set::Patch<Set::Scalar>& DKM, double T, double P,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k)  const
     {
         if ( type == "constant" )
         {

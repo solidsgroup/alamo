@@ -14,7 +14,7 @@ using namespace std;
 #include <vector>
 #include <algorithm>
 #include <iterator>
-#include "mpi.h"
+#include <mpi.h>
 #include "IO/ParmParse.H"
 
 namespace IC
@@ -128,7 +128,7 @@ public:
 
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
-
+        
         Unit unit = Unit::Length();
         // Units of length in the file
         pp.queryunit("file.unit",unit);

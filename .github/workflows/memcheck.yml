@@ -27,11 +27,11 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=g++
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --exclude tests/Chemistry
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --comp=g++ --exclude tests/Chemistry
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-asan-gcc
