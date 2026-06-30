@@ -83,10 +83,10 @@ if not ok_b:
 #
 # It deliberately does NOT assert bit-exact reproduction of the full thermo
 # row. Flame's checkpoint persists only writeout=true fabs; the auxiliary
-# thermal state (temp_old / temps) and the chamber pressure ODE state are not
-# checkpointed, so the post-restart thermal/burn transient is not guaranteed to
-# reproduce the continuous run. Tightening this into a true bit-exact roundtrip
-# is tracked as a follow-up (see GPU_TEST_SUITE_FIXES.md, "C2 deferred").
+# thermal state (temp_old / temps) is not checkpointed, so the post-restart
+# thermal/burn transient is not guaranteed to reproduce the continuous run.
+# The chamber-pressure ODE state is restored from the checkpoint-time thermo row
+# and is asserted below because pressure feeds burn law and chamber traction.
 def final_time(t):
     return t["time"][-1] if t.get("time") else None
 
@@ -96,6 +96,24 @@ if ta is None or tb is None:
     sys.exit(1)
 if abs(ta - tb) > 1e-12 + 1e-6 * abs(ta):
     print(f"FAIL: runs ended at different times: A={ta} B={tb}")
+    sys.exit(1)
+
+if "chamber_pressure" not in thermo_a or "chamber_pressure" not in thermo_b:
+    print("FAIL: chamber_pressure missing from thermo output")
+    sys.exit(1)
+restart_time = thermo_b["time"][0]
+try:
+    restart_idx = min(
+        range(len(thermo_a["time"])),
+        key=lambda i: abs(thermo_a["time"][i] - restart_time),
+    )
+except ValueError:
+    print("FAIL: Run A has no thermo rows")
+    sys.exit(1)
+p_a = thermo_a["chamber_pressure"][restart_idx]
+p_b = thermo_b["chamber_pressure"][0]
+if abs(p_a - p_b) > 1e-8 + 1e-6 * max(abs(p_a), 1.0):
+    print(f"FAIL: restarted chamber_pressure not restored: A={p_a} B={p_b}")
     sys.exit(1)
 
 ROUNDTRIP_COLS = ["volume", "area"]

@@ -120,9 +120,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 );
     // eta carries 3 ghost cells (not 2): the elastic model blend in UpdateModel
     // does CellToNodeAverage(eta) over the model's grown box, which reaches one
-    // cell past a 2-ghost buffer at interior grid edges. temp already uses 3.
+    // cell past a 2-ghost buffer at interior grid edges. eta_old_mf must match
+    // because Advance() swaps the current/old handles in place.
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 3, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 3, "eta_old", false);
     value.RegisterNewFab(value.psi_mf, value.bc_eta, 1, 2, "psi", true);
 
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
@@ -156,6 +157,22 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to set all other reference temperatures by default.
     pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature());
 
+    // Whether to compute the pressure evolution. Query this before thermal
+    // registration because variable-pressure runs need chamber geometry/mass
+    // integration even when thermal transport is disabled.
+    pp_query_default("variable_pressure", value.variable_pressure, false);
+
+    pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
+    value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
+    value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
+
+    value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", false);
+
     if (value.thermal.on) {
 
         // Used to change heat flux units
@@ -174,18 +191,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Inital refinement of the phi field based on phi gradient. After time > end_initial_refine_time stops refining at these phi values.
         pp.query_default("thermal.phi_refinement_criterion_inital", value.thermal.phi_refinement_criterion_inital, 1.0e100);
 
-        //Temperature boundary condition
-        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
-
-        value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
-        value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
-        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
-
-        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
-        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
-        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
-        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.mdot, "mass_flux");
@@ -194,8 +199,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.thermo_heatflux_max, "heatflux_max",  false);
         value.RegisterIntegratedVariable(&value.thermo_L_max,        "L_max",         false);
         value.RegisterIntegratedVariable(&value.thermo_eta_min,      "eta_min",       false);
-
-        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", 0); // Used to determine where regression has started
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -214,14 +217,18 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure());
 
-    // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, false);
-
     if (value.variable_pressure)
     {
         pp.queryclass<Model::Chamber::Ballistic>("chamber.ballistic",value.chamber.model);
 
         value.RegisterIntegratedVariable(&value.chamber.pressure, "chamber_pressure", false);
+    }
+
+    if (!value.thermal.on && value.variable_pressure)
+    {
+        value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
+        value.RegisterIntegratedVariable(&value.chamber.area, "area");
+        value.RegisterIntegratedVariable(&value.chamber.mdot, "mass_flux");
     }
 
     // Refinement criterion for eta field, if thermal is on, cells will only be tagged for refinement if T>0.9*TCutoff,
@@ -311,6 +318,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // out the gas region. psi_mf is filled from eta in UpdateModel. When use_psi=0
         // we install no psi at all: psi_avg stays 1 everywhere and the gas is
         // conditioned only by its (soft, unitized) model_void stiffness.
+        // Flame owns its psi_mf member separately from Base::Mechanics::psi_mf.
+        // Keep the base psi_on flag false so TimeStepBegin does not reattach the
+        // empty base field; attach Flame's eta-derived psi directly to the solver.
         value.psi_on = false;
         if (value.elastic.use_psi)
             value.solver.setPsi(value.psi_mf);
@@ -409,6 +419,18 @@ void Flame::Initialize(int lev)
         heatflux_mf[lev]->setVal(0.0);
         L_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
+    }
+    else
+    {
+        temp_mf[lev]->setVal(thermal.Tref);
+        temp_old_mf[lev]->setVal(thermal.Tref);
+        temps_mf[lev]->setVal(thermal.Tref);
+        alpha_mf[lev]->setVal(0.0);
+        mdot_mf[lev]->setVal(0.0);
+        heatflux_mf[lev]->setVal(0.0);
+        L_mf[lev]->setVal(0.0);
+        laser_mf[lev]->setVal(0.0);
+        thermal.has_exceeded_Tcutoff[lev]->setVal(0.0);
     }
     //if (variable_pressure) chamber.pressure = 1.0;
 }
@@ -674,6 +696,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     const Set::Scalar thermal_hc      = thermal.hc;
     const Set::Scalar thermal_Tcutoff = thermal.Tcutoff;
     const Set::Scalar thermal_Tfluid  = thermal.Tfluid;
+    const bool        variable_pressure_on = this->variable_pressure;
 
     Util::DeviceErrorFlag advance_error;
     int* advance_error_flag = advance_error.dataPtr();
@@ -726,9 +749,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             {
                 Util::SetDeviceError(advance_error_flag);
             }
+            if ((thermal_on || variable_pressure_on) &&
+                (std::isnan(rho) || std::isinf(rho)))
+            {
+                Util::SetDeviceError(advance_error_flag);
+            }
             if (thermal_on &&
                 (std::isnan(K) || std::isinf(K) ||
-                std::isnan(rho) || std::isinf(rho) ||
                 std::isnan(cp) || std::isinf(cp)))
             {
                 Util::SetDeviceError(advance_error_flag);
@@ -758,6 +785,19 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Util::SetDeviceError(advance_error_flag);
             }
 
+            if (thermal_on || variable_pressure_on)
+            {
+                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
+                if (std::isnan(mdot(i, j, k)) || std::isinf(mdot(i, j, k)))
+                {
+                    Util::SetDeviceError(advance_error_flag);
+                }
+            }
+            else
+            {
+                mdot(i, j, k) = 0.0;
+            }
+
             if (thermal_on)
             {
                 //
@@ -769,18 +809,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 {
                     Util::SetDeviceError(advance_error_flag);
                 }
-
-                //
-                // CALCULATE MASS FLUX BASED ON EVOLVING ETA
-                //
-
-                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
-                if (std::isnan(mdot(i, j, k)) || std::isinf(mdot(i, j, k)))
-                {
-                    Util::SetDeviceError(advance_error_flag);
-                }
-
-
 
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX

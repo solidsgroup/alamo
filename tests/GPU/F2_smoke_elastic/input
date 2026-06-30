@@ -110,7 +110,7 @@ elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1e-5
 elastic.solver.verbose = 0
 elastic.traction = 1.0_MPa
-elastic.traction_from_chamber = 0
+elastic.traction_from_chamber = 1
 
 model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
 model_prop.kappa = 162_MPa

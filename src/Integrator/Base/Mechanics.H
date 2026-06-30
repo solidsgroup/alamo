@@ -55,6 +55,10 @@ public:
             else if (type_str == "disable")  value.m_type = Type::Disable;
             else Util::Abort(INFO, "Invalid type ", type_str, " specified");
         }
+#ifdef ALAMO_GPU
+        if (value.m_type == Type::Dynamic)
+            Util::Abort(INFO, "elastic.type=dynamic is not GPU-safe: dynamic mechanics uses host BC polymorphism inside device kernels");
+#endif
         if (value.m_type == Type::Disable) return;
 
         // Treat mechanics fields as changing in time. [false]

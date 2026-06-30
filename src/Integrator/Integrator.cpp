@@ -8,6 +8,9 @@
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
 #include "Unit/Unit.H"
+#include <cmath>
+#include <fstream>
+#include <sstream>
 #include <numeric>
 
 
@@ -609,6 +612,77 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     if (tmp_iters.size() != (unsigned int)(finest_level + 1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
     for (int lev = 0; lev <= finest_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
 
+    if (thermo.number > 0)
+    {
+        std::string restart_dir = dirname;
+        while (!restart_dir.empty() && restart_dir.back() == '/') restart_dir.pop_back();
+        std::string thermo_file = "thermo.dat";
+        const std::size_t slash = restart_dir.find_last_of('/');
+        if (slash != std::string::npos) thermo_file = restart_dir.substr(0, slash) + "/thermo.dat";
+
+        std::vector<Set::Scalar> restored(thermo.number, 0.0);
+        int found_row = 0;
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            auto split_ws = [](const std::string& text)
+            {
+                std::vector<std::string> tokens;
+                std::istringstream stream(text);
+                std::string token;
+                while (stream >> token) tokens.push_back(token);
+                return tokens;
+            };
+
+            std::ifstream infile(thermo_file);
+            if (infile.good())
+            {
+                std::string header;
+                std::getline(infile, header);
+                std::vector<std::string> names = split_ws(header);
+                std::vector<Set::Scalar> best_values;
+                Set::Scalar best_time_error = std::numeric_limits<Set::Scalar>::max();
+
+                while (std::getline(infile, line))
+                {
+                    std::vector<std::string> vals = split_ws(line);
+                    if (vals.empty()) continue;
+                    Set::Scalar row_time = std::stod(vals[0]);
+                    Set::Scalar time_error = std::abs(row_time - tmp_time);
+                    if (time_error < best_time_error)
+                    {
+                        best_time_error = time_error;
+                        best_values.clear();
+                        for (const std::string& val : vals)
+                            best_values.push_back(std::stod(val));
+                    }
+                }
+
+                if (!best_values.empty() && best_time_error <= 1.0e-8 + 1.0e-6 * std::abs(tmp_time))
+                {
+                    found_row = 1;
+                    for (int i = 0; i < thermo.number; i++)
+                    {
+                        for (std::size_t j = 1; j < names.size() && j < best_values.size(); j++)
+                        {
+                            if (thermo.names[i] == names[j])
+                            {
+                                restored[i] = best_values[j];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        amrex::ParallelDescriptor::Bcast(&found_row, 1);
+        if (found_row)
+        {
+            amrex::ParallelDescriptor::Bcast(restored.data(), static_cast<int>(restored.size()));
+            for (int i = 0; i < thermo.number; i++)
+                if (!thermo.extensives[i]) *thermo.vars[i] = restored[i];
+        }
+    }
+
     amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level + 1);
     int total_ncomp = 0;
 
@@ -1159,7 +1233,7 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
     if (!thermo.number) return;
 
     if ((thermo.interval > 0 && (step) % thermo.interval == 0) ||
-        ((thermo.dt > 0.0) && (std::fabs(std::remainder(time, plot_dt)) < 0.5 * dt[0])))
+        ((thermo.plot_dt > 0.0) && (std::fabs(std::remainder(time, thermo.plot_dt)) < 0.5 * dt[0])))
     {
         // Zero out all variables
         for (int i = 0; i < thermo.number; i++)

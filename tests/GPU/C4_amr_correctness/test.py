@@ -102,8 +102,8 @@ for var in ["eta", "temp"]:
         cpu_x    = np.array(cpu_df["x"])
         gpu_x    = np.array(gpu_df["x"])
     except KeyError:
-        print(f"WARN: variable '{var}' not found in output, skipping")
-        continue
+        print(f"FAIL: variable '{var}' not found in output")
+        sys.exit(1)
 
     # Sort by x, interpolate GPU onto CPU x-points
     cpu_ord = np.argsort(cpu_x)

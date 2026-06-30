@@ -34,6 +34,21 @@ public:
     [[nodiscard]] std::pair<Set::Scalar, Set::Scalar>
     Advance(Set::Scalar dt, Set::Scalar mdot_in, Set::Scalar volume, Set::Scalar pressure)
     {
+        if (!(std::isfinite(dt) && dt >= 0.0) ||
+            !(std::isfinite(mdot_in)) ||
+            !(std::isfinite(volume) && volume > 0.0) ||
+            !(std::isfinite(pressure) && pressure > 0.0) ||
+            !(std::isfinite(At) && At >= 0.0) ||
+            !(std::isfinite(R) && R > 0.0) ||
+            !(std::isfinite(T0) && T0 > 0.0) ||
+            !(std::isfinite(gamma) && gamma > 1.0))
+        {
+            Util::Abort(INFO, "Invalid chamber ballistic state: dt=", dt,
+                        " mdot_in=", mdot_in, " volume=", volume,
+                        " pressure=", pressure, " At=", At, " R=", R,
+                        " T0=", T0, " gamma=", gamma);
+        }
+
         // inverse C star: sqrt(gamma/(R*T0) * (2/(gamma+1))^((gamma+1)/(gamma-1)))
         Set::Scalar exponent = (gamma + 1.0) / (gamma - 1.0);
         Set::Scalar inv_c_star = std::sqrt((gamma / (R * T0)) * std::pow(2.0 / (gamma + 1.0), exponent));
@@ -46,6 +61,12 @@ public:
 
         // Forward Euler integration
         Set::Scalar new_pressure = pressure + current_dpdt * dt;
+        if (!(std::isfinite(new_pressure) && new_pressure > 0.0))
+        {
+            Util::Abort(INFO, "Invalid chamber ballistic pressure update: pressure=",
+                        pressure, " dpdt=", current_dpdt, " dt=", dt,
+                        " new_pressure=", new_pressure);
+        }
 
         dpdt.push_back(current_dpdt);
         return {new_pressure, current_dpdt};

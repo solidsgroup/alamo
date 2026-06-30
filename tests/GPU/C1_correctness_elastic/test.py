@@ -76,6 +76,15 @@ PHYSICS_COLS = [
 ]
 cpu_phys = {c: cpu_thermo[c] for c in PHYSICS_COLS if c in cpu_thermo}
 gpu_phys = {c: gpu_thermo[c] for c in PHYSICS_COLS if c in gpu_thermo}
+missing_cpu = [c for c in PHYSICS_COLS if c not in cpu_thermo]
+missing_gpu = [c for c in PHYSICS_COLS if c not in gpu_thermo]
+if missing_cpu or missing_gpu:
+    print("FAIL: missing required thermo columns")
+    if missing_cpu:
+        print("  CPU missing:", missing_cpu)
+    if missing_gpu:
+        print("  GPU missing:", missing_gpu)
+    sys.exit(1)
 
 ok, diff_issues = testlib_gpu.compare_thermo(cpu_phys, gpu_phys, rel_tol=0.05, abs_tol=1e-10)
 if not ok:
