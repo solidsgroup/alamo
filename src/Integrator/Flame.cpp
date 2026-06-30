@@ -426,8 +426,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> rho_HTPB_gas = rho_htpb_gas_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
         Set::Patch<Set::Scalar> rho_tot_gas = rho_tot_gas_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
-        Set::Patch<Set::Scalar> u0 = Hydro::u0_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> u0  = Hydro::u0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> hydro_density = Hydro::density_mf.Patch(lev,mfi);
 
         Real M_AP = 117.22; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
         Real M_HTPB = 1212.112; // Molar mass of Ethylene, main product of HTPB pyrolysis
@@ -440,7 +441,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -459,44 +459,51 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             m0(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
             solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
 
-            Set::Vector u0;
-            u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
-            u0(1) = 0.0; 
-            #if AMREX_SPACEDIM == 3
-                u0(2) = 0.0;   // Might not be physcially accurate, need to find how to extend to 3 dimensions
-            #endif
+            // Set::Vector u0;
+            // u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
+            // u0(1) = 0.0;
+            // #if AMREX_SPACEDIM == 3
+            //     u0(2) = 0.0;   // Might not be physcially accurate, need to find how to extend to 3 dimensions
+            // #endif
 
+            Set::Scalar density_gas_tot = 0;
             Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
-
-            if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
+            for (int n=0; n<NSPECIES; ++n )
             {
-            #if AMREX_SPACEDIM == 2
-                Set::Vector T(N(1), -N(0));
-                u0 = N * u0(0) + T * u0(1);
-            #endif
-
-            #if AMREX_SPACEDIM == 3
-                Set::Vector T;
-                T(0) = N(1);
-                T(1) = -N(0);
-                T(2) = 0;
-                u0 = N*u0(0) + T * u0(1);
-                // Might not be physcially accurate, need to find how to extend to 3 dimensions
-            #endif
+                density_gas_tot += hydro_density(i,j,k,n);
             }
+            u0(i,j,k,0) = deta_dt*solidrho(i,j,k)/density_gas_tot*N(0);
+            u0(i,j,k,1) = deta_dt*solidrho(i,j,k)/density_gas_tot*N(1);
 
-            solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
-            solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
+            // if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
+            // {
+            // #if AMREX_SPACEDIM == 2
+            //     Set::Vector T(N(1), -N(0));
+            //     u0 = N * u0(0) + T * u0(1);
+            // #endif
 
-            #if AMREX_SPACEDIM == 3
-                solidM(i,j,k,2) = solidrho(i,j,k)*u0(2);
-            #endif
+            // #if AMREX_SPACEDIM == 3
+            //     Set::Vector T;
+            //     T(0) = N(1);
+            //     T(1) = -N(0);
+            //     T(2) = 0;
+            //     u0 = N*u0(0) + T * u0(1);
+            //     // Might not be physcially accurate, need to find how to extend to 3 dimensions
+            // #endif
+            // }
 
-                u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)*velocity_mult; // Update the velocity source term based on conservation of mass
-                u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)*velocity_mult;
-            #if AMREX_SPACEDIM == 3
-                u0_patch(i,j,k,2) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(2)*rho_tot_gas(i,j,k)*velocity_mult;
-            #endif
+            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+
+            // #if AMREX_SPACEDIM == 3
+            //     solidM(i,j,k,2) = solidrho(i,j,k)*u0(2);
+            // #endif
+
+            //     u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)*velocity_mult; // Update the velocity source term based on conservation of mass
+            //     u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)*velocity_mult;
+            // #if AMREX_SPACEDIM == 3
+            //     u0_patch(i,j,k,2) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(2)*rho_tot_gas(i,j,k)*velocity_mult;
+            // #endif
         });
     }
 
