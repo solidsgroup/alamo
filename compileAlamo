@@ -7,11 +7,12 @@
 #SBATCH --output="%x-%j-compile-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN
-make clean
+make realclean
 module purge
 module load git
 module load openmpi
 module load gcc
 module load eigen
-./configure --get-eigen --dim=2 --comp=g++
+module load hdf5
+./configure --get-eigen --dim=2 --comp=g++ --hdf5 --hdf5-prefix /hdf5
 srun --nodes=1 --cpus-per-task=16 --mem-per-cpu=1G --time=10:00 make -j16 ./bin/sfi

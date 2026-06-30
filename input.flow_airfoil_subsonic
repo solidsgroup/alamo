@@ -1,7 +1,7 @@
 alamo.program = allencahn
 plot_file = ./output.airfoil_supersonic
-# amr.plot_dt = 0.005
-amr.plot_int = 10
+amr.plot_dt = 0.005
+# amr.plot_int = 10
 amr.max_grid_size = 500000
 amr.blocking_factor = 16
 amr.regrid_int = 100
@@ -135,15 +135,14 @@ hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.5
-hydro.lagrange=25.0
+hydro.lagrange=10.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
 dynamictimestep.max  = 2E-4
-dynamictimestep.min  = 1E-12
+dynamictimestep.min  = 1E-6
 hydro.cfl   = 10.0
 hydro.cfl_v   = 1.0
-
 
 # Enable elasticity
 elastic.type = disable

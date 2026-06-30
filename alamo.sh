@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-#SBATCH --time=12:00:00
+#SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem=64G
-#SBATCH --job-name="flow_airfoil_supersonic_8420_lag"
+#SBATCH --job-name="flow_airfoil_supersonic_8420_lag_2"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --constraint=nova25
 
-JOB_NAME="flow_airfoil_supersonic_8420_lag"
+JOB_NAME="flow_airfoil_supersonic_8420_lag_2"
 PLOT_FILE="output.${JOB_NAME}"
 
 echo "======================================================"
