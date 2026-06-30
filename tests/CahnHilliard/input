@@ -9,7 +9,7 @@
 #@ dim = 2
 #@ fft  = true
 #@ check-file = reference/reference-2d-fft.csv
-#@ args = max_level=0
+#@ args = amr.max_level=0
 #@ args = amr.n_cell=256 256 256
 #@ args = stop_time=0.01
 #@ args = timestep=0.0001
