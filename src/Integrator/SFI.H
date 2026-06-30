@@ -47,6 +47,7 @@ protected:
             for (int lev = 0; lev <= finest_level; lev++)
             {
                 Hydro::Initialize(lev);
+                UpdateEta(lev, a_time);
                 Hydro::Mix(lev);
             }
             hydro_initialized=true;
@@ -102,8 +103,8 @@ protected:
                 }
             });
         }
-        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
-        Util::RealFillBoundary(*(*eta_old_mf)[lev], geom[lev]);
+        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev], (*eta_mf)[lev]->nGrow());
+        Util::RealFillBoundary(*(*eta_old_mf)[lev], geom[lev], (*eta_old_mf)[lev]->nGrow());
     }
 
     int invert = false;

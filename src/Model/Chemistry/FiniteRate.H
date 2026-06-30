@@ -67,6 +67,38 @@ struct FiniteRate
         return sum;
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static bool sanitize_species_densities(
+        const std::array<double, NSPECIES>& input,
+        std::array<double, NSPECIES>& output,
+        const char* context)
+    {
+        double density_scale = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            if (!std::isfinite(input[i]))
+                Util::Abort(INFO, context, " received non-finite species density for species ", i, ": ", input[i]);
+            density_scale += std::abs(input[i]);
+        }
+
+        const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+        double clipped_density = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            output[i] = input[i];
+            if (output[i] < 0.0)
+            {
+                if (output[i] < -density_tol)
+                    Util::Abort(INFO, context, " received negative species density for species ", i,
+                        ": rhoY=", output[i], ", tolerance=", density_tol);
+                output[i] = 0.0;
+            }
+            clipped_density += output[i];
+        }
+
+        return clipped_density > 0.0;
+    }
+
     AMREX_FORCE_INLINE
     static bool project_nonnegative_mass(std::array<double, NSPECIES>& values, const double target_mass)
     {
@@ -188,6 +220,8 @@ struct FiniteRate
             {
                 rhoY[n] += source.first[n] * dt_sub;
             }
+            Util::Assert(INFO, TEST(project_nonnegative_mass(rhoY, mass_old)),
+                "Finite-rate substep integration failed to project species densities.");
         }
 
         std::array<double, NSPECIES> wdot_eff;
@@ -541,9 +575,17 @@ struct FiniteRate
         const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
+        std::array<double, NSPECIES> rhoY_valid;
+        if (!sanitize_species_densities(rhoY, rhoY_valid, "Finite-rate chemistry"))
+        {
+            std::array<double, NSPECIES> wdot;
+            for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
+            return {wdot, 0.0};
+        }
+
         if (integration == IntegrationType::SUBSTEP)
         {
-            return compute_substep(P, T, rhoY, dt, gas);
+            return compute_substep(P, T, rhoY_valid, dt, gas);
         }
         else if (integration == IntegrationType::IMPLICIT)
         {
@@ -551,17 +593,17 @@ struct FiniteRate
             Util::Abort(INFO,
                 "Finite-rate implicit integration is not supported inside GPU chemistry kernels. ",
                 "Use substep or explicit integration.");
-            return evaluate_source(P, T, rhoY, gas);
+            return evaluate_source(P, T, rhoY_valid, gas);
 #else
-            return compute_implicit(P, T, rhoY, dt, gas);
+            return compute_implicit(P, T, rhoY_valid, dt, gas);
 #endif
         }
         else
         {
-            std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY, gas);
+            std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY_valid, gas);
             if (dt > 0.0)
             {
-                limit_wdot_positivity(source.first, rhoY, dt);
+                limit_wdot_positivity(source.first, rhoY_valid, dt);
                 source.second = compute_qdot_from_wdot(T, source.first, gas);
             }
             return source;

@@ -89,14 +89,15 @@ protected:
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
     void RefreshDerivedPlotFields(int lev);
+    void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost = false, bool use_old_eta = false);
     
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
-                const amrex::MultiFab &rho_mf,
-                const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf);
+                amrex::MultiFab &rho_mf,
+                amrex::MultiFab &M_mf,
+                amrex::MultiFab &E_mf);
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
@@ -172,6 +173,7 @@ protected:
     bool details = false;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
+    Set::Scalar temp_refinement_criterion=NAN;
     Set::Scalar cfl=NAN, cfl_v=NAN;
 
     Set::Scalar small=NAN;

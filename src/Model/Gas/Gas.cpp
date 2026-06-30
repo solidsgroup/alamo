@@ -64,6 +64,7 @@ void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set
 }
 
 // EOS
+#if AMREX_SPACEDIM == 2
 double Gas::ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const {
@@ -71,6 +72,29 @@ double Gas::ComputeT(
     if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
     return eos->ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
 }
+double Gas::ComputeE(    
+        double density, double momentumx, double momentumy, double T,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    // Energy, J/m^3
+    if (!eos) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
+    return eos->ComputeE(density, momentumx, momentumy, T, X, i , j, k);
+}
+#elif AMREX_SPACEDIM == 3
+double Gas::ComputeT(
+        double density, double momentumx, double momentumy, double momentumz, double E, double Tguess,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const {
+    // Temperature, K
+    if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
+    return eos->ComputeT(density, momentumx, momentumy, momentumz, E, Tguess, X, i , j, k, rtol);
+}
+double Gas::ComputeE(    
+        double density, double momentumx, double momentumy, double momentumz, double T,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    // Energy, J/m^3
+    if (!eos) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
+    return eos->ComputeE(density, momentumx, momentumy, momentumz, T, X, i , j, k);
+}
+#endif
 double Gas::ComputeT_from_primitives(
         double pressure, double density,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
@@ -82,13 +106,6 @@ double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X,
     // Pressure, Pa
     if (!eos) Util::Abort(INFO, "[Gas::ComputeP] No EOS model attached.");
     return eos->ComputeP(density, T, X, i , j, k);
-}
-double Gas::ComputeE(    
-        double density, double momentumx, double momentumy, double T,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-    // Energy, J/m^3
-    if (!eos) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
-    return eos->ComputeE(density, momentumx, momentumy, T, X, i , j, k);
 }
 
 } // namespace Gas

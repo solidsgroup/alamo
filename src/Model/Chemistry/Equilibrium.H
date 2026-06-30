@@ -32,6 +32,38 @@ struct Equilibrium
 #endif
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static bool sanitize_species_densities(
+        const std::array<double, NSPECIES>& input,
+        std::array<double, NSPECIES>& output,
+        const char* context)
+    {
+        double density_scale = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            if (!std::isfinite(input[i]))
+                Util::Abort(INFO, context, " received non-finite species density for species ", i, ": ", input[i]);
+            density_scale += std::abs(input[i]);
+        }
+
+        const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+        double clipped_density = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            output[i] = input[i];
+            if (output[i] < 0.0)
+            {
+                if (output[i] < -density_tol)
+                    Util::Abort(INFO, context, " received negative species density for species ", i,
+                        ": rhoY=", output[i], ", tolerance=", density_tol);
+                output[i] = 0.0;
+            }
+            clipped_density += output[i];
+        }
+
+        return clipped_density > 0.0;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<double,NSPECIES>,Set::Scalar>
     compute(
         const Set::Scalar /*P_orig*/,
@@ -61,6 +93,11 @@ struct Equilibrium
             const double P0 = 101325.0; // Standard pressure
             std::array<double, NSPECIES> wdot;
             for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
+            std::array<double, NSPECIES> rhoY_valid;
+            if (!sanitize_species_densities(rhoY, rhoY_valid, "Equilibrium chemistry"))
+            {
+                return {wdot, 0.0};
+            }
 
             // 1. Calculate initial element counts and energy
             // n_i is in kmol/m^3 (assuming V=1)
@@ -70,7 +107,7 @@ struct Equilibrium
             double e_total_0 = 0.0;
             
             for (int i = 0; i < NSPECIES; ++i) {
-                n_orig(i) = std::max(rhoY[i], 0.0) / gas->MW[i]; // kmol/m^3
+                n_orig(i) = rhoY_valid[i] / gas->MW[i]; // kmol/m^3
                 for (int k = 0; k < NE; ++k) b(k) += atom_matrix(k, i) * n_orig(i);
                 e_total_0 += n_orig(i) * (gas->enthalpy_mol_species(T_orig, i) - R * T_orig);
             }
@@ -291,7 +328,7 @@ struct Equilibrium
                 for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma(k);
                 if (!std::isfinite(arg)) return {wdot, 0.0};
                 n_eq(i) = (P0 / (R * T)) * std::exp(std::clamp(arg, -100.0, 100.0));
-                wdot[i] = (n_eq(i) * gas->MW[i] - rhoY[i]) / dt;
+                wdot[i] = (n_eq(i) * gas->MW[i] - rhoY_valid[i]) / dt;
             }
             
             Set::Scalar qdot = 0.0;

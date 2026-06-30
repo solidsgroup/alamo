@@ -34,12 +34,16 @@ public:
     virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // compute densities (and regularize)
+        std::array<double, NSPECIES> rho_L;
+        std::array<double, NSPECIES> rho_R;
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
         for (int n=0; n<NSPECIES; ++n)
         {
-            rho_sum_L += lo.rho[n];
-            rho_sum_R += hi.rho[n];
+            rho_L[n] = std::max(small, lo.rho[n]);
+            rho_R[n] = std::max(small, hi.rho[n]);
+            rho_sum_L += rho_L[n];
+            rho_sum_R += rho_R[n];
         }
         // density average
         Set::Scalar rhobar = 0.5*(rho_sum_L + rho_sum_R);
@@ -136,7 +140,7 @@ public:
 
         if (0.0 < S_L) // F_L region
         {
-            for (int n=0; n<NSPECIES; ++n) result.mass[n] = lo.rho[n] * u_L;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = rho_L[n] * u_L;
             result.momentum_normal = rho_sum_L*u_L*u_L + p_L;
             result.momentum_tangent = rho_sum_L*u_L*v_L;
             result.energy = u_L * (E_L + p_L);
@@ -146,9 +150,9 @@ public:
         {
             double factor_L = (S_L - u_L) / (S_L - Sstar);
             for (int n=0; n<NSPECIES; ++n) {
-                Set::Scalar fL_mass = lo.rho[n] * u_L;
-                Set::Scalar Ustar_L_rho = lo.rho[n] * factor_L;
-                result.mass[n] = fL_mass + S_L * (Ustar_L_rho - lo.rho[n]);
+                Set::Scalar fL_mass = rho_L[n] * u_L;
+                Set::Scalar Ustar_L_rho = rho_L[n] * factor_L;
+                result.mass[n] = fL_mass + S_L * (Ustar_L_rho - rho_L[n]);
             }
             Set::Scalar fL_Mn = rho_sum_L*u_L*u_L + p_L;
             Set::Scalar Ustar_L_Mn = Sstar * rho_sum_L * factor_L;
@@ -168,9 +172,9 @@ public:
         {
             double factor_R = (S_R - u_R) / (S_R - Sstar);
             for (int n=0; n<NSPECIES; ++n) {
-                Set::Scalar fR_mass = hi.rho[n] * u_R;
-                Set::Scalar Ustar_R_rho = hi.rho[n] * factor_R;
-                result.mass[n] = fR_mass + S_R * (Ustar_R_rho - hi.rho[n]);
+                Set::Scalar fR_mass = rho_R[n] * u_R;
+                Set::Scalar Ustar_R_rho = rho_R[n] * factor_R;
+                result.mass[n] = fR_mass + S_R * (Ustar_R_rho - rho_R[n]);
             }
             Set::Scalar fR_Mn = rho_sum_R*u_R*u_R + p_R;
             Set::Scalar Ustar_R_Mn = Sstar * rho_sum_R * factor_R;
@@ -188,7 +192,7 @@ public:
         }
         else if (S_R < 0.0)
         {
-            for (int n=0; n<NSPECIES; ++n) result.mass[n] = hi.rho[n] * u_R;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = rho_R[n] * u_R;
             result.momentum_normal = rho_sum_R*u_R*u_R + p_R;
             result.momentum_tangent = rho_sum_R*u_R*v_R;
             result.energy = u_R * (E_R + p_R);
