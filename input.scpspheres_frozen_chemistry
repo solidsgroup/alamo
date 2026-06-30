@@ -20,7 +20,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 0
+amr.max_level = 3
 
 # # Full size
 # amr.n_cell = 32 32 32
@@ -43,15 +43,15 @@ pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
-pf.eta.ic.type = constant 
-pf.eta.ic.constant.value = 0.0
-# pf.eta.ic.type = expression
-# pf.eta.ic.expression.constant.eps = 10.0_um
-# pf.eta.ic.expression.constant.x0 = 0.0_um
+# pf.eta.ic.type = constant 
+# pf.eta.ic.constant.value = 0.0
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.eps = 10.0_um
+pf.eta.ic.expression.constant.x0 = 0.0_um
 # # pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.5)**2+1000*(y-0.5)**2))"
 # # pf.eta.ic.expression.region0 = "x > x0"
 # # pf.eta.ic.expression.region0 = "1.0"
-# pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 # # pf.eta.ic.expression.region0 = "1 - 1/(100**(x*x + y*y))"
 
 # Phi initial condition (Grain image)
@@ -238,7 +238,7 @@ hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 hydro.prescribedflowmode = relative
 hydro.small=1E-3
-hydro.cutoff=0.0
+hydro.cutoff=0.5
 
 hydro.momentum.bc.constant.type.xhi = neumann neumann
 hydro.momentum.bc.constant.type.xlo = dirichlet neumann
