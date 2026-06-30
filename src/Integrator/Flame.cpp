@@ -446,7 +446,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 
             Set::Scalar density_gas_tot = 0;
             Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
-            for (int n=0; n<NSPECIES; ++n )
+            for (int n=0; n<NSPECIES; ++n)
             {
                 density_gas_tot += hydro_density(i,j,k,n);
             }
