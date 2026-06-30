@@ -9,9 +9,9 @@ amr.grid_eff = 0.7
 amr.max_level = 3
 amr.max_plot_level = 3
 timestep  = 1e-5
-amr.n_cell = 80 80 
-geometry.prob_lo = -0.5 -2.0
-geometry.prob_hi =  3.5  2.0
+amr.n_cell = 240 64
+geometry.prob_lo = -0.5 -1.6
+geometry.prob_hi =  11.5  1.6
 geometry.is_periodic = 0 0 0
 stop_time = 2.0
 # AMR parameters
@@ -27,12 +27,12 @@ allencahn.alpha.ic.type = pointlist
 allencahn.alpha.ic.pointlist.file.name = ./NACA8420.xy
 allencahn.alpha.ic.pointlist.file.unit = m
 allencahn.alpha.ic.pointlist.verbose = 0
-allencahn.alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
+allencahn.alpha.ic.pointlist.mult = 1.5 # Scaling factor on polygon size, happens BEFORE rotation
 allencahn.alpha.ic.pointlist.invert = 1 # Don't invert the initial field
-allencahn.alpha.ic.pointlist.x0 = 1.0_m 0.0_m 0.0_m # X-offset, no offset in this test
+allencahn.alpha.ic.pointlist.x0 = 1.0_m 0.25_m 0.0_m # X-offset, no offset in this test
 allencahn.alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
 allencahn.alpha.ic.pointlist.rotation.angle = -40.0_deg # Rotatation angle of polygon
-allencahn.alpha.ic.pointlist.eps = 0.01_m # Diffuse boundary thickness
+allencahn.alpha.ic.pointlist.eps = 0.04_m # Diffuse boundary thickness
 
 allencahn.alpha.bc.constant.type.xlo = neumann
 allencahn.alpha.bc.constant.type.xhi = neumann
@@ -135,7 +135,7 @@ hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.5
-hydro.lagrange=10.0
+hydro.lagrange=200.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
