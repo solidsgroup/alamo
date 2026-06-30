@@ -84,7 +84,9 @@ protected:
                 amrex::MultiFab &E_rhs_mf,
                 const amrex::MultiFab &rho_mf,
                 const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf);
+                const amrex::MultiFab &E_mf,
+                amrex::MultiFab *eta_rhs_mf = nullptr,
+                const amrex::MultiFab *eta_stage_mf = nullptr);
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
@@ -171,6 +173,11 @@ protected:
         ForwardEuler, SSPRK3, RK4
     };
     IntegrationScheme scheme;
+
+    enum EtaMode {
+        Static, Evolving
+    };
+    EtaMode eta_mode = EtaMode::Static;
 
     enum PrescribedFlowMode {
         Absolute, Relative

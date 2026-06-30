@@ -88,6 +88,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
 
+        std::string eta_mode_str;
+        pp.query_validate("eta.mode", eta_mode_str, {"static","evolving"});
+        if (eta_mode_str == "static") value.eta_mode = EtaMode::Static;
+        else if (eta_mode_str == "evolving") value.eta_mode = EtaMode::Evolving;
+        if (value.managed && value.eta_mode == EtaMode::Evolving)
+            Util::Exception(INFO,"Hydro eta.mode=evolving is only valid when Hydro owns eta; externally managed eta must use eta.mode=static.");
+
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
     }
@@ -356,25 +363,32 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // UPDATE ETA AND CALCULATE ETADOT
     //
 
-    if (!managed) UpdateEta(lev, time);
-    if (managed) 
+    if (eta_mode == EtaMode::Static)
     {
-        UpdateFluxes(lev,time,dt);
-        Mix(lev);
+        if (!managed) UpdateEta(lev, time);
+        if (managed) 
+        {
+            UpdateFluxes(lev,time,dt);
+            Mix(lev);
+        }
+        for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.growntilebox();
+            amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+            amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {   
+
+                etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+                if (invert) etadot(i,j,k) *= 1.0;
+
+            });
+        }
     }
-    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    else
     {
-        const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
-        amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
-
-            etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            if (invert) etadot(i,j,k) *= 1.0;
-
-        });
+        etadot_mf[lev]->setVal(0.0);
     }
 
 
@@ -387,12 +401,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,1);
     solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    if (eta_mode == EtaMode::Evolving)
+        solution_new.emplace_back(*(*eta_mf)[lev].get(),amrex::MakeType::make_alias,0,1);
 
     // Organize references to the "old" solution
     amrex::Vector<amrex::MultiFab> solution_old;
     solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
     solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    if (eta_mode == EtaMode::Evolving)
+        solution_old.emplace_back(*(*eta_old_mf)[lev].get(),amrex::MakeType::make_alias,0,1);
 
     // Create the time integrator
     amrex::TimeIntegrator timeintegrator(solution_new, time);
@@ -400,9 +418,15 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Set the time integrator RHS - in this case, just relay to our current RHS function
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
     {
-        RHS(lev, time,
-            rhs_mf[0], rhs_mf[1], rhs_mf[2],
-            solution_mf[0],solution_mf[1],solution_mf[2]);
+        if (eta_mode == EtaMode::Evolving)
+            RHS(lev, time,
+                rhs_mf[0], rhs_mf[1], rhs_mf[2],
+                solution_mf[0],solution_mf[1],solution_mf[2],
+                &rhs_mf[3], &solution_mf[3]);
+        else
+            RHS(lev, time,
+                rhs_mf[0], rhs_mf[1], rhs_mf[2],
+                solution_mf[0],solution_mf[1],solution_mf[2]);
     });
 
     // Take care of filling boundaries during stages
@@ -414,6 +438,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         stage_mf[1].FillBoundary(true);
         energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
         stage_mf[2].FillBoundary(true);
+        if (eta_mode == EtaMode::Evolving)
+        {
+            eta_bc->FillBoundary(stage_mf[3],0,1,time,0);
+            stage_mf[3].FillBoundary(true);
+        }
     });
     
     // Do the update
@@ -486,13 +515,21 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 amrex::MultiFab &E_rhs_mf,
                 const amrex::MultiFab &rho_mf,
                 const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf)
+                const amrex::MultiFab &E_mf,
+                amrex::MultiFab *eta_rhs_mf,
+                const amrex::MultiFab *eta_stage_mf)
 {
+
+    const bool evolve_eta = (eta_mode == EtaMode::Evolving);
+    Util::Assert(INFO, TEST(!evolve_eta || (eta_rhs_mf != nullptr && eta_stage_mf != nullptr)));
+    const bool use_diffuse_sources = !evolve_eta;
+    const amrex::MultiFab& eta_current_mf = evolve_eta ? *eta_stage_mf : *(*eta_old_mf)[lev];
+    const amrex::MultiFab& eta_iter_mf = evolve_eta ? *eta_stage_mf : *(*eta_mf)[lev];
 
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_patch = eta_current_mf.array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
@@ -542,7 +579,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
 
-    for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(eta_iter_mf, false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         
@@ -567,7 +604,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
+        amrex::Array4<const Set::Scalar> const& eta_patch = eta_current_mf.array(mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
@@ -578,6 +615,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> _u0       = u0_mf.Patch(lev,mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> eta_rhs;
+        if (evolve_eta) eta_rhs = eta_rhs_mf->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -603,6 +642,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1), _u0(i, j, k, 2)); // Velocity
                 Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
             #endif
+
+            if (evolve_eta) eta_rhs(i,j,k) = -u.dot(grad_eta);
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
@@ -663,14 +704,24 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                         }
 
-            Source(i,j, k, 0) = mdot0;
-            Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
-            Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
-            Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
+            if (use_diffuse_sources)
+            {
+                Source(i,j, k, 0) = mdot0;
+                Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
+                Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
+                Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
-            // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+                // Lagrange terms to enforce no-penetration
+                Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+                Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+            }
+            else
+            {
+                Source(i,j,k,0) = 0.0;
+                Source(i,j,k,1) = 0.0;
+                Source(i,j,k,2) = 0.0;
+                Source(i,j,k,3) = 0.0;
+            }
 
             //Godunov flux
             //states of total fields
@@ -734,14 +785,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
-                Source(i, j, k, 0);
+                (use_diffuse_sources ? Source(i, j, k, 0) : 0.0);
 
             rho_rhs(i,j,k) = 
                 // rho_new(i, j, k) = rho(i, j, k) + 
                 //(
                     drhof_dt +
                     // todo add drhos_dt term if want time-evolving rhos
-                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small)
+                    (use_diffuse_sources ? etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small) : 0.0)
                 // ) * dt;
                 ;
 
@@ -752,14 +803,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
                 div_tau(0) * eta +
                 g(0)*rho(i,j,k) +
-                Source(i, j, k, 1);
+                (use_diffuse_sources ? Source(i, j, k, 1) : 0.0);
 
             M_rhs(i,j,k,0) = 
                 //M_new(i, j, k, 0) = M(i, j, k, 0) +
                 // ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta + small)
+                    (use_diffuse_sources ? etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta + small) : 0.0)
                 // ) * dt;
                 ;
 
@@ -768,28 +819,28 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
                 div_tau(1) * eta + 
                 g(1)*rho(i,j,k) +
-                Source(i, j, k, 2);
+                (use_diffuse_sources ? Source(i, j, k, 2) : 0.0);
 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
                 //( 
                     dMyf_dt +
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta+small)
+                    (use_diffuse_sources ? etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta+small) : 0.0)
                 // )*dt;
                 ;
 
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                Source(i, j, k, 3);
+                (use_diffuse_sources ? Source(i, j, k, 3) : 0.0);
 
             E_rhs(i,j,k) = 
             // E_new(i, j, k) = E(i, j, k) + 
             //     ( 
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
-                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small)
+                    (use_diffuse_sources ? etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small) : 0.0)
                 // ) * dt;
                 ;
             
