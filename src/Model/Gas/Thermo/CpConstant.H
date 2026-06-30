@@ -65,17 +65,17 @@ public:
         for (int n=0; n<NSPECIES; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
         return s;
     }
-    double cp_mol_species(double /*T*/, int n) const override
+    double cp_mol_species(double /*T*/, int n) const
     {
         // Specific heat (constant pressure) for species n, J/(kmol-K)
         return cp_moles[n];
     }
-    double enthalpy_mol_species(double T, int n) const override
+    double enthalpy_mol_species(double T, int n) const
     {
         // Specific enthalpy for species n, J/kmol
         return cp_moles[n] * (T - Tref[n]) + h0[n];
     }
-    double entropy_mol_species(double T, int n) const override
+    double entropy_mol_species(double T, int n) const
     {
         // specific entropy for species n, J/(kmol-K)
         return cp_moles[n] * std::log(T / Tref[n]) + s0[n];

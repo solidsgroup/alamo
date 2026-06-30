@@ -60,9 +60,8 @@ public:
     }
 
     static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
-                        int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
+                        std::array<double,NSPECIES> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
     {
-        value.nspecies = a_nspecies;
         value.MW = a_MW;
         value.thermo = a_thermo;
 
