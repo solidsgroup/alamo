@@ -37,6 +37,14 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
     }
+#ifdef AMREX_USE_HDF5
+    {
+        // These parameters are only used when Alamo
+        // is compiled with HDF5 support.
+        // The level of compression to use with HDF5's zlib compression algorithm (0-9)
+        pp.query_default("compression_level", value.compression_level, "6");
+    }
+#endif
     {
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
@@ -1031,13 +1039,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             allnames.insert(allnames.end(), nnames.begin(), nnames.end());
             allnames.insert(allnames.end(), bfnames.begin(), bfnames.end());
         }
-        WriteMultiLevelPlotfile(plotfilename[0] + plotfilename[1] + "cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+        const std::string base = plotfilename[0] + plotfilename[1] + "cell";
+#ifdef AMREX_USE_HDF5
+        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+            Geom(), time, iter, refRatio(),"ZLIB@" + compression_level);
+        const std::string chkptfilename = base + ".Checkpoint";
+#else
+        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
             Geom(), time, iter, refRatio());
-
-        std::ofstream chkptfile;
-        chkptfile.open(plotfilename[0] + plotfilename[1] + "cell/Checkpoint");
+        const std::string chkptfilename = base + "/Checkpoint";
+#endif
+        std::ofstream chkptfile(chkptfilename);
+        if (!chkptfile.good()) amrex::FileOpenFailed(chkptfilename);
         for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
         chkptfile.close();
+        if (chkptfile.fail()) amrex::FileOpenFailed(chkptfilename);
     }
 
     if (do_node_plotfile)
@@ -1045,13 +1061,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         amrex::Vector<std::string> allnames = nnames;
         allnames.insert(allnames.end(), bfnames.begin(), bfnames.end());
         if (node.all) allnames.insert(allnames.end(), cnames_node.begin(), cnames_node.end());
-        WriteMultiLevelPlotfile(plotfilename[0] + plotfilename[1] + "node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
+        const std::string base = plotfilename[0] + plotfilename[1] + "node";
+#ifdef AMREX_USE_HDF5
+        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
+            Geom(), time, iter, refRatio(),"ZLIB@" + compression_level);
+        const std::string chkptfilename = base + ".Checkpoint";
+#else
+        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
             Geom(), time, iter, refRatio());
-
-        std::ofstream chkptfile;
-        chkptfile.open(plotfilename[0] + plotfilename[1] + "node/Checkpoint");
+        const std::string chkptfilename = base + "/Checkpoint";
+#endif
+        std::ofstream chkptfile(chkptfilename);
+        if (!chkptfile.good()) amrex::FileOpenFailed(chkptfilename);
         for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
         chkptfile.close();
+        if (chkptfile.fail()) amrex::FileOpenFailed(chkptfilename);
     }
 
     if (amrex::ParallelDescriptor::IOProcessor())
@@ -1067,8 +1091,13 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             if (do_cell_plotfile) coutfile.open(plot_file + "/celloutput.visit", std::ios_base::app);
             if (do_node_plotfile) noutfile.open(plot_file + "/nodeoutput.visit", std::ios_base::app);
         }
-        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
-        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
+#ifdef AMREX_USE_HDF5
+        const std::string header_suffix = ".h5";
+#else
+        const std::string header_suffix = "/Header";
+#endif
+        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + header_suffix << std::endl;
+        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + header_suffix << std::endl;
     }
 }
 

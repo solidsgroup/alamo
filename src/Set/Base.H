@@ -7,6 +7,7 @@
 #include "AMReX_Vector.H"
 #include "AMReX_BLassert.H"
 #include "AMReX_Geometry.H"
+#include "AMReX_GpuComplex.H"
 #include "AMReX_IndexType.H"
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
@@ -16,6 +17,7 @@
 namespace Set
 {
 using Scalar   = amrex::Real;
+using Complex  = amrex::GpuComplex<Scalar>;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
 using Vector3d = Eigen::Vector3d;
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;

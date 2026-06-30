@@ -5,6 +5,7 @@
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
+#include "IC/PointList.H"
 #include "IC/PSRead.H"
 #include "Numeric/Function.H"
 #include "IC/Expression.H"

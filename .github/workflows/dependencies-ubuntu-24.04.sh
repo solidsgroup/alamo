@@ -42,3 +42,6 @@ npm install -g eclint
 
 # [optional] Needed for automated profiling
 sudo apt install google-perftools libgoogle-perftools-dev
+
+# [optional] Needed for HDF5 output
+sudo apt install libhdf5-mpi-dev
