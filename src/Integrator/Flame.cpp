@@ -439,13 +439,16 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Vector N = grad_eta_hydro / (grad_eta_mag + small); // Example of finding the normal vector
+            Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
 
-            m0(i,j,k,0) = hydro.rho_ap*phi; // example of setting value to m0
-            m0(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
+            Set::Scalar dm_dt_AP = deta_dt*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+            Set::Scalar dm_dt_HTPB = deta_dt*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+
+            m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
             solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
 
             Set::Scalar density_gas_tot = 0;
-            Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
             for (int n=0; n<NSPECIES; ++n)
             {
                 density_gas_tot += hydro_density(i,j,k,n);

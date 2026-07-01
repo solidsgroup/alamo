@@ -10,7 +10,7 @@ system.time = s
 amr.plot_dt = 2.5e-3
 # amr.plot_int = 1
 amr.max_grid_size = 16
-amr.blocking_factor = 4
+amr.blocking_factor = 2
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
@@ -28,9 +28,9 @@ amr.max_level = 3
 # geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
 
 # Quarter size
-amr.n_cell = 20 8 16
-geometry.prob_lo = -0.125_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.5_mm 0.25_mm 0.5_mm
+amr.n_cell = 10 4 16
+geometry.prob_lo = -0.0625_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 0.25_mm 0.125_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
