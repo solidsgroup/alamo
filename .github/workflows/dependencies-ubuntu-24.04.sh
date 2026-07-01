@@ -4,7 +4,7 @@ set -eu -o pipefail
 # Make sure your system is up-to-date with standard build software
 #
 sudo apt update
-sudo apt install build-essential g++ gfortran
+sudo apt install build-essential g++
 
 #
 # Use apt (or apt-get) to install these packages
@@ -17,7 +17,7 @@ sudo apt install libpng-dev
 #
 # [optional] Install these packages if compiling with clang
 #
-sudo apt install clang libgfortran-14-dev libstdc++-14-dev
+sudo apt install clang libstdc++-14-dev
 
 #
 # [optional] These are needed for regression test scripts and
@@ -41,3 +41,6 @@ npm install -g eclint
 
 # [optional] Needed for automated profiling
 sudo apt install google-perftools libgoogle-perftools-dev
+
+# [optional] Needed for HDF5 output
+sudo apt install libhdf5-mpi-dev

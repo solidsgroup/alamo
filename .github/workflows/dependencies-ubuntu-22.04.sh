@@ -4,7 +4,7 @@ set -eu -o pipefail
 # Make sure your system is up-to-date with standard build software
 #
 sudo apt update
-sudo apt install build-essential g++ gfortran
+sudo apt install build-essential g++
 
 #
 # Use apt (or apt-get) to install these packages
@@ -30,6 +30,9 @@ pip3 install yt matplotlib numpy pandas
 # Needed to build documentation
 pip3 install sphinx sphinx_rtd_theme sphinx_design
 pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
+
+# [optional] Needed for HDF5 output
+sudo apt install libhdf5-mpi-dev
 
 # Needed for linting and code scraping
 # You need to install python clang with apt, otherwise you must manually
