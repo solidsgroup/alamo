@@ -139,7 +139,7 @@ hydro.lagrange=200.0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
-dynamictimestep.max  = 2E-4
+dynamictimestep.max  = 1E-4
 dynamictimestep.min  = 1E-6
 hydro.cfl   = 10.0
 hydro.cfl_v   = 1.0
