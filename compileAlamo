@@ -7,12 +7,12 @@
 #SBATCH --output="%x-%j-compile-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN
-make realclean
+make clean
 module purge
 module load git
 module load openmpi
 module load gcc
 module load eigen
-module load hdf5
-./configure --get-eigen --dim=2 --comp=g++ --hdf5 --hdf5-prefix /hdf5
+module load hdf5/1.14.6-openmpi4-2sb6n2k
+./configure --get-eigen --dim=2 --comp=g++ --hdf5 --hdf5-prefix /opt/rit/el9/20240815/app/linux-rhel9-x86_64_v3/gcc-11.4.1/hdf5-1.14.6-2sb6n2kw36egzn3nsgv5uw4wv4c3pgkd
 srun --nodes=1 --cpus-per-task=16 --mem-per-cpu=1G --time=10:00 make -j16 ./bin/sfi

@@ -1,17 +1,17 @@
 alamo.program = allencahn
 plot_file = ./output.airfoil_supersonic
-amr.plot_dt = 0.005
+amr.plot_dt = 0.01
 # amr.plot_int = 10
 amr.max_grid_size = 500000
 amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.grid_eff = 0.7
-amr.max_level = 3
-amr.max_plot_level = 3
+amr.max_level = 2
+# amr.max_plot_level = 4
 timestep  = 1e-5
-amr.n_cell = 240 64
-geometry.prob_lo = -0.5 -1.6
-geometry.prob_hi =  11.5  1.6
+amr.n_cell = 480 256
+geometry.prob_lo = -0.5 -3.2
+geometry.prob_hi =  11.5  3.2
 geometry.is_periodic = 0 0 0
 stop_time = 2.0
 # AMR parameters
