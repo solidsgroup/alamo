@@ -24,6 +24,42 @@ def readHeader(path):
 
 def warning(msg):
     print(msg, file=sys.stderr)
+
+def rayCoordinate(df,start,end):
+    start = list(start)
+    end = list(end)
+    if len(start) == 2: start.append(0.0)
+    if len(end) == 2:   end.append(0.0)
+    start = numpy.array(start[:3], dtype=float)
+    end = numpy.array(end[:3], dtype=float)
+    direction = end - start
+    length = numpy.linalg.norm(direction)
+    if length <= 0.0:
+        raise Exception("Cannot construct ray coordinate from identical start and end points")
+
+    points = numpy.column_stack([
+        df[c].to_numpy(dtype=float) if c in df else numpy.zeros(len(df))
+        for c in ["x","y","z"]
+    ])
+    return numpy.dot(points - start, direction) / length
+
+def hasDuplicates(values):
+    return pandas.Series(values).duplicated().any()
+
+def sortForComparison(df,start,end,coord,use_ray_coord):
+    ret = df.copy()
+    if use_ray_coord:
+        compare_coord = "_ray_coord"
+        ret[compare_coord] = rayCoordinate(ret,start,end)
+    else:
+        compare_coord = coord
+
+    if compare_coord not in ret:
+        raise Exception("{} is not available for comparison".format(compare_coord))
+    if hasDuplicates(ret[compare_coord]):
+        raise Exception("{} contains duplicate values and cannot be used for interpolation".format(compare_coord))
+
+    return ret.sort_values(by=compare_coord).reset_index(drop=True), compare_coord
  
 def readContours(path,
                  start,
@@ -81,7 +117,11 @@ def validate(path,
         reference = "reference/reference-{}d.csv".format(dim)
 
     if generate_ref_data:
-        new_df.to_csv(reference)
+        use_ray_coord = hasDuplicates(new_df[coord])
+        ref_df, compare_coord = sortForComparison(new_df,start,end,coord,use_ray_coord)
+        if compare_coord in ref_df and compare_coord.startswith("_"):
+            ref_df = ref_df.drop(columns=[compare_coord])
+        ref_df.to_csv(reference)
         print("Reference data generated, now exiting noisily so we don't accidentally pass the test")
         exit(-1)
     
@@ -104,7 +144,10 @@ def validate(path,
             ref_df = pandas.read_csv(reference[i])
         else:
             ref_df = pandas.read_csv(reference)
-        ref_df = ref_df.sort_values(by=coord)
+        use_ray_coord = hasDuplicates(new_df[coord]) or hasDuplicates(ref_df[coord])
+        new_compare_df, compare_coord = sortForComparison(new_df,start,end,coord,use_ray_coord)
+        ref_df, compare_coord = sortForComparison(ref_df,start,end,coord,use_ray_coord)
+        compare_label = "ray coordinate" if use_ray_coord else coord
         
         len_x = info["geom_hi"][0]-info["geom_lo"][0]
         len_y = info["geom_hi"][1]-info["geom_lo"][1]
@@ -118,16 +161,11 @@ def validate(path,
         if tight_layout: pylab.tight_layout()
         pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
-        new_x,new_y,new_var = new_df["x"], new_df["y"], new_df[var]
+        new_x,new_y,new_var = new_compare_df["x"], new_compare_df["y"], new_compare_df[var]
         ref_x,ref_y,ref_var = ref_df["x"], ref_df["y"], ref_df[var]
 
-
-        if coord == 'x':
-            new_coord = new_x
-            ref_coord = ref_x
-        elif coord == 'y':
-            new_coord = new_y
-            ref_coord = ref_y
+        new_coord = new_compare_df[compare_coord]
+        ref_coord = ref_df[compare_coord]
             
         #print(type(ref_coord),axis=None)
         final_coord = sorted(numpy.concatenate((ref_coord, new_coord),axis=None))
@@ -137,7 +175,7 @@ def validate(path,
         pylab.clf()
         pylab.plot(final_coord,ref_final_var,color='C0',label='ref')
         pylab.plot(final_coord,new_final_var,color='C1',label='new',linestyle='--',marker='o',markerfacecolor='None')
-        pylab.xlabel(coord)
+        pylab.xlabel(compare_label)
         pylab.ylabel(var)
         pylab.legend()
         pylab.grid()
