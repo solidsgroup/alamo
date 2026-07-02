@@ -14,6 +14,7 @@
 #include "Solver/Local/Riemann/Riemann.H"
 
 #include "Model/Gas/Gas.H"
+#include "Model/Solid/Finite/NeoHookean.H"
 
 namespace Integrator
 {
@@ -77,6 +78,13 @@ protected:
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
+    bool UsesDiffuseBoundarySources() const { return eta_mode == EtaMode::Static; }
+    void InitializeFluidState(int lev);
+    void EnforceFluidStateBounds(int lev);
+    void EnforceFluidStateBounds(int lev, amrex::MultiFab &rho_mf, amrex::MultiFab &M_mf, amrex::MultiFab &E_mf);
+    void UpdateSolidKinematics(int lev);
+    void RebuildReferenceMapInFluid(int lev, amrex::MultiFab &eta_stage_mf, amrex::MultiFab &xi_stage_mf, Set::Scalar time);
+    void ProjectReferenceMapDensity(int lev, amrex::MultiFab &rho_stage_mf, amrex::MultiFab &M_stage_mf, amrex::MultiFab &E_stage_mf, const amrex::MultiFab &eta_stage_mf, const amrex::MultiFab &xi_stage_mf);
     
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
@@ -86,7 +94,9 @@ protected:
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf,
                 amrex::MultiFab *eta_rhs_mf = nullptr,
-                const amrex::MultiFab *eta_stage_mf = nullptr);
+                const amrex::MultiFab *eta_stage_mf = nullptr,
+                amrex::MultiFab *xi_rhs_mf = nullptr,
+                const amrex::MultiFab *xi_stage_mf = nullptr);
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
@@ -96,6 +106,14 @@ protected:
 
     Set::Field<Set::Scalar> momentum_mf;
     Set::Field<Set::Scalar> momentum_old_mf;
+
+    Set::Field<Set::Scalar> xi_mf;
+    Set::Field<Set::Scalar> xi_old_mf;
+    Set::Field<Set::Scalar> F_mf;
+    Set::Field<Set::Scalar> P_mf;
+    Set::Field<Set::Scalar> elastic_stress_mf;
+    Set::Field<Set::Scalar> fluid_stress_mf;
+    Set::Field<Set::Matrix> cauchy_stress_mf;
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
@@ -148,6 +166,7 @@ protected:
 
     BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
     BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);
+    BC::Constant neumann_bc_DD = BC::Constant::ZeroNeumann(AMREX_SPACEDIM * AMREX_SPACEDIM);
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
@@ -167,6 +186,26 @@ protected:
     //std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
     int nspecies;
     Model::Gas::Gas gas;
+    Model::Solid::Finite::NeoHookean finite_solid_model;
+    bool finite_solid_enabled = false;
+    Set::Scalar finite_solid_eta_threshold = 0.5;
+    Set::Scalar finite_solid_viscosity = 0.0;
+    Set::Scalar finite_solid_bulk_viscosity = 0.0;
+    Set::Scalar finite_solid_J_floor = 1.0e-6;
+    Set::Scalar stress_cap = 1.0e100;
+    Set::Scalar stress_rhs_sign = 1.0;
+    bool pressure_split_enabled = true;
+    Set::Scalar pressure_reference = 0.0;
+    Set::Scalar finite_solid_reference_density = 100.0;
+    Set::Scalar reference_map_relaxation = 0.0;
+    Set::Scalar reference_map_relaxation_eta_cutoff = 0.5;
+    Set::Scalar reference_map_extrapolation_cutoff = 0.5;
+    int reference_map_extrapolation_sweeps = 4;
+    int reference_map_smoothing_sweeps = 2;
+    bool eta_ch_enabled = false;
+    Set::Scalar eta_ch_mobility = 0.0;
+    Set::Scalar eta_ch_kappa = 0.0;
+    Set::Scalar eta_ch_barrier = 0.0;
     
 
     enum IntegrationScheme {

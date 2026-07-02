@@ -1,18 +1,4 @@
-import os, sys, math, warnings
-
-os.environ.setdefault("MPLBACKEND", "Agg")
-warnings.filterwarnings("ignore", message="Unable to import Axes3D.*")
-
-# pandas treats these as optional acceleration modules. On systems where they
-# were built against NumPy 1.x, importing them under NumPy 2.x emits noisy
-# binary-compatibility tracebacks before pandas falls back. The regression
-# tests do not need them.
-sys.modules.setdefault("numexpr", None)
-sys.modules.setdefault("bottleneck", None)
-
-import numpy, yt, pylab, pandas
-from yt.frontends.amrex.data_structures import AMReXDataset
-import yt.frontends.amrex.io  # registers boxlib_native IO handler
+import numpy, yt, pylab, os, pandas, sys, math
 
 yt.set_log_level(50) # disable logging
 
@@ -48,7 +34,7 @@ def readContours(path,
                  vars=[],
                  returnAll = False):
                  
-    ds = AMReXDataset(path)
+    ds = yt.load(path)
     dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
     if len(start) == 2: start.append(0.0)
