@@ -1,4 +1,4 @@
-# LowMach driven cavity smoke case
+# LowMach driven cavity recirculation case
 # Run with: ./bin/lowmach-2d-clang++ input.lm
 
 plot_file = output.lm
@@ -7,10 +7,10 @@ amr.max_grid_size = 64
 amr.blocking_factor = 4
 amr.regrid_int = -1
 amr.max_level = 0
-amr.n_cell = 64 64
+amr.n_cell = 96 96
 
-timestep = 1.0e-4
-stop_time = 5.0e-2
+timestep = 1.0e-2
+stop_time = 2.0
 
 geometry.prob_lo = 0.0 0.0 0.0
 geometry.prob_hi = 1.0 1.0 0.0
@@ -25,7 +25,7 @@ gas.thermo.cpconstant.s0 = 0.0
 gas.thermo.cpconstant.Tref = 0.0_K
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 1.0e-2_Pa*s
+gas.transport.mixture_averaged.mu = 1.0e-4_Pa*s
 gas.transport.mixture_averaged.k = 0.02_W/m/K
 gas.eos.type = cpg
 
