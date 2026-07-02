@@ -472,20 +472,28 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar dm_dt_AP = deta_dt*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
             Set::Scalar dm_dt_HTPB = deta_dt*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 
-            m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
-            m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
-            solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
+            m0(i,j,k,2) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            m0(i,j,k,3) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+            solidrho(i,j,k,0) = hydro.rho_ap*phi*eta(i,j,k);
+            solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi)*eta(i,j,k);
+
+            for (int n=2; n<NSPECIES; ++n)
+            {
+                solidrho(i,j,k,n) = 0;
+            }
 
             Set::Scalar density_gas_tot = 0;
+            Set::Scalar density_solid_tot = 0;
             for (int n=0; n<NSPECIES; ++n)
             {
                 density_gas_tot += hydro_density(i,j,k,n);
+                density_solid_tot += solidrho(i,j,k,n);
             }
-            u0(i,j,k,0) = deta_dt*solidrho(i,j,k)/density_gas_tot*N(0);
-            u0(i,j,k,1) = deta_dt*solidrho(i,j,k)/density_gas_tot*N(1);
+            u0(i,j,k,0) = deta_dt*density_solid_tot/density_gas_tot*N(0);
+            u0(i,j,k,1) = deta_dt*density_solid_tot/density_gas_tot*N(1);
 
-            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            solidM(i,j,k,0) = density_solid_tot*u0(i,j,k,0);
+            solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
         });
     }
 
