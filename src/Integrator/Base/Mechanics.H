@@ -212,6 +212,18 @@ public:
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
 
+        // elastic_op is a local that is about to go out of scope and free its
+        // internal per-AMR/MG-level buffers (m_ddw_mf, m_psi_mf, coefficient
+        // caches, ...) used throughout the whole V-cycle. Without a full-device
+        // sync here, a straggler kernel from deep in the MLMG solve (any level,
+        // any stream in AMReX's per-MFIter stream pool) can still be in flight
+        // when that memory is freed -- it then gets immediately reused by the
+        // *next* timestep's freshly-constructed elastic_op, causing intermittent
+        // CUDA-700 / host segfaults far from the actual race. Same UAF family as
+        // the dsol_mf fix in Solver::Nonlocal::Newton::solve(), but at the
+        // broader elastic_op lifetime boundary rather than one buffer.
+        amrex::Gpu::streamSynchronizeAll();
+
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
             amrex::Box domain = geom[lev].Domain();

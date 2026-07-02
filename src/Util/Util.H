@@ -147,6 +147,13 @@ void Abort (const char * file, const char * func, int line, Args const &... args
 template<typename... Args>
 void AbortIfDeviceError(const DeviceErrorFlag& flag, const char* file, const char* func, int line, Args const&... args)
 {
+    // flag.value() only syncs the *current* stream (DeviceScalar::dataValue()).
+    // SetDeviceError() writes from boxes processed on other streams in AMReX's
+    // per-MFIter stream pool may still be in flight, so a bare read here can
+    // silently miss a real device-side error (false negative, not corruption --
+    // but the masked error state then propagates downstream to code that isn't
+    // expecting it). Full sync before the read closes that window.
+    amrex::Gpu::streamSynchronizeAll();
     if (flag.value() != 0) Util::Abort(file, func, line, args...);
 }
 

@@ -332,7 +332,7 @@ public:
         Set::Field<T>& a_model_mf,
         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
-        Set::Field<Set::Scalar> dsol_mf, rhs_mf;
+        Set::Field<Set::Scalar> dsol_mf, rhs_mf, u0_mf, utrial_mf;
         Set::Field<Set::Matrix> dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
 
@@ -340,6 +340,8 @@ public:
         dw_mf.resize(a_u_mf.finest_level + 1); dw_mf.finest_level = a_u_mf.finest_level;
         ddw_mf.resize(a_u_mf.finest_level + 1); ddw_mf.finest_level = a_u_mf.finest_level;
         rhs_mf.resize(a_u_mf.finest_level + 1); rhs_mf.finest_level = a_u_mf.finest_level;
+        u0_mf.resize(a_u_mf.finest_level + 1); u0_mf.finest_level = a_u_mf.finest_level;
+        utrial_mf.resize(a_u_mf.finest_level + 1); utrial_mf.finest_level = a_u_mf.finest_level;
         for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
         {
             dsol_mf.Define(lev, a_u_mf[lev]->boxArray(),
@@ -358,6 +360,14 @@ public:
                 a_b_mf[lev]->DistributionMap(),
                 a_b_mf.NComp(),
                 a_b_mf[lev]->nGrow());
+            u0_mf.Define(lev, a_u_mf[lev]->boxArray(),
+                a_u_mf[lev]->DistributionMap(),
+                a_u_mf.NComp(),
+                a_u_mf[lev]->nGrow());
+            utrial_mf.Define(lev, a_u_mf[lev]->boxArray(),
+                a_u_mf[lev]->DistributionMap(),
+                a_u_mf.NComp(),
+                a_u_mf[lev]->nGrow());
 
             dsol_mf[lev]->setVal(0.0);
             dw_mf[lev]->setVal(Set::Matrix::Zero());
@@ -376,6 +386,15 @@ public:
 
             if (nriter == m_nriters) break;
 
+            Set::Scalar resnorm0 = 0;
+            if (m_line_search)
+                for (int lev = 0; lev < rhs_mf.size(); ++lev)
+                    for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
+                    {
+                        Set::Scalar tmp = rhs_mf[lev]->norm0(comp, 0);
+                        if (tmp > resnorm0) resnorm0 = tmp;
+                    }
+
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
@@ -391,14 +410,58 @@ public:
                 }
 
             }
+            Set::Scalar alpha = 1.0;
+            if (m_line_search)
+            {
+                for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
+                    a_u_mf.Copy(lev, *u0_mf[lev], 0, 2);
+
+                Set::Scalar resnorm = resnorm0;
+                constexpr int max_backtrack = 8;
+                for (int bt = 0; bt <= max_backtrack; bt++)
+                {
+                    for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
+                    {
+                        amrex::MultiFab::Copy(*utrial_mf[lev], *u0_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+                        amrex::MultiFab::Saxpy(*utrial_mf[lev], alpha, *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+                        a_u_mf.CopyFrom(lev, *utrial_mf[lev], 0, 2);
+                    }
+
+                    prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
+
+                    resnorm = 0;
+                    for (int lev = 0; lev < rhs_mf.size(); ++lev)
+                        for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
+                        {
+                            Set::Scalar tmp = rhs_mf[lev]->norm0(comp, 0);
+                            if (tmp > resnorm) resnorm = tmp;
+                        }
+
+                    constexpr Set::Scalar bt_accept_tol = 1e-4;
+                    if (resnorm < resnorm0 * (1.0 + bt_accept_tol) || bt == max_backtrack) break;
+
+                    alpha *= 0.5;
+                }
+            }
+            else
+            {
+                for (int lev = 0; lev < dsol_mf.size(); ++lev)
+                    a_u_mf.AddFrom(lev, *dsol_mf[lev], 0, 2);
+            }
+
+            // dsol_mf (and friends) are about to be either overwritten by the next
+            // Linear::solve() call or destroyed if this is the final iteration. The
+            // AddFrom/Saxpy above launched an async kernel that reads dsol_mf on
+            // whichever stream its MFIter box landed on; without a full-device sync
+            // here that read can still be in flight when the buffer is freed/reused
+            // on another stream, causing an intermittent CUDA 700 illegal access
+            // (same UAF family as the tmpfab.elixir() fix in Operator::interpolation).
+            amrex::Gpu::streamSynchronizeAll();
+
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            if (verbose > 0) Util::Message(INFO, "NR iteration ", nriter + 1, ", relative norm(ddisp) = ", relnorm);
-
-            for (int lev = 0; lev < dsol_mf.size(); ++lev)
-                a_u_mf.AddFrom(lev, *dsol_mf[lev], 0, 2);
-            //amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+            if (verbose > 0) Util::Message(INFO, "NR iteration ", nriter + 1, ", alpha = ", alpha, ", relative norm(ddisp) = ", relnorm);
 
             if (relnorm < m_nrtolerance)
                 return relnorm;
@@ -681,6 +744,7 @@ public:
 
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
+    bool m_line_search = false;
     Operator::Elastic<T::sym>* m_elastic;
     //BC::Operator::Elastic::Elastic *m_bc;
 
@@ -700,6 +764,9 @@ public:
 
         // Tolerance to use for newton-raphson convergence
         pp_query("nrtolerance", value.m_nrtolerance);
+
+        // Enable backtracking line-search damping of the Newton step.
+        pp_query("line_search", value.m_line_search);
     }
 
 };
