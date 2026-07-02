@@ -60,9 +60,9 @@ public:
         amrex::Real time, int /*bccomp*/)
     {
         mf.FillBoundary(m_geom.periodicity());
-        for (amrex::MFIter mfi(mf, true); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(mf, false); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& box = mfi.tilebox();
+            const amrex::Box box = mfi.validbox();
             amrex::BaseFab<T>& in = mf[mfi];
             FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
         }
@@ -91,9 +91,9 @@ public:
             amrex::Real time, int /*bccomp*/)
     {
         mf.FillBoundary(m_geom.periodicity());
-        for (amrex::MFIter mfi(mf, true); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(mf, false); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& box = mfi.tilebox();
+            const amrex::Box box = mfi.validbox();
             amrex::BaseFab<T>& in = mf[mfi];
             FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
         }

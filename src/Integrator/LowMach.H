@@ -1,0 +1,117 @@
+#ifndef INTEGRATOR_LOWMACH_H
+#define INTEGRATOR_LOWMACH_H
+
+#include "Integrator/Integrator.H"
+#include "IO/ParmParse.H"
+
+#include "BC/BC.H"
+#include "BC/Constant.H"
+#include "BC/Expression.H"
+#include "BC/Nothing.H"
+#include "IC/Constant.H"
+#include "IC/Expression.H"
+#include "IC/IC.H"
+#include "Model/Gas/Gas.H"
+#include "Set/Base.H"
+#include "Numeric/Interpolator/Linear.H"
+
+namespace Integrator
+{
+class LowMach : virtual public Integrator
+{
+public:
+    static constexpr const char* name = "lowmach";
+
+    LowMach() {};
+    LowMach(IO::ParmParse& pp);
+    static void Parse(LowMach& value, IO::ParmParse& pp);
+
+    virtual ~LowMach()
+    {
+        delete velocity_bc;
+        delete temperature_bc;
+        delete mass_fraction_bc;
+        delete pressure_bc;
+
+        delete velocity_ic;
+        delete temperature_ic;
+        delete mass_fraction_ic;
+        delete pressure_ic;
+    }
+
+protected:
+    void Initialize(int lev) override;
+    void TimeStepBegin(Set::Scalar time, int iter) override;
+    void TimeStepComplete(Set::Scalar time, int iter) override;
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+    void Regrid(int lev, Set::Scalar time) override;
+
+    void FillStateBoundaries(int lev, amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf, Set::Scalar time);
+    void ApplyVelocityDirichletCells(int lev, amrex::MultiFab& u_mf, Set::Scalar time);
+    void FillPressureBoundary(int lev, Set::Scalar time);
+    void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
+    void EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf);
+    void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
+    void RHS(int lev, Set::Scalar time,
+             amrex::MultiFab& u_rhs_mf,
+             amrex::MultiFab& T_rhs_mf,
+             amrex::MultiFab& Y_rhs_mf,
+             const amrex::MultiFab& u_mf,
+             const amrex::MultiFab& T_mf,
+             const amrex::MultiFab& Y_mf);
+
+    Set::Field<Set::Scalar> velocity_mf;
+    Set::Field<Set::Scalar> velocity_old_mf;
+    Set::Field<Set::Scalar> temperature_mf;
+    Set::Field<Set::Scalar> temperature_old_mf;
+    Set::Field<Set::Scalar> mass_fraction_mf;
+    Set::Field<Set::Scalar> mass_fraction_old_mf;
+
+    Set::Field<Set::Scalar> density_mf;
+    Set::Field<Set::Scalar> momentum_mf;
+    Set::Field<Set::Scalar> pressure_mf;
+    Set::Field<Set::Scalar> pressure_correction_mf;
+    Set::Field<Set::Scalar> projection_rhs_mf;
+    Set::Field<Set::Scalar> energy_mf;
+    Set::Field<Set::Scalar> mole_fraction_mf;
+    Set::Field<Set::Scalar> vorticity_mf;
+
+    BC::BC<Set::Scalar>* velocity_bc = nullptr;
+    BC::BC<Set::Scalar>* temperature_bc = nullptr;
+    BC::BC<Set::Scalar>* mass_fraction_bc = nullptr;
+    BC::BC<Set::Scalar>* pressure_bc = nullptr;
+    BC::Nothing bc_nothing;
+
+    IC::IC<Set::Scalar>* velocity_ic = nullptr;
+    IC::IC<Set::Scalar>* temperature_ic = nullptr;
+    IC::IC<Set::Scalar>* mass_fraction_ic = nullptr;
+    IC::IC<Set::Scalar>* pressure_ic = nullptr;
+
+    Model::Gas::Gas gas;
+    int nspecies = 0;
+
+    Set::Vector g = Set::Vector::Zero();
+    Set::Scalar cfl = NAN;
+    Set::Scalar cfl_v = 1.0e100;
+    Set::Scalar small = 1.0e-12;
+    Set::Scalar density_floor = 1.0e-12;
+    Set::Scalar temperature_floor = 1.0e-12;
+    Set::Scalar pressure_floor = 1.0e-12;
+    Set::Scalar pressure_scale = 1.0;
+    Set::Scalar projection_tol_rel = 1.0e-11;
+    Set::Scalar projection_tol_abs = 1.0e-12;
+    Set::Scalar velocity_refinement_criterion = NAN;
+    Set::Scalar pressure_refinement_criterion = NAN;
+    Set::Scalar temperature_refinement_criterion = NAN;
+    int projection_verbose = 0;
+    bool projection_enabled = true;
+    bool projection_update_pressure = false;
+    amrex::Array<amrex::Array<Numeric::Interpolator::Linear<Set::Scalar>, AMREX_SPACEDIM>, 2 * AMREX_SPACEDIM> velocity_dirichlet_value;
+    bool include_viscosity = true;
+    bool include_conduction = true;
+    bool advect_temperature = true;
+};
+}
+
+#endif
