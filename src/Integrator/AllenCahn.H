@@ -37,6 +37,7 @@
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
 #include "Unit/Unit.H"
+#include "IC/PointList.H"
 
 namespace Integrator
 {
@@ -106,8 +107,7 @@ public:
         
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
-        
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, value.geom); 
 
         // Use a constant BC object for temperature
         // value.bc = new BC::Constant(1);

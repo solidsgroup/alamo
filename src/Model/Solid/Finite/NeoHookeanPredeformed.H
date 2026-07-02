@@ -3,6 +3,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Finite/NeoHookean.H"
+#include "Unit/Unit.H"
 
 namespace Model
 {

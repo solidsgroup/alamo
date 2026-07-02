@@ -240,9 +240,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         // Gas model (Thermo, Transport, and EOS)
         pp.queryclass<Model::Gas::Gas>("gas", value.gas);
-        Util::Message(INFO, "Model::Gas::EOS       = ", value.gas.eos->model_name());
-        Util::Message(INFO, "Model::Gas::Thermo    = ", value.gas.thermo->model_name());
-        Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport->model_name());
+        Util::Message(INFO, "Model::Gas::EOS       = ", value.gas.eos.model_name());
+        Util::Message(INFO, "Model::Gas::Thermo    = ", value.gas.thermo.model_name());
+        Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport.model_name());
         Util::Message(INFO, "NSPECIES = ", NSPECIES);
 
         pp.forbid("scheme","use integration.type instead");
@@ -422,6 +422,8 @@ void Hydro::Initialize(int lev)
     }
     etadot_mf[lev]   ->setVal(0.0);
 
+    //flux_mf[lev]   ->setVal(0.0);
+
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
     density_ic       ->Initialize(lev, density_mf,  0.0);
@@ -517,7 +519,16 @@ void Hydro::Mix(int lev)
 
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
+            //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
+
+            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            //density = gas.ComputeD(rho, i, j, k);
+            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+            //v(i,j,k,0) = M(i,j,k,0)/density;
+            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
+        //Util::Abort(INFO);
     }
     c_max = 0.0;
     vx_max = 0.0;
@@ -1401,8 +1412,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                         {
                             Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
-                        }
 
+                        }
 
             //Godunov flux
             //states of total fields
@@ -1565,6 +1576,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Util::ParallelMessage(INFO,"i=",i," j=",j);
                 Util::Abort(INFO);
             }
+                
 
             std::array<double, NSPECIES> drhof_dt_hydro;
             for (int n=0; n<NSPECIES; ++n)
