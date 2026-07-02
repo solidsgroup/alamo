@@ -1,0 +1,173 @@
+# =============================================================================
+# NAWC Motor No. 6 - ALAMO Smoke Test Input File
+# Grain geometry from Willcox et al. 2007, Fig. 7 (DOI: 10.2514/1.22971)
+# Elastic disabled for initial IC validation run.
+# Propellant properties from https://apps.dtic.mil/sti/pdfs/ADA382239.pdf
+# =============================================================================
+
+alamo.program = flame
+plot_file = output_nawc6_4ths
+amr.plot_dt = 0.01
+#amr.plot_int = 1
+amr.max_level = 3
+amr.nsubsteps = 2
+amr.blocking_factor = 8
+amr.base_regrid_int = 100
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
+#amr.refinement_restriction = 0.3
+amr.phi_refinement_criterion = 0.2
+amr.n_cell = 64 64 256
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+
+# --- Domain ---
+geometry.prob_lo =  0.0000  0.0000  0.0000
+geometry.prob_hi =  0.0635  0.0635 1.6962
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+# --- Timestepping and Duration
+timestep = 1.0e-4_s
+stop_time = 5.0_s
+
+# Phase field parameters
+pf.eps = 5.0e-5_m        #DO NOT CHANGE
+pf.lambda = 0.001_J/m^2  #DO NOT CHANGE
+#pf.eta.ic.type = bmp
+#pf.eta.ic.bmp.filename = star.bmp # Kshitij asked where is this at? -- Terminal is saying this is not used.
+#pf.eta.ic.bmp.fit = stretch # Terminal is saying this is not being used.
+#pf.eta.ic.bmp.channel = g # Terminal is saying this is not being used.
+#phi.ic.type = bmp
+#phi.ic.bmp.filename = base_circle0.bmp # Terminal is saying this is not being used.
+#phi.ic.bmp.fit = stretch # Terminal is saying this is not being used.
+#phi.ic.bmp.channel = g # Terminal is saying this is not used.
+pf.kappa = 1.0_J/m^2     #DO NOT CHANGE
+pf.relax_steps = 0 # Allen-Cahn pre-relax: disabled (BMP IC gives correct interface width at fine level) DO NOT CHANGE
+pf.w1 = 1.0_1            #DO NOT CHANGE
+pf.w12 = 2.0_1           #DO NOT CHANGE
+pf.w0 = 0.0_1            #DO NOT CHANGE
+small = 1E-4             #DO NOT CHANGE
+
+# --- Eta boundary conditions (propellant at all walls) ---
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.type.zlo = dirichlet
+pf.eta.bc.constant.type.zhi = dirichlet
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 1.0
+pf.eta.bc.constant.val.zlo = 1.0
+pf.eta.bc.constant.val.zhi = 1.0
+
+# --- Eta IC: StarAftGrain ---
+pf.eta.ic.type = staraftgrain
+pf.eta.ic.staraftgrain.eps               = 0.003_m
+pf.eta.ic.staraftgrain.R_case            = 0.0635
+pf.eta.ic.staraftgrain.z_motor_lo        = 0.0
+pf.eta.ic.staraftgrain.nfin              = 6
+pf.eta.ic.staraftgrain.fin_half_angle_deg = 30.0
+pf.eta.ic.staraftgrain.invert            = 0
+
+# Station axial positions (inches -> meters)
+
+# A=0.00, B=0.19, C=1.19, D=5.78, E=11.78, F=14.78, G=65.78, end=66.78
+pf.eta.ic.staraftgrain.station.z    = 0.00000 0.00483 0.03023 0.14681 0.29921 0.37541 1.67081 1.69621
+
+# R1: inner bore radius (m)
+pf.eta.ic.staraftgrain.station.R1   = 0.04826 0.02380 0.02367 0.01570 0.01570 0.01575 0.03594 0.03594
+
+# R3: star tip outer radius (m)
+pf.eta.ic.staraftgrain.station.R3   = 0.04826 0.02380 0.02367 0.02367 0.03472 0.03594 0.03594 0.03594
+
+# R4: fillet radius at fin tips (m)
+pf.eta.ic.staraftgrain.station.R4   = 0.00000 0.00000 0.00000 0.00488 0.00488 0.00493 0.00000 0.00000
+
+# is_star: 1=star cross-section, 0=tube
+pf.eta.ic.staraftgrain.station.star = 0 0 0 1 1 1 0 0
+
+pf.eta.ic.staraftgrain.sector_theta_lo_deg = 0.0
+pf.eta.ic.staraftgrain.sector_theta_hi_deg = 90.0
+
+# --- Phi IC: uniform AP propellant ---
+phi.ic.type = constant
+phi.ic.constant.value = 1.0
+
+# --- Propellant model from NAWC Motor No. 6! ---
+propellant.type = homogenize
+
+propellant.homogenize.dispersion1 = 0.025_W/m/K # k_gas (air-like); alpha_gas=0.025/1200=2e-5 m²/s satisfies thermal CFL on all levels
+propellant.homogenize.dispersion2 = 1.2_kg/m^3   # rho_gas (air-like density)
+propellant.homogenize.dispersion3 = 1000_J/kg/K  # cp_gas (air-like heat capacity)
+
+# h1=0: removes pressure-dependent heat flux (stable by construction with n=0.373<1)
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+
+propellant.homogenize.P_reference = 1_MPa
+
+propellant.homogenize.rho_prop = 1800.0_kg/m^3 # density
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s # [???] kg/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
+propellant.homogenize.pressure_exponent = 0.360
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# Pressure
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa # Initial pressure
+chamber.ballistic.At = 2.125e-3_m^2 # Throat Area
+chamber.ballistic.T0 = 2986_K # [?] K
+chamber.ballistic.R = 314_J/kg/K #[?] J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure =  6.9e6_Pa # Was 4.0e6_Pa -- New value is from Willcox
+
+# --- Chamber pressure (6.9 MPa = operating pressure of No. 6) ---
+#chamber.pressure  = 6.9
+#variable_pressure = 0
+#
+
+# --- Laser
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.0025) * (1500000000)"
+thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+
+# --- Elastic (disabled for smoke test) ---
+elastic.on = 0
+elastic.type = disable
+
+
+# --- Thermal
+thermal.on = 1
+thermal.Tref = 300 #[K]
+thermal.Tfluid = 300 #[K] (matches grain IC to prevent cold-start thermal spike)
+thermal.Tcutoff = 350.0 #[K]
+temp.ic.type = constant
+temp.ic.constant.value = 300.0
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = neumann
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.type.zlo = dirichlet
+thermal.temp.bc.constant.type.zhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 0_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 0_K
+thermal.temp.bc.constant.val.yhi = 300_K
+thermal.temp.bc.constant.val.zlo = 300_K
+thermal.temp.bc.constant.val.zhi = 300_K
+
+
