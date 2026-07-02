@@ -195,22 +195,22 @@ system.amount = kmol
 hydro.gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
 
 hydro.gas.thermo.type = cpconstant
-hydro.gas.thermo.cpconstant.cp_moles = 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K # J/kmol/K
-hydro.gas.thermo.cpconstant.h0   =   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
-hydro.gas.thermo.cpconstant.s0   =   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
-hydro.gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K
+hydro.gas.thermo.cpconstant.cp_moles = 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K 32635.0_J/kmol/K
+hydro.gas.thermo.cpconstant.h0   =   0.0   0.0   0.0   0.0   0.0   0.0
+hydro.gas.thermo.cpconstant.s0   =   0.0   0.0   0.0   0.0   0.0   0.0
+hydro.gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K
 
 hydro.gas.transport.type = mixture_averaged
 hydro.gas.transport.mixture_averaged.type = constant
 
-hydro.gas.transport.mixture_averaged.mu = 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s
+hydro.gas.transport.mixture_averaged.mu = 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s
 # hydro.gas.mixture_averaged.mu = 5.02e-5 5.02e-5 5.02e-5 5.02e-5 5.02e-5 5.02e-5
 hydro.gas.transport.mixture_averaged.k = 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K
 
 hydro.gas.eos.type = cpg
 
 hydro.density.ic.type = constant
-hydro.density.ic.constant.value = 0.01 0.01 0.01 0.01 0.01 0.01 0.01 0.01
+hydro.density.ic.constant.value = 0.01 0.01 0.01 0.01 0.01 0.01
 
 hydro.pressure.ic.type = expression
 hydro.pressure.ic.expression.region0 = "101325.0"
@@ -218,11 +218,11 @@ hydro.pressure.ic.expression.region0 = "101325.0"
 hydro.velocity.ic.type = constant
 hydro.velocity.ic.constant.value = 0.0 0.0
 
-hydro.solid.density.ic.constant.value = 1950.0 920.0 0.01 0.01 0.01 0.01 0.01 0.01
+hydro.solid.density.ic.constant.value = 0.01 0.01 0.01 0.01 0.01 0.01
 hydro.solid.momentum.ic.constant.value = 0.0 0.0
 hydro.solid.energy.ic.constant.value = 100000
 
-hydro.m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+hydro.m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0
 hydro.u0.ic.constant.value = 0.0 0.0
 hydro.q.ic.constant.value = 0.0 0.0
 

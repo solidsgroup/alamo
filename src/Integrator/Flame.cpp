@@ -472,15 +472,10 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar dm_dt_AP = deta_dt*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
             Set::Scalar dm_dt_HTPB = deta_dt*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 
-            m0(i,j,k,2) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
-            m0(i,j,k,3) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
-            solidrho(i,j,k,0) = hydro.rho_ap*phi*eta(i,j,k);
-            solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi)*eta(i,j,k);
-
-            for (int n=2; n<NSPECIES; ++n)
-            {
-                solidrho(i,j,k,n) = 0;
-            }
+            m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+            solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
 
             Set::Scalar density_gas_tot = 0;
             Set::Scalar density_solid_tot = 0;
