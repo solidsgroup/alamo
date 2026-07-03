@@ -1158,14 +1158,101 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     amrex::Array4<Set::Scalar> qdot_arr;
 
     const Set::Scalar* DX = geom[lev].CellSize();
+    const amrex::Box domain = geom[lev].Domain();
+    const int domlo0 = domain.smallEnd(0);
+    const int domhi0 = domain.bigEnd(0);
+    const int domlo1 = domain.smallEnd(1);
+    const int domhi1 = domain.bigEnd(1);
+    const bool periodic0 = geom[lev].isPeriodic(0);
+    const bool periodic1 = geom[lev].isPeriodic(1);
+#if AMREX_SPACEDIM == 3
+    const int domlo2 = domain.smallEnd(2);
+    const int domhi2 = domain.bigEnd(2);
+    const bool periodic2 = geom[lev].isPeriodic(2);
+#endif
+
+    amrex::MultiFab M_face_mf(ba, dm, AMREX_SPACEDIM, nghost);
+    amrex::MultiFab E_face_mf(ba, dm, 1, nghost);
+    amrex::MultiFab::Copy(M_face_mf, M_mf, 0, 0, AMREX_SPACEDIM, nghost);
+    amrex::MultiFab::Copy(E_face_mf, E_mf, 0, 0, 1, nghost);
+
+    // Interpret physical-domain momentum ghosts as face values for the RHS,
+    // while leaving the stored ghost cells available for plotfile diagnostics.
+    for (amrex::MFIter mfi(M_face_mf, true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
+        Set::Patch<const Set::Scalar> M_raw = M_mf.array(mfi);
+        Set::Patch<const Set::Scalar> E_raw = E_mf.array(mfi);
+        Set::Patch<Set::Scalar> M_face = M_face_mf.array(mfi);
+        Set::Patch<Set::Scalar> E_face = E_face_mf.array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            bool physical_ghost =
+                (!periodic0 && (i < domlo0 || i > domhi0)) ||
+                (!periodic1 && (j < domlo1 || j > domhi1));
+#if AMREX_SPACEDIM == 3
+            physical_ghost = physical_ghost ||
+                (!periodic2 && (k < domlo2 || k > domhi2));
+#endif
+            if (!physical_ghost) return;
+
+            int ii = i;
+            int jj = j;
+            int kk = k;
+            if (!periodic0)
+            {
+                if (ii < domlo0) ii = domlo0;
+                else if (ii > domhi0) ii = domhi0;
+            }
+            if (!periodic1)
+            {
+                if (jj < domlo1) jj = domlo1;
+                else if (jj > domhi1) jj = domhi1;
+            }
+#if AMREX_SPACEDIM == 3
+            if (!periodic2)
+            {
+                if (kk < domlo2) kk = domlo2;
+                else if (kk > domhi2) kk = domhi2;
+            }
+#endif
+
+            Set::Scalar rho_int = 0.0;
+            Set::Scalar rho_bc = 0.0;
+            for (int n = 0; n < NSPECIES; ++n)
+            {
+                rho_int += rho(ii,jj,kk,n);
+                rho_bc += rho(i,j,k,n);
+            }
+            if (rho_int < small) rho_int = small;
+            if (rho_bc < small) rho_bc = small;
+
+            Set::Scalar speed_int_sq = 0.0;
+            Set::Scalar speed_reflected_sq = 0.0;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const Set::Scalar u_int = M_raw(ii,jj,kk,d) / rho_int;
+                const Set::Scalar u_bc = M_raw(i,j,k,d) / rho_bc;
+                const Set::Scalar u_reflected = 2.0 * u_bc - u_int;
+                M_face(i,j,k,d) = rho_int * u_reflected;
+                speed_int_sq += u_int * u_int;
+                speed_reflected_sq += u_reflected * u_reflected;
+            }
+            E_face(i,j,k) = E_raw(ii,jj,kk) +
+                0.5 * rho_int * (speed_reflected_sq - speed_int_sq);
+        });
+    }
+
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
-        Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
-        Set::Patch<const Set::Scalar> E         = E_mf.array(mfi);    // total energy (internal energy + kinetic energy) per unit volume (E/rho = e + 0.5*v^2)
+        Set::Patch<const Set::Scalar> M         = M_face_mf.array(mfi);    // momentum
+        Set::Patch<const Set::Scalar> E         = E_face_mf.array(mfi);    // total energy (internal energy + kinetic energy) per unit volume (E/rho = e + 0.5*v^2)
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
@@ -1325,8 +1412,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         
         // Inputs
         Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-        Set::Patch<const Set::Scalar> E   = E_mf.array(mfi);
-        Set::Patch<const Set::Scalar> M   = M_mf.array(mfi);
+        Set::Patch<const Set::Scalar> E   = E_face_mf.array(mfi);
+        Set::Patch<const Set::Scalar> M   = M_face_mf.array(mfi);
 
         // Outputs
         Set::Patch<Set::Scalar> rho_rhs = rho_rhs_mf.array(mfi);
@@ -1504,6 +1591,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
+            const bool physical_xlo = (!periodic0 && i == domlo0);
+            const bool physical_xhi = (!periodic0 && i == domhi0);
+            const bool physical_ylo = (!periodic1 && j == domlo1);
+            const bool physical_yhi = (!periodic1 && j == domhi1);
+
             Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
             Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X); 
             Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
@@ -1527,20 +1619,36 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small, cutoff);
 
             Solver::Local::Riemann::State state_xlo_fluid =
-                ReconstructFluidState(state_xlo, state_xlo_solid, eta_patch(i-1,j,k), invert, small, cutoff);
+                ReconstructFluidState(
+                    state_xlo, state_xlo_solid,
+                    physical_xlo ? eta_patch(i,j,k) : eta_patch(i-1,j,k),
+                    invert, small, cutoff);
             Solver::Local::Riemann::State state_xhi_fluid =
-                ReconstructFluidState(state_xhi, state_xhi_solid, eta_patch(i+1,j,k), invert, small, cutoff);
+                ReconstructFluidState(
+                    state_xhi, state_xhi_solid,
+                    physical_xhi ? eta_patch(i,j,k) : eta_patch(i+1,j,k),
+                    invert, small, cutoff);
             Solver::Local::Riemann::State state_ylo_fluid =
-                ReconstructFluidState(state_ylo, state_ylo_solid, eta_patch(i,j-1,k), invert, small, cutoff);
+                ReconstructFluidState(
+                    state_ylo, state_ylo_solid,
+                    physical_ylo ? eta_patch(i,j,k) : eta_patch(i,j-1,k),
+                    invert, small, cutoff);
             Solver::Local::Riemann::State state_yhi_fluid =
-                ReconstructFluidState(state_yhi, state_yhi_solid, eta_patch(i,j+1,k), invert, small, cutoff);
+                ReconstructFluidState(
+                    state_yhi, state_yhi_solid,
+                    physical_yhi ? eta_patch(i,j,k) : eta_patch(i,j+1,k),
+                    invert, small, cutoff);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            const Set::Scalar eta_xlo = EffectiveFluidEta(eta_patch(i-1,j,k), invert);
-            const Set::Scalar eta_xhi = EffectiveFluidEta(eta_patch(i+1,j,k), invert);
-            const Set::Scalar eta_ylo = EffectiveFluidEta(eta_patch(i,j-1,k), invert);
-            const Set::Scalar eta_yhi = EffectiveFluidEta(eta_patch(i,j+1,k), invert);
+            const Set::Scalar eta_xlo = physical_xlo ? eta :
+                EffectiveFluidEta(eta_patch(i-1,j,k), invert);
+            const Set::Scalar eta_xhi = physical_xhi ? eta :
+                EffectiveFluidEta(eta_patch(i+1,j,k), invert);
+            const Set::Scalar eta_ylo = physical_ylo ? eta :
+                EffectiveFluidEta(eta_patch(i,j-1,k), invert);
+            const Set::Scalar eta_yhi = physical_yhi ? eta :
+                EffectiveFluidEta(eta_patch(i,j+1,k), invert);
 
             const Set::Scalar injection_specific_energy =
                 (rho_solid_sum > small) ? E_solid(i,j,k) / rho_solid_sum : 0.0;
