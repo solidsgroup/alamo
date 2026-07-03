@@ -72,6 +72,8 @@ protected:
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> eta_0_mf;
     Set::Field<Set::Scalar> mdot_mf;
+    Set::Field<Set::Scalar> eta_grad_mag_mf;
+    Set::Field<Set::Scalar> deta_dt_mf;
 
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;

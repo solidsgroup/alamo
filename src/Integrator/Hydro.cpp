@@ -150,7 +150,8 @@ namespace
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar EffectiveFluidEta(Set::Scalar eta_raw, bool invert)
     {
-        Set::Scalar eta = invert ? 1.0 - eta_raw * eta_raw : eta_raw;
+        // Set::Scalar eta = invert ? 1.0 - eta_raw * eta_raw : eta_raw;
+        Set::Scalar eta = invert ? 1.0 - eta_raw : eta_raw;
         if (eta < 0.0) eta = 0.0;
         if (eta > 1.0) eta = 1.0;
         return eta;

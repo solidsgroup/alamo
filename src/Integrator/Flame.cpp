@@ -120,6 +120,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
 
+    value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag_mf", true);
+    value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt_mf", true);
+
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
@@ -458,37 +461,56 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            Set::Scalar eta_hydro = 1 - eta(i,j,k) * eta(i,j,k);
-            Set::Scalar etaold_hydro = 1 - etaold(i,j,k) * etaold(i,j,k);
-            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            Set::Vector N = grad_eta_hydro / (grad_eta_mag + small); // Example of finding the normal vector
-            Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
+            // Set::Scalar eta_hydro = 1 - eta(i,j,k) * eta(i,j,k);
+            // Set::Scalar etaold_hydro = 1 - etaold(i,j,k) * etaold(i,j,k);
+            // Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
 
-            Set::Scalar dm_dt_AP = deta_dt*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
-            Set::Scalar dm_dt_HTPB = deta_dt*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+            Set::Scalar eta_hydro = 1 - eta(i,j,k);
+            Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
+            Set::Vector grad_eta_hydro = -1.0*grad_eta;
+            
+            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+            Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+            deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
+            Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+            Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 
-            m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
-            m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
-            solidrho(i,j,k,0) = hydro.rho_ap*phi;
-            solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
+            if (NSPECIES == 1) {
 
-            Set::Scalar density_gas_tot = 0;
-            Set::Scalar density_solid_tot = 0;
-            for (int n=0; n<NSPECIES; ++n)
-            {
-                density_gas_tot += hydro_density(i,j,k,n);
-                density_solid_tot += solidrho(i,j,k,n);
+                m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+                solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+
+                u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(hydro_density(i,j,k)*N(0)+small); // Ask Eric about hydro density
+                u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(hydro_density(i,j,k)*N(1)+small);
+
+                solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+                solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
             }
-            u0(i,j,k,0) = deta_dt*density_solid_tot/density_gas_tot*N(0);
-            u0(i,j,k,1) = deta_dt*density_solid_tot/density_gas_tot*N(1);
 
-            solidM(i,j,k,0) = density_solid_tot*u0(i,j,k,0);
-            solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
+            // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+            // solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            // solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
+
+            // Set::Scalar density_gas_tot = 0;
+            // Set::Scalar density_solid_tot = 0;
+            // for (int n=0; n<NSPECIES; ++n)
+            // {
+            //     density_gas_tot += hydro_density(i,j,k,n);
+            //     density_solid_tot += solidrho(i,j,k,n);
+            // }
+            // u0(i,j,k,0) = deta_dt*density_solid_tot/density_gas_tot*N(0);
+            // u0(i,j,k,1) = deta_dt*density_solid_tot/density_gas_tot*N(1);
+
+            // solidM(i,j,k,0) = density_solid_tot*u0(i,j,k,0);
+            // solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
         });
     }
 
