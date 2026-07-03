@@ -282,6 +282,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
         pp_query_default("details",value.details,false); // save detailed data (viscosity, heat conductivity, etc.)
+        pp_query_default("save_ghost",value.save_ghost,false); // save domain ghost cells with plotfiles
+        if (value.save_ghost) value.RequirePlotGhostCells(1);
     }
     // Register FabFields:
     {
@@ -855,23 +857,106 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Hydro::PreparePlotFileData()
 {
     BL_PROFILE("Integrator::Hydro::PreparePlotFileData");
+    if (save_ghost) BackupDerivedPlotFields();
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        RefreshDerivedPlotFields(lev);
+        RefreshDerivedPlotFields(lev, save_ghost);
+    }
+}
+
+void Hydro::BackupDerivedPlotFields()
+{
+    BL_PROFILE("Integrator::Hydro::BackupDerivedPlotFields");
+    BackupDerivedPlotField(velocity_plot_backup_mf, velocity_mf);
+    BackupDerivedPlotField(pressure_plot_backup_mf, pressure_mf);
+    BackupDerivedPlotField(temperature_plot_backup_mf, temperature_mf);
+    BackupDerivedPlotField(mass_fraction_plot_backup_mf, mass_fraction_mf);
+    BackupDerivedPlotField(mole_fraction_plot_backup_mf, mole_fraction_mf);
+    BackupDerivedPlotField(vorticity_plot_backup_mf, vorticity_mf);
+    if (details)
+    {
+        BackupDerivedPlotField(viscosity_plot_backup_mf, viscosity_mf);
+        BackupDerivedPlotField(thermal_conductivity_coeff_plot_backup_mf, thermal_conductivity_coeff_mf);
+        BackupDerivedPlotField(diffusion_coeff_plot_backup_mf, diffusion_coeff_mf);
+        BackupDerivedPlotField(wdot_plot_backup_mf, wdot_mf);
+        BackupDerivedPlotField(qdot_plot_backup_mf, qdot_mf);
+    }
+    plot_ghost_backup_valid = true;
+}
+
+void Hydro::BackupDerivedPlotField(Set::Field<Set::Scalar>& backup, Set::Field<Set::Scalar>& source)
+{
+    backup.resize(finest_level + 1);
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        amrex::MultiFab& src = *source[lev];
+        backup[lev].reset(new amrex::MultiFab(
+            src.boxArray(), src.DistributionMap(), src.nComp(), src.nGrow()));
+        amrex::MultiFab::Copy(*backup[lev], src, 0, 0, src.nComp(), src.nGrow());
+    }
+}
+
+void Hydro::PlotFileDataWritten()
+{
+    BL_PROFILE("Integrator::Hydro::PlotFileDataWritten");
+    if (!save_ghost || !plot_ghost_backup_valid) return;
+
+    RestoreDerivedPlotFields();
+    plot_ghost_backup_valid = false;
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        RefreshDerivedPlotFields(lev, false);
+    }
+}
+
+void Hydro::RestoreDerivedPlotFields()
+{
+    BL_PROFILE("Integrator::Hydro::RestoreDerivedPlotFields");
+    RestoreDerivedPlotField(velocity_mf, velocity_plot_backup_mf);
+    RestoreDerivedPlotField(pressure_mf, pressure_plot_backup_mf);
+    RestoreDerivedPlotField(temperature_mf, temperature_plot_backup_mf);
+    RestoreDerivedPlotField(mass_fraction_mf, mass_fraction_plot_backup_mf);
+    RestoreDerivedPlotField(mole_fraction_mf, mole_fraction_plot_backup_mf);
+    RestoreDerivedPlotField(vorticity_mf, vorticity_plot_backup_mf);
+    if (details)
+    {
+        RestoreDerivedPlotField(viscosity_mf, viscosity_plot_backup_mf);
+        RestoreDerivedPlotField(thermal_conductivity_coeff_mf, thermal_conductivity_coeff_plot_backup_mf);
+        RestoreDerivedPlotField(diffusion_coeff_mf, diffusion_coeff_plot_backup_mf);
+        RestoreDerivedPlotField(wdot_mf, wdot_plot_backup_mf);
+        RestoreDerivedPlotField(qdot_mf, qdot_plot_backup_mf);
+    }
+}
+
+void Hydro::RestoreDerivedPlotField(Set::Field<Set::Scalar>& target, Set::Field<Set::Scalar>& backup)
+{
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        amrex::MultiFab& dst = *target[lev];
+        amrex::MultiFab::Copy(dst, *backup[lev], 0, 0, dst.nComp(), dst.nGrow());
     }
 }
 
 // Compute the derived quantities from conservatives for a given AMR level
-void Hydro::RefreshDerivedPlotFields(int lev)
+void Hydro::RefreshDerivedPlotFields(int lev, bool include_plot_ghost)
 {
     BL_PROFILE("Integrator::Hydro::RefreshDerivedPlotFields");
 
     const Set::Scalar* DX = geom[lev].CellSize();
-    const amrex::Box domain = geom[lev].Domain();
+    int plot_ngrow = 0;
+    if (include_plot_ghost)
+    {
+        plot_ngrow = PlotGhostCells();
+        const int field_ngrow = velocity_mf[lev]->nGrow();
+        if (plot_ngrow > field_ngrow) plot_ngrow = field_ngrow;
+    }
+    amrex::Box domain = geom[lev].Domain();
+    domain.grow(plot_ngrow);
 
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.tilebox();
+        const amrex::Box bx = plot_ngrow ? mfi.growntilebox(plot_ngrow) : mfi.tilebox();
 
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_mf)[lev]).array(mfi);
 
@@ -988,7 +1073,8 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
     for (amrex::MFIter mfi(*vorticity_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box bx = plot_ngrow ? mfi.growntilebox(plot_ngrow) : mfi.validbox();
+        const amrex::Box stencil_domain = plot_ngrow ? bx : domain;
 
         Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> u         = velocity_mf.Patch(lev,mfi);
@@ -997,7 +1083,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, stencil_domain);
             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX, sten);
             #if AMREX_SPACEDIM == 2
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
@@ -1372,7 +1458,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             }
 
 
-            std::vector<double> mdot0(NSPECIES);
+            std::array<double, NSPECIES> mdot0;
             Set::Scalar mdot0_total = 0.0;
             Set::Scalar rho_solid_sum = 0.0;
             for (int n=0; n<NSPECIES; ++n )

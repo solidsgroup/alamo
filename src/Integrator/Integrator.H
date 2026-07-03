@@ -193,6 +193,10 @@ protected:
     virtual void PreparePlotFileData()
     {}
 
+    /// Optional hook to restore any temporary state after a plotfile is written.
+    virtual void PlotFileDataWritten()
+    {}
+
 
     inline void StopClock()
     {
@@ -387,6 +391,11 @@ protected:
     void WritePlotFile(bool initial = false) const;
     void WritePlotFile(std::string prefix, Set::Scalar time, int step) const;
     void WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix = "") const;
+    int PlotGhostCells() const { return print_ghost_cells; }
+    void RequirePlotGhostCells(int nghost)
+    {
+        if (print_ghost_cells < nghost) print_ghost_cells = nghost;
+    }
 
     //
     // MEMBER VARIABLES
