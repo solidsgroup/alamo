@@ -528,14 +528,17 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
-            // Stress tensor computed using the model fab
-            Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
-
             // Boundary conditions
             /// \todo Important: we need a way to handle corners and edges.
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
+                // Stress tensor computed using the model fab. Only the boundary BC
+                // evaluation consumes it, so it is built here instead of at every
+                // node: the full Matrix4*Matrix product was previously paid at every
+                // interior node (the bulk of the expensive fine-level applies) and
+                // then discarded. Value is identical for the boundary nodes that use it.
+                Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
                 f = ALAMO_ELASTIC_OP_BC_EVAL(m_bc, m_bc_type, u, gradu, sig, i, j, k, stencilbox);
             }
             else
@@ -614,13 +617,22 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
                 if (!m_uniform)
                 {
-                    MATRIX4
-                        AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
-                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
-                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten)));
-                    f += (AMREX_D_TERM((Cgrad1 * gradu).col(0),
-                        +(Cgrad2 * gradu).col(1),
-                        +(Cgrad3 * gradu).col(2))) * (psi_avg);
+                    // Accumulate grad(C):grad(u) one spatial direction at a time so
+                    // that only a single Matrix4 derivative temp is live at any
+                    // moment. The previous form named three Matrix4 temps
+                    // (Cgrad1/2/3 = 135 live doubles in 3D) whose scope spanned the
+                    // whole expression, the dominant Fapply register-spill source
+                    // (255 regs/thread -> ~12.5% occupancy, PHASE_A_FINDINGS.md sec.4).
+                    // The summation order is unchanged, so f is bit-identical.
+                    Set::Vector graddc = Set::Vector::Zero();
+                    graddc += (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten) * gradu).col(0);
+#if AMREX_SPACEDIM > 1
+                    graddc += (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten) * gradu).col(1);
+#endif
+#if AMREX_SPACEDIM > 2
+                    graddc += (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten) * gradu).col(2);
+#endif
+                    f += graddc * psi_avg;
                 }
                 if (m_psi_set)
                 {
