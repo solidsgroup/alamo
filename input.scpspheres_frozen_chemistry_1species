@@ -236,8 +236,8 @@ hydro.solver.roe.verbose = 0
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 hydro.prescribedflowmode = relative
-hydro.small=1E-3
-hydro.cutoff=0.5
+hydro.small=1E-8
+hydro.cutoff=0.01
 
 hydro.momentum.bc.constant.type.xhi = neumann neumann
 hydro.momentum.bc.constant.type.xlo = neumann neumann

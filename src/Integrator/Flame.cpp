@@ -482,20 +482,25 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
             Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 	    // Need to make sure units are correct
-
-            if (NSPECIES == 1) {
-
+	     solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+            if ((NSPECIES == 1) && (1-eta(i,j,k) > 0.1)) {
+	      
 	      m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
-	      // solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+	      Set::Scalar rho_fluid;
+	      rho_fluid = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(1-eta(i,j,k)+small);
 
-	      // u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(hydro_density(i,j,k)+small)*N(0); // Ask Eric about hydro density
-	      // u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(hydro_density(i,j,k)*N(1)+small); //
-	      // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
-	      // Pressure breaks when both m0 and u0 are enabled
-	      // Desnity in hydro is mixed density, can mult by hydrodensity
-	      solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-	      solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+	      u0(i,j,k,0) = -1.0*deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(0); // Ask Eric about hydro density
+	      u0(i,j,k,1) = -1.0*deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(1); //
+
+          // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
+          // rhofluid = rho - eta*rhosolid/(1-eta+small)
+          // Pressure breaks when both m0 and u0 are enabled
+          // Desnity in hydro is mixed density, can mult by hydrodensity
+          // solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+          // solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+	      solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
             }
+	    
 
             // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
             // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term

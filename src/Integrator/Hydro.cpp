@@ -1387,7 +1387,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Scalar qdot0 = q0.dot(grad_eta);
             if (rho_solid_sum > small)
             {
-                qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum;
+	      qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum + 0.5*mdot0_total*u0.dot(u0);
             }
 
             Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
