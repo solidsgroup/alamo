@@ -1,5 +1,12 @@
 # chamber-gpu -> Optimized GPU Build: Transition Plan
 
+> **⛔ SUPERSEDED AS FORWARD PLAN — 2026-06-30.** This is the original P0–P5
+> master roadmap (with decision trees D1–D4). Its arc is complete and its
+> successors are `benchmark/archive/GPU_ROADMAP_V2.md` (Phases A–D, also done) and
+> now **`benchmark/GPU_ROADMAP_V3.md`** (the live plan: validate → measure →
+> optimize → harden → scale). Kept for the D1–D4 decision record and the guiding
+> principles below, which v3 carries forward. Do not plan against this file.
+
 **Branch:** `chamber-gpu` (ALAMO / AMReX `Integrator::Flame`)
 **Branch policy:** This GPU work lives permanently on `chamber-gpu` and is **never merged to `master`** — the branch itself is the deliverable. "Done" means the branch meets its Phase 5 definition-of-done, not that it lands on master.
 **Scope:** Take the current GPU port from "runs, but loses to one CPU core everywhere and has its safety nets off" to a build that is provably correct, launch/sync-optimized, and demonstrates a real win in the regime where one is achievable - or documents, with evidence, that no win exists for the target problem class.
@@ -291,7 +298,7 @@ At any gate:
 
 ## Benchmark strategy addendum (2026-06-22 external review)
 
-Findings from an external review of `benchmark/PHASE3_R3_crossover.md` and
+Findings from an external review of `benchmark/archive/PHASE3_R3_crossover.md` and
 this roadmap. These amend, not replace, the standing metric set and report
 template below.
 

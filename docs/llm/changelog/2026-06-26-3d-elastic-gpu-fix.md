@@ -117,7 +117,7 @@ unwritten/garbage. Deferred.
 
 > **UPDATE:** the deferred analysis below is **done** →
 > `changelog/2026-06-26-gpu-test-suite-fixes.md` +
-> `benchmark/GPU_TEST_SUITE_FIXES.md`. All 4 failures root-caused and fixed
+> `benchmark/archive/GPU_TEST_SUITE_FIXES.md`. All 4 failures root-caused and fixed
 > (**9 passed / 0 failed**). They were four distinct bugs (3 stale-input decks +
 > the C2 checkpoint deck); two **real source defects** surfaced en route — an
 > `Integrator::Restart` node-fab out-of-bounds segfault and a headerless

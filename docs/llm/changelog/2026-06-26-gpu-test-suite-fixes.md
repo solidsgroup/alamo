@@ -4,7 +4,7 @@ Branch `chamber-gpu`. Picks up the **deferred** GPU-test-suite snapshot from
 `2026-06-26-3d-elastic-gpu-fix.md` (which ran the suite right after the 3D
 `F.inverse().transpose()` fix and recorded **5 passed / 4 failed**, analysis
 postponed). All four failures are now root-caused and fixed → **9 passed /
-0 failed**. Full writeup: `benchmark/GPU_TEST_SUITE_FIXES.md`. Perf baseline:
+0 failed**. Full writeup: `benchmark/archive/GPU_TEST_SUITE_FIXES.md`. Perf baseline:
 `benchmark/GPU_TEST_PERF_TRACKING.md`.
 
 ## TL;DR — four failures were four different bugs

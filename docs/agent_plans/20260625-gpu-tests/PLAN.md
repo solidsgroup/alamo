@@ -142,7 +142,7 @@ is modified. Delete `tests/GPU/` to roll back completely.
 First execution of this suite against the current parser was **5 passed /
 4 failed** (snapshot in `docs/llm/changelog/2026-06-26-3d-elastic-gpu-fix.md`).
 The 4 failures were analyzed and fixed — full writeup in
-**`benchmark/GPU_TEST_SUITE_FIXES.md`**, perf baseline in
+**`benchmark/archive/GPU_TEST_SUITE_FIXES.md`**, perf baseline in
 **`benchmark/GPU_TEST_PERF_TRACKING.md`**, changelog
 `docs/llm/changelog/2026-06-26-gpu-test-suite-fixes.md`.
 

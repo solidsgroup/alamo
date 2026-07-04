@@ -1,7 +1,7 @@
 # Plan: Full Device-Native Elastic Solve (chamber-gpu, Option B)
 
 **Status: controlled experimental branch, NOT the mainline architecture.**
-`benchmark/PHASE1_ELASTIC_DISPOSITION.md` carries the standing, final D1
+`benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` carries the standing, final D1
 verdict: **CPU-resident elastic** — a fair `np8` CPU comparison beat GPU
 elastic at every resolution that converges (2.27x-3.40x), and GPU elastic
 diverges entirely above 1024^2 on a non-fast-math build. The mainline
@@ -19,12 +19,12 @@ plan was drafted against):
    resolution and matched iteration count — not a single-core baseline.
 3. **`ncu` occupancy/register-pressure data on A100.** The prior
    register-pressure finding (up to ~255 registers/thread on sm_86, see
-   `benchmark/PHASE3_3D_READINESS.md`) was never remeasured on A100 and may
+   `benchmark/archive/PHASE3_3D_READINESS.md`) was never remeasured on A100 and may
    not transfer.
 
 > **Gate 1 is the active blocker and is being worked separately.** The 2048²
 > no-fast-math divergence is under root-cause in
-> `benchmark/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` ("CURRENT
+> `benchmark/archive/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` ("CURRENT
 > PRIORITIES"). Standing cause (2026-06-22): a deterministic GPU coarse-level
 > (mglev≥1) operator-application defect — NOT fast-math, NOT bottom-solver
 > acceptance policy, NOT a nondeterministic reduction (all refuted). Interim:

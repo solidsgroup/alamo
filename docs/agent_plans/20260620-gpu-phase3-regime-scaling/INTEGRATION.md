@@ -5,7 +5,7 @@ tree. Base branch: `chamber-gpu`.
 
 ## Completed artifacts
 
-- **3.1 readiness report**: `benchmark/PHASE3_3D_READINESS.md`
+- **3.1 readiness report**: `benchmark/archive/PHASE3_3D_READINESS.md`
   - Confirms the 3D CUDA build runs end-to-end on the local A1000.
   - Records the 3D smoke result and the register-count note from the build log.
   - Reaffirms D1: elastic remains CPU-resident; GPU runs use `elastic.type = disable`.
@@ -28,7 +28,7 @@ tree. Base branch: `chamber-gpu`.
 - **Task 003 - planning tools**
   - `benchmark/phase3_memory_budget.py`
   - `benchmark/phase3_scaling_sweep.sh`
-  - `benchmark/PHASE3_R3_crossover.md`
+  - `benchmark/archive/PHASE3_R3_crossover.md`
   - These are GPU-free planning artifacts only; the sweep driver is dry-run by default.
 
 ## Validation
@@ -48,7 +48,7 @@ and does not submit anything unless `--submit` is passed on a SLURM host.
 1. Task 001 inputs.
 2. Task 002 NOVA scripts.
 3. Task 003 planning tools.
-4. `benchmark/PHASE3_3D_READINESS.md` and the plan docs.
+4. `benchmark/archive/PHASE3_3D_READINESS.md` and the plan docs.
 
 All three worker tasks are additive and write disjoint file sets. No shared source
 files were modified.

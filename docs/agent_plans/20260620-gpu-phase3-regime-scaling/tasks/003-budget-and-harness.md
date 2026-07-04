@@ -28,13 +28,13 @@ All must run on a machine WITHOUT a GPU (pure Python / bash; no CUDA, no SLURM s
 ## Files to read first
 - `docs/agent_plans/20260620-gpu-phase3-regime-scaling/PLAN.md`
 - `GPU-OPT-ROADMAP.txt` is on the user's Desktop (NOT in repo); rely on the PLAN summary
-  above instead of trying to open it. (If `benchmark/G0_BASELINE_OF_RECORD.md` exists, skim
+  above instead of trying to open it. (If `benchmark/archive/G0_BASELINE_OF_RECORD.md` exists, skim
   it for the existing metric/reporting conventions to match.)
 
 ## Files allowed to modify (create only)
 - `benchmark/phase3_memory_budget.py` — bytes/node → max grid per device
 - `benchmark/phase3_scaling_sweep.sh`  — size×GPU sweep driver (NOVA-staged)
-- `benchmark/PHASE3_R3_crossover.md`    — R3 report skeleton (tables to be filled on NOVA)
+- `benchmark/archive/PHASE3_R3_crossover.md`    — R3 report skeleton (tables to be filled on NOVA)
 
 ## Files NOT allowed to modify
 - `src/`, `bin/`, repo-root inputs, any existing `benchmark/*` file, files owned by tasks 001/002.

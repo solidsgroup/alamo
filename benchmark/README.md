@@ -4,7 +4,23 @@ This directory holds the tooling to build the `Integrator::Flame` (chamber)
 solver for NVIDIA GPUs, run it with overlapped async IO, and benchmark CPU vs
 GPU wall-clock with performance flame graphs.
 
+> **Docs map.** The live plan is `benchmark/GPU_ROADMAP_V3.md`; the cold-start
+> agent entry point is `benchmark/READ_FIRST_NEXT_STEP.md`; NOVA/Slurm run,
+> resource, and capture instructions are in `benchmark/NOVA_SLURM_RUNBOOK.md`;
+> settled wins (do not re-litigate) are in `benchmark/SUCCESS_BOOK.md`.
+> Historical phase records and the superseded v2 plan are under
+> `benchmark/archive/` (index: `benchmark/archive/README.md`). The physics
+> validation suite (v3 Phase 1) lives in `benchmark/validate/`.
+> The MLMG high-contrast (zero-void-stiffness) divergence root cause and its
+> ranked remediation plan are in `benchmark/MLMG_HIGH_CONTRAST_FINDINGS.md`
+> (evidence: `benchmark/mlmg_high_contrast_20260702/`).
+
 ## 0. NOVA quickstart (ISU)
+
+For complete Slurm resource discovery, safe probe jobs, command templates, and
+the data needed before generating new NOVA scripts, read
+`benchmark/NOVA_SLURM_RUNBOOK.md`. The short path below assumes the default
+account/partition values still match NOVA.
 
 On the NOVA **login node**:
 
@@ -192,7 +208,7 @@ CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py check
 CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py report
 ```
 
-The G0 baseline of record is summarized in `benchmark/G0_BASELINE_OF_RECORD.md`.
+The G0 baseline of record is summarized in `benchmark/archive/G0_BASELINE_OF_RECORD.md`.
 For the required Nsight Compute occupancy/register capture, use:
 
 ```bash

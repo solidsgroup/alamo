@@ -54,10 +54,10 @@ not just one number.
 - **2026-06-21 NOVA sweep** (jobs 11160767-11160774, A100-80 sm_80, after
   whatever fixed the above failure): **first real crossover measured**. Single
   A100 beats the CPU node ~39x at 128^3 and ~70x at 256^3 (D3 = WIN @ single).
-  Full table and methodology: `benchmark/PHASE3_R3_crossover.md`. No local
+  Full table and methodology: `benchmark/archive/PHASE3_R3_crossover.md`. No local
   `analysis/` bundle exists for this successful run (the numbers are sourced
   from NOVA job logs directly).
-- **Still open** (per `benchmark/PHASE3_R3_crossover.md` and
+- **Still open** (per `benchmark/archive/PHASE3_R3_crossover.md` and
   `docs/llm/CURRENT.md`): a full 64-rank CPU-node confirmation, `ncu`
   occupancy/register metrics, and GPU counts > 2 (the 512 point and
   multi-GPU weak/strong scaling haven't produced usable numbers yet).

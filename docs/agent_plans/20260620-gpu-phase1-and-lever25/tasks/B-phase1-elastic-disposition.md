@@ -17,7 +17,7 @@ and the D1 verdict {GPU | CPU | HYBRID}. This is a **decision/measurement** task
   and use that private copy for all GPU elastic runs (Track A rebuilds `bin/`).
 - GPU: single RTX A1000, **8 GB**, sm_86 — shared with Track A; be robust to OOM.
 - `source benchmark/local_cuda_env.sh` before GPU/nsys/ncu runs.
-- **Prior work to build on (read first):** `benchmark/PHASE1_ELASTIC_DISPOSITION.md`
+- **Prior work to build on (read first):** `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`
   and `benchmark/phase1_elastic_2048/` already contain `cpu_np8`,
   `gpu_strict_512`, and `gpu_strict_1024` logs+plots. Do NOT redo what's done —
   read what was already concluded and extend it. Note the dir is named "2048" but
@@ -31,14 +31,14 @@ and the D1 verdict {GPU | CPU | HYBRID}. This is a **decision/measurement** task
   clamped BCs). Make these edits in an `input_phase1_*` copy only.
 
 ## Files to read first
-- `benchmark/PHASE1_ELASTIC_DISPOSITION.md`, `benchmark/phase1_elastic_2048/*.log`.
+- `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`, `benchmark/phase1_elastic_2048/*.log`.
 - `../PLAN.md`. The shared `input` (read-only — copy, never edit).
 - `benchmark/g0_ncu_capture.sh` (ncu harness for step 1.3).
 
 ## Files allowed to modify / create
 - `input_phase1_*` (copies of `input`), `benchmark/phase1_elastic_2048/**`,
   `analysis/results_phase1*/**`, the report file `../results/B-RESULT.md` and an
-  R1 report doc (e.g. `benchmark/PHASE1_ELASTIC_DISPOSITION.md` — extend it, or a
+  R1 report doc (e.g. `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` — extend it, or a
   new dated file).
 - The private binary copy `bin/alamo_gpu_phase1-nofast`.
 

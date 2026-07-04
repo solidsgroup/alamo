@@ -53,7 +53,7 @@ launcher `src/alamo.cc` (all 53 integrators) and the CPU build are untouched.
 **Evidence:** Phase 4.1 ran the full CPU regression suite on `chamber-gpu`: 113
 run, 89 verified, 0 dispatch failures. Every elastic/solid integrator passed.
 The 5 failures were 2 independent Flame source bugs (not dispatch). Decision:
-**D4 = ISOLATE.** See `benchmark/PHASE4_R4_dispatch.md`.
+**D4 = ISOLATE.** See `benchmark/archive/PHASE4_R4_dispatch.md`.
 
 **Replicate:** Put the device-only source list in a `.mk` file gated on the CUDA
 `POSTFIX`. Write a separate GPU-main that instantiates only the supported
@@ -82,8 +82,8 @@ reproduced with `--cuda-fp strict` — it was NOT a fast-math artifact. This rul
 out the fast-math hypothesis early and forced us toward the correct root cause
 (a CUDA stream race). The two-binary discipline made that test one command.
 
-**Evidence:** `benchmark/G0_BASELINE_OF_RECORD.md` (build verification);
-`benchmark/PHASE1_ELASTIC_DISPOSITION.md` (strict-mode divergence test).
+**Evidence:** `benchmark/archive/G0_BASELINE_OF_RECORD.md` (build verification);
+`benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` (strict-mode divergence test).
 
 ---
 
@@ -232,7 +232,7 @@ would have remained hidden until a production run showed anomalous results.
 - `F1/F2` — smoke tests: flame-only and flame+elastic initialization
 - `P1/P2/P3` — wall-clock regression gates
 
-**Evidence:** `benchmark/GPU_TEST_SUITE_FIXES.md` (bug analysis);
+**Evidence:** `benchmark/archive/GPU_TEST_SUITE_FIXES.md` (bug analysis);
 `benchmark/GPU_TEST_PERF_TRACKING.md` (timing baselines).
 
 ---
@@ -278,7 +278,7 @@ is **not** the cause.
 precision artifacts from FP contraction). Forced attention toward algorithmic
 or memory-access defects.
 
-**Evidence:** `benchmark/PHASE1_ELASTIC_DISPOSITION.md`.
+**Evidence:** `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`.
 
 ---
 
@@ -321,7 +321,7 @@ with HMM ON migrated instead of faulting; (3) the symptom (MLMG divergence) look
 identical to a numerical precision problem, sending initial investigation toward
 algorithm, not memory safety.
 
-**Evidence:** Commit `c00f69086`. `benchmark/PHASE1_ELASTIC_DISPOSITION.md`
+**Evidence:** Commit `c00f69086`. `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`
 (header note). Memory `gpu_elastic_fixed.md`.
 
 **Replicate:** Whenever a local `FArrayBox` is created inside an `MFIter` loop and
@@ -342,7 +342,7 @@ same pattern.
 to zero before the loop exits, or (c) are obtained via `multifab[mfi]`.
 
 **Value:** Turned a one-off fix into a confirmed exhaustive audit. Future reviewers
-have an artifact (`benchmark/elixir_race_audit.md`) they can extend.
+have an artifact (`benchmark/archive/elixir_race_audit.md`) they can extend.
 
 ---
 
@@ -429,7 +429,7 @@ Caused a parse-time abort before any physics ran.
 **Fix:** Changed to `query` (optional) or corrected the input schema to always
 provide the required fields.
 
-**Evidence:** Commit `2cacb50dd`. `benchmark/PHASE4_R4_dispatch.md`.
+**Evidence:** Commit `2cacb50dd`. `benchmark/archive/PHASE4_R4_dispatch.md`.
 
 ---
 
@@ -532,7 +532,7 @@ parallel efficiency vs 1-GPU). The halo communication overhead dominates at this
 problem size. Single-GPU is the right shape until per-GPU subdomains are large
 enough to amortize halos.
 
-**Evidence:** `benchmark/PHASE3_R3_crossover.md`. Decision: **D3 = WIN @ single**.
+**Evidence:** `benchmark/archive/PHASE3_R3_crossover.md`. Decision: **D3 = WIN @ single**.
 
 ---
 
@@ -638,7 +638,7 @@ The Amdahl-cap fear ("elastic is 27% of CPU wall → combined speedup caps at 3�
 was based on the wrong decomposition: it assumed elastic would run at the same
 speed on GPU as CPU, but the GPU also accelerates elastic.
 
-**Evidence:** `benchmark/PHASE_A_FINDINGS.md` (nsys trace 11306663, A100, 256³).
+**Evidence:** `benchmark/archive/PHASE_A_FINDINGS.md` (nsys trace 11306663, A100, 256³).
 
 **Caveat:** The CPU baseline has a load-imbalance bug (32 idle ranks out of 64
 during every elastic solve, because the operator has only 32 boxes). A fair
@@ -656,7 +656,7 @@ is **0.20%**.
 performance work is in the elastic solve. Any time spent optimizing flame
 kernels is wasted.
 
-**Evidence:** `benchmark/PHASE_A_FINDINGS.md` §2 (kernel time breakdown table).
+**Evidence:** `benchmark/archive/PHASE_A_FINDINGS.md` §2 (kernel time breakdown table).
 
 ---
 
@@ -673,7 +673,7 @@ the fixed code.
 fine-level Fapply applies (~90% of Fapply time) are expensive because of register
 pressure and memory layout, not solver convergence behavior.
 
-**Evidence:** `benchmark/PHASE_A_FINDINGS.md` §3 (solver anatomy).
+**Evidence:** `benchmark/archive/PHASE_A_FINDINGS.md` §3 (solver anatomy).
 
 ---
 
@@ -690,12 +690,12 @@ simultaneously: `DDW` + `Cgrad1` + `Cgrad2` + `Cgrad3` = 180 doubles of live
 state. These cannot fit in registers and spill to local memory (cached in L1,
 but slower than register file).
 
-**Note:** The static `cuobjdump` analysis (`benchmark/G0_BASELINE_OF_RECORD.md`)
+**Note:** The static `cuobjdump` analysis (`benchmark/archive/G0_BASELINE_OF_RECORD.md`)
 reported 87–101 registers/thread (~33% occupancy). This was wrong — runtime
 register count is higher than static analysis predicts when the compiler spills.
 Always measure achieved occupancy with `ncu`, not static dumps.
 
-**Evidence:** `benchmark/PHASE_A_FINDINGS.md` §4.
+**Evidence:** `benchmark/archive/PHASE_A_FINDINGS.md` §4.
 
 ---
 
@@ -750,7 +750,7 @@ change.
 
 **Status:** Input file staged; A/B comparison on NOVA pending.
 
-**Evidence:** `benchmark/PHASE_A_FINDINGS.md` §8, Table "Cheap input levers".
+**Evidence:** `benchmark/archive/PHASE_A_FINDINGS.md` §8, Table "Cheap input levers".
 
 ---
 
@@ -859,13 +859,16 @@ be a profiling run, not a production run.
 | Artifact | Path |
 |---|---|
 | Branch guide + build matrix | `benchmark/GPU_BRANCH_GUIDE.md` |
-| v2 roadmap (Phases A–D) | `benchmark/GPU_ROADMAP_V2.md` |
-| Phase A combined profiling findings | `benchmark/PHASE_A_FINDINGS.md` |
-| Phase 3 crossover (flame-only win) | `benchmark/PHASE3_R3_crossover.md` |
-| Phase 1 elastic disposition | `benchmark/PHASE1_ELASTIC_DISPOSITION.md` |
-| GPU test suite fixes | `benchmark/GPU_TEST_SUITE_FIXES.md` |
-| Elixir-race audit | `benchmark/elixir_race_audit.md` |
-| G0 kernel resource baseline | `benchmark/G0_BASELINE_OF_RECORD.md` |
+| **Live plan (v3 — validate, then optimize)** | `benchmark/GPU_ROADMAP_V3.md` |
+| Physics validation suite (v3 Phase 1) | `benchmark/validate/` |
+| History archive index | `benchmark/archive/README.md` |
+| v2 roadmap (Phases A–D, archived) | `benchmark/archive/GPU_ROADMAP_V2.md` |
+| Phase A combined profiling findings | `benchmark/archive/PHASE_A_FINDINGS.md` |
+| Phase 3 crossover (flame-only win) | `benchmark/archive/PHASE3_R3_crossover.md` |
+| Phase 1 elastic disposition | `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` |
+| GPU test suite fixes | `benchmark/archive/GPU_TEST_SUITE_FIXES.md` |
+| Elixir-race audit | `benchmark/archive/elixir_race_audit.md` |
+| G0 kernel resource baseline | `benchmark/archive/G0_BASELINE_OF_RECORD.md` |
 | GPU-safe IC/BC matrix | `docs/gpu_safe_ic_bc_matrix.md` |
 | Local A100 spoofing guide | `benchmark/LOCAL_A100_SPOOFING.md` |
 | ncu empty profile root cause | Memory `gpu_ncu_empty_rootcause.md` |

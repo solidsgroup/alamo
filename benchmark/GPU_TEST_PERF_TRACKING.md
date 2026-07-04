@@ -39,7 +39,7 @@ Binary per test: F1/P1/P2 → `alamo_gpu-2d-cuda86-g++` (fast); P3 →
 ## Iteration 1 — 2026-06-26 — post-fix baseline (FIRST all-green run)
 
 - **Result: 9 passed / 0 failed / 0 skipped.** First time the suite is green
-  (was 5P/4F; see `benchmark/GPU_TEST_SUITE_FIXES.md`).
+  (was 5P/4F; see `benchmark/archive/GPU_TEST_SUITE_FIXES.md`).
 - **HW:** NVIDIA RTX A1000 (8188 MiB, ~50 W shared desktop GPU — absolute times
   are not exclusive-GPU numbers; use them only for relative cross-iteration
   comparison on this machine).

@@ -1,5 +1,12 @@
 # Current — chamber-gpu
 
+> **⚠️ STALE — snapshot of 2026-06-22; superseded 2026-06-30.** This predates the
+> v2 Phase-A measurements and the v3 replan; it still describes the elastic
+> divergence and Phase-3 crossover as in-flight, both long since resolved. For the
+> actual current state and the next task, read `benchmark/GPU_ROADMAP_V3.md` (live
+> plan) and `benchmark/READ_FIRST_NEXT_STEP.md` (entry point). Everything below is
+> historical context only.
+
 Last updated: 2026-06-22. This file is overwritten, not appended to. When a
 line below is done, delete it and (if it closed out a phase) add an entry to
 `changelog/` + `VERSIONS.md` instead.
@@ -25,7 +32,7 @@ Two issues documented + deferred: the GPU boundary-traction diagnostic race in
 instead) and C2 bit-exact restart physics reproduction (Flame doesn't checkpoint
 `temp_old`/`temps`/chamber-ODE). Also: elastic MLMG diverges on the small smoke
 grids at >1000× stiffness contrast (CPU+GPU both — lowered casing to 500 MPa).
-Writeups: `benchmark/GPU_TEST_SUITE_FIXES.md` (full analysis),
+Writeups: `benchmark/archive/GPU_TEST_SUITE_FIXES.md` (full analysis),
 `benchmark/GPU_TEST_PERF_TRACKING.md` (perf baseline),
 `changelog/2026-06-26-gpu-test-suite-fixes.md`. CPU 2D + GPU strict 2D binaries
 rebuilt with the source fixes. Working-tree edits uncommitted.
@@ -52,7 +59,7 @@ BC-penalty diagonal into a 1e20 blow-up. **Fix (one line):**
 Verified end-to-end (full box sweep, real production operator multi-box 2048²,
 and a multi-box flame+elastic chamber sim). Full writeup:
 `benchmark/GPU_BRANCH_GUIDE.md` (D1 section),
-`benchmark/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` (SOLVED
+`benchmark/archive/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` (SOLVED
 banner) + `fix_notes.md`, and Claude memory `gpu-elastic-fixed`. The detail
 bullets below are **superseded investigation history** — the
 "deterministic coarse-level operator defect" / nondeterministic-reduction /
@@ -71,7 +78,7 @@ never there — it was the transfer temp's lifetime).
   headers, since both efforts touch the same files.
 - **Current narrow finding (this session, uncommitted):** the GPU elastic
   2048^2 divergence is NOT (only) the fast-math/conditioning question 1.1-1.2
-  already answered in `benchmark/PHASE1_ELASTIC_DISPOSITION.md`. A 2-level-MG
+  already answered in `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`. A 2-level-MG
   uniform-stiffness repro (`elastic.max_coarsening_level=1`,
   `benchmark/elastic_sensitivity_20260621/`) shows: (a) restricted bottom-level
   operator coefficients are bit-correct on GPU (verified via new
@@ -114,7 +121,7 @@ Live task folder: `docs/agent_plans/20260620-gpu-phase3-regime-scaling/`.
   ~39x @ 128^3 and ~70x @ 256^3. **These numbers are superseded** — confirmed
   2026-06-22 against the full 64-rank CPU node (jobs 11161369-11161379):
   **9.6x @ 128^3, 13.1x @ 256^3** (decision **D3 = WIN @ single**, confidence
-  HIGH). Both runs are written up in `benchmark/PHASE3_R3_crossover.md`; treat
+  HIGH). Both runs are written up in `benchmark/archive/PHASE3_R3_crossover.md`; treat
   the 9.6x/13.1x figures as the current headline, not 39x/70x. These figures
   are elastic-disabled (flame-only) — see the Amdahl's-law caveat in
   `docs/llm/ROADMAP.md` before quoting them as a full-chamber speedup.
@@ -123,7 +130,7 @@ Live task folder: `docs/agent_plans/20260620-gpu-phase3-regime-scaling/`.
   `src/Operator/Operator.cpp` (+202 lines), `Makefile`, `configure`, and the
   NOVA 3D build/slurm scripts (`benchmark/build_alamo_nova_3d.sh`,
   `benchmark/nova_flame_{cpu,gpu}_3d*.slurm`, `benchmark/phase3_nova_diag.sh`,
-  `benchmark/phase3_scaling_sweep.sh`). `benchmark/PHASE3_R3_crossover.md`
+  `benchmark/phase3_scaling_sweep.sh`). `benchmark/archive/PHASE3_R3_crossover.md`
   itself is also modified in the working tree vs the committed version.
 - **Still open per the crossover report:** the full 64-rank CPU-node
   confirmation is now done (see above); `ncu` occupancy/register metrics are
@@ -142,11 +149,11 @@ CPU node — golden-compare residual no longer required, see below) for
 before extending `PHASE3_R3_crossover.md`. 512^3 and multi-GPU data are out
 of scope for this pass.
 **Test:** `CPU_NP=8 GPU_FAST_NP=1 GPU_STRICT_NP=1 python3 benchmark/baseline_suite.py check` (correctness gate, must stay green through any edit) plus the NOVA sweep via `benchmark/phase3_scaling_sweep.sh --submit`.
-**Write results to:** a new `docs/agent_plans/20260620-gpu-phase3-regime-scaling/results/004-RESULT.md`, then fold the headline numbers into `benchmark/PHASE3_R3_crossover.md`.
+**Write results to:** a new `docs/agent_plans/20260620-gpu-phase3-regime-scaling/results/004-RESULT.md`, then fold the headline numbers into `benchmark/archive/PHASE3_R3_crossover.md`.
 
 **Descoped 2026-06-24 (explicit user directive): no-fast-math golden compare
 at a saturating 3D config is no longer required.** The branch
-definition-of-done item 1 (`benchmark/PHASE5_BRANCH_DONE.md`) is closed out as
+definition-of-done item 1 (`benchmark/archive/PHASE5_BRANCH_DONE.md`) is closed out as
 DONE-at-coarse-only, not PARTIAL — rationale: CPU-vs-GPU correctness parity
 is not the current problem; performance and stability (the elastic coarse-MG
 defect, §Phase 1 above) are. Revisit only if a future correctness regression

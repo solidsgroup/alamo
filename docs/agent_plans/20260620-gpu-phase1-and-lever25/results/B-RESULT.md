@@ -50,7 +50,7 @@ Branch taken: **"still diverges ⇒ it is NOT the flag."** The no-fast-math/
 strict binary (`--fmad=false`, no `--use_fast_math`) reproduces the same
 divergence character as the original fast-math finding at 2048^2. This
 confirms (does not merely repeat) the prior conclusion in
-`benchmark/PHASE1_ELASTIC_DISPOSITION.md`: the fast-math compiler flag is
+`benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`: the fast-math compiler flag is
 **not** the root cause. Per the task's instruction, this is a diagnosis, not a
 fix — device-elastic performance work is flagged as frozen above 1024^2 for
 the lead, and the candidate root-cause investigation (operator/conditioning at
@@ -114,7 +114,7 @@ unfair baseline.
   plotfile). Pre-existing files (`cpu_np8.log`, `gpu_strict.log`,
   `gpu_strict_512.log`, `gpu_strict_1024.log`, and their `*_plot` dirs) were
   read, not modified.
-- Extended: `benchmark/PHASE1_ELASTIC_DISPOSITION.md` (report R1) with a new
+- Extended: `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` (report R1) with a new
   "R1 update — 2026-06-20, Phase 1 task B" section covering all four steps and
   the final D1 verdict.
 - This file: `docs/agent_plans/20260620-gpu-phase1-and-lever25/results/B-RESULT.md`.
@@ -153,7 +153,7 @@ unfair baseline.
 
 - Root-cause the 2048^2+ GPU elastic divergence (operator/conditioning, not a
   build flag — confirmed by this task). Recommended path is already recorded
-  in `benchmark/PHASE1_ELASTIC_DISPOSITION.md` under "Next investigation":
+  in `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` under "Next investigation":
   compare CPU vs GPU operator inputs (`model_mf`, `psi_mf`, BC masks, RHS,
   grid metadata) at 2048^2 before `solver.solve`; isolate
   `Operator::Elastic`/MLMG from Flame model construction with a minimal

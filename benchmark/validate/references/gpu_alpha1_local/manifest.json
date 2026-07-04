@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "dim": 2,
+      "id": "canonical_2d_elastic",
+      "input": "input",
+      "max_step": 2,
+      "np": 1
+    },
+    {
+      "dim": 3,
+      "id": "centre_bore_3d_128_a2",
+      "input": "input_3d_centre_bore_128_a2",
+      "max_step": 2,
+      "np": 1
+    }
+  ],
+  "cuda_compute_cap": "8.6",
+  "device": "a1000_sm86_strict",
+  "driver_version": "595.71.05",
+  "git_sha": "dd4054056",
+  "gpu_name": "NVIDIA RTX A1000",
+  "host": "kermit",
+  "profile": "gpu_strict",
+  "timestamp_utc": "20260703T021201Z"
+}

@@ -1,5 +1,11 @@
 # docs/llm — chamber-gpu map (read this first)
 
+> **2026-06-30 — forward planning has moved.** The live GPU plan is
+> `benchmark/GPU_ROADMAP_V3.md` and the cold-start entry point is
+> `benchmark/READ_FIRST_NEXT_STEP.md`. This `docs/llm/` map and its `ROADMAP.md`
+> (the P0–P5 master) are retained for history, conventions, and the changelog —
+> treat them as background, not as the current plan.
+
 Absolute-truth root for LLM planning on the `chamber-gpu` branch. Read this
 file plus `CONVENTIONS.md` at session start; everything else is opt-in via
 the links below. Nothing here duplicates content that lives elsewhere — it
@@ -25,12 +31,13 @@ points at it.
 
 - `changelog/2026-06-20-session-handoff.md` — Phase 2.2 commit + Phase 1/2.5 handoff. Moved from Desktop 2026-06-22.
 - `changelog/2026-06-26-3d-elastic-gpu-fix.md` — **3D elastic GPU crash root-caused + fixed**: `F.inverse().transpose()` (chained Eigen expr) faults on device; 2 sites in `NeoHookean.H`. Same bug class as the elixir UAF. First time the 3D combined flame+elastic device path was exercised.
-- `changelog/2026-06-26-gpu-test-suite-fixes.md` — **GPU test suite 5P/4F → 9P/0F**: 4 failures = 4 different bugs. 2 real source defects fixed in `Integrator.cpp` (`Restart()` node-fab OOB segfault; headerless restart `thermo.dat`); 3 stale-input decks rewritten; C3 MLMG stiffness-contrast divergence. Full writeup `benchmark/GPU_TEST_SUITE_FIXES.md`.
-- `benchmark/PHASE1_ELASTIC_DISPOSITION.md` — D1 verdict (left in place; ~7 historical docs cite this path).
-- `benchmark/PHASE3_3D_READINESS.md`, `benchmark/PHASE3_NOVA_TESTING_PROGRESS.md`, `benchmark/PHASE3_R3_crossover.md` — Phase 3 reports (left in place).
-- `benchmark/PHASE4_R4_dispatch.md` — D4 dispatch decision (left in place).
-- `benchmark/PHASE5_BRANCH_DONE.md` — branch definition-of-done checklist (left in place).
-- `benchmark/G0_BASELINE_OF_RECORD.md` — Phase 0 baseline-of-record report (left in place).
+- `changelog/2026-06-26-gpu-test-suite-fixes.md` — **GPU test suite 5P/4F → 9P/0F**: 4 failures = 4 different bugs. 2 real source defects fixed in `Integrator.cpp` (`Restart()` node-fab OOB segfault; headerless restart `thermo.dat`); 3 stale-input decks rewritten; C3 MLMG stiffness-contrast divergence. Full writeup `benchmark/archive/GPU_TEST_SUITE_FIXES.md`.
+- `changelog/2026-07-02-gpu-audit.md` — **full-`src/` code audit**: a live, unfixed `Util::DeviceErrorFlag` stream-pool race (silent false-negative device-error detection on multi-box runs — new roadmap task 4.G) and a CI gap (`golden-gpu`/`phase1-budget-gate` jobs never execute — new task 4.H); confirms the Fapply `grad(C)` hotspot the staged C1 register edits (task 3.A) target; catalogs dormant GPU-porting landmines outside the current closure. Full writeup `benchmark/GPU_AUDIT_20260702.md`.
+- `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` — D1 verdict (left in place; ~7 historical docs cite this path).
+- `benchmark/archive/PHASE3_3D_READINESS.md`, `benchmark/archive/PHASE3_NOVA_TESTING_PROGRESS.md`, `benchmark/archive/PHASE3_R3_crossover.md` — Phase 3 reports (left in place).
+- `benchmark/archive/PHASE4_R4_dispatch.md` — D4 dispatch decision (left in place).
+- `benchmark/archive/PHASE5_BRANCH_DONE.md` — branch definition-of-done checklist (left in place).
+- `benchmark/archive/G0_BASELINE_OF_RECORD.md` — Phase 0 baseline-of-record report (left in place).
 
 ## Performance / CPU vs GPU data
 

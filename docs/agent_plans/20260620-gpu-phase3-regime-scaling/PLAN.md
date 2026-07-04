@@ -65,12 +65,12 @@ harness — everything staged so that on NOVA (A100/H200) we just launch.
 
 ## Files involved
 - Lead (foundational): `bin/alamo_gpu-3d-cuda86-g++` (build artifact),
-  `input_3d_smoke` (minimal smoke input), `benchmark/PHASE3_3D_READINESS.md` (R: 3.1).
+  `input_3d_smoke` (minimal smoke input), `benchmark/archive/PHASE3_3D_READINESS.md` (R: 3.1).
 - Task 001 (inputs): repo-root `input_3d_flame`, `input_3d_flame_*` grid variants.
 - Task 002 (NOVA): `benchmark/build_alamo_nova_3d.sh`, `benchmark/nova_flame_gpu_3d.slurm`,
   `benchmark/nova_flame_gpu_3d_multi.slurm`, `benchmark/nova_flame_cpu_3d.slurm`.
 - Task 003 (budget+harness): `benchmark/phase3_memory_budget.py`,
-  `benchmark/phase3_scaling_sweep.sh`, `benchmark/PHASE3_R3_crossover.md` (skeleton).
+  `benchmark/phase3_scaling_sweep.sh`, `benchmark/archive/PHASE3_R3_crossover.md` (skeleton).
 
 ## Build and test commands
 - 3D build: `DIM=3 PROFILE=1 SMOKE=0 ARCH=86 ./benchmark/build_alamo_local_gpu.sh`

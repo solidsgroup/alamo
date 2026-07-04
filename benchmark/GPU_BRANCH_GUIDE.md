@@ -6,14 +6,17 @@ existing documents rather than duplicating them — follow the links for detail.
 
 Roadmap: `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases 0-5, **complete** — all 5 DoD
 items DONE). This guide corresponds to roadmap step **5.3 (Documentation)**; the
-companion checklist is `benchmark/PHASE5_BRANCH_DONE.md` (step 5.4).
+companion checklist is `benchmark/archive/PHASE5_BRANCH_DONE.md` (step 5.4).
 
-**Forward plan (alpha-1.0 → beta):** `benchmark/GPU_ROADMAP_V2.md` — the
-measurement-driven v2 roadmap (Phases A–D). The headline gap it closes: every
-perf number so far is *one solver at a time* (phase-field crossover ran with
-elastic disabled; elastic is correctness-fixed but never benchmarked on A100).
-Phase A re-baselines combined flame+elastic on A100 and finally unblocks
-`ncu`/`nsys` counters on NOVA.
+**Forward plan (beta → release candidate):** `benchmark/GPU_ROADMAP_V3.md` — the
+validation-then-optimize roadmap (Phases 1–5). v3's governing rule: **no
+optimization ships without a physics-error-budget pass.** Phase 1 builds a
+one-command physics validation suite (`benchmark/validate/`); Phase 2 makes the
+numbers honest (fair CPU baseline, clean input-lever A/B, Fapply Speed-of-Light
+counters); Phase 3 is the elastic `Fapply` kernel win; Phase 4 is correctness
+hardening; Phase 5 is the scaling envelope. The completed measurement-driven v2
+roadmap (Phases A–D — it re-baselined combined flame+elastic on A100 and unblocked
+the NOVA counters) is archived at `benchmark/archive/GPU_ROADMAP_V2.md`.
 
 ## Branch policy: never merged
 
@@ -23,7 +26,7 @@ Phase A re-baselines combined flame+elastic on A100 and finally unblocks
 isolated behind a separate entry point (`src/alamo_gpu.cc`) and build policy
 (`src/GPU/IntegratorPolicy.mk`) so the shared CPU build (`alamo.cc`, all other
 integrators) is untouched. See the D4 = ISOLATE decision in
-`benchmark/PHASE4_R4_dispatch.md` (Phase 4) for the reasoning.
+`benchmark/archive/PHASE4_R4_dispatch.md` (Phase 4) for the reasoning.
 
 ## Build matrix: which binary for what
 
@@ -68,7 +71,7 @@ elastic BCs.**
 
 Full reports: `benchmark/elastic_sensitivity_20260621/` (root-cause hunt + fix;
 see `GPU_ELASTIC_DEBUG_PLAN.md` SOLVED banner and `fix_notes.md`),
-`benchmark/PHASE1_ELASTIC_DISPOSITION.md` (original verdict).
+`benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` (original verdict).
 
 **The GPU elastic MLMG divergence is root-caused and FIXED.** Root cause: a GPU
 **cross-stream use-after-free race** on the per-box temporary `FArrayBox tmpfab`
@@ -111,7 +114,7 @@ distinct question that the original D1 numbers still bear on.
 
 ## Crossover (D3): WIN @ single (3D, NOVA)
 
-Full report: `benchmark/PHASE3_R3_crossover.md`.
+Full report: `benchmark/archive/PHASE3_R3_crossover.md`.
 
 Summary: on NOVA A100s with the 3D wide-shallow build (`max_level=1`, elastic
 disabled), a **single A100 beats a full 64-rank CPU node 9.6× at 128³ and
@@ -134,12 +137,12 @@ should run on device (see D1 above, separately reopened by user directive).
 
 | Phase | Report | File |
 | --- | --- | --- |
-| 0 | Baseline of record | `benchmark/G0_BASELINE_OF_RECORD.md` |
-| 1 | Elastic path disposition (D1) | `benchmark/PHASE1_ELASTIC_DISPOSITION.md` |
+| 0 | Baseline of record | `benchmark/archive/G0_BASELINE_OF_RECORD.md` |
+| 1 | Elastic path disposition (D1) | `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` |
 | 2 | Phase-field optimization attribution (D2) | `benchmark/phase2_box_sweep/`, `benchmark/phase2_probe_gpu_plot/` (see also `docs/gpu_elastic_device_port_plan.md` for the deprioritized device-elastic plan) |
-| 3 | 3D readiness + crossover (D3) | `benchmark/PHASE3_3D_READINESS.md`, `benchmark/PHASE3_NOVA_TESTING_PROGRESS.md`, `benchmark/PHASE3_R3_crossover.md` |
-| 4 | Framework dispatch (D4) + CPU regression | `benchmark/PHASE4_R4_dispatch.md`, CPU-regression logs under `benchmark/phase4_cpu_semantics_*/` |
-| 5 | Hardening: CI, perf tracking, docs, DoD | `.github/workflows/chamber-gpu-correctness.yml` + `benchmark/ci_golden_compare.sh`; `benchmark/perf_regression_track.py` + `benchmark/PERF_TRACKING.md`; this guide; `benchmark/PHASE5_BRANCH_DONE.md` |
+| 3 | 3D readiness + crossover (D3) | `benchmark/archive/PHASE3_3D_READINESS.md`, `benchmark/archive/PHASE3_NOVA_TESTING_PROGRESS.md`, `benchmark/archive/PHASE3_R3_crossover.md` |
+| 4 | Framework dispatch (D4) + CPU regression | `benchmark/archive/PHASE4_R4_dispatch.md`, CPU-regression logs under `benchmark/phase4_cpu_semantics_*/` |
+| 5 | Hardening: CI, perf tracking, docs, DoD | `.github/workflows/chamber-gpu-correctness.yml` + `benchmark/ci_golden_compare.sh`; `benchmark/perf_regression_track.py` + `benchmark/PERF_TRACKING.md`; this guide; `benchmark/archive/PHASE5_BRANCH_DONE.md` |
 
 ## Correctness tooling quick reference
 

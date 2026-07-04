@@ -4,7 +4,7 @@ Lead: Opus. Workers: 2× Sonnet, main-tree, ownership isolation. Base: `fe3844f3
 
 ## Completed tasks
 - **Track B — Phase 1 elastic disposition (D1): COMPLETED.** Verdict delivered
-  with data. R1 written (`benchmark/PHASE1_ELASTIC_DISPOSITION.md` extended) +
+  with data. R1 written (`benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` extended) +
   `results/B-RESULT.md`.
 - **Track A — Lever 2.5 field packing: BLOCKED (negative result, by design).**
   No source written; the pack was disqualified at design review before code.
@@ -53,7 +53,7 @@ None. Verified post-run:
 1. **Already committed:** checkpoint `fe3844f31` (validated Phase 0 + 2.3).
 2. **Commit (docs only, no code):** the orchestration record
    `docs/agent_plans/20260620-gpu-phase1-and-lever25/**` + report R1
-   `benchmark/PHASE1_ELASTIC_DISPOSITION.md`. These capture the D1 verdict and the
+   `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md`. These capture the D1 verdict and the
    2.5 negative result — the durable deliverables. *Recommend, pending user OK.*
 3. **No code to merge from either track** — Track A produced none; Track B
    produced none. Nothing to revert.
