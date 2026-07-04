@@ -475,7 +475,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
             Set::Vector grad_eta_hydro = -1.0*grad_eta;
 
-            if (a_time > hydro.tstart)
+            if (a_time > hydro.tstart*2.0)
             {
 	      Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
 	      grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
@@ -534,11 +534,11 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
         });
     }
-
-    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
+    // Util::RealFillBoundary(*density_mf[lev],geom[lev]);    
+    // Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
+    // Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
+    // Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
+    // Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
