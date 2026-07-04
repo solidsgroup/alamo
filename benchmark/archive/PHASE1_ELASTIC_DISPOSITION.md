@@ -7,7 +7,7 @@
 > multi-box-only transfer-temp lifetime bug. The "CPU-resident elastic" disposition
 > below is **obsolete**; elastic runs correctly on GPU multi-box. See
 > `benchmark/GPU_BRANCH_GUIDE.md` (D1 section) and
-> `benchmark/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md`. The perf
+> `benchmark/archive/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md`. The perf
 > numbers below (CPU np8 2.27–3.40× faster) remain valid data for the separate
 > "is device-elastic worth it" question.
 

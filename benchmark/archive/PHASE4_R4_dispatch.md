@@ -63,7 +63,7 @@ framework-dispatch decision.
 - **Ratify ISOLATE** (Runnels): confirm the branch-contained device-model, not a
   master-upstreamed dispatch generalization, is the intended end state.
 - **Fix the two Flame defects** so DoD item 4 can flip to DONE (tracked in
-  `benchmark/PHASE5_BRANCH_DONE.md` item 4 and `…/results/001-RESULT.md`):
+  `benchmark/archive/PHASE5_BRANCH_DONE.md` item 4 and `…/results/001-RESULT.md`):
   register `L_mf` unconditionally (or guard the write); resolve the
   `model_prop` arity contract (update input or make optional).
 - **3D regression leg** (best-effort) was not completed; 2D is the required bar.

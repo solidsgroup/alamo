@@ -16,14 +16,14 @@ points at the expected artifact).
 **Status: DONE** (descoped to coarse-only 2026-06-24, explicit user
 directive — see note below)
 
-- Coarse: **DONE**. `benchmark/G0_BASELINE_OF_RECORD.md` records
+- Coarse: **DONE**. `benchmark/archive/G0_BASELINE_OF_RECORD.md` records
   `baseline_suite.py check` passing for `canonical_step1`, `canonical_step2`,
   `eta_expression_step1` against `gpu_strict` (no-fast-math) at local/coarse
   resolution. Harness: `benchmark/golden_compare_flame.sh`,
   `benchmark/baseline_suite.py`.
 - **Saturating-3D golden compare: descoped, no longer part of this item.**
   Originally PENDING — the 3D NOVA crossover runs
-  (`benchmark/PHASE3_R3_crossover.md`, 128³/256³, D3 = WIN @ single) report
+  (`benchmark/archive/PHASE3_R3_crossover.md`, 128³/256³, D3 = WIN @ single) report
   wall-clock and stability but never ran a no-fast-math golden compare at
   scale. Per explicit user directive (2026-06-24): CPU-vs-GPU correctness
   parity at scale is not the current problem; performance and stability (the
@@ -57,7 +57,7 @@ directive — see note below)
 - Roadmap step 0.1 called for routing device `Util::Abort` through
   `amrex::Abort()`/`__trap()` instead of a silent no-op, and restoring NaN
   detection via a per-cell scratch-fab flag reduced once per kernel launch.
-  `benchmark/G0_BASELINE_OF_RECORD.md` records the corrected-build status as
+  `benchmark/archive/G0_BASELINE_OF_RECORD.md` records the corrected-build status as
   satisfied (G0 correctness/build requirements passed); the guarded-IC abort
   behavior in item 2 is direct evidence the device abort path fires (CUDA
   builds abort, not silently corrupt, on unsupported IC/BC entry).
@@ -115,14 +115,14 @@ directive — see note below)
     supplies none) — aborts in the Flame ctor before any solve.
   This item flips to DONE once those two defects are fixed (register `L_mf`
   unconditionally / guard the write; resolve the `model_prop` arity contract).
-  See `benchmark/PHASE4_R4_dispatch.md`.
+  See `benchmark/archive/PHASE4_R4_dispatch.md`.
 - Tracked by sibling task 001 (`docs/agent_plans/20260621-gpu-phase4-5/tasks/001-phase4-1-cpu-regression.md`),
   which runs `scripts/runtests.py` over all 53 integrators (2D required, 3D
   best-effort) on `chamber-gpu` to confirm the de-virtualization of
   `Solid`/`BC`/`Operator` (removing `virtual` for nvcc) did not change any
   CPU integrator relying on runtime `Solid*` dispatch.
 - Evidence pointer once landed: `docs/agent_plans/20260621-gpu-phase4-5/results/001-RESULT.md`
-  and `benchmark/PHASE4_R4_dispatch.md` (task 002, which folds the 4.1 verdict
+  and `benchmark/archive/PHASE4_R4_dispatch.md` (task 002, which folds the 4.1 verdict
   into the R4 framework-dispatch report). Until those land, this item has no
   pass/fail data and must not be marked DONE.
 - Partial circumstantial evidence: `benchmark/README.md` "Status" section
@@ -136,7 +136,7 @@ directive — see note below)
 
 **Status: DONE**
 
-- `benchmark/PHASE3_R3_crossover.md` records **D3 = WIN @ single**
+- `benchmark/archive/PHASE3_R3_crossover.md` records **D3 = WIN @ single**
   (medium-high confidence): single A100 beats a 16-rank CPU node ~39× at 128³
   and ~70× at 256³, advantage growing with size (saturating-regime signature).
   "WIN @ scale" (multi-GPU) is explicitly **not** claimed — current 2-GPU data
@@ -154,9 +154,9 @@ directive — see note below)
 | --- | --- | --- | --- |
 | 1 | Golden compare (no-fast-math): coarse | DONE | `G0_BASELINE_OF_RECORD.md`. Saturating-3D golden compare descoped 2026-06-24 (user directive) — not required |
 | 2 | No reachable host-loop device-arena writes | DONE | `docs/gpu_safe_ic_bc_matrix.md`, `benchmark/test_gpu_guarded_ic.sh` |
-| 3 | Device aborts/NaN detection active | DONE | `benchmark/G0_BASELINE_OF_RECORD.md`; CI form pending in `chamber-gpu-correctness.yml` |
+| 3 | Device aborts/NaN detection active | DONE | `benchmark/archive/G0_BASELINE_OF_RECORD.md`; CI form pending in `chamber-gpu-correctness.yml` |
 | 4 | CPU regression suite green, all integrators | DONE | commit `2cacb50dd`; `scripts/runtests.py --dim=2` = 118 run, 92 verified, 0 failed |
-| 5 | R3 win / no-win recorded | DONE | `benchmark/PHASE3_R3_crossover.md` (D3 = WIN @ single) |
+| 5 | R3 win / no-win recorded | DONE | `benchmark/archive/PHASE3_R3_crossover.md` (D3 = WIN @ single) |
 
 ## Overall branch status
 
@@ -175,7 +175,7 @@ work on the branch is tracked outside this DoD list: the GPU elastic
 cross-box transfer defect (D1) is **RESOLVED 2026-06-25** — root-caused to a
 GPU cross-stream race on a per-box temp in `interpolation()`, fixed with one
 line (`tmpfab.elixir()`), verified end-to-end
-(`benchmark/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` SOLVED
+(`benchmark/archive/elastic_sensitivity_20260621/GPU_ELASTIC_DEBUG_PLAN.md` SOLVED
 banner). The Newton-damping fix port (currently only in worktree
 `/tmp/alamo-newton-damping`) is still open. 512³ CPU baseline and multi-GPU scaling are
 explicitly descoped/back-burnered (see `docs/llm/CURRENT.md`) and are not

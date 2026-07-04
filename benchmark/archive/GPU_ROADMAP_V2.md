@@ -1,15 +1,22 @@
 # GPU Acceleration Roadmap v2 — Measurement-Driven Optimization (alpha-1.0 → beta)
 
+> **⛔ SUPERSEDED — ARCHIVED 2026-06-30.** The live forward plan is
+> **`benchmark/GPU_ROADMAP_V3.md`**. v2's Phase A is measured and its B1 gate
+> passed; every open v2 item (A1 SoL, A3 CI, A4 audit, B3 fair baseline, C0/C1/C2/C4
+> kernel work, D1/D2 envelope) is re-sequenced behind the v3 validation gate — see
+> the v2→v3 mapping table in `GPU_ROADMAP_V3.md` §2. This file is kept for the
+> record only; do not plan against it.
+
 Branch: `chamber-gpu` (never merged — see `benchmark/GPU_BRANCH_GUIDE.md`).
 Supersedes-as-forward-plan: the original `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases
 0–5), which is **complete** — all 5 definition-of-done items are DONE
-(`benchmark/PHASE5_BRANCH_DONE.md`). This v2 roadmap is the *next* arc:
+(`benchmark/archive/PHASE5_BRANCH_DONE.md`). This v2 roadmap is the *next* arc:
 alpha-1.0 → beta.
 
 Created: 2026-06-25. Updated: 2026-06-28.
 Status: **Phase A measured (A1+A2) · B1 gate PASSED · Phase C ACTIVE.**
 
-> ### 2026-06-28 — Phase A is measured. Full analysis: `benchmark/PHASE_A_FINDINGS.md`
+> ### 2026-06-28 — Phase A is measured. Full analysis: `benchmark/archive/PHASE_A_FINDINGS.md`
 > The combined flame+elastic A100 profiling (nsys 11306663/11306722 + diag 11310480
 > + ncu 11318197) landed. Headlines that drive everything below:
 > - **`Operator::Elastic::Fapply` = 74.6% of GPU kernel time** (58% exclusive of the
@@ -201,7 +208,7 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
   `PROFILE_NOTES.md` reading the numbers.
 
 **A2 — Combined flame+elastic A100 baseline-of-record (THE key measurement)**
-- **STATUS (2026-06-28): DONE (headline) — see `benchmark/PHASE_A_FINDINGS.md`.**
+- **STATUS (2026-06-28): DONE (headline) — see `benchmark/archive/PHASE_A_FINDINGS.md`.**
   Combined GPU 256³ = **22.9× per step** vs 64-rank CPU; elastic fraction
   `f ≈ 0.95` of GPU wall (Fapply 74.6% of kernel time). Stability clean (no
   NaN/diverge; physics matches CPU modulo grid-resolution). **Caveats for a
@@ -273,7 +280,7 @@ The gate. Nothing in B–D starts until A1+A2 produce data.
   Eigen expression in a device path, each with a verdict; any fix verified by
   re-running the forced-multi-box elastic case (2D) and a 3D elastic smoke run.
 - **Depends:** none.
-- **Artifact:** `benchmark/elixir_race_audit.md` (rename/extend to cover both classes).
+- **Artifact:** `benchmark/archive/elixir_race_audit.md` (rename/extend to cover both classes).
 - **See:** `docs/llm/changelog/2026-06-26-3d-elastic-gpu-fix.md`.
 
 ### Phase B — Characterize the combined workload
@@ -342,7 +349,7 @@ before/after.
   completed timesteps. This is a strong positive signal, but C0 is **not done**:
   the bundle lacks the full `{baseline, tol, bottom, interval, all}` matrix,
   stress-field parity, and per-solve/V-cycle attribution. Detail:
-  `benchmark/PHASE_C0_input_ab.md`.
+  `benchmark/archive/PHASE_C0_input_ab.md`.
 - **Goal:** cut the Fapply **call count** with zero risk before touching kernels.
 - **Steps:** the a2 baseline left `tol_rel/abs` at the 1e-8 default and `bottom_*`
   unset (BiCGStab inherits 1e-8). Ship `input_3d_centre_bore_256_a2_tuned`
@@ -351,7 +358,7 @@ before/after.
   256³/A100, gated on stress-field parity (`compare_thermo.py`).
 - **Done-when:** A/B table {baseline, tol, bottom, interval, all} → per-solve wall
   + V-cycle count + stress delta; expected ~3–5× on the elastic solve.
-- **Depends:** none (executable now). **Artifact:** `benchmark/PHASE_C0_input_ab.md`.
+- **Depends:** none (executable now). **Artifact:** `benchmark/archive/PHASE_C0_input_ab.md`.
 
 **C1 — Elastic `Fapply` register pressure / occupancy** *(the structural win)*
 - **STATUS (2026-06-28): SOURCE STARTED on branch `chamber-gpu-elastic-opt`** (isolated
@@ -486,10 +493,10 @@ extension, not gating.
 ## 9. Cross-references
 
 - Branch map / build matrix / IC-BC safety: `benchmark/GPU_BRANCH_GUIDE.md`
-- Phase-field crossover (alpha baseline, elastic disabled): `benchmark/PHASE3_R3_crossover.md`
+- Phase-field crossover (alpha baseline, elastic disabled): `benchmark/archive/PHASE3_R3_crossover.md`
 - Elastic fix root-cause: `GPU_BRANCH_GUIDE.md` D1 section + commit `c00f69086`
-- Prior DoD checklist (Phases 0–5, all DONE): `benchmark/PHASE5_BRANCH_DONE.md`
-- Static kernel resource dump (Fapply registers etc.): `benchmark/G0_BASELINE_OF_RECORD.md`
+- Prior DoD checklist (Phases 0–5, all DONE): `benchmark/archive/PHASE5_BRANCH_DONE.md`
+- Static kernel resource dump (Fapply registers etc.): `benchmark/archive/G0_BASELINE_OF_RECORD.md`
 - Perf-regression harness: `benchmark/perf_regression_track.py` + `benchmark/PERF_TRACKING.md`
 - AMR/launch-bound evidence: memory `gpu_perf_nsys_findings.md`
 - NOVA run/diag harness: `benchmark/phase3_scaling_sweep.sh`,
