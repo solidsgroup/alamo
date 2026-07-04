@@ -1,6 +1,10 @@
 #ifndef SOLVER_NONLOCAL_NEWTON
 #define SOLVER_NONLOCAL_NEWTON
 
+#include <cmath>
+#include <string>
+#include <AMReX_Math.H>
+#include <AMReX_Reduce.H>
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -377,23 +381,33 @@ public:
             //amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
+        Set::Scalar initial_resnorm = -1.0;
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter + 1, " of ", m_nriters);
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
+            // The persistent MLMG runs linop.prepareForSolve() only on its
+            // first solve. SetModel (inside prepareForSolve above) updates
+            // only the mglev=0 coefficients, so on relinearization the coarse
+            // MG-level operators and the smoother/normalize diagonal must be
+            // re-derived; otherwise the V-cycle smooths the new fine-level
+            // operator against a stale hierarchy, which detonates at high
+            // modulus contrast (low psi_floor).
+            if (m_resync_coeffs && nriter > 0) m_elastic->SyncCoefficients();
 
             if (nriter == m_nriters) break;
 
-            Set::Scalar resnorm0 = 0;
-            if (m_line_search)
-                for (int lev = 0; lev < rhs_mf.size(); ++lev)
-                    for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
-                    {
-                        Set::Scalar tmp = rhs_mf[lev]->norm0(comp, 0);
-                        if (tmp > resnorm0) resnorm0 = tmp;
-                    }
+            const bool need_residual_norm = m_line_search || m_nr_diagnostics;
+            const bool need_weighted_update = m_nr_diagnostics || UsesPsiUpdateConvergence();
+
+            Set::Scalar resnorm0 = -1.0;
+            if (need_residual_norm)
+            {
+                resnorm0 = FieldNorm0(rhs_mf);
+                if (nriter == 0) initial_resnorm = resnorm0;
+            }
 
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
 
@@ -410,13 +424,16 @@ public:
                 }
 
             }
+            NRUpdateNorms update_norms;
+            if (need_weighted_update) update_norms = ComputeWeightedUpdateNorms(dsol_mf);
+
             Set::Scalar alpha = 1.0;
+            Set::Scalar resnorm = resnorm0;
             if (m_line_search)
             {
                 for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
                     a_u_mf.Copy(lev, *u0_mf[lev], 0, 2);
 
-                Set::Scalar resnorm = resnorm0;
                 constexpr int max_backtrack = 8;
                 for (int bt = 0; bt <= max_backtrack; bt++)
                 {
@@ -430,12 +447,7 @@ public:
                     prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
                     resnorm = 0;
-                    for (int lev = 0; lev < rhs_mf.size(); ++lev)
-                        for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
-                        {
-                            Set::Scalar tmp = rhs_mf[lev]->norm0(comp, 0);
-                            if (tmp > resnorm) resnorm = tmp;
-                        }
+                    resnorm = FieldNorm0(rhs_mf);
 
                     constexpr Set::Scalar bt_accept_tol = 1e-4;
                     if (resnorm < resnorm0 * (1.0 + bt_accept_tol) || bt == max_backtrack) break;
@@ -447,6 +459,12 @@ public:
             {
                 for (int lev = 0; lev < dsol_mf.size(); ++lev)
                     a_u_mf.AddFrom(lev, *dsol_mf[lev], 0, 2);
+
+                if (need_residual_norm)
+                {
+                    prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
+                    resnorm = FieldNorm0(rhs_mf);
+                }
             }
 
             // dsol_mf (and friends) are about to be either overwritten by the next
@@ -463,8 +481,30 @@ public:
             else relnorm = cornorm / solnorm;
             if (verbose > 0) Util::Message(INFO, "NR iteration ", nriter + 1, ", alpha = ", alpha, ", relative norm(ddisp) = ", relnorm);
 
-            if (relnorm < m_nrtolerance)
-                return relnorm;
+            const Set::Scalar accepted_relnorm = alpha * relnorm;
+            const Set::Scalar psi_relnorm = alpha * update_norms.psi_update;
+            const Set::Scalar solid_relnorm = alpha * update_norms.solid_update;
+            Set::Scalar resid_rel = -1.0;
+            if (need_residual_norm)
+            {
+                if (initial_resnorm > 0.0) resid_rel = resnorm / initial_resnorm;
+                else resid_rel = resnorm;
+            }
+
+            const bool converged = CheckNRConvergence(relnorm, psi_relnorm);
+            if (m_nr_diagnostics || CustomNRConvergence())
+                Util::Message(INFO, "NR convergence metrics: mode=", m_nr_convergence,
+                    ", max_update=", cornorm,
+                    ", accepted_max_update=", alpha * cornorm,
+                    ", accepted_relative_update=", accepted_relnorm,
+                    ", psi_update=", psi_relnorm,
+                    ", solid_update=", solid_relnorm,
+                    ", nonlinear_resid=", resnorm,
+                    ", nonlinear_resid_rel=", resid_rel,
+                    ", converged=", converged);
+
+            if (converged)
+                return CustomNRConvergence() ? SelectedNRMetric(relnorm, psi_relnorm) : relnorm;
 
         }
 
@@ -516,6 +556,9 @@ public:
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
+            // See the Set::Vector solve overload: re-derive coarse MG-level
+            // coefficients and the diagonal after relinearization.
+            if (m_resync_coeffs && nriter > 0) m_elastic->SyncCoefficients();
 
             if (nriter == m_nriters) break;
 
@@ -745,10 +788,138 @@ public:
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
     bool m_line_search = false;
+    bool m_resync_coeffs = false;
+    std::string m_nr_convergence = "update";
+    Set::Scalar m_nr_psi_weight_floor = 0.0;
+    Set::Scalar m_nr_psi_power = 1.0;
+    Set::Scalar m_nr_solid_psi = 0.5;
+    bool m_nr_diagnostics = false;
     Operator::Elastic<T::sym>* m_elastic;
     //BC::Operator::Elastic::Elastic *m_bc;
 
     Set::Field<Set::Scalar>* m_psi = nullptr;
+
+    struct NRUpdateNorms
+    {
+        Set::Scalar psi_update = 0.0;
+        Set::Scalar solid_update = 0.0;
+    };
+
+    Set::Scalar FieldNorm0(const Set::Field<Set::Scalar>& a_mf) const
+    {
+        Set::Scalar norm = 0.0;
+        for (int lev = 0; lev < a_mf.size(); ++lev)
+        {
+            const int ncomp = a_mf[lev]->nComp();
+            for (int comp = 0; comp < ncomp; ++comp)
+            {
+                Set::Scalar tmp = a_mf[lev]->norm0(comp, 0);
+                if (tmp > norm) norm = tmp;
+            }
+        }
+        return norm;
+    }
+
+    NRUpdateNorms ComputeWeightedUpdateNorms(const Set::Field<Set::Scalar>& a_dsol_mf) const
+    {
+        NRUpdateNorms norms;
+        if (!m_psi)
+        {
+            norms.psi_update = FieldNorm0(a_dsol_mf);
+            norms.solid_update = norms.psi_update;
+            return norms;
+        }
+
+        for (int lev = 0; lev < a_dsol_mf.size(); ++lev)
+        {
+            amrex::Box stencilbox(linop->Geom(lev).growPeriodicDomain(2));
+            stencilbox.convert(amrex::IntVect::TheNodeVector());
+
+            amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax> reduce_op;
+            amrex::ReduceData<amrex::Real, amrex::Real> reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+
+            const Set::Scalar psi_floor = m_nr_psi_weight_floor;
+            const Set::Scalar psi_power = m_nr_psi_power;
+            const Set::Scalar solid_psi = m_nr_solid_psi;
+
+            for (MFIter mfi(*a_dsol_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.validbox();
+                amrex::Array4<const Set::Scalar> const& dsol = a_dsol_mf[lev]->const_array(mfi);
+                amrex::Array4<const Set::Scalar> const& psi = (*m_psi)[lev]->const_array(mfi);
+                const int ncomp = a_dsol_mf[lev]->nComp();
+
+                reduce_op.eval(bx, reduce_data,
+                    [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
+                    {
+                        const auto sten = Numeric::GetStencil(i, j, k, stencilbox);
+                        Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0, sten);
+                        psi_avg = amrex::max(Set::Scalar(0.0), psi_avg);
+
+                        Set::Scalar weight = amrex::max(psi_floor, psi_avg);
+                        if (psi_power != 1.0) weight = std::pow(weight, psi_power);
+
+                        Set::Scalar weighted_max = 0.0;
+                        Set::Scalar solid_max = 0.0;
+                        for (int n = 0; n < ncomp; ++n)
+                        {
+                            const Set::Scalar absdu = amrex::Math::abs(dsol(i, j, k, n));
+                            weighted_max = amrex::max(weighted_max, weight * absdu);
+                            if (psi_avg >= solid_psi) solid_max = amrex::max(solid_max, absdu);
+                        }
+                        return {weighted_max, solid_max};
+                    });
+            }
+
+            ReduceTuple hv = reduce_data.value(reduce_op);
+            Set::Scalar weighted = amrex::get<0>(hv);
+            Set::Scalar solid = amrex::get<1>(hv);
+            amrex::ParallelDescriptor::ReduceRealMax(weighted);
+            amrex::ParallelDescriptor::ReduceRealMax(solid);
+            if (weighted > norms.psi_update) norms.psi_update = weighted;
+            if (solid > norms.solid_update) norms.solid_update = solid;
+        }
+
+        return norms;
+    }
+
+    bool UsesPsiUpdateConvergence() const
+    {
+        return m_nr_convergence == "psi_update";
+    }
+
+    bool CustomNRConvergence() const
+    {
+        return m_nr_convergence != "update";
+    }
+
+    bool CheckNRConvergence(Set::Scalar relnorm, Set::Scalar psi_relnorm) const
+    {
+        if (m_nr_convergence == "update") return relnorm < m_nrtolerance;
+        if (m_nr_convergence == "psi_update") return psi_relnorm < m_nrtolerance;
+        return false;
+    }
+
+    Set::Scalar SelectedNRMetric(Set::Scalar relnorm, Set::Scalar psi_relnorm) const
+    {
+        if (m_nr_convergence == "psi_update") return psi_relnorm;
+        return relnorm;
+    }
+
+    void ValidateNRConvergenceInputs() const
+    {
+        if (m_nr_convergence != "update" &&
+            m_nr_convergence != "psi_update")
+            Util::Abort(INFO, "Invalid solver.nr_convergence=", m_nr_convergence,
+                ". Valid values: update, psi_update");
+        if (!std::isfinite(m_nr_psi_weight_floor) || m_nr_psi_weight_floor < 0.0)
+            Util::Abort(INFO, "solver.nr_psi_weight_floor must be finite and nonnegative");
+        if (!std::isfinite(m_nr_psi_power) || m_nr_psi_power < 0.0)
+            Util::Abort(INFO, "solver.nr_psi_power must be finite and nonnegative");
+        if (!std::isfinite(m_nr_solid_psi) || m_nr_solid_psi < 0.0)
+            Util::Abort(INFO, "solver.nr_solid_psi must be finite and nonnegative");
+    }
 
     // These paramters control a standard Newton-Raphson solve.
     //
@@ -767,6 +938,23 @@ public:
 
         // Enable backtracking line-search damping of the Newton step.
         pp_query("line_search", value.m_line_search);
+
+        // Re-derive coarse MG-level coefficients and the smoother diagonal
+        // after each Newton relinearization (the persistent MLMG otherwise
+        // reuses the hierarchy prepared on the first linear solve). Off by
+        // default to preserve historical iteration trajectories exactly.
+        pp_query("resync_coeffs", value.m_resync_coeffs);
+
+        // Nonlinear convergence mode. Historical default "update" uses the max
+        // displacement correction over all DOFs. "psi_update" weights the max
+        // update by local psi so low-stiffness void displacement drift does not
+        // dominate convergence after the stress-bearing region has settled.
+        pp_query("nr_convergence", value.m_nr_convergence);
+        pp_query("nr_psi_weight_floor", value.m_nr_psi_weight_floor);
+        pp_query("nr_psi_power", value.m_nr_psi_power);
+        pp_query("nr_solid_psi", value.m_nr_solid_psi);
+        pp_query("nr_diagnostics", value.m_nr_diagnostics);
+        value.ValidateNRConvergenceInputs();
     }
 
 };

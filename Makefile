@@ -186,7 +186,7 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}-MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))

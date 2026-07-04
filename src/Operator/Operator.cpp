@@ -1004,7 +1004,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int mglev = 0;
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }

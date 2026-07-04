@@ -57,6 +57,13 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
+    // Re-derive the coarse MG-level coefficient fields and the smoother /
+    // normalize diagonal from the current mglev=0 coefficients. AMReX's MLMG
+    // runs linop.prepareForSolve() (which does this) only on its FIRST solve;
+    // when the same MLMG is reused across Newton relinearizations, SetModel
+    // updates only mglev=0, so without this call the V-cycle smooths the new
+    // fine-level operator with stale coarse operators and a stale diagonal.
+    void SyncCoefficients() { averageDownCoeffs(); Diagonal(true); }
     
     //
     // Public Utilty functions
