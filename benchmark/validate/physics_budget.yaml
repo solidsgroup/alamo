@@ -1,0 +1,164 @@
+# Machine-readable mirror of physics_budget.md (Roadmap v3 task 1.A).
+# compare_validation.py (task 1.D) reads this file. physics_budget.md is the
+# human-reviewable rationale; keep the two in sync by hand (small file, no
+# generator yet).
+#
+# tolerance classes:
+#   correctness            - must match CPU-strict golden; any fail -> overall FAIL
+#   engineering_trajectory - must match within physical % over the whole run
+#   solver_health          - regression-tracked, non-gating
+
+schema_version: 1
+
+correctness:
+  - name: eta_field_l2
+    source: plotfile
+    field: eta
+    norm: l2
+    rel_tol: 1.0e-6
+  - name: eta_field_linf
+    source: plotfile
+    field: eta
+    norm: linf
+    rel_tol: 1.0e-6
+  - name: phi_field_l2
+    source: plotfile
+    field: phi
+    norm: l2
+    rel_tol: 1.0e-6
+  - name: temp_field_l2
+    source: plotfile
+    field: temp
+    norm: l2
+    rel_tol: 1.0e-6
+  - name: disp_field_l2
+    source: plotfile
+    field: disp
+    norm: l2
+    per_component: true
+    rel_tol: 1.0e-6
+  - name: disp_field_linf
+    source: plotfile
+    field: disp
+    norm: linf
+    per_component: true
+    rel_tol: 1.0e-6
+  - name: stress_field_l2
+    source: plotfile
+    field: stress
+    norm: l2
+    per_component: true
+    rel_tol: 1.0e-6
+  - name: stress_field_linf
+    source: plotfile
+    field: stress
+    norm: linf
+    per_component: true
+    rel_tol: 1.0e-6
+  - name: strain_field_l2
+    source: plotfile
+    field: strain
+    norm: l2
+    per_component: true
+    rel_tol: 1.0e-6
+  - name: elastic_residual_at_convergence
+    source: run_log
+    # AMReX_MLMG.H:532-535: "MLMG: Final Iter. <n> resid, resid/<bnorm|resid0> = <abs>, <rel>"
+    # Capture group 1 = the SECOND number (resid/bnorm, i.e. already-relative).
+    # Deliberately NOT the absolute residual: that scales with the problem's
+    # physical units (Pa) and stays >> 1e-8 on a perfectly converged solve --
+    # observed 0.125 absolute vs 5e-9 relative on a real local CPU run that
+    # AMReX itself reports as converged. The relative figure is what AMReX's
+    # own convergence test actually gates on (resid <= max(tol_rel*bnorm,
+    # tol_abs)), so it is the only one comparable run-to-run.
+    pattern: 'MLMG: Final Iter\.\s+\d+\s+resid,\s*resid/\w+\s*=\s*[0-9.eE+-]+,\s*([0-9.eE+-]+)'
+    abs_tol: 1.0e-8 # matches elastic.tol_rel default, Base/Mechanics.H:142
+
+engineering_trajectory:
+  - name: chamber_pressure
+    source: thermo_dat
+    column: chamber_pressure
+    max_rel_dev: 0.02
+    phase_lag_max_intervals: 1
+  - name: chamber_volume
+    source: thermo_dat
+    column: volume
+    max_rel_dev: 0.02
+  - name: burn_area
+    source: thermo_dat
+    column: area
+    max_rel_dev: 0.02
+  - name: total_mdot
+    source: thermo_dat
+    column: mass_flux
+    max_rel_dev: 0.02
+    phase_lag_max_intervals: 1
+  - name: mdot_max
+    source: thermo_dat
+    column: mdot_max
+    max_rel_dev: 0.03
+  - name: max_temp
+    source: thermo_dat
+    column: max_temp
+    max_rel_dev: 0.02
+  - name: interface_extent
+    source: thermo_dat
+    column: eta_min
+    max_abs_dev: 0.02
+  - name: corner_displacement
+    source: thermo_dat
+    columns: [disp_xhi_x, disp_xhi_y, disp_yhi_x, disp_yhi_y]
+    max_rel_dev: 0.03
+  - name: max_von_mises_stress
+    source: derived_field
+    derivation: von_mises
+    field: stress
+    reduce: max
+    max_rel_dev: 0.05
+  - name: mean_von_mises_stress
+    source: derived_field
+    derivation: von_mises
+    field: stress
+    reduce: mean
+    max_rel_dev: 0.05
+  - name: max_principal_stress
+    source: derived_field
+    derivation: max_principal
+    field: stress
+    reduce: max
+    max_rel_dev: 0.05
+  - name: elastic_energy
+    source: derived_field
+    derivation: strain_energy
+    fields: [stress, strain]
+    reduce: sum
+    max_rel_dev: 0.03
+
+solver_health:
+  - name: newton_iters_per_solve
+    source: run_log
+    pattern: 'NR iteration (\d+),'
+    aggregate: count_per_solve
+  - name: newton_final_relnorm
+    source: run_log
+    pattern: 'relative norm\(ddisp\)\s*=\s*([0-9.eE+-]+)'
+    aggregate: last_per_solve
+  - name: mlmg_vcycles_per_solve
+    source: run_log
+    pattern: 'MLMG: (?:Final Iter\.|Iteration)\s+(\d+)'
+    aggregate: max_per_solve
+  - name: bottom_solver_iters
+    source: run_log
+    pattern: 'MLCGSolver_BiCGStab: Final: Iteration\s+(\d+)'
+    aggregate: list_per_vcycle
+  - name: residual_monotonic
+    source: run_log
+    pattern: 'MLMG: Iteration\s+\d+ Fine resid/\S+\s*=\s*([0-9.eE+-]+)'
+    aggregate: monotonic_nonincreasing_per_solve
+
+run_requirements:
+  # Single knob (Linear.H:268-272 PrepareMLMG): elastic.solver.verbose=5 maps to
+  # mlmg.setVerbose(4) [per-V-cycle + Final-Iter lines] AND
+  # mlmg.setBottomVerbose(5) [bottom-solver lines, only enabled when raw >4].
+  # There is no separate "bottom_verbose" key - do not set one.
+  - elastic.solver.verbose=5

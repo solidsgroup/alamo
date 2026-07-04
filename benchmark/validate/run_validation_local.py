@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Phase 1 task 1.B -- local-A1000 validation runner.
+
+Local-only: no hardware auto-detect across clusters, no Slurm. See
+benchmark/validate/README.md ("Two entry points, not one auto-detecting
+script") for why this is deliberately separate from the NOVA path
+(run_validation_nova.slurm). This script assumes it is running on the box
+where the binaries already live in `bin/`; the case-running/extraction core
+is shared with the NOVA driver via validation_common.py.
+
+For each case in cases.manifest.yaml whose `hardware` list includes `local`,
+and for each requested profile (cpu / gpu_strict / gpu_fast), this:
+  1. runs the matching alamo binary via mpiexec,
+  2. lands run.log + thermo.dat + the final <N>node/<N>cell plotfile pair into
+     a bundle directory per the schema in README.md,
+  3. calls extract_metrics.py to populate metrics.json + field_norms.json.
+
+Each profile gets its own bundle directory (device differs: cpu vs
+a1000_sm86) -- two sibling bundles from one invocation is what task 1.E's two
+named references (cpu_strict / gpu_alpha1_local) are built from.
+
+Usage:
+    python3 benchmark/validate/run_validation_local.py
+    python3 benchmark/validate/run_validation_local.py --profiles gpu_strict --case canonical_2d_elastic
+    python3 benchmark/validate/run_validation_local.py --profiles cpu,gpu_strict,gpu_fast  # gpu_fast = perf smoke row, not a CORRECTNESS claim
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import validation_common as vc
+
+
+def device_tag(profile: str, arch: str) -> str:
+    if profile == "cpu":
+        return "cpu"
+    if profile == "gpu_strict":
+        return f"a1000_sm{arch}_strict"
+    if profile == "gpu_fast":
+        return f"a1000_sm{arch}_fast"
+    raise ValueError(f"unknown profile: {profile}")
+
+
+def mpiexec_launch(profile: str, np: int) -> list[str]:
+    return ["mpiexec", "-np", str(np)]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--profiles", default="cpu,gpu_strict")
+    parser.add_argument("--case", default=None, help="restrict to a single case id")
+    parser.add_argument("--manifest", type=Path, default=vc.DEFAULT_MANIFEST)
+    parser.add_argument("--budget", type=Path, default=vc.DEFAULT_BUDGET)
+    parser.add_argument("--runs-dir", type=Path, default=vc.DEFAULT_RUNS_DIR)
+    args = parser.parse_args()
+
+    profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
+    bad = [p for p in profiles if p not in vc.PROFILES]
+    if bad:
+        parser.error(f"unknown profile(s): {bad}; choose from {vc.PROFILES}")
+
+    cases = vc.load_cases(args.manifest, "local", args.case)
+    if not cases:
+        print(f"ERROR: no local-hardware cases matched (filter={args.case!r})", file=sys.stderr)
+        return 2
+
+    return vc.run_all(
+        profiles=profiles, cases=cases, arch=vc.cuda_arch(), host=vc.hostname(),
+        runs_dir=args.runs_dir, budget_path=args.budget, device_tag_fn=device_tag,
+        launch_builder=mpiexec_launch, label="local validation",
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

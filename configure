@@ -246,6 +246,7 @@ if args.cuda:
             )
 
 CUDA_HOME = None
+CUDA_NVCC = None
 CUDA_INCLUDE = None
 CUDA_LIBDIRS = []
 CUDA_STUBDIRS = []
@@ -254,8 +255,17 @@ if args.cuda:
     nvcc_path = shutil.which("nvcc")
     if not CUDA_HOME and nvcc_path:
         CUDA_HOME = str(Path(nvcc_path).resolve().parents[1])
+    if not CUDA_HOME:
+        for candidate in (Path.cwd() / ".local" / "cuda", Path("/usr/local/cuda")):
+            if (candidate / "bin" / "nvcc").is_file():
+                CUDA_HOME = str(candidate)
+                nvcc_path = str(candidate / "bin" / "nvcc")
+                break
     if CUDA_HOME:
         cuda_home_path = Path(CUDA_HOME)
+        cuda_nvcc = cuda_home_path / "bin" / "nvcc"
+        if cuda_nvcc.is_file():
+            nvcc_path = str(cuda_nvcc)
         include_candidates = [
             cuda_home_path / "include",
             cuda_home_path / "lib" / "cuda" / "include",
@@ -275,8 +285,18 @@ if args.cuda:
                 cuda_home_path / "lib" / "stubs",
             ) if path.is_dir()
         ]
+    if not nvcc_path:
+        raise Exception(
+            error(
+                "CUDA build requested but nvcc was not found. Set CUDA_HOME/CUDA_PATH, "
+                "put nvcc on PATH, or install CUDA under .local/cuda."
+            )
+        )
+    CUDA_NVCC = str(Path(nvcc_path).resolve())
+    os.environ["PATH"] = str(Path(CUDA_NVCC).parent) + os.pathsep + os.environ.get("PATH", "")
     if CUDA_HOME:
         message("CUDA Home", CUDA_HOME)
+    message("CUDA NVCC", CUDA_NVCC)
     if CUDA_INCLUDE:
         message("CUDA Include", CUDA_INCLUDE)
     if CUDA_LIBDIRS:
@@ -519,7 +539,7 @@ if args.buildamrex and not args.amrex:
         amrex_make_local.append('CUDA_CLANG = TRUE')
 
     message("AMReX-Configure",amrex_configure,False)
-    subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
+    subprocess.run(amrex_configure.split(), cwd=f"ext/{args.amrexfork}/amrex", check=True)
     
     if len(amrex_make_local):
         with open(f'ext/{args.amrexfork}/amrex/Make.local','w') as f_amrex_make:
@@ -618,22 +638,33 @@ if (args.geteigen):
     if not os.path.isdir("ext/libeigen"): subprocess.run(['mkdir','-p','ext/libeigen'])
     if not os.path.isdir("ext/libeigen/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
-        p = subprocess.Popen((f"git clone {GITLAB_REMOTE}libeigen/eigen.git libeigen/eigen3").split(),
-                             stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        p.wait()
-        if p.returncode == 0:
-            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
-        else:
-            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-        #subprocess.run("mv eigen-git-mirror eigen3".split())
+        result = subprocess.run(
+            (f"git clone {GITLAB_REMOTE}libeigen/eigen.git libeigen/eigen3").split(),
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            cwd="ext/",
+            text=True,
+        )
+        if result.stdout:
+            for line in result.stdout.splitlines():
+                print(''.ljust(width) + "OUT " + line)
+        if result.stderr:
+            for line in result.stderr.splitlines():
+                print(''.ljust(width) + color.red + "ERR " + line + color.reset)
+        result.check_returncode()
+    if not os.path.isdir("ext/libeigen/eigen3/Eigen"):
+        raise Exception(error("Eigen download did not produce ext/libeigen/eigen3/Eigen"))
     message("Eigen-Directory","ext/libeigen/")
     f.write("EIGEN = ./ext/libeigen/\n")
 elif (args.eigen != ""):
     if not os.path.isdir(os.path.join(args.eigen, "include", "eigen3")):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen prefix must contain include/eigen3/ subdirectory")
     message("Eigen-Directory",args.eigen)
-    f.write(f"EIGEN = {args.eigen}/include\n")
+    eigen_include = os.path.abspath(os.path.join(args.eigen, "include"))
+    if eigen_include == "/usr/include":
+        note("Using system Eigen from /usr/include/eigen3; not adding /usr/include to compiler flags")
+    else:
+        f.write(f"EIGEN = {eigen_include}\n")
 
 #
 # HDF5
@@ -769,14 +800,14 @@ if mpidist == "openmpi":
         
         if args.debug:
             generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O0 --fmad=false --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=[sm_{args.cuda},compute_{args.cuda}] -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
-            ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
+            ompicc =   f"export OMPI_CXX={args.comp} && {CUDA_NVCC} -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
+            ompilink = f"export OMPI_CXX={args.comp} && {CUDA_NVCC} {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         else:
             cuda_fp_opts = "--ptxas-options=-O3 --use_fast_math" if args.cuda_fp == "fast" else "--ptxas-options=-O3 --fmad=false"
             generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo {cuda_fp_opts} --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=[sm_{args.cuda},compute_{args.cuda}] -DALAMO_GPU"
-            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
-            ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
+            ompicc =   f"export OMPI_CXX={args.comp} && {CUDA_NVCC} -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
+            ompilink = f"export OMPI_CXX={args.comp} && {CUDA_NVCC} {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
         f.write(f"CXX_COMPILE_FLAGS = \n")
         cuda_runtime_dirs = " ".join(f"-L{path} -Wl,-rpath,{path}" for path in CUDA_LIBDIRS)
@@ -847,7 +878,8 @@ if args.perf:
 #
 if comp_basename == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if not args.cuda:
+        f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:

@@ -1,0 +1,106 @@
+# Case set for the Phase 1 validation suite (roadmap task 1.B).
+#
+# `hardware` marks where a case is expected to run:
+#   local - sized to fit the local A1000 (8 GB, shared desktop GPU)
+#   nova  - NOVA-only (256^3 chamber case, needs A100/H200-class memory)
+#
+# `overrides` are appended verbatim as ParmParse key=value args. Every case
+# carries elastic.solver.verbose=5 -- the single knob physics_budget.yaml's
+# SOLVER-HEALTH observables need (see physics_budget.md's "Important
+# indirection" note: this is the only way to get MLMG per-V-cycle lines AND
+# the bottom-solver line; there is no separate bottom_verbose key).
+#
+# max_step is kept small (this is a correctness/budget check, not a physics
+# campaign run) -- enough to exercise at least one elastic solve.
+
+schema_version: 1
+
+defaults:
+  overrides:
+    - elastic.solver.verbose=5
+    - elastic.print_model=0
+    - amr.plot_int=1
+    - amr.thermo.plot_int=1
+    - amr.thermo.int=1
+    - stop_time=1e99_s
+    # Every input deck this manifest uses defaults elastic.interval to 50/100,
+    # which a 2-step validation case would never reach -- force a solve every
+    # step so SOLVER-HEALTH and elastic_residual_at_convergence are populated.
+    - elastic.interval=1
+
+cases:
+  - id: canonical_2d_elastic
+    input: input
+    dim: 2
+    max_step: 2
+    hardware: [local, nova]
+    np:
+      cpu: 1
+      gpu: 1
+    overrides: []
+
+  - id: centre_bore_3d_128_a2
+    input: input_3d_centre_bore_128_a2
+    dim: 3
+    max_step: 2
+    hardware: [local, nova]
+    np:
+      cpu: 8   # single-rank 3D elastic at 128x128x64 is too slow for a quick gate; this is a correctness check, not a perf run
+      gpu: 1
+    overrides:
+      - amr.max_grid_size=64  # forces a NOVA-like multi-box layout even at single-rank
+      # Device-only arena OOMs on this shared 8GB desktop GPU (Xorg/gnome
+      # already hold ~1GB) -- benchmark/local_a100_gate.sh hits the same wall
+      # on this exact case and always sets managed memory; do the same.
+      - amrex.the_arena_is_managed=1
+      # Keep the elastic solve itself cheap -- correctness/budget comparison
+      # only needs CPU and GPU to walk the *same* solver path to the *same*
+      # degree, not full convergence. Mirrors benchmark/local_a100_gate.sh's
+      # ELASTIC_FAST knobs ("gating correctness, not convergence").
+      # fixed_iter (not max_iter!): max_iter aborts the whole run via
+      # amrex::Abort if not converged within it; fixed_iter runs exactly N
+      # V-cycles and "exits gracefully" regardless (Linear.H:312) -- confirmed
+      # by hitting the abort path locally with max_iter=10 on this case.
+      # Side effect: AMReX never prints "MLMG: Final Iter." under fixed_iter
+      # (only under the natural convergence-check branch), so
+      # elastic_residual_at_convergence comes back empty for this case --
+      # consistently on both cpu and gpu_strict, so it's a clean omission, not
+      # a divergence. mlmg_vcycles_per_solve still works (it also matches the
+      # plain "Iteration N" line).
+      - elastic.solver.nriters=2
+      - elastic.solver.fixed_iter=10
+
+  # Experimental sibling of centre_bore_3d_128_a2: identical setup but drops
+  # fixed_iter so MLMG runs to its natural tol_rel/tol_abs convergence check
+  # instead of exactly 10 V-cycles regardless of residual. Added to test
+  # whether the ~1% CORRECTNESS-class stress/strain divergence recorded in
+  # BASELINE_DELTAS.md for the fixed_iter case is a real GPU numerical defect
+  # or an artifact of comparing two runs that were both stopped before
+  # convergence (see physics_budget.md's review checklist, which flags this
+  # exact ambiguity as an open 1.A item). elastic.solver.max_iter=1000 in the
+  # input deck default is generous -- the fixed_iter run already reached
+  # residual 7e-5 by iteration 10, so natural convergence should land well
+  # under that cap.
+  - id: centre_bore_3d_128_a2_converged
+    input: input_3d_centre_bore_128_a2
+    dim: 3
+    max_step: 1  # one converged solve is enough to test the fixed_iter hypothesis; natural
+                 # convergence needs ~24-30 V-cycles/solve (vs. fixed_iter's flat 10), too slow for 2 steps locally
+    hardware: [local, nova]
+    np:
+      cpu: 8
+      gpu: 1
+    overrides:
+      - amr.max_grid_size=64
+      - amrex.the_arena_is_managed=1
+      - elastic.solver.nriters=2
+
+  - id: centre_bore_3d_256_a2_tuned
+    input: input_3d_centre_bore_256_a2_tuned
+    dim: 3
+    max_step: 2
+    hardware: [nova]  # too large for the local A1000's 8 GB; NOVA A100/H200 only
+    np:
+      cpu: 64
+      gpu: 1
+    overrides: []

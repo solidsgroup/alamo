@@ -1,0 +1,105 @@
+name: Chamber GPU Correctness
+
+# Two correctness gates for the never-merged chamber-gpu branch, re-armed on
+# every push:
+#   1. Phase 5.1 hardening: a golden bit/tolerance compare against
+#      benchmark/baseline_references/ and a NaN-flag (Util::DeviceErrorFlag)
+#      assertion smoke test. See benchmark/ci_golden_compare.sh.
+#   2. Phase 1 (roadmap v3) physics-budget gate: compare_validation.py --gate
+#      against benchmark/validate/references/cpu_strict. This is the v3
+#      governing-rule instrument -- see benchmark/validate/README.md and
+#      benchmark/READ_FIRST_NEXT_STEP.md §8a.
+
+on:
+  push:
+    branches: ["chamber-gpu"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  golden-cpu:
+    name: golden-cpu
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: installing preliminaries
+        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      - name: golden compare + NaN-flag smoke (CPU)
+        env:
+          GOLDEN_MODE: cpu
+        run: bash benchmark/ci_golden_compare.sh
+      - name: upload CPU correctness logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chamber-gpu-correctness-cpu
+          path: |
+            benchmark/baseline_runs
+            benchmark/ci_nan_smoke_cpu
+
+  golden-gpu:
+    name: golden-gpu
+    # Gated: only attempt the device-resident leg on a runner that actually
+    # advertises a CUDA-capable GPU label. Most repos/forks do not have one, so
+    # this job is expected to be skipped there; it documents the GPU leg
+    # without requiring a runner to exist. Point this at a real self-hosted
+    # CUDA runner label (e.g. the existing `scooter` label, if/when it gains a
+    # GPU) to bring it live.
+    needs: golden-cpu
+    if: contains(join(github.event.repository.topics, ','), 'has-cuda-runner')
+    runs-on: [self-hosted, cuda]
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: golden compare + NaN-flag smoke (GPU, no-fast-math)
+        env:
+          GOLDEN_MODE: gpu
+        run: bash benchmark/ci_golden_compare.sh
+      - name: upload GPU correctness logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chamber-gpu-correctness-gpu
+          path: |
+            benchmark/baseline_runs
+            benchmark/ci_nan_smoke_gpu
+
+  phase1-budget-gate:
+    name: phase1-budget-gate
+    # Same gating as golden-gpu: skipped unless a self-hosted CUDA runner is
+    # actually wired up (most repos/forks won't have one -- this documents the
+    # leg without requiring a runner to exist). non-blocking
+    # (continue-on-error) while the suite is still new -- see roadmap task 1.F
+    # ("gated, non-blocking job"); promote to blocking once the reference
+    # bundles and thresholds have proven themselves over real changes.
+    needs: golden-cpu
+    if: contains(join(github.event.repository.topics, ','), 'has-cuda-runner')
+    runs-on: [self-hosted, cuda]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: check python deps (pyyaml, numpy, yt)
+        run: |
+          python3 -c "import yaml, numpy, yt" || {
+            echo "ERROR: self-hosted CUDA runner needs python3 with pyyaml, numpy, and yt installed" >&2
+            echo "  (yt reads the AMReX plotfiles for field_norms.json -- see extract_metrics.py)" >&2
+            exit 1
+          }
+      - name: run Phase 1 validation suite (strict build) and gate against the golden reference
+        run: |
+          if [ ! -d benchmark/validate/references/cpu_strict ]; then
+            echo "skipped: no benchmark/validate/references/cpu_strict committed yet (run benchmark/validate/record_references.sh)"
+            exit 0
+          fi
+          bash benchmark/validate/run_validation_local.sh --profiles gpu_strict
+          CANDIDATE="$(ls -dt benchmark/validate/runs/*_strict | head -1)"
+          python3 benchmark/validate/compare_validation.py \
+            benchmark/validate/references/cpu_strict "$CANDIDATE" --gate
+      - name: upload Phase 1 validation bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chamber-gpu-phase1-budget
+          path: benchmark/validate/runs
