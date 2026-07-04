@@ -3,6 +3,8 @@ Backtrace*
 *.mpg
 *.o
 results
+!docs/agent_plans/*/results/
+!docs/agent_plans/*/results/**
 bin
 *.mod
 *.\#*
@@ -75,3 +77,7 @@ backtraces_*/
 
 # local A100-spoof gate run artifacts
 benchmark/_a100_gate_*/
+
+# local dev toolchain / caches, machine-specific, never portable
+.local/
+__pycache__/
