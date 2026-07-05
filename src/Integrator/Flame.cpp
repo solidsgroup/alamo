@@ -122,7 +122,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag_mf", true);
     value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt_mf", true);
-
+    value.RegisterNewFab(value.hydro_density_mf, value.bc_eta, 1, 2, "fluid.density", true);
+    
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
@@ -463,7 +464,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 
         Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
-
+	Set::Patch<Set::Scalar> fluid_density = hydro_density_mf.Patch(lev,mfi);
+	
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -475,41 +477,40 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
             Set::Vector grad_eta_hydro = -1.0*grad_eta;
 
-            if (a_time > hydro.tstart*2.0)
+            if (a_time > hydro.tstart)
             {
 	      Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
 	      grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
 	      Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
 	      deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
-          if (eta(i, j, k) < small)
-          {
-	    deta_dt(i,j,k) = 0.0;
-	  }
+	      if (eta(i, j, k) < small)
+		{
+		  deta_dt(i,j,k) = 0.0;
+		}
 	      Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
 	      Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 	      // Need to make sure units are correct
 	      solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
-          if ((NSPECIES == 1) && (eta_hydro > 0.1))
-          {
-
-              m0(i, j, k) = 0.0;
-              u0(i, j, k, 1) = 0.0;
-              u0(i, j, k, 0) = 0.0;
+	      if ((NSPECIES == 1) && (eta_hydro > 0.1))
+		{
+		  m0(i, j, k) = 0.0;
+		  u0(i, j, k, 1) = 0.0;
+		  u0(i, j, k, 0) = 0.0;
 	      
-	      // m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
-		Set::Scalar rho_fluid;
-		// rho_fluid = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+		  // m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+		  Set::Scalar rho_fluid;
+		  fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+		
+		  // u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(0); //
+		  // u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(1); //
 
-		// u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(0); //
-		// u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(1); //
-
-		// rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
-		// rhofluid = rho - eta*rhosolid/(1-eta+small)
-		// Pressure breaks when both m0 and u0 are enabled
-		// Desnity in hydro is mixed density, can mult by hydrodensity
-		solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-		solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
-		// solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
+		  // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
+		  // rhofluid = rho - eta*rhosolid/(1-eta+small)
+		  // Pressure breaks when both m0 and u0 are enabled
+		  // Desnity in hydro is mixed density, can mult by hydrodensity
+		  solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+		  solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+		  // solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
 	      }
 	    }
 
