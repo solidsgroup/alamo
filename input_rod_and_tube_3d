@@ -1,0 +1,175 @@
+# =====================================================================
+# 3D rod-and-tube elastic stability case = input_rod_and_tube_2d
+# extruded along z (periodic z, z-invariant cross-section).
+# =====================================================================
+# Identical physics/geometry to the 2D deck: the eta initial condition
+# depends only on (x,y), so every z-slice is the same full centered
+# rod / soft-void-seam / tube cross-section (NO quarter-plane symmetry).
+# Periodic z makes this a true extrusion of the 2D problem (no z-end
+# caps), so the 3D solve reproduces the 2D behavior per z-slice.
+#
+# See input_rod_and_tube_2d for the full physics rationale and the
+# Mode-C (resync) / Mode-D (thin-seam) stability recipe.
+# =====================================================================
+
+alamo.program = flame
+plot_file = output_rod_and_tube_3d
+
+amr.plot_int = 25
+amr.max_level = 2
+amr.nsubsteps = 2
+amr.blocking_factor = 8
+amr.base_regrid_int = 10
+amr.grid_eff = 0.7
+amr.node.all = 1
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
+amr.phi_refinement_criterion = 0.2
+amr.n_cell = 64 64 16
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+
+# z extent gives cubic cells (dz = dx = dy = 0.1754/64); periodic in z
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 0.1754_m 0.1754_m 0.0439_m
+geometry.is_periodic = 0 0 1
+
+system.length = m
+system.time = s
+
+timestep = 1.0e-4_s
+stop_time = 0.005_s
+
+# ---------------------------------------------------------------------
+# Phase field: eta = burn state (1 unburned solid, 0 gas/void)
+# z-invariant expression -> pure extrusion of the 2D cross-section
+# ---------------------------------------------------------------------
+pf.eps = 5.0e-5_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.relax_steps = 0
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.xc = 0.0877
+pf.eta.ic.expression.constant.yc = 0.0877
+pf.eta.ic.expression.constant.r1 = 0.033
+pf.eta.ic.expression.constant.r2 = 0.046
+pf.eta.ic.expression.constant.w  = 0.0015
+pf.eta.ic.expression.region0 = "1.0 - 0.25*(1.0 + tanh((sqrt((x-xc)^2+(y-yc)^2) - r1)/w))*(1.0 + tanh((r2 - sqrt((x-xc)^2+(y-yc)^2))/w))"
+
+phi.ic.type = constant
+phi.ic.constant.value = 1.0
+
+# eta boundary: in-plane faces only (z is periodic)
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+
+# ---------------------------------------------------------------------
+# Propellant (homogenized)
+# ---------------------------------------------------------------------
+propellant.type = homogenize
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3500.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# ---------------------------------------------------------------------
+# Thermal (in-plane faces only; z periodic)
+# ---------------------------------------------------------------------
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
+thermal.hc = 1.0
+
+# ---------------------------------------------------------------------
+# Chamber pressure
+# ---------------------------------------------------------------------
+variable_pressure = 1
+chamber.pressure = 1.0_MPa
+chamber.ballistic.At = 8.5e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# ---------------------------------------------------------------------
+# Thermoelasticity (same Mode-C/Mode-D recipe as the 2D deck)
+# ---------------------------------------------------------------------
+elastic.on = 1
+elastic.type = static
+elastic.interval = 25
+elastic.tstart = 0.5e-4
+elastic.phirefinement = 100
+elastic.print_model = 0
+elastic.traction = 1.0_MPa
+
+elastic.psi_floor = 0.01
+elastic.use_psi = 1
+elastic.zero_out_displacement = 1
+elastic.max_coarsening_level = 2
+
+elastic.tol_rel = 1e-5
+elastic.tol_abs = 1e-8
+elastic.solver.max_iter = 200
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 5
+elastic.solver.nrtolerance = 1e-6
+elastic.solver.bottom_solver = smoother
+elastic.solver.line_search = 1
+elastic.solver.resync_coeffs = 1
+elastic.solver.nr_convergence = psi_update
+elastic.solver.verbose = 4
+
+model_prop.kappa = 150_MPa
+model_prop.mu = 140_MPa
+model_void.kappa = 8_MPa
+model_void.mu = 6_MPa
+model_casing.kappa = 150_MPa
+model_casing.mu = 140_MPa
+
+# Displacement BCs on the in-plane faces (clamped tube); z is periodic.
+# Edge/corner combos default to disp (as in input_3d_centre_bore).
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp disp disp
+elastic.bc.constant.type.xhi = disp disp disp
+elastic.bc.constant.type.ylo = disp disp disp
+elastic.bc.constant.type.yhi = disp disp disp

@@ -53,6 +53,19 @@ CASES: tuple[Case, ...] = (
             "pf.eta.ic.expression.region0=0.5 + 0.5*tanh((x-0.0877_m)/0.005_m)",
         ),
     ),
+    # Worst-case high-contrast elastic regression: full 2D rod-and-tube (a
+    # near-floating stiff rod coupled to a stiff tube only through a thin soft
+    # void seam) exercises the persistent-MLMG resync path (SyncCoefficients on
+    # Newton relinearization). interval=1 fires the elastic solve at step 2;
+    # thermo.dat's disp_*/trac_* columns capture the solve. A resync/MLMG-recipe
+    # regression trips this via divergence->abort or changed boundary tractions.
+    Case(
+        case_id="rod_and_tube_step2",
+        input_file="input_rod_and_tube_2d",
+        max_step=2,
+        rel_tol=1.0e-5,
+        overrides=("elastic.interval=1",),
+    ),
 )
 
 
