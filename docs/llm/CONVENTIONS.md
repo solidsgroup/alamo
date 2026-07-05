@@ -10,6 +10,10 @@ it should rarely need to change.
   computed, not narrated. No prose status file exists.
 - End: touch `results/DONE` in any task folder finished this session, and
   append a `changelog/` entry for the work done.
+- Fresh clones: run `git config core.hooksPath .githooks` once. This repo's
+  gates (`pre-commit` = device-lint, `pre-push` = lint + golden-compare +
+  sanitizer smoke) live in the tracked `.githooks/` dir, not `.git/hooks/`,
+  and do nothing until this is set.
 
 ## Read discipline
 

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# .githooks/pre-push -- lint + fast golden compare + sanitizer smoke gate.
+# Same invocations as benchmark/status.sh (GOLDEN_MODE=cpu, TIERS=1 defaults).
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if [ -n "${ALAMO_SKIP_GATES:-}" ]; then
+  echo "!! ALAMO_SKIP_GATES set -- pre-push gates (lint/golden-compare/sanitizer) SKIPPED !!" >&2
+  echo "!! pushing WITHOUT verifying device-lint, golden-compare, or sanitizer smoke !!" >&2
+  exit 0
+fi
+
+export GOLDEN_MODE="${GOLDEN_MODE:-cpu}"
+export TIERS="${TIERS:-1}"
+
+fail=0
+
+run_gate () {
+  local name="$1"; shift
+  if [ ! -x "$1" ]; then
+    echo "pre-push: $name MISSING ($1)" >&2
+    fail=1
+    return
+  fi
+  if "$@" >/dev/null 2>&1; then
+    echo "pre-push: $name PASS"
+  else
+    echo "pre-push: $name FAIL" >&2
+    fail=1
+  fi
+}
+
+run_gate "device-lint    " benchmark/lint_device_patterns.sh
+run_gate "golden-compare " benchmark/ci_golden_compare.sh
+run_gate "a100-sanitizer " benchmark/local_a100_gate.sh
+
+if [ "$fail" -ne 0 ]; then
+  echo "pre-push: one or more gates FAILED -- push rejected" >&2
+  echo "pre-push: to bypass in an emergency, rerun with ALAMO_SKIP_GATES=1 git push" >&2
+  exit 1
+fi
+exit 0

@@ -6,6 +6,7 @@ Read this file, then `CONVENTIONS.md`, at session start.
 
 Run `benchmark/status.sh` — sole source of branch truth (build gates, golden
 compare, sanitizer smoke, open task folders). No prose status file exists.
+Fresh clones: run `git config core.hooksPath .githooks` once (gates in `.githooks/`).
 
 ## Plan
 
@@ -26,5 +27,4 @@ record only, **must not be read during normal sessions**.
 
 ## Out of scope
 
-Propellant parameter-sweep campaign (sims 030-085, `~/Desktop/*campaign*`
-files) — unrelated to `chamber-gpu`/GPU-port work, ignore it here.
+Propellant parameter-sweep campaign (sims 030-085, `~/Desktop/*campaign*` files) — unrelated to `chamber-gpu`/GPU-port work, ignore it here.

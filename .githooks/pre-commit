@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit -- fast gate only. Must stay fast: lint is the sole check.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if [ ! -x benchmark/lint_device_patterns.sh ]; then
+  echo "pre-commit: benchmark/lint_device_patterns.sh missing or not executable" >&2
+  exit 1
+fi
+
+benchmark/lint_device_patterns.sh
+exit $?
