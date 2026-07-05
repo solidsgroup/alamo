@@ -36,7 +36,7 @@ geometry.is_periodic = 0 0 0
 
 ## Timestep
 timestep = 1.0e-10_s # 0.00005 # [s]
-stop_time = 0.2501_s
+stop_time = 12.0e-10_s
 
 small = 1.0e-8
 pf.eps = 1.0_um #0.0005 # [m]

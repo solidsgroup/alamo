@@ -509,13 +509,30 @@ void Hydro::Mix(int lev)
             #if AMREX_SPACEDIM == 3
             M(i, j, k, 2) = density*v(i, j, k, 2)*eta +  M_solid(i, j, k, 2)*(1.0-eta);
             M_old(i, j, k, 2) = M(i, j, k, 2);
-            #endif
+#endif
             
 
             for (int n=0; n<NSPECIES; ++n)
             {
-                rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
-                rho_old(i, j, k, n) = rho(i, j, k, n);
+	      if (eta>0.1 && eta<0.9) {
+              amrex::Print() << "Before: (" << i << "," << j << "," << k << "," << n
+                             << ") rho=" << rho(i, j, k, n)
+                             << " eta=" << eta
+                             << " rho_solid=" << rho_solid(i, j, k, n)
+                             << "\n";
+	      }
+	      // Set::Scalar fluid_density;
+		// fluid_density = (rho(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+		// fluid_density = (rho(i,j,k) - (1-eta)*rho_solid(i,j,k))/((std::min((eta(i,j,k)+small),1.0)));
+	      rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
+              rho_old(i, j, k, n) = rho(i, j, k, n);
+
+
+		 if (eta>0.1 && eta<0.9) {
+             amrex::Print() << "After : (" << i << "," << j << "," << k << "," << n
+                            << ") rho=" << rho(i, j, k, n)
+                            << "\n";
+		 }
             }
 
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);

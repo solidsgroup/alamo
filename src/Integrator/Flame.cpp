@@ -511,7 +511,11 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 		  solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
 		  solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
 		  // solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
-	      }
+        }
+	      if ((NSPECIES == 1) && (eta_hydro <= 0.1))
+        {
+	  fluid_density(i,j,k) = 0.0;
+        }
 	    }
 
 	    
