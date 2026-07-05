@@ -1,10 +1,11 @@
 # Physics Validation Suite — `benchmark/validate/`
 
-**Status: SCAFFOLD (2026-06-30).** This directory is the home of **GPU Roadmap v3
-Phase 1** — the physics-error budget and the one-command validation suite. The
-plan and task breakdown (1.A–1.F) are in `benchmark/GPU_ROADMAP_V3.md` §4. This
-README is the schema spec (roadmap task **1.C**); the rest is built per the tasks
-below.
+**Status: SCAFFOLD (2026-06-30).** This directory is the home of the physics-error
+budget and the one-command validation suite (originally GPU Roadmap v3 Phase 1).
+The original plan and task breakdown (1.A–1.F) are in the historical
+`docs/archive/GPU_ROADMAP_V3.md` §4; current status is `docs/llm/PLAN.md`. This
+README is the schema spec (originally roadmap task **1.C**); the rest is built
+per the tasks below.
 
 ## Why this exists (the v3 governing rule)
 

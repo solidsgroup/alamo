@@ -1,7 +1,8 @@
 # Physics-Quantity Registry & Error Budget — Roadmap Task 1.A
 
-This is the contract that defines "correct enough" for GPU Roadmap v3
-(`benchmark/GPU_ROADMAP_V3.md`). Every observable the validation suite tracks is
+This is the contract that defines "correct enough" for chamber-gpu (originally
+GPU Roadmap v3, `docs/archive/GPU_ROADMAP_V3.md`, historical; current status
+`docs/llm/PLAN.md`). Every observable the validation suite tracks is
 listed here with its extraction source and the tolerance class it must satisfy.
 The machine-readable mirror is `physics_budget.yaml`; `compare_validation.py`
 (task 1.D) reads the YAML, this file is the human-reviewable rationale.

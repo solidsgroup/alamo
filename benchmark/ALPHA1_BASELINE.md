@@ -11,8 +11,9 @@
 
 This is the frozen reference point for the GPU Roadmap v2 Phase A instrumentation
 campaign (`benchmark/archive/GPU_ROADMAP_V2.md`, task A0) — and it remains the
-live baseline-of-record that the current plan, `benchmark/GPU_ROADMAP_V3.md`,
-re-baselines against (v3 task 1.E, "golden references"). It is the commit at which:
+live baseline-of-record that the physics validation suite (`benchmark/validate/`,
+originally v3 task 1.E "golden references", see `docs/llm/PLAN.md` for current
+status) re-baselines against. It is the commit at which:
 
 - The multi-box elastic MLMG divergence was fully resolved (one-line `elixir()` fix
   in `Operator<Grid::Node>::interpolation()`, `src/Operator/Operator.cpp:728`).

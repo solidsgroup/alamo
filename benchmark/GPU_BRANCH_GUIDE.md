@@ -8,15 +8,13 @@ Roadmap: `~/Desktop/GPU-OPT-ROADMAP.txt` (Phases 0-5, **complete** — all 5 DoD
 items DONE). This guide corresponds to roadmap step **5.3 (Documentation)**; the
 companion checklist is `benchmark/archive/PHASE5_BRANCH_DONE.md` (step 5.4).
 
-**Forward plan (beta → release candidate):** `benchmark/GPU_ROADMAP_V3.md` — the
-validation-then-optimize roadmap (Phases 1–5). v3's governing rule: **no
-optimization ships without a physics-error-budget pass.** Phase 1 builds a
-one-command physics validation suite (`benchmark/validate/`); Phase 2 makes the
-numbers honest (fair CPU baseline, clean input-lever A/B, Fapply Speed-of-Light
-counters); Phase 3 is the elastic `Fapply` kernel win; Phase 4 is correctness
-hardening; Phase 5 is the scaling envelope. The completed measurement-driven v2
-roadmap (Phases A–D — it re-baselined combined flame+elastic on A100 and unblocked
-the NOVA counters) is archived at `benchmark/archive/GPU_ROADMAP_V2.md`.
+**Forward plan:** `docs/llm/PLAN.md` — the single live plan (current phase,
+gate, next 3 tasks). Governing rule, unchanged: **no optimization ships
+without a physics-error-budget pass.** The one-command physics validation
+suite lives in `benchmark/validate/`. The superseded v2 and v3 roadmaps
+(Phases A–D and 1–5 respectively) are archived at
+`benchmark/archive/GPU_ROADMAP_V2.md` and `docs/archive/GPU_ROADMAP_V3.md` —
+historical only.
 
 ## Branch policy: never merged
 

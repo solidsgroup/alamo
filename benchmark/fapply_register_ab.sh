@@ -10,7 +10,8 @@
 #       obj/obj-3d-cuda86-g++/Operator/Elastic.cpp.o \
 #       /home/jackplum/Projects/alamo-elastic-opt/obj/obj-3d-cuda86-g++/Operator/Elastic.cpp.o
 #
-# Why this exists (see benchmark/GPU_STRUCTURAL_PLAN_20260703.md §2.1):
+# Why this exists (see docs/archive/GPU_STRUCTURAL_PLAN_20260703.md §2.1,
+# historical; current status: docs/llm/PLAN.md):
 # the 3D Sym::Major Fapply kernel's register pressure is visible *statically*
 # and *locally* (sm_86 cuobjdump matches the A100 ncu 255-reg finding), so
 # register-pressure edits can be A/B'd in minutes on the A1000 workstation —

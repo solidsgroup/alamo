@@ -4,13 +4,15 @@ This directory holds the tooling to build the `Integrator::Flame` (chamber)
 solver for NVIDIA GPUs, run it with overlapped async IO, and benchmark CPU vs
 GPU wall-clock with performance flame graphs.
 
-> **Docs map.** The live plan is `benchmark/GPU_ROADMAP_V3.md`; the cold-start
-> agent entry point is `benchmark/READ_FIRST_NEXT_STEP.md`; NOVA/Slurm run,
-> resource, and capture instructions are in `benchmark/NOVA_SLURM_RUNBOOK.md`;
-> settled wins (do not re-litigate) are in `benchmark/SUCCESS_BOOK.md`.
-> Historical phase records and the superseded v2 plan are under
-> `benchmark/archive/` (index: `benchmark/archive/README.md`). The physics
-> validation suite (v3 Phase 1) lives in `benchmark/validate/`.
+> **Docs map.** The live plan is `docs/llm/PLAN.md`; the cold-start entry
+> point is `docs/llm/INDEX.md`; NOVA/Slurm run, resource, and capture
+> instructions are in `benchmark/NOVA_SLURM_RUNBOOK.md`; device bug classes
+> already fixed once are in `docs/llm/BUG_PATTERNS.md`.
+> Historical phase records and superseded plans (including the v2/v3 roadmaps
+> and the old SUCCESS_BOOK/READ_FIRST_NEXT_STEP entry points) are under
+> `docs/archive/` and `benchmark/archive/` (index: `benchmark/archive/README.md`)
+> — historical only, do not treat as current. The physics validation suite
+> (Phase 1 of the historical v3 plan) lives in `benchmark/validate/`.
 > The MLMG high-contrast (zero-void-stiffness) divergence root cause and its
 > ranked remediation plan are in `benchmark/MLMG_HIGH_CONTRAST_FINDINGS.md`
 > (evidence: `benchmark/mlmg_high_contrast_20260702/`).

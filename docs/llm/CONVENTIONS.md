@@ -8,16 +8,16 @@ it should rarely need to change.
 Orientation order when starting any task:
 
 1. `INDEX.md` — pointers only.
-2. `CURRENT.md` — what's in flight, with an explicit "Next / Test / Write
-   results to" pointer.
-3. The one named task file (e.g. `docs/agent_plans/<phase>/tasks/NNN-*.md`).
+2. `PLAN.md` — what's in flight, current phase/gate, next 3 tasks.
+3. The one named task file (e.g. `docs/agent_plans/<phase>/tasks/NNN-*.md`),
+   if one exists for the current task.
 
-Stop there. Do not re-read `ROADMAP.md`, `benchmark/GPU_BRANCH_GUIDE.md`, or
-any `changelog/` entry unless `CURRENT.md` is empty (nothing in flight — go
-read `ROADMAP.md` to pick the next unstarted phase) or the task file is
-missing something it needs. If you find yourself opening a third doc just to
-figure out *what* to do or *how* to test it, the task file or `CURRENT.md`
-was underspecified — fix the source file, don't just push through.
+Stop there. Do not re-read `docs/archive/`, `benchmark/GPU_BRANCH_GUIDE.md`, or
+any `changelog/` entry unless `PLAN.md`'s next-3-tasks list is exhausted (go
+add the next phase's tasks) or the task file is missing something it needs.
+If you find yourself opening a third doc just to figure out *what* to do or
+*how* to test it, the task file or `PLAN.md` was underspecified — fix the
+source file, don't just push through.
 
 ## Self-containment requirement
 
@@ -39,7 +39,7 @@ sibling task to be actionable.
 
 - `results/*.md` — append-only. One new file per task. Never edit a past
   result.
-- `CURRENT.md` — overwrite only. Always ends with a concrete "Next:" pointer,
+- `PLAN.md` — overwrite only. Always ends with a concrete next-tasks list,
   or "phase complete."
 - `benchmark/perf_regression.csv` (or equivalent) — append one row per
   measured change. Mechanical, no prose.
@@ -54,10 +54,10 @@ sibling task to be actionable.
 - Every perf number in a `RESULT.md`, `changelog/`, or `perf/` entry must
   cite the exact command and source file that produced it — no unsourced
   numbers. (`benchmark/PERF_TRACKING.md` already does this well; match it.)
-- A number that changes a roadmap decision (the D1/D2/D3/D4 pattern already
-  in use — see `ROADMAP.md`) gets a one-line decision record in `VERSIONS.md`
-  or the relevant `changelog/` entry, not just a buried mention in a results
-  file.
+- A number that changes a plan decision (the D1/D2/D3/D4 pattern already
+  in use — see `docs/archive/ROADMAP.md` for the historical record) gets a
+  one-line decision record in `VERSIONS.md` or the relevant `changelog/`
+  entry, not just a buried mention in a results file.
 - Version bumps (`VERSIONS.md`) require a real git tag on the commit being
   cited — a "version" is a checkout-able point, not just a narrative label.
 
