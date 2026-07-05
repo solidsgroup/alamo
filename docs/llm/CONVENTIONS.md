@@ -3,6 +3,14 @@
 Read this once at session start, alongside `INDEX.md`. It's short and stable;
 it should rarely need to change.
 
+## Session start/end
+
+- Start: run `benchmark/status.sh`. It is the sole source of branch state
+  (build gates, golden compare, sanitizer smoke, open task folders) —
+  computed, not narrated. No prose status file exists.
+- End: touch `results/DONE` in any task folder finished this session, and
+  append a `changelog/` entry for the work done.
+
 ## Read discipline
 
 Orientation order when starting any task:
@@ -39,6 +47,9 @@ sibling task to be actionable.
 
 - `results/*.md` — append-only. One new file per task. Never edit a past
   result.
+- `results/DONE` — touch (empty file) in a task folder once every task in it
+  has a result and the phase is closed. `benchmark/status.sh` lists any
+  `docs/agent_plans/*/` folder without one under "open task folders".
 - `PLAN.md` — overwrite only. Always ends with a concrete next-tasks list,
   or "phase complete."
 - `benchmark/perf_regression.csv` (or equivalent) — append one row per
