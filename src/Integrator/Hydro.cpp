@@ -739,6 +739,200 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
     SetTimestep(new_timestep);
 }
 
+// void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+// {
+
+//     if (!managed) std::swap((*eta_old_mf)[lev], (*eta_mf)[lev]);
+//     std::swap(density_old_mf[lev],  density_mf[lev]);
+//     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
+//     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+
+//     // ---- DEBUG: check density immediately after swap (this is now "old") ----
+//     for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
+//     {
+//         const amrex::Box& bx = mfi.validbox();
+//         if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+//         {
+//             amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_old_mf[lev]).array(mfi);
+//             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+//             {
+//                 if (i == 25 && j == 47)
+//                 {
+//                     for (int n = 0; n < NSPECIES; ++n)
+//                         printf("[DEBUG][lev %d][after swap] time=%f rho_old(25,47,%d,species %d) = %e\n",
+//                                lev, time, k, n, rho_dbg(i,j,k,n));
+//                 }
+//             });
+//         }
+//     }
+    
+//     //
+//     // UPDATE ETA AND CALCULATE ETADOT
+//     //
+
+//     if (!managed) UpdateEta(lev, time);
+//     if (managed) 
+//     {
+//         UpdateFluxes(lev,time,dt);
+//         Mix(lev);
+//     }
+
+//     if (!managed)
+//     {
+//         eta_bc->define(geom[lev]);
+//         eta_bc->FillBoundary(*(*eta_mf)[lev], 0, 1, time, 0);
+//         eta_bc->FillBoundary(*(*eta_old_mf)[lev], 0, 1, time, 0);
+//     }
+//     neumann_bc_N->define(geom[lev]);
+//     neumann_bc_D->define(geom[lev]);
+//     neumann_bc_1->define(geom[lev]);
+//     neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, time, 0);
+//     neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, time, 0);
+//     neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
+//     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+//     {
+//         const amrex::Box& bx = mfi.growntilebox();
+//         amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
+//         amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+//         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
+//         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+//         {   
+
+//             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+//             if (invert) etadot(i,j,k) *= -1.0;
+
+//         });
+//     }
+
+
+//     //
+//     // DO TIME INTEGRATION (driving the RHS function)
+//     //
+
+//     // Organize references to the "new" solution
+//     amrex::Vector<amrex::MultiFab> solution_new; 
+//     solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
+//     solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+//     solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+//     // Organize references to the "old" solution
+//     amrex::Vector<amrex::MultiFab> solution_old;
+//     solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
+//     solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+//     solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+//     // Create the time integrator
+//     amrex::TimeIntegrator timeintegrator(solution_new, time);
+
+//     // Set the time integrator RHS - in this case, just relay to our current RHS function
+//     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
+//     {
+//         RHS(lev, time, dt,
+//             rhs_mf[0], rhs_mf[1], rhs_mf[2],
+//             solution_mf[0],solution_mf[1],solution_mf[2]);
+//     });
+
+//     auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
+//                                          amrex::MultiFab& E, Set::Scalar fill_time,
+//                                          bool use_old_eta)
+//     {
+//         ApplyCutoffToConserved(lev, rho, M, E, false, use_old_eta);
+//         density_bc->define(geom[lev]);
+//         momentum_bc->define(geom[lev]);
+//         energy_bc->define(geom[lev]);
+//         density_bc->FillBoundary(rho, 0, NSPECIES, fill_time, 0);
+//         momentum_bc->FillBoundary(M, 0, 2, fill_time, 0);
+//         energy_bc->FillBoundary(E, 0, 1, fill_time, 0);
+//         ApplyCutoffToConserved(lev, rho, M, E, true, use_old_eta);
+//     };
+
+//     // Integrator::TimeStep fills AMR coarse/fine ghost cells for evolving
+//     // fields before this call. The transient RK stage aliases still need their
+//     // same-level and physical ghost cells refreshed after every stage update.
+//     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
+//     {
+//         fill_conserved_boundaries(stage_mf[0], stage_mf[1], stage_mf[2], time, true);
+//     });
+    
+//     // Do the update
+//     timeintegrator.advance(solution_old, solution_new, time, dt);
+
+//     fill_conserved_boundaries(*density_mf[lev], *momentum_mf[lev],
+//                               *energy_mf[lev], time + dt, false);
+
+//     //
+//     // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
+//     //
+
+//     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+//     const amrex::Box domain = geom[lev].Domain();
+//     for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
+//     {
+//         const amrex::Box& bx = mfi.validbox();
+//         const Set::Scalar* DX = geom[lev].CellSize();
+        
+//         Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
+//         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
+//         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+//         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+
+//         Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
+//         Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
+//         Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+
+//         Set::Patch<Set::Scalar> omega         = vorticity_mf.Patch(lev,mfi);
+        
+//         Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
+//         Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
+
+//         Set::Scalar *dt_max_handle = &dt_max;
+
+//         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+//         {   
+//             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+
+//             if (eta < cutoff)
+//             {
+//                 for (int n=0; n<NSPECIES; ++n)
+//                 {
+//                     rho_new(i,j,k,n) = rho_solid(i,j,k,n);
+//                 }
+//                 M_new(i,j,k,0)   = M_solid(i,j,k,0);
+//                 M_new(i,j,k,1)   = M_solid(i,j,k,1);
+//                 #if AMREX_SPACEDIM == 3
+//                 M_new(i,j,k,2)   = M_solid(i,j,k,2);
+//                 #endif
+//                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
+//             }
+
+//             auto sten = Numeric::GetStencil(i, j, k, domain);
+//             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX, sten);
+//             #if AMREX_SPACEDIM == 2
+//             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
+//             #elif AMREX_SPACEDIM == 3
+//             omega(i, j, k, 0) = eta * (gradu(2,1) - gradu(1,2));
+//             omega(i, j, k, 1) = eta * (gradu(0,2) - gradu(2,0));
+//             omega(i, j, k, 2) = eta * (gradu(1,0) - gradu(0,1));
+//             #endif
+
+//             if (dynamictimestep.on)
+//             {
+//                 *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta + small));
+//                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta + small)));
+//                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,NSPECIES)+small)));
+//                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,NSPECIES+1)+small)));
+//             }
+//         });
+//     }
+
+
+//     if (dynamictimestep.on)
+//     {
+//         this->DynamicTimestep_SyncTimeStep(lev,dt_max);
+//     }
+
+// }//end Advance
+
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
@@ -747,7 +941,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
 
-        // ---- DEBUG: check density immediately after swap (this is now "old") ----
+    // ---- DEBUG: check density immediately after swap (this is now "old") ----
     for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -765,7 +959,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             });
         }
     }
-    
+
     //
     // UPDATE ETA AND CALCULATE ETADOT
     //
@@ -825,11 +1019,31 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     amrex::TimeIntegrator timeintegrator(solution_new, time);
 
     // Set the time integrator RHS - in this case, just relay to our current RHS function
-    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
+    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar rhs_time)
     {
-        RHS(lev, time, dt,
+        RHS(lev, rhs_time, dt,
             rhs_mf[0], rhs_mf[1], rhs_mf[2],
             solution_mf[0],solution_mf[1],solution_mf[2]);
+
+        // ---- DEBUG: inspect density RHS and incoming solution at this stage ----
+        for (amrex::MFIter mfi(rhs_mf[0], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+            {
+                amrex::Array4<const Set::Scalar> const& rho_rhs_dbg = rhs_mf[0].array(mfi);
+                amrex::Array4<const Set::Scalar> const& rho_sol_dbg = solution_mf[0].array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (i == 25 && j == 47)
+                    {
+                        for (int n = 0; n < NSPECIES; ++n)
+                            printf("[DEBUG][lev %d][RHS] time=%f rho_in(25,47,%d,%d)=%e  rho_rhs(25,47,%d,%d)=%e\n",
+                                   lev, rhs_time, k, n, rho_sol_dbg(i,j,k,n), k, n, rho_rhs_dbg(i,j,k,n));
+                    }
+                });
+            }
+        }
     });
 
     auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
@@ -844,14 +1058,33 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         momentum_bc->FillBoundary(M, 0, 2, fill_time, 0);
         energy_bc->FillBoundary(E, 0, 1, fill_time, 0);
         ApplyCutoffToConserved(lev, rho, M, E, true, use_old_eta);
+
+        // ---- DEBUG: density right after this boundary-fill/cutoff pass ----
+        for (amrex::MFIter mfi(rho, false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+            {
+                amrex::Array4<const Set::Scalar> const& rho_dbg = rho.array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (i == 25 && j == 47)
+                    {
+                        for (int n = 0; n < NSPECIES; ++n)
+                            printf("[DEBUG][lev %d][fill_conserved_boundaries use_old_eta=%d] time=%f rho(25,47,%d,%d)=%e\n",
+                                   lev, use_old_eta, fill_time, k, n, rho_dbg(i,j,k,n));
+                    }
+                });
+            }
+        }
     };
 
     // Integrator::TimeStep fills AMR coarse/fine ghost cells for evolving
     // fields before this call. The transient RK stage aliases still need their
     // same-level and physical ghost cells refreshed after every stage update.
-    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
+    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar stage_time) 
     {
-        fill_conserved_boundaries(stage_mf[0], stage_mf[1], stage_mf[2], time, true);
+        fill_conserved_boundaries(stage_mf[0], stage_mf[1], stage_mf[2], stage_time, true);
     });
     
     // Do the update
@@ -891,6 +1124,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {   
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
 
+            // ---- DEBUG: density just before final cutoff decision ----
+            if (i == 25 && j == 47)
+            {
+                for (int n = 0; n < NSPECIES; ++n)
+                    printf("[DEBUG][lev %d][final loop, pre-cutoff] time=%f eta(25,47,%d)=%e rho_new(25,47,%d,%d)=%e (cutoff=%e)\n",
+                           lev, time, k, eta, k, n, rho_new(i,j,k,n), cutoff);
+            }
+
             if (eta < cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n)
@@ -903,6 +1144,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 M_new(i,j,k,2)   = M_solid(i,j,k,2);
                 #endif
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
+            }
+
+            // ---- DEBUG: density just after final cutoff decision ----
+            if (i == 25 && j == 47)
+            {
+                for (int n = 0; n < NSPECIES; ++n)
+                    printf("[DEBUG][lev %d][final loop, post-cutoff] time=%f rho_new(25,47,%d,%d)=%e rho_solid(25,47,%d,%d)=%e\n",
+                           lev, time, k, n, rho_new(i,j,k,n), k, n, rho_solid(i,j,k,n));
             }
 
             auto sten = Numeric::GetStencil(i, j, k, domain);
