@@ -535,18 +535,18 @@ void Hydro::Mix(int lev)
 
                 if (std::abs(rho_solid_old(i,j,k,n)-rho_solid(i, j, k, n)) > small) {
                     rho(i, j, k, n) += (1.0 - eta) * (rho_solid(i, j, k, n)-rho_solid_old(i,j,k,n));
-                    amrex::Print() << "Updating rho by " << (1.0 - eta) * (rho_solid(i, j, k, n) - rho_solid_old(i,j,k,n)) 
-                                    << ", rho solid = "
-                                    << rho_solid(i, j, k, n)
-                                    << ", rho solid old = "
-                                    << rho_solid_old(i,j,k,n)
-                                    << ", eta = "
-                                    << eta
-                                    << ", i = "
-                                    << i 
-                                    << ", j = "
-                                    << j
-                                    << "\n ";
+                    // amrex::Print() << "Updating rho by " << (1.0 - eta) * (rho_solid(i, j, k, n) - rho_solid_old(i,j,k,n)) 
+                    //                 << ", rho solid = "
+                    //                 << rho_solid(i, j, k, n)
+                    //                 << ", rho solid old = "
+                    //                 << rho_solid_old(i,j,k,n)
+                    //                 << ", eta = "
+                    //                 << eta
+                    //                 << ", i = "
+                    //                 << i 
+                    //                 << ", j = "
+                    //                 << j
+                    //                 << "\n ";
                 }
 
                 if (eta > cutoff)
@@ -642,6 +642,14 @@ void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::Mult
             if (eta < 0.0) eta = 0.0;
             if (eta > 1.0) eta = 1.0;
 
+            if (eta < cutoff)   // wherever this check lives inside ApplyCutoffToConserved
+            {
+                if (i==25 && j==47)
+                    printf("[DEBUG][ApplyCutoffToConserved start] use_old_eta=%d time=%f eta=%e -> forcing rho=rho_solid=%e (was %e)\n",
+                        use_old_eta, time, eta, rho_solid, rho(i,j,k,0));
+                // ... existing overwrite code
+            }
+
             auto set_solid_state = [&]() AMREX_GPU_DEVICE
             {
                 for (int n = 0; n < NSPECIES; ++n)
@@ -711,6 +719,15 @@ void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::Mult
             {
                 rho(i,j,k,n) = eta * rhoY_fluid[n] + (1.0 - eta) * rho_solid(i,j,k,n);
             }
+
+            if (eta < cutoff)   // wherever this check lives inside ApplyCutoffToConserved
+            {
+                if (i==25 && j==47)
+                    printf("[DEBUG][ApplyCutoffToConserved end] use_old_eta=%d time=%f eta=%e -> forcing rho=rho_solid=%e (was %e)\n",
+                        use_old_eta, time, eta, rho_solid, rho(i,j,k,0));
+                // ... existing overwrite code
+            }
+
         });
     }
 }
@@ -971,6 +988,42 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Mix(lev);
     }
 
+    for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (i == 25 && j == 47)
+                {
+                    for (int n = 0; n < NSPECIES; ++n)
+                        printf("[DEBUG][lev %d][after mix] time=%f rho(25,47,%d,species %d) = %e\n",
+                               lev, time, k, n, rho_dbg(i,j,k,n));
+                }
+            });
+        }
+    }
+
+    for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_old_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (i == 25 && j == 47)
+                {
+                    for (int n = 0; n < NSPECIES; ++n)
+                        printf("[DEBUG][lev %d][after mix] time=%f rho_old(25,47,%d,species %d) = %e\n",
+                               lev, time, k, n, rho_dbg(i,j,k,n));
+                }
+            });
+        }
+    }
+
     if (!managed)
     {
         eta_bc->define(geom[lev]);
@@ -998,7 +1051,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
-
     //
     // DO TIME INTEGRATION (driving the RHS function)
     //
@@ -1018,14 +1070,72 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Create the time integrator
     amrex::TimeIntegrator timeintegrator(solution_new, time);
 
-    // Set the time integrator RHS - in this case, just relay to our current RHS function
-    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar rhs_time)
-    {
-        RHS(lev, rhs_time, dt,
-            rhs_mf[0], rhs_mf[1], rhs_mf[2],
-            solution_mf[0],solution_mf[1],solution_mf[2]);
+    bool seeded_initial_state = false;
 
-        // ---- DEBUG: inspect density RHS and incoming solution at this stage ----
+    timeintegrator.set_rhs([&, seeded_initial_state](amrex::Vector<amrex::MultiFab> & rhs_mf,
+                                                        amrex::Vector<amrex::MultiFab> & solution_mf,
+                                                        const Set::Scalar rhs_time) mutable
+    {
+        // ---- DEBUG: solution_mf as received, before we touch anything ----
+        for (amrex::MFIter mfi(solution_mf[0], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+            {
+                amrex::Array4<const Set::Scalar> const& d = solution_mf[0].array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (i==25 && j==47)
+                        printf("[DEBUG][lambda entry] time=%e rho(25,47,%d,0)=%e\n", rhs_time, k, d(i,j,k,0));
+                });
+            }
+        }
+
+        if (!seeded_initial_state && rhs_time == time)
+        {
+            amrex::MultiFab::Copy(solution_mf[0], *density_old_mf[lev],  0, 0, NSPECIES,
+                                std::min(solution_mf[0].nGrow(), density_old_mf[lev]->nGrow()));
+            amrex::MultiFab::Copy(solution_mf[1], *momentum_old_mf[lev], 0, 0, 2,
+                                std::min(solution_mf[1].nGrow(), momentum_old_mf[lev]->nGrow()));
+            amrex::MultiFab::Copy(solution_mf[2], *energy_old_mf[lev],   0, 0, 1,
+                                std::min(solution_mf[2].nGrow(), energy_old_mf[lev]->nGrow()));
+            seeded_initial_state = true;
+            printf("[DEBUG] re-seeded RK stage-0 state at time=%e\n", rhs_time);
+
+            // ---- DEBUG: solution_mf immediately after the copy ----
+            for (amrex::MFIter mfi(solution_mf[0], false); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.validbox();
+                if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+                {
+                    amrex::Array4<const Set::Scalar> const& d = solution_mf[0].array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        if (i==25 && j==47)
+                            printf("[DEBUG][post-copy, pre-RHS] time=%e rho(25,47,%d,0)=%e\n", rhs_time, k, d(i,j,k,0));
+                    });
+                }
+            }
+        }
+
+        // ---- DEBUG: solution_mf immediately after the copy ----
+        for (amrex::MFIter mfi(solution_mf[0], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+            {
+                amrex::Array4<const Set::Scalar> const& d = solution_mf[0].array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (i==25 && j==47)
+                        printf("[DEBUG][post-copy, pre-RHS, after seed loop] time=%e rho(25,47,%d,0)=%e\n", rhs_time, k, d(i,j,k,0));
+                });
+            }
+        }
+
+        RHS(lev, rhs_time, dt, rhs_mf[0], rhs_mf[1], rhs_mf[2], solution_mf[0], solution_mf[1], solution_mf[2]);
+
+        // ---- DEBUG: solution_mf and rhs_mf right after RHS() returns ----
         for (amrex::MFIter mfi(rhs_mf[0], false); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
@@ -1035,16 +1145,51 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<const Set::Scalar> const& rho_sol_dbg = solution_mf[0].array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    if (i == 25 && j == 47)
-                    {
-                        for (int n = 0; n < NSPECIES; ++n)
-                            printf("[DEBUG][lev %d][RHS] time=%f rho_in(25,47,%d,%d)=%e  rho_rhs(25,47,%d,%d)=%e\n",
-                                   lev, rhs_time, k, n, rho_sol_dbg(i,j,k,n), k, n, rho_rhs_dbg(i,j,k,n));
-                    }
+                    if (i==25 && j==47)
+                        printf("[DEBUG][post-RHS] time=%e rho_in(25,47,%d,0)=%e  rho_rhs(25,47,%d,0)=%e\n",
+                            rhs_time, k, rho_sol_dbg(i,j,k,0), k, rho_rhs_dbg(i,j,k,0));
                 });
             }
         }
     });
+
+    // // Set the time integrator RHS - in this case, just relay to our current RHS function
+    // timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar rhs_time)
+    // {   
+    // for (amrex::MFIter mfi(solution_mf[0], false); mfi.isValid(); ++mfi)
+    // {
+    //     const amrex::Box& bx = mfi.validbox();
+    //     if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+    //     {
+    //         amrex::Print() << "[DEBUG][ptr] solution_mf[0] owning-box data ptr = "
+    //                        << (void*)solution_mf[0][mfi].dataPtr() << "\n";
+    //     }
+    // }
+
+    //     RHS(lev, rhs_time, dt,
+    //         rhs_mf[0], rhs_mf[1], rhs_mf[2],
+    //         solution_mf[0],solution_mf[1],solution_mf[2]);
+
+    //     // ---- DEBUG: inspect density RHS and incoming solution at this stage ----
+    //     for (amrex::MFIter mfi(rhs_mf[0], false); mfi.isValid(); ++mfi)
+    //     {
+    //         const amrex::Box& bx = mfi.validbox();
+    //         if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+    //         {
+    //             amrex::Array4<const Set::Scalar> const& rho_rhs_dbg = rhs_mf[0].array(mfi);
+    //             amrex::Array4<const Set::Scalar> const& rho_sol_dbg = solution_mf[0].array(mfi);
+    //             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    //             {
+    //                 if (i == 25 && j == 47)
+    //                 {
+    //                     for (int n = 0; n < NSPECIES; ++n)
+    //                         printf("[DEBUG][lev %d][RHS] time=%f rho_in(25,47,%d,%d)=%e  rho_rhs(25,47,%d,%d)=%e\n",
+    //                                lev, rhs_time, k, n, rho_sol_dbg(i,j,k,n), k, n, rho_rhs_dbg(i,j,k,n));
+    //                 }
+    //             });
+    //         }
+    //     }
+    // });
 
     auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
                                          amrex::MultiFab& E, Set::Scalar fill_time,
@@ -1087,6 +1232,49 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         fill_conserved_boundaries(stage_mf[0], stage_mf[1], stage_mf[2], stage_time, true);
     });
     
+    // ---- DEBUG: re-check density_old_mf directly, right before advance() ----
+    for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_old_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (i == 25 && j == 47)
+                    printf("[DEBUG][lev %d][pre-advance, direct] rho_old(25,47,%d,0) = %e\n",
+                        lev, k, rho_dbg(i,j,k,0));
+            });
+        }
+    }
+    
+    // ---- DEBUG: pointer check, but only for the FAB that actually owns (25,47,0) ----
+    for (amrex::MFIter mfi(solution_old[0], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Print() << "[DEBUG][ptr] solution_old[0] owning-box data ptr = "
+                        << (void*)solution_old[0][mfi].dataPtr() << "\n";
+        }
+    }
+
+    // ---- DEBUG: check density_mf[lev] (solution_new) directly, right before advance() ----
+    for (amrex::MFIter mfi(*density_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (i == 25 && j == 47)
+                    printf("[DEBUG][lev %d][pre-advance, density_mf direct] rho_new(25,47,%d,0) = %e\n",
+                        lev, k, rho_dbg(i,j,k,0));
+            });
+        }
+    }
+
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
@@ -1353,7 +1541,39 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &M_mf,
                 amrex::MultiFab &E_mf)
 {
-    ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, false, true);
+
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    {   
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
+        Set::Patch<Set::Scalar>       rho_hydro = density_mf.Patch(lev, mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i == 25 && j == 47)
+            {
+                amrex::Print() << "Inside RHS loop, before cutoff rho=" << rho(i,j,k) << " rho_hydro=" << rho_hydro(i,j,k) << "\n";
+            }
+        });
+
+    }
+    ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, false, /*use_old_eta=*/ !managed);
+
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    {   
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
+        Set::Patch<Set::Scalar>       rho_hydro = density_mf.Patch(lev, mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i == 25 && j == 47)
+            {
+                amrex::Print() << "Inside RHS loop, after first cutoff=" << rho(i,j,k) << " rho_hydro=" << rho_hydro(i,j,k) << "\n";
+            }
+        });
+
+    }
 
     // RHS evaluation samples ghost cells directly for boundary fluxes and
     // centered gradients. Refresh physical and same-level ghosts here as a guard
@@ -1376,7 +1596,40 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, time, 0);
     neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, time, 0);
     neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
-    ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
+
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    {   
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
+        Set::Patch<Set::Scalar>       rho_hydro = density_mf.Patch(lev, mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i == 25 && j == 47)
+            {
+                amrex::Print() << "Inside RHS loop, directly before second cutoff=" << rho(i,j,k) << " rho_hydro=" << rho_hydro(i,j,k) << "\n";
+            }
+        });
+
+    }
+
+    ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true,  /*use_old_eta=*/ !managed);
+
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    {   
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
+        Set::Patch<Set::Scalar>       rho_hydro = density_mf.Patch(lev, mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i == 25 && j == 47)
+            {
+                amrex::Print() << "Inside RHS loop, after second cutoff=" << rho(i,j,k) << " rho_hydro=" << rho_hydro(i,j,k) << "\n";
+            }
+        });
+
+    }
 
     int nghost = 1;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
@@ -1425,6 +1678,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar>       rho_hydro = density_mf.Patch(lev, mfi);
+
         Set::Patch<Set::Scalar>       DKM       = DKM_mf.array(mfi);
         Set::Patch<Set::Scalar>       rho_sum   = rho_sum_mf.array(mfi);
         Set::Patch<Set::Scalar>       mixed_k   = mixed_k_mf.array(mfi);
@@ -1453,6 +1708,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+
+            if (i == 25 && j == 47)
+            {
+                amrex::Print() << "Inside RHS loop, after cutoff rho=" << rho(i,j,k) << " rho_hydro=" << rho_hydro(i,j,k) << " eta=" << eta << "\n";
+            }
 
             // Reconstruct the gas state from the mixed conserved state before
             // computing any primitive or transport quantity.
