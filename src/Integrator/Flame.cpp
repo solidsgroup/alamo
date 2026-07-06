@@ -542,11 +542,13 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
         });
     }
-    // Util::RealFillBoundary(*density_mf[lev],geom[lev]);    
-    // Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
-    // Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
-    // Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
-    // Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*density_mf[lev],geom[lev]);    
+    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*eta_mf[lev],geom[lev]);
+
 }
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
