@@ -524,8 +524,20 @@ void Hydro::Mix(int lev)
 	      // Set::Scalar fluid_density;
 		// fluid_density = (rho(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
 		// fluid_density = (rho(i,j,k) - (1-eta)*rho_solid(i,j,k))/((std::min((eta(i,j,k)+small),1.0)));
-	      rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
-              rho_old(i, j, k, n) = rho(i, j, k, n);
+
+	      Set::Scalar fluid_density = 0.0;
+          if (eta > cutoff)
+          {
+              fluid_density = (rho(i, j, k, n) - (1.0 - eta) * rho_solid(i, j, k, n)) / (eta);
+	      amrex::Print() << "Fluid rho: " << fluid_density << " ";
+          }
+          else
+          {
+	    fluid_density = 0.0;
+	  }
+	  // rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
+	  rho(i,j,k,n) = eta*fluid_density + (1.0 - eta)*rho_solid(i,j,k,n);
+	  rho_old(i, j, k, n) = rho(i, j, k, n);
 
 
 		 if (eta>0.1 && eta<0.9) {

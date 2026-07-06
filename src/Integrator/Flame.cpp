@@ -476,10 +476,11 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar eta_hydro = 1 - eta(i,j,k);
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
             Set::Vector grad_eta_hydro = -1.0*grad_eta;
-
-            if (a_time > hydro.tstart)
+	     Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+            if (a_time > 0.0)
             {
-	      Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+	     
 	      grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
 	      Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
 	      deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
@@ -490,19 +491,19 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 	      Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
 	      Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
 	      // Need to make sure units are correct
-	      solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+
 	      if ((NSPECIES == 1) && (eta_hydro > 0.1))
 		{
 		  m0(i, j, k) = 0.0;
 		  u0(i, j, k, 1) = 0.0;
 		  u0(i, j, k, 0) = 0.0;
 	      
-		  // m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+		  m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
 		  Set::Scalar rho_fluid;
 		  fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
 		
-		  // u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(0); //
-		  // u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(rho_fluid+small)*N(1); //
+		  u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
+		  u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
 
 		  // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
 		  // rhofluid = rho - eta*rhosolid/(1-eta+small)
