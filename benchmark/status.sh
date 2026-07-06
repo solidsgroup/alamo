@@ -25,7 +25,9 @@ echo "== gates =="
 run_gate () {
   local name="$1"; shift
   if [ ! -x "$1" ]; then echo "$name: MISSING ($1)"; return; fi
-  if "$@" >/dev/null 2>&1; then echo "$name: PASS"; else echo "$name: FAIL"; fi
+  local log="benchmark/_gate_logs/$(basename "$1" .sh).log"
+  mkdir -p benchmark/_gate_logs
+  if "$@" >"$log" 2>&1; then echo "$name: PASS"; else echo "$name: FAIL (see $log)"; fi
 }
 export GOLDEN_MODE="${GOLDEN_MODE:-cpu}"
 export TIERS="${TIERS:-1}"

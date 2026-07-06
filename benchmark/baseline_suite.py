@@ -77,7 +77,12 @@ def find_binary(patterns: list[str]) -> str | None:
     for pattern in patterns:
         candidates.extend(ROOT.glob(pattern))
     executable = [path for path in candidates if path.is_file() and os.access(path, os.X_OK)]
-    return str(sorted(executable)[-1].relative_to(ROOT)) if executable else None
+    if not executable:
+        return None
+    # Newest mtime, not lexicographic max: a name-sorted pick can prefer a
+    # stale binary (e.g. alamo-2d-perf-clang++) over the one just built.
+    newest = max(executable, key=lambda path: path.stat().st_mtime)
+    return str(newest.relative_to(ROOT))
 
 
 def local_cuda_arch() -> str | None:

@@ -77,6 +77,7 @@ backtraces_*/
 
 # local A100-spoof gate run artifacts
 benchmark/_a100_gate_*/
+benchmark/_gate_logs/
 
 # local dev toolchain / caches, machine-specific, never portable
 .local/

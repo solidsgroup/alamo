@@ -69,9 +69,12 @@ if [ "${GOLDEN_MODE}" = "cpu" ]; then
   echo "--- make -j${BUILD_JOBS}"
   make -j"${BUILD_JOBS}"
 
-  CPU_BIN="${CPU_BIN:-$(find bin -maxdepth 1 -type f -executable -name 'alamo-2d-*' ! -name '*cuda*' | sort | tail -1)}"
-  if [ -z "${CPU_BIN}" ]; then
-    echo "Could not find a CPU alamo-2d-* binary after build" >&2
+  # Select the binary this configure/make just produced by its deterministic
+  # name -- a wildcard sort here once picked a stale alamo-2d-perf-clang++
+  # over the freshly built alamo-2d-g++ and gated against week-old code.
+  CPU_BIN="${CPU_BIN:-bin/alamo-${DIM}d-${COMP}}"
+  if [ ! -x "${CPU_BIN}" ]; then
+    echo "Expected CPU binary ${CPU_BIN} missing after build" >&2
     exit 2
   fi
   echo "cpu binary: ${CPU_BIN}"
@@ -104,9 +107,10 @@ elif [ "${GOLDEN_MODE}" = "gpu" ]; then
   echo "--- make -j${BUILD_JOBS}"
   make -j"${BUILD_JOBS}"
 
-  GPU_STRICT_BIN="${GPU_STRICT_BIN:-$(find bin -maxdepth 1 -type f -executable -name "alamo_gpu-${DIM}d-nofast-cuda${ARCH}-*" | sort | tail -1)}"
-  if [ -z "${GPU_STRICT_BIN}" ]; then
-    echo "Could not find a no-fast-math GPU binary after build" >&2
+  # Deterministic just-built name (see CPU-leg comment on stale-binary risk).
+  GPU_STRICT_BIN="${GPU_STRICT_BIN:-bin/alamo_gpu-${DIM}d-nofast-cuda${ARCH}-${COMP}}"
+  if [ ! -x "${GPU_STRICT_BIN}" ]; then
+    echo "Expected no-fast-math GPU binary ${GPU_STRICT_BIN} missing after build" >&2
     exit 2
   fi
   echo "gpu_strict binary: ${GPU_STRICT_BIN}"
