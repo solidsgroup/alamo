@@ -126,6 +126,7 @@ protected:
         Set::Field<Set::Scalar> density_mf;
         Set::Field<Set::Scalar> momentum_mf;
         Set::Field<Set::Scalar> energy_mf;
+        Set::Field<Set::Scalar> density_old_mf;
         IC::IC<Set::Scalar>* density_ic   = nullptr;
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;

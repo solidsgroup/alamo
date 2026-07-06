@@ -324,6 +324,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
+        value.RegisterNewFab(value.solid.density_old_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density_old_mf", false, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, {"x","y"});
         value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
@@ -482,6 +483,7 @@ void Hydro::Mix(int lev)
         Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       rho_solid_old = solid.density_old_mf.Patch(lev,mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -512,39 +514,51 @@ void Hydro::Mix(int lev)
 #endif
             
 
-            for (int n=0; n<NSPECIES; ++n)
+        for (int n=0; n<NSPECIES; ++n)
             {
-	      if (eta>0.1 && eta<0.9) {
-              amrex::Print() << "Before: (" << i << "," << j << "," << k << "," << n
-                             << ") rho=" << rho(i, j, k, n)
-                             << " eta=" << eta
-                             << " rho_solid=" << rho_solid(i, j, k, n)
-                             << "\n";
-	      }
-	      // Set::Scalar fluid_density;
-		// fluid_density = (rho(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
-		// fluid_density = (rho(i,j,k) - (1-eta)*rho_solid(i,j,k))/((std::min((eta(i,j,k)+small),1.0)));
+                // if (eta>0.1 && eta<0.9) {
+                //     amrex::Print() << "Before: (" << i << "," << j << "," << k << "," << n
+                //                     << ") rho=" << rho(i, j, k, n)
+                //                     << " eta=" << eta
+                //                     << " rho_solid=" << rho_solid(i, j, k, n)
+                //                     << "\n";
+                // }
+                // Set::Scalar fluid_density;
+                // fluid_density = (rho(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+                // fluid_density = (rho(i,j,k) - (1-eta)*rho_solid(i,j,k))/((std::min((eta(i,j,k)+small),1.0)));
 
-	      Set::Scalar fluid_density = 0.0;
-          if (eta > cutoff)
-          {
-              fluid_density = (rho(i, j, k, n) - (1.0 - eta) * rho_solid(i, j, k, n)) / (eta);
-	      amrex::Print() << "Fluid rho: " << fluid_density << " ";
-          }
-          else
-          {
-	    fluid_density = 0.0;
-	  }
-	  // rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
-	  rho(i,j,k,n) = eta*fluid_density + (1.0 - eta)*rho_solid(i,j,k,n);
-	  rho_old(i, j, k, n) = rho(i, j, k, n);
+                Set::Scalar fluid_density = 0.0;
+
+                if (std::abs(rho_solid_old(i,j,k,n)-rho_solid(i, j, k, n)) > small) {
+                    rho(i, j, k, n) += (1.0 - eta) * (rho_solid(i, j, k, n)-rho_solid_old(i,j,k,n));
+                    amrex::Print() << "Updating rho by " << (1.0 - eta) * (rho_solid(i, j, k, n) - rho_solid_old(i,j,k,n)) 
+                                    << ", rho solid = "
+                                    << rho_solid(i, j, k, n)
+                                    << ", rho solid old = "
+                                    << rho_solid_old(i,j,k,n)
+                                    << "\n ";
+                }
+
+                if (eta > cutoff)
+                {
+                    fluid_density = (rho(i, j, k, n) - (1.0 - eta) * rho_solid(i, j, k, n)) / (eta);
+                    amrex::Print() << "Fluid rho: " << fluid_density << "\n ";
+                }
+                else
+                {
+                    fluid_density = 0.0;
+                }
+                // rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
+                rho(i,j,k,n) = eta*fluid_density + (1.0 - eta)*rho_solid(i,j,k,n);
+                rho_old(i, j, k, n) = rho(i, j, k, n);
 
 
-		 if (eta>0.1 && eta<0.9) {
-             amrex::Print() << "After : (" << i << "," << j << "," << k << "," << n
-                            << ") rho=" << rho(i, j, k, n)
-                            << "\n";
-		 }
+                // if (eta>0.1 && eta<0.9) {
+                //     amrex::Print() << "After : (" << i << "," << j << "," << k << "," << n
+                //                 << ") rho=" << rho(i, j, k, n)
+                //                 << "\n";
+                // }
+                rho_solid_old(i,j,k,n) = rho_solid(i,j,k,n);
             }
 
             E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
