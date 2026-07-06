@@ -1,4 +1,7 @@
-# Task 004: Performance Test P3 (3D 256×256×128)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 004: Performance Test P3 (3D 256×256×128)
 
 ## Goal
 Create `tests/GPU/P3_perf_3d_256/input` and `tests/GPU/P3_perf_3d_256/test.py`.

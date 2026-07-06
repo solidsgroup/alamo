@@ -1,4 +1,7 @@
-# Task 005: Correctness Test C1 (CPU vs GPU Parity with Elastic)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 005: Correctness Test C1 (CPU vs GPU Parity with Elastic)
 
 ## Goal
 Create `tests/GPU/C1_correctness_elastic/input` and `tests/GPU/C1_correctness_elastic/test.py`.

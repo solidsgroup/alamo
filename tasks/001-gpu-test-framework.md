@@ -1,4 +1,7 @@
-# Task 001: GPU Test Framework
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 001: GPU Test Framework
 
 ## Goal
 Create `tests/GPU/testlib_gpu.py` (shared utilities) and `tests/GPU/run_gpu_tests.py`

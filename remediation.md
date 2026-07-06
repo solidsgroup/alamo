@@ -1,7 +1,10 @@
-# REMEDIATION_PLAN.md
-# chamber-gpu process consolidation and MLMG stabilization
-# Executable by: Claude Sonnet 5 or Opus (single worker, serial phases)
-# Repo: ~/Projects/alamo, branch: chamber-gpu
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # REMEDIATION_PLAN.md
+> # chamber-gpu process consolidation and MLMG stabilization
+> # Executable by: Claude Sonnet 5 or Opus (single worker, serial phases)
+> # Repo: ~/Projects/alamo, branch: chamber-gpu
 
 ---
 

@@ -60,3 +60,10 @@ that CPU sim. `device-lint: PASS`, `a100-sanitizer: PASS`.
 Root-level untracked files left as-is: `claude1.md`, `TASK_TEMPLATE.md` (leftover
 root copy; the installed one is `docs/llm/TASK_TEMPLATE.md`), `chamber_gpu_changes.diff`.
 The new guard will flag `claude1.md` / root `TASK_TEMPLATE.md` if ever staged.
+
+## Post-close note (2026-07-06, efficiency-campaign)
+
+The withheld gate is now green: golden-compare FAIL was a stale-binary
+selection bug in ci_golden_compare.sh (lexicographic sort picked Jun-29
+alamo-2d-perf-clang++ over the just-built alamo-2d-g++), fixed in
+docs/agent_plans/20260706-efficiency-campaign/. DONE granted.

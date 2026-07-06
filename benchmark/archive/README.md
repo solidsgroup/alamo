@@ -4,7 +4,7 @@ This folder holds the **closed-phase records** of the `chamber-gpu` GPU port:
 superseded plans and point-in-time phase reports whose conclusions are settled.
 They are kept for the record and for citation, not for active editing.
 
-- **The live forward plan is `benchmark/GPU_ROADMAP_V3.md`.** Start there.
+- **The live forward plan is `docs/llm/PLAN.md`.** (GPU_ROADMAP_V3.md was itself superseded 2026-07-06; see docs/archive/.)
 - Settled wins that should not be re-litigated are consolidated in
   `benchmark/SUCCESS_BOOK.md`.
 - Operational/build/branch policy lives in `benchmark/GPU_BRANCH_GUIDE.md` (live).

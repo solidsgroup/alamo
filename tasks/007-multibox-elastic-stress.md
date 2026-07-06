@@ -1,4 +1,7 @@
-# Task 007: Correctness Test C3 (Multi-box Elastic Stress Test)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 007: Correctness Test C3 (Multi-box Elastic Stress Test)
 
 ## Goal
 Create `tests/GPU/C3_multibox_elastic_stress/input` and

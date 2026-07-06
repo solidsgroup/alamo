@@ -1,4 +1,7 @@
-# Task 006: Correctness Test C2 (Restart/Checkpoint Roundtrip)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 006: Correctness Test C2 (Restart/Checkpoint Roundtrip)
 
 ## Goal
 Create `tests/GPU/C2_restart_roundtrip/input` and `tests/GPU/C2_restart_roundtrip/test.py`.

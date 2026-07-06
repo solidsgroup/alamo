@@ -1,4 +1,7 @@
-# Task 003: Performance Tests P1 and P2
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 003: Performance Tests P1 and P2
 
 ## Goal
 Create input files and test scripts for:

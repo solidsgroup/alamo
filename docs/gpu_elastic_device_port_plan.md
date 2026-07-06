@@ -1,4 +1,7 @@
-# Plan: Full Device-Native Elastic Solve (chamber-gpu, Option B)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Plan: Full Device-Native Elastic Solve (chamber-gpu, Option B)
 
 **Status: controlled experimental branch, NOT the mainline architecture.**
 `benchmark/archive/PHASE1_ELASTIC_DISPOSITION.md` carries the standing, final D1

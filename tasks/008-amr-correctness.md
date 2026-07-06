@@ -1,4 +1,7 @@
-# Task 008: Correctness Test C4 (GPU vs CPU AMR Correctness)
+> **SUPERSEDED (2026-07-06).** Historical only — the live plan is
+> `docs/llm/PLAN.md`. Do not follow instructions in this file.
+>
+> # Task 008: Correctness Test C4 (GPU vs CPU AMR Correctness)
 
 ## Goal
 Create `tests/GPU/C4_amr_correctness/input` and `tests/GPU/C4_amr_correctness/test.py`.
