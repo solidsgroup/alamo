@@ -455,7 +455,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0  = Hydro::u0_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        // Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> hydro_density = Hydro::density_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
@@ -464,7 +464,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 
         Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
-	Set::Patch<Set::Scalar> fluid_density = hydro_density_mf.Patch(lev,mfi);
+	    Set::Patch<Set::Scalar> fluid_density = hydro_density_mf.Patch(lev,mfi); // Flame member
 	
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -476,50 +476,52 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar eta_hydro = 1 - eta(i,j,k);
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
             Set::Vector grad_eta_hydro = -1.0*grad_eta;
-	     Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            solidrho(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            solidrho(i,j,k,0) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+            
             if (a_time > 0.0)
             {
 	     
-	      grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
-	      Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
-	      deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
-	      if (eta(i, j, k) < small)
-		{
-		  deta_dt(i,j,k) = 0.0;
-		}
-	      Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
-	      Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
-	      // Need to make sure units are correct
+                grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+                Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+                deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
+                
+                if (eta(i, j, k) < small)
+                {
+                    deta_dt(i,j,k) = 0.0;
+                }
+                
+                Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+                Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+                // Need to make sure units are correct
 
-	      if ((NSPECIES == 1) && (eta_hydro > 0.1))
-		{
-		  m0(i, j, k) = 0.0;
-		  u0(i, j, k, 1) = 0.0;
-		  u0(i, j, k, 0) = 0.0;
-	      
-		  m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
-		  Set::Scalar rho_fluid;
-		  fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
-		
-		  u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
-		  u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
+                if ((NSPECIES == 1) && (eta_hydro > 0.1))
+                {
+                    m0(i, j, k) = 0.0;
+                    u0(i, j, k, 1) = 0.0;
+                    u0(i, j, k, 0) = 0.0;
+                
+                    // m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+                    // Set::Scalar rho_fluid;
+                    fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+                
+                    // u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
+                    // u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
 
-		  // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
-		  // rhofluid = rho - eta*rhosolid/(1-eta+small)
-		  // Pressure breaks when both m0 and u0 are enabled
-		  // Desnity in hydro is mixed density, can mult by hydrodensity
-		  solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-		  solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
-		  // solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
-        }
-	      if ((NSPECIES == 1) && (eta_hydro <= 0.1))
-        {
-	  fluid_density(i,j,k) = 0.0;
-        }
-	    }
-
-	    
+                    // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
+                    // rhofluid = rho - eta*rhosolid/(1-eta+small)
+                    // Pressure breaks when both m0 and u0 are enabled
+                    // Desnity in hydro is mixed density, can mult by hydrodensity
+                    solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+                    solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+                    // solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
+                }
+                
+                if ((NSPECIES == 1) && (eta_hydro <= 0.1))
+                {
+                    fluid_density(i,j,k) = 0.0;
+                }
+	        }
 
             // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
             // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term

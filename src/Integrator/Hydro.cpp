@@ -297,8 +297,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         }
         value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
 
-        value.RegisterNewFab(value.density_mf,     value.density_bc, NSPECIES, nghost, "density",     true , true);
+        value.RegisterNewFab(value.density_mf,     value.density_bc, NSPECIES, nghost, "density_hydro",     true , true);
         value.RegisterNewFab(value.density_old_mf, value.density_bc, NSPECIES, nghost, "density_old", false, true);
+        value.RegisterNewFab(value.fluid_density_mf, value.density_bc, NSPECIES, nghost, "fluid_density_hydro", true, true);
 
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true ,true);
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false, true);
@@ -323,10 +324,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
         value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
 
-        value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
-        value.RegisterNewFab(value.solid.density_old_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density_old_mf", false, false);
-        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, {"x","y"});
-        value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
+        value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, true);
+        value.RegisterNewFab(value.solid.density_old_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density_old", true, true);
+        value.RegisterNewFab(value.solid.change_density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.change_density", true, true);
+        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, true, {"x","y"});
+        value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+AMREX_SPACEDIM+1, 0, "Source", true, false);
 
@@ -433,6 +435,7 @@ void Hydro::Initialize(int lev)
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
     solid.density_ic ->Initialize(lev, solid.density_mf,  0.0);
+    solid.density_ic ->Initialize(lev, solid.density_old_mf,  0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
     solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
@@ -484,11 +487,15 @@ void Hydro::Mix(int lev)
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_solid_old = solid.density_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       change_rho_solid = solid.change_density_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       fluid_density = fluid_density_mf.Patch(lev,mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+    //         if (i==25 && j==47) 
+    // amrex::Print() << "fluid cell: raw eta_patch=" << eta_patch(i,j,k) << " invert=" << invert << " resulting eta=" << eta << "\n";
 
             // Initially compute primitives (T,P,u) from given initial conditions
             // But from then on, compute them from mixed values to avoid zero T conditions
@@ -511,10 +518,9 @@ void Hydro::Mix(int lev)
             #if AMREX_SPACEDIM == 3
             M(i, j, k, 2) = density*v(i, j, k, 2)*eta +  M_solid(i, j, k, 2)*(1.0-eta);
             M_old(i, j, k, 2) = M(i, j, k, 2);
-#endif
+            #endif
             
-
-        for (int n=0; n<NSPECIES; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 // if (eta>0.1 && eta<0.9) {
                 //     amrex::Print() << "Before: (" << i << "," << j << "," << k << "," << n
@@ -527,8 +533,6 @@ void Hydro::Mix(int lev)
                 // fluid_density = (rho(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
                 // fluid_density = (rho(i,j,k) - (1-eta)*rho_solid(i,j,k))/((std::min((eta(i,j,k)+small),1.0)));
 
-                Set::Scalar fluid_density = 0.0;
-
                 if (std::abs(rho_solid_old(i,j,k,n)-rho_solid(i, j, k, n)) > small) {
                     rho(i, j, k, n) += (1.0 - eta) * (rho_solid(i, j, k, n)-rho_solid_old(i,j,k,n));
                     amrex::Print() << "Updating rho by " << (1.0 - eta) * (rho_solid(i, j, k, n) - rho_solid_old(i,j,k,n)) 
@@ -536,28 +540,44 @@ void Hydro::Mix(int lev)
                                     << rho_solid(i, j, k, n)
                                     << ", rho solid old = "
                                     << rho_solid_old(i,j,k,n)
+                                    << ", eta = "
+                                    << eta
+                                    << ", i = "
+                                    << i 
+                                    << ", j = "
+                                    << j
                                     << "\n ";
                 }
 
                 if (eta > cutoff)
                 {
-                    fluid_density = (rho(i, j, k, n) - (1.0 - eta) * rho_solid(i, j, k, n)) / (eta);
-                    amrex::Print() << "Fluid rho: " << fluid_density << "\n ";
-                }
-                else
-                {
-                    fluid_density = 0.0;
+                    fluid_density(i,j,k,n) = (rho(i, j, k, n) - (1.0 - eta) * rho_solid(i, j, k, n)) / (eta);
+
+                    // amrex::Print() << "Fluid rho: " << fluid_density(i,j,k,n) << "\n ";
                 }
                 // rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
-                rho(i,j,k,n) = eta*fluid_density + (1.0 - eta)*rho_solid(i,j,k,n);
+                rho(i,j,k,n) = eta*fluid_density(i,j,k,n) + (1.0 - eta)*rho_solid(i,j,k,n);
+                
+                // if (i==25 && j==47) {
+                //     amrex::Print() << "fluid density= " 
+                //                     << fluid_density(i,j,k,n) 
+                //                     << " solid density=" 
+                //                     << rho_solid(i,j,k,n)
+                //                     << " eta="
+                //                     << eta 
+                //                     << " mix density="
+                //                     << rho(i,j,k,n)
+                //                     << "\n";
+                // }
+                
                 rho_old(i, j, k, n) = rho(i, j, k, n);
-
 
                 // if (eta>0.1 && eta<0.9) {
                 //     amrex::Print() << "After : (" << i << "," << j << "," << k << "," << n
                 //                 << ") rho=" << rho(i, j, k, n)
                 //                 << "\n";
                 // }
+                change_rho_solid(i,j,k,n) = rho_solid_old(i,j,k,n) - rho_solid(i,j,k,n);
                 rho_solid_old(i,j,k,n) = rho_solid(i,j,k,n);
             }
 
@@ -726,6 +746,25 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+
+        // ---- DEBUG: check density immediately after swap (this is now "old") ----
+    for (amrex::MFIter mfi(*density_old_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        if (bx.contains(amrex::IntVect(AMREX_D_DECL(25,47,0))))
+        {
+            amrex::Array4<const Set::Scalar> const& rho_dbg = (*density_old_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (i == 25 && j == 47)
+                {
+                    for (int n = 0; n < NSPECIES; ++n)
+                        printf("[DEBUG][lev %d][after swap] time=%f rho_old(25,47,%d,species %d) = %e\n",
+                               lev, time, k, n, rho_dbg(i,j,k,n));
+                }
+            });
+        }
+    }
     
     //
     // UPDATE ETA AND CALCULATE ETADOT
@@ -760,7 +799,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {   
 
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            if (invert) etadot(i,j,k) *= 1.0;
+            if (invert) etadot(i,j,k) *= -1.0;
 
         });
     }
