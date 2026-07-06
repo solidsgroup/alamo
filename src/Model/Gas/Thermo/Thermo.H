@@ -22,6 +22,11 @@ private:
 
 
 public:
+    const char* model_name() const
+    {
+        return selected >= 0 ? names[selected] : "";
+    }
+
     template<int I = 0>
     AMREX_FORCE_INLINE
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
@@ -38,7 +43,6 @@ public:
             return NAN;
         }
     }
-
 
     template<int I = 0>
     AMREX_FORCE_INLINE
@@ -67,6 +71,57 @@ public:
                 return std::get<I>(obj).entropy_mol(T,X,i,j,k);
             else
                 return entropy_mol<I+1>(T,X,i,j,k);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE
+    double cp_mol_species(double T, int n) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).cp_mol_species(T,n);
+            else
+                return cp_mol_species<I+1>(T,n);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE
+    double enthalpy_mol_species(double T, int n) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).enthalpy_mol_species(T,n);
+            else
+                return enthalpy_mol_species<I+1>(T,n);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE
+    double entropy_mol_species(double T, int n) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).entropy_mol_species(T,n);
+            else
+                return entropy_mol_species<I+1>(T,n);
         }
         else {
             Util::Abort(INFO, selected);

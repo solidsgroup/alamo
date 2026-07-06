@@ -189,6 +189,10 @@ protected:
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
+    /// Optional hook to refresh derived fields immediately before a plotfile is written.
+    virtual void PreparePlotFileData()
+    {}
+
 
     inline void StopClock()
     {

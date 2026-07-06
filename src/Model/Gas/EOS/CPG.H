@@ -29,8 +29,18 @@ public:
         return T;
     }
 
+    template<typename GAS>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    double ComputeT(double pressure, double density,
+    double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double momentumz, double E, double Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double /*rtol=1e-12*/) const
+    {
+        double P = (E - 0.5*(momentumx*momentumx + momentumy*momentumy + momentumz*momentumz)/density) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
+        double T = P / density / gas.R(X, i, j, k);
+        return T;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    double ComputeT_from_primitives(double pressure, double density,
                     double R) const
     {
         return pressure / density / R;
@@ -51,6 +61,32 @@ public:
         double rhoE = P / (gamma - 1.0);
         double E = rhoE + 0.5*(momentumx*momentumx + momentumy*momentumy)/density;
         return E;
+    }
+
+    template<typename GAS>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
+        return ComputeE(density, momentumx, momentumy, T, gas.R(X, i, j, k), gas.gamma(T, X, i, j, k));
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    double ComputeE(double density, double momentumx, double momentumy, double momentumz, double T,
+                    double R, double gamma) const
+    {
+        double P = density * R * T;
+        double rhoE = P / (gamma - 1.0);
+        double E = rhoE + 0.5*(momentumx*momentumx + momentumy*momentumy + momentumz*momentumz)/density;
+        return E;
+    }
+
+    template<typename GAS>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double momentumz, double T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
+        return ComputeE(density, momentumx, momentumy, momentumz, T, gas.R(X, i, j, k), gas.gamma(T, X, i, j, k));
     }
 
 }; // class CPG

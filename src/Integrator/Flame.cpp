@@ -17,11 +17,14 @@
 #include "Model/Propellant/Homogenize.H"
 #include <cmath>
 
+
 namespace Integrator
 {
 
 Flame::Flame() : 
-    Base::Mechanics<model_type>() {}
+    Base::Mechanics<model_type>(), 
+    Hydro(eta_mf, eta_old_mf, true)
+{}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
@@ -117,6 +120,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
 
+    value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag_mf", true);
+    value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt_mf", true);
+    value.RegisterNewFab(value.hydro_density_mf, value.bc_eta, 1, 2, "fluid.density", true);
+    
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
@@ -170,6 +177,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
+        value.RegisterNewFab(value.rho_htpb_gas_mf, value.bc_temp, 1, 0, "rho_HTPB_gas", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -197,6 +207,15 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
+    // Flag to use Flame with or without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
+    pp_query_default("use_with_Hydro", value.use_with_Hydro, false);
+
+    if (value.use_with_Hydro == 1) {
+        //Scalar value to reduce the velocity of the products from regression in interface region being ejected into Hydro to improve Hydro stability
+        pp.query_default("velocity_mult", value.velocity_mult, 1.0);
+    }
+
+    // Refinement criterion for eta field   
     // Refinement criterion for eta field, if thermal is on, cells will only be tagged for refinement if T>0.9*TCutoff,
     // and the gradient of eta > m_refinement_criterion at each cell
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -227,6 +246,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Body force
     pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
+    
+    // Scalar value to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
+    pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
 
     // Phi refinement criteria 
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
@@ -255,6 +277,31 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.solver.setPsi(value.eta_mf);
     }
 
+    // Determines if hydro is on, by default hydro starts off and turns on a small time into the simulation to aid hydro initilization
+    pp.query_default("hydro.on",value.hydro.on,false);
+    if (value.hydro.on)
+    {   
+        // Time value when hydro starts, recommended to be set slightly larger than the start of the simulation to help integrators start correctly
+        pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
+
+        // Density of the gaseous products of Ammonium perchlorate
+        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
+
+        // Density of the gaseous products of Hydroxyl-terminated Polybutadiene
+        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+
+        // Velocity source term of gaseous AP products, default value is only needed for the first step of hydro after mixing, 
+        // after conservation of mass is used to calculate these terms
+        pp.query_default("hydro.u0_ap",value.hydro.u0_ap, 0.0);
+
+        // Velocity source term of gaseous HTPB products, default value is only needed for the first step of hydro after mixing, 
+        // after conservation of mass is used to calculate these terms
+        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb, 0.0);
+
+        pp.queryclass<Hydro>("hydro", value);
+    }
+
+
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
     // (Not recommended.)
@@ -271,6 +318,7 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
+    if (hydro.on) Hydro::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
@@ -323,6 +371,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
             Set::Scalar Tcutoff = thermal.Tcutoff;
 
             if (elastic.on)
@@ -332,7 +381,17 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                    Set::Vector pres_reg;
+                    
+                    if (use_with_Hydro) {
+                        pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    } else {
+                        // If not using hydro to find the pressure on the regressing surface, set the pressure traction term to 0.0
+                        pres_reg = 0.0*grad_eta;
+                    }
 
+                    rhs(i, j, k) = 0.0*grad_eta;
+                    rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
                     if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && elastic.apply_chamber_pressure)
                         {
                             rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
@@ -383,10 +442,120 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
+void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
+{
+    amrex::Box domain = this->geom[lev].Domain();
+    domain.convert(amrex::IntVect::TheNodeVector());
+    const Set::Scalar* DX = geom[lev].CellSize();
+
+    for (MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        amrex::Box bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> u0  = Hydro::u0_mf.Patch(lev,mfi);
+        // Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> hydro_density = Hydro::density_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
+	    Set::Patch<Set::Scalar> fluid_density = hydro_density_mf.Patch(lev,mfi); // Flame member
+	
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {   
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            // Set::Scalar eta_hydro = 1 - eta(i,j,k) * eta(i,j,k);
+            // Set::Scalar etaold_hydro = 1 - etaold(i,j,k) * etaold(i,j,k);
+            // Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
+
+            Set::Scalar eta_hydro = 1 - eta(i,j,k);
+            Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
+            Set::Vector grad_eta_hydro = -1.0*grad_eta;
+	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            solidrho(i,j,k,0) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+            
+            if (a_time > 0.0)
+            {
+	     
+                grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+                Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+                deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
+                
+                if (eta(i, j, k) < small)
+                {
+                    deta_dt(i,j,k) = 0.0;
+                }
+                
+                Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+                Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+                // Need to make sure units are correct
+
+                if ((NSPECIES == 1) && (eta_hydro > 0.1))
+                {
+                    m0(i, j, k) = 0.0;
+                    u0(i, j, k, 1) = 0.0;
+                    u0(i, j, k, 0) = 0.0;
+                
+                    // m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+                    // Set::Scalar rho_fluid;
+                    fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+                
+                    // u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
+                    // u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
+
+                    // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
+                    // rhofluid = rho - eta*rhosolid/(1-eta+small)
+                    // Pressure breaks when both m0 and u0 are enabled
+                    // Desnity in hydro is mixed density, can mult by hydrodensity
+                    solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+                    solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+                    // solidM(i,j,k) = m0(i,j,k)*u0(i,j,k);
+                }
+                
+                if ((NSPECIES == 1) && (eta_hydro <= 0.1))
+                {
+                    fluid_density(i,j,k) = 0.0;
+                }
+	        }
+
+            // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+            // solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            // solidrho(i,j,k,1) = hydro.rho_htpb*(1.0 - phi);
+
+            // Set::Scalar density_gas_tot = 0;
+            // Set::Scalar density_solid_tot = 0;
+            // for (int n=0; n<NSPECIES; ++n)
+            // {
+            //     density_gas_tot += hydro_density(i,j,k,n);
+            //     density_solid_tot += solidrho(i,j,k,n);
+            // }
+            // u0(i,j,k,0) = deta_dt*density_solid_tot/density_gas_tot*N(0);
+            // u0(i,j,k,1) = deta_dt*density_solid_tot/density_gas_tot*N(1);
+
+            // solidM(i,j,k,0) = density_solid_tot*u0(i,j,k,0);
+            // solidM(i,j,k,1) = density_solid_tot*u0(i,j,k,1);
+        });
+    }
+    Util::RealFillBoundary(*density_mf[lev],geom[lev]);    
+    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*eta_mf[lev],geom[lev]);
+
+}
+
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
+    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepBegin(a_time, a_iter);
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
@@ -405,9 +574,10 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
+    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepComplete(a_time,a_iter);
     if (variable_pressure) {
         //Set::Scalar x_len = geom[0].ProbDomain().length(0);
         //Set::Scalar y_len = geom[0].ProbDomain().length(1);
@@ -421,6 +591,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
+    if (hydro.on && time >= hydro.tstart) 
+    {
+        Hydro::Advance(lev,time,dt);
+    }
     const Set::Scalar* DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
@@ -508,7 +682,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             
-            if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+            if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
 
             if (thermal.on)
             {
@@ -595,6 +769,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    if (hydro.on && time >= hydro.tstart) Hydro::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -728,12 +903,13 @@ void Flame::Regrid(int lev, Set::Scalar time)
     }
 }
 
-void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
+void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
     BL_PROFILE("Flame::Integrate");
     
     Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
+    //if (hydro.on && time >= hydro.tstart) Hydro::Integrate(amrlev, time, step, mfi, box);
 
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);

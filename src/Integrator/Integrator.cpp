@@ -34,7 +34,8 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         // Nominal timestep on amrlev = 0
         pp.query_required("timestep", value.timestep, Unit::Time());      
         pp.query_default("restart", value.restart_file_cell,"");       // Name of restart file to read from
-        pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
+        if (pp.contains("restart_cell"))
+            pp.query("restart_cell", value.restart_file_cell);         // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
     }
 #ifdef AMREX_USE_HDF5
@@ -526,6 +527,7 @@ Integrator::InitData()
     }
 
     if (plot_int > 0 || plot_dt > 0.0) {
+        PreparePlotFileData();
         WritePlotFile();
     }
 }
@@ -581,7 +583,7 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 
     // Current time
     Set::Scalar tmp_time = 0.0;
-    std::getline(is, line); tmp_time = std::stof(line); Util::Message(INFO, "Current time: ", tmp_time);
+    std::getline(is, line); tmp_time = std::stod(line); Util::Message(INFO, "Current time: ", tmp_time);
     for (int i = 0; i < max_level + 1; i++)
     {
         t_new[i] = tmp_time; t_old[i] = tmp_time;
@@ -610,22 +612,6 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     for (int lev = 0; lev <= finest_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
 
     amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level + 1);
-    int total_ncomp = 0;
-
-    if (a_nodal)
-    {
-        for (unsigned int i = 0; i < node.fab_array.size(); i++) 
-            if (node.writeout_array[i]) 
-                total_ncomp += node.ncomp_array[i];
-    }
-    else        
-    {
-        for (unsigned int i = 0; i < cell.fab_array.size(); i++) 
-            if (cell.writeout_array[i]) 
-                total_ncomp += cell.ncomp_array[i];
-    }
-
-    int total_nghost = a_nodal ? 0 : cell.nghost_array[0];
 
     for (int lev = 0; lev <= finest_level; lev++)
     {
@@ -635,37 +621,27 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         amrex::DistributionMapping tmp_dm(tmp_ba, amrex::ParallelDescriptor::NProcs());
         SetDistributionMap(lev, tmp_dm);
 
-        if (a_nodal)
-        {
-            amrex::BoxArray ngrids = grids[lev];
-            ngrids.convert(amrex::IntVect::TheNodeVector());
-            //tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
-        }
-        else
-        {
-            //tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
-        }
-        Util::Message(INFO,max_level);
-        Util::Message(INFO,finest_level);
-        Util::Message(INFO,lev,dirname);
-        Util::Message(INFO,lev,grids[lev]);
-        Util::Message(INFO,amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
-        Util::Message(INFO,total_ncomp);
-        Util::Message(INFO,total_nghost);
         amrex::VisMF::Read(tmpdata[lev],
             amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
 
         if (a_nodal)
+        {
+            amrex::BoxArray ngrids = grids[lev];
+            ngrids.convert(amrex::IntVect::TheNodeVector());
             for (int i = 0; i < node.number_of_fabs; i++)
             {
-                amrex::BoxArray ngrids = grids[lev];
-                ngrids.convert(amrex::IntVect::TheNodeVector());
                 (*node.fab_array[i])[lev].reset(new amrex::MultiFab(ngrids, dmap[lev], node.ncomp_array[i], node.nghost_array[i]));
                 (*node.fab_array[i])[lev]->setVal(0.);
             }
+        }
         else
+        {
             for (int i = 0; i < cell.number_of_fabs; i++)
+            {
                 (*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev], dmap[lev], cell.ncomp_array[i], cell.nghost_array[i]));
+                (*cell.fab_array[i])[lev]->setVal(0.);
+            }
+        }
         for (int i = 0; i < tmp_numfabs; i++)
         {
             bool match = false;
@@ -673,22 +649,15 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    if (tmp_name_array[i] == node.name_array[i][j])
-                    {
-                        match = true;
-                        Util::Message(INFO, "Initializing ", node.name_array[i][j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
-                        amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, 0, 1, total_nghost);
-                    }
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
                         if (tmp_name_array[i] == node.name_array[j][k])
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
-                            amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, total_nghost);
+                            amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0);
                         }
                     }
-                    Util::RealFillBoundary(*((*node.fab_array[j])[lev]).get(), geom[lev]);
                 }
             }
             else
@@ -704,10 +673,20 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
                         }
                     }
-                    Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
                 }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
+        }
+
+        if (a_nodal)
+        {
+            for (int j = 0; j < node.number_of_fabs; j++)
+                Util::RealFillBoundary(*((*node.fab_array[j])[lev]).get(), geom[lev], node.nghost_array[j]);
+        }
+        else
+        {
+            for (int j = 0; j < cell.number_of_fabs; j++)
+                Util::RealFillBoundary(*((*cell.fab_array[j])[lev]).get(), geom[lev], cell.nghost_array[j]);
         }
 
         for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
@@ -728,7 +707,7 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 
     }
 
-    SetFinestLevel(max_level);
+    SetFinestLevel(finest_level);
 }
 
 void
@@ -1116,12 +1095,14 @@ Integrator::Evolve()
 
         if (plot_int > 0 && (step + 1) % plot_int == 0) {
             last_plot_file_step = step + 1;
+            PreparePlotFileData();
             WritePlotFile();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
         else if (std::fabs(std::remainder(cur_time, plot_dt)) < 0.5 * dt[0])
         {
             last_plot_file_step = step + 1;
+            PreparePlotFileData();
             WritePlotFile();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
@@ -1129,6 +1110,7 @@ Integrator::Evolve()
         if (cur_time >= stop_time - 1.e-6 * dt[0]) break;
     }
     if (plot_int > 0 && istep[0] > last_plot_file_step) {
+        PreparePlotFileData();
         WritePlotFile();
     }
 }

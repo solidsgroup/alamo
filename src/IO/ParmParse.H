@@ -87,6 +87,7 @@
 #ifndef IO_PARMPARSE
 #define IO_PARMPARSE
 
+#include <array>
 #include <filesystem>
 #include <exception>
 #include <list>
@@ -638,6 +639,87 @@ public:
         }    
         return 0;
     }
+    int queryarr(   std::string name, std::vector<Set::Scalar> & value, int n, Unit unit = Unit::Less())
+    {
+        try
+        {
+            if (unit.isType(Unit::Less()))
+            {
+                return amrex::ParmParse::queryarr(name.c_str(),value,0,n);
+            }
+            else
+            {
+                value.clear();
+                std::vector<std::string> valstrings;
+                int retval = amrex::ParmParse::queryarr(name.c_str(), valstrings, 0, n);
+                for (unsigned int i = 0; i < valstrings.size(); i++)
+                {
+                    Unit unitvalue = Unit::Parse(valstrings[i]);
+                    Util::DebugMessage(INFO,full(name),": ",valstrings[i]," ==> ",unitvalue);
+
+                    if (!unitvalue.isType(unit) && !unitvalue.isType(Unit::Less()))
+                    {
+                        Util::Exception(INFO,"value specified had wrong units:", valstrings[i]);
+                    }
+                    value.push_back(unitvalue.normalized_value());
+                }
+                return retval;
+            }
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    template<typename T, std::size_t n>
+    int queryarr(   std::string name, std::array<T,n> & value)
+    {
+        try
+        {
+            std::vector<T> vals;
+            int retval = amrex::ParmParse::queryarr(name.c_str(), vals, 0, static_cast<int>(n));
+            if (retval)
+            {
+                for (std::size_t i = 0; i < n; i++) value[i] = vals[i];
+            }
+            return retval;
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    template<std::size_t n>
+    int queryarr(   std::string name, std::array<Set::Scalar,n> & value, Unit unit = Unit::Less())
+    {
+        try
+        {
+            std::vector<Set::Scalar> vals;
+            int retval = queryarr(name, vals, static_cast<int>(n), unit);
+            if (retval)
+            {
+                for (std::size_t i = 0; i < n; i++) value[i] = vals[i];
+            }
+            return retval;
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
 
     template<typename T>
     int queryarr_required(  std::string name, std::vector<T> & value)
@@ -648,7 +730,6 @@ public:
         }        
         return queryarr<T>(name,value);
     }
-
     int queryarr_required(  std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
     {
         if (!contains(name.c_str()))
@@ -657,6 +738,27 @@ public:
         }        
         return queryarr(name,value,unit);
     }
+
+    template<typename T, std::size_t n>
+    int queryarr_required(  std::string name, std::array<T,n> & value)
+    {
+        if (!contains(name.c_str()))
+        {
+            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+        }        
+        return queryarr(name,value);
+    }
+
+    template<std::size_t n>
+    int queryarr_required(  std::string name, std::array<Set::Scalar,n> & value, Unit unit = Unit::Less())
+    {
+        if (!contains(name.c_str()))
+        {
+            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+        }        
+        return queryarr(name,value,unit);
+    }
+
     int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue)
     {
         if (!contains(name.c_str()))
@@ -756,6 +858,46 @@ public:
             if (!contains(name.c_str()))
             {
                 addarr(name.c_str(),defaultvalue);
+            }
+            return queryarr(name,value, unit);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+
+    template<typename T, std::size_t n>
+    int queryarr_default(   std::string name, std::array<T,n> & value, std::array<T,n> defaultvalue)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                std::vector<T> def_data(defaultvalue.begin(), defaultvalue.end());
+                addarr(name.c_str(),def_data);
+            }
+            return queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    template<std::size_t n>
+    int queryarr_default(   std::string name, std::array<Set::Scalar,n> & value,
+                            std::array<std::string,n> defaultvalue, Unit unit)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                std::vector<std::string> def_data(defaultvalue.begin(), defaultvalue.end());
+                addarr(name.c_str(),def_data);
             }
             return queryarr(name,value, unit);
         }
