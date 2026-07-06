@@ -33,9 +33,23 @@ must clear the same gate, plus an A100 before/after, before it lands.
    `DDW(i,j,k)` once into a local instead of 3 separate loads; (b) column-
    restrict the `Cgrad_d x gradu` contractions (27 FMA instead of 81, x3);
    (c) hand-unroll `Matrix4<3,Major> x Matrix3` with direct `data[]` indexing
-   instead of the 45-way if/else in `Matrix4_Major.H:552-565`. Judge by A100
+   instead of the 45-way if/else in `Matrix4_Major.H:552-565`; (d) in
+   `Diagonal`, hoist the `DDW(i,j,k)` load above the per-component p-loop
+   (currently re-fetched at Elastic.cpp:860/868, 2-3x per node). Judge by A100
    wall time + ncu executed-instructions, not register count. Bit-exact-able —
    CPU golden compare first, then the budget gate.
+
+## Backlog (post next-3)
+
+- **3.I — Fuse Newton convergence norms.** `Solver/Nonlocal/Newton.H` calls
+  `MultiFab::norm0` per level x per component (lines ~419, ~572, and
+  `FieldNorm0` ~816), each a separate device reduction + stream sync + MPI
+  allreduce, multiplied by line-search backtracks. Replace with one fused
+  `ReduceOps` pass per field (pattern: `Flame.cpp:616-654`). Convergence-
+  semantics-critical: tier 3, CPU golden compare + budget gate.
+- **Arena policy A/B (Phase 5).** No explicit arena selection exists in src/;
+  managed-memory default is implicated in the multi-GPU loss. Measure device
+  arena on A100 vs managed (A1000 needs managed for 8 GB).
 
 ## Pointers
 
