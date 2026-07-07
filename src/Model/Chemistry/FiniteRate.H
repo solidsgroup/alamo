@@ -615,15 +615,20 @@ struct FiniteRate
         Util::Message(INFO,pp.getPrefix());
 
         std::string integration_type_str = "explicit";
+        // chemistry integration type, {[explicit], substep, implicit}
         pp.query("integration", integration_type_str);
         if (integration_type_str == "explicit") value.integration = IntegrationType::EXPLICIT;
         else if (integration_type_str == "substep") value.integration = IntegrationType::SUBSTEP;
         else if (integration_type_str == "implicit") value.integration = IntegrationType::IMPLICIT;
         else Util::Abort(INFO, "Invalid integration type: ", integration_type_str);
 
+        // number of chemistry substeps when integration type is substep
         pp.query_default("nsubsteps", value.nsubsteps, 10);
+        // maximum number of iterations when integration type is implicit
         pp.query_default("max_iter", value.max_iter, 100);
+        // relative error tolerance when integration type is implicit
         pp.query_default("reltol", value.reltol, 1e-6);
+        // absolute error tolerance when integration type is implicit
         pp.query_default("abstol", value.abstol, 1e-12);
 
         Util::Assert(INFO, TEST(value.nsubsteps > 0),
@@ -646,6 +651,7 @@ struct FiniteRate
 #ifdef ALAMO_YAML
         if constexpr (NSPECIES > 1)
         {
+            // Cantera yaml file
             pp_query_required("yaml", value.yaml);
             CanteraYAML::CanteraKinetics kinetics = CanteraYAML::ParseYaml(value.yaml);
             ChemUtil::PreparedKinetics<NSPECIES> prepared =

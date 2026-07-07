@@ -357,6 +357,7 @@ struct Equilibrium
 #ifdef ALAMO_YAML
         if constexpr (NSPECIES > 1)
         {
+            // Cantera yaml file
             pp_query_required("yaml", value.yaml);
             value.kinetics = CanteraYAML::ParseYaml(value.yaml);
             ChemUtil::PreparedKinetics<NSPECIES> prepared =

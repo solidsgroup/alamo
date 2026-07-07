@@ -32,12 +32,14 @@ public:
         value.coeffs.resize(NSPECIES);
 
         std::string type;
+        // declare if parameters are defined in a yaml file [yaml] or the alamo input file [input]
         pp.query_validate("type", type, {"yaml", "input"});
 
         if (type == "yaml")
         {
 #ifdef ALAMO_YAML
             std::string yaml;
+            // Cantera yaml file
             pp_query_required("yaml", yaml);
             CanteraYAML::CanteraKinetics kinetics = CanteraYAML::ParseYaml(yaml);
 
@@ -99,8 +101,12 @@ public:
             std::vector<double> flat_coeffs_lo;
             std::vector<double> flat_coeffs_hi;
 
+            // Array of temperature ranges for NASA7 polynomial curve fits, must be size 3 or 3 x NSPECIES
+            // T_lo, T_mid, T_high
             pp.queryarr_required("temperature_ranges", flat_Tranges, Unit::Temperature());
+            // NASA7 polynomial coefficients for lower temperature range, T_lo:T_mid
             pp.queryarr_required("coeffs_lo", flat_coeffs_lo);
+            // NASA7 polynomial coefficients for upper temperature range, T_mid:T_high
             pp.queryarr_required("coeffs_hi", flat_coeffs_hi);
 
             Util::Assert(INFO, TEST((int)flat_Tranges.size() == 3 || (int)flat_Tranges.size() == 3 * NSPECIES),

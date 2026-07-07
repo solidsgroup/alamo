@@ -90,8 +90,11 @@ public:
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
+        // 1 atm reference pressure
         pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        // 1 angstrom reference length
         pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
+        // 1 cm^2 reference area
         pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)NSPECIES));

@@ -262,9 +262,13 @@ struct Rocfire
         pp.queryarr_default("qsolid", qsolid,
             {"-100.0_cal/g", "-300.0_cal/g"},
             Unit::Energy() / Unit::Mass());
+        // Reference pressure (default is 1 bar)
         pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
+        // Number of explicit chemistry substeps
         pp.query_default("nsubsteps", value.nsubsteps, 1);
+        // Stoichiometric coefficient for beta*AP + HTPB -> (beta+1) Primary
         pp.query_default("beta", value.beta, 7.974);
+        // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
         pp.query_default("gamma", value.gamma, 3.19);
 
         Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.rocfire.A must have 4 entries.");
