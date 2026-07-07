@@ -115,6 +115,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
     pp.query_default("projection.enabled", value.projection_enabled, true);
+    pp.query_default("projection.amr_enabled", value.projection_amr_enabled, false);
     pp.query_default("projection.tol_rel", value.projection_tol_rel, 1.0e-11);
     pp.query_default("projection.tol_abs", value.projection_tol_abs, 1.0e-12);
     pp.query_default("projection.verbose", value.projection_verbose, 0);
@@ -124,6 +125,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("advect_temperature", value.advect_temperature, true);
     pp.query_default("eta.initial_value", value.eta_initial_value, 0.0);
     pp.query_default("reference_map.eta_cutoff", value.reference_map_eta_cutoff, 0.5);
+    pp.query_default("reference_map.eta_core", value.reference_map_eta_core, value.reference_map_eta_cutoff);
     pp.query_default("reference_map.extrapolation_sweeps", value.reference_map_extrapolation_sweeps, 4);
     pp.query_default("reference_map.smoothing_sweeps", value.reference_map_smoothing_sweeps, 2);
 
@@ -134,7 +136,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("solid.model.viscosity", value.finite_solid_viscosity, 0.0);
     pp.query_default("solid.model.bulk_viscosity", value.finite_solid_bulk_viscosity, 0.0);
     pp.query_default("solid.model.stress_cap", value.finite_solid_stress_cap, 1.0e100);
-    pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_rhs_sign, 1.0);
+    pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_rhs_sign, 0.0);
+    pp.query_default("solid.model.implicit", value.finite_solid_implicit, true);
+    pp.query_default("solid.model.implicit_coeff_scale", value.finite_solid_implicit_coeff_scale, 1.0);
     if (solid_model_type == "none")
     {
         value.finite_solid_enabled = false;
@@ -152,6 +156,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
+    pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
     pp.queryarr_default("g", value.g, Set::Vector::Zero());
     for (int face = 0; face < 2 * AMREX_SPACEDIM; ++face)
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -253,8 +258,36 @@ LowMach::FillStateBoundaries(int lev,
         amrex::MultiFab::Copy(mf, valid, 0, 0, mf.nComp(), 0);
     };
 
+    auto fill_coarse_fine = [&](amrex::MultiFab& mf, Set::Field<Set::Scalar>& source_mf, BC::BC<Set::Scalar>* physbc)
+    {
+        if (lev == 0) return;
+
+        amrex::Vector<amrex::MultiFab*> cmf;
+        amrex::Vector<amrex::MultiFab*> fmf;
+        cmf.push_back(source_mf[lev - 1].get());
+        fmf.push_back(&mf);
+
+        amrex::Vector<amrex::Real> ctime;
+        amrex::Vector<amrex::Real> ftime;
+        ctime.push_back(time);
+        ftime.push_back(time);
+
+        physbc->define(geom[lev]);
+        amrex::Interpolater* mapper = mf.boxArray().ixType() == amrex::IndexType::TheNodeType() ?
+            static_cast<amrex::Interpolater*>(&amrex::node_bilinear_interp) :
+            static_cast<amrex::Interpolater*>(&amrex::cell_cons_interp);
+        amrex::Vector<amrex::BCRec> bcs(mf.nComp(), physbc->GetBCRec());
+        amrex::FillPatchTwoLevels(mf, time, cmf, ctime, fmf, ftime,
+            0, 0, mf.nComp(), geom[lev - 1], geom[lev],
+            *physbc, 0,
+            *physbc, 0,
+            refRatio(lev - 1),
+            mapper, bcs, 0);
+    };
+
     preserve_valid(u_mf, [&]()
     {
+        fill_coarse_fine(u_mf, velocity_mf, velocity_bc);
         velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
         u_mf.FillBoundary(geom[lev].periodicity());
     });
@@ -262,24 +295,32 @@ LowMach::FillStateBoundaries(int lev,
 
     preserve_valid(T_mf, [&]()
     {
+        fill_coarse_fine(T_mf, temperature_mf, temperature_bc);
         temperature_bc->FillBoundary(T_mf, 0, 1, time, 0);
         T_mf.FillBoundary(geom[lev].periodicity());
     });
 
     preserve_valid(Y_mf, [&]()
     {
+        fill_coarse_fine(Y_mf, mass_fraction_mf, mass_fraction_bc);
         mass_fraction_bc->FillBoundary(Y_mf, 0, nspecies, time, 0);
         Y_mf.FillBoundary(geom[lev].periodicity());
     });
 
     preserve_valid(eta_mf, [&]()
     {
+        fill_coarse_fine(eta_mf, this->eta_mf, eta_bc);
         eta_bc->FillBoundary(eta_mf, 0, 1, time, 0);
         eta_mf.FillBoundary(geom[lev].periodicity());
     });
     SanitizeEta(eta_mf);
 
-    FillReferenceMapBoundary(lev, xi_mf);
+    preserve_valid(xi_mf, [&]()
+    {
+        fill_coarse_fine(xi_mf, this->xi_mf, xi_bc);
+        xi_bc->FillBoundary(xi_mf, 0, AMREX_SPACEDIM, time, 0);
+        xi_mf.FillBoundary(geom[lev].periodicity());
+    });
 
     FillPressureBoundary(lev, time);
 }
@@ -357,6 +398,26 @@ LowMach::FillPressureBoundary(int lev, Set::Scalar time)
     amrex::MultiFab::Copy(valid, *pressure_mf[lev], 0, 0, pressure_mf[lev]->nComp(), 0);
     pressure_mf[lev]->setVal(0.0, 0, pressure_mf[lev]->nComp(), pressure_mf[lev]->nGrow());
     amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
+    if (lev > 0)
+    {
+        amrex::Vector<amrex::MultiFab*> cmf;
+        amrex::Vector<amrex::MultiFab*> fmf;
+        cmf.push_back(pressure_mf[lev - 1].get());
+        fmf.push_back(pressure_mf[lev].get());
+        amrex::Vector<amrex::Real> ctime;
+        amrex::Vector<amrex::Real> ftime;
+        ctime.push_back(time);
+        ftime.push_back(time);
+        pressure_bc->define(geom[lev]);
+        amrex::Vector<amrex::BCRec> bcs(pressure_mf[lev]->nComp(), pressure_bc->GetBCRec());
+        amrex::FillPatchTwoLevels(*pressure_mf[lev], time, cmf, ctime, fmf, ftime,
+            0, 0, pressure_mf[lev]->nComp(), geom[lev - 1], geom[lev],
+            *pressure_bc, 0,
+            *pressure_bc, 0,
+            refRatio(lev - 1),
+            &amrex::cell_cons_interp, bcs, 0);
+        amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
+    }
     pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, time, 0);
     pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
     amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
@@ -467,9 +528,59 @@ LowMach::UpdateSolidStress(int lev,
 
             if (solid_weight > 0.0)
             {
-                Set::Matrix grad_xi = Numeric::Gradient(xi, i, j, k, DX, sten);
+                Set::Matrix grad_xi = Set::Matrix::Zero();
+                bool grad_valid = true;
+                auto eta_is_solid = [=] AMREX_GPU_DEVICE (int ii, int jj, int kk) -> bool
+                {
+                    return lowmach_clamp(eta(ii,jj,kk), 0.0, 1.0) >= eta_threshold;
+                };
+                auto xi_derivative = [=, &grad_valid] AMREX_GPU_DEVICE (int n, int d) -> Set::Scalar
+                {
+                    int lo_i = i;
+                    int lo_j = j;
+                    int lo_k = k;
+                    int hi_i = i;
+                    int hi_j = j;
+                    int hi_k = k;
+                    if (d == 0)
+                    {
+                        lo_i -= 1;
+                        hi_i += 1;
+                    }
+#if AMREX_SPACEDIM >= 2
+                    else if (d == 1)
+                    {
+                        lo_j -= 1;
+                        hi_j += 1;
+                    }
+#endif
+#if AMREX_SPACEDIM == 3
+                    else
+                    {
+                        lo_k -= 1;
+                        hi_k += 1;
+                    }
+#endif
+
+                    bool lo_valid = eta_is_solid(lo_i, lo_j, lo_k);
+                    bool hi_valid = eta_is_solid(hi_i, hi_j, hi_k);
+                    if (lo_valid && hi_valid)
+                        return (xi(hi_i,hi_j,hi_k,n) - xi(lo_i,lo_j,lo_k,n)) / (2.0 * DX[d]);
+                    if (hi_valid)
+                        return (xi(hi_i,hi_j,hi_k,n) - xi(i,j,k,n)) / DX[d];
+                    if (lo_valid)
+                        return (xi(i,j,k,n) - xi(lo_i,lo_j,lo_k,n)) / DX[d];
+
+                    grad_valid = false;
+                    return n == d ? 1.0 : 0.0;
+                };
+
+                for (int n = 0; n < AMREX_SPACEDIM; ++n)
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        grad_xi(n,d) = xi_derivative(n, d);
+
                 Set::Scalar det_grad_xi = grad_xi.determinant();
-                bool valid = lowmach_is_finite(det_grad_xi) && lowmach_abs(det_grad_xi) > det_floor;
+                bool valid = grad_valid && lowmach_is_finite(det_grad_xi) && lowmach_abs(det_grad_xi) > det_floor;
                 if (valid)
                 {
 #if AMREX_SPACEDIM == 2
@@ -587,10 +698,96 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
 
 
 void
+LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
+{
+    BL_PROFILE("Integrator::LowMach::ImplicitElasticVelocitySolve");
+    if (!finite_solid_enabled || !finite_solid_implicit || !(dt > 0.0)) return;
+    if (!(finite_solid_rhs_sign != 0.0)) return;
+
+    amrex::MultiFab& u_mf = *velocity_mf[lev];
+    amrex::MultiFab& eta = *eta_mf[lev];
+    amrex::MultiFab& rho_mf = *density_mf[lev];
+
+    const Set::Scalar eta_threshold = lowmach_clamp(finite_solid_eta_threshold, 0.0, 1.0);
+    const Set::Scalar rho_floor = density_floor;
+    const Set::Scalar modulus = finite_solid_implicit_coeff_scale *
+        (finite_solid_model.kappa + (4.0 / 3.0) * finite_solid_model.mu);
+    const Set::Scalar stress_sign = finite_solid_rhs_sign;
+    if (!(modulus == modulus) || !(modulus > 0.0)) return;
+
+    amrex::MultiFab beta_cc(u_mf.boxArray(), u_mf.DistributionMap(), 1, 1);
+    beta_cc.setVal(0.0);
+    for (amrex::MFIter mfi(beta_cc, true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
+        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
+        Set::Patch<Set::Scalar> beta = beta_cc.array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
+            Set::Scalar solid_weight = 0.0;
+            if (eta_val > eta_threshold)
+            {
+                Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
+                solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
+            }
+            beta(i,j,k) = solid_weight * modulus / lowmach_max(rho(i,j,k), rho_floor);
+        });
+    }
+    beta_cc.FillBoundary(geom[lev].periodicity());
+
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_face;
+    amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> beta_face_ptr;
+    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> beta_face_const_ptr;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        amrex::BoxArray face_ba = u_mf.boxArray();
+        face_ba.surroundingNodes(d);
+        beta_face[d].define(face_ba, u_mf.DistributionMap(), 1, 0);
+        beta_face_ptr[d] = &beta_face[d];
+        beta_face_const_ptr[d] = &beta_face[d];
+    }
+    amrex::average_cellcenter_to_face(beta_face_ptr, beta_cc, geom[lev], 1, true, 0);
+
+    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> lobc;
+    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> hibc;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        lobc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
+        hibc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
+    }
+
+    for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
+    {
+        amrex::MultiFab rhs(u_mf.boxArray(), u_mf.DistributionMap(), 1, 0);
+        amrex::MultiFab sol(u_mf.boxArray(), u_mf.DistributionMap(), 1, u_mf.nGrow());
+        amrex::MultiFab::Copy(rhs, u_mf, comp, 0, 1, 0);
+        amrex::MultiFab::Copy(sol, u_mf, comp, 0, 1, u_mf.nGrow());
+
+        amrex::LPInfo info;
+        amrex::MLABecLaplacian mlabec({geom[lev]}, {u_mf.boxArray()}, {u_mf.DistributionMap()}, info);
+        mlabec.setDomainBC(lobc, hibc);
+        mlabec.setLevelBC(0, nullptr);
+        mlabec.setScalars(1.0, dt * stress_sign);
+        mlabec.setACoeffs(0, 1.0);
+        mlabec.setBCoeffs(0, beta_face_const_ptr);
+
+        amrex::MLMG mlmg(mlabec);
+        mlmg.setVerbose(projection_verbose);
+        mlmg.solve({&sol}, {&rhs}, projection_tol_rel, projection_tol_abs);
+        amrex::MultiFab::Copy(u_mf, sol, 0, comp, 1, 0);
+    }
+
+    FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time);
+}
+
+void
 LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrator::LowMach::ProjectVelocity");
     if (!projection_enabled || !(dt > 0.0)) return;
+    if (finest_level > 0 && !projection_amr_enabled) return;
 
     amrex::MultiFab& phi_mf = *pressure_correction_mf[lev];
     amrex::MultiFab& rhs_mf = *projection_rhs_mf[lev];
@@ -687,6 +884,28 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
             phi(i,j,k) -= phi_mean;
         });
     }
+    if (lev > 0)
+    {
+        amrex::MultiFab valid_phi(phi_mf.boxArray(), phi_mf.DistributionMap(), phi_mf.nComp(), 0);
+        amrex::MultiFab::Copy(valid_phi, phi_mf, 0, 0, phi_mf.nComp(), 0);
+        amrex::Vector<amrex::MultiFab*> cmf;
+        amrex::Vector<amrex::MultiFab*> fmf;
+        cmf.push_back(pressure_correction_mf[lev - 1].get());
+        fmf.push_back(&phi_mf);
+        amrex::Vector<amrex::Real> ctime;
+        amrex::Vector<amrex::Real> ftime;
+        ctime.push_back(time);
+        ftime.push_back(time);
+        bc_nothing.define(geom[lev]);
+        amrex::Vector<amrex::BCRec> bcs(phi_mf.nComp(), bc_nothing.GetBCRec());
+        amrex::FillPatchTwoLevels(phi_mf, time, cmf, ctime, fmf, ftime,
+            0, 0, phi_mf.nComp(), geom[lev - 1], geom[lev],
+            bc_nothing, 0,
+            bc_nothing, 0,
+            refRatio(lev - 1),
+            &amrex::cell_cons_interp, bcs, 0);
+        amrex::MultiFab::Copy(phi_mf, valid_phi, 0, 0, phi_mf.nComp(), 0);
+    }
     phi_mf.FillBoundary(geom[lev].periodicity());
 
     for (amrex::MFIter mfi(u_mf, true); mfi.isValid(); ++mfi)
@@ -733,7 +952,8 @@ LowMach::SanitizeEta(amrex::MultiFab& eta_mf)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar val = eta(i,j,k);
-            if (!(val == val && val < 1.0e300 && val > -1.0e300)) eta(i,j,k) = 0.0;
+            if (!(val == val && val < 1.0e300 && val > -1.0e300)) val = 0.0;
+            eta(i,j,k) = lowmach_clamp(val, 0.0, 1.0);
         });
     }
     amrex::Gpu::streamSynchronize();
@@ -792,7 +1012,8 @@ LowMach::InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf)
 void
 LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage_mf, amrex::MultiFab& xi_stage_mf, Set::Scalar time)
 {
-    const Set::Scalar cutoff_eta = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
+    const Set::Scalar extension_eta = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
+    const Set::Scalar core_eta = lowmach_clamp(lowmach_max(reference_map_eta_core, extension_eta), 0.0, 1.0);
     const int extrap_sweeps = reference_map_extrapolation_sweeps < 0 ? 0 : reference_map_extrapolation_sweeps;
     const int smooth_sweeps = reference_map_smoothing_sweeps < 0 ? 0 : reference_map_smoothing_sweeps;
     const int xi_ngrow = xi_stage_mf.nGrow();
@@ -829,78 +1050,125 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
             amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (eta(i,j,k) < cutoff_eta) return;
+                if (eta(i,j,k) < core_eta) return;
                 for (int n = 0; n < AMREX_SPACEDIM; ++n) xi(i,j,k,n) = xi_in(i,j,k,n);
             });
         }
         amrex::Gpu::streamSynchronize();
     };
 
-    auto in_interface_band = [=] AMREX_GPU_DEVICE (auto const& eta, int i, int j, int k) -> bool
-    {
-        if (eta(i,j,k) >= cutoff_eta) return false;
-        if (eta(i-1,j,k) >= cutoff_eta || eta(i+1,j,k) >= cutoff_eta) return true;
-#if AMREX_SPACEDIM >= 2
-        if (eta(i,j-1,k) >= cutoff_eta || eta(i,j+1,k) >= cutoff_eta) return true;
-#endif
-#if AMREX_SPACEDIM == 3
-        if (eta(i,j,k-1) >= cutoff_eta || eta(i,j,k+1) >= cutoff_eta) return true;
-#endif
-        return false;
-    };
+    amrex::MultiFab xi_known(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), 1, xi_ngrow);
+    xi_known.setVal(0.0, 0, 1, xi_ngrow);
 
     for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
+        amrex::Array4<Set::Scalar> const& known = xi_known.array(mfi);
         amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            if (eta(i,j,k) >= cutoff_eta) return;
+            if (eta(i,j,k) >= core_eta)
+            {
+                known(i,j,k) = 1.0;
+                return;
+            }
+
             Set::Vector pos = Set::Position(i, j, k, geom_lev, amrex::IndexType::TheCellType());
             for (int n = 0; n < AMREX_SPACEDIM; ++n) xi(i,j,k,n) = pos(n);
         });
     }
     amrex::Gpu::streamSynchronize();
+    xi_known.FillBoundary(geom[lev].periodicity());
     restore_protected_xi();
     fill_xi_boundary_preserve_valid();
 
     for (int sweep = 0; sweep < extrap_sweeps; ++sweep)
     {
         amrex::MultiFab xi_old(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), AMREX_SPACEDIM, xi_ngrow);
+        amrex::MultiFab known_old(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), 1, xi_ngrow);
         amrex::MultiFab::Copy(xi_old, xi_stage_mf, 0, 0, AMREX_SPACEDIM, xi_ngrow);
+        amrex::MultiFab::Copy(known_old, xi_known, 0, 0, 1, xi_ngrow);
+        known_old.FillBoundary(geom[lev].periodicity());
 
         for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
             amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& xi_in = xi_old.const_array(mfi);
+            amrex::Array4<const Set::Scalar> const& known_in = known_old.const_array(mfi);
             amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
+            amrex::Array4<Set::Scalar> const& known = xi_known.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (!in_interface_band(eta, i, j, k)) return;
+                if (known_in(i,j,k) > 0.5) return;
+                if (eta(i,j,k) < extension_eta) return;
 
+                Set::Vector pos = Set::Position(i, j, k, geom_lev, amrex::IndexType::TheCellType());
                 for (int n = 0; n < AMREX_SPACEDIM; ++n)
                 {
                     Set::Scalar sum = 0.0;
                     Set::Scalar count = 0.0;
-                    if (eta(i-1,j,k) >= cutoff_eta) { sum += xi_in(i-1,j,k,n); count += 1.0; }
-                    if (eta(i+1,j,k) >= cutoff_eta) { sum += xi_in(i+1,j,k,n); count += 1.0; }
+                    if (known_in(i-1,j,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i-1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i-1,j,k,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known_in(i+1,j,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i+1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i+1,j,k,n) - npos(n);
+                        count += 1.0;
+                    }
 #if AMREX_SPACEDIM >= 2
-                    if (eta(i,j-1,k) >= cutoff_eta) { sum += xi_in(i,j-1,k,n); count += 1.0; }
-                    if (eta(i,j+1,k) >= cutoff_eta) { sum += xi_in(i,j+1,k,n); count += 1.0; }
+                    if (known_in(i,j-1,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j-1, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j-1,k,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known_in(i,j+1,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j+1, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j+1,k,n) - npos(n);
+                        count += 1.0;
+                    }
 #endif
 #if AMREX_SPACEDIM == 3
-                    if (eta(i,j,k-1) >= cutoff_eta) { sum += xi_in(i,j,k-1,n); count += 1.0; }
-                    if (eta(i,j,k+1) >= cutoff_eta) { sum += xi_in(i,j,k+1,n); count += 1.0; }
+                    if (known_in(i,j,k-1) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k-1, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j,k-1,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known_in(i,j,k+1) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k+1, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j,k+1,n) - npos(n);
+                        count += 1.0;
+                    }
 #endif
-                    if (count > 0.0) xi(i,j,k,n) = sum / count;
+                    if (count > 0.0) xi(i,j,k,n) = pos(n) + sum / count;
+                }
+
+                if (known_in(i-1,j,k) > 0.5 || known_in(i+1,j,k) > 0.5
+#if AMREX_SPACEDIM >= 2
+                    || known_in(i,j-1,k) > 0.5 || known_in(i,j+1,k) > 0.5
+#endif
+#if AMREX_SPACEDIM == 3
+                    || known_in(i,j,k-1) > 0.5 || known_in(i,j,k+1) > 0.5
+#endif
+                    )
+                {
+                    known(i,j,k) = 1.0;
                 }
             });
         }
         amrex::Gpu::streamSynchronize();
+        xi_known.FillBoundary(geom[lev].periodicity());
         restore_protected_xi();
         fill_xi_boundary_preserve_valid();
     }
@@ -908,32 +1176,71 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
     for (int sweep = 0; sweep < smooth_sweeps; ++sweep)
     {
         amrex::MultiFab xi_old(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), AMREX_SPACEDIM, xi_ngrow);
+        amrex::MultiFab known_old(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), 1, xi_ngrow);
         amrex::MultiFab::Copy(xi_old, xi_stage_mf, 0, 0, AMREX_SPACEDIM, xi_ngrow);
+        amrex::MultiFab::Copy(known_old, xi_known, 0, 0, 1, xi_ngrow);
+        known_old.FillBoundary(geom[lev].periodicity());
 
         for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
             amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& xi_in = xi_old.const_array(mfi);
+            amrex::Array4<const Set::Scalar> const& known = known_old.const_array(mfi);
             amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (!in_interface_band(eta, i, j, k)) return;
+                if (eta(i,j,k) >= core_eta) return;
+                if (eta(i,j,k) < extension_eta) return;
+                if (known(i,j,k) <= 0.5) return;
 
+                Set::Vector pos = Set::Position(i, j, k, geom_lev, amrex::IndexType::TheCellType());
                 for (int n = 0; n < AMREX_SPACEDIM; ++n)
                 {
-                    Set::Scalar avg = 0.5 * (xi_in(i-1,j,k,n) + xi_in(i+1,j,k,n));
+                    Set::Scalar sum = xi_in(i,j,k,n) - pos(n);
+                    Set::Scalar count = 1.0;
+                    if (known(i-1,j,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i-1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i-1,j,k,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known(i+1,j,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i+1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i+1,j,k,n) - npos(n);
+                        count += 1.0;
+                    }
 #if AMREX_SPACEDIM >= 2
-                    avg += 0.5 * (xi_in(i,j-1,k,n) + xi_in(i,j+1,k,n));
-                    avg *= 0.5;
+                    if (known(i,j-1,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j-1, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j-1,k,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known(i,j+1,k) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j+1, k, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j+1,k,n) - npos(n);
+                        count += 1.0;
+                    }
 #endif
 #if AMREX_SPACEDIM == 3
-                    avg = (xi_in(i-1,j,k,n) + xi_in(i+1,j,k,n) +
-                           xi_in(i,j-1,k,n) + xi_in(i,j+1,k,n) +
-                           xi_in(i,j,k-1,n) + xi_in(i,j,k+1,n)) / 6.0;
+                    if (known(i,j,k-1) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k-1, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j,k-1,n) - npos(n);
+                        count += 1.0;
+                    }
+                    if (known(i,j,k+1) > 0.5)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k+1, geom_lev, amrex::IndexType::TheCellType());
+                        sum += xi_in(i,j,k+1,n) - npos(n);
+                        count += 1.0;
+                    }
 #endif
-                    xi(i,j,k,n) = 0.5 * xi_in(i,j,k,n) + 0.5 * avg;
+                    xi(i,j,k,n) = pos(n) + sum / count;
                 }
             });
         }
@@ -1056,11 +1363,11 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const bool viscous = include_viscosity;
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
-        const Set::Scalar xi_eta_cutoff = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
+        const Set::Scalar xi_eta_cutoff = lowmach_clamp(lowmach_max(reference_map_eta_core, reference_map_eta_cutoff), 0.0, 1.0);
         const Set::Vector gravity = g;
         const Set::Scalar p_scale = pressure_scale;
         const Set::Scalar rho_floor = density_floor;
-        const Set::Scalar stress_sign = finite_solid_rhs_sign;
+        const Set::Scalar stress_sign = finite_solid_implicit ? 0.0 : finite_solid_rhs_sign;
         amrex::Box const cell_domain = domain;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1258,6 +1565,9 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], time + dt);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev]);
+    ImplicitElasticVelocitySolve(lev, time + dt, dt);
+    UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
+    UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev]);
     ProjectVelocity(lev, time + dt, dt);
     EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
@@ -1339,9 +1649,11 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
         Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         const Set::Scalar vcrit = velocity_refinement_criterion;
         const Set::Scalar pcrit = pressure_refinement_criterion;
         const Set::Scalar Tcrit = temperature_refinement_criterion;
+        const Set::Scalar etacrit = eta_refinement_criterion;
         amrex::Box domain = geom[lev].Domain();
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1350,7 +1662,11 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
             Set::Vector grad_T = Numeric::Gradient(T, i, j, k, 0, DX, sten);
-            if (grad_u.norm() * dr > vcrit || grad_p.lpNorm<2>() * dr > pcrit || grad_T.lpNorm<2>() * dr > Tcrit)
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX, sten);
+            if (grad_u.norm() * dr > vcrit ||
+                grad_p.lpNorm<2>() * dr > pcrit ||
+                grad_T.lpNorm<2>() * dr > Tcrit ||
+                grad_eta.lpNorm<2>() * dr * 2.0 > etacrit)
                 tag(i,j,k) = amrex::TagBox::SET;
         });
     }

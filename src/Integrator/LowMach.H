@@ -71,6 +71,7 @@ protected:
     void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
     void EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf);
     void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
+    void ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
@@ -138,8 +139,10 @@ protected:
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
+    Set::Scalar eta_refinement_criterion = NAN;
     int projection_verbose = 0;
     bool projection_enabled = true;
+    bool projection_amr_enabled = false;
     bool projection_update_pressure = false;
     amrex::Array<amrex::Array<Numeric::Interpolator::Linear<Set::Scalar>, AMREX_SPACEDIM>, 2 * AMREX_SPACEDIM> velocity_dirichlet_value;
     bool include_viscosity = true;
@@ -147,6 +150,7 @@ protected:
     bool advect_temperature = true;
     Set::Scalar eta_initial_value = 0.0;
     Set::Scalar reference_map_eta_cutoff = 0.5;
+    Set::Scalar reference_map_eta_core = 0.5;
     int reference_map_extrapolation_sweeps = 4;
     int reference_map_smoothing_sweeps = 2;
     bool finite_solid_enabled = false;
@@ -155,7 +159,9 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_bulk_viscosity = 0.0;
     Set::Scalar finite_solid_stress_cap = 1.0e100;
-    Set::Scalar finite_solid_rhs_sign = 1.0;
+    Set::Scalar finite_solid_rhs_sign = 0.0;
+    bool finite_solid_implicit = true;
+    Set::Scalar finite_solid_implicit_coeff_scale = 1.0;
 };
 }
 

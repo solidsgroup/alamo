@@ -5,9 +5,11 @@ plot_file = output.lm
 amr.plot_int = 50
 amr.max_grid_size = 64
 amr.blocking_factor = 4
-amr.regrid_int = -1
-amr.max_level = 1
+amr.regrid_int = 2
+amr.max_level = 0
+amr.nsubsteps = 1
 amr.n_cell = 256 256
+eta_refinement_criterion = 0.1
 
 timestep = 1.0e-3
 stop_time = 200.0
@@ -34,12 +36,14 @@ include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
+projection.amr_enabled = 0
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
 projection.update_pressure = 0
 
 reference_map.eta_cutoff = 0.5
+reference_map.eta_core = 0.7
 reference_map.extrapolation_sweeps = 4
 reference_map.smoothing_sweeps = 2
 
@@ -47,7 +51,9 @@ solid.model.type = finite.neohookean
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
 solid.model.stress_cap = 1.0e100
-solid.model.stress_rhs_sign = 1.0
+solid.model.stress_rhs_sign = 0.001
+solid.model.implicit = 1
+solid.model.implicit_coeff_scale = 1.0
 solid.model.viscosity = 0.0
 solid.model.bulk_viscosity = 0.0
 solid.model.finite.neohookean.mu = 1.0e3_Pa
@@ -65,11 +71,18 @@ pressure.ic.constant.value = 100000.0
 # Passive phase-field marker for reference-map advection tests.
 # xi is initialized internally as xi(x,0)=x.
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.03
+eta.ic.expression.constant.eps = 0.01
 eta.ic.expression.constant.x0 = 0.45
 eta.ic.expression.constant.y0 = 0.55
+
+# Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
 eta.ic.expression.constant.R = 0.08
 eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
+
+# Vertical rectangle inclusion.
+# eta.ic.expression.constant.hx = 0.035
+# eta.ic.expression.constant.hy = 0.12
+# eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
 
 mass_fraction.bc.type = constant
 mass_fraction.bc.constant.type.xlo = neumann
