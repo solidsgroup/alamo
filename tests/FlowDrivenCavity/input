@@ -75,7 +75,7 @@ gas.eos.type = cpg
 cfl   = 0.4
 
 density.ic.type = expression
-density.ic.expression.region0 = "3.5" 
+density.ic.expression.region0 = "5.0" 
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
@@ -95,10 +95,13 @@ pf.eta.bc.constant.type.zhi = neumann
 
 ### HYDRO BC ###
 
-density.bc.constant.type.xhi = neumann
-density.bc.constant.type.xlo = neumann
-density.bc.constant.type.ylo = neumann
+density.bc.constant.type.xhi = dirichlet
+density.bc.constant.type.xlo = dirichlet
+density.bc.constant.type.ylo = dirichlet
 density.bc.constant.type.yhi = dirichlet
+density.bc.constant.val.xhi =  5.0
+density.bc.constant.val.xlo =  5.0
+density.bc.constant.val.ylo =  5.0
 density.bc.constant.val.yhi =  5.0
 
 energy.bc.constant.type.xhi = neumann
