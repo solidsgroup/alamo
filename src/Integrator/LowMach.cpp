@@ -5,6 +5,7 @@
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Numeric/Stencil.H"
+#include "Operator/Dynamic/ElasticLowMach.H"
 
 #include "Model/Gas/Thermo/Thermo.H"
 #include "Model/Gas/Thermo/CpConstant.H"
@@ -138,7 +139,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("solid.model.stress_cap", value.finite_solid_stress_cap, 1.0e100);
     pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_rhs_sign, 0.0);
     pp.query_default("solid.model.implicit", value.finite_solid_implicit, true);
-    pp.query_default("solid.model.implicit_coeff_scale", value.finite_solid_implicit_coeff_scale, 1.0);
+    pp.query_default("solid.model.implicit_coeff_scale", value.finite_solid_implicit_coeff_scale, 1.0e-4);
+    pp.query_default("solid.model.implicit_preserve_rigid_modes", value.finite_solid_implicit_preserve_rigid_modes, true);
+    pp.query_default("solid.model.implicit_tol_rel", value.finite_solid_implicit_tol_rel, 1.0e-8);
+    pp.query_default("solid.model.implicit_tol_abs", value.finite_solid_implicit_tol_abs, 1.0e-10);
+    pp.query_default("solid.model.implicit_verbose", value.finite_solid_implicit_verbose, 0);
     if (solid_model_type == "none")
     {
         value.finite_solid_enabled = false;
@@ -710,45 +715,136 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
 
     const Set::Scalar eta_threshold = lowmach_clamp(finite_solid_eta_threshold, 0.0, 1.0);
     const Set::Scalar rho_floor = density_floor;
-    const Set::Scalar modulus = finite_solid_implicit_coeff_scale *
-        (finite_solid_model.kappa + (4.0 / 3.0) * finite_solid_model.mu);
     const Set::Scalar stress_sign = finite_solid_rhs_sign;
-    if (!(modulus == modulus) || !(modulus > 0.0)) return;
+    if (!(finite_solid_model.mu == finite_solid_model.mu) || !(finite_solid_model.kappa == finite_solid_model.kappa)) return;
+    if (!(finite_solid_implicit_coeff_scale == finite_solid_implicit_coeff_scale) || !(finite_solid_implicit_coeff_scale > 0.0)) return;
 
-    amrex::MultiFab beta_cc(u_mf.boxArray(), u_mf.DistributionMap(), 1, 1);
-    beta_cc.setVal(0.0);
-    for (amrex::MFIter mfi(beta_cc, true); mfi.isValid(); ++mfi)
+    Set::Scalar rigid_mass = 0.0;
+    Set::Scalar rigid_xcm = 0.0;
+    Set::Scalar rigid_ycm = 0.0;
+    Set::Scalar rigid_ux = 0.0;
+    Set::Scalar rigid_uy = 0.0;
+    Set::Scalar rigid_omega = 0.0;
+    if (finite_solid_implicit_preserve_rigid_modes)
     {
-        const amrex::Box& bx = mfi.growntilebox();
-        Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
-        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-        Set::Patch<Set::Scalar> beta = beta_cc.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        Set::Scalar sum_m = 0.0;
+        Set::Scalar sum_mx = 0.0;
+        Set::Scalar sum_my = 0.0;
+        Set::Scalar sum_mux = 0.0;
+        Set::Scalar sum_muy = 0.0;
+        const Set::Scalar* DX = geom[lev].CellSize();
+        const Set::Scalar cell_vol = AMREX_D_TERM(DX[0], * DX[1], * DX[2]);
+        for (amrex::MFIter mfi(u_mf, false); mfi.isValid(); ++mfi)
         {
-            Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
-            Set::Scalar solid_weight = 0.0;
-            if (eta_val > eta_threshold)
-            {
-                Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
-                solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
-            }
-            beta(i,j,k) = solid_weight * modulus / lowmach_max(rho(i,j,k), rho_floor);
-        });
-    }
-    beta_cc.FillBoundary(geom[lev].periodicity());
+            const amrex::Box& bx = mfi.validbox();
+            const amrex::Dim3 lo = amrex::lbound(bx);
+            const amrex::Dim3 hi = amrex::ubound(bx);
+            Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
+            Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
+            Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
+            for (int k = lo.z; k <= hi.z; ++k)
+                for (int j = lo.y; j <= hi.y; ++j)
+                    for (int i = lo.x; i <= hi.x; ++i)
+                    {
+                        Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
+                        if (eta_val <= eta_threshold) continue;
+                        Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
+                        Set::Scalar solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
+                        Set::Scalar m = solid_weight * lowmach_max(rho(i,j,k), rho_floor) * cell_vol;
+                        Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
+                        sum_m += m;
+                        sum_mx += m * x(0);
+                        sum_my += m * x(1);
+                        sum_mux += m * u(i,j,k,0);
+                        sum_muy += m * u(i,j,k,1);
+                    }
+        }
+        amrex::ParallelDescriptor::ReduceRealSum(sum_m);
+        amrex::ParallelDescriptor::ReduceRealSum(sum_mx);
+        amrex::ParallelDescriptor::ReduceRealSum(sum_my);
+        amrex::ParallelDescriptor::ReduceRealSum(sum_mux);
+        amrex::ParallelDescriptor::ReduceRealSum(sum_muy);
 
-    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_face;
-    amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> beta_face_ptr;
-    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> beta_face_const_ptr;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        amrex::BoxArray face_ba = u_mf.boxArray();
-        face_ba.surroundingNodes(d);
-        beta_face[d].define(face_ba, u_mf.DistributionMap(), 1, 0);
-        beta_face_ptr[d] = &beta_face[d];
-        beta_face_const_ptr[d] = &beta_face[d];
+        rigid_mass = sum_m;
+        if (rigid_mass > 0.0)
+        {
+            rigid_xcm = sum_mx / rigid_mass;
+            rigid_ycm = sum_my / rigid_mass;
+            rigid_ux = sum_mux / rigid_mass;
+            rigid_uy = sum_muy / rigid_mass;
+
+#if AMREX_SPACEDIM == 2
+            Set::Scalar sum_I = 0.0;
+            Set::Scalar sum_L = 0.0;
+            for (amrex::MFIter mfi(u_mf, false); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.validbox();
+                const amrex::Dim3 lo = amrex::lbound(bx);
+                const amrex::Dim3 hi = amrex::ubound(bx);
+                Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
+                Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
+                Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
+                for (int k = lo.z; k <= hi.z; ++k)
+                    for (int j = lo.y; j <= hi.y; ++j)
+                        for (int i = lo.x; i <= hi.x; ++i)
+                        {
+                            Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
+                            if (eta_val <= eta_threshold) continue;
+                            Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
+                            Set::Scalar solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
+                            Set::Scalar m = solid_weight * lowmach_max(rho(i,j,k), rho_floor) * cell_vol;
+                            Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
+                            Set::Scalar rx = x(0) - rigid_xcm;
+                            Set::Scalar ry = x(1) - rigid_ycm;
+                            Set::Scalar vx = u(i,j,k,0) - rigid_ux;
+                            Set::Scalar vy = u(i,j,k,1) - rigid_uy;
+                            sum_I += m * (rx * rx + ry * ry);
+                            sum_L += m * (rx * vy - ry * vx);
+                        }
+            }
+            amrex::ParallelDescriptor::ReduceRealSum(sum_I);
+            amrex::ParallelDescriptor::ReduceRealSum(sum_L);
+            if (sum_I > 0.0) rigid_omega = sum_L / sum_I;
+#endif
+        }
     }
-    amrex::average_cellcenter_to_face(beta_face_ptr, beta_cc, geom[lev], 1, true, 0);
+
+    auto rigid_velocity = [=] AMREX_GPU_HOST_DEVICE (int i, int j, int k, int comp) -> Set::Scalar
+    {
+        if (!(rigid_mass > 0.0)) return 0.0;
+        Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
+        if (comp == 0) return rigid_ux - rigid_omega * (x(1) - rigid_ycm);
+        if (comp == 1) return rigid_uy + rigid_omega * (x(0) - rigid_xcm);
+#if AMREX_SPACEDIM == 3
+        if (comp == 2) return 0.0;
+#endif
+        return 0.0;
+    };
+
+    amrex::MultiFab rhs(u_mf.boxArray(), u_mf.DistributionMap(), AMREX_SPACEDIM, 0);
+    amrex::MultiFab sol(u_mf.boxArray(), u_mf.DistributionMap(), AMREX_SPACEDIM, u_mf.nGrow());
+    amrex::MultiFab::Copy(rhs, u_mf, 0, 0, AMREX_SPACEDIM, 0);
+    amrex::MultiFab::Copy(sol, u_mf, 0, 0, AMREX_SPACEDIM, u_mf.nGrow());
+
+    if (rigid_mass > 0.0)
+    {
+        for (amrex::MFIter mfi(rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.growntilebox();
+            amrex::Array4<Set::Scalar> const& rhs_arr = rhs.array(mfi);
+            amrex::Array4<Set::Scalar> const& sol_arr = sol.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
+                {
+                    Set::Scalar ur = rigid_velocity(i, j, k, comp);
+                    rhs_arr(i,j,k,comp) -= ur;
+                    sol_arr(i,j,k,comp) -= ur;
+                }
+            });
+        }
+        amrex::Gpu::streamSynchronize();
+    }
 
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> lobc;
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> hibc;
@@ -758,27 +854,35 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
         hibc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
     }
 
-    for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
+    amrex::LPInfo info;
+    Operator::Dynamic::ElasticLowMach elastic_op({geom[lev]}, {u_mf.boxArray()}, {u_mf.DistributionMap()}, info);
+    elastic_op.setDomainBC(lobc, hibc);
+    elastic_op.setMaxOrder(2);
+    elastic_op.setLevelBC(0, nullptr);
+    elastic_op.setScalars(1.0, dt * stress_sign);
+    elastic_op.setACoeffs(0, 1.0);
+    elastic_op.SetCoefficients(0, eta, rho_mf, finite_solid_model, eta_threshold, rho_floor, finite_solid_implicit_coeff_scale);
+
+    amrex::MLMG mlmg(elastic_op);
+    mlmg.setVerbose(finite_solid_implicit_verbose);
+    mlmg.solve({&sol}, {&rhs}, finite_solid_implicit_tol_rel, finite_solid_implicit_tol_abs);
+
+    if (rigid_mass > 0.0)
     {
-        amrex::MultiFab rhs(u_mf.boxArray(), u_mf.DistributionMap(), 1, 0);
-        amrex::MultiFab sol(u_mf.boxArray(), u_mf.DistributionMap(), 1, u_mf.nGrow());
-        amrex::MultiFab::Copy(rhs, u_mf, comp, 0, 1, 0);
-        amrex::MultiFab::Copy(sol, u_mf, comp, 0, 1, u_mf.nGrow());
-
-        amrex::LPInfo info;
-        amrex::MLABecLaplacian mlabec({geom[lev]}, {u_mf.boxArray()}, {u_mf.DistributionMap()}, info);
-        mlabec.setDomainBC(lobc, hibc);
-        mlabec.setLevelBC(0, nullptr);
-        mlabec.setScalars(1.0, dt * stress_sign);
-        mlabec.setACoeffs(0, 1.0);
-        mlabec.setBCoeffs(0, beta_face_const_ptr);
-
-        amrex::MLMG mlmg(mlabec);
-        mlmg.setVerbose(projection_verbose);
-        mlmg.solve({&sol}, {&rhs}, projection_tol_rel, projection_tol_abs);
-        amrex::MultiFab::Copy(u_mf, sol, 0, comp, 1, 0);
+        for (amrex::MFIter mfi(sol, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            amrex::Array4<Set::Scalar> const& sol_arr = sol.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
+                    sol_arr(i,j,k,comp) += rigid_velocity(i, j, k, comp);
+            });
+        }
+        amrex::Gpu::streamSynchronize();
     }
 
+    amrex::MultiFab::Copy(u_mf, sol, 0, 0, AMREX_SPACEDIM, 0);
     FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time);
 }
 

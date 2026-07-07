@@ -161,7 +161,11 @@ protected:
     Set::Scalar finite_solid_stress_cap = 1.0e100;
     Set::Scalar finite_solid_rhs_sign = 0.0;
     bool finite_solid_implicit = true;
-    Set::Scalar finite_solid_implicit_coeff_scale = 1.0;
+    Set::Scalar finite_solid_implicit_coeff_scale = 1.0e-4;
+    bool finite_solid_implicit_preserve_rigid_modes = true;
+    Set::Scalar finite_solid_implicit_tol_rel = 1.0e-8;
+    Set::Scalar finite_solid_implicit_tol_abs = 1.0e-10;
+    int finite_solid_implicit_verbose = 0;
 };
 }
 

@@ -51,9 +51,13 @@ solid.model.type = finite.neohookean
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
 solid.model.stress_cap = 1.0e100
-solid.model.stress_rhs_sign = 0.001
+solid.model.stress_rhs_sign = 1.0
 solid.model.implicit = 1
-solid.model.implicit_coeff_scale = 1.0
+solid.model.implicit_coeff_scale = 1.0e-4
+solid.model.implicit_preserve_rigid_modes = 1
+solid.model.implicit_tol_rel = 1.0e-8
+solid.model.implicit_tol_abs = 1.0e-10
+solid.model.implicit_verbose = 0
 solid.model.viscosity = 0.0
 solid.model.bulk_viscosity = 0.0
 solid.model.finite.neohookean.mu = 1.0e3_Pa
@@ -75,14 +79,14 @@ eta.ic.expression.constant.eps = 0.01
 eta.ic.expression.constant.x0 = 0.45
 eta.ic.expression.constant.y0 = 0.55
 
-# Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
-eta.ic.expression.constant.R = 0.08
-eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
+# # Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
+# eta.ic.expression.constant.R = 0.08
+# eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
 
 # Vertical rectangle inclusion.
-# eta.ic.expression.constant.hx = 0.035
-# eta.ic.expression.constant.hy = 0.12
-# eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
+eta.ic.expression.constant.hx = 0.035
+eta.ic.expression.constant.hy = 0.12
+eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
 
 mass_fraction.bc.type = constant
 mass_fraction.bc.constant.type.xlo = neumann
