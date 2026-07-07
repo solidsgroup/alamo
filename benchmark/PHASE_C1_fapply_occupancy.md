@@ -1,4 +1,4 @@
-# Phase C1 — Elastic `Fapply` register pressure / occupancy (IN PROGRESS)
+# Phase C1 — Elastic `Fapply` register pressure / occupancy (DONE 2026-07-07)
 
 **Branch / workspace:** `chamber-gpu-elastic-opt` (git worktree at
 `/home/jackplum/Projects/alamo-elastic-opt`, forked from `chamber-gpu` tip
@@ -100,16 +100,60 @@ identical A/B in this worktree:
     provenance + the source diff itself — expected).
 - **Record:** `benchmark/PHASE_C1_cpu_golden_compare.md` (full commands + output).
 
-## Not yet done — required before any perf claim
+## ✅ A100 before/after — DONE (2026-07-06/07, NOVA `nova21-gpu-9`)
 
-1. **A100 before/after (THE gate — only remaining owed item).** Per the roadmap rule
-   "never land a kernel change without an A100 before/after," run the tuned vs
-   baseline binary on NOVA and capture: wall/step on the elastic region, and — most
-   important — the **achieved occupancy + registers/thread for `Fapply`** via the A1
-   ncu re-export (`ncu_11318197` opened with ncu-ui 2025.x, or a fresh
-   `--nvtx-include "Operator::Elastic::Fapply()/"` capture). Expected from §8:
-   1.5–3× on Fapply if occupancy moves 12.5% → 25–50%. Ready-to-submit job +
-   procedure: `benchmark/PHASE_C1_nova_ab.md`.
+Ran `benchmark/PHASE_C1_nova_ab.md` §§1–5 end to end. Worktree `alamo-c1ab` on NOVA
+(`/work/brunnels/jackplum/alamo-c1ab`), branch tip `123de00a2`. Jobs: build
+`11433898`, wall A/B `11433933`, first ncu attempt `11433932` (mis-scoped — profiled
+init kernels, not the solve), retargeted ncu `11448954` (gated directly on the
+`Operator::Elastic::Fapply()` NVTX range — same fix as the June 27 ncu-empty
+postmortem).
+
+**Registers / occupancy** (`--nvtx-include "…/Operator::Elastic::Fapply()/"`, 6
+launches sampled per arm, two grid sizes from AMR level split):
+
+| Arm      | registers/thread | achieved occupancy | Fapply/launch (large, 8715 blk) | Fapply/launch (small, 4458 blk) |
+|----------|------------------:|--------------------:|---------------------------------:|---------------------------------:|
+| BASELINE | 255               | ~12.10%             | 4.667 ms                         | 2.286 ms                         |
+| MODIFIED | 244               | ~11.91%              | 4.256 ms                         | 2.077 ms                         |
+| Δ        | −11 (−4.3%)       | ~flat (−0.2pp, noise)| **−8.8%**                        | **−9.1%**                        |
+
+Registers dropped off the 255 hard cap as predicted; occupancy did **not** cross a
+new tier (still ~12%, same regime as Phase A) — 244 reg/thread × 256 threads/block
+is still short of the ≤128 reg/thread needed to fit a second block/SM on A100's
+65536-register file, so this is the "register pressure reduced but occupancy
+unchanged" outcome the procedure flagged as possible. Per-launch time still dropped
+~9%, consistent with reduced register-spill traffic rather than an occupancy-driven
+win — matches the by-construction removal of 90 live doubles (135→45) and the
+boundary-only `sig` sink.
+
+**Wall A/B** (TinyProfiler, device-synced, job `11433933`, identical work both arms —
+105,920 `Fapply` calls, 13 MLMG solves):
+
+| Region                        | BASELINE | MODIFIED | Δ               |
+|--------------------------------|---------:|---------:|-----------------|
+| `Operator::Elastic::Fapply()`  | 300.1 s  | 256.6 s  | −14.5% (1.17×)  |
+| `MLMG::solve()` (inclusive)    | 373.2 s  | 329.7 s  | −11.7%          |
+| Everything else                | —        | —        | within ±0.5%    |
+
+(Raw total-wall comparison is confounded by `VisMF::Write` plotfile I/O on Lustre,
+904s vs 523s for the same 84 writes — filesystem noise, not compute; compute-minus-
+I/O matches the Fapply delta above.)
+
+**GPU stress parity** (`fcompare.gnu.ex`, steps 0/300/600 of
+`input_3d_centre_bore_256_a2`, `stop_time=0.06`): cell (flame) fields bit-identical
+at every step (`PLOTFILE AGREE`, exact 0). Node (elastic) fields: step 0 exact 0;
+steps 300/600 relative error ~1e-7–1e-8 on stress/strain/disp — consistent with
+GPU fast-math/atomic reduction-order noise (same class as the CPU-vs-GPU note in
+`gpu_elastic_d1_reversed`), not a physics divergence.
+
+**Verdict — PASS.** Pass condition was "registers/thread < 255 and/or achieved
+occupancy > ~12.5%; stress field matches baseline to tolerance." Registers cleared
+(255→244); occupancy did not move; parity holds. C1 is now perf-proven, not just
+correctness-verified: **~9% per-launch Fapply speedup, ~14.5% Fapply wall, ~11.7%
+MLMG wall**, zero physics regression. Occupancy being flat is the designed trigger
+for the next lever — PLAN.md task 3.2 (`__launch_bounds__` sweep, deferred lever A1a
+above) is now the correct next step, not optional follow-up.
 
 ## Deferred levers (intentionally not touched here)
 
