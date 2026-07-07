@@ -80,7 +80,7 @@ struct Rocfire
         for (int r = 0; r < nreactions; ++r)
         {
             k[r] = A[r] * std::pow(P / pressure_reference, pressure_exponent[r])
-                 * std::exp(-activation_energy[r] / (Set::Constant::Rg * T));
+                * std::exp(-activation_energy[r] / (Set::Constant::Rg * T));
         }
 
         progress[0] = k[0] * Y[AP];
@@ -113,9 +113,9 @@ struct Rocfire
 
         const double qdot =
             (qgas[0] + qsolid[0]) * progress[0]
-          + (qgas[1] + qsolid[1]) * progress[1]
-          + /*(beta + 1.0) * */qgas[2] * progress[2]
-          + /*(gamma + 1.0) **/ qgas[3] * progress[3];
+            + (qgas[1] + qsolid[1]) * progress[1]
+            + /*(beta + 1.0) * */qgas[2] * progress[2]
+            + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
         return {wdot, qdot};
     }

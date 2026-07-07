@@ -31,9 +31,9 @@ public:
         Rg = Set::Constant::Rg;
     }
 
-    static void Parse(Rocfire & value, IO::ParmParse & pp,
-                      const std::array<double,NSPECIES> &a_MW,
-                      const Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> &a_thermo)
+    static void Parse(  Rocfire & value, IO::ParmParse & pp,
+                        const std::array<double,NSPECIES> &a_MW,
+                        const Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> &a_thermo)
     {
         value.MW = a_MW;
         value.thermo = a_thermo;

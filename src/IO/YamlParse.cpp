@@ -60,8 +60,8 @@ CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
     for (size_t n=0; n<reactions.size(); ++n) {
         std::cout << n << " - " << reactions[n].equation << "\n";
         std::cout << "  [A=" << reactions[n].A
-                  << ", b=" << reactions[n].b
-                  << ", Ea=" << reactions[n].E << "]\n";
+            << ", b=" << reactions[n].b
+            << ", Ea=" << reactions[n].E << "]\n";
         std::cout << "\t Type: " << reactions[n].type << "\n";
         std::cout << "\t Third Body: " << reactions[n].third_body << "\n";
         std::cout << "\t reversible: " << reactions[n].reversible << "\n";

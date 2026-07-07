@@ -120,9 +120,9 @@ namespace
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     std::array<Numeric::StencilType, AMREX_SPACEDIM> BCGhostStencil()
     {
-        return { AMREX_D_DECL(Numeric::StencilType::Central,
-                              Numeric::StencilType::Central,
-                              Numeric::StencilType::Central) };
+        return { AMREX_D_DECL(  Numeric::StencilType::Central,
+                                Numeric::StencilType::Central,
+                                Numeric::StencilType::Central) };
     }
 
     // If eta is less than cutoff, then the fluid state should simply return the solid state,
@@ -751,9 +751,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             solution_mf[0],solution_mf[1],solution_mf[2]);
     });
 
-    auto fill_conserved_boundaries = [&](amrex::MultiFab& rho, amrex::MultiFab& M,
-                                         amrex::MultiFab& E, Set::Scalar fill_time,
-                                         bool use_old_eta)
+    auto fill_conserved_boundaries = [&](   amrex::MultiFab& rho, amrex::MultiFab& M,
+                                            amrex::MultiFab& E, Set::Scalar fill_time,
+                                            bool use_old_eta)
     {
         ApplyCutoffToConserved(lev, rho, M, E, false, use_old_eta);
         density_bc->define(geom[lev]);
@@ -776,8 +776,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
-    fill_conserved_boundaries(*density_mf[lev], *momentum_mf[lev],
-                              *energy_mf[lev], time + dt, false);
+    fill_conserved_boundaries(  *density_mf[lev], *momentum_mf[lev],
+                                *energy_mf[lev], time + dt, false);
 
     //
     // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
