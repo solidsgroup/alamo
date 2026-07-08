@@ -750,6 +750,9 @@ if comp_basename =='g++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    elif args.perf:
+        f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -Wl,--push-state,--no-as-needed -lprofiler -Wl,--pop-state\n")
     else:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
