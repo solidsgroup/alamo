@@ -1,22 +1,22 @@
 # LowMach driven cavity recirculation case
 # Run with: ./bin/lowmach-2d-clang++ input.lm
 
-plot_file = output.lm
-amr.plot_int = 50
+plot_file = output.lm.xi_advect
+amr.plot_int = 10
 amr.max_grid_size = 64
 amr.blocking_factor = 4
 amr.regrid_int = 2
 amr.max_level = 0
 amr.nsubsteps = 1
-amr.n_cell = 256 256
-eta_refinement_criterion = 0.1
+amr.n_cell = 96 64
+eta_refinement_criterion = 1.0e100
 
-timestep = 1.0e-3
-stop_time = 200.0
+timestep = 5.0e-4
+stop_time = 0.2
 
 geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 1.0 1.0 0.0
-geometry.is_periodic = 0 0 0
+geometry.prob_hi = 0.75 0.5 0.0
+geometry.is_periodic = 1 1 0
 
 system.amount = kmol
 gas.mw = 28.0_g/mol
@@ -32,7 +32,7 @@ gas.transport.mixture_averaged.k = 0.02_W/m/K
 gas.eos.type = cpg
 
 cfl = 0.25
-include_viscosity = 1
+include_viscosity = 0
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
@@ -43,17 +43,17 @@ projection.verbose = 0
 projection.update_pressure = 0
 
 reference_map.eta_cutoff = 0.5
-reference_map.eta_core = 0.7
+reference_map.eta_core = 0.65
 reference_map.eta_extension = 1.0e-3
-reference_map.extrapolation_sweeps = 4
-reference_map.smoothing_sweeps = 2
+reference_map.extrapolation_sweeps = 6
+reference_map.smoothing_sweeps = 3
 
-solid.model.type = finite.neohookean
+solid.model.type = none
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
 solid.model.stress_cap = 1.0e100
-solid.model.stress_rhs_sign = 1.0
-solid.model.implicit = 1
+solid.model.stress_rhs_sign = 0.0
+solid.model.implicit = 0
 solid.model.implicit_coeff_scale = 1.0e-4
 solid.model.implicit_preserve_rigid_modes = 1
 solid.model.implicit_tol_rel = 1.0e-8
@@ -61,13 +61,11 @@ solid.model.implicit_tol_abs = 1.0e-10
 solid.model.implicit_verbose = 0
 solid.model.viscosity = 0.0
 solid.model.bulk_viscosity = 0.0
-solid.model.finite.neohookean.mu = 1.0e3_Pa
-solid.model.finite.neohookean.kappa = 1.0e4_Pa
 
 mass_fraction.ic.type = constant
 mass_fraction.ic.constant.value = 1.0
 velocity.ic.type = constant
-velocity.ic.constant.value = 0.0 0.0
+velocity.ic.constant.value = 0.08 0.03
 temperature.ic.type = constant
 temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
@@ -76,18 +74,11 @@ pressure.ic.constant.value = 100000.0
 # Passive phase-field marker for reference-map advection tests.
 # xi is initialized internally as xi(x,0)=x.
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.01
-eta.ic.expression.constant.x0 = 0.45
-eta.ic.expression.constant.y0 = 0.55
-
-# # Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
-# eta.ic.expression.constant.R = 0.08
-# eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
-
-# Vertical rectangle inclusion.
-eta.ic.expression.constant.hx = 0.035
-eta.ic.expression.constant.hy = 0.12
-eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
+eta.ic.expression.constant.eps = 0.012
+eta.ic.expression.constant.x0 = 0.25
+eta.ic.expression.constant.y0 = 0.22
+eta.ic.expression.constant.R = 0.07
+eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
 
 mass_fraction.bc.type = constant
 mass_fraction.bc.constant.type.xlo = neumann
@@ -104,10 +95,10 @@ velocity.bc.constant.type.xlo = dirichlet dirichlet
 velocity.bc.constant.type.xhi = dirichlet dirichlet
 velocity.bc.constant.type.ylo = dirichlet dirichlet
 velocity.bc.constant.type.yhi = dirichlet dirichlet
-velocity.bc.constant.val.xlo = 0.0 0.0
-velocity.bc.constant.val.xhi = 0.0 0.0
-velocity.bc.constant.val.ylo = 0.0 0.0
-velocity.bc.constant.val.yhi = (0.0,5.0e-3:0.0,0.1) 0.0
+velocity.bc.constant.val.xlo = 0.08 0.03
+velocity.bc.constant.val.xhi = 0.08 0.03
+velocity.bc.constant.val.ylo = 0.08 0.03
+velocity.bc.constant.val.yhi = 0.08 0.03
 
 temperature.bc.type = constant
 temperature.bc.constant.type.xlo = neumann

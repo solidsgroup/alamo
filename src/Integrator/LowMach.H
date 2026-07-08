@@ -151,6 +151,7 @@ protected:
     Set::Scalar eta_initial_value = 0.0;
     Set::Scalar reference_map_eta_cutoff = 0.5;
     Set::Scalar reference_map_eta_core = 0.5;
+    Set::Scalar reference_map_eta_extension = 1.0e-3;
     int reference_map_extrapolation_sweeps = 4;
     int reference_map_smoothing_sweeps = 2;
     bool finite_solid_enabled = false;

@@ -127,6 +127,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("eta.initial_value", value.eta_initial_value, 0.0);
     pp.query_default("reference_map.eta_cutoff", value.reference_map_eta_cutoff, 0.5);
     pp.query_default("reference_map.eta_core", value.reference_map_eta_core, value.reference_map_eta_cutoff);
+    pp.query_default("reference_map.eta_extension", value.reference_map_eta_extension, 1.0e-3);
     pp.query_default("reference_map.extrapolation_sweeps", value.reference_map_extrapolation_sweeps, 4);
     pp.query_default("reference_map.smoothing_sweeps", value.reference_map_smoothing_sweeps, 2);
 
@@ -1116,8 +1117,8 @@ LowMach::InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf)
 void
 LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage_mf, amrex::MultiFab& xi_stage_mf, Set::Scalar time)
 {
-    const Set::Scalar extension_eta = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
-    const Set::Scalar core_eta = lowmach_clamp(lowmach_max(reference_map_eta_core, extension_eta), 0.0, 1.0);
+    const Set::Scalar truth_eta = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
+    const Set::Scalar extension_eta = lowmach_clamp(reference_map_eta_extension, 0.0, truth_eta);
     const int extrap_sweeps = reference_map_extrapolation_sweeps < 0 ? 0 : reference_map_extrapolation_sweeps;
     const int smooth_sweeps = reference_map_smoothing_sweeps < 0 ? 0 : reference_map_smoothing_sweeps;
     const int xi_ngrow = xi_stage_mf.nGrow();
@@ -1154,7 +1155,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
             amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (eta(i,j,k) < core_eta) return;
+                if (eta(i,j,k) < truth_eta) return;
                 for (int n = 0; n < AMREX_SPACEDIM; ++n) xi(i,j,k,n) = xi_in(i,j,k,n);
             });
         }
@@ -1173,7 +1174,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            if (eta(i,j,k) >= core_eta)
+            if (eta(i,j,k) >= truth_eta)
             {
                 known(i,j,k) = 1.0;
                 return;
@@ -1295,7 +1296,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (eta(i,j,k) >= core_eta) return;
+                if (eta(i,j,k) >= truth_eta) return;
                 if (eta(i,j,k) < extension_eta) return;
                 if (known(i,j,k) <= 0.5) return;
 
@@ -1467,7 +1468,6 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const bool viscous = include_viscosity;
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
-        const Set::Scalar xi_eta_cutoff = lowmach_clamp(lowmach_max(reference_map_eta_core, reference_map_eta_cutoff), 0.0, 1.0);
         const Set::Vector gravity = g;
         const Set::Scalar p_scale = pressure_scale;
         const Set::Scalar rho_floor = density_floor;
@@ -1617,7 +1617,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 
             eta_rhs(i,j,k) = advect_scalar(eta, 0);
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                xi_rhs(i,j,k,d) = eta(i,j,k) >= xi_eta_cutoff ? advect_scalar(xi, d) : 0.0;
+                xi_rhs(i,j,k,d) = advect_scalar(xi, d);
         });
     }
 }
