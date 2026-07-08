@@ -751,9 +751,9 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
     amrex::ParallelDescriptor::ReduceRealMax(vz_max);
 
     Set::Scalar new_timestep = cfl / (
-        AMREX_D_TERM((c_max + vx_max) / DX[0],
-                   + (c_max + vy_max) / DX[1],
-                   + (c_max + vz_max) / DX[2]));
+        AMREX_D_TERM( (c_max + vx_max) / DX[0],
+                    + (c_max + vy_max) / DX[1],
+                    + (c_max + vz_max) / DX[2]));
 
     SetTimestep(new_timestep);
 }
