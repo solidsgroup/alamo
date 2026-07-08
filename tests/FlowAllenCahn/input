@@ -165,7 +165,7 @@ hydro.u0.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
-hydro.cutoff=0.1
+hydro.cutoff=0.5
 hydro.lagrange=1.0
 
 #hydro.Lfactor=-10
