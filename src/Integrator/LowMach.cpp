@@ -114,10 +114,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, 1);
     pp.select_default<BC::Constant,BC::Expression>("mass_fraction.bc", value.mass_fraction_bc, value.nspecies);
     pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, 1);
-    if (pp.contains("eta.bc.type")) pp.select_default<BC::Constant,BC::Expression>("eta.bc", value.eta_bc, 1);
-    else value.eta_bc = new BC::Constant(BC::Constant::ZeroNeumann(1));
-    if (pp.contains("xi.bc.type")) pp.select_default<BC::Constant,BC::Expression>("xi.bc", value.xi_bc, AMREX_SPACEDIM);
-    else value.xi_bc = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
+    pp.select_default<BC::Constant::ZeroNeumann, BC::Constant,BC::Expression>("eta.bc", value.eta_bc, 1);
+    pp.select_default<BC::Constant::ZeroNeumann, BC::Constant,BC::Expression>("xi.bc", value.xi_bc, AMREX_SPACEDIM);
 
     pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, value.geom);
     pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, value.geom);

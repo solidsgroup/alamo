@@ -807,7 +807,7 @@ if not args.compile_commands:
         "arguments": [
             *cc.split(),
             *otherflags,
-            "-std=c++17",
+            "-std=c++20",
             "-I./src/",
             srcfile,
         ],

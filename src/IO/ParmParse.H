@@ -91,6 +91,7 @@
 #include <exception>
 #include <list>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Util/Util.H"
 #include "Unit/Unit.H"
@@ -1095,26 +1096,74 @@ public:
         }
     }
 
+    template<typename T, typename = void>
+    struct HasSelectName : std::false_type {};
+
+    template<typename T>
+    struct HasSelectName<T, std::void_t<decltype(T::name)>> : std::true_type {};
+
+    template<typename T, typename PTRTYPE, typename... Args>
+    void construct_select_default(std::string name, PTRTYPE *& value, Args&&... args)
+    {
+        if constexpr (std::is_constructible_v<T, Args...>)
+        {
+            value = new T(std::forward<Args>(args)...);
+        }
+        else if constexpr (HasSelectName<T>::value && std::is_constructible_v<T, Args..., ParmParse&, std::string>)
+        {
+            value = new T(std::forward<Args>(args)..., (*this), name + "." + std::string(T::name));
+        }
+        else
+        {
+            Util::ParmParseException(INFO, full(name), " cannot construct default selected type");
+        }
+    }
+
+    template<typename T, typename PTRTYPE, typename... Args>
+    bool try_select_named(std::string name, const std::string& type, PTRTYPE *& value, Args&&... args)
+    {
+        if constexpr (HasSelectName<T>::value)
+        {
+            if (type != std::string(T::name)) return false;
+
+            if constexpr (std::is_constructible_v<T, Args..., ParmParse&, std::string>)
+            {
+                value = new T(std::forward<Args>(args)..., (*this), name + "." + std::string(T::name));
+                return true;
+            }
+            else if constexpr (std::is_constructible_v<T, Args...>)
+            {
+                value = new T(std::forward<Args>(args)...);
+                return true;
+            }
+            else
+            {
+                Util::ParmParseException(INFO, full(name), " cannot construct selected type ", type);
+            }
+        }
+        return false;
+    }
+
     //
-    // Identical to the above, except sets the type automatically to the
-    // firs specified 
+    // Identical to the above, except the first class is used as the default
+    // when no type is specified. The default class does not need to expose
+    // name or Parse; typed selections still require a name to match against.
     //
     template<typename FirstIC, typename... IC, typename... Args, typename PTRTYPE>
     void select_default (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
         std::string type = "";
 
-        this->query_default(name + ".type", type, FirstIC::name);
+        if (!this->contains(name + ".type"))
+        {
+            construct_select_default<FirstIC>(name, ic_eta, std::forward<Args>(args)...);
+            return;
+        }
 
-        bool matched =
-            ((  type == FirstIC::name 
-                ? (ic_eta = new FirstIC(std::forward<Args>(args)..., (*this), name + "." + std::string(FirstIC::name))),
-                true : false))
-            || 
-            ((  type == IC::name 
-                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
-                true : false) || ...);
+        this->query_required(name + ".type", type);
 
+        bool matched = try_select_named<FirstIC>(name, type, ic_eta, std::forward<Args>(args)...);
+        matched = matched || (try_select_named<IC>(name, type, ic_eta, std::forward<Args>(args)...) || ...);
 
         if (!matched)
             Util::ParmParseException(INFO,full(name), type," not a valid type for ",name);
