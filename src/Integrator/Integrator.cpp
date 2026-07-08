@@ -769,16 +769,11 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
         cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev], 0, 0, t, 0);
     }
 
-    //for (int n = 0 ; n < node.number_of_fabs; n++)
-    //{
-    //    bcnothing->define(geom[lev]);
-    //    for (amrex::MFIter mfi(*(*node.fab_array[n])[lev],true); mfi.isValid(); ++mfi)
-    //    {
-    //        amrex::BaseFab<Set::Scalar> &patch = (*(*node.fab_array[n])[lev])[mfi];
-    //        const amrex::Box& box = mfi.tilebox();
-    //        bcnothing->FillBoundary(patch,box,0,0,0,t);
-    //    }
-    //}
+    for (int n = 0; n < node.number_of_fabs; n++)
+    {
+        node.physbc_array[n]->define(geom[lev]);
+        node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev], 0, 0, t, 0);
+    }
 
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
     {

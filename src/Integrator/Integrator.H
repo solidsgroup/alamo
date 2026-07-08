@@ -531,11 +531,11 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
     std::vector<std::string> suffix)
 {
     BL_PROFILE("Integrator::RegisterNodalFab");
-    Util::Assert(INFO, TEST(new_bc == nullptr));
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
     node.fab_array.push_back(&new_field);
-    node.physbc_array.push_back(&bcnothing);
+    if (new_bc) node.physbc_array.push_back(new_bc);
+    else node.physbc_array.push_back(&bcnothing);
     node.ncomp_array.push_back(ncomp);
     node.nghost_array.push_back(nghost);
     node.evolving_array.push_back(evolving);

@@ -14,7 +14,6 @@
 #include "Model/Gas/Gas.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
-#include "Numeric/Interpolator/Linear.H"
 
 namespace Integrator
 {
@@ -58,7 +57,6 @@ protected:
                              amrex::MultiFab& eta_mf,
                              amrex::MultiFab& xi_mf,
                              Set::Scalar time);
-    void ApplyVelocityDirichletCells(int lev, amrex::MultiFab& u_mf, Set::Scalar time);
     void FillPressureBoundary(int lev, Set::Scalar time);
     void SanitizeEta(amrex::MultiFab& eta_mf);
     void FillReferenceMapBoundary(int lev, amrex::MultiFab& xi_mf);
@@ -144,7 +142,6 @@ protected:
     bool projection_enabled = true;
     bool projection_amr_enabled = false;
     bool projection_update_pressure = false;
-    amrex::Array<amrex::Array<Numeric::Interpolator::Linear<Set::Scalar>, AMREX_SPACEDIM>, 2 * AMREX_SPACEDIM> velocity_dirichlet_value;
     bool include_viscosity = true;
     bool include_conduction = true;
     bool advect_temperature = true;

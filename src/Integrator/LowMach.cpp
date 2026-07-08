@@ -19,79 +19,20 @@ namespace Integrator
 namespace
 {
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_max(Set::Scalar a, Set::Scalar b)
-{
-    return a > b ? a : b;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_abs(Set::Scalar a)
-{
-    return a < 0.0 ? -a : a;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_min(Set::Scalar a, Set::Scalar b)
-{
-    return a < b ? a : b;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_minmod(Set::Scalar a, Set::Scalar b)
-{
-    if (a * b <= 0.0) return 0.0;
-    Set::Scalar mag = lowmach_min(lowmach_abs(a), lowmach_abs(b));
-    return a < 0.0 ? -mag : mag;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_mc_slope(Set::Scalar lo, Set::Scalar center, Set::Scalar hi)
-{
-    Set::Scalar dl = center - lo;
-    Set::Scalar dr = hi - center;
-    return lowmach_minmod(0.5 * (dl + dr), lowmach_minmod(2.0 * dl, 2.0 * dr));
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_clamp(Set::Scalar value, Set::Scalar lo, Set::Scalar hi)
-{
-    return lowmach_min(lowmach_max(value, lowmach_min(lo, hi)), lowmach_max(lo, hi));
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-bool lowmach_is_finite(Set::Scalar value)
-{
-    return value == value && value < 1.0e300 && value > -1.0e300;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_finite_or(Set::Scalar value, Set::Scalar fallback)
-{
-    return lowmach_is_finite(value) ? value : fallback;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Scalar lowmach_smootherstep(Set::Scalar value)
-{
-    Set::Scalar x = lowmach_clamp(value, 0.0, 1.0);
-    return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Matrix lowmach_regularize_stress(Set::Matrix sigma, Set::Scalar cap)
 {
     Set::Scalar norm2 = 0.0;
     for (int a = 0; a < AMREX_SPACEDIM; ++a)
         for (int b = 0; b < AMREX_SPACEDIM; ++b)
         {
-            if (!lowmach_is_finite(sigma(a,b))) return Set::Matrix::Zero();
+            if (!Util::IsFinite(sigma(a,b))) return Set::Matrix::Zero();
             norm2 += sigma(a,b) * sigma(a,b);
         }
 
-    if (cap > 0.0 && lowmach_is_finite(cap) && norm2 > cap * cap)
+    if (cap > 0.0 && Util::IsFinite(cap) && norm2 > cap * cap)
     {
         Set::Scalar norm = std::sqrt(norm2);
-        if (norm > 0.0 && lowmach_is_finite(norm)) sigma *= cap / norm;
+        if (norm > 0.0 && Util::IsFinite(norm)) sigma *= cap / norm;
         else return Set::Matrix::Zero();
     }
     return sigma;
@@ -164,33 +105,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
     pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
     pp.queryarr_default("g", value.g, Set::Vector::Zero());
-    for (int face = 0; face < 2 * AMREX_SPACEDIM; ++face)
-        for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            value.velocity_dirichlet_value[face][d] = Numeric::Interpolator::Linear<Set::Scalar>(NAN);
-    auto read_velocity_wall_value = [&](const std::string& name, int face)
-    {
-        std::vector<std::string> vals;
-        pp.queryarr_default(name, vals, std::vector<std::string>{"nan"});
-        if (vals.size() == 1)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) value.velocity_dirichlet_value[face][d].define(vals[0], Unit::Time(), Unit::Less());
-        }
-        else if (vals.size() == AMREX_SPACEDIM)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) value.velocity_dirichlet_value[face][d].define(vals[d], Unit::Time(), Unit::Less());
-        }
-    };
-    read_velocity_wall_value("velocity.bc.constant.val.xlo", 0);
-    read_velocity_wall_value("velocity.bc.constant.val.ylo", 1);
-#if AMREX_SPACEDIM == 3
-    read_velocity_wall_value("velocity.bc.constant.val.zlo", 2);
-    read_velocity_wall_value("velocity.bc.constant.val.xhi", 3);
-    read_velocity_wall_value("velocity.bc.constant.val.yhi", 4);
-    read_velocity_wall_value("velocity.bc.constant.val.zhi", 5);
-#else
-    read_velocity_wall_value("velocity.bc.constant.val.xhi", 2);
-    read_velocity_wall_value("velocity.bc.constant.val.yhi", 3);
-#endif
 
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.nspecies = value.gas.nspecies;
@@ -297,8 +211,6 @@ LowMach::FillStateBoundaries(int lev,
         velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
         u_mf.FillBoundary(geom[lev].periodicity());
     });
-    ApplyVelocityDirichletCells(lev, u_mf, time);
-
     preserve_valid(T_mf, [&]()
     {
         fill_coarse_fine(T_mf, temperature_mf, temperature_bc);
@@ -331,70 +243,6 @@ LowMach::FillStateBoundaries(int lev,
     FillPressureBoundary(lev, time);
 }
 
-
-
-void
-LowMach::ApplyVelocityDirichletCells(int lev, amrex::MultiFab& u_mf, Set::Scalar time)
-{
-    const amrex::Box domain = geom[lev].Domain();
-    const amrex::Dim3 lo = amrex::lbound(domain);
-    const amrex::Dim3 hi = amrex::ubound(domain);
-    const amrex::BCRec bc = velocity_bc->GetBCRec();
-    const bool xlo_dirichlet = !geom[lev].isPeriodic(0) && BC::BCUtil::IsDirichlet(bc.lo(0));
-    const bool xhi_dirichlet = !geom[lev].isPeriodic(0) && BC::BCUtil::IsDirichlet(bc.hi(0));
-    const bool ylo_dirichlet = !geom[lev].isPeriodic(1) && BC::BCUtil::IsDirichlet(bc.lo(1));
-    const bool yhi_dirichlet = !geom[lev].isPeriodic(1) && BC::BCUtil::IsDirichlet(bc.hi(1));
-#if AMREX_SPACEDIM == 3
-    const bool zlo_dirichlet = !geom[lev].isPeriodic(2) && BC::BCUtil::IsDirichlet(bc.lo(2));
-    const bool zhi_dirichlet = !geom[lev].isPeriodic(2) && BC::BCUtil::IsDirichlet(bc.hi(2));
-#endif
-
-    Set::Vector xlo_val = Set::Vector::Zero();
-    Set::Vector ylo_val = Set::Vector::Zero();
-#if AMREX_SPACEDIM == 3
-    Set::Vector zlo_val = Set::Vector::Zero();
-    Set::Vector xhi_val = Set::Vector::Zero();
-    Set::Vector yhi_val = Set::Vector::Zero();
-    Set::Vector zhi_val = Set::Vector::Zero();
-#else
-    Set::Vector xhi_val = Set::Vector::Zero();
-    Set::Vector yhi_val = Set::Vector::Zero();
-#endif
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        xlo_val(d) = velocity_dirichlet_value[0][d](time);
-        ylo_val(d) = velocity_dirichlet_value[1][d](time);
-#if AMREX_SPACEDIM == 3
-        zlo_val(d) = velocity_dirichlet_value[2][d](time);
-        xhi_val(d) = velocity_dirichlet_value[3][d](time);
-        yhi_val(d) = velocity_dirichlet_value[4][d](time);
-        zhi_val(d) = velocity_dirichlet_value[5][d](time);
-#else
-        xhi_val(d) = velocity_dirichlet_value[2][d](time);
-        yhi_val(d) = velocity_dirichlet_value[3][d](time);
-#endif
-    }
-
-    for (amrex::MFIter mfi(u_mf, true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> u = u_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            {
-                if (ylo_dirichlet && j == lo.y && ylo_val(d) == ylo_val(d)) u(i,j,k,d) = ylo_val(d);
-                if (yhi_dirichlet && j == hi.y && yhi_val(d) == yhi_val(d)) u(i,j,k,d) = yhi_val(d);
-                if (xlo_dirichlet && i == lo.x && xlo_val(d) == xlo_val(d)) u(i,j,k,d) = xlo_val(d);
-                if (xhi_dirichlet && i == hi.x && xhi_val(d) == xhi_val(d)) u(i,j,k,d) = xhi_val(d);
-#if AMREX_SPACEDIM == 3
-                if (zlo_dirichlet && k == lo.z && zlo_val(d) == zlo_val(d)) u(i,j,k,d) = zlo_val(d);
-                if (zhi_dirichlet && k == hi.z && zhi_val(d) == zhi_val(d)) u(i,j,k,d) = zhi_val(d);
-#endif
-            }
-        });
-    }
-}
 
 
 void
@@ -460,10 +308,10 @@ LowMach::EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex:
             }
 
             if (!(T(i,j,k) > T_floor)) T(i,j,k) = T_floor;
-            u(i,j,k,0) = lowmach_finite_or(u(i,j,k,0), 0.0);
-            u(i,j,k,1) = lowmach_finite_or(u(i,j,k,1), 0.0);
+            u(i,j,k,0) = Util::FiniteOr(u(i,j,k,0), 0.0);
+            u(i,j,k,1) = Util::FiniteOr(u(i,j,k,1), 0.0);
 #if AMREX_SPACEDIM == 3
-            u(i,j,k,2) = lowmach_finite_or(u(i,j,k,2), 0.0);
+            u(i,j,k,2) = Util::FiniteOr(u(i,j,k,2), 0.0);
 #endif
         });
     }
@@ -500,8 +348,8 @@ LowMach::UpdateSolidStress(int lev,
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
     const Model::Solid::Finite::NeoHookean solid_model = finite_solid_model;
-    const Set::Scalar eta_threshold = lowmach_clamp(finite_solid_eta_threshold, 0.0, 1.0);
-    const Set::Scalar det_floor = lowmach_max(small, finite_solid_J_floor);
+    const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
+    const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
     const Set::Scalar stress_limit = finite_solid_stress_cap;
@@ -524,12 +372,12 @@ LowMach::UpdateSolidStress(int lev,
             Set::Matrix P = Set::Matrix::Zero();
             Set::Matrix sigma = Set::Matrix::Zero();
 
-            Set::Scalar eta_val = lowmach_clamp(eta(i,j,k), 0.0, 1.0);
+            Set::Scalar eta_val = Util::Clamp(eta(i,j,k), 0.0, 1.0);
             Set::Scalar solid_weight = 0.0;
             if (eta_val > eta_threshold)
             {
-                Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
-                solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
+                Set::Scalar denom = Util::Max(1.0 - eta_threshold, 1.0e-12);
+                solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
             }
 
             if (solid_weight > 0.0)
@@ -538,7 +386,7 @@ LowMach::UpdateSolidStress(int lev,
                 bool grad_valid = true;
                 auto eta_is_solid = [=] AMREX_GPU_DEVICE (int ii, int jj, int kk) -> bool
                 {
-                    return lowmach_clamp(eta(ii,jj,kk), 0.0, 1.0) >= eta_threshold;
+                    return Util::Clamp(eta(ii,jj,kk), 0.0, 1.0) >= eta_threshold;
                 };
                 auto xi_derivative = [=, &grad_valid] AMREX_GPU_DEVICE (int n, int d) -> Set::Scalar
                 {
@@ -586,7 +434,7 @@ LowMach::UpdateSolidStress(int lev,
                         grad_xi(n,d) = xi_derivative(n, d);
 
                 Set::Scalar det_grad_xi = grad_xi.determinant();
-                bool valid = grad_valid && lowmach_is_finite(det_grad_xi) && lowmach_abs(det_grad_xi) > det_floor;
+                bool valid = grad_valid && Util::IsFinite(det_grad_xi) && Util::Abs(det_grad_xi) > det_floor;
                 if (valid)
                 {
 #if AMREX_SPACEDIM == 2
@@ -600,11 +448,11 @@ LowMach::UpdateSolidStress(int lev,
 #endif
                     for (int a = 0; a < AMREX_SPACEDIM; ++a)
                         for (int b = 0; b < AMREX_SPACEDIM; ++b)
-                            valid = valid && lowmach_is_finite(F(a,b));
+                            valid = valid && Util::IsFinite(F(a,b));
                 }
 
                 Set::Scalar J = F.determinant();
-                if (valid && lowmach_is_finite(J) && lowmach_abs(J) > det_floor)
+                if (valid && Util::IsFinite(J) && Util::Abs(J) > det_floor)
                 {
                     P = solid_model.DW(F);
                     sigma = (P * F.transpose()) / J;
@@ -621,18 +469,18 @@ LowMach::UpdateSolidStress(int lev,
 
             sigma = lowmach_regularize_stress(solid_weight * sigma, stress_limit);
 
-            F_field(i,j,k,0) = lowmach_finite_or(F(0,0), 1.0);
-            F_field(i,j,k,1) = lowmach_finite_or(F(0,1), 0.0);
-            F_field(i,j,k,2) = lowmach_finite_or(F(1,0), 0.0);
-            F_field(i,j,k,3) = lowmach_finite_or(F(1,1), 1.0);
-            P_field(i,j,k,0) = lowmach_finite_or(P(0,0), 0.0);
-            P_field(i,j,k,1) = lowmach_finite_or(P(0,1), 0.0);
-            P_field(i,j,k,2) = lowmach_finite_or(P(1,0), 0.0);
-            P_field(i,j,k,3) = lowmach_finite_or(P(1,1), 0.0);
-            elastic_stress(i,j,k,0) = lowmach_finite_or(sigma(0,0), 0.0);
-            elastic_stress(i,j,k,1) = lowmach_finite_or(sigma(0,1), 0.0);
-            elastic_stress(i,j,k,2) = lowmach_finite_or(sigma(1,0), 0.0);
-            elastic_stress(i,j,k,3) = lowmach_finite_or(sigma(1,1), 0.0);
+            F_field(i,j,k,0) = Util::FiniteOr(F(0,0), 1.0);
+            F_field(i,j,k,1) = Util::FiniteOr(F(0,1), 0.0);
+            F_field(i,j,k,2) = Util::FiniteOr(F(1,0), 0.0);
+            F_field(i,j,k,3) = Util::FiniteOr(F(1,1), 1.0);
+            P_field(i,j,k,0) = Util::FiniteOr(P(0,0), 0.0);
+            P_field(i,j,k,1) = Util::FiniteOr(P(0,1), 0.0);
+            P_field(i,j,k,2) = Util::FiniteOr(P(1,0), 0.0);
+            P_field(i,j,k,3) = Util::FiniteOr(P(1,1), 0.0);
+            elastic_stress(i,j,k,0) = Util::FiniteOr(sigma(0,0), 0.0);
+            elastic_stress(i,j,k,1) = Util::FiniteOr(sigma(0,1), 0.0);
+            elastic_stress(i,j,k,2) = Util::FiniteOr(sigma(1,0), 0.0);
+            elastic_stress(i,j,k,3) = Util::FiniteOr(sigma(1,1), 0.0);
             cauchy_stress(i,j,k) = sigma;
         });
     }
@@ -677,9 +525,9 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
             if (!(moles > 0.0)) moles = 1.0 / gas.MW[0];
             for (int n = 0; n < gas.nspecies; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
 
-            Set::Scalar p = lowmach_max(pressure(i,j,k), p_floor);
+            Set::Scalar p = Util::Max(pressure(i,j,k), p_floor);
             Set::Scalar density = p / (gas.R(X, i, j, k) * T(i,j,k));
-            density = lowmach_max(density, rho_floor);
+            density = Util::Max(density, rho_floor);
             rho(i,j,k) = density;
 
             M(i,j,k,0) = density * u(i,j,k,0);
@@ -691,7 +539,7 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
 
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
-            omega(i,j,k) = lowmach_finite_or(grad_u(1,0) - grad_u(0,1), 0.0);
+            omega(i,j,k) = Util::FiniteOr(grad_u(1,0) - grad_u(0,1), 0.0);
         });
     }
 
@@ -714,7 +562,7 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
     amrex::MultiFab& eta = *eta_mf[lev];
     amrex::MultiFab& rho_mf = *density_mf[lev];
 
-    const Set::Scalar eta_threshold = lowmach_clamp(finite_solid_eta_threshold, 0.0, 1.0);
+    const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
     const Set::Scalar rho_floor = density_floor;
     const Set::Scalar stress_sign = finite_solid_rhs_sign;
     if (!(finite_solid_model.mu == finite_solid_model.mu) || !(finite_solid_model.kappa == finite_solid_model.kappa)) return;
@@ -747,11 +595,11 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
                 for (int j = lo.y; j <= hi.y; ++j)
                     for (int i = lo.x; i <= hi.x; ++i)
                     {
-                        Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
+                        Set::Scalar eta_val = Util::Clamp(eta_patch(i,j,k), 0.0, 1.0);
                         if (eta_val <= eta_threshold) continue;
-                        Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
-                        Set::Scalar solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
-                        Set::Scalar m = solid_weight * lowmach_max(rho(i,j,k), rho_floor) * cell_vol;
+                        Set::Scalar denom = Util::Max(1.0 - eta_threshold, 1.0e-12);
+                        Set::Scalar solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
+                        Set::Scalar m = solid_weight * Util::Max(rho(i,j,k), rho_floor) * cell_vol;
                         Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
                         sum_m += m;
                         sum_mx += m * x(0);
@@ -789,11 +637,11 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
                     for (int j = lo.y; j <= hi.y; ++j)
                         for (int i = lo.x; i <= hi.x; ++i)
                         {
-                            Set::Scalar eta_val = lowmach_clamp(eta_patch(i,j,k), 0.0, 1.0);
+                            Set::Scalar eta_val = Util::Clamp(eta_patch(i,j,k), 0.0, 1.0);
                             if (eta_val <= eta_threshold) continue;
-                            Set::Scalar denom = lowmach_max(1.0 - eta_threshold, 1.0e-12);
-                            Set::Scalar solid_weight = lowmach_smootherstep((eta_val - eta_threshold) / denom);
-                            Set::Scalar m = solid_weight * lowmach_max(rho(i,j,k), rho_floor) * cell_vol;
+                            Set::Scalar denom = Util::Max(1.0 - eta_threshold, 1.0e-12);
+                            Set::Scalar solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
+                            Set::Scalar m = solid_weight * Util::Max(rho(i,j,k), rho_floor) * cell_vol;
                             Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
                             Set::Scalar rx = x(0) - rigid_xcm;
                             Set::Scalar ry = x(1) - rigid_ycm;
@@ -943,7 +791,7 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
         const Set::Scalar rho_floor = density_floor;
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            beta(i,j,k) = 1.0 / lowmach_max(rho(i,j,k), rho_floor);
+            beta(i,j,k) = 1.0 / Util::Max(rho(i,j,k), rho_floor);
         });
     }
     beta_cc.FillBoundary(geom[lev].periodicity());
@@ -1030,15 +878,14 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Vector grad_phi = Numeric::Gradient(phi, i, j, k, 0, DX, sten);
-            Set::Scalar beta = 1.0 / lowmach_max(rho(i,j,k), rho_floor);
+            Set::Scalar beta = 1.0 / Util::Max(rho(i,j,k), rho_floor);
             for (int d = 0; d < AMREX_SPACEDIM; ++d) u(i,j,k,d) -= dt * beta * grad_phi(d);
-            if (update_pressure) p(i,j,k) = lowmach_max(p(i,j,k) + p_scale_inv * phi(i,j,k), p_floor);
+            if (update_pressure) p(i,j,k) = Util::Max(p(i,j,k) + p_scale_inv * phi(i,j,k), p_floor);
         });
     }
 
     velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
     u_mf.FillBoundary(geom[lev].periodicity());
-    ApplyVelocityDirichletCells(lev, u_mf, time);
     FillPressureBoundary(lev, time);
 }
 
@@ -1058,7 +905,7 @@ LowMach::SanitizeEta(amrex::MultiFab& eta_mf)
         {
             Set::Scalar val = eta(i,j,k);
             if (!(val == val && val < 1.0e300 && val > -1.0e300)) val = 0.0;
-            eta(i,j,k) = lowmach_clamp(val, 0.0, 1.0);
+            eta(i,j,k) = Util::Clamp(val, 0.0, 1.0);
         });
     }
     amrex::Gpu::streamSynchronize();
@@ -1117,8 +964,8 @@ LowMach::InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf)
 void
 LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage_mf, amrex::MultiFab& xi_stage_mf, Set::Scalar time)
 {
-    const Set::Scalar truth_eta = lowmach_clamp(reference_map_eta_cutoff, 0.0, 1.0);
-    const Set::Scalar extension_eta = lowmach_clamp(reference_map_eta_extension, 0.0, truth_eta);
+    const Set::Scalar truth_eta = Util::Clamp(reference_map_eta_cutoff, 0.0, 1.0);
+    const Set::Scalar extension_eta = Util::Clamp(reference_map_eta_extension, 0.0, truth_eta);
     const int extrap_sweeps = reference_map_extrapolation_sweeps < 0 ? 0 : reference_map_extrapolation_sweeps;
     const int smooth_sweeps = reference_map_smoothing_sweeps < 0 ? 0 : reference_map_smoothing_sweeps;
     const int xi_ngrow = xi_stage_mf.nGrow();
@@ -1483,7 +1330,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 #if AMREX_SPACEDIM == 3
             vel(2) = u(i,j,k,2);
 #endif
-            Set::Scalar density = lowmach_max(rho(i,j,k), rho_floor);
+            Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
             Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
@@ -1502,8 +1349,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             int ip = clamp_i(i + 1);
             int jm = clamp_j(j - 1);
             int jp = clamp_j(j + 1);
-            Set::Scalar dx_den = lowmach_max(static_cast<Set::Scalar>(ip - im) * DX[0], DX[0]);
-            Set::Scalar dy_den = lowmach_max(static_cast<Set::Scalar>(jp - jm) * DX[1], DX[1]);
+            Set::Scalar dx_den = Util::Max(static_cast<Set::Scalar>(ip - im) * DX[0], DX[0]);
+            Set::Scalar dy_den = Util::Max(static_cast<Set::Scalar>(jp - jm) * DX[1], DX[1]);
             Set::Vector div_sigma = Set::Vector::Zero();
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
             {
@@ -1514,10 +1361,10 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 #if AMREX_SPACEDIM == 3
                 int km = k - 1 < cell_domain.smallEnd(2) ? cell_domain.smallEnd(2) : k - 1;
                 int kp = k + 1 > cell_domain.bigEnd(2) ? cell_domain.bigEnd(2) : k + 1;
-                Set::Scalar dz_den = lowmach_max(static_cast<Set::Scalar>(kp - km) * DX[2], DX[2]);
+                Set::Scalar dz_den = Util::Max(static_cast<Set::Scalar>(kp - km) * DX[2], DX[2]);
                 div_sigma(d) += (stress(i,j,kp)(d,2) - stress(i,j,km)(d,2)) / dz_den;
 #endif
-                div_sigma(d) = lowmach_finite_or(div_sigma(d), 0.0);
+                div_sigma(d) = Util::FiniteOr(div_sigma(d), 0.0);
             }
 
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -1553,17 +1400,17 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 
                 Set::Scalar phi_xm = phi(i-1,j,k,n);
                 Set::Scalar phi_xp = phi(i+1,j,k,n);
-                Set::Scalar slope_xm = lowmach_mc_slope(phi(i-2,j,k,n), phi_xm, phi_c);
-                Set::Scalar slope_x  = lowmach_mc_slope(phi_xm, phi_c, phi_xp);
-                Set::Scalar slope_xp = lowmach_mc_slope(phi_c, phi_xp, phi(i+2,j,k,n));
+                Set::Scalar slope_xm = Util::MCSlope(phi(i-2,j,k,n), phi_xm, phi_c);
+                Set::Scalar slope_x  = Util::MCSlope(phi_xm, phi_c, phi_xp);
+                Set::Scalar slope_xp = Util::MCSlope(phi_c, phi_xp, phi(i+2,j,k,n));
 
                 Set::Scalar ux_xlo = 0.5 * (u(i-1,j,k,0) + u(i,j,k,0));
                 Set::Scalar ux_xhi = 0.5 * (u(i,j,k,0) + u(i+1,j,k,0));
 
-                Set::Scalar phi_xlo_l = lowmach_clamp(phi_xm + 0.5 * slope_xm, phi_xm, phi_c);
-                Set::Scalar phi_xlo_r = lowmach_clamp(phi_c  - 0.5 * slope_x,  phi_xm, phi_c);
-                Set::Scalar phi_xhi_l = lowmach_clamp(phi_c  + 0.5 * slope_x,  phi_c, phi_xp);
-                Set::Scalar phi_xhi_r = lowmach_clamp(phi_xp - 0.5 * slope_xp, phi_c, phi_xp);
+                Set::Scalar phi_xlo_l = Util::Clamp(phi_xm + 0.5 * slope_xm, phi_xm, phi_c);
+                Set::Scalar phi_xlo_r = Util::Clamp(phi_c  - 0.5 * slope_x,  phi_xm, phi_c);
+                Set::Scalar phi_xhi_l = Util::Clamp(phi_c  + 0.5 * slope_x,  phi_c, phi_xp);
+                Set::Scalar phi_xhi_r = Util::Clamp(phi_xp - 0.5 * slope_xp, phi_c, phi_xp);
 
                 Set::Scalar flux_xlo = ux_xlo * (ux_xlo >= 0.0 ? phi_xlo_l : phi_xlo_r);
                 Set::Scalar flux_xhi = ux_xhi * (ux_xhi >= 0.0 ? phi_xhi_l : phi_xhi_r);
@@ -1573,17 +1420,17 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 #if AMREX_SPACEDIM >= 2
                 Set::Scalar phi_ym = phi(i,j-1,k,n);
                 Set::Scalar phi_yp = phi(i,j+1,k,n);
-                Set::Scalar slope_ym = lowmach_mc_slope(phi(i,j-2,k,n), phi_ym, phi_c);
-                Set::Scalar slope_y  = lowmach_mc_slope(phi_ym, phi_c, phi_yp);
-                Set::Scalar slope_yp = lowmach_mc_slope(phi_c, phi_yp, phi(i,j+2,k,n));
+                Set::Scalar slope_ym = Util::MCSlope(phi(i,j-2,k,n), phi_ym, phi_c);
+                Set::Scalar slope_y  = Util::MCSlope(phi_ym, phi_c, phi_yp);
+                Set::Scalar slope_yp = Util::MCSlope(phi_c, phi_yp, phi(i,j+2,k,n));
 
                 Set::Scalar uy_ylo = 0.5 * (u(i,j-1,k,1) + u(i,j,k,1));
                 Set::Scalar uy_yhi = 0.5 * (u(i,j,k,1) + u(i,j+1,k,1));
 
-                Set::Scalar phi_ylo_l = lowmach_clamp(phi_ym + 0.5 * slope_ym, phi_ym, phi_c);
-                Set::Scalar phi_ylo_r = lowmach_clamp(phi_c  - 0.5 * slope_y,  phi_ym, phi_c);
-                Set::Scalar phi_yhi_l = lowmach_clamp(phi_c  + 0.5 * slope_y,  phi_c, phi_yp);
-                Set::Scalar phi_yhi_r = lowmach_clamp(phi_yp - 0.5 * slope_yp, phi_c, phi_yp);
+                Set::Scalar phi_ylo_l = Util::Clamp(phi_ym + 0.5 * slope_ym, phi_ym, phi_c);
+                Set::Scalar phi_ylo_r = Util::Clamp(phi_c  - 0.5 * slope_y,  phi_ym, phi_c);
+                Set::Scalar phi_yhi_l = Util::Clamp(phi_c  + 0.5 * slope_y,  phi_c, phi_yp);
+                Set::Scalar phi_yhi_r = Util::Clamp(phi_yp - 0.5 * slope_yp, phi_c, phi_yp);
 
                 Set::Scalar flux_ylo = uy_ylo * (uy_ylo >= 0.0 ? phi_ylo_l : phi_ylo_r);
                 Set::Scalar flux_yhi = uy_yhi * (uy_yhi >= 0.0 ? phi_yhi_l : phi_yhi_r);
@@ -1594,17 +1441,17 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 #if AMREX_SPACEDIM == 3
                 Set::Scalar phi_zm = phi(i,j,k-1,n);
                 Set::Scalar phi_zp = phi(i,j,k+1,n);
-                Set::Scalar slope_zm = lowmach_mc_slope(phi(i,j,k-2,n), phi_zm, phi_c);
-                Set::Scalar slope_z  = lowmach_mc_slope(phi_zm, phi_c, phi_zp);
-                Set::Scalar slope_zp = lowmach_mc_slope(phi_c, phi_zp, phi(i,j,k+2,n));
+                Set::Scalar slope_zm = Util::MCSlope(phi(i,j,k-2,n), phi_zm, phi_c);
+                Set::Scalar slope_z  = Util::MCSlope(phi_zm, phi_c, phi_zp);
+                Set::Scalar slope_zp = Util::MCSlope(phi_c, phi_zp, phi(i,j,k+2,n));
 
                 Set::Scalar uz_zlo = 0.5 * (u(i,j,k-1,2) + u(i,j,k,2));
                 Set::Scalar uz_zhi = 0.5 * (u(i,j,k,2) + u(i,j,k+1,2));
 
-                Set::Scalar phi_zlo_l = lowmach_clamp(phi_zm + 0.5 * slope_zm, phi_zm, phi_c);
-                Set::Scalar phi_zlo_r = lowmach_clamp(phi_c  - 0.5 * slope_z,  phi_zm, phi_c);
-                Set::Scalar phi_zhi_l = lowmach_clamp(phi_c  + 0.5 * slope_z,  phi_c, phi_zp);
-                Set::Scalar phi_zhi_r = lowmach_clamp(phi_zp - 0.5 * slope_zp, phi_c, phi_zp);
+                Set::Scalar phi_zlo_l = Util::Clamp(phi_zm + 0.5 * slope_zm, phi_zm, phi_c);
+                Set::Scalar phi_zlo_r = Util::Clamp(phi_c  - 0.5 * slope_z,  phi_zm, phi_c);
+                Set::Scalar phi_zhi_l = Util::Clamp(phi_c  + 0.5 * slope_z,  phi_c, phi_zp);
+                Set::Scalar phi_zhi_r = Util::Clamp(phi_zp - 0.5 * slope_zp, phi_c, phi_zp);
 
                 Set::Scalar flux_zlo = uz_zlo * (uz_zlo >= 0.0 ? phi_zlo_l : phi_zlo_r);
                 Set::Scalar flux_zhi = uz_zhi * (uz_zhi >= 0.0 ? phi_zhi_l : phi_zhi_r);
@@ -1712,7 +1559,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                 if (viscous)
                 {
                     Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-                    if (mu == mu) nu = mu / lowmach_max(rho(i,j,k), rho_floor);
+                    if (mu == mu) nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
                 return {speed, nu / (dxmin * dxmin)};
             });
