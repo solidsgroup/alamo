@@ -1,6 +1,14 @@
 name: Chemistry
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - development
+      - master
+  pull_request:
+    branches:
+      - development
+      - master
 
 permissions:
   contents: read
@@ -14,8 +22,8 @@ jobs:
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d, nspecies=10)
       run: ./configure --dim=2 --nspecies=10 --yaml
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: run chemistry regression tests
       run: scripts/runtests.py tests/Chemistry --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --nspecies=10 --permit-skips
     - name: create report
@@ -37,8 +45,8 @@ jobs:
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d, nspecies=10)
       run: ./configure --dim=2 --nspecies=10 --yaml
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: run chemistry regression tests
       run: scripts/runtests.py tests/Chemistry --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --nspecies=10 --permit-skips
     - name: create report
@@ -62,8 +70,8 @@ jobs:
       run: sudo apt install clang
     - name: configure (2d, nspecies=10, clang)
       run: ./configure --dim=2 --nspecies=10 --yaml --comp=clang++
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: run chemistry regression tests
       run: scripts/runtests.py tests/Chemistry --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --nspecies=10 --permit-skips
     - name: create report
@@ -91,8 +99,8 @@ jobs:
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d, nspecies=10, asan)
       run: ./configure --dim=2 --nspecies=10 --yaml --debug --memcheck --memcheck-tool=asan 
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: chemistry regression tests with memory checking (2d, nspecies=10)
       run: ./scripts/runtests.py tests/Chemistry --debug --serial --dim=2 --memcheck=asan --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=10
     - name: create report
@@ -120,8 +128,8 @@ jobs:
     - name: configure (2d, nspecies=10, asan, clang)
       continue-on-error: true
       run: ./configure --dim=2 --nspecies=10 --yaml --debug --memcheck --memcheck-tool=asan --comp=clang++
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: chemistry regression tests with memory checking (2d, nspecies=10)
       run: ./scripts/runtests.py tests/Chemistry --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=10
     - name: create report
@@ -149,8 +157,8 @@ jobs:
     - name: configure (2d, nspecies=10, msan, clang)
       continue-on-error: true
       run: ./configure --dim=2 --nspecies=10 --yaml --debug --memcheck --memcheck-tool=msan --comp=clang++
-    - name: make
-      run: make
+    - name: make bin/hydro
+      run: make bin/hydro
     - name: chemistry regression tests with memory checking (2d, nspecies=10)
       run: ./scripts/runtests.py tests/Chemistry --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=10
     - name: create report
