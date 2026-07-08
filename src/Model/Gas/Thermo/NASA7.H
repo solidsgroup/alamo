@@ -7,7 +7,7 @@
 #include <memory>
 #include "Model/Gas/Thermo/Thermo.H"
 #include "IO/ParmParse.H"
-#include "IO/YamlParse.H"
+#include "IO/CanteraYamlParse.H"
 #include "Set/Set.H"
 
 namespace Model {

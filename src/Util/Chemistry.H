@@ -2,7 +2,7 @@
 #define UTIL_CHEMISTRY_H
 
 #include "AMReX_Extension.H"
-#include "IO/YamlParse.H"
+#include "IO/CanteraYamlParse.H"
 #include <map>
 #include <string>
 #include <vector>

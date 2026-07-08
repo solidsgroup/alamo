@@ -21,7 +21,7 @@ struct Frozen
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<double,NSPECIES>,Set::Scalar>
-    compute(
+    ComputeChemistrySources(
         const Set::Scalar /*P*/,
         const Set::Scalar /*T*/,
         const std::array<double, NSPECIES>& /*rhoY*/,

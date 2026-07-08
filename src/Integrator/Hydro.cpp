@@ -1057,7 +1057,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
                 std::array<double, NSPECIES> wdot;
                 Set::Scalar qdot = 0.0;
-                std::tie(wdot, qdot) = chemistry.compute(p(i,j,k), T(i,j,k), rhoY, dt[lev], &gas);
+                std::tie(wdot, qdot) = chemistry.ComputeChemistrySources(p(i,j,k), T(i,j,k), rhoY, dt[lev], &gas);
                 qdot_arr(i,j,k) = qdot;
                 for (int n=0; n<NSPECIES; ++n)
                 {
@@ -1853,7 +1853,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             std::array<double, NSPECIES> wdot;
             Set::Scalar qdot = 0.0;
-            std::tie(wdot, qdot) = chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY_intermediate, dt, &gas);
+            std::tie(wdot, qdot) = chemistry.ComputeChemistrySources(pressure(i,j,k), temp(i,j,k), rhoY_intermediate, dt, &gas);
 
             if (details)
             {
