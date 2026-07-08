@@ -69,6 +69,9 @@ public:
     {
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
+#if AMREX_SPACEDIM == 3
+        Set::Scalar Mt2_L = lo.M_tangent2,  Mt2_R = hi.M_tangent2;
+#endif
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities
@@ -87,50 +90,50 @@ public:
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i-1, j ,k);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i-1, j, k);
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i+1, j ,k);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i+1, j, k);
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j-1 ,k);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j-1, k);
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j+1 ,k);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j+1, k);
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k-1);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k-1);
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                T_L = ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k);
                 p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
+                T_R = ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k+1);
                 p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k+1);
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
@@ -149,6 +152,9 @@ public:
 
         Set::Scalar u_L   = Mn_L/(rho_sum_L),  u_R   = Mn_R/(rho_sum_R);
         Set::Scalar v_L   = Mt_L/(rho_sum_L),  v_R   = Mt_R/(rho_sum_R);
+#if AMREX_SPACEDIM == 3
+        Set::Scalar w_L   = Mt2_L/(rho_sum_L), w_R   = Mt2_R/(rho_sum_R);
+#endif
         
         //
         // STEP 2: Compute Roe-averaged quantities
@@ -205,7 +211,12 @@ public:
         {
             Set::Scalar v_RL    = (std::sqrt(rho_sum_L) * v_L  + std::sqrt(rho_sum_R) * v_R ) / 
                 (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R));
-            Set::Scalar Ma = (std::abs(u_RL) + std::abs(v_RL)) / (a_RL + small);
+            Set::Scalar Ma = (std::abs(u_RL) + std::abs(v_RL)
+#if AMREX_SPACEDIM == 3
+                + std::abs((std::sqrt(rho_sum_L) * w_L  + std::sqrt(rho_sum_R) * w_R ) /
+                    (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R)))
+#endif
+                ) / (a_RL + small);
             Ma = std::min(Ma, 1.0);
             deltau *= Ma;
         }
@@ -316,6 +327,9 @@ public:
         // (Update the tangential momentum flux)
         //
         fl.momentum_tangent = 0.5 * (rho_sum_L * u_L * v_L + rho_sum_R * u_R * v_R);
+#if AMREX_SPACEDIM == 3
+        fl.momentum_tangent2 = 0.5 * (rho_sum_L * u_L * w_L + rho_sum_R * u_R * w_R);
+#endif
 
         return fl;
     }

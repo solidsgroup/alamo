@@ -53,6 +53,10 @@ public:
         Set::Scalar u_R = hi.M_normal / rho_sum_R;
         Set::Scalar v_L = lo.M_tangent / rho_sum_L;
         Set::Scalar v_R = hi.M_tangent / rho_sum_R;
+#if AMREX_SPACEDIM == 3
+        Set::Scalar w_L = lo.M_tangent2 / rho_sum_L;
+        Set::Scalar w_R = hi.M_tangent2 / rho_sum_R;
+#endif
 
         // label the energies
         Set::Scalar E_L = lo.E, E_R = hi.E;
@@ -61,50 +65,50 @@ public:
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i-1, j ,k));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i-1, j, k));
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i+1, j ,k));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i+1, j, k));
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j-1 ,k));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j-1, k));
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j+1 ,k));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j+1, k));
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k-1));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k-1));
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                T_L = std::max(small, ComputeStateTemperature(gas, rho_sum_L, lo, E_L, 500.0, X, i, j ,k));
                 p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1));
+                T_R = std::max(small, ComputeStateTemperature(gas, rho_sum_R, hi, E_R, 500.0, X, i, j ,k+1));
                 p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k+1));
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
@@ -143,6 +147,9 @@ public:
             for (int n=0; n<NSPECIES; ++n) result.mass[n] = rho_L[n] * u_L;
             result.momentum_normal = rho_sum_L*u_L*u_L + p_L;
             result.momentum_tangent = rho_sum_L*u_L*v_L;
+#if AMREX_SPACEDIM == 3
+            result.momentum_tangent2 = rho_sum_L*u_L*w_L;
+#endif
             result.energy = u_L * (E_L + p_L);
             return result;
         }
@@ -161,6 +168,12 @@ public:
             Set::Scalar fL_Mt = rho_sum_L*u_L*v_L;
             Set::Scalar Ustar_L_Mt = v_L * rho_sum_L * factor_L;
             result.momentum_tangent = fL_Mt + S_L * (Ustar_L_Mt - rho_sum_L*v_L);
+
+#if AMREX_SPACEDIM == 3
+            Set::Scalar fL_Mt2 = rho_sum_L*u_L*w_L;
+            Set::Scalar Ustar_L_Mt2 = w_L * rho_sum_L * factor_L;
+            result.momentum_tangent2 = fL_Mt2 + S_L * (Ustar_L_Mt2 - rho_sum_L*w_L);
+#endif
 
             Set::Scalar fL_E = u_L * (E_L + p_L);
             Set::Scalar Ustar_L_E = ((E_L/rho_sum_L) + (Sstar-u_L) * (Sstar + p_L/(rho_sum_L*(S_L-u_L)))) * rho_sum_L * factor_L;
@@ -184,6 +197,12 @@ public:
             Set::Scalar Ustar_R_Mt = v_R * rho_sum_R * factor_R;
             result.momentum_tangent = fR_Mt + S_R * (Ustar_R_Mt - rho_sum_R*v_R);
 
+#if AMREX_SPACEDIM == 3
+            Set::Scalar fR_Mt2 = rho_sum_R*u_R*w_R;
+            Set::Scalar Ustar_R_Mt2 = w_R * rho_sum_R * factor_R;
+            result.momentum_tangent2 = fR_Mt2 + S_R * (Ustar_R_Mt2 - rho_sum_R*w_R);
+#endif
+
             Set::Scalar fR_E = u_R * (E_R + p_R);
             Set::Scalar Ustar_R_E = ((E_R/rho_sum_R) + (Sstar - u_R)*(Sstar + p_R/(rho_sum_R*(S_R-u_R)))) * rho_sum_R * factor_R;
             result.energy = fR_E + S_R * (Ustar_R_E - E_R);
@@ -195,6 +214,9 @@ public:
             for (int n=0; n<NSPECIES; ++n) result.mass[n] = rho_R[n] * u_R;
             result.momentum_normal = rho_sum_R*u_R*u_R + p_R;
             result.momentum_tangent = rho_sum_R*u_R*v_R;
+#if AMREX_SPACEDIM == 3
+            result.momentum_tangent2 = rho_sum_R*u_R*w_R;
+#endif
             result.energy = u_R * (E_R + p_R);
             return result;
         }

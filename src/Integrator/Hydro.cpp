@@ -173,10 +173,37 @@ namespace
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::State MirrorWallState(
+    Set::Scalar DirectionNormalVelocity(const Set::Vector& velocity, int direction)
+    {
+        return velocity(direction);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar DirectionTangentVelocity(const Set::Vector& velocity, int direction)
+    {
+        if (direction == 0) return velocity(1);
+        return velocity(0);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar DirectionTangent2Velocity(const Set::Vector& velocity, int direction)
+    {
+#if AMREX_SPACEDIM == 3
+        if (direction == 2) return velocity(1);
+        return velocity(2);
+#else
+        (void)velocity;
+        (void)direction;
+        return 0.0;
+#endif
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Solver::Local::Riemann::State MirrorWallStateImpl(
         const Solver::Local::Riemann::State& interior,
         Set::Scalar wall_normal_velocity,
         Set::Scalar wall_tangent_velocity,
+        Set::Scalar wall_tangent2_velocity,
         Set::Scalar small)
     {
         Solver::Local::Riemann::State ghost = interior;
@@ -188,9 +215,48 @@ namespace
 
         ghost.M_normal = rho * un_wall;
         ghost.M_tangent = rho * ut_wall;
+#if AMREX_SPACEDIM == 3
+        const Set::Scalar ut2 = interior.M_tangent2 / rho;
+        const Set::Scalar ut2_wall = 2.0 * wall_tangent2_velocity - ut2;
+        ghost.M_tangent2 = rho * ut2_wall;
+#else
+        (void)wall_tangent2_velocity;
+#endif
         ghost.E = interior.E + 0.5 * rho *
-            (un_wall * un_wall + ut_wall * ut_wall - un * un - ut * ut);
+            (un_wall * un_wall + ut_wall * ut_wall
+#if AMREX_SPACEDIM == 3
+            + ut2_wall * ut2_wall
+#endif
+            - un * un - ut * ut
+#if AMREX_SPACEDIM == 3
+            - ut2 * ut2
+#endif
+            );
         return ghost;
+    }
+
+    [[maybe_unused]]
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Solver::Local::Riemann::State MirrorWallState(
+        const Solver::Local::Riemann::State& interior,
+        Set::Scalar wall_normal_velocity,
+        Set::Scalar wall_tangent_velocity,
+        Set::Scalar small)
+    {
+        return MirrorWallStateImpl(
+            interior, wall_normal_velocity, wall_tangent_velocity, 0.0, small);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Solver::Local::Riemann::State MirrorWallState(
+        const Solver::Local::Riemann::State& interior,
+        Set::Scalar wall_normal_velocity,
+        Set::Scalar wall_tangent_velocity,
+        Set::Scalar wall_tangent2_velocity,
+        Set::Scalar small)
+    {
+        return MirrorWallStateImpl(
+            interior, wall_normal_velocity, wall_tangent_velocity, wall_tangent2_velocity, small);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -202,7 +268,9 @@ namespace
         Set::Scalar prescribed_normal_velocity,
         Set::Scalar prescribed_tangent_velocity,
         Set::Scalar injection_specific_energy,
-        Set::Scalar conductive_energy_flux)
+        Set::Scalar conductive_energy_flux,
+        Set::Scalar reflected_tangent2_velocity = 0.0,
+        Set::Scalar prescribed_tangent2_velocity = 0.0)
     {
         Solver::Local::Riemann::Flux flux;
         const Set::Scalar reflected_mass_flux = FluxMass(reflected_flux);
@@ -221,6 +289,15 @@ namespace
             reflected_flux.momentum_tangent -
             reflected_mass_flux * reflected_tangent_velocity +
             prescribed_mass_flux_total * prescribed_tangent_velocity;
+#if AMREX_SPACEDIM == 3
+        flux.momentum_tangent2 =
+            reflected_flux.momentum_tangent2 -
+            reflected_mass_flux * reflected_tangent2_velocity +
+            prescribed_mass_flux_total * prescribed_tangent2_velocity;
+#else
+        (void)reflected_tangent2_velocity;
+        (void)prescribed_tangent2_velocity;
+#endif
         flux.energy =
             prescribed_mass_flux_total * injection_specific_energy +
             conductive_energy_flux;
@@ -304,12 +381,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true ,true);
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false, true);
 
-        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, AMREX_SPACEDIM, nghost, "momentum",     true ,true, {"x","y"});
+        std::vector<std::string> vector_suffix = {AMREX_D_DECL("x","y","z")};
+        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, AMREX_SPACEDIM, nghost, "momentum",     true ,true, vector_suffix);
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, AMREX_SPACEDIM, nghost, "momentum_old", false, true);
  
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
         value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "temperature",  true, false);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, AMREX_SPACEDIM, nghost, "velocity",  true, false,{"x","y"});
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, AMREX_SPACEDIM, nghost, "velocity",  true, false, vector_suffix);
         #if AMREX_SPACEDIM == 2
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
         #elif AMREX_SPACEDIM == 3
@@ -317,15 +395,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         #endif
 
         value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, NSPECIES, 0, "m0",  true, false);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, AMREX_SPACEDIM, 0, "u0",  true, false, {"x","y"});
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, AMREX_SPACEDIM, 0, "q",   true, false, {"x","y"});
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, AMREX_SPACEDIM, 0, "u0",  true, false, vector_suffix);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, AMREX_SPACEDIM, 0, "q",   true, false, vector_suffix);
 
         value.neumann_bc_D = new BC::Constant(BC::Constant::ZeroNeumann(AMREX_SPACEDIM));
         value.neumann_bc_1 = new BC::Constant(BC::Constant::ZeroNeumann(1));
         value.neumann_bc_N = new BC::Constant(BC::Constant::ZeroNeumann(NSPECIES));
 
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
-        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, {"x","y"});
+        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, vector_suffix);
         value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+AMREX_SPACEDIM+1, 0, "Source", true, false);
@@ -535,6 +613,7 @@ void Hydro::Mix(int lev)
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
+    vz_max = 0.0;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
@@ -669,10 +748,12 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
     amrex::ParallelDescriptor::ReduceRealMax(c_max);
     amrex::ParallelDescriptor::ReduceRealMax(vx_max);
     amrex::ParallelDescriptor::ReduceRealMax(vy_max);
+    amrex::ParallelDescriptor::ReduceRealMax(vz_max);
 
-    Set::Scalar new_timestep = cfl / ((c_max + vx_max) / DX[0] + (c_max + vy_max) / DX[1]);
-
-    Util::Assert(INFO, TEST(AMREX_SPACEDIM == 2));
+    Set::Scalar new_timestep = cfl / (
+        AMREX_D_TERM((c_max + vx_max) / DX[0],
+                   + (c_max + vy_max) / DX[1],
+                   + (c_max + vz_max) / DX[2]));
 
     SetTimestep(new_timestep);
 }
@@ -731,13 +812,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Organize references to the "new" solution
     amrex::Vector<amrex::MultiFab> solution_new; 
     solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
-    solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,AMREX_SPACEDIM);
     solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
     // Organize references to the "old" solution
     amrex::Vector<amrex::MultiFab> solution_old;
     solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
-    solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,AMREX_SPACEDIM);
     solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
     // Create the time integrator
@@ -760,7 +841,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         momentum_bc->define(geom[lev]);
         energy_bc->define(geom[lev]);
         density_bc->FillBoundary(rho, 0, NSPECIES, fill_time, 0);
-        momentum_bc->FillBoundary(M, 0, 2, fill_time, 0);
+        momentum_bc->FillBoundary(M, 0, AMREX_SPACEDIM, fill_time, 0);
         energy_bc->FillBoundary(E, 0, 1, fill_time, 0);
         ApplyCutoffToConserved(lev, rho, M, E, true, use_old_eta);
     };
@@ -1116,7 +1197,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     momentum_bc->define(geom[lev]);
     energy_bc->define(geom[lev]);
     density_bc->FillBoundary(rho_mf, 0, NSPECIES, time, 0);
-    momentum_bc->FillBoundary(M_mf, 0, 2, time, 0);
+    momentum_bc->FillBoundary(M_mf, 0, AMREX_SPACEDIM, time, 0);
     energy_bc->FillBoundary(E_mf, 0, 1, time, 0);
     if (!managed)
     {
@@ -1566,9 +1647,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX,sten);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
-            for (int p = 0; p < 2; p++)
-                for (int q = 0; q < 2; q++)
-                    for (int r = 0; r < 2; r++)
+            for (int p = 0; p < AMREX_SPACEDIM; p++)
+                for (int q = 0; q < AMREX_SPACEDIM; q++)
+                    for (int r = 0; r < AMREX_SPACEDIM; r++)
                     {
                         hess_u(r,p,q) =
                             (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
@@ -1578,10 +1659,10 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
             Set::Scalar lambda = 0.0; //-2.0/3.0*mu_eff;
-            for (int p = 0; p<2; p++)
-                for (int q = 0; q<2; q++)
-                    for (int r = 0; r<2; r++)
-                        for (int s = 0; s<2; s++)
+            for (int p = 0; p<AMREX_SPACEDIM; p++)
+                for (int q = 0; q<AMREX_SPACEDIM; q++)
+                    for (int r = 0; r<AMREX_SPACEDIM; r++)
+                        for (int s = 0; s<AMREX_SPACEDIM; s++)
                         {
                             Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
@@ -1591,10 +1672,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
+#if AMREX_SPACEDIM == 3
+            const int Z = 2;
+#endif
             const bool physical_xlo = (!periodic0 && i == domlo0);
             const bool physical_xhi = (!periodic0 && i == domhi0);
             const bool physical_ylo = (!periodic1 && j == domlo1);
             const bool physical_yhi = (!periodic1 && j == domhi1);
+#if AMREX_SPACEDIM == 3
+            const bool physical_zlo = (!periodic2 && k == domlo2);
+            const bool physical_zhi = (!periodic2 && k == domhi2);
+#endif
 
             Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
             Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X); 
@@ -1603,6 +1691,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
             Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
             Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
+#if AMREX_SPACEDIM == 3
+            Solver::Local::Riemann::State state_zlo(rho, M, E, i, j, k-1, Z);
+            Solver::Local::Riemann::State state_z  (rho, M, E, i, j, k  , Z);
+            Solver::Local::Riemann::State state_zhi(rho, M, E, i, j, k+1, Z);
+#endif
             
             //states of solid fields
             Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X); 
@@ -1612,11 +1705,20 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y); 
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
+#if AMREX_SPACEDIM == 3
+            Solver::Local::Riemann::State state_zlo_solid(rho_solid, M_solid, E_solid, i, j, k-1, Z);
+            Solver::Local::Riemann::State state_z_solid  (rho_solid, M_solid, E_solid, i, j, k  , Z);
+            Solver::Local::Riemann::State state_zhi_solid(rho_solid, M_solid, E_solid, i, j, k+1, Z);
+#endif
 
             Solver::Local::Riemann::State state_x_fluid =
                 ReconstructFluidState(state_x, state_x_solid, eta_patch(i,j,k), invert, small, cutoff);
             Solver::Local::Riemann::State state_y_fluid =
                 ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small, cutoff);
+#if AMREX_SPACEDIM == 3
+            Solver::Local::Riemann::State state_z_fluid =
+                ReconstructFluidState(state_z, state_z_solid, eta_patch(i,j,k), invert, small, cutoff);
+#endif
 
             Solver::Local::Riemann::State state_xlo_fluid =
                 ReconstructFluidState(
@@ -1638,8 +1740,23 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     state_yhi, state_yhi_solid,
                     physical_yhi ? eta_patch(i,j,k) : eta_patch(i,j+1,k),
                     invert, small, cutoff);
+#if AMREX_SPACEDIM == 3
+            Solver::Local::Riemann::State state_zlo_fluid =
+                ReconstructFluidState(
+                    state_zlo, state_zlo_solid,
+                    physical_zlo ? eta_patch(i,j,k) : eta_patch(i,j,k-1),
+                    invert, small, cutoff);
+            Solver::Local::Riemann::State state_zhi_fluid =
+                ReconstructFluidState(
+                    state_zhi, state_zhi_solid,
+                    physical_zhi ? eta_patch(i,j,k) : eta_patch(i,j,k+1),
+                    invert, small, cutoff);
+#endif
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+#if AMREX_SPACEDIM == 3
+            Solver::Local::Riemann::Flux flux_zlo, flux_zhi;
+#endif
 
             const Set::Scalar eta_xlo = physical_xlo ? eta :
                 EffectiveFluidEta(eta_patch(i-1,j,k), invert);
@@ -1649,6 +1766,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 EffectiveFluidEta(eta_patch(i,j-1,k), invert);
             const Set::Scalar eta_yhi = physical_yhi ? eta :
                 EffectiveFluidEta(eta_patch(i,j+1,k), invert);
+#if AMREX_SPACEDIM == 3
+            const Set::Scalar eta_zlo = physical_zlo ? eta :
+                EffectiveFluidEta(eta_patch(i,j,k-1), invert);
+            const Set::Scalar eta_zhi = physical_zhi ? eta :
+                EffectiveFluidEta(eta_patch(i,j,k+1), invert);
+#endif
 
             const Set::Scalar injection_specific_energy =
                 (rho_solid_sum > small) ? E_solid(i,j,k) / rho_solid_sum : 0.0;
@@ -1668,13 +1791,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     const Set::Scalar reflected_normal_velocity =
                         prescribed_mass_flux_total / StateDensity(state_x_fluid, small);
                     const Solver::Local::Riemann::State state_xlo_wall =
-                        MirrorWallState(state_x_fluid, reflected_normal_velocity, u0(1), small);
+                        MirrorWallState(state_x_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, X),
+                            DirectionTangent2Velocity(u0, X), small);
                     const Solver::Local::Riemann::Flux reflected_flux =
                         riemannsolver->Solve(state_xlo_wall, state_x_fluid, gas, molef, i, j, k, 0, small);
                     flux_xlo = PrescribedWallFlux(
                         reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, u0(1), u0(0), u0(1),
-                        injection_specific_energy, q0(0));
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, X),
+                        DirectionNormalVelocity(u0, X), DirectionTangentVelocity(u0, X),
+                        injection_specific_energy, q0(X),
+                        DirectionTangent2Velocity(u0, X), DirectionTangent2Velocity(u0, X));
                 }
                 else
                 {
@@ -1695,13 +1822,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     const Set::Scalar reflected_normal_velocity =
                         prescribed_mass_flux_total / StateDensity(state_y_fluid, small);
                     const Solver::Local::Riemann::State state_ylo_wall =
-                        MirrorWallState(state_y_fluid, reflected_normal_velocity, u0(0), small);
+                        MirrorWallState(state_y_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, Y),
+                            DirectionTangent2Velocity(u0, Y), small);
                     const Solver::Local::Riemann::Flux reflected_flux =
                         riemannsolver->Solve(state_ylo_wall, state_y_fluid, gas, molef, i, j, k, 2, small);
                     flux_ylo = PrescribedWallFlux(
                         reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, u0(0), u0(1), u0(0),
-                        injection_specific_energy, q0(1));
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, Y),
+                        DirectionNormalVelocity(u0, Y), DirectionTangentVelocity(u0, Y),
+                        injection_specific_energy, q0(Y),
+                        DirectionTangent2Velocity(u0, Y), DirectionTangent2Velocity(u0, Y));
                 }
                 else
                 {
@@ -1722,13 +1853,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     const Set::Scalar reflected_normal_velocity =
                         prescribed_mass_flux_total / StateDensity(state_x_fluid, small);
                     const Solver::Local::Riemann::State state_xhi_wall =
-                        MirrorWallState(state_x_fluid, reflected_normal_velocity, u0(1), small);
+                        MirrorWallState(state_x_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, X),
+                            DirectionTangent2Velocity(u0, X), small);
                     const Solver::Local::Riemann::Flux reflected_flux =
                         riemannsolver->Solve(state_x_fluid, state_xhi_wall, gas, molef, i, j, k, 1, small);
                     flux_xhi = PrescribedWallFlux(
                         reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, u0(1), u0(0), u0(1),
-                        injection_specific_energy, q0(0));
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, X),
+                        DirectionNormalVelocity(u0, X), DirectionTangentVelocity(u0, X),
+                        injection_specific_energy, q0(X),
+                        DirectionTangent2Velocity(u0, X), DirectionTangent2Velocity(u0, X));
                 }
                 else
                 {
@@ -1749,13 +1884,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     const Set::Scalar reflected_normal_velocity =
                         prescribed_mass_flux_total / StateDensity(state_y_fluid, small);
                     const Solver::Local::Riemann::State state_yhi_wall =
-                        MirrorWallState(state_y_fluid, reflected_normal_velocity, u0(0), small);
+                        MirrorWallState(state_y_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, Y),
+                            DirectionTangent2Velocity(u0, Y), small);
                     const Solver::Local::Riemann::Flux reflected_flux =
                         riemannsolver->Solve(state_y_fluid, state_yhi_wall, gas, molef, i, j, k, 3, small);
                     flux_yhi = PrescribedWallFlux(
                         reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, u0(0), u0(1), u0(0),
-                        injection_specific_energy, q0(1));
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, Y),
+                        DirectionNormalVelocity(u0, Y), DirectionTangentVelocity(u0, Y),
+                        injection_specific_energy, q0(Y),
+                        DirectionTangent2Velocity(u0, Y), DirectionTangent2Velocity(u0, Y));
                 }
                 else
                 {
@@ -1763,15 +1902,80 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                         state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small);
                     flux_yhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
                 }
+#if AMREX_SPACEDIM == 3
+                if (eta_zlo <= cutoff)
+                {
+                    std::array<double, NSPECIES> prescribed_mass_flux;
+                    Set::Scalar prescribed_mass_flux_total = 0.0;
+                    for (int n = 0; n < NSPECIES; ++n)
+                    {
+                        prescribed_mass_flux[n] = m0(i,j,k,n);
+                        prescribed_mass_flux_total += prescribed_mass_flux[n];
+                    }
+                    const Set::Scalar reflected_normal_velocity =
+                        prescribed_mass_flux_total / StateDensity(state_z_fluid, small);
+                    const Solver::Local::Riemann::State state_zlo_wall =
+                        MirrorWallState(state_z_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, Z),
+                            DirectionTangent2Velocity(u0, Z), small);
+                    const Solver::Local::Riemann::Flux reflected_flux =
+                        riemannsolver->Solve(state_zlo_wall, state_z_fluid, gas, molef, i, j, k, 4, small);
+                    flux_zlo = PrescribedWallFlux(
+                        reflected_flux, prescribed_mass_flux,
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, Z),
+                        DirectionNormalVelocity(u0, Z), DirectionTangentVelocity(u0, Z),
+                        injection_specific_energy, q0(Z),
+                        DirectionTangent2Velocity(u0, Z), DirectionTangent2Velocity(u0, Z));
+                }
+                else
+                {
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
+                        state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small);
+                    flux_zlo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
+                }
+
+                if (eta_zhi <= cutoff)
+                {
+                    std::array<double, NSPECIES> prescribed_mass_flux;
+                    Set::Scalar prescribed_mass_flux_total = 0.0;
+                    for (int n = 0; n < NSPECIES; ++n)
+                    {
+                        prescribed_mass_flux[n] = -m0(i,j,k,n);
+                        prescribed_mass_flux_total += prescribed_mass_flux[n];
+                    }
+                    const Set::Scalar reflected_normal_velocity =
+                        prescribed_mass_flux_total / StateDensity(state_z_fluid, small);
+                    const Solver::Local::Riemann::State state_zhi_wall =
+                        MirrorWallState(state_z_fluid, reflected_normal_velocity,
+                            DirectionTangentVelocity(u0, Z),
+                            DirectionTangent2Velocity(u0, Z), small);
+                    const Solver::Local::Riemann::Flux reflected_flux =
+                        riemannsolver->Solve(state_z_fluid, state_zhi_wall, gas, molef, i, j, k, 5, small);
+                    flux_zhi = PrescribedWallFlux(
+                        reflected_flux, prescribed_mass_flux,
+                        reflected_normal_velocity, DirectionTangentVelocity(u0, Z),
+                        DirectionNormalVelocity(u0, Z), DirectionTangentVelocity(u0, Z),
+                        injection_specific_energy, q0(Z),
+                        DirectionTangent2Velocity(u0, Z), DirectionTangent2Velocity(u0, Z));
+                }
+                else
+                {
+                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
+                        state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small);
+                    flux_zhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
+                }
+#endif
             }
             catch(...)
             {
                 Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i,"j=",j);
+                Util::ParallelMessage(INFO,"i=",i,"j=",j,"k=",k);
                 Util::Abort(INFO);
             }
                 
 
+            const int momentum_source_comp = NSPECIES;
+            const int energy_source_comp = NSPECIES + AMREX_SPACEDIM;
             std::array<double, NSPECIES> drhof_dt_hydro;
             for (int n=0; n<NSPECIES; ++n)
             {
@@ -1779,21 +1983,34 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 drhof_dt_hydro[n] = 
                     (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
                     (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
+#if AMREX_SPACEDIM == 3
+                    (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2] +
+#endif
                     Source(i, j, k, n);
                 if (NSPECIES > 1)
                 {
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
                     Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX,sten);
                     Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX,sten);
-                    drhof_dt_hydro[n] += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
+#if AMREX_SPACEDIM == 3
+                    Set::Vector grad_rhoDYz     = Numeric::Gradient(rhoDYz,i,j,k,n,DX,sten);
+#endif
+                    drhof_dt_hydro[n] += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]
+#if AMREX_SPACEDIM == 3
+                        + grad_rhoDYz[2]
+#endif
+                    );
                 }
             }
 
             Set::Vector interface_momentum_source = -Ldot0;
 
-            Source(i,j, k, NSPECIES  ) = Pdot0(0) + interface_momentum_source(0);
-            Source(i,j, k, NSPECIES+1) = Pdot0(1) + interface_momentum_source(1);
-            Source(i,j, k, NSPECIES+2) = qdot0 + interface_momentum_source.dot(u);
+            Source(i,j, k, momentum_source_comp  ) = Pdot0(0) + interface_momentum_source(0);
+            Source(i,j, k, momentum_source_comp+1) = Pdot0(1) + interface_momentum_source(1);
+#if AMREX_SPACEDIM == 3
+            Source(i,j, k, momentum_source_comp+2) = Pdot0(2) + interface_momentum_source(2);
+#endif
+            Source(i,j, k, energy_source_comp) = qdot0 + interface_momentum_source.dot(u);
 
             // Lagrange terms to enforce no-penetration for pure diffuse mode.
             // In cutoff-wall mode, the Riemann wall flux imposes no-penetration
@@ -1809,9 +2026,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     lagrange / (1.0 + dt * lagrange_rate);
                 Set::Vector lagrange_momentum_source =
                     -lagrange_factor * (u-u0).dot(grad_eta) * grad_eta;
-                Source(i,j,k,NSPECIES  ) += lagrange_momentum_source(0);
-                Source(i,j,k,NSPECIES+1) += lagrange_momentum_source(1);
-                Source(i,j,k,NSPECIES+2) += lagrange_momentum_source.dot(u0);
+                Source(i,j,k,momentum_source_comp  ) += lagrange_momentum_source(0);
+                Source(i,j,k,momentum_source_comp+1) += lagrange_momentum_source(1);
+#if AMREX_SPACEDIM == 3
+                Source(i,j,k,momentum_source_comp+2) += lagrange_momentum_source(2);
+#endif
+                Source(i,j,k,energy_source_comp) += lagrange_momentum_source.dot(u0);
             }
 
             std::array<double, NSPECIES> rhoY_intermediate;
@@ -1856,9 +2076,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
+#if AMREX_SPACEDIM == 3
+                (flux_zlo.momentum_tangent - flux_zhi.momentum_tangent) / DX[2] +
+#endif
                 div_tau(0) * eta +
                 g(0)*rho_sum(i,j,k) +
-                Source(i, j, k, NSPECIES);
+                Source(i, j, k, momentum_source_comp);
 
             M_rhs(i,j,k,0) = 
                 //M_new(i, j, k, 0) = M(i, j, k, 0) +
@@ -1872,9 +2095,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
+#if AMREX_SPACEDIM == 3
+                (flux_zlo.momentum_tangent2 - flux_zhi.momentum_tangent2) / DX[2] +
+#endif
                 div_tau(1) * eta + 
                 g(1)*rho_sum(i,j,k) +
-                Source(i, j, k, NSPECIES+1);
+                Source(i, j, k, momentum_source_comp+1);
 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
@@ -1885,12 +2111,34 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 // )*dt;
                 ;
 
+#if AMREX_SPACEDIM == 3
+            Set::Scalar dMzf_dt =
+                (flux_xlo.momentum_tangent2 - flux_xhi.momentum_tangent2) / DX[0] +
+                (flux_ylo.momentum_tangent2 - flux_yhi.momentum_tangent2) / DX[1] +
+                (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2] +
+                div_tau(2) * eta +
+                g(2)*rho_sum(i,j,k) +
+                Source(i, j, k, momentum_source_comp+2);
+
+            M_rhs(i,j,k,2) =
+                    dMzf_dt +
+                    etadot(i,j,k)*(M(i,j,k,2) - M_solid(i,j,k,2)) / (eta+small)
+                ;
+#endif
+
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1])) +
+#if AMREX_SPACEDIM == 3
+                (flux_zlo.energy - flux_zhi.energy) / DX[2] +
+#endif
+                eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1]
+#if AMREX_SPACEDIM == 3
+                + grad_mixed_kTz[2]
+#endif
+                )) +
                 rho_sum(i,j,k)*g.dot(u) +
-                Source(i, j, k, NSPECIES+2) +
+                Source(i, j, k, energy_source_comp) +
                 eta * qdot;
 
             if (NSPECIES > 1)
@@ -1900,7 +2148,14 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX,sten);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX,sten);
-                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
+#if AMREX_SPACEDIM == 3
+                    Set::Vector grad_rhoHDYz     = Numeric::Gradient(rhoHDYz,i,j,k,n,DX,sten);
+#endif
+                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]
+#if AMREX_SPACEDIM == 3
+                        + grad_rhoHDYz[2]
+#endif
+                    );
                 }
             }
 

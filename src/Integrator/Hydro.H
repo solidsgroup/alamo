@@ -175,6 +175,7 @@ protected:
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
+    Set::Scalar vz_max = 0.0;
     bool details = false;
     bool save_ghost = false;
     bool plot_ghost_backup_valid = false;
