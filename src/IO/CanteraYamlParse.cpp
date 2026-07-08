@@ -1,6 +1,6 @@
 #include <iostream>
 #include <map>
-#include "IO/YamlParse.H"
+#include "IO/CanteraYamlParse.H"
 #include "Util/Util.H"
 
 CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
