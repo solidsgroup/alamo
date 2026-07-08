@@ -266,6 +266,8 @@ public:
 class Constant::ZeroNeumann : public Constant
 {
 public:
+    static constexpr bool select_default_only = true;
+
     ZeroNeumann(int ncomp = 1, Unit unit = Unit::Less()) :
         Constant(ncomp, unit)
     {

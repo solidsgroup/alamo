@@ -46,6 +46,7 @@ protected:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int iter) override;
+    void PrintDiagnostics(Set::Scalar time, int iter);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
@@ -139,6 +140,9 @@ protected:
     Set::Scalar temperature_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
     int projection_verbose = 0;
+    int projection_node_reconstruction_sweeps = 1;
+    int projection_nodal_iterations = 200;
+    int diagnostics_interval = 0;
     bool projection_enabled = true;
     bool projection_amr_enabled = false;
     bool projection_update_pressure = false;

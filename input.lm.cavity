@@ -40,7 +40,9 @@ projection.amr_enabled = 0
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
+projection.node_reconstruction_sweeps = 1
 projection.update_pressure = 0
+diagnostics.interval = 25
 
 reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7
@@ -85,15 +87,15 @@ mass_fraction.bc.constant.val.xhi = 0.0
 mass_fraction.bc.constant.val.ylo = 0.0
 mass_fraction.bc.constant.val.yhi = 0.0
 
-velocity.bc.type = constant
-velocity.bc.constant.type.xlo = dirichlet dirichlet
-velocity.bc.constant.type.xhi = dirichlet dirichlet
-velocity.bc.constant.type.ylo = dirichlet dirichlet
-velocity.bc.constant.type.yhi = dirichlet dirichlet
-velocity.bc.constant.val.xlo = 0.0 0.0
-velocity.bc.constant.val.xhi = 0.0 0.0
-velocity.bc.constant.val.ylo = 0.0 0.0
-velocity.bc.constant.val.yhi = (0.0,5.0e-3:0.0,0.1) 0.0
+velocity.bc.type = expression
+velocity.bc.expression.type.xlo = dirichlet dirichlet
+velocity.bc.expression.type.xhi = dirichlet dirichlet
+velocity.bc.expression.type.ylo = dirichlet dirichlet
+velocity.bc.expression.type.yhi = dirichlet dirichlet
+velocity.bc.expression.val.xlo = 0.0 0.0
+velocity.bc.expression.val.xhi = 0.0 0.0
+velocity.bc.expression.val.ylo = 0.0 0.0
+velocity.bc.expression.val.yhi = 0.1 0.0
 
 temperature.bc.type = constant
 temperature.bc.constant.type.xlo = neumann

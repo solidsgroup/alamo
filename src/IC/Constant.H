@@ -41,11 +41,11 @@ public:
         const int nghost = a_field[lev]->nGrow();
         if (m_value.size() == 1)
         {
-            a_field[lev]->plus(m_value[0], 0, ncomp, nghost);
+            for (int m = 0; m < ncomp; ++m) a_field[lev]->setVal(m_value[0], m, 1, nghost);
         }
         else
         {
-            for (int m = 0; m < ncomp; ++m) a_field[lev]->plus(m_value[m], m, 1, nghost);
+            for (int m = 0; m < ncomp; ++m) a_field[lev]->setVal(m_value[m], m, 1, nghost);
         }
         amrex::Gpu::streamSynchronize();
     }
