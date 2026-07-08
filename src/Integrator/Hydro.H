@@ -84,16 +84,11 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
     void PreparePlotFileData() override;
-    void PlotFileDataWritten() override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
-    void BackupDerivedPlotFields();
-    void BackupDerivedPlotField(Set::Field<Set::Scalar>& backup, Set::Field<Set::Scalar>& source);
-    void RestoreDerivedPlotFields();
-    void RestoreDerivedPlotField(Set::Field<Set::Scalar>& target, Set::Field<Set::Scalar>& backup);
-    void RefreshDerivedPlotFields(int lev, bool include_plot_ghost);
+    void RefreshDerivedPlotFields(int lev);
     void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost = false, bool use_old_eta = false);
     
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
@@ -177,21 +172,6 @@ protected:
     Set::Scalar vy_max = 0.0;
     Set::Scalar vz_max = 0.0;
     bool details = false;
-    bool save_ghost = false;
-    bool plot_ghost_backup_valid = false;
-
-    Set::Field<Set::Scalar> velocity_plot_backup_mf;
-    Set::Field<Set::Scalar> pressure_plot_backup_mf;
-    Set::Field<Set::Scalar> temperature_plot_backup_mf;
-    Set::Field<Set::Scalar> mass_fraction_plot_backup_mf;
-    Set::Field<Set::Scalar> mole_fraction_plot_backup_mf;
-    Set::Field<Set::Scalar> vorticity_plot_backup_mf;
-
-    Set::Field<Set::Scalar> viscosity_plot_backup_mf;
-    Set::Field<Set::Scalar> thermal_conductivity_coeff_plot_backup_mf;
-    Set::Field<Set::Scalar> diffusion_coeff_plot_backup_mf;
-    Set::Field<Set::Scalar> wdot_plot_backup_mf;
-    Set::Field<Set::Scalar> qdot_plot_backup_mf;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
     Set::Scalar temp_refinement_criterion=NAN;

@@ -529,7 +529,6 @@ Integrator::InitData()
     if (plot_int > 0 || plot_dt > 0.0) {
         PreparePlotFileData();
         WritePlotFile();
-        PlotFileDataWritten();
     }
 }
 
@@ -852,23 +851,8 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             int ncomp = ccomponents + bfcomponents_cell;
             if (cell.all) ncomp += ncomponents + bfcomponents;
             amrex::BoxArray cgrids_ghost = grids[ilev];
-            if (print_ghost_cells > 0)
-            {
-                cgrids_ghost.uniqify();
-                const amrex::Box& domain = geom[ilev].Domain();
-                for (int ibox = 0; ibox < static_cast<int>(cgrids_ghost.size()); ++ibox)
-                {
-                    amrex::Box bx = cgrids_ghost[ibox];
-                    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
-                    {
-                        if (bx.smallEnd(dir) == domain.smallEnd(dir)) bx.growLo(dir, print_ghost_cells);
-                        if (bx.bigEnd(dir) == domain.bigEnd(dir)) bx.growHi(dir, print_ghost_cells);
-                    }
-                    cgrids_ghost.set(ibox, bx);
-                }
-            }
+            cgrids_ghost.grow(print_ghost_cells);
             cplotmf[ilev].define(cgrids_ghost, dmap[ilev], ncomp, 0);
-            cplotmf[ilev].setVal(0.0);
 
             int n = 0;
             int cnames_cnt = 0;
@@ -886,21 +870,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                     else              Util::Warning(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
                 }
                 cnames_cnt++;
-                amrex::MultiFab& srcmf = *(*cell.fab_array[i])[ilev];
-                for (amrex::MFIter mfi(cplotmf[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-                {
-                    amrex::Box bx = mfi.tilebox() & srcmf.fabbox(mfi.index());
-                    if (!bx.ok()) continue;
-
-                    amrex::Array4<Set::Scalar> const& dst = cplotmf[ilev].array(mfi);
-                    amrex::Array4<const Set::Scalar> const& src = srcmf.const_array(mfi);
-                    const int dstcomp = n;
-                    const int ncomp_field = cell.ncomp_array[i];
-                    amrex::ParallelFor(bx, ncomp_field, [=] AMREX_GPU_DEVICE(int ii, int jj, int kk, int nn)
-                    {
-                        dst(ii,jj,kk,dstcomp + nn) = src(ii,jj,kk,nn);
-                    });
-                }
+                amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
             for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
@@ -1127,7 +1097,6 @@ Integrator::Evolve()
             last_plot_file_step = step + 1;
             PreparePlotFileData();
             WritePlotFile();
-            PlotFileDataWritten();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
         else if (std::fabs(std::remainder(cur_time, plot_dt)) < 0.5 * dt[0])
@@ -1135,7 +1104,6 @@ Integrator::Evolve()
             last_plot_file_step = step + 1;
             PreparePlotFileData();
             WritePlotFile();
-            PlotFileDataWritten();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
 
@@ -1144,7 +1112,6 @@ Integrator::Evolve()
     if (plot_int > 0 && istep[0] > last_plot_file_step) {
         PreparePlotFileData();
         WritePlotFile();
-        PlotFileDataWritten();
     }
 }
 
