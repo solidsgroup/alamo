@@ -1,3 +1,12 @@
+//
+// This header defines the :code:Model::Gas::Transport::Transport:code: static dispatch
+// wrapper for gas transport models.
+//
+// The :code:Transport:code: class selects one transport model at input parsing time and
+// dispatches dynamic viscosity, thermal conductivity, and species diffusion coefficient
+// calculations without virtual calls.
+//
+
 #ifndef MODEL_GAS_TRANSPORT_H_
 #define MODEL_GAS_TRANSPORT_H_
 

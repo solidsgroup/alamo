@@ -1,3 +1,13 @@
+//
+// :code:Model::Gas::Transport::Mixture_Averaged:code: computes mixture-averaged gas
+// transport properties.
+//
+// Species viscosity and conductivity may be specified as constants or computed from
+// Lennard-Jones data. Mixture viscosity and conductivity are assembled using Wilke-style
+// averaging, while diffusion coefficients are computed from either constant-property
+// self-diffusion proxies or Chapman-Enskog binary diffusion estimates.
+//
+
 #ifndef MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 #define MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 

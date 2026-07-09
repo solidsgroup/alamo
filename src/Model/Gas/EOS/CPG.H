@@ -1,3 +1,12 @@
+//
+// :code:Model::Gas::EOS::CPG:code: implements a calorically perfect gas equation of
+// state for mixture-averaged gas properties.
+//
+// Pressure, temperature, and conserved energy are related through the ideal-gas law and
+// the calorically perfect internal-energy relation using the mixture gas constant and
+// heat-capacity ratio supplied by the gas model.
+//
+
 #ifndef MODEL_GAS_EOS_CPG_H_
 #define MODEL_GAS_EOS_CPG_H_
 
@@ -96,4 +105,3 @@ public:
 } // namespace Model
 
 #endif
-

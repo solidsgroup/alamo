@@ -1,3 +1,12 @@
+//
+// :code:Model::Gas::Thermo::CpConstant:code: computes species and mixture
+// thermodynamic properties using constant species molar heat capacities.
+//
+// Each species is defined by :code:cp_moles:code:, reference enthalpy :code:h0:code:,
+// reference entropy :code:s0:code:, and reference temperature :code:Tref:code:. Mixture
+// quantities are mole-fraction-weighted sums of the corresponding species values.
+//
+
 #ifndef MODEL_GAS_THERMO_CPCONSTANT_H_
 #define MODEL_GAS_THERMO_CPCONSTANT_H_
 

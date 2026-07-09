@@ -1,3 +1,13 @@
+//
+// :code:Model::Gas::EOS::TPG:code: implements a thermally perfect ideal-gas equation
+// of state.
+//
+// The pressure relation remains :code:P = rho R T:code:, while conserved energy uses
+// temperature-dependent thermodynamic properties from the gas model. Temperature
+// recovery solves the nonlinear internal-energy equation with safeguarded Newton
+// iteration and bracketing.
+//
+
 #ifndef MODEL_GAS_EOS_TPG_H_
 #define MODEL_GAS_EOS_TPG_H_
 

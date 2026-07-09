@@ -1,3 +1,13 @@
+//
+// :code:Model::Gas::Thermo::NASA7:code: computes species and mixture thermodynamic
+// properties from NASA seven-coefficient polynomial fits.
+//
+// Coefficients may be read directly from the Alamo input file or imported from a
+// Cantera .yaml file. The model evaluates nondimensional species :code:cp/R:code:,
+// :code:h/RT:code:, and :code:s/R:code: and forms mole-fraction-weighted mixture
+// properties.
+//
+
 #ifndef MODEL_GAS_THERMO_NASA7_H_
 #define MODEL_GAS_THERMO_NASA7_H_
 

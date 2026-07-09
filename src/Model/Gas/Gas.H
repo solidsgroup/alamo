@@ -1,3 +1,14 @@
+//
+// This header defines the :code:Model::Gas::Gas:code: class, which provides the
+// gas-property interface used by the hydrodynamics and chemistry models.
+//
+// The :code:Gas:code: class owns species molecular weights and selected thermodynamic,
+// transport, and equation-of-state models. These submodels are selected from input
+// using static polymorphism, then exposed through a single interface for mixture
+// thermodynamic properties, transport coefficients, equation-of-state conversions, and
+// local mass- and mole-fraction updates.
+//
+
 #ifndef MODEL_GAS_H_
 #define MODEL_GAS_H_
 

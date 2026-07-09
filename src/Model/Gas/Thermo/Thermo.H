@@ -1,3 +1,13 @@
+//
+// This header defines the :code:Model::Gas::Thermo::Thermo:code: static dispatch
+// wrapper for thermodynamic property models.
+//
+// The :code:Thermo:code: class selects one thermodynamic model at input parsing time
+// and dispatches mixture and species calls for molar heat capacity, enthalpy, and
+// entropy. This keeps thermodynamic property evaluation lightweight in per-cell gas,
+// chemistry, and equation-of-state calculations.
+//
+
 #ifndef MODEL_GAS_THERMO_H_
 #define MODEL_GAS_THERMO_H_
 

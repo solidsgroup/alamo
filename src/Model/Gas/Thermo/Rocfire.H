@@ -1,3 +1,17 @@
+//
+// :code:Model::Gas::Thermo::Rocfire:code: provides a reduced thermodynamic model used
+// with Rocfire-style propellant gas closures.
+//
+// The model assumes a constant species molecular weight and constant mass heat capacity.
+// Species enthalpy is linear in temperature relative to :code:Tref:code:, and entropy is
+// treated as zero for this reduced closure.
+//
+// Reference: Gross, M. L., Hedman, T. D., Son, S. F., Jackson, T. L., &
+// Beckstead, M. W. (2013). Coupling micro and meso-scale combustion models of
+// AP/HTPB propellants. Combustion and Flame, 160(5), 982-992.
+// https://doi.org/10.1016/j.combustflame.2013.01.016
+//
+
 #ifndef MODEL_GAS_THERMO_ROCFIRE_H_
 #define MODEL_GAS_THERMO_ROCFIRE_H_
 

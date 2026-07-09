@@ -1,3 +1,13 @@
+//
+// This header defines the :code:Model::Gas::EOS::EOS:code: static dispatch wrapper
+// for gas equation-of-state models.
+//
+// The :code:EOS:code: class acts as the static equivalent of a polymorphic interface
+// for pressure, temperature, and energy conversions. It dispatches to the selected EOS
+// implementation without virtual calls, preserving GPU compatibility for per-cell gas
+// state reconstruction.
+//
+
 #ifndef MODEL_GAS_EOS_H_
 #define MODEL_GAS_EOS_H_
 

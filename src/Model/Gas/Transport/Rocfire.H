@@ -1,3 +1,17 @@
+//
+// :code:Model::Gas::Transport::Rocfire:code: provides a reduced transport closure used
+// with Rocfire-style propellant gas models.
+//
+// Thermal conductivity is modeled as a linear function of temperature. Dynamic viscosity
+// is inferred from the Prandtl number and heat capacity, and species diffusion is inferred
+// from the Lewis number.
+//
+// Reference: Gross, M. L., Hedman, T. D., Son, S. F., Jackson, T. L., &
+// Beckstead, M. W. (2013). Coupling micro and meso-scale combustion models of
+// AP/HTPB propellants. Combustion and Flame, 160(5), 982-992.
+// https://doi.org/10.1016/j.combustflame.2013.01.016
+//
+
 #ifndef MODEL_GAS_TRANSPORT_ROCFIRE_H_
 #define MODEL_GAS_TRANSPORT_ROCFIRE_H_
 
