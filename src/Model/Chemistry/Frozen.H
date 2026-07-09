@@ -1,3 +1,9 @@
+//
+// :code:Model::Chemistry::Frozen:code: fixes chemical production rates and heat
+// release due to chemical reactions to 0.0.  Valid for flows where momentum time
+// scales are sufficiently fast that chemical reactions are negligle (Da << 1).
+//
+
 #ifndef MODEL_CHEMISTRY_FROZEN_H
 #define MODEL_CHEMISTRY_FROZEN_H
 

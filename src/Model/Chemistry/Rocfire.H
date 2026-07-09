@@ -1,3 +1,22 @@
+//
+// :code:Model::Chemistry::Rocfire:code: implements a very specific finite rate
+// kinetics model for AP/HTPB combustion using a 4 step, 6 species global reaction
+// mechanism.  The mechanism utilizes a different form of equations for computing
+// reaction rates than typical Cantera/Chemkin style kinetics, so this implementation
+// is separate from :code:Model::Chemistry::FiniteRate:code:.
+//
+// The mechanism is available in public literature, but was originally developed
+// for implementation in Thomas Jackson's (University of Florida) Rocfire
+// software, which is the impetus for the model name.  Note that the Alamo
+// implementation was developed completely independent from Rocfire, and solely
+// from publicly available resources.
+// 
+// Reference: Gross, M. L., Hedman, T. D., Son, S. F., Jackson, T. L., &
+// Beckstead, M. W. (2013). Coupling micro and meso-scale combustion models of
+// AP/HTPB propellants. Combustion and Flame, 160(5), 982–992.
+// https://doi.org/10.1016/j.combustflame.2013.01.016
+//
+
 #ifndef MODEL_CHEMISTRY_ROCFIRE_H
 #define MODEL_CHEMISTRY_ROCFIRE_H
 

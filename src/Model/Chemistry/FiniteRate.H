@@ -1,3 +1,13 @@
+//
+// :code:Model::Chemistry::FiniteRate:code: computes species production rates and
+// heat release rates via finite rate chemistry mechansims, typically provided via
+// a Cantera .yaml file.  Note that the solver is based on theory from Cantera, but
+// does not use Cantera itself.  Explicit chemistry integration with and without
+// substepping is functional.  Implicit chemistry integration is currenlty untested.
+//
+// Reference https://cantera.org/stable/reference/kinetics/index.html
+//
+
 #ifndef MODEL_CHEMISTRY_FINITERATE_H
 #define MODEL_CHEMISTRY_FINITERATE_H
 

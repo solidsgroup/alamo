@@ -1,3 +1,23 @@
+//
+// :code:Model::Chemistry::Equilibrium:code: equilibrates an ideal-gas mixture assuming
+// constant volume and internal energy, which is consistent with a finite volume flow
+// solver.
+//
+// Equilibrium is computed with an element-potential Newton solve for the species mole
+// numbers and equilibrium temperature. This is the stationarity system associated with
+// Gibbs free-energy minimization subject to elemental conservation, coupled to an
+// internal-energy conservation residual. It does not use equilibrium constants computed
+// from forward and backward reaction rate constants.
+//
+// The solve requires species elemental composition, molecular weights, and thermodynamic
+// properties h(T), s(T), and cp(T), typically provided through the gas model and a
+// Cantera .yaml file. In order to readily interface with the fluid governing conservation
+// equations, artificial :code:wdot:code: and :code:qdot:code: sources are computed using
+// the current time step so that the equilibrium state is reached after one time step.
+//
+// i.e. wdot = (rho_equil - rho_current)/dt
+//
+
 #ifndef MODEL_CHEMISTRY_EQUILIBRIUM_H
 #define MODEL_CHEMISTRY_EQUILIBRIUM_H
 

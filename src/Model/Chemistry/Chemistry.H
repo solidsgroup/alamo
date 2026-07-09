@@ -7,7 +7,7 @@
 // chemical reaction models. The function :code:ComputeChemistrySources statically dispatches to the
 // appropriate underlying implementation, encapsulating key properties for reaction rates
 // and heat release. The :code:ComputeChemistrySources function is resolved at compile-time for GPU
-// compatibility and runtime performance.
+// compatibility and runtime performance, and returns the species production rates and heat release.
 //
 // This system enables polymorphic behavior without relying on runtime virtual functions, making it
 // suitable for high-performance computing environments.
