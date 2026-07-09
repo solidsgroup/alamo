@@ -14,7 +14,7 @@
 #@ args = timestep = 2e-4
 #@ args = amr.plot_dt = 2e-4
 #@ args = chemistry.type = equilibrium
-#@ args = chemistry.equilibrium.yaml = h2o2.yaml
+#@ args = chemistry.equilibrium.yaml = tests/Chemistry/h2o2.yaml
 #@ check-file = reference/equilibrium.csv
 
 #@ [finite-rate-explicit]
@@ -25,7 +25,7 @@
 #@ args = timestep = 1e-8
 #@ args = amr.plot_dt = 1e-5
 #@ args = chemistry.type = finite_rate
-#@ args = chemistry.finite_rate.yaml = h2o2.yaml
+#@ args = chemistry.finite_rate.yaml = tests/Chemistry/h2o2.yaml
 #@ check-file = reference/finite_rate_explicit.csv
 
 #@ [finite-rate-explicit-substep10]
@@ -36,7 +36,7 @@
 #@ args = timestep = 1e-7
 #@ args = amr.plot_dt = 1e-5
 #@ args = chemistry.type = finite_rate
-#@ args = chemistry.finite_rate.yaml = h2o2.yaml
+#@ args = chemistry.finite_rate.yaml = tests/Chemistry/h2o2.yaml
 #@ args = chemistry.finite_rate.integration = substep
 #@ check-file = reference/finite_rate_substep10.csv
 
@@ -48,7 +48,7 @@
 #@ args = timestep = 1e-6
 #@ args = amr.plot_dt = 1e-5
 #@ args = chemistry.type = finite_rate
-#@ args = chemistry.finite_rate.yaml = h2o2.yaml
+#@ args = chemistry.finite_rate.yaml = tests/Chemistry/h2o2.yaml
 #@ args = chemistry.finite_rate.integration = substep
 #@ args = chemistry.finite_rate.nsubsteps = 100
 #@ check-file = reference/finite_rate_substep100.csv
@@ -60,7 +60,7 @@
 ####@ args = timestep = 1e-7
 ####@ args = amr.plot_dt = 1e-5
 ####@ args = chemistry.type = finite_rate
-####@ args = chemistry.finite_rate.yaml = h2o2.yaml
+####@ args = chemistry.finite_rate.yaml = tests/Chemistry/h2o2.yaml
 ####@ args = chemistry.finite_rate.integration = implicit
 ####@ check-file = reference/finite_rate_implicit.csv
 
@@ -83,7 +83,7 @@ gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
 #gas.thermo.cpconstant.Tref = 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15
 gas.thermo.type = nasa7
 gas.thermo.nasa7.type = yaml
-gas.thermo.nasa7.yaml = h2o2.yaml
+gas.thermo.nasa7.yaml = tests/Chemistry/h2o2.yaml
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = LJ
