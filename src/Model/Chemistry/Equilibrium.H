@@ -363,8 +363,8 @@ struct Equilibrium
             // Cantera yaml file
             pp_query_required("yaml", value.yaml);
             value.kinetics = CanteraYAML::ParseYaml(value.yaml);
-            ChemUtil::PreparedKinetics<NSPECIES> prepared =
-                ChemUtil::PrepareKinetics<NSPECIES>(value.kinetics, "Equilibrium chemistry");
+            Util::Chemistry::PreparedKinetics<NSPECIES> prepared =
+                Util::Chemistry::PrepareKinetics<NSPECIES>(value.kinetics, "Equilibrium chemistry");
 
             int NS = NSPECIES;
             int NR = prepared.NR;

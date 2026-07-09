@@ -669,8 +669,8 @@ struct FiniteRate
             // Cantera yaml file
             pp_query_required("yaml", value.yaml);
             CanteraYAML::CanteraKinetics kinetics = CanteraYAML::ParseYaml(value.yaml);
-            ChemUtil::PreparedKinetics<NSPECIES> prepared =
-                ChemUtil::PrepareKinetics<NSPECIES>(kinetics, "Finite-rate chemistry");
+            Util::Chemistry::PreparedKinetics<NSPECIES> prepared =
+                Util::Chemistry::PrepareKinetics<NSPECIES>(kinetics, "Finite-rate chemistry");
 
             value.NR = prepared.NR;
             assign_prepared_arrays(value.reactant_nu, prepared.reactant_nu);
