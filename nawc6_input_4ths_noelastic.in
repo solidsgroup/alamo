@@ -1,12 +1,12 @@
 # =============================================================================
 # NAWC Motor No. 6 - ALAMO Smoke Test Input File
 # Grain geometry from Willcox et al. 2007, Fig. 7 (DOI: 10.2514/1.22971)
-# Elastic enabled for local/NOVA smoke testing.
+# Elastic disabled sibling for local/NOVA smoke comparisons.
 # Propellant properties from https://apps.dtic.mil/sti/pdfs/ADA382239.pdf
 # =============================================================================
 
 alamo.program = flame
-plot_file = output_nawc6_4ths_elastic_smoke
+plot_file = output_nawc6_4ths_noelastic_smoke
 amr.plot_dt = 0.01
 #amr.plot_int = 1
 amr.max_level = 1
@@ -142,68 +142,9 @@ laser.ic.type = expression
 laser.ic.expression.region0 = "(t < 0.0025) * (1500000000)"
 thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
-# --- Thermoelasticity ---
-elastic.on = 1
-elastic.type = static
-elastic.interval = 100
-elastic.tstart = 0.5e-4
-elastic.phirefinement = 100
-elastic.elastic_ref_threshold = 0.01
-elastic.print_model = 0
-
-# Sweep-era "Balanced" masked-operator recipe:
-# resync_coeffs + line_search + psi_update with a low-but-safe psi floor.
-elastic.use_psi = 1
-elastic.psi_floor = 0.05
-elastic.zero_out_displacement = 0
-elastic.max_coarsening_level = 1
-elastic.tol_rel = 1e-6
-elastic.tol_abs = 1e-8
-
-elastic.solver.max_iter = 200
-elastic.solver.pre_smooth = 4
-elastic.solver.post_smooth = 4
-elastic.solver.nriters = 200
-elastic.solver.nrtolerance = 1e-5
-elastic.solver.line_search = 1
-elastic.solver.resync_coeffs = 1
-elastic.solver.nr_convergence = psi_update
-elastic.solver.nr_diagnostics = 1
-elastic.solver.verbose = 0
-
-elastic.plot_disp = 1
-elastic.plot_psi = 1
-elastic.plot_strain = 1
-elastic.plot_stress = 1
-elastic.plot_rhs = 1
-
-# Chamber-coupled interface traction.
-elastic.traction = 1.0_MPa
-elastic.traction_from_chamber = 1
-
-# Three-material partition used by the current sweep decks.
-model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
-model_prop.kappa = 162_MPa
-model_prop.mu = 113.6_MPa
-
-model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-model_void.kappa = 8_MPa
-model_void.mu = 6_MPa
-
-model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
-model_casing.kappa = 5_GPa
-model_casing.mu = 2_GPa
-
-# Quarter-sector symmetry on xlo/ylo: fix the normal displacement and leave
-# the tangential components traction-free. Outer walls and both axial caps stay clamped.
-elastic.bc.type = constant
-elastic.bc.constant.type.xlo = disp trac trac
-elastic.bc.constant.type.xhi = disp disp disp
-elastic.bc.constant.type.ylo = trac disp trac
-elastic.bc.constant.type.yhi = disp disp disp
-elastic.bc.constant.type.zlo = disp disp disp
-elastic.bc.constant.type.zhi = disp disp disp
-
+# --- Elastic disabled for flame-only comparison ---
+elastic.on = 0
+elastic.type = disable
 
 # --- Thermal
 thermal.on = 1
