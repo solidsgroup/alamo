@@ -11,17 +11,17 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class CpConstant 
+class CpConstant
 {
 public:
     static constexpr const char* name = "cpconstant";
 
 private:
-    std::vector<double> cp_moles;
-    std::vector<double> h0;
-    std::vector<double> s0;
-    std::vector<double> Tref;
-    
+    std::vector<Set::Scalar> cp_moles;
+    std::vector<Set::Scalar> h0;
+    std::vector<Set::Scalar> s0;
+    std::vector<Set::Scalar> Tref;
+
 public:
     CpConstant() {} ;
 
@@ -44,38 +44,38 @@ public:
     }
 
 public:
-    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Specific heat (constant pressure), J/(kmol-K)
-        double cp = 0.0;
+        Set::Scalar cp = 0.0;
         for (int n=0; n<NSPECIES; ++n) cp += X(i,j,k,n) * cp_moles[n];
         return cp;
-    }        
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    }
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Specific enthalpy, J/kmol)
-        double h = 0.0;
+        Set::Scalar h = 0.0;
         for (int n=0; n<NSPECIES; ++n) h += X(i,j,k,n) * (cp_moles[n] * (T - Tref[n]) + h0[n]);
         return h;
     }
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // specific entropy, J/(kmol-K)
-        double s = 0.0;
+        Set::Scalar s = 0.0;
         for (int n=0; n<NSPECIES; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
         return s;
     }
-    double cp_mol_species(double /*T*/, int n) const
+    Set::Scalar cp_mol_species(Set::Scalar /*T*/, int n) const
     {
         // Specific heat (constant pressure) for species n, J/(kmol-K)
         return cp_moles[n];
     }
-    double enthalpy_mol_species(double T, int n) const
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         // Specific enthalpy for species n, J/kmol
         return cp_moles[n] * (T - Tref[n]) + h0[n];
     }
-    double entropy_mol_species(double T, int n) const
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const
     {
         // specific entropy for species n, J/(kmol-K)
         return cp_moles[n] * std::log(T / Tref[n]) + s0[n];

@@ -38,7 +38,7 @@ public:
         this->managed = true;
     }
 
-    Hydro(IO::ParmParse& pp); 
+    Hydro(IO::ParmParse& pp);
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
@@ -90,10 +90,10 @@ protected:
 protected:
     void RefreshDerivedPlotFields(int lev);
     void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost = false, bool use_old_eta = false);
-    
+
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
-                amrex::MultiFab &rho_rhs_mf, 
-                amrex::MultiFab &M_rhs_mf, 
+                amrex::MultiFab &rho_rhs_mf,
+                amrex::MultiFab &M_rhs_mf,
                 amrex::MultiFab &E_rhs_mf,
                 amrex::MultiFab &rho_mf,
                 amrex::MultiFab &M_mf,
@@ -130,7 +130,7 @@ protected:
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
-    
+
     Set::Field<Set::Scalar>* eta_mf;
     Set::Field<Set::Scalar>* eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
@@ -191,7 +191,7 @@ protected:
         Model::Chemistry::Rocfire> chemistry;
 
     Model::Gas::Gas gas;
-    
+
 
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4

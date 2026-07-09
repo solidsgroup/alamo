@@ -29,7 +29,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar dynamic_viscosity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -45,7 +45,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar thermal_conductivity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -60,7 +60,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, double T, double P,
+    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P,
                             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))

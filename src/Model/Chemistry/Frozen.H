@@ -20,16 +20,16 @@ struct Frozen
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    std::pair<std::array<Set::Scalar,NSPECIES>,Set::Scalar>
     ComputeChemistrySources(
         const Set::Scalar /*P*/,
         const Set::Scalar /*T*/,
-        const std::array<double, NSPECIES>& /*rhoY*/,
+        const std::array<Set::Scalar, NSPECIES>& /*rhoY*/,
         const Set::Scalar /*dt*/,
         const Model::Gas::Gas* /*gas*/) const
     {
         // No chemistry: species are frozen
-        std::array<double, NSPECIES> wdot;
+        std::array<Set::Scalar, NSPECIES> wdot;
         for (int n = 0; n < NSPECIES; ++n)
         {
             wdot[n] = 0.0;

@@ -17,10 +17,10 @@ public:
     static constexpr const char* name = "rocfire";
 
 private:
-    double mw;
-    double cp_mass;
-    double Tref;
-    
+    Set::Scalar mw;
+    Set::Scalar cp_mass;
+    Set::Scalar Tref;
+
 public:
     Rocfire() {} ;
 
@@ -39,37 +39,37 @@ public:
     }
 
 public:
-    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        double cp = 0.0;
+        Set::Scalar cp = 0.0;
         for (int n = 0; n < NSPECIES; ++n)
         {
             cp += X(i,j,k,n) * cp_mol_species(0.0, n);
         }
         return cp;
-    }        
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    }
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        double h = 0.0;
+        Set::Scalar h = 0.0;
         for (int n = 0; n < NSPECIES; ++n)
         {
             h += X(i,j,k,n) * enthalpy_mol_species(T, n);
         }
         return h;
     }
-    double entropy_mol(double /*T*/, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
+    Set::Scalar entropy_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
     {
         return 0.0;
     }
-    double cp_mol_species(double /*T*/, int /*n*/) const
+    Set::Scalar cp_mol_species(Set::Scalar /*T*/, int /*n*/) const
     {
         return cp_mass * mw;
     }
-    double enthalpy_mol_species(double T, int /*n*/) const
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int /*n*/) const
     {
         return cp_mass * mw * (T - Tref);
     }
-    double entropy_mol_species(double /*T*/, int /*n*/) const
+    Set::Scalar entropy_mol_species(Set::Scalar /*T*/, int /*n*/) const
     {
         return 0.0;
     }

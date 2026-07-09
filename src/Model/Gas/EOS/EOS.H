@@ -30,8 +30,8 @@ public:
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const
+    Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -50,8 +50,8 @@ public:
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double momentumz, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const
+    Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -70,8 +70,8 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT_from_primitives(double pressure, double density, 
-                    double R) const
+    Set::Scalar ComputeT_from_primitives(Set::Scalar pressure, Set::Scalar density,
+                    Set::Scalar R) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -91,7 +91,7 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeP(double density, double T, double R) const
+    Set::Scalar ComputeP(Set::Scalar density, Set::Scalar T, Set::Scalar R) const
     // Energy, J/m^3
     {
         if constexpr (I < sizeof...(OBJ))
@@ -111,7 +111,7 @@ public:
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double T,
+    Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
@@ -131,7 +131,7 @@ public:
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double momentumz, double T,
+    Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))

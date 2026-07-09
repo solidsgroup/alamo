@@ -23,14 +23,14 @@ namespace Gas {
 class Gas {
 protected:
 public:
-    double Rg;
-    std::array<double, NSPECIES> MW;      // Species molecular weights, kg/kmol
+    Set::Scalar Rg;
+    std::array<Set::Scalar, NSPECIES> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
     Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
     EOS::EOS<EOS::CPG,EOS::TPG> eos;
 
 public:
-    Gas() 
+    Gas()
     {
         this->Rg = Set::Constant::Rg;
     }
@@ -57,38 +57,38 @@ public:
 
 public:
     // Thermodynamic quantities
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double cp_mol_species(double T, int n) const;
-    double enthalpy_mol_species(double T, int n) const;
-    double entropy_mol_species(double T, int n) const;
+    Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar cp_mol_species(Set::Scalar T, int n) const;
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const;
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const;
 
     // Transport quantities
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
+    Set::Scalar dynamic_viscosity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar thermal_conductivity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
 
     // EOS
     #if AMREX_SPACEDIM == 2
-    double ComputeT(
-            double density, double momentumx, double momentumy, double E, double Tguess,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
-    double ComputeE(    
-            double density, double momentumx, double momentumy, double T,
+    Set::Scalar ComputeT(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol=1e-12) const;
+    Set::Scalar ComputeE(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     #elif AMREX_SPACEDIM == 3
-    double ComputeT(
-            double density, double momentumx, double momentumy, double momentumz, double E, double Tguess,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
-    double ComputeE(    
-            double density, double momentumx, double momentumy, double momentumz, double T,
+    Set::Scalar ComputeT(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol=1e-12) const;
+    Set::Scalar ComputeE(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     #endif
-    double ComputeT_from_primitives(
-            double pressure, double density,
+    Set::Scalar ComputeT_from_primitives(
+            Set::Scalar pressure, Set::Scalar density,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar ComputeP(Set::Scalar density, Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
 // Universal methods inherent to Gas
 public:
@@ -99,10 +99,10 @@ public:
             const int i, const int j, const int k)
     {
         // In place update for mass and mole fractions
-        // This needs to be called before any other functions if cell composition 
+        // This needs to be called before any other functions if cell composition
         // has changed, since they are dependent on mole fraction
-        double raw_density = 0.0;
-        double density_scale = 0.0;
+        Set::Scalar raw_density = 0.0;
+        Set::Scalar density_scale = 0.0;
         for (int n=0; n<NSPECIES; ++n)
         {
             Util::Assert(INFO, TEST(std::isfinite(MW[n]) && MW[n] > 0.0),
@@ -111,10 +111,10 @@ public:
             density_scale += std::fabs(density_mf(i,j,k,n));
         }
 
-        const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
-        double density = 0.0;
-        double moles = 0.0;
-        double rho_clipped[NSPECIES];
+        const Set::Scalar density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+        Set::Scalar density = 0.0;
+        Set::Scalar moles = 0.0;
+        Set::Scalar rho_clipped[NSPECIES];
         for (int n=0; n<NSPECIES; ++n)
         {
             rho_clipped[n] = density_mf(i,j,k,n);
@@ -143,8 +143,8 @@ public:
                 ", clipped density=", density, ", clipped moles=", moles,
                 ", tolerance=", density_tol);
         }
-        double mass_fraction_sum = 0.0;
-        double mole_fraction_sum = 0.0;
+        Set::Scalar mass_fraction_sum = 0.0;
+        Set::Scalar mole_fraction_sum = 0.0;
         for (int n=0; n<NSPECIES; ++n) {
             mass_fraction_mf(i,j,k,n) = rho_clipped[n] / density;
             mole_fraction_mf(i,j,k,n) = rho_clipped[n] / MW[n] / moles;
@@ -171,43 +171,43 @@ public:
             "Error: Mole fractions do not sum to 1.0 at (", i, ",", j, ",", k,
             "): sum=", mole_fraction_sum);
     }
-    double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
-        double mw = 0.0;
+        Set::Scalar mw = 0.0;
         for (int n=0; n<NSPECIES; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
-    double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
+    Set::Scalar ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
-        double rho = 0.0;
+        Set::Scalar rho = 0.0;
         for (int n=0; n<NSPECIES; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
-    double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
+    Set::Scalar R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific gas constant, J/(kg-K)
         return Rg/GetMW(X, i, j, k);
     }
-    double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cp_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
         return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cv_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
         return cp_mol(T, X, i, j, k) - Rg;
     }
-    double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cv_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
         return cv_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double gamma(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
+    Set::Scalar gamma(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
         // Specific heat ratio
         return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
     }
-    double enthalpy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar enthalpy_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific enthalpy, J/kg
         return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double entropy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar entropy_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific entropy, J/(kg-K)
         return entropy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }

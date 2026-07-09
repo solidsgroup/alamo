@@ -29,7 +29,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -46,7 +46,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -63,7 +63,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -80,7 +80,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double cp_mol_species(double T, int n) const
+    Set::Scalar cp_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -97,7 +97,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double enthalpy_mol_species(double T, int n) const
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -114,7 +114,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double entropy_mol_species(double T, int n) const
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
