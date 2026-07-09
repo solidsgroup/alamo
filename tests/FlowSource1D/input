@@ -3,13 +3,22 @@
 #@ dim=2
 #@ args = m0.ic.expression.region0 = "-10.0"
 #@ args = u0.ic.expression.region0 = "0.0"
-#@ check-file = reference/normalintowall.dat
+#@ args = q.ic.expression.region0 = "-0.001"
+#@ check-file = reference/mass-source-term.dat
 #@ [momemtum-source-term]
 #@ exe=hydro
 #@ dim=2
-#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = m0.ic.expression.region0 = "-10.0"
 #@ args = u0.ic.expression.region0 = "-1.0"
-#@ check-file = reference/normalintowall.dat
+#@ args = q.ic.expression.region0 = "0.0"
+#@ check-file = reference/momentum-source-term.dat
+#@ [energy-source-term]
+#@ exe=hydro
+#@ dim=2
+#@ args = m0.ic.expression.region0 = "-10.0"
+#@ args = u0.ic.expression.region0 = "0.0"
+#@ args = q.ic.expression.region0 = "-10.0"
+#@ check-file = reference/energy-source-term.dat
 
 ### OUTPUT ###
 
@@ -45,11 +54,11 @@ stop_time = 0.5
 
 u0.ic.type = expression
 # u0.ic.expression.region0 = "0.0"
-u0.ic.expression.region0 = "-1.0"
+u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
-q.ic.expression.region0 = "0.0"
+q.ic.expression.region0 = "-10.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
