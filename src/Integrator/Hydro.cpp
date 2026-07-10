@@ -528,8 +528,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
             Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
             Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
-            v(i,j,k,0) = Mx_fluid/density_fluid;
-            v(i,j,k,1) = My_fluid/density_fluid;
+            v(i,j,k,0) = Mx_fluid/(density_fluid + small);
+            v(i,j,k,1) = My_fluid/(density_fluid + small);
 
             if (eta < small) 
             {
