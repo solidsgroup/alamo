@@ -156,6 +156,8 @@ protected:
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
+    Set::Scalar cutoff_taper=NAN;
+    Set::Scalar relax_rate=NAN;
     Set::Scalar lagrange=NAN;
     Set::Scalar lagrange_m0=NAN;
 

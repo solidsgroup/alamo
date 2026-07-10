@@ -86,6 +86,22 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
+        // width (in eta) of the smoothstep transition zone above cutoff over which the
+        // mass/momentum/energy source terms and the lagrange no-penetration force are
+        // ramped from 0 (at eta=cutoff) up to full strength (at eta=cutoff+cutoff_taper).
+        // Prevents the source terms from continuing to feed cells that are about to be
+        // reset to solid values, which otherwise causes an unbounded local pileup.
+        pp_query_default("cutoff_taper",value.cutoff_taper,0.0);
+        // Rate (1/s) at which cells with eta below the cutoff (taper) band relax toward
+        // the solid state, applied as a source term integrated by the time stepper rather
+        // than an instantaneous overwrite. The amount removed per step is bounded by
+        // ~relax_rate*dt*(state-solid_state) instead of the entire local excess, so
+        // crossing the cutoff threshold (however small) can no longer inject a
+        // full-strength, magnitude-independent perturbation in a single step. Like the
+        // lagrange penalty, this is a stiff explicit source term: stability requires
+        // roughly relax_rate*dt <~ 2, so relax_rate must be tuned down for larger
+        // timesteps rather than left arbitrarily large.
+        pp_query_default("relax_rate",value.relax_rate,100.0);
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
@@ -418,48 +434,38 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
         stage_mf[2].FillBoundary(true);
     });
-    
+
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
 
     //
-    // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
+    // DO DYNAMIC TIMESTEP CALCULATION
     //
+    // Note: the cutoff clamp is no longer applied here as an instantaneous state
+    // overwrite. It is instead applied as a rate-limited relaxation source term in
+    // RHS() (see relax_rate), so that crossing the cutoff threshold -- however small
+    // the threshold -- cannot inject a full-strength, magnitude-independent
+    // perturbation into the solution in a single step.
 
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const Set::Scalar* DX = geom[lev].CellSize();
-        
-        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> omega         = vorticity_mf.Patch(lev,mfi);
-        
+
         Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
 
         Set::Scalar *dt_max_handle = &dt_max;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
+        {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
-
-            if (eta < cutoff)
-            {
-                rho_new(i,j,k,0) = rho_solid(i,j,k,0);
-                M_new(i,j,k,0)   = M_solid(i,j,k,0);
-                M_new(i,j,k,1)   = M_solid(i,j,k,1);
-                E_new(i,j,k,0)   = E_solid(i,j,k,0);
-            }
 
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
@@ -634,9 +640,25 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 #endif
             }
 
-            Set::Scalar mdot0 = m0(i,j,k)*grad_eta_mag;
+            // Ramp the source terms (and lagrange no-penetration force, applied below)
+            // from 0 at eta=cutoff up to full strength at eta=cutoff+cutoff_taper, so
+            // that cells about to be reset to solid values by the cutoff stop being fed
+            // by the source terms. Without this, a persistent source can pile mass up
+            // in the cells just above cutoff faster than it can equilibrate, eventually
+            // diverging. Reduces to no-op (source_taper=1) when cutoff is inactive
+            // (default) or cutoff_taper=0 (hard cutoff, previous behavior).
+            Set::Scalar source_taper = 1.0;
+            if (cutoff_taper > 0.0)
+            {
+                Set::Scalar taper_t = (eta - cutoff) / cutoff_taper;
+                taper_t = std::min(std::max(taper_t, 0.0), 1.0);
+                source_taper = taper_t*taper_t*(3.0 - 2.0*taper_t);
+            }
+            else if (eta < cutoff) source_taper = 0.0;
+
+            Set::Scalar mdot0 = m0(i,j,k)*grad_eta_mag*source_taper;
             Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
-            Set::Scalar qdot0 = q0.dot(grad_eta);
+            Set::Scalar qdot0 = q0.dot(grad_eta)*source_taper;
 
             Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
@@ -665,6 +687,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
 
                         }
+            // Unlike div_tau (scaled by "* eta" where it's added to the RHS below),
+            // Ldot0 was being added to Source unscaled. It depends directly on the
+            // fluid-extracted velocity u, which is amplified without bound as eta -> 0
+            // (division by eta+small in the velocity extraction above). Without tapering,
+            // this term can keep injecting momentum into deep-cutoff cells even when
+            // source_taper has correctly zeroed out mdot0/qdot0/the lagrange penalty,
+            // letting a runaway velocity feed back into itself every step.
+            Ldot0 *= source_taper;
 
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
@@ -672,8 +702,26 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+            Source(i,j,k,1) -= lagrange*source_taper*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,2) -= lagrange*source_taper*(u-u0).dot(grad_eta)*grad_eta(1);
+
+            // Relax cells below the cutoff (taper) band toward the solid state at a
+            // finite rate rather than instantaneously overwriting them. clamp_weight
+            // is the complement of source_taper (1 at eta=cutoff, 0 by eta=cutoff+
+            // cutoff_taper). Because this is a source term integrated by the RK time
+            // stepper, the amount removed per step is bounded by ~relax_rate*dt*(state
+            // - solid_state), not the entire local excess -- so crossing the cutoff
+            // threshold, however small, no longer injects a full-strength perturbation
+            // in a single step. relax_rate is large by default to reproduce the old
+            // instant-reset behavior; lower it to soften the correction.
+            Set::Scalar clamp_weight = 1.0 - source_taper;
+            if (clamp_weight > 0.0)
+            {
+                Source(i,j,k,0) -= relax_rate*clamp_weight*(rho(i,j,k)   - rho_solid(i,j,k));
+                Source(i,j,k,1) -= relax_rate*clamp_weight*(M(i,j,k,0)   - M_solid(i,j,k,0));
+                Source(i,j,k,2) -= relax_rate*clamp_weight*(M(i,j,k,1)   - M_solid(i,j,k,1));
+                Source(i,j,k,3) -= relax_rate*clamp_weight*(E(i,j,k)     - E_solid(i,j,k));
+            }
 
             //Godunov flux
             //states of total fields
