@@ -66,7 +66,7 @@ ElasticLowMach::SetCoefficients(int amrlev,
 
     for (amrex::MFIter mfi(shear_cc, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<const Set::Scalar> const& eta_arr = eta.const_array(mfi);
         amrex::Array4<const Set::Scalar> const& rho_arr = rho.const_array(mfi);
         amrex::Array4<Set::Scalar> const& shear = shear_cc.array(mfi);

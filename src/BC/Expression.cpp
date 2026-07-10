@@ -45,7 +45,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         if ((glevel[0]<0 || (nodal && i == lo.x)) && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::XLO][n]))
-                in(i,j,k,n) = m_bc_func[Face::XLO][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::XLO][n](m_geom.ProbLo()[0],y,z,t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[0]<0) in(i,j,k,n) = 2.0 * val - in(2 * lo.x - i - 1,j,k,n);
+            }
             else if(glevel[0]<0 && BCUtil::IsNeumann(m_bc_type[Face::XLO][n]))
                 in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_func[Face::XLO].size() > 0 ? m_bc_func[Face::XLO][n](x,y,z,t)*DX[0] : 0);
             else if(glevel[0]<0 && BCUtil::IsReflectEven(m_bc_type[Face::XLO][n]))
@@ -59,7 +63,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         else if ((glevel[0]>0 || (nodal && i == hi.x)) && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::XHI][n]))
-                in(i,j,k,n) = m_bc_func[Face::XHI][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::XHI][n](m_geom.ProbHi()[0],y,z,t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[0]>0) in(i,j,k,n) = 2.0 * val - in(2 * hi.x - i + 1,j,k,n);
+            }
             else if(glevel[0]>0 && BCUtil::IsNeumann(m_bc_type[Face::XHI][n]))
                 in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_func[Face::XHI].size() > 0 ? m_bc_func[Face::XHI][n](x,y,z,t)*DX[0] : 0);
             else if(glevel[0]>0 && BCUtil::IsReflectEven(m_bc_type[Face::XHI][n]))
@@ -74,7 +82,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         else if ((glevel[1]<0 || (nodal && j == lo.y)) && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::YLO][n]))
-                in(i,j,k,n) = m_bc_func[Face::YLO][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::YLO][n](x,m_geom.ProbLo()[1],z,t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[1]<0) in(i,j,k,n) = 2.0 * val - in(i,2 * lo.y - j - 1,k,n);
+            }
             else if (glevel[1]<0 && BCUtil::IsNeumann(m_bc_type[Face::YLO][n]))
                 in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_func[Face::YLO].size() > 0 ? m_bc_func[Face::YLO][n](x,y,z,t)*DX[1] : 0);
             else if (glevel[1]<0 && BCUtil::IsReflectEven(m_bc_type[Face::YLO][n]))
@@ -88,7 +100,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         else if ((glevel[1]>0 || (nodal && j == hi.y)) && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::YHI][n]))
-                in(i,j,k,n) = m_bc_func[Face::YHI][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::YHI][n](x,m_geom.ProbHi()[1],z,t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[1]>0) in(i,j,k,n) = 2.0 * val - in(i,2 * hi.y - j + 1,k,n);
+            }
             else if (glevel[1]>0 && BCUtil::IsNeumann(m_bc_type[Face::YHI][n]))
                 in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_func[Face::YHI].size() > 0 ? m_bc_func[Face::YHI][n](x,y,z,t)*DX[1] : 0);
             else if (glevel[1]>0 && BCUtil::IsReflectEven(m_bc_type[Face::YHI][n]))
@@ -104,7 +120,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         else if ((glevel[2]<0 || (nodal && k == lo.z)) && (face == Orientation::zlo || face == Orientation::All))
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::ZLO][n]))
-                in(i,j,k,n) = m_bc_func[Face::ZLO][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::ZLO][n](x,y,m_geom.ProbLo()[2],t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[2]<0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * lo.z - k - 1,n);
+            }
             else if (glevel[2]<0 && BCUtil::IsNeumann(m_bc_type[Face::ZLO][n]))
                 in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_func[Face::ZLO].size() > 0 ? m_bc_func[Face::ZLO][n](x,y,z,t)*DX[2] : 0);
             else if (glevel[2]<0 && BCUtil::IsReflectEven(m_bc_type[Face::ZLO][n]))
@@ -117,7 +137,11 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         else if ((glevel[2]>0 || (nodal && k == hi.z)) && (face == Orientation::zhi || face == Orientation::All))
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::ZHI][n]))
-                in(i,j,k,n) = m_bc_func[Face::ZHI][n](x,y,z,t);
+            {
+                const Set::Scalar val = m_bc_func[Face::ZHI][n](x,y,m_geom.ProbHi()[2],t);
+                if (nodal) in(i,j,k,n) = val;
+                else if (glevel[2]>0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * hi.z - k + 1,n);
+            }
             else if(glevel[2]>0 && BCUtil::IsNeumann(m_bc_type[Face::ZHI][n]))
                 in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_func[Face::ZHI].size() > 0 ? m_bc_func[Face::ZHI][n](x,y,z,t)*DX[2] : 0);
             else if(glevel[2]>0 && BCUtil::IsReflectEven(m_bc_type[Face::ZHI][n]))

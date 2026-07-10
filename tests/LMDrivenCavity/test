@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+vertical_reference = sys.argv[2]
+horizontal_reference = vertical_reference.replace("vertical", "horizontal")
+
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if not plotfiles:
+    raise RuntimeError(f"No cell plotfiles found in {outdir}")
+
+path = plotfiles[-1]
+header = testlib.readHeader(path)
+if header["amrlevels"] < 1:
+    raise RuntimeError("LMDrivenCavity expected AMR level 1 to be present")
+
+fields = ["velocityx", "velocityy", "vorticity"]
+tol = [3.0e-2, 3.0e-2, 3.0e-2]
+atol = [2.5e-3, 2.5e-3, 2.5e-3]
+
+testlib.validate(path=path,
+                 outdir=outdir,
+                 reference=vertical_reference,
+                 start=[0.5, 0.0],
+                 end=[0.5, 1.0],
+                 coord="y",
+                 vars=fields,
+                 tolerance=tol,
+                 abs_tolerance=atol,
+                 generate_ref_data=False,
+                 tight_layout=False)
+
+testlib.validate(path=path,
+                 outdir=outdir,
+                 reference=horizontal_reference,
+                 start=[0.0, 0.5],
+                 end=[1.0, 0.5],
+                 coord="x",
+                 vars=fields,
+                 tolerance=tol,
+                 abs_tolerance=atol,
+                 generate_ref_data=False,
+                 tight_layout=False)
+
+print("LMDrivenCavity regression passed")

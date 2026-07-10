@@ -56,11 +56,13 @@ protected:
     void RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf, Set::Scalar time);
     void UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
+                           const amrex::MultiFab& T_mf,
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf);
     void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
     void EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf);
     void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
+    void CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
@@ -96,7 +98,9 @@ protected:
     Set::Field<Set::Scalar> deformation_gradient_mf;
     Set::Field<Set::Scalar> piola_stress_mf;
     Set::Field<Set::Scalar> elastic_stress_mf;
+    Set::Field<Set::Scalar> solid_stress_mf;
     Set::Field<Set::Matrix> cauchy_stress_mf;
+    Set::Field<Set::Matrix> stress_rhs_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
