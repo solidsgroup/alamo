@@ -1,68 +1,75 @@
 #@ [mass-source-term]
 #@ exe=hydro
 #@ dim=2
-#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = m0.ic.expression.region0 = "1.0*y*x"
 #@ args = u0.ic.expression.region0 = "0.0"
-#@ args = q.ic.expression.region0 = "-0.001"
+#@ args = u0.ic.expression.region1 = "0.0"
+#@ args = q.ic.expression.region0 = "-0.001*x"
+#@ args = q.ic.expression.region1 = "-0.001*y"
 #@ check-file = reference/mass-source-term.dat
 #@ [momemtum-source-term]
 #@ exe=hydro
 #@ dim=2
-#@ args = m0.ic.expression.region0 = "10.0"
-#@ args = u0.ic.expression.region0 = "-1.0"
+#@ args = m0.ic.expression.region0 = "1.0*y*x"
+#@ args = u0.ic.expression.region0 = "-0.1*x"
+#@ args = u0.ic.expression.region1 = "-0.1*y"
 #@ args = q.ic.expression.region0 = "0.0"
+#@ args = q.ic.expression.region1 = "0.0"
 #@ check-file = reference/momentum-source-term.dat
 #@ [energy-source-term]
 #@ exe=hydro
 #@ dim=2
-#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = m0.ic.expression.region0 = "1.0*y*x"
 #@ args = u0.ic.expression.region0 = "0.0"
-#@ args = q.ic.expression.region0 = "-10.0"
+#@ args = u0.ic.expression.region1 = "0.0"
+#@ args = q.ic.expression.region0 = "-1.0*x"
+#@ args = q.ic.expression.region1 = "-1.0*y"
 #@ check-file = reference/energy-source-term.dat
 
 ### OUTPUT ###
 
-plot_file = ./tests/FlowSource1D/output
+plot_file = ./tests/FlowSource2D/output
 
 ### MESHING ###
 
-#amr.plot_dt = 1.0
-amr.plot_int = 100
+amr.plot_dt = 0.05
+# amr.plot_int = 1
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 64 8 0
-
-# Uncomment to test AMR
-amr.max_level = 2
-#amr.n_cell = 128 32 0
+amr.n_cell = 64 64 0
+amr.max_level = 1
 
 ### DIMENSIONS ###
 
 geometry.prob_lo = 0.0  0.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0  0.625 0.0 # [ m ]
+geometry.prob_hi = 2.5 2.5 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 0.5e-3
-stop_time = 0.5
+timestep  = 1.0e-4
+stop_time = 0.25
 
 ### ETA IC ###
 
 u0.ic.type = expression
-# u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region1 = "0.0"
+# u0.ic.expression.region0 = "-0.1*x"
+# u0.ic.expression.region1 = "-0.1*y"
 
 q.ic.type = expression
-q.ic.expression.region0 = "-10.0"
-q.ic.expression.region1 = "0.0"
+q.ic.expression.region0 = "-1.0*x"
+q.ic.expression.region1 = "-1.0*y"
+
+m0.ic.type = expression
+m0.ic.expression.region0 = "1.0*y*x"
 
 eta.ic.type = expression
-eta.ic.expression.region0 = "0.5*tanh((4.0-x)/0.05) + 0.5"
+eta.ic.expression.region0 = "(0.5*tanh((2.2-x)/0.1) + 0.5)*(0.5*tanh((2.2-y)/0.1) + 0.5)"
 
 ### HYDRO PARAM ###
 
@@ -77,9 +84,6 @@ density.ic.expression.region0 = "1.225"
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
-
-m0.ic.type = expression
-m0.ic.expression.region0 = "-10.0"
 
 pressure.ic.type = expression
 pressure.ic.expression.region0 = "0.0" 
