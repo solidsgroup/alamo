@@ -49,16 +49,7 @@ protected:
     void PrintDiagnostics(Set::Scalar time, int iter);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
-    void Regrid(int lev, Set::Scalar time) override;
 
-    void FillStateBoundaries(int lev,
-                             amrex::MultiFab& u_mf,
-                             amrex::MultiFab& T_mf,
-                             amrex::MultiFab& Y_mf,
-                             amrex::MultiFab& eta_mf,
-                             amrex::MultiFab& xi_mf,
-                             Set::Scalar time);
-    void FillPressureBoundary(int lev, Set::Scalar time);
     void SanitizeEta(amrex::MultiFab& eta_mf);
     void FillReferenceMapBoundary(int lev, amrex::MultiFab& xi_mf);
     void InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf);

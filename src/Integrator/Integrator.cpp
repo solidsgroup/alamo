@@ -513,6 +513,9 @@ Integrator::InitData()
                 amrex::average_down(*(*cell.fab_array[n])[lev + 1], *(*cell.fab_array[n])[lev],
                     geom[lev + 1], geom[lev],
                     0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
+            for (int n = 0; n < node.number_of_fabs; n++)
+                amrex::average_down_nodal(*(*node.fab_array[n])[lev + 1], *(*node.fab_array[n])[lev],
+                    refRatio(lev));
         }
         SetFinestLevel(finest_level);
     }
@@ -766,13 +769,13 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
     for (int n = 0; n < cell.number_of_fabs; n++)
     {
         cell.physbc_array[n]->define(geom[lev]);
-        cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev], 0, 0, t, 0);
+        cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev], 0, cell.ncomp_array[n], t, 0);
     }
 
     for (int n = 0; n < node.number_of_fabs; n++)
     {
         node.physbc_array[n]->define(geom[lev]);
-        node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev], 0, 0, t, 0);
+        node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev], 0, node.ncomp_array[n], t, 0);
     }
 
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
@@ -1273,8 +1276,8 @@ Integrator::TimeStep(int lev, amrex::Real time, int /*iteration*/)
         }
         for (int n = 0; n < node.number_of_fabs; n++)
         {
-            amrex::average_down(*(*node.fab_array[n])[lev + 1], *(*node.fab_array[n])[lev],
-                0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
+            amrex::average_down_nodal(*(*node.fab_array[n])[lev + 1], *(*node.fab_array[n])[lev],
+                refRatio(lev));
         }
         for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
         {

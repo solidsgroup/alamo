@@ -186,7 +186,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              0,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf,            &value.bc_nothing, AMREX_SPACEDIM, 0,      "momentum",            true,  false, {"x","y"});
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", false, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.projection_rhs_mf,      &value.bc_nothing, 1,              0,      "projection_rhs",      false, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf,              &value.bc_nothing, 1,              0,      "energy",              true,  false);
@@ -205,136 +205,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.AllUnusedInputs();
         Util::Exception(INFO, "Aborting. Specify 'allow_unused=True` to ignore this error.");
     }
-}
-
-void
-LowMach::FillStateBoundaries(int lev,
-                             amrex::MultiFab& u_mf,
-                             amrex::MultiFab& T_mf,
-                             amrex::MultiFab& Y_mf,
-                             amrex::MultiFab& eta_mf,
-                             amrex::MultiFab& xi_mf,
-                             Set::Scalar time)
-{
-    auto preserve_valid = [](amrex::MultiFab& mf, auto&& fill)
-    {
-        amrex::MultiFab valid(mf.boxArray(), mf.DistributionMap(), mf.nComp(), 0);
-        amrex::MultiFab::Copy(valid, mf, 0, 0, mf.nComp(), 0);
-        mf.setVal(0.0, 0, mf.nComp(), mf.nGrow());
-        amrex::MultiFab::Copy(mf, valid, 0, 0, mf.nComp(), 0);
-        fill();
-        amrex::MultiFab::Copy(mf, valid, 0, 0, mf.nComp(), 0);
-    };
-
-    auto fill_coarse_fine = [&](amrex::MultiFab& mf, Set::Field<Set::Scalar>& source_mf, BC::BC<Set::Scalar>* physbc)
-    {
-        if (lev == 0) return;
-
-        amrex::Vector<amrex::MultiFab*> cmf;
-        amrex::Vector<amrex::MultiFab*> fmf;
-        cmf.push_back(source_mf[lev - 1].get());
-        fmf.push_back(&mf);
-
-        amrex::Vector<amrex::Real> ctime;
-        amrex::Vector<amrex::Real> ftime;
-        ctime.push_back(time);
-        ftime.push_back(time);
-
-        physbc->define(geom[lev]);
-        amrex::Interpolater* mapper = mf.boxArray().ixType() == amrex::IndexType::TheNodeType() ?
-            static_cast<amrex::Interpolater*>(&amrex::node_bilinear_interp) :
-            static_cast<amrex::Interpolater*>(&amrex::cell_cons_interp);
-        amrex::Vector<amrex::BCRec> bcs(mf.nComp(), physbc->GetBCRec());
-        amrex::FillPatchTwoLevels(mf, time, cmf, ctime, fmf, ftime,
-            0, 0, mf.nComp(), geom[lev - 1], geom[lev],
-            *physbc, 0,
-            *physbc, 0,
-            refRatio(lev - 1),
-            mapper, bcs, 0);
-    };
-
-    if (u_mf.ixType() == amrex::IndexType::TheNodeType())
-    {
-        preserve_valid(u_mf, [&]()
-        {
-            fill_coarse_fine(u_mf, velocity_mf, velocity_bc);
-            velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-            u_mf.FillBoundary(geom[lev].periodicity());
-        });
-    }
-    else
-    {
-        preserve_valid(u_mf, [&]()
-        {
-            fill_coarse_fine(u_mf, velocity_mf, velocity_bc);
-            velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-            u_mf.FillBoundary(geom[lev].periodicity());
-        });
-    }
-    preserve_valid(T_mf, [&]()
-    {
-        fill_coarse_fine(T_mf, temperature_mf, temperature_bc);
-        temperature_bc->FillBoundary(T_mf, 0, 1, time, 0);
-        T_mf.FillBoundary(geom[lev].periodicity());
-    });
-
-    preserve_valid(Y_mf, [&]()
-    {
-        fill_coarse_fine(Y_mf, mass_fraction_mf, mass_fraction_bc);
-        mass_fraction_bc->FillBoundary(Y_mf, 0, nspecies, time, 0);
-        Y_mf.FillBoundary(geom[lev].periodicity());
-    });
-
-    preserve_valid(eta_mf, [&]()
-    {
-        fill_coarse_fine(eta_mf, this->eta_mf, eta_bc);
-        eta_bc->FillBoundary(eta_mf, 0, 1, time, 0);
-        eta_mf.FillBoundary(geom[lev].periodicity());
-    });
-    SanitizeEta(eta_mf);
-
-    preserve_valid(xi_mf, [&]()
-    {
-        fill_coarse_fine(xi_mf, this->xi_mf, xi_bc);
-        xi_bc->FillBoundary(xi_mf, 0, AMREX_SPACEDIM, time, 0);
-        xi_mf.FillBoundary(geom[lev].periodicity());
-    });
-
-    FillPressureBoundary(lev, time);
-}
-
-
-
-void
-LowMach::FillPressureBoundary(int lev, Set::Scalar time)
-{
-    amrex::MultiFab valid(pressure_mf[lev]->boxArray(), pressure_mf[lev]->DistributionMap(), pressure_mf[lev]->nComp(), 0);
-    amrex::MultiFab::Copy(valid, *pressure_mf[lev], 0, 0, pressure_mf[lev]->nComp(), 0);
-    pressure_mf[lev]->setVal(0.0, 0, pressure_mf[lev]->nComp(), pressure_mf[lev]->nGrow());
-    amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
-    if (lev > 0)
-    {
-        amrex::Vector<amrex::MultiFab*> cmf;
-        amrex::Vector<amrex::MultiFab*> fmf;
-        cmf.push_back(pressure_mf[lev - 1].get());
-        fmf.push_back(pressure_mf[lev].get());
-        amrex::Vector<amrex::Real> ctime;
-        amrex::Vector<amrex::Real> ftime;
-        ctime.push_back(time);
-        ftime.push_back(time);
-        pressure_bc->define(geom[lev]);
-        amrex::Vector<amrex::BCRec> bcs(pressure_mf[lev]->nComp(), pressure_bc->GetBCRec());
-        amrex::FillPatchTwoLevels(*pressure_mf[lev], time, cmf, ctime, fmf, ftime,
-            0, 0, pressure_mf[lev]->nComp(), geom[lev - 1], geom[lev],
-            *pressure_bc, 0,
-            *pressure_bc, 0,
-            refRatio(lev - 1),
-            &amrex::cell_cons_interp, bcs, 0);
-        amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
-    }
-    pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, time, 0);
-    pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
-    amrex::MultiFab::Copy(*pressure_mf[lev], valid, 0, 0, pressure_mf[lev]->nComp(), 0);
 }
 
 void
@@ -806,7 +676,9 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
     }
 
     amrex::MultiFab::Copy(u_mf, sol, 0, 0, AMREX_SPACEDIM, 0);
-    FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time);
+    velocity_bc->define(geom[lev]);
+    velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
+    u_mf.FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -1001,7 +873,9 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
 
     velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
     u_mf.FillBoundary(geom[lev].periodicity());
-    FillPressureBoundary(lev, time);
+    pressure_bc->define(geom[lev]);
+    pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, time, 0);
+    pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -1378,10 +1252,42 @@ LowMach::Initialize(int lev)
     pressure_correction_mf[lev]->setVal(0.0);
     projection_rhs_mf[lev]->setVal(0.0);
 
+    auto apply_physical_bcs = [&](amrex::MultiFab& u,
+                                  amrex::MultiFab& T,
+                                  amrex::MultiFab& Y,
+                                  amrex::MultiFab& eta,
+                                  amrex::MultiFab& xi,
+                                  Set::Scalar time)
+    {
+        velocity_bc->define(geom[lev]);
+        velocity_bc->FillBoundary(u, 0, AMREX_SPACEDIM, time, 0);
+        u.FillBoundary(geom[lev].periodicity());
+
+        temperature_bc->define(geom[lev]);
+        temperature_bc->FillBoundary(T, 0, 1, time, 0);
+        T.FillBoundary(geom[lev].periodicity());
+
+        mass_fraction_bc->define(geom[lev]);
+        mass_fraction_bc->FillBoundary(Y, 0, nspecies, time, 0);
+        Y.FillBoundary(geom[lev].periodicity());
+
+        eta_bc->define(geom[lev]);
+        eta_bc->FillBoundary(eta, 0, 1, time, 0);
+        eta.FillBoundary(geom[lev].periodicity());
+        SanitizeEta(eta);
+
+        xi_bc->define(geom[lev]);
+        xi_bc->FillBoundary(xi, 0, AMREX_SPACEDIM, time, 0);
+        xi.FillBoundary(geom[lev].periodicity());
+    };
+
     EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     EnforceStateBounds(*velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev]);
-    FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], 0.0);
-    FillStateBoundaries(lev, *velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev], *eta_old_mf[lev], *xi_old_mf[lev], 0.0);
+    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], 0.0);
+    apply_physical_bcs(*velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev], *eta_old_mf[lev], *xi_old_mf[lev], 0.0);
+    pressure_bc->define(geom[lev]);
+    pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, 0.0, 0);
+    pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], 0.0);
     RebuildReferenceMapOutsideEta(lev, *eta_old_mf[lev], *xi_old_mf[lev], 0.0);
     EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
@@ -1671,10 +1577,39 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             state_mf[0], state_mf[1], state_mf[2], state_mf[3], state_mf[4]);
     });
 
+    auto apply_physical_bcs = [&](amrex::MultiFab& u,
+                                  amrex::MultiFab& T,
+                                  amrex::MultiFab& Y,
+                                  amrex::MultiFab& eta,
+                                  amrex::MultiFab& xi,
+                                  Set::Scalar bc_time)
+    {
+        velocity_bc->define(geom[lev]);
+        velocity_bc->FillBoundary(u, 0, AMREX_SPACEDIM, bc_time, 0);
+        u.FillBoundary(geom[lev].periodicity());
+
+        temperature_bc->define(geom[lev]);
+        temperature_bc->FillBoundary(T, 0, 1, bc_time, 0);
+        T.FillBoundary(geom[lev].periodicity());
+
+        mass_fraction_bc->define(geom[lev]);
+        mass_fraction_bc->FillBoundary(Y, 0, nspecies, bc_time, 0);
+        Y.FillBoundary(geom[lev].periodicity());
+
+        eta_bc->define(geom[lev]);
+        eta_bc->FillBoundary(eta, 0, 1, bc_time, 0);
+        eta.FillBoundary(geom[lev].periodicity());
+        SanitizeEta(eta);
+
+        xi_bc->define(geom[lev]);
+        xi_bc->FillBoundary(xi, 0, AMREX_SPACEDIM, bc_time, 0);
+        xi.FillBoundary(geom[lev].periodicity());
+    };
+
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab>& stage_mf, Set::Scalar stage_time)
     {
         EnforceStateBounds(stage_mf[0], stage_mf[1], stage_mf[2]);
-        FillStateBoundaries(lev, stage_mf[0], stage_mf[1], stage_mf[2], stage_mf[3], stage_mf[4], stage_time);
+        apply_physical_bcs(stage_mf[0], stage_mf[1], stage_mf[2], stage_mf[3], stage_mf[4], stage_time);
         RebuildReferenceMapOutsideEta(lev, stage_mf[3], stage_mf[4], stage_time);
         UpdateDerived(lev, stage_mf[0], stage_mf[1], stage_mf[2]);
         UpdateSolidStress(lev, stage_mf[0], stage_mf[3], stage_mf[4]);
@@ -1682,7 +1617,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     timeintegrator.advance(solution_old, solution_new, time, dt);
     EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
+    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], time + dt);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev]);
@@ -1691,7 +1626,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev]);
     ProjectVelocity(lev, time + dt, dt);
     EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    FillStateBoundaries(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
+    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], time + dt);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev]);
@@ -1911,17 +1846,4 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     }
 }
 
-void
-LowMach::Regrid(int lev, Set::Scalar time)
-{
-    if (lev < finest_level) return;
-    for (int ilev = 0; ilev <= finest_level; ++ilev)
-    {
-        EnforceStateBounds(*velocity_mf[ilev], *temperature_mf[ilev], *mass_fraction_mf[ilev]);
-        FillStateBoundaries(ilev, *velocity_mf[ilev], *temperature_mf[ilev], *mass_fraction_mf[ilev], *eta_mf[ilev], *xi_mf[ilev], 0.0);
-        RebuildReferenceMapOutsideEta(ilev, *eta_mf[ilev], *xi_mf[ilev], time);
-        UpdateDerived(ilev, *velocity_mf[ilev], *temperature_mf[ilev], *mass_fraction_mf[ilev]);
-        UpdateSolidStress(ilev, *velocity_mf[ilev], *eta_mf[ilev], *xi_mf[ilev]);
-    }
-}
 }
