@@ -418,7 +418,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
         Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
         Real R = 8314; // Ideal gas constant (J/kmol-k)
-        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
         Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
 
         Real rho_AP_solid = 1950; // kg/m^3 https://en.wikipedia.org/wiki/Ammonium_perchlorate
@@ -438,7 +437,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Vector N = grad_eta_hydro / (grad_eta_mag + small); // Example of finding the normal vector
-            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
             rho_AP_gas(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
             rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
             rho_tot_gas(i,j,k) = rho_AP_gas(i,j,k)*phi + rho_HTPB_gas(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
