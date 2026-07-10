@@ -40,6 +40,7 @@ public:
         delete mass_fraction_ic;
         delete pressure_ic;
         delete eta_ic;
+        delete xi_ic;
     }
 
 protected:
@@ -50,9 +51,6 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    void SanitizeEta(amrex::MultiFab& eta_mf);
-    void FillReferenceMapBoundary(int lev, amrex::MultiFab& xi_mf);
-    void InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf);
     void RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf, Set::Scalar time);
     void UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
@@ -60,7 +58,6 @@ protected:
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf);
     void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
-    void EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf);
     void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
     void CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt);
@@ -115,6 +112,7 @@ protected:
     IC::IC<Set::Scalar>* mass_fraction_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* eta_ic = nullptr;
+    IC::IC<Set::Scalar>* xi_ic = nullptr;
 
     Model::Gas::Gas gas;
     Model::Solid::Finite::NeoHookean finite_solid_model;
@@ -155,7 +153,6 @@ protected:
     Set::Scalar finite_solid_J_floor = 1.0e-6;
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_bulk_viscosity = 0.0;
-    Set::Scalar finite_solid_stress_cap = 1.0e100;
     Set::Scalar finite_solid_rhs_sign = 0.0;
     bool finite_solid_implicit = true;
     Set::Scalar finite_solid_implicit_coeff_scale = 1.0e-4;

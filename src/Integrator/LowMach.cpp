@@ -17,30 +17,6 @@
 
 namespace Integrator
 {
-namespace
-{
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Set::Matrix lowmach_regularize_stress(Set::Matrix sigma, Set::Scalar cap)
-{
-    Set::Scalar norm2 = 0.0;
-    for (int a = 0; a < AMREX_SPACEDIM; ++a)
-        for (int b = 0; b < AMREX_SPACEDIM; ++b)
-        {
-            if (!Util::IsFinite(sigma(a,b))) return Set::Matrix::Zero();
-            norm2 += sigma(a,b) * sigma(a,b);
-        }
-
-    if (cap > 0.0 && Util::IsFinite(cap) && norm2 > cap * cap)
-    {
-        Set::Scalar norm = std::sqrt(norm2);
-        if (norm > 0.0 && Util::IsFinite(norm)) sigma *= cap / norm;
-        else return Set::Matrix::Zero();
-    }
-    return sigma;
-}
-
-}
-
 LowMach::LowMach(IO::ParmParse& pp) : LowMach()
 {
     pp_queryclass(*this);
@@ -83,7 +59,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("solid.model.J_floor", value.finite_solid_J_floor, 1.0e-6);
     pp.query_default("solid.model.viscosity", value.finite_solid_viscosity, 0.0);
     pp.query_default("solid.model.bulk_viscosity", value.finite_solid_bulk_viscosity, 0.0);
-    pp.query_default("solid.model.stress_cap", value.finite_solid_stress_cap, 1.0e100);
     pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_rhs_sign, 0.0);
     pp.query_default("solid.model.implicit", value.finite_solid_implicit, true);
     pp.query_default("solid.model.implicit_coeff_scale", value.finite_solid_implicit_coeff_scale, 1.0e-4);
@@ -130,6 +105,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.select_default<IC::Constant,IC::Expression>("eta.ic", value.eta_ic, value.geom);
     else
         value.eta_ic = nullptr;
+    pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, value.geom);
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
@@ -168,50 +144,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 }
 
 void
-LowMach::EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex::MultiFab& Y_mf)
-{
-    for (amrex::MFIter mfi(Y_mf, false); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box bx = mfi.fabbox();
-        Set::Patch<Set::Scalar> T = T_mf.array(mfi);
-        Set::Patch<Set::Scalar> Y = Y_mf.array(mfi);
-        const int nsp = nspecies;
-        const Set::Scalar T_floor = temperature_floor;
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Scalar sumY = 0.0;
-            for (int n = 0; n < nsp; ++n)
-            {
-                if (!(Y(i,j,k,n) > 0.0)) Y(i,j,k,n) = 0.0;
-                sumY += Y(i,j,k,n);
-            }
-            if (!(sumY > 0.0))
-            {
-                Y(i,j,k,0) = 1.0;
-                for (int n = 1; n < nsp; ++n) Y(i,j,k,n) = 0.0;
-            }
-            else
-            {
-                for (int n = 0; n < nsp; ++n) Y(i,j,k,n) /= sumY;
-            }
-
-            if (!(T(i,j,k) > T_floor)) T(i,j,k) = T_floor;
-        });
-    }
-
-    for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        amrex::Box bx = mfi.growntilebox();
-        Set::Patch<Set::Scalar> u = u_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) u(i,j,k,d) = Util::FiniteOr(u(i,j,k,d), 0.0);
-        });
-    }
-}
-
-void
 LowMach::UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
                            const amrex::MultiFab& T_mf,
@@ -245,7 +177,6 @@ LowMach::UpdateSolidStress(int lev,
     const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
-    const Set::Scalar stress_limit = finite_solid_stress_cap;
     const Set::Scalar p_scale = pressure_scale;
     const bool fluid_viscous = include_viscosity;
 
@@ -275,7 +206,6 @@ LowMach::UpdateSolidStress(int lev,
             if (fluid_viscous)
             {
                 Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-                if (!(mu == mu)) mu = 0.0;
                 fluid_extra_stress += mu * (grad_u + grad_u.transpose());
             }
 
@@ -343,7 +273,7 @@ LowMach::UpdateSolidStress(int lev,
                         grad_xi(n,d) = xi_derivative(n, d);
 
                 Set::Scalar det_grad_xi = grad_xi.determinant();
-                bool valid = grad_valid && Util::IsFinite(det_grad_xi) && Util::Abs(det_grad_xi) > det_floor;
+                bool valid = grad_valid && Util::Abs(det_grad_xi) > det_floor;
                 if (valid)
                 {
 #if AMREX_SPACEDIM == 2
@@ -355,13 +285,10 @@ LowMach::UpdateSolidStress(int lev,
 #else
                     F = grad_xi.inverse();
 #endif
-                    for (int a = 0; a < AMREX_SPACEDIM; ++a)
-                        for (int b = 0; b < AMREX_SPACEDIM; ++b)
-                            valid = valid && Util::IsFinite(F(a,b));
                 }
 
                 Set::Scalar J = F.determinant();
-                if (valid && Util::IsFinite(J) && Util::Abs(J) > det_floor)
+                if (valid && Util::Abs(J) > det_floor)
                 {
                     P = solid_model.DW(F);
                     solid_sigma = (P * F.transpose()) / J;
@@ -374,29 +301,27 @@ LowMach::UpdateSolidStress(int lev,
                 }
             }
 
-            solid_sigma = lowmach_regularize_stress(solid_sigma, stress_limit);
             Set::Matrix sigma = -p_scale * pressure(i,j,k) * Set::Matrix::Identity() +
                                 (1.0 - solid_weight) * fluid_extra_stress +
                                 solid_weight * solid_sigma;
-            sigma = lowmach_regularize_stress(sigma, stress_limit);
-            Set::Matrix sigma_rhs = lowmach_regularize_stress(solid_weight * solid_sigma, stress_limit);
+            Set::Matrix sigma_rhs = solid_weight * solid_sigma;
 
-            F_field(i,j,k,0) = Util::FiniteOr(F(0,0), 1.0);
-            F_field(i,j,k,1) = Util::FiniteOr(F(0,1), 0.0);
-            F_field(i,j,k,2) = Util::FiniteOr(F(1,0), 0.0);
-            F_field(i,j,k,3) = Util::FiniteOr(F(1,1), 1.0);
-            P_field(i,j,k,0) = Util::FiniteOr(P(0,0), 0.0);
-            P_field(i,j,k,1) = Util::FiniteOr(P(0,1), 0.0);
-            P_field(i,j,k,2) = Util::FiniteOr(P(1,0), 0.0);
-            P_field(i,j,k,3) = Util::FiniteOr(P(1,1), 0.0);
-            elastic_stress(i,j,k,0) = Util::FiniteOr(sigma(0,0), 0.0);
-            elastic_stress(i,j,k,1) = Util::FiniteOr(sigma(0,1), 0.0);
-            elastic_stress(i,j,k,2) = Util::FiniteOr(sigma(1,0), 0.0);
-            elastic_stress(i,j,k,3) = Util::FiniteOr(sigma(1,1), 0.0);
-            solid_stress(i,j,k,0) = Util::FiniteOr(sigma_rhs(0,0), 0.0);
-            solid_stress(i,j,k,1) = Util::FiniteOr(sigma_rhs(0,1), 0.0);
-            solid_stress(i,j,k,2) = Util::FiniteOr(sigma_rhs(1,0), 0.0);
-            solid_stress(i,j,k,3) = Util::FiniteOr(sigma_rhs(1,1), 0.0);
+            F_field(i,j,k,0) = F(0,0);
+            F_field(i,j,k,1) = F(0,1);
+            F_field(i,j,k,2) = F(1,0);
+            F_field(i,j,k,3) = F(1,1);
+            P_field(i,j,k,0) = P(0,0);
+            P_field(i,j,k,1) = P(0,1);
+            P_field(i,j,k,2) = P(1,0);
+            P_field(i,j,k,3) = P(1,1);
+            elastic_stress(i,j,k,0) = sigma(0,0);
+            elastic_stress(i,j,k,1) = sigma(0,1);
+            elastic_stress(i,j,k,2) = sigma(1,0);
+            elastic_stress(i,j,k,3) = sigma(1,1);
+            solid_stress(i,j,k,0) = sigma_rhs(0,0);
+            solid_stress(i,j,k,1) = sigma_rhs(0,1);
+            solid_stress(i,j,k,2) = sigma_rhs(1,0);
+            solid_stress(i,j,k,3) = sigma_rhs(1,1);
         });
     }
 
@@ -461,8 +386,8 @@ LowMach::UpdateSolidStress(int lev,
                 sigma /= count;
                 sigma_rhs /= count;
             }
-            cauchy_stress(i,j,k) = lowmach_regularize_stress(sigma, stress_limit);
-            stress_rhs(i,j,k) = lowmach_regularize_stress(sigma_rhs, stress_limit);
+            cauchy_stress(i,j,k) = sigma;
+            stress_rhs(i,j,k) = sigma_rhs;
         });
     }
     cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -523,7 +448,7 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
 
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
-            omega(i,j,k) = Util::FiniteOr(grad_u(1,0) - grad_u(0,1), 0.0);
+            omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
         });
     }
 
@@ -559,8 +484,6 @@ LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
     const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
     const Set::Scalar rho_floor = density_floor;
     const Set::Scalar stress_sign = finite_solid_rhs_sign;
-    if (!(finite_solid_model.mu == finite_solid_model.mu) || !(finite_solid_model.kappa == finite_solid_model.kappa)) return;
-    if (!(finite_solid_implicit_coeff_scale == finite_solid_implicit_coeff_scale) || !(finite_solid_implicit_coeff_scale > 0.0)) return;
 
     Set::Scalar rigid_mass = 0.0;
     Set::Scalar rigid_xcm = 0.0;
@@ -765,7 +688,7 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             Set::Scalar div_u = 0.0;
             for (int d = 0; d < AMREX_SPACEDIM; ++d) div_u += grad_u(d,d);
-            rhs(i,j,k) = Util::FiniteOr(div_u * inv_dt, 0.0);
+            rhs(i,j,k) = div_u * inv_dt;
         });
     }
 
@@ -849,7 +772,7 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
         const Set::Scalar rho_floor = density_floor;
         const Set::Scalar p_floor = pressure_floor;
         const Set::Scalar p_scale = pressure_scale;
-        const Set::Scalar p_scale_inv = (p_scale == p_scale && std::abs(p_scale) > 0.0) ? 1.0 / p_scale : 1.0;
+        const Set::Scalar p_scale_inv = 1.0 / p_scale;
         const bool update_pressure = projection_update_pressure;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -929,7 +852,7 @@ LowMach::CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
                 Set::Scalar div_u = 0.0;
                 for (int d = 0; d < AMREX_SPACEDIM; ++d) div_u += grad_u(d,d);
-                rhs_arr(i,j,k) = Util::FiniteOr(div_u * inv_dt, 0.0);
+                rhs_arr(i,j,k) = div_u * inv_dt;
                 beta(i,j,k) = 1.0 / Util::Max(rho(i,j,k), rho_floor);
             });
         }
@@ -1043,7 +966,7 @@ LowMach::CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar rho_floor = density_floor;
         const Set::Scalar p_floor = pressure_floor;
         const Set::Scalar p_scale = pressure_scale;
-        const Set::Scalar p_scale_inv = (p_scale == p_scale && std::abs(p_scale) > 0.0) ? 1.0 / p_scale : 1.0;
+        const Set::Scalar p_scale_inv = 1.0 / p_scale;
         const bool update_pressure = projection_update_pressure;
 
         for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -1079,79 +1002,7 @@ LowMach::CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt)
 }
 
 void
-LowMach::SanitizeEta(amrex::MultiFab& eta_mf)
-{
-    const amrex::IndexType type = eta_mf.ixType();
-    for (amrex::MFIter mfi(eta_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        amrex::Box bx;
-        if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
-        else if (type == amrex::IndexType::TheNodeType()) bx = mfi.growntilebox();
-        else Util::Abort(INFO, "Unknown eta index type");
-
-        amrex::Array4<Set::Scalar> const& eta = eta_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Scalar val = eta(i,j,k);
-            if (!(val == val && val < 1.0e300 && val > -1.0e300)) val = 0.0;
-            eta(i,j,k) = Util::Clamp(val, 0.0, 1.0);
-        });
-    }
-    amrex::Gpu::streamSynchronize();
-}
-
-void
-LowMach::FillReferenceMapBoundary(int lev, amrex::MultiFab& xi_mf)
-{
-    amrex::MultiFab valid(xi_mf.boxArray(), xi_mf.DistributionMap(), xi_mf.nComp(), 0);
-    amrex::MultiFab::Copy(valid, xi_mf, 0, 0, xi_mf.nComp(), 0);
-
-    const amrex::IndexType type = xi_mf.ixType();
-    const amrex::Geometry geom_lev = geom[lev];
-    for (amrex::MFIter mfi(xi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        amrex::Box bx;
-        if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
-        else if (type == amrex::IndexType::TheNodeType()) bx = mfi.growntilebox();
-        else Util::Abort(INFO, "Unknown xi index type");
-
-        Set::Patch<Set::Scalar> xi = xi_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Vector x = Set::Position(i, j, k, geom_lev, type);
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) xi(i,j,k,d) = x(d);
-        });
-    }
-    amrex::Gpu::streamSynchronize();
-
-    amrex::MultiFab::Copy(xi_mf, valid, 0, 0, xi_mf.nComp(), 0);
-    xi_mf.FillBoundary(geom[lev].periodicity());
-}
-
-void
-LowMach::InitializeReferenceMap(int lev, amrex::MultiFab& xi_mf)
-{
-    const amrex::IndexType type = xi_mf.ixType();
-    for (amrex::MFIter mfi(xi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        amrex::Box bx;
-        if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
-        else if (type == amrex::IndexType::TheNodeType()) bx = mfi.growntilebox();
-        else Util::Abort(INFO, "Unknown xi index type");
-
-        Set::Patch<Set::Scalar> xi = xi_mf.array(mfi);
-        const amrex::Geometry geom_lev = geom[lev];
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Vector x = Set::Position(i, j, k, geom_lev, type);
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) xi(i,j,k,d) = x(d);
-        });
-    }
-    FillReferenceMapBoundary(lev, xi_mf);
-}
-
-void
-LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage_mf, amrex::MultiFab& xi_stage_mf, Set::Scalar time)
+LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage_mf, amrex::MultiFab& xi_stage_mf, Set::Scalar /*time*/)
 {
     const Set::Scalar truth_eta = Util::Clamp(reference_map_eta_cutoff, 0.0, 1.0);
     const Set::Scalar extension_eta = Util::Clamp(reference_map_eta_extension, 0.0, truth_eta);
@@ -1162,21 +1013,12 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
     amrex::MultiFab eta_work(eta_stage_mf.boxArray(), eta_stage_mf.DistributionMap(), 1, eta_stage_mf.nGrow());
     amrex::MultiFab::Copy(eta_work, eta_stage_mf, 0, 0, 1, eta_stage_mf.nGrow());
+    auto fill_xi_boundary = [&]()
     {
-        amrex::MultiFab eta_valid(eta_work.boxArray(), eta_work.DistributionMap(), eta_work.nComp(), 0);
-        amrex::MultiFab::Copy(eta_valid, eta_work, 0, 0, eta_work.nComp(), 0);
-        eta_bc->FillBoundary(eta_work, 0, 1, time, 0);
-        eta_work.FillBoundary(geom[lev].periodicity());
-        amrex::MultiFab::Copy(eta_work, eta_valid, 0, 0, eta_work.nComp(), 0);
-    }
-    SanitizeEta(eta_work);
-
-    auto fill_xi_boundary_preserve_valid = [&]()
-    {
-        FillReferenceMapBoundary(lev, xi_stage_mf);
+        xi_stage_mf.FillBoundary(geom[lev].periodicity());
     };
 
-    fill_xi_boundary_preserve_valid();
+    fill_xi_boundary();
 
     amrex::MultiFab xi_protected(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), AMREX_SPACEDIM, xi_ngrow);
     amrex::MultiFab::Copy(xi_protected, xi_stage_mf, 0, 0, AMREX_SPACEDIM, xi_ngrow);
@@ -1223,7 +1065,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
     amrex::Gpu::streamSynchronize();
     xi_known.FillBoundary(geom[lev].periodicity());
     restore_protected_xi();
-    fill_xi_boundary_preserve_valid();
+    fill_xi_boundary();
 
     for (int sweep = 0; sweep < extrap_sweeps; ++sweep)
     {
@@ -1311,7 +1153,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
         amrex::Gpu::streamSynchronize();
         xi_known.FillBoundary(geom[lev].periodicity());
         restore_protected_xi();
-        fill_xi_boundary_preserve_valid();
+        fill_xi_boundary();
     }
 
     for (int sweep = 0; sweep < smooth_sweeps; ++sweep)
@@ -1387,28 +1229,12 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
         }
         amrex::Gpu::streamSynchronize();
         restore_protected_xi();
-        fill_xi_boundary_preserve_valid();
+        fill_xi_boundary();
     }
 
     restore_protected_xi();
 
-    for (amrex::MFIter mfi(xi_stage_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Vector pos = Set::Position(i, j, k, geom_lev, amrex::IndexType::TheCellType());
-            for (int n = 0; n < AMREX_SPACEDIM; ++n)
-            {
-                Set::Scalar val = xi(i,j,k,n);
-                if (!(val == val && val < 1.0e300 && val > -1.0e300)) xi(i,j,k,n) = pos(n);
-            }
-        });
-    }
-    amrex::Gpu::streamSynchronize();
-    FillReferenceMapBoundary(lev, xi_stage_mf);
+    fill_xi_boundary();
 }
 
 void
@@ -1444,54 +1270,45 @@ LowMach::Initialize(int lev)
         eta_mf[lev]->setVal(eta_initial_value);
         eta_old_mf[lev]->setVal(eta_initial_value);
     }
-    SanitizeEta(*eta_mf[lev]);
-    SanitizeEta(*eta_old_mf[lev]);
-    InitializeReferenceMap(lev, *xi_mf[lev]);
-    InitializeReferenceMap(lev, *xi_old_mf[lev]);
+    xi_ic->Initialize(lev, xi_mf, 0.0);
+    xi_ic->Initialize(lev, xi_old_mf, 0.0);
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
     projection_rhs_mf[lev]->setVal(0.0);
 
-    auto apply_physical_bcs = [&](amrex::MultiFab& u,
-                                  amrex::MultiFab& T,
-                                  amrex::MultiFab& Y,
-                                  amrex::MultiFab& eta,
-                                  amrex::MultiFab& xi,
-                                  Set::Scalar time)
-    {
-        velocity_bc->define(geom[lev]);
-        velocity_bc->FillBoundary(u, 0, AMREX_SPACEDIM, time, 0);
-        u.FillBoundary(geom[lev].periodicity());
-
-        temperature_bc->define(geom[lev]);
-        temperature_bc->FillBoundary(T, 0, 1, time, 0);
-        T.FillBoundary(geom[lev].periodicity());
-
-        mass_fraction_bc->define(geom[lev]);
-        mass_fraction_bc->FillBoundary(Y, 0, nspecies, time, 0);
-        Y.FillBoundary(geom[lev].periodicity());
-
-        eta_bc->define(geom[lev]);
-        eta_bc->FillBoundary(eta, 0, 1, time, 0);
-        eta.FillBoundary(geom[lev].periodicity());
-        SanitizeEta(eta);
-
-        xi_bc->define(geom[lev]);
-        xi_bc->FillBoundary(xi, 0, AMREX_SPACEDIM, time, 0);
-        xi.FillBoundary(geom[lev].periodicity());
-    };
-
-    EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    EnforceStateBounds(*velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev]);
-    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], 0.0);
-    apply_physical_bcs(*velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev], *eta_old_mf[lev], *xi_old_mf[lev], 0.0);
+    velocity_bc->define(geom[lev]);
+    temperature_bc->define(geom[lev]);
+    mass_fraction_bc->define(geom[lev]);
+    eta_bc->define(geom[lev]);
+    xi_bc->define(geom[lev]);
     pressure_bc->define(geom[lev]);
+
+    velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
+    velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, 0.0, 0);
+    temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+    mass_fraction_bc->FillBoundary(*mass_fraction_mf[lev], 0, nspecies, 0.0, 0);
+    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, 0.0, 0);
+    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
+    xi_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+    velocity_bc->FillBoundary(*velocity_old_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
+    velocity_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+    temperature_bc->FillBoundary(*temperature_old_mf[lev], 0, 1, 0.0, 0);
+    temperature_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+    mass_fraction_bc->FillBoundary(*mass_fraction_old_mf[lev], 0, nspecies, 0.0, 0);
+    mass_fraction_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+    eta_bc->FillBoundary(*eta_old_mf[lev], 0, 1, 0.0, 0);
+    eta_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+    xi_bc->FillBoundary(*xi_old_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
+    xi_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+
     pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, 0.0, 0);
     pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], 0.0);
     RebuildReferenceMapOutsideEta(lev, *eta_old_mf[lev], *xi_old_mf[lev], 0.0);
-    EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    EnforceStateBounds(*velocity_old_mf[lev], *temperature_old_mf[lev], *mass_fraction_old_mf[lev]);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
 }
@@ -1559,7 +1376,6 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
             Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
-            if (!(mu == mu)) mu = 0.0;
 
             Set::Vector vel = Set::Vector::Zero();
             for (int d = 0; d < AMREX_SPACEDIM; ++d) vel(d) = u(i,j,k,d);
@@ -1587,7 +1403,6 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                 adv += vel(2) * dudz;
 #endif
                 u_rhs(i,j,k,d) = -adv - p_scale * grad_p_vec(d) / density + gravity(d) + mu * lap / density + stress_sign * div_sigma / density;
-                u_rhs(i,j,k,d) = Util::FiniteOr(u_rhs(i,j,k,d), 0.0);
             }
         });
     }
@@ -1741,42 +1556,28 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     solution_old.emplace_back(*eta_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
     solution_old.emplace_back(*xi_old_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
 
-    auto apply_physical_bcs = [&](amrex::MultiFab& u,
-                                  amrex::MultiFab& T,
-                                  amrex::MultiFab& Y,
-                                  amrex::MultiFab& eta,
-                                  amrex::MultiFab& xi,
-                                  Set::Scalar bc_time)
-    {
-        velocity_bc->define(geom[lev]);
-        velocity_bc->FillBoundary(u, 0, AMREX_SPACEDIM, bc_time, 0);
-        u.FillBoundary(geom[lev].periodicity());
-
-        temperature_bc->define(geom[lev]);
-        temperature_bc->FillBoundary(T, 0, 1, bc_time, 0);
-        T.FillBoundary(geom[lev].periodicity());
-
-        mass_fraction_bc->define(geom[lev]);
-        mass_fraction_bc->FillBoundary(Y, 0, nspecies, bc_time, 0);
-        Y.FillBoundary(geom[lev].periodicity());
-
-        eta_bc->define(geom[lev]);
-        eta_bc->FillBoundary(eta, 0, 1, bc_time, 0);
-        eta.FillBoundary(geom[lev].periodicity());
-        SanitizeEta(eta);
-
-        xi_bc->define(geom[lev]);
-        xi_bc->FillBoundary(xi, 0, AMREX_SPACEDIM, bc_time, 0);
-        xi.FillBoundary(geom[lev].periodicity());
-    };
+    velocity_bc->define(geom[lev]);
+    temperature_bc->define(geom[lev]);
+    mass_fraction_bc->define(geom[lev]);
+    eta_bc->define(geom[lev]);
+    xi_bc->define(geom[lev]);
 
     amrex::TimeIntegrator timeintegrator(solution_new, time);
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab>& rhs_mf,
                                amrex::Vector<amrex::MultiFab>& state_mf,
                                const Set::Scalar rhs_time)
     {
-        EnforceStateBounds(state_mf[0], state_mf[1], state_mf[2]);
-        apply_physical_bcs(state_mf[0], state_mf[1], state_mf[2], state_mf[3], state_mf[4], rhs_time);
+        velocity_bc->FillBoundary(state_mf[0], 0, AMREX_SPACEDIM, rhs_time, 0);
+        state_mf[0].FillBoundary(geom[lev].periodicity());
+        temperature_bc->FillBoundary(state_mf[1], 0, 1, rhs_time, 0);
+        state_mf[1].FillBoundary(geom[lev].periodicity());
+        mass_fraction_bc->FillBoundary(state_mf[2], 0, nspecies, rhs_time, 0);
+        state_mf[2].FillBoundary(geom[lev].periodicity());
+        eta_bc->FillBoundary(state_mf[3], 0, 1, rhs_time, 0);
+        state_mf[3].FillBoundary(geom[lev].periodicity());
+        xi_bc->FillBoundary(state_mf[4], 0, AMREX_SPACEDIM, rhs_time, 0);
+        state_mf[4].FillBoundary(geom[lev].periodicity());
+
         RebuildReferenceMapOutsideEta(lev, state_mf[3], state_mf[4], rhs_time);
         RHS(lev, rhs_time, rhs_mf[0], rhs_mf[1], rhs_mf[2], rhs_mf[3], rhs_mf[4],
             state_mf[0], state_mf[1], state_mf[2], state_mf[3], state_mf[4]);
@@ -1784,26 +1585,54 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab>& stage_mf, Set::Scalar stage_time)
     {
-        EnforceStateBounds(stage_mf[0], stage_mf[1], stage_mf[2]);
-        apply_physical_bcs(stage_mf[0], stage_mf[1], stage_mf[2], stage_mf[3], stage_mf[4], stage_time);
+        velocity_bc->FillBoundary(stage_mf[0], 0, AMREX_SPACEDIM, stage_time, 0);
+        stage_mf[0].FillBoundary(geom[lev].periodicity());
+        temperature_bc->FillBoundary(stage_mf[1], 0, 1, stage_time, 0);
+        stage_mf[1].FillBoundary(geom[lev].periodicity());
+        mass_fraction_bc->FillBoundary(stage_mf[2], 0, nspecies, stage_time, 0);
+        stage_mf[2].FillBoundary(geom[lev].periodicity());
+        eta_bc->FillBoundary(stage_mf[3], 0, 1, stage_time, 0);
+        stage_mf[3].FillBoundary(geom[lev].periodicity());
+        xi_bc->FillBoundary(stage_mf[4], 0, AMREX_SPACEDIM, stage_time, 0);
+        stage_mf[4].FillBoundary(geom[lev].periodicity());
+
         RebuildReferenceMapOutsideEta(lev, stage_mf[3], stage_mf[4], stage_time);
         UpdateDerived(lev, stage_mf[0], stage_mf[1], stage_mf[2]);
         UpdateSolidStress(lev, stage_mf[0], stage_mf[1], stage_mf[3], stage_mf[4]);
     });
 
     timeintegrator.advance(solution_old, solution_new, time, dt);
-    EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
-    RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], time + dt);
+    Set::Scalar new_time = time + dt;
+    velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
+    velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, new_time, 0);
+    temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+    mass_fraction_bc->FillBoundary(*mass_fraction_mf[lev], 0, nspecies, new_time, 0);
+    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, new_time, 0);
+    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
+    xi_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+    RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], new_time);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
-    ImplicitElasticVelocitySolve(lev, time + dt, dt);
+    ImplicitElasticVelocitySolve(lev, new_time, dt);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
-    ProjectVelocity(lev, time + dt, dt);
-    EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    apply_physical_bcs(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev], *eta_mf[lev], *xi_mf[lev], time + dt);
-    RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], time + dt);
+    ProjectVelocity(lev, new_time, dt);
+    velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
+    velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, new_time, 0);
+    temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+    mass_fraction_bc->FillBoundary(*mass_fraction_mf[lev], 0, nspecies, new_time, 0);
+    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, new_time, 0);
+    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
+    xi_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+    RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], new_time);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
 }
@@ -1854,7 +1683,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                 if (viscous)
                 {
                     Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-                    if (mu == mu) nu = mu / Util::Max(rho(i,j,k), rho_floor);
+                    nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
                 return {nu / (dxmin * dxmin)};
             });
@@ -1933,7 +1762,6 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
                 Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
                 Set::Scalar div = 0.0;
                 for (int d = 0; d < AMREX_SPACEDIM; ++d) div += grad_u(d,d);
-                div = Util::FiniteOr(div, 0.0);
                 bool interior = i > domain.smallEnd(0) + 2 && i < domain.bigEnd(0) - 2 &&
                                 j > domain.smallEnd(1) + 2 && j < domain.bigEnd(1) - 2;
                 Set::Scalar abs_div = Util::Abs(div);
@@ -1985,7 +1813,6 @@ LowMach::TimeStepComplete(Set::Scalar time, int iter)
     CompositeProjectVelocity(time + dt[0], dt[0]);
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        EnforceStateBounds(*velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
         UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
         UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
     }
