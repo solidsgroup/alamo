@@ -92,14 +92,16 @@ energy.bc.constant.type.xlo = neumann
 energy.bc.constant.type.ylo = neumann
 energy.bc.constant.type.yhi = neumann
 
-momentum.bc.constant.type.xhi = dirichlet dirichlet
-momentum.bc.constant.type.xlo = dirichlet dirichlet
-momentum.bc.constant.type.ylo = dirichlet dirichlet
-momentum.bc.constant.type.yhi = dirichlet dirichlet
-momentum.bc.constant.val.xhi = 0.0 0.0
-momentum.bc.constant.val.xlo = 0.0 0.0
-momentum.bc.constant.val.ylo = 0.0 0.0
-momentum.bc.constant.val.yhi = 500.0 0.0
+momentum.bc.type = expression
+momentum.bc.expression.constant.lidvelocity = 500.0
+momentum.bc.expression.type.xhi = dirichlet dirichlet
+momentum.bc.expression.type.xlo = dirichlet dirichlet
+momentum.bc.expression.type.ylo = dirichlet dirichlet
+momentum.bc.expression.type.yhi = dirichlet dirichlet
+momentum.bc.expression.val.xhi = "0.0" "0.0"
+momentum.bc.expression.val.xlo = "0.0" "0.0"
+momentum.bc.expression.val.ylo = "0.0" "0.0"
+momentum.bc.expression.val.yhi = "lidvelocity" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
