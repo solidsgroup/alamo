@@ -6,6 +6,7 @@
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
 #include "IO/ParmParse.H"
+#include "Numeric/Interpolator/NodeBilinear.H"
 #include "Util/Util.H"
 #include "Unit/Unit.H"
 #include <numeric>
@@ -437,9 +438,9 @@ Integrator::FillPatch(int lev, amrex::Real time,
         physbc.define(geom[lev]);
 
         amrex::Interpolater* mapper;
-
+        Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
         if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
-            mapper = &amrex::node_bilinear_interp;
+            mapper = &node_bilinear;
         else
             mapper = &amrex::cell_cons_interp;
 
@@ -475,8 +476,9 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
     physbc.define(geom[lev]);
 
     amrex::Interpolater* mapper;
+    Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
     if (mf[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
-        mapper = &amrex::node_bilinear_interp;
+        mapper = &node_bilinear;
     else
         mapper = &amrex::cell_cons_interp;
 

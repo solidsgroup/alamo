@@ -5,10 +5,10 @@ plot_file = output.lm
 amr.plot_int = 50
 amr.max_grid_size = 64
 amr.blocking_factor = 4
-amr.regrid_int = 2
-amr.max_level = 0
+amr.regrid_int = 200
+amr.max_level = 1
 amr.nsubsteps = 1
-amr.n_cell = 256 256
+amr.n_cell = 128 128
 eta_refinement_criterion = 0.1
 
 timestep = 1.0e-3
@@ -78,7 +78,7 @@ pressure.ic.constant.value = 100000.0
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.01
 eta.ic.expression.constant.x0 = 0.45
-eta.ic.expression.constant.y0 = 0.55
+eta.ic.expression.constant.y0 = 0.85
 
 # # Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
 # eta.ic.expression.constant.R = 0.08

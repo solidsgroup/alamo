@@ -38,52 +38,6 @@ Set::Matrix lowmach_regularize_stress(Set::Matrix sigma, Set::Scalar cap)
     return sigma;
 }
 
-void lowmach_average_nodal_velocity_to_cell(const amrex::MultiFab& u_node,
-                                            amrex::MultiFab& u_cell,
-                                            const amrex::Geometry& geom)
-{
-    u_cell.setVal(0.0, 0, AMREX_SPACEDIM, u_cell.nGrow());
-    const amrex::BoxArray& node_ba = u_node.boxArray();
-    for (amrex::MFIter mfi(u_cell, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.validbox();
-        const amrex::Box required_nodes = amrex::surroundingNodes(bx);
-        std::vector<std::pair<int, amrex::Box>> intersections;
-        node_ba.intersections(required_nodes, intersections);
-
-        int node_index = -1;
-        for (const auto& isect : intersections)
-        {
-            if (node_ba[isect.first].contains(required_nodes))
-            {
-                node_index = isect.first;
-                break;
-            }
-        }
-        if (node_index < 0)
-            Util::Abort(INFO, "Unable to find nodal velocity FAB for cell box in LowMach");
-
-        amrex::Array4<const Set::Scalar> const& node = u_node.const_array(node_index);
-        amrex::Array4<Set::Scalar> const& cell = u_cell.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            {
-#if AMREX_SPACEDIM == 2
-                cell(i,j,k,d) = 0.25 * (node(i,j,k,d) + node(i+1,j,k,d) +
-                                         node(i,j+1,k,d) + node(i+1,j+1,k,d));
-#else
-                cell(i,j,k,d) = 0.125 * (node(i,j,k,d) + node(i+1,j,k,d) +
-                                          node(i,j+1,k,d) + node(i+1,j+1,k,d) +
-                                          node(i,j,k+1,d) + node(i+1,j,k+1,d) +
-                                          node(i,j+1,k+1,d) + node(i+1,j+1,k+1,d));
-#endif
-            }
-        });
-    }
-    amrex::Gpu::streamSynchronize();
-    u_cell.FillBoundary(geom.periodicity());
-}
 }
 
 LowMach::LowMach(IO::ParmParse& pp) : LowMach()
@@ -173,8 +127,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, value.geom);
     pp.select_default<IC::Constant,IC::Expression>("eta.ic", value.eta_ic, value.geom);
 
-    value.AddField<Set::Scalar,Set::HC::Node>(value.velocity_mf, value.velocity_bc, AMREX_SPACEDIM, nghost, "velocity", true, true, {"x","y"});
-    value.AddField<Set::Scalar,Set::HC::Node>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, {"x","y"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_mf,       value.temperature_bc,   1,              nghost, "temperature",       true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_old_mf,   value.temperature_bc,   1,              nghost, "temperature_old",   false, true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf,     value.mass_fraction_bc, value.nspecies, nghost, "mass_fraction",     true,  true);
@@ -242,8 +196,7 @@ LowMach::EnforceStateBounds(amrex::MultiFab& u_mf, amrex::MultiFab& T_mf, amrex:
 
     for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        amrex::Box bx = u_mf.ixType() == amrex::IndexType::TheNodeType() ?
-            mfi.growntilebox() : mfi.growntilebox();
+        amrex::Box bx = mfi.growntilebox();
         Set::Patch<Set::Scalar> u = u_mf.array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -438,13 +391,10 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
     mole_fraction_mf[lev]->setVal(0.0);
     vorticity_mf[lev]->setVal(0.0);
 
-    amrex::MultiFab u_cc(Y_mf.boxArray(), Y_mf.DistributionMap(), AMREX_SPACEDIM, u_mf.nGrow());
-    lowmach_average_nodal_velocity_to_cell(u_mf, u_cc, geom[lev]);
-
     for (amrex::MFIter mfi(Y_mf, true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> u = u_cc.array(mfi);
+        Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> Y = Y_mf.array(mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
@@ -689,9 +639,6 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
     if (finest_level > 0 && !projection_amr_enabled) return;
 
     amrex::MultiFab& u_mf = *velocity_mf[lev];
-    if (u_mf.ixType() != amrex::IndexType::TheNodeType())
-        Util::Abort(INFO, "LowMach velocity projection requires nodal velocity");
-
     velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
     u_mf.FillBoundary(geom[lev].periodicity());
 
@@ -705,13 +652,10 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
     rhs_mf.setVal(0.0);
     phi_mf.setVal(0.0);
 
-    amrex::MultiFab u_cc(rhs_mf.boxArray(), rhs_mf.DistributionMap(), AMREX_SPACEDIM, u_mf.nGrow());
-    lowmach_average_nodal_velocity_to_cell(u_mf, u_cc, geom[lev]);
-
     for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> u = u_cc.array(mfi);
+        Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
         const Set::Scalar inv_dt = 1.0 / dt;
 
@@ -795,11 +739,9 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
     }
     phi_mf.FillBoundary(geom[lev].periodicity());
 
-    const amrex::Box node_domain = amrex::surroundingNodes(domain);
     for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
-        const amrex::Box cell_valid = grids[lev][mfi.index()];
         Set::Patch<Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> phi = phi_mf.array(mfi);
         Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
@@ -812,62 +754,12 @@ LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const bool physical_boundary =
-                i == node_domain.smallEnd(0) || i == node_domain.bigEnd(0) ||
-#if AMREX_SPACEDIM >= 2
-                j == node_domain.smallEnd(1) || j == node_domain.bigEnd(1) ||
-#endif
-#if AMREX_SPACEDIM == 3
-                k == node_domain.smallEnd(2) || k == node_domain.bigEnd(2) ||
-#endif
-                false;
-            if (physical_boundary) return;
-
-            auto clamp_i = [=] AMREX_GPU_DEVICE (int ii) -> int
-            {
-                return ii < cell_valid.smallEnd(0) ? cell_valid.smallEnd(0) :
-                       (ii > cell_valid.bigEnd(0) ? cell_valid.bigEnd(0) : ii);
-            };
-            auto clamp_j = [=] AMREX_GPU_DEVICE (int jj) -> int
-            {
-                return jj < cell_valid.smallEnd(1) ? cell_valid.smallEnd(1) :
-                       (jj > cell_valid.bigEnd(1) ? cell_valid.bigEnd(1) : jj);
-            };
-#if AMREX_SPACEDIM == 3
-            auto clamp_k = [=] AMREX_GPU_DEVICE (int kk) -> int
-            {
-                return kk < cell_valid.smallEnd(2) ? cell_valid.smallEnd(2) :
-                       (kk > cell_valid.bigEnd(2) ? cell_valid.bigEnd(2) : kk);
-            };
-#endif
-
-            const int ci = clamp_i(i);
-            const int cj = clamp_j(j);
-#if AMREX_SPACEDIM == 3
-            const int ck = clamp_k(k);
-#else
-            const int ck = k;
-#endif
-            const Set::Scalar beta = 1.0 / Util::Max(rho(ci,cj,ck), rho_floor);
-
-            Set::Scalar grad_x = (phi(clamp_i(i),cj,ck) - phi(clamp_i(i-1),cj,ck)) / DX[0];
-#if AMREX_SPACEDIM >= 2
-            if (j > domain.smallEnd(1))
-                grad_x = 0.5 * (grad_x + (phi(clamp_i(i),clamp_j(j-1),ck) - phi(clamp_i(i-1),clamp_j(j-1),ck)) / DX[0]);
-#endif
-            u(i,j,k,0) -= dt * beta * grad_x;
-
-#if AMREX_SPACEDIM >= 2
-            Set::Scalar grad_y = (phi(ci,clamp_j(j),ck) - phi(ci,clamp_j(j-1),ck)) / DX[1];
-            if (i > domain.smallEnd(0))
-                grad_y = 0.5 * (grad_y + (phi(clamp_i(i-1),clamp_j(j),ck) - phi(clamp_i(i-1),clamp_j(j-1),ck)) / DX[1]);
-            u(i,j,k,1) -= dt * beta * grad_y;
-#endif
-#if AMREX_SPACEDIM == 3
-            Set::Scalar grad_z = (phi(ci,cj,clamp_k(k)) - phi(ci,cj,clamp_k(k-1))) / DX[2];
-            u(i,j,k,2) -= dt * beta * grad_z;
-#endif
-            if (update_pressure) p(ci,cj,ck) = Util::Max(p(ci,cj,ck) + p_scale_inv * phi(ci,cj,ck), p_floor);
+            auto sten = Numeric::GetStencil(i, j, k, domain);
+            Set::Vector grad_phi = Numeric::Gradient(phi, i, j, k, 0, DX, sten);
+            const Set::Scalar beta = 1.0 / Util::Max(rho(i,j,k), rho_floor);
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                u(i,j,k,d) -= dt * beta * grad_phi(d);
+            if (update_pressure) p(i,j,k) = Util::Max(p(i,j,k) + p_scale_inv * phi(i,j,k), p_floor);
         });
     }
 
@@ -1320,8 +1212,6 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
     for (amrex::MFIter mfi(u_rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
-        const amrex::Box node_domain = amrex::surroundingNodes(domain);
-        const amrex::Box cell_valid = grids[lev][mfi.index()];
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
@@ -1337,71 +1227,30 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const bool physical_boundary =
-                i == node_domain.smallEnd(0) || i == node_domain.bigEnd(0) ||
-#if AMREX_SPACEDIM >= 2
-                j == node_domain.smallEnd(1) || j == node_domain.bigEnd(1) ||
-#endif
-#if AMREX_SPACEDIM == 3
-                k == node_domain.smallEnd(2) || k == node_domain.bigEnd(2) ||
-#endif
-                false;
-            if (physical_boundary)
-            {
-                for (int d = 0; d < AMREX_SPACEDIM; ++d) u_rhs(i,j,k,d) = 0.0;
-                return;
-            }
-
-            auto clamp_i = [=] AMREX_GPU_DEVICE (int ii) -> int
-            {
-                return ii < cell_valid.smallEnd(0) ? cell_valid.smallEnd(0) :
-                       (ii > cell_valid.bigEnd(0) ? cell_valid.bigEnd(0) : ii);
-            };
-            auto clamp_j = [=] AMREX_GPU_DEVICE (int jj) -> int
-            {
-                return jj < cell_valid.smallEnd(1) ? cell_valid.smallEnd(1) :
-                       (jj > cell_valid.bigEnd(1) ? cell_valid.bigEnd(1) : jj);
-            };
-#if AMREX_SPACEDIM == 3
-            auto clamp_k = [=] AMREX_GPU_DEVICE (int kk) -> int
-            {
-                return kk < cell_valid.smallEnd(2) ? cell_valid.smallEnd(2) :
-                       (kk > cell_valid.bigEnd(2) ? cell_valid.bigEnd(2) : kk);
-            };
-#endif
-
-            const int ci = clamp_i(i);
-            const int cj = clamp_j(j);
-#if AMREX_SPACEDIM == 3
-            const int ck = clamp_k(k);
-#else
-            const int ck = k;
-#endif
-            Set::Scalar density = Util::Max(rho(ci,cj,ck), rho_floor);
-            Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(ci,cj,ck), X, ci, cj, ck) : 0.0;
+            auto sten = Numeric::GetStencil(i, j, k, domain);
+            Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
+            Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
             if (!(mu == mu)) mu = 0.0;
 
             Set::Vector vel = Set::Vector::Zero();
             for (int d = 0; d < AMREX_SPACEDIM; ++d) vel(d) = u(i,j,k,d);
 
+            Set::Vector grad_p_vec = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
             {
                 Set::Scalar dudx = (u(i+1,j,k,d) - u(i-1,j,k,d)) / (2.0 * DX[0]);
                 Set::Scalar lap = (u(i+1,j,k,d) - 2.0 * u(i,j,k,d) + u(i-1,j,k,d)) / (DX[0] * DX[0]);
-                Set::Scalar grad_p = (pressure(clamp_i(i),cj,ck) - pressure(clamp_i(i-1),cj,ck)) / DX[0];
-                Set::Scalar div_sigma = (stress(clamp_i(i),cj,ck)(d,0) - stress(clamp_i(i-1),cj,ck)(d,0)) / DX[0];
+                Set::Scalar div_sigma = (stress(i+1,j,k)(d,0) - stress(i-1,j,k)(d,0)) / (2.0 * DX[0]);
 
 #if AMREX_SPACEDIM >= 2
                 Set::Scalar dudy = (u(i,j+1,k,d) - u(i,j-1,k,d)) / (2.0 * DX[1]);
                 lap += (u(i,j+1,k,d) - 2.0 * u(i,j,k,d) + u(i,j-1,k,d)) / (DX[1] * DX[1]);
-                if (d == 1) grad_p = (pressure(ci,clamp_j(j),ck) - pressure(ci,clamp_j(j-1),ck)) / DX[1];
-                div_sigma += (stress(ci,clamp_j(j),ck)(d,1) - stress(ci,clamp_j(j-1),ck)(d,1)) / DX[1];
+                div_sigma += (stress(i,j+1,k)(d,1) - stress(i,j-1,k)(d,1)) / (2.0 * DX[1]);
 #endif
 #if AMREX_SPACEDIM == 3
                 Set::Scalar dudz = (u(i,j,k+1,d) - u(i,j,k-1,d)) / (2.0 * DX[2]);
                 lap += (u(i,j,k+1,d) - 2.0 * u(i,j,k,d) + u(i,j,k-1,d)) / (DX[2] * DX[2]);
-                if (d == 2) grad_p = (pressure(ci,cj,clamp_k(k)) - pressure(ci,cj,clamp_k(k-1))) / DX[2];
-                div_sigma += (stress(ci,cj,clamp_k(k))(d,2) - stress(ci,cj,clamp_k(k-1))(d,2)) / DX[2];
+                div_sigma += (stress(i,j,k+1)(d,2) - stress(i,j,k-1)(d,2)) / (2.0 * DX[2]);
 #endif
                 Set::Scalar adv = vel(0) * dudx;
 #if AMREX_SPACEDIM >= 2
@@ -1410,19 +1259,16 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 #if AMREX_SPACEDIM == 3
                 adv += vel(2) * dudz;
 #endif
-                u_rhs(i,j,k,d) = -adv - p_scale * grad_p / density + gravity(d) + stress_sign * div_sigma / density + mu * lap / density;
+                u_rhs(i,j,k,d) = -adv - p_scale * grad_p_vec(d) / density + gravity(d) + stress_sign * div_sigma / density + mu * lap / density;
                 u_rhs(i,j,k,d) = Util::FiniteOr(u_rhs(i,j,k,d), 0.0);
             }
         });
     }
 
-    amrex::MultiFab u_cc(T_mf.boxArray(), T_mf.DistributionMap(), AMREX_SPACEDIM, u_mf.nGrow());
-    lowmach_average_nodal_velocity_to_cell(u_mf, u_cc, geom[lev]);
-
     for (amrex::MFIter mfi(T_mf, false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
-        Set::Patch<const Set::Scalar> u = u_cc.array(mfi);
+        Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> Y = Y_mf.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
@@ -1837,10 +1683,13 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
             Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
             Set::Vector grad_T = Numeric::Gradient(T, i, j, k, 0, DX, sten);
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX, sten);
+            const Set::Scalar eta_val = eta(i,j,k);
+            const bool eta_interface = eta_val > etacrit && eta_val < 1.0 - etacrit;
             if (grad_u.norm() * dr > vcrit ||
                 grad_p.lpNorm<2>() * dr > pcrit ||
                 grad_T.lpNorm<2>() * dr > Tcrit ||
-                grad_eta.lpNorm<2>() * dr * 2.0 > etacrit)
+                grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
+                eta_interface)
                 tag(i,j,k) = amrex::TagBox::SET;
         });
     }
