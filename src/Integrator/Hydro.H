@@ -10,7 +10,10 @@
 #include "IC/IC.H"
 
 #include "Set/Base.H"
-#include "Solver/Local/Riemann/Roe.H"
+//#include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/Riemann.H"
+
+#include "Model/Gas/Gas.H"
 
 namespace Integrator
 {
@@ -94,6 +97,11 @@ protected:
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
+    Set::Field<Set::Scalar> temperature_mf;
+
+    Set::Field<Set::Scalar> mass_fraction_mf;
+    Set::Field<Set::Scalar> mole_fraction_mf;
+    Set::Field<Set::Scalar> scratch_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
@@ -144,7 +152,7 @@ protected:
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
+    Set::Scalar cfl=NAN, cfl_v=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
@@ -152,6 +160,12 @@ protected:
     Set::Scalar lagrange_m0=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    //std::vector<std::string> species;
+    //std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
+    int nspecies;
+    Model::Gas::Gas gas;
+    
 
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4
