@@ -21,9 +21,9 @@ class Cubic : public Linear::Cubic
 public:
     static constexpr const char *name = "cubic";
 
-    Cubic() {};
-    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
-    virtual ~Cubic() {};
+    Cubic() = default;
+    //Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
+    ~Cubic() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
@@ -37,19 +37,19 @@ public:
         Linear::Cubic::Define(C11,C12,C44,R);
         F0 = a_F0;
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return Linear::Cubic::W(gradu - F0);
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return Linear::Cubic::DW(gradu - F0);
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const 
     {
         return Linear::Cubic::DDW(gradu - F0);
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const 
     {
         out << ddw;
     }
@@ -62,7 +62,8 @@ public:
 
     static Cubic Zero()
     {
-        Cubic ret = Linear::Cubic::Zero();
+        Cubic ret;
+        ret.ddw = Linear::Cubic::Zero().ddw;
         ret.F0 = Set::Matrix::Zero();
         return ret;
     }
@@ -72,7 +73,8 @@ public:
     }
     static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
     {
-        Cubic ret = Linear::Cubic::Random(C11,C12,C44);
+        Cubic ret;
+        ret.ddw = Linear::Cubic::Random(C11,C12,C44).ddw;
         ret.F0 = Set::Matrix::Random();
         return ret;
     }

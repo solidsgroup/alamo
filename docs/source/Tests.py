@@ -9,7 +9,7 @@ import io
 import configparser
 from collections import OrderedDict
 from pathlib import Path
-
+import fnmatch
 
 #
 # Special order from SO - dictionary allows for keys to be specified multiple times and 
@@ -140,6 +140,22 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
+    ## this block of code should be the same as in ./scripts/runtests.py
+    sections = [s for s in config.sections() if "*" not in s]
+    section_wildcards = [s for s in config.sections() if "*" in s]
+    for desc in sections:
+        desc_wildcards = [s for s in section_wildcards if fnmatch.fnmatch(desc,s)]
+        for wc in desc_wildcards:
+            new = dict(config[wc])
+            newargs = None
+            if "args" in config[desc].keys() and "args" in config[wc].keys():
+                newargs = new["args"] + "\n" + config[desc]["args"]
+            new.update(config[desc])
+            if newargs: new["args"] = newargs
+            config[desc] = new
+    for wc in section_wildcards:
+        config.remove_section(wc)
+    
     readmes = find_files_ignore_case(Path(testdirname), "README.rst")
 
     if len(config) <= 1:
@@ -228,7 +244,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             #
             # TESTING OR NOT TESTING
             #
-            if not os.path.isfile("{}/test".format(testdirname)) or ("checK" in config[c] and config[c]["check"] in {"no","No","false","False","0"}):
+            if not os.path.isfile("{}/test".format(testdirname)) or ("check" in config[c] and config[c]["check"] in {"no","No","false","False","0"}):
                 #testdocfile.write("    * - :icon:`report_off`\n")
                 testdocfile.write("    * - :fas:`question;fa-fw fa-lg`\n")
                 testdocfile.write("      - Not validated\n")

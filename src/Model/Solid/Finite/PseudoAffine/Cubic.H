@@ -17,21 +17,21 @@ class Cubic : public PseudoLinear::Cubic
 public:
     static constexpr const char *name = "cubic";
     
-    Cubic() {};
+    Cubic() = default;
     Cubic(PseudoLinear::Cubic base) : PseudoLinear::Cubic(base) {};
-    virtual ~Cubic() {};
+    ~Cubic() = default;
 
-    Set::Scalar W(const Set::Matrix& F) const override
+    Set::Scalar W(const Set::Matrix& F) const 
     {
         Set::Matrix F0inv = F0.inverse();
         return PseudoLinear::Cubic::W(F * F0inv);
     }
-    Set::Matrix DW(const Set::Matrix& F) const override
+    Set::Matrix DW(const Set::Matrix& F) const 
     {
         Set::Matrix F0inv = F0.inverse();
         return PseudoLinear::Cubic::DW(F * F0inv) * F0inv.transpose();
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const 
     {
         Set::Matrix F0inv = F0.inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * F0inv);

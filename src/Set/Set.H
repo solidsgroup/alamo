@@ -298,8 +298,4 @@ extern void SetGlobalConstants();
 }
 }
 
-#include "Set/Matrix3.H"
-#include "Set/Matrix4.H"
-
-
 #endif

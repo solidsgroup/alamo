@@ -15,6 +15,7 @@ import re
 import pathlib
 import threading
 import signal
+import fnmatch
 
 from sympy import capture
 
@@ -212,7 +213,24 @@ def test(testdir):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
-    sections = config.sections()
+    #
+    # Apply wildcard sections and then remove them from the list
+    #
+    sections = [s for s in config.sections() if "*" not in s]
+    section_wildcards = [s for s in config.sections() if "*" in s]
+    for desc in sections:
+        desc_wildcards = [s for s in section_wildcards if fnmatch.fnmatch(desc,s)]
+        for wc in desc_wildcards:
+            new = dict(config[wc])
+            newargs = None
+            if "args" in config[desc].keys() and "args" in config[wc].keys():
+                newargs = new["args"] + "\n" + config[desc]["args"]
+            new.update(config[desc])
+            if newargs: new["args"] = newargs
+            config[desc] = new
+    for wc in section_wildcards:
+        config.remove_section(wc)
+
     if args.sections:
         if len(args.sections)>0:
             sections = list(set(config.sections()).intersection(set(args.sections)))
@@ -409,6 +427,7 @@ def test(testdir):
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
+            record['cmd_test'] = command
         
 
 
@@ -450,6 +469,25 @@ def test(testdir):
                         True #do nothing
                     time.sleep(1)
 
+            def write_log(stdout,stderr):
+                try:
+                    if stdout is None: stdout = ""
+                    if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                    fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+                    fstdout.write(ansi_escape.sub('',stdout))
+                    fstdout.close()
+                except Exception:
+                    pass
+                try:
+                    if stderr is None: stderr = ""
+                    if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                    fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+                    fstderr.write(ansi_escape.sub('',stderr))
+                    fstderr.close()
+                except Exception:
+                    pass
+
+
             # Start the run
             proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                                     env=env)
@@ -477,12 +515,6 @@ def test(testdir):
 
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
-            fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
-            fstdout.close()
-            fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
-            fstderr.close()
             print(bs+"[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
@@ -495,6 +527,7 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
+            write_log(stdout,stderr)
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless permit-timout
@@ -503,9 +536,14 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            stdout = e.stdout
+            if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+            stderr = e.stderr
+            if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+            for line in stdout.split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in stderr.split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            write_log(stdout,stderr)
             append_html(record)
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
@@ -532,7 +570,13 @@ def test(testdir):
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:
-                stdoutlines = e.stdout.decode('utf-8').split('\n')
+                stdout = e.stdout
+                if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                stderr = e.stderr
+                if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                write_log(stdout,stderr)
+                append_html(record)
+                stdoutlines =stdout.split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
@@ -557,7 +601,6 @@ def test(testdir):
             append_html(record)
             continue
         
-
         #
         # 
         # [ P R O F I L I N G ]

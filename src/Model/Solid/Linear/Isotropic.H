@@ -54,6 +54,7 @@
 
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
+#include "Set/Matrix4_Isotropic.H"
 
 namespace Model
 {
@@ -65,32 +66,32 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-    Isotropic() {};
+    Isotropic() = default;
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
     };
-    virtual ~Isotropic() {};
+    ~Isotropic() = default;
 
     void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
     }
 
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const
     {
         out << ddw;
     }

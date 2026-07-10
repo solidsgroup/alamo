@@ -114,6 +114,7 @@ def validate(path,
                      extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
         pylab.colorbar(im)
         pylab.plot([start[0],end[0]],[start[1],end[1]],linestyle='-',color='white')
+        pylab.title(var)
         if tight_layout: pylab.tight_layout()
         pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
@@ -140,6 +141,7 @@ def validate(path,
         pylab.ylabel(var)
         pylab.legend()
         pylab.grid()
+        pylab.title(var)
         pylab.savefig(outdir+"/{}.png".format(var))
         err = numpy.sqrt(integrate(final_coord, (    new_final_var  -     ref_final_var )**2))
         mag = numpy.sqrt(integrate(final_coord, (abs(new_final_var) + abs(ref_final_var))**2))

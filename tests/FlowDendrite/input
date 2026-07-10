@@ -84,7 +84,7 @@ hydro.velocity.ic.expression.region1 = "0.0"
 hydro.pressure.ic.type = expression
 hydro.pressure.ic.expression.constant.gamma = 1.4
 hydro.pressure.ic.expression.constant.E_solid = 5.0
-hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid - 10000"
 ### ETA BC  ###
 hydro.pf.eta.bc.constant.type.xlo = neumann
 hydro.pf.eta.bc.constant.type.xhi = neumann
