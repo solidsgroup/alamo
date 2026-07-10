@@ -82,7 +82,7 @@ m0.ic.type = expression
 m0.ic.expression.region0 = "-10.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" 
+pressure.ic.expression.region0 = "-100.0" 
 
 ### SOLID ###
 
