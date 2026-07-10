@@ -896,6 +896,74 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 
     return ret;
 }
+
+template<class T>
+[[nodiscard]] AMREX_FORCE_INLINE
+std::array<T,AMREX_SPACEDIM>
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType);
+
+template<>
+[[nodiscard]] AMREX_FORCE_INLINE
+std::array<Set::Matrix,AMREX_SPACEDIM>
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil)
+{
+
+    std::array<Set::Matrix,AMREX_SPACEDIM> gradu;
+    AMREX_D_TERM(   bool xmin = stencil[0] == StencilType::Hi;
+                    bool xmax = stencil[0] == StencilType::Lo;, 
+                    bool ymin = stencil[1] == StencilType::Hi;
+                    bool ymax = stencil[1] == StencilType::Lo;,
+                    bool zmin = stencil[2] == StencilType::Hi;
+                    bool zmax = stencil[2] == StencilType::Lo; );
+        
+    for (int p = 0; p < AMREX_SPACEDIM; p++)
+        for (int q = 0; q < AMREX_SPACEDIM; q++)
+        {
+            AMREX_D_TERM(
+                gradu[p](q, 0) = ((!xmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!xmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((xmin || xmax ? 1.0 : 2.0) * dx[0]);,
+                gradu[p](q, 1) = ((!ymax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!ymin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((ymin || ymax ? 1.0 : 2.0) * dx[1]);,
+                gradu[p](q, 2) = ((!zmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!zmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((zmin || zmax ? 1.0 : 2.0) * dx[2]););
+        }
+    return gradu;
+}
+
+template<>
+[[nodiscard]] AMREX_FORCE_INLINE
+std::array<Set::Matrix3,AMREX_SPACEDIM>
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil)
+{
+    AMREX_D_TERM(   Util::Assert(INFO,TEST(stencil[0]==StencilType::Central));,
+                    Util::Assert(INFO,TEST(stencil[1]==StencilType::Central));,
+                    Util::Assert(INFO,TEST(stencil[2]==StencilType::Central)););
+
+    std::array<Set::Matrix3,AMREX_SPACEDIM> gradgradu;
+
+    for (int p = 0; p < AMREX_SPACEDIM; p++)
+        for (int q = 0; q < AMREX_SPACEDIM; q++)
+        {
+
+            AMREX_D_TERM(
+                gradgradu[p](q, 0, 0) = (p == q ? -2.0 : 0.0) / dx[0] / dx[0];
+                ,// 2D
+                gradgradu[p](q, 0, 1) = 0.0;
+                gradgradu[p](q, 1, 0) = 0.0;
+                gradgradu[p](q, 1, 1) = (p == q ? -2.0 : 0.0) / dx[1] / dx[1];
+                ,// 3D
+                gradgradu[p](q, 0, 2) = 0.0;
+                gradgradu[p](q, 1, 2) = 0.0;
+                gradgradu[p](q, 2, 0) = 0.0;
+                gradgradu[p](q, 2, 1) = 0.0;
+                gradgradu[p](q, 2, 2) = (p == q ? -2.0 : 0.0) / dx[2] / dx[2]);
+        }
+
+    return gradgradu;
+}
+
+
+
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,

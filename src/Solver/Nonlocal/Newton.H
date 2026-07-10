@@ -58,7 +58,7 @@ private:
     {
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
@@ -106,7 +106,7 @@ private:
 
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -150,7 +150,7 @@ private:
     {
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
@@ -184,8 +184,10 @@ private:
                 });
             }
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->setMultiGhost(true);
+            a_dw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->setMultiGhost(true);
+            a_ddw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -196,7 +198,7 @@ private:
 
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -265,8 +267,10 @@ private:
                 }
             }
 
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            a_rhs_mf[lev]->setMultiGhost(true);
+            a_rhs_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->setMultiGhost(true);
+            a_ddw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
         }
     }
 
@@ -402,7 +406,6 @@ public:
             if (nriter == m_nriters) break;
 
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
-            //Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)

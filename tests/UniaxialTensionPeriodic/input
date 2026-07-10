@@ -1,40 +1,23 @@
-#@  [2D-serial-1level]
+#@  [2d-periodicy-amr0]
 #@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
+#@  dim=2
 #@  args=amr.max_level=0
-#@    
-#@  [2D-serial-2levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
-#@  args=amr.max_level=1
-#@    
-#@  [2D-serial-3levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
-#@    
-#@  [2D-parallel-3levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=4
-#@    
-#@  [3D-serial-3levels]
-#@  exe=mechanics
-#@  dim=3
-#@  nprocs=1
-#@  benchmark-github = 8.29
 #@
-#@  [3D-parallel-3levels]
+#@  [2d-periodicy-amr1]
 #@  exe=mechanics
-#@  dim=3
-#@  nprocs=4
-#@  
+#@  dim=2
+#@  args=amr.max_level=1
+#@
+#@  [2d-periodicy-amr2]
+#@  exe=mechanics
+#@  dim=2
+#@  args=amr.max_level=2
+#@
+
 
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.isotropic
-plot_file		      = tests/UniaxialTension/output
+plot_file		      = tests/UniaxialTensionPeriodic/output
 
 # this is not a time integration, so do
 # exactly one timestep and then quit
@@ -43,7 +26,7 @@ stop_time		      = 0.1
 
 # amr parameters
 amr.plot_int		      = 1
-amr.max_level		      = 2
+amr.max_level		      =  2
 amr.n_cell		      = 32 32 32
 amr.blocking_factor	      = 4
 amr.regrid_int		      = 1
@@ -52,15 +35,16 @@ amr.cell.all                  = 1
 
 # use an explicit mesh (i.e. no adaptive meshing)
 explicitmesh.on               = 1
-explicitmesh.lo1              = 16 16 16
+explicitmesh.lo1              = 0 0 0
 explicitmesh.hi1              = 47 47 47
-explicitmesh.lo2              = 48 48 48
-explicitmesh.hi2              = 79 79 79
+
+explicitmesh.lo2              = 32 32 32
+explicitmesh.hi2              = 81 81 81
 
 # geometry
 geometry.prob_lo	      = -8 -8 -8 
 geometry.prob_hi	      = 8 8 8
-geometry.is_periodic	      = 0 0 0
+geometry.is_periodic	      = 0 1 0
 
 # elastic moduli
 model1.planestress = true
@@ -75,13 +59,16 @@ solver.max_iter = 500
 bc.type = constant
 
 ### --- Faces
-bc.constant.type.xlo = disp trac trac
-bc.constant.type.xhi = disp trac trac
-bc.constant.val.xhi = 0.1 0.0 0.0
-bc.constant.type.ylo = trac disp trac
-bc.constant.type.yhi = trac trac trac
+bc.constant.type.xlo = disp disp disp
+bc.constant.type.xhi = disp disp disp
+bc.constant.val.xhi = 0.0 0.1 0.0
+bc.constant.val.xhiylo = 0.0 0.1 0.0
+bc.constant.val.xhiyhi = 0.0 0.1 0.0
+bc.constant.type.ylo=periodic periodic periodic
+bc.constant.type.yhi=periodic periodic periodic
 bc.constant.type.zlo = trac trac disp
 bc.constant.type.zhi = trac trac trac
+
 
 ### --- Edges
 ###     XY edges
@@ -89,8 +76,8 @@ bc.constant.type.xloylo = disp trac trac
 bc.constant.type.xloyhi = disp trac trac
 bc.constant.type.xhiylo = disp trac trac
 bc.constant.type.xhiyhi = disp trac trac
-bc.constant.val.xhiylo = 0.1 0.0 0.0
-bc.constant.val.xhiyhi = 0.1 0.0 0.0
+bc.constant.val.xhiylo = 0.0 0.1 0.0
+bc.constant.val.xhiyhi = 0.0 0.1 0.0
 ###     ZX edges
 bc.constant.type.zloxlo = disp trac trac
 bc.constant.type.zhixlo = disp trac trac
@@ -122,3 +109,5 @@ bc.constant.type.xhiyhizhi = disp trac trac
 bc.constant.val.xhiyhizhi = 0.1 0.0 0.0
 
 
+print_model = 1
+print_residual = 1

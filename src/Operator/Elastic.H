@@ -60,10 +60,6 @@ public:
     ///
     void SetBC (::BC::Operator::Elastic::Elastic *a_bc) 
     {
-        if (this->Geom(0).isAnyPeriodic()) 
-        {
-            Util::Warning(INFO,"Looks like you're using a periodic domain. \nThat is currently VERY DANGEROUS when using linear elastic solver!!!");
-        }
         m_bc = a_bc;
         m_bc_set = true;
     };
@@ -168,8 +164,8 @@ private:
     ///
     void averageDownCoeffsSameAmrLevel (int amrlev);
 
-    void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
-    void FillBoundaryCoeff (MultiFab& psi, const Geometry& geom);
+    void FillBoundaryCoeff (MultiTab& sigma, const amrex::Periodicity& p);
+    void FillBoundaryCoeff (MultiFab& psi, const amrex::Periodicity& p);
 
     bool m_testing = false;
     bool m_uniform = false;

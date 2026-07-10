@@ -61,8 +61,11 @@ public:
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.tilebox();
-            bx.grow(a_field[lev]->nGrow());
+            amrex::Box bx;
+            amrex::IndexType ixtype = a_field[lev]->ixType();
+            if (ixtype == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (ixtype == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+
             int ncomp = a_field[lev]->nComp();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {

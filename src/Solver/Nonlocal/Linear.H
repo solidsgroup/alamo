@@ -94,9 +94,8 @@ public:
                 }
             }
             Util::Message(INFO, rhs_tmp[lev]->norm0());
-            linop->realFillBoundary(*rhs_tmp[lev], linop->Geom(lev));
-            Util::Message(INFO, rhs_tmp[lev]->norm0());
-            //rhs_tmp[lev]->FillBoundary();
+            rhs_tmp[lev]->setMultiGhost(true);
+            rhs_tmp[lev]->FillBoundaryAndSync(linop->Geom(lev).periodicity());
         }
 
         for (int lev = 0; lev < rhs_tmp.size(); lev++)
