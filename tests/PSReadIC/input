@@ -1,0 +1,136 @@
+#@
+#@ [2d-serial-short]
+#@ dim=2
+#@ nprocs=1
+#@ args = stop_time=1e-8
+#@ check-file = reference/2d-serial.dat
+#@
+#@ [2d-parallel-long]
+#@ dim=2
+#@ nprocs=2
+#@ args = stop_time=1e-8
+#@ check-file = reference/2d-parallel.dat
+#@
+
+alamo.program = flame
+plot_file = tests/PSReadIC/output
+
+# AMR Parameters
+amr.plot_int = 1
+amr.blocking_factor = 4
+amr.grid_eff = 1
+amr.refinement_criterion = 0.1
+amr.phi_refinement_criterion = 0.5
+amr.cell.all = 1
+amr.node.all = 0
+
+
+# Geometry and AMR level specification
+amr.n_cell = 8 8 8
+geometry.prob_lo = 0.0000_m 0.0000_m 0.0000_m
+geometry.prob_hi = 0.0005_m 0.0005_m 0.0005_m
+amr.max_level = 4
+geometry.is_periodic = 0 0 0
+
+# Timestep and duration
+timestep = 1e-8
+stop_time = 1e-10
+
+# Phase field parameters
+pf.eps = 0.000001_m
+pf.lambda = 0.001_J/m^2
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = tests/PSReadIC/2d.xyzr
+pf.eta.ic.psread.eps = 2.0e-5_m
+pf.eta.ic.psread.invert = 1
+pf.eta.ic.psread.x0 = 1e-4 1e-4 0.0
+pf.eta.ic.psread.mult = 1.1
+
+# Eta boundary condition
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+# Phi initial condition (spheres)
+phi.ic.type = psread
+phi.ic.psread.file.unit = m
+phi.ic.psread.file.name = tests/PSReadIC/2d.xyzr
+phi.ic.psread.eps = 1.13e-5_m
+
+# Use the full-feedback propellant model
+propellant.type = fullfeedback
+# Arrhenius rate law params
+propellant.fullfeedback.m_ap = 1.45e5_m/s
+propellant.fullfeedback.m_htpb = 1.04e2_m/s
+propellant.fullfeedback.E_ap = 11000.0_K
+propellant.fullfeedback.E_htpb = 7500.0_K
+propellant.fullfeedback.mob_ap = true
+propellant.fullfeedback.bound = 300.0_K
+# Thermal transport params
+propellant.fullfeedback.rho_ap = 1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb = 920.0_kg/m^3
+propellant.fullfeedback.k_ap = 0.4186e0_W/m/K
+propellant.fullfeedback.k_htpb = 0.13_W/m/K
+propellant.fullfeedback.cp_ap = 1297.9_J/kg/K
+propellant.fullfeedback.cp_htpb = 2418.29_J/kg/K
+# Mass-to-heat flux estimation params
+propellant.fullfeedback.a1 =  1.11400_1
+propellant.fullfeedback.a2 =  0.46000_1
+propellant.fullfeedback.a3 =  2.79700_1
+propellant.fullfeedback.b1 =  0.32300_1
+propellant.fullfeedback.b2 =  0.42000_1
+propellant.fullfeedback.b3 =  0.32250_1
+propellant.fullfeedback.c1 = -0.09906_1
+propellant.fullfeedback.mlocal_ap = 1000.0_kg/m^3/s
+propellant.fullfeedback.mlocal_comb = 0.0_kg/m^3/s
+propellant.fullfeedback.phi.zeta_0 = 1.13e-5_m
+propellant.fullfeedback.phi.zeta = 1.13e-5 _m
+propellant.fullfeedback.Pref = 1.0_MPa 
+
+
+# Activate thermal transport
+thermal.on = 1
+
+# Temperature boundary conditions
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = neumann
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = neumann
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0
+thermal.temp.bc.constant.val.zhi = 0.0
+
+# Temperature initial conditions
+temp.ic.type="constant"
+temp.ic.constant.value=500_K
+
+# Laser source term
+laser.ic.type = constant
+laser.ic.constant.value = 0.0_W/m^2
+thermal.hc = 1.0e7_W/m^2
+
+# Pressure
+chamber.pressure = 4.0_MPa # [MPa]
+
+elastic.type = disable
+
+
+
+
