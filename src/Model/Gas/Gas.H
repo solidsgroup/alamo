@@ -93,19 +93,9 @@ public:
             density += density_mf(i,j,k,n);
             moles += density_mf(i,j,k,n) / MW[n];
         }
-        if (density > 0.0 && moles > 0.0) {
-            for (int n=0; n<nspecies; ++n) {
-                mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
-                mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
-            }
-        } else {
-            // Vacuum / eta->0 cell: composition is undefined since there is no gas
-            // present. Use a finite default so downstream gamma/R/MW (which sum
-            // X*property) stay finite instead of 0/0 = nan.
-            for (int n=0; n<nspecies; ++n) {
-                mass_fraction_mf(i,j,k,n) = 1.0 / nspecies;
-                mole_fraction_mf(i,j,k,n) = 1.0 / nspecies;
-            }
+        for (int n=0; n<nspecies; ++n) {
+            mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
+            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
         }
     }
     double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
