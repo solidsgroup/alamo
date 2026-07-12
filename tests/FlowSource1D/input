@@ -22,6 +22,39 @@
 #@ args = q.ic.expression.region0 = "-10.0"
 #@ args = cutoff = 0.0
 #@ check-file = reference/energy-source-term.dat
+#@ [momemtum-source-term-cutoff-0.001]
+#@ exe=hydro
+#@ dim=2
+#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = u0.ic.expression.region0 = "-1.0"
+#@ args = q.ic.expression.region0 = "0.0"
+#@ args = cutoff = 0.001
+#@ check-file = reference/momentum-source-term-0-001.dat
+#@ [momemtum-source-term-cutoff-0.01]
+#@ exe=hydro
+#@ dim=2
+#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = u0.ic.expression.region0 = "-1.0"
+#@ args = q.ic.expression.region0 = "0.0"
+#@ args = cutoff = 0.01
+#@ check-file = reference/momentum-source-term-0-01.dat
+#@ [momemtum-source-term-cutoff-0.1]
+#@ exe=hydro
+#@ dim=2
+#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = u0.ic.expression.region0 = "-1.0"
+#@ args = q.ic.expression.region0 = "0.0"
+#@ args = cutoff = 0.1
+#@ check-file = reference/momentum-source-term-0-1.dat
+#@ [momemtum-source-term-cutoff-0.4]
+#@ exe=hydro
+#@ dim=2
+#@ args = m0.ic.expression.region0 = "10.0"
+#@ args = u0.ic.expression.region0 = "-1.0"
+#@ args = q.ic.expression.region0 = "0.0"
+#@ args = cutoff = 0.4
+#@ check-file = reference/momentum-source-term-0-4.dat
+
 
 ### OUTPUT ###
 
