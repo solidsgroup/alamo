@@ -716,33 +716,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            // Skip the Riemann solve entirely at (near-)solid cells rather than relying
-            // on the trailing "* eta" to suppress it. At eta ~ 0 the fluid-extraction
-            // division above (state - solid_fraction*state_solid)/(eta+small) can already
-            // be enormous; feeding that into gas.ComputeT/ComputeP/gamma (unlike the old
-            // closed-form pref-based pressure formula) can genuinely overflow to inf/nan,
-            // and 0*inf = nan, so "* eta" does not actually zero it out. That nan/huge
-            // flux corrupts the fine-level conserved state, which then leaks into the
-            // coarse level the next time AMR averages down during a regrid. Physically
-            // there should be no fluid flux to compute at a solid-only interface anyway.
-            Set::Scalar eta_xlo = invert ? 1.0-eta_patch(i-1,j,k)*eta_patch(i-1,j,k) : eta_patch(i-1,j,k);
-            Set::Scalar eta_xhi = invert ? 1.0-eta_patch(i+1,j,k)*eta_patch(i+1,j,k) : eta_patch(i+1,j,k);
-            Set::Scalar eta_ylo = invert ? 1.0-eta_patch(i,j-1,k)*eta_patch(i,j-1,k) : eta_patch(i,j-1,k);
-            Set::Scalar eta_yhi = invert ? 1.0-eta_patch(i,j+1,k)*eta_patch(i,j+1,k) : eta_patch(i,j+1,k);
-
             try
             {
                 //lo interface fluxes
-                flux_xlo = (eta < small && eta_xlo < small) ? Solver::Local::Riemann::Flux(0.0,0.0,0.0,0.0) :
-                    riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
-                flux_ylo = (eta < small && eta_ylo < small) ? Solver::Local::Riemann::Flux(0.0,0.0,0.0,0.0) :
-                    riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
                 //hi interface fluxes
-                flux_xhi = (eta < small && eta_xhi < small) ? Solver::Local::Riemann::Flux(0.0,0.0,0.0,0.0) :
-                    riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
-                flux_yhi = (eta < small && eta_yhi < small) ? Solver::Local::Riemann::Flux(0.0,0.0,0.0,0.0) :
-                    riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
             }
             catch(...)
             {
@@ -750,7 +732,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
             }
-
+                
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
