@@ -282,7 +282,6 @@ namespace Set
 {
 namespace Constant
 {
-
 // Pi
 extern const Set::Scalar Pi;
 // Gas constant

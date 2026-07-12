@@ -14,15 +14,10 @@ testlib.validate(path=path,
                  start=[-12,12,0],
                  end=[12,-12,0],
                  vars=["velocityx","velocityy","density"],
-                 tolerance=[0.2,0.2,0.5],
-                 abs_tolerance=100, # basically ignore absolute tolerance
+                 tolerance=[2e-2, 3.5e-2, 1e-2],
+                 abs_tolerance=1e8,
                  generate_ref_data = False,
 )
-
-
-testlib.warning("WARNING: currently using fairly generous tolerances.")
-testlib.warning("         Once this is completely working, decrease acceptable")
-testlib.warning("         error.")
 
 exit(0)
 
