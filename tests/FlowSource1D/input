@@ -4,6 +4,7 @@
 #@ args = m0.ic.expression.region0 = "10.0"
 #@ args = u0.ic.expression.region0 = "0.0"
 #@ args = q.ic.expression.region0 = "-0.001"
+#@ args = cutoff = 0.0
 #@ check-file = reference/mass-source-term.dat
 #@ [momemtum-source-term]
 #@ exe=hydro
@@ -11,6 +12,7 @@
 #@ args = m0.ic.expression.region0 = "10.0"
 #@ args = u0.ic.expression.region0 = "-1.0"
 #@ args = q.ic.expression.region0 = "0.0"
+#@ args = cutoff = 0.0
 #@ check-file = reference/momentum-source-term.dat
 #@ [energy-source-term]
 #@ exe=hydro
@@ -18,6 +20,7 @@
 #@ args = m0.ic.expression.region0 = "10.0"
 #@ args = u0.ic.expression.region0 = "0.0"
 #@ args = q.ic.expression.region0 = "-10.0"
+#@ args = cutoff = 0.0
 #@ check-file = reference/energy-source-term.dat
 
 ### OUTPUT ###
