@@ -498,11 +498,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         return out;
     }
 
-    operator double() const
-    {
-        return this->normalized_value();
-    }
-
     double normalized_value() const
     {
         double fac = 1.0;
