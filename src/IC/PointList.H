@@ -4,7 +4,11 @@
 // the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions.
 // Points belonging to different polygons are distinguished using the ObjNum column of the input file:
 // whenever ObjNum changes by more than obj_num_threshold between consecutive lines, a new polygon begins.
-// Each polygon's field is computed into phi_temp, and the final field is the pointwise max over all polygons.
+// Each polygon's field is computed into phi_temp. Polygons are then combined into either the "solid" field
+// (pointwise max over all non-void polygons) or the "void" field (pointwise max over all void polygons,
+// as selected by the per-polygon invert list). The void field is inverted (zero inside, one outside the
+// void polygons) and multiplied into the solid field, punching holes wherever a void polygon overlaps it.
+// invert_all is then applied once at the end to flip the whole finished field if desired.
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -51,6 +55,7 @@ public:
         }
 
         if ((int)phi_temp.size() != a_phi.size()) phi_temp.resize(a_phi.size());
+        if ((int)phi_void.size() != a_phi.size()) phi_void.resize(a_phi.size());
         if (!phi_temp[lev] ||
             phi_temp[lev]->boxArray() != a_phi[lev]->boxArray() ||
             phi_temp[lev]->DistributionMap() != a_phi[lev]->DistributionMap())
@@ -58,6 +63,17 @@ public:
             phi_temp[lev] = std::make_unique<amrex::MultiFab>(a_phi[lev]->boxArray(), a_phi[lev]->DistributionMap(),
                                                                 a_phi[lev]->nComp(), a_phi[lev]->nGrow());
         }
+        if (!phi_void[lev] ||
+            phi_void[lev]->boxArray() != a_phi[lev]->boxArray() ||
+            phi_void[lev]->DistributionMap() != a_phi[lev]->DistributionMap())
+        {
+            phi_void[lev] = std::make_unique<amrex::MultiFab>(a_phi[lev]->boxArray(), a_phi[lev]->DistributionMap(),
+                                                                a_phi[lev]->nComp(), a_phi[lev]->nGrow());
+        }
+
+        bool first_solid = true;
+        bool first_void = true;
+        bool any_void = false;
 
         for (unsigned int p = 0; p < polygons.size(); p++)
         {
@@ -67,7 +83,8 @@ public:
             {
                 polygon.push_back(polygon.front());
             }
-            bool first_polygon = (p == 0);
+            bool is_void = (p < invert.size() && invert[p] != 0);
+            bool is_first = is_void ? first_void : first_solid;
 
             for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -78,6 +95,7 @@ public:
                 else Util::Abort(INFO, "Unkonwn index type");
                 amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const& phi_t = phi_temp[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const& phi_v = phi_void[lev]->array(mfi);
 
                 std::vector<Set::Vector> X = polygon;
 
@@ -169,14 +187,39 @@ public:
 
                     phi_t(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * eps)));
 
-                    // Combine this polygon's field with the running result using a pointwise max,
-                    // so that the domain contains the union of all polygons.
-                    phi(i,j,k) = first_polygon ? phi_t(i,j,k) : std::max(phi(i,j,k), phi_t(i,j,k));
+                    // Combine this polygon's field into either the running solid union or the running
+                    // void union (pointwise max), depending on whether it is marked as a void polygon.
+                    if (is_void) phi_v(i,j,k) = is_first ? phi_t(i,j,k) : std::max(phi_v(i,j,k), phi_t(i,j,k));
+                    else         phi(i,j,k)   = is_first ? phi_t(i,j,k) : std::max(phi(i,j,k), phi_t(i,j,k));
+                });
+            }
+
+            if (is_void) { first_void = false; any_void = true; }
+            else         first_solid = false;
+        }
+
+        if (any_void)
+        // Punch holes into the solid field wherever a void polygon overlaps it: phi_void is zero inside
+        // the void polygons and one outside them, so multiplying it in zeros out the void regions.
+        {
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx;
+                amrex::IndexType type = a_phi[lev]->ixType();
+                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+                else Util::Abort(INFO, "Unkonwn index type");
+                amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const& phi_v = phi_void[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    phi(i,j,k) = phi(i,j,k) * (1.0 - phi_v(i,j,k));
                 });
             }
         }
 
-        if (invert)
+        if (invert_all)
         {
             for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -212,8 +255,8 @@ public:
         // Unitless coordinate multiplier, applied after the rotation
         pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
 
-        // Whether to invert (make IC 1 outside of solid instead of inside solid)
-        pp.query_default("invert",value.invert,false); 
+        // Whether to invert the finished field as a whole (make IC 1 outside of solid instead of inside solid)
+        pp.query_default("invert_all",value.invert_all,false);
 
         // X-offsed, applied after the rotation
         pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
@@ -298,6 +341,19 @@ public:
         {
             Util::Abort(INFO, "Unable to open file ", filename);
         }
+
+        // Per-polygon void flag: nonzero marks a polygon as a void/negative region that is cut out of
+        // the solid field instead of being unioned into it. Must have one entry per polygon if given.
+        if (pp.queryarr("invert", value.invert))
+        {
+            Util::AssertException(INFO, TEST(value.invert.size() == value.polygons.size()),
+                "'invert' must have one entry per polygon: expected ", value.polygons.size(),
+                " but got ", value.invert.size());
+        }
+        else
+        {
+            value.invert.assign(value.polygons.size(), 0);
+        }
     }
 
 private:
@@ -306,8 +362,10 @@ private:
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
     Set::Field<Set::Scalar> phi_temp;
+    Set::Field<Set::Scalar> phi_void;
     Set::Scalar objnum_threshold = 0.5;
-    bool invert = false;
+    std::vector<int> invert; // per-polygon void flag: nonzero = void/negative region
+    bool invert_all = false;
 
     struct{
         Set::Vector center;

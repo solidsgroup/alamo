@@ -59,11 +59,11 @@ alpha.bc.constant.val.yhi = 0.0
 
 alpha.ic.type = pointlist
 # alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
-alpha.ic.pointlist.file.name = tests/PointListIC/three_squares.xyzo
+alpha.ic.pointlist.file.name = tests/PointListIC/three_objs.xyzo
 alpha.ic.pointlist.file.unit = m
 alpha.ic.pointlist.verbose = 0
 alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
-alpha.ic.pointlist.invert = 0 # Don't invert the initial field
+alpha.ic.pointlist.invert = 0 0 0 1 # Don't invert the initial field
 alpha.ic.pointlist.x0 = 0.0_m 0.0_m 0.0_m # X-offset
 alpha.ic.pointlist.rotation.center = 0.0_m 0.0_m 0.0_m # Center of rotation of the polygon
 alpha.ic.pointlist.rotation.angle = 0_deg # Rotatation angle of polygon
