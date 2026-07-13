@@ -19,32 +19,25 @@ lands.
 
 1. **3.2 / v3 task 3.F — Launch-bounds sweep on `Fapply`/`Diagonal`.**
    Sweep `__launch_bounds__(256, {1,2,3,4})` on the elastic kernels on A100:
-   wall/step + ncu achieved-occupancy + budget gate per point. Statically
-   spill-free to at least 80 registers. Use AMReX's existing
-   `launch_global<MT, min_blocks>` overload scoped to the elastic kernels only
-   — do not patch the global header. Now the designed next step, not just
-   next-in-queue: task 3.1's A100 A/B (DONE 2026-07-07, see
-   `docs/agent_plans/20260707-a100-ab-c1/results/RESULT.md`) found registers
-   dropped 255→244 but occupancy stayed flat (~12%), i.e. still short of the
-   2-block/SM threshold this lever targets.
+   wall/step + ncu achieved-occupancy + budget gate per point. Rationale:
+   occupancy stayed flat (~12%) through both 3.1 and 3.2b — still 1 block/SM.
+   **LOCAL LEG DONE 2026-07-13** — helper `src/Operator/ElasticLaunch.H`
+   (`launch_global<MT, min_blocks>`, knob `ALAMO_ELASTIC_MIN_BLOCKS`, default
+   off = bit-identical), 3 sites wired (Fapply/Diagonal/Fsmooth), CPU golden
+   bit-exact, verifier CONFIRMED: commits 4d5289e67+532a757e3 on branch
+   `launch-bounds-sweep`; sm_80 ptxas table in
+   docs/agent_plans/20260713-launch-bounds-sweep/results/. Fapply spills hard
+   at min_blocks>=2 (128-reg cap vs 254 live). REMAINING: A100 wall/ncu sweep
+   (4 arms) + verdict + merge.
 
-2. **3.2b / v3 task 3.D (first wave) — Cheap kernel surgery in `Fapply`.**
-   `src/Operator/Elastic.cpp` (`Fapply`, mirrored in `Diagonal`): (a) load
-   `DDW(i,j,k)` once into a local instead of 3 separate loads; (b) column-
-   restrict the `Cgrad_d x gradu` contractions (27 FMA instead of 81, x3);
-   (c) hand-unroll `Matrix4<3,Major> x Matrix3` with direct `data[]` indexing
-   instead of the 45-way if/else in `Matrix4_Major.H:552-565`; (d) in
-   `Diagonal`, hoist the `DDW(i,j,k)` load above the per-component p-loop
-   (currently re-fetched at Elastic.cpp:860/868, 2-3x per node). Judge by A100
-   wall time + ncu executed-instructions, not register count. Bit-exact-able —
-   CPU golden compare first, then the budget gate.
-   **LOCAL LEG DONE 2026-07-09** — all four edits implemented, all gates
-   passed (lint, CPU golden, sanitizer full-solve, exact-equality test),
-   verifier CONFIRMED: commit 9470889b1 on `fapply-322b`
-   (docs/agent_plans/20260709-fapply-kernel-surgery/). A1000: Fapply stack
-   spill 192->48 B, Fapply excl wall -4.4%. REMAINING: merge to chamber-gpu
-   (blocked 2026-07-09 by a concurrent uncommitted Elastic.cpp rewrite —
-   merge notes in the task RESULT.md) + the A100 wall/ncu judgment run.
+2. **3.2b / v3 task 3.D — Fapply/Diagonal kernel surgery. DONE 2026-07-13.**
+   Merged to chamber-gpu (cc520b4f8) after A100 judgment PASS
+   (docs/agent_plans/20260713-fapply-322b-a100/): Fapply exclusive wall
+   -14.5% (299.0->255.7 s), MLMG::solve -10.6%, Fapply/launch -22-23%,
+   occupancy flat (win = spill/replay reduction, registers 255->254).
+   Parity: cell fields bit-identical; node fields within FP-reorder noise
+   (strain_zx/zy 2.06e-6 rel = ~5e-9 abs on near-zero shear, adjudicated
+   noise). Includes Fsmooth 4D launch fusion (MLMG-inclusive -10.6%).
 
 ## Backlog (post next-3)
 
