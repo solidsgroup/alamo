@@ -2,8 +2,11 @@
 #define SOLVER_NONLOCAL_NEWTON
 
 #include <cmath>
+#include <limits>
 #include <string>
 #include <AMReX_Math.H>
+#include <AMReX_ParallelContext.H>
+#include <AMReX_ParallelReduce.H>
 #include <AMReX_Reduce.H>
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
@@ -73,18 +76,41 @@ public:
     {
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             // Device-safe cell size (see note on the Set::Vector overload below).
             Set::Vector DX(linop->Geom(lev).CellSize());
+            const std::array<bool, AMREX_SPACEDIM> periodic = {
+                AMREX_D_DECL(linop->Geom(lev).isPeriodic(0),
+                    linop->Geom(lev).isPeriodic(1),
+                    linop->Geom(lev).isPeriodic(2))};
 #ifdef ALAMO_GPU
             Util::DeviceErrorFlag prepare_error;
             int* prepare_error_flag = prepare_error.dataPtr();
 #endif
+            const amrex::IntVect required_ghost(2);
+            if (!a_u_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_model_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_dw_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_ddw_mf[lev]->nGrowVect().allGE(required_ghost))
+                Util::Abort(INFO, "The paired elastic stencil requires two coefficient, model, and displacement ghosts.");
+
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox();
-                bx = bx & domain;
+                // D- G+ needs flux anchors through two low and one high
+                // ghosts.  A fine C/F model ghost is not guaranteed to be
+                // initialized, so clamp only the material selection to the
+                // nearest valid node.  Crucially, derive DW/DDW from the
+                // *actual* paired gradient at that ghost anchor; copying an
+                // already-derived DW would make the residual's derivative
+                // disagree with Fapply.
+                const amrex::Box valid = mfi.validbox();
+                const amrex::Dim3 valid_lo = amrex::lbound(valid);
+                const amrex::Dim3 valid_hi = amrex::ubound(valid);
+                amrex::Box bx = mfi.nodaltilebox();
+                AMREX_D_TERM(bx.growLo(0, 2);, bx.growLo(1, 2);, bx.growLo(2, 2););
+                AMREX_D_TERM(bx.growHi(0, 1);, bx.growHi(1, 1);, bx.growHi(2, 1););
+                bx &= domain;
 
                 amrex::Array4<const T>           const& model = a_model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& u = a_u_mf[lev]->array(mfi);
@@ -93,26 +119,38 @@ public:
 
                 // Set model internal dw and ddw.
                 ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k) {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    auto sten = Numeric::GetStencil(i, j, k, domain);
+                    const int ii = i < valid_lo.x ? valid_lo.x : (i > valid_hi.x ? valid_hi.x : i);
+#if AMREX_SPACEDIM > 1
+                    const int jj = j < valid_lo.y ? valid_lo.y : (j > valid_hi.y ? valid_hi.y : j);
+#else
+                    const int jj = j;
+#endif
+#if AMREX_SPACEDIM > 2
+                    const int kk = k < valid_lo.z ? valid_lo.z : (k > valid_hi.z ? valid_hi.z : k);
+#else
+                    const int kk = k;
+#endif
+                    const T& material = model(ii, jj, kk);
 
-                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
+                    Set::Matrix gradu = Numeric::PairedGradient(u, i, j, k, DX.data(), sten, periodic);
 
-                    if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
+                    if (material.kinvar == Model::Solid::KinematicVariable::gradu)
                     {
-                        dw(i, j, k) = model(i, j, k).DW(gradu);
-                        ddw(i, j, k) = model(i, j, k).DDW(gradu);
+                        dw(i, j, k) = material.DW(gradu);
+                        ddw(i, j, k) = material.DDW(gradu);
                     }
-                    else if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::epsilon)
+                    else if (material.kinvar == Model::Solid::KinematicVariable::epsilon)
                     {
                         Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
-                        dw(i, j, k) = model(i, j, k).DW(eps);
-                        ddw(i, j, k) = model(i, j, k).DDW(eps);
+                        dw(i, j, k) = material.DW(eps);
+                        ddw(i, j, k) = material.DDW(eps);
                     }
-                    else if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
+                    else if (material.kinvar == Model::Solid::KinematicVariable::F)
                     {
                         Set::Matrix F = gradu + Set::Matrix::Identity();
-                        dw(i, j, k) = model(i, j, k).DW(F);
-                        ddw(i, j, k) = model(i, j, k).DDW(F);
+                        dw(i, j, k) = material.DW(F);
+                        ddw(i, j, k) = material.DDW(F);
                     }
 #ifdef ALAMO_GPU
                     else
@@ -127,18 +165,24 @@ public:
                 "Solver::Nonlocal::Newton::prepareForSolve() detected an invalid scalar model state on device");
 #endif
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->setMultiGhost(true);
+            a_dw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->setMultiGhost(true);
+            a_ddw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
         }
 
         m_elastic->SetModel(a_ddw_mf);
 
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             // Device-safe cell size (see note on the Set::Vector overload below).
             Set::Vector DX(linop->Geom(lev).CellSize());
+            const std::array<bool, AMREX_SPACEDIM> periodic = {
+                AMREX_D_DECL(linop->Geom(lev).isPeriodic(0),
+                    linop->Geom(lev).isPeriodic(1),
+                    linop->Geom(lev).isPeriodic(2))};
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -153,18 +197,18 @@ public:
 #endif
                 ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                 {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    auto sten = Numeric::GetStencil(i, j, k, domain);
                     // Do this if on the domain boundary
                     if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                     {
-                        Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
+                        Set::Matrix gradu = Numeric::PairedGradient(u, i, j, k, DX.data(), sten, periodic);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
-                        Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, U, gradu, dw(i, j, k), i, j, k, bx);
+                        Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, U, gradu, dw(i, j, k), i, j, k, domain);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
                     {
-                        Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data());
+                        Set::Vector divdw = Numeric::BackwardDivergence(dw, i, j, k, DX.data());
                         for (int p = 0; p < AMREX_SPACEDIM; p++) rhs(i, j, k, p) = b(i, j, k, p) - divdw(p);
                     }
                 });
@@ -189,14 +233,34 @@ public:
             // closure) and uses DX.data(); a raw Geom().CellSize() host pointer
             // would be invalid on device. The old `dx` local is therefore gone.
             Set::Vector DX(linop->Geom(lev).CellSize());
+            const std::array<bool, AMREX_SPACEDIM> periodic = {
+                AMREX_D_DECL(linop->Geom(lev).isPeriodic(0),
+                    linop->Geom(lev).isPeriodic(1),
+                    linop->Geom(lev).isPeriodic(2))};
 #ifdef ALAMO_GPU
             Util::DeviceErrorFlag prepare_error;
             int* prepare_error_flag = prepare_error.dataPtr();
 #endif
+            const amrex::IntVect required_ghost(2);
+            if (!a_u_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_model_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_dw_mf[lev]->nGrowVect().allGE(required_ghost)
+                || !a_ddw_mf[lev]->nGrowVect().allGE(required_ghost))
+                Util::Abort(INFO, "The paired elastic stencil requires two coefficient, model, and displacement ghosts.");
+
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox();
-                bx = bx & domain;
+                // See the scalar overload: C/F model ghosts are not reliable.
+                // Clamp the material choice, but evaluate DW/DDW with the
+                // actual paired gradient at every flux anchor so the residual
+                // and Fapply retain the same discrete derivative.
+                const amrex::Box valid = mfi.validbox();
+                const amrex::Dim3 valid_lo = amrex::lbound(valid);
+                const amrex::Dim3 valid_hi = amrex::ubound(valid);
+                amrex::Box bx = mfi.nodaltilebox();
+                AMREX_D_TERM(bx.growLo(0, 2);, bx.growLo(1, 2);, bx.growLo(2, 2););
+                AMREX_D_TERM(bx.growHi(0, 1);, bx.growHi(1, 1);, bx.growHi(2, 1););
+                bx &= domain;
 
                 amrex::Array4<const T>           const& model = a_model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Vector> const& u = a_u_mf[lev]->array(mfi);
@@ -206,15 +270,27 @@ public:
                 // Set model internal dw and ddw.
                 amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    auto sten = Numeric::GetStencil(i, j, k, domain);
+                    const int ii = i < valid_lo.x ? valid_lo.x : (i > valid_hi.x ? valid_hi.x : i);
+#if AMREX_SPACEDIM > 1
+                    const int jj = j < valid_lo.y ? valid_lo.y : (j > valid_hi.y ? valid_hi.y : j);
+#else
+                    const int jj = j;
+#endif
+#if AMREX_SPACEDIM > 2
+                    const int kk = k < valid_lo.z ? valid_lo.z : (k > valid_hi.z ? valid_hi.z : k);
+#else
+                    const int kk = k;
+#endif
+                    const T& material = model(ii, jj, kk);
 
-                    Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
+                    Set::Matrix gradu = Numeric::PairedGradient(u, i, j, k, DX.data(), sten, periodic);
                     Set::Matrix kinvar;
-                    if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
+                    if (material.kinvar == Model::Solid::KinematicVariable::gradu)
                         kinvar = gradu; // gradu
-                    else if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::epsilon)
+                    else if (material.kinvar == Model::Solid::KinematicVariable::epsilon)
                         kinvar = 0.5 * (gradu + gradu.transpose()); // epsilon
-                    else if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
+                    else if (material.kinvar == Model::Solid::KinematicVariable::F)
                         kinvar = gradu + Set::Matrix::Identity(); // F
 #ifdef ALAMO_GPU
                     else
@@ -224,8 +300,8 @@ public:
                     }
 #endif
 
-                    dw(i, j, k) = model(i, j, k).DW(kinvar);
-                    ddw(i, j, k) = model(i, j, k).DDW(kinvar);
+                    dw(i, j, k) = material.DW(kinvar);
+                    ddw(i, j, k) = material.DDW(kinvar);
 
                 });
             }
@@ -255,9 +331,16 @@ public:
             // host pointer would fault when dereferenced in these kernels.
             Set::Vector DX(linop->Geom(lev).CellSize());
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+            const amrex::Box psi_cell_domain = linop->Geom(lev).Domain();
+            const amrex::Dim3 psi_cell_lo = amrex::lbound(psi_cell_domain);
+            const amrex::Dim3 psi_cell_hi = amrex::ubound(psi_cell_domain);
+            const std::array<bool, AMREX_SPACEDIM> psi_periodic = {
+                AMREX_D_DECL(linop->Geom(lev).isPeriodic(0),
+                    linop->Geom(lev).isPeriodic(1),
+                    linop->Geom(lev).isPeriodic(2))};
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                amrex::Box bx = mfi.nodaltilebox() & domain;
                 amrex::Array4<const Set::Vector>  const& u = a_u_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Vector>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
@@ -266,57 +349,74 @@ public:
                 auto m_bc_type = m_elastic->GetBC().GetBcTypeArray();
 #endif
 
-                // This is for if psi is not being used and has not been set
+                // The paired residual is D- [theta * DW(G+ u)].  The same
+                // global-domain stencil is used when preparing DW/DDW and
+                // here, so an MFIter tile edge never changes the equation.
                 if (m_psi == nullptr)
                 {
                     ALAMO_NEWTON_FOR (bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
-                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
+                            Set::Matrix gradu = Numeric::PairedGradient(u, i, j, k, DX.data(), sten, psi_periodic);
+                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k), i, j, k, domain);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
                         {
-                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data(), sten);
+                            Set::Vector divdw = Numeric::BackwardDivergence(dw, i, j, k, DX.data());
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
                         }
                     });
                 }
-                // This is EXACTLY THE SAME AS THE ABOVE, excpet that we are now accounting
-                // for psi terms. The reason we do this is because there's no good way (yet) to
-                // initialize patches if psi = nullptr
                 else
                 {
-                    const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
+                    const Set::Scalar psi_regularization = m_elastic->PsiRegularization();
                     ALAMO_NEWTON_FOR(bx, [=] ALAMO_NEWTON_DEVICE (int i, int j, int k)
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
+                        const Set::Scalar theta = (1.0 - psi_regularization)
+                            * Numeric::Interpolate::CellToNodeAverageBounded(psi, i, j, k, 0,
+                                psi_cell_lo, psi_cell_hi, psi_periodic)
+                            + psi_regularization;
+
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX.data(), sten);
-                            Set::Scalar psiavg = 1.0;
-                            if (AMREX_D_TERM(i > boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k < boxhi.z))
-                            {
-                                psiavg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
-                            }
-                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
+                            Set::Matrix gradu = Numeric::PairedGradient(u, i, j, k, DX.data(), sten, psi_periodic);
+                            Set::Vector ret = ALAMO_NEWTON_BC_EVAL(m_elastic, m_bc_type, u(i, j, k), gradu, dw(i, j, k) * theta, i, j, k, domain);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
                         {
-                            Set::Vector divdw = Numeric::Divergence(dw, i, j, k, DX.data(), sten);
-                            if (AMREX_D_TERM(i > boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k < boxhi.z))
-                            {
-                                divdw *= Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
-                                Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
-                                divdw += dw(i, j, k) * gradpsi;
-                            }
+                            Set::Matrix flux = dw(i, j, k) * theta;
+                            Set::Vector divdw = Set::Vector::Zero();
+
+#if AMREX_SPACEDIM > 0
+                            const Set::Scalar theta_xlo = (1.0 - psi_regularization)
+                                * Numeric::Interpolate::CellToNodeAverageBounded(psi, i - 1, j, k, 0,
+                                    psi_cell_lo, psi_cell_hi, psi_periodic)
+                                + psi_regularization;
+                            divdw += (flux.col(0) - (dw(i - 1, j, k) * theta_xlo).col(0)) / DX[0];
+#endif
+#if AMREX_SPACEDIM > 1
+                            const Set::Scalar theta_ylo = (1.0 - psi_regularization)
+                                * Numeric::Interpolate::CellToNodeAverageBounded(psi, i, j - 1, k, 0,
+                                    psi_cell_lo, psi_cell_hi, psi_periodic)
+                                + psi_regularization;
+                            divdw += (flux.col(1) - (dw(i, j - 1, k) * theta_ylo).col(1)) / DX[1];
+#endif
+#if AMREX_SPACEDIM > 2
+                            const Set::Scalar theta_zlo = (1.0 - psi_regularization)
+                                * Numeric::Interpolate::CellToNodeAverageBounded(psi, i, j, k - 1, 0,
+                                    psi_cell_lo, psi_cell_hi, psi_periodic)
+                                + psi_regularization;
+                            divdw += (flux.col(2) - (dw(i, j, k - 1) * theta_zlo).col(2)) / DX[2];
+#endif
+
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
                         }
                     });
@@ -382,6 +482,8 @@ public:
         }
 
         Set::Scalar initial_resnorm = -1.0;
+        Set::Scalar final_resnorm = -1.0;
+        Set::Scalar final_resid_rel = std::numeric_limits<Set::Scalar>::infinity();
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter + 1, " of ", m_nriters);
@@ -399,17 +501,32 @@ public:
 
             if (nriter == m_nriters) break;
 
-            const bool need_residual_norm = m_line_search || m_nr_diagnostics;
+            const bool need_residual_norm = m_line_search || m_nr_diagnostics
+                || UsesResidualConvergence();
             const bool need_weighted_update = m_nr_diagnostics || UsesPsiUpdateConvergence();
 
             Set::Scalar resnorm0 = -1.0;
             if (need_residual_norm)
             {
-                resnorm0 = FieldNorm0(rhs_mf);
-                if (nriter == 0) initial_resnorm = resnorm0;
+                if (m_nr_diagnostics) LogFieldNorms(rhs_mf, "raw nonlinear rhs before linear solve");
             }
 
+            // MLMG solves the composite AMR system, not independent equations
+            // at coarse nodes covered by finer grids.  Capture the nonlinear
+            // right-hand side with that same residual masking/reflux policy
+            // after the solve has prepared its AMR/MG hierarchy.  The RHS is
+            // passed to MLMG as const, so it is still the pre-update residual.
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
+
+            if (need_residual_norm)
+            {
+                resnorm0 = CompositeResidualNorm(rhs_mf);
+                if (nriter == 0) initial_resnorm = resnorm0;
+                if (UsesResidualConvergence()
+                    && (!std::isfinite(resnorm0) || resnorm0 < 0.0))
+                    Util::Abort(INFO, "Newton residual convergence received a non-finite ",
+                        "initial composite residual.");
+            }
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
@@ -446,11 +563,27 @@ public:
 
                     prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
-                    resnorm = 0;
-                    resnorm = FieldNorm0(rhs_mf);
+                    resnorm = CompositeResidualNorm(rhs_mf);
+                    if (m_nr_diagnostics) LogFieldNorms(rhs_mf, "raw nonlinear rhs after line-search trial");
 
                     constexpr Set::Scalar bt_accept_tol = 1e-4;
-                    if (resnorm < resnorm0 * (1.0 + bt_accept_tol) || bt == max_backtrack) break;
+                    if (std::isfinite(resnorm)
+                        && resnorm <= resnorm0 * (1.0 + bt_accept_tol)) break;
+
+                    if (bt == max_backtrack)
+                    {
+                        if (UsesResidualConvergence())
+                        {
+                            for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
+                                a_u_mf.Copy(lev, *u0_mf[lev], 0, 2);
+                            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
+                            Util::Abort(INFO, "Newton residual line search failed after ",
+                                max_backtrack + 1, " trial steps: initial composite residual=",
+                                resnorm0, ", final trial residual=", resnorm,
+                                ". The displacement was restored and the update was not accepted.");
+                        }
+                        break;
+                    }
 
                     alpha *= 0.5;
                 }
@@ -463,7 +596,8 @@ public:
                 if (need_residual_norm)
                 {
                     prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
-                    resnorm = FieldNorm0(rhs_mf);
+                    resnorm = CompositeResidualNorm(rhs_mf);
+                    if (m_nr_diagnostics) LogFieldNorms(rhs_mf, "raw nonlinear rhs after update");
                 }
             }
 
@@ -487,11 +621,18 @@ public:
             Set::Scalar resid_rel = -1.0;
             if (need_residual_norm)
             {
-                if (initial_resnorm > 0.0) resid_rel = resnorm / initial_resnorm;
-                else resid_rel = resnorm;
+                if (initial_resnorm > 0.0 && std::isfinite(initial_resnorm)
+                    && std::isfinite(resnorm))
+                    resid_rel = resnorm / initial_resnorm;
+                else if (initial_resnorm == 0.0 && resnorm == 0.0)
+                    resid_rel = 0.0;
+                else
+                    resid_rel = std::numeric_limits<Set::Scalar>::infinity();
             }
+            final_resnorm = resnorm;
+            final_resid_rel = resid_rel;
 
-            const bool converged = CheckNRConvergence(relnorm, psi_relnorm);
+            const bool converged = CheckNRConvergence(relnorm, psi_relnorm, resid_rel);
             if (m_nr_diagnostics || CustomNRConvergence())
                 Util::Message(INFO, "NR convergence metrics: mode=", m_nr_convergence,
                     ", max_update=", cornorm,
@@ -504,9 +645,16 @@ public:
                     ", converged=", converged);
 
             if (converged)
-                return CustomNRConvergence() ? SelectedNRMetric(relnorm, psi_relnorm) : relnorm;
+                return CustomNRConvergence() ? SelectedNRMetric(relnorm, psi_relnorm, resid_rel) : relnorm;
 
         }
+
+        if (UsesResidualConvergence())
+            Util::Abort(INFO, "Newton residual convergence failed after ", m_nriters,
+                " iterations (solver.nr_convergence=residual, solver.nrtolerance=",
+                m_nrtolerance, "): initial composite residual=", initial_resnorm,
+                ", final composite residual=", final_resnorm,
+                ", relative residual=", final_resid_rel, ".");
 
         return 0.0;
     }
@@ -820,6 +968,52 @@ public:
         return norm;
     }
 
+    Set::Scalar CompositeResidualNorm(const Set::Field<Set::Scalar>& a_rhs_mf)
+    {
+        Set::Field<Set::Scalar> zero_mf(a_rhs_mf.size());
+        Set::Field<Set::Scalar> composite_mf(a_rhs_mf.size());
+        zero_mf.finest_level = a_rhs_mf.finest_level;
+        composite_mf.finest_level = a_rhs_mf.finest_level;
+
+        for (int lev = 0; lev < a_rhs_mf.size(); ++lev)
+        {
+            zero_mf.Define(lev, a_rhs_mf[lev]->boxArray(),
+                a_rhs_mf[lev]->DistributionMap(),
+                a_rhs_mf[lev]->nComp(), a_rhs_mf[lev]->nGrow());
+            composite_mf.Define(lev, a_rhs_mf[lev]->boxArray(),
+                a_rhs_mf[lev]->DistributionMap(),
+                a_rhs_mf[lev]->nComp(), a_rhs_mf[lev]->nGrow());
+            zero_mf[lev]->setVal(0.0);
+            composite_mf[lev]->setVal(0.0);
+        }
+
+        mlmg->compResidual(amrex::GetVecOfPtrs(composite_mf),
+            amrex::GetVecOfPtrs(zero_mf),
+            amrex::GetVecOfConstPtrs(a_rhs_mf));
+        amrex::Gpu::streamSynchronizeAll();
+
+        // MLMG's residual norm ignores coarse nodes covered by finer AMR
+        // levels.  Use the operator's masked norm (rather than MultiFab's
+        // raw norm0) and the same subcommunicator reduction as MLMG::solve.
+        Set::Scalar norm = 0.0;
+        for (int lev = 0; lev < composite_mf.size(); ++lev)
+            norm = amrex::max(norm, linop->normInf(lev, *composite_mf[lev], true));
+        amrex::ParallelAllReduce::Max(norm, amrex::ParallelContext::CommunicatorSub());
+        return norm;
+    }
+
+    void LogFieldNorms(const Set::Field<Set::Scalar>& a_mf, const char* label) const
+    {
+        for (int lev = 0; lev < a_mf.size(); ++lev)
+        {
+            Set::Scalar level_norm = 0.0;
+            for (int comp = 0; comp < a_mf[lev]->nComp(); ++comp)
+                level_norm = amrex::max(level_norm, a_mf[lev]->norm0(comp, 0));
+            Util::Message(INFO, "NR residual level norm: ", label,
+                ", lev=", lev, ", norm0=", level_norm);
+        }
+    }
+
     NRUpdateNorms ComputeWeightedUpdateNorms(const Set::Field<Set::Scalar>& a_dsol_mf) const
     {
         NRUpdateNorms norms;
@@ -889,30 +1083,41 @@ public:
         return m_nr_convergence == "psi_update";
     }
 
+    bool UsesResidualConvergence() const
+    {
+        return m_nr_convergence == "residual";
+    }
+
     bool CustomNRConvergence() const
     {
         return m_nr_convergence != "update";
     }
 
-    bool CheckNRConvergence(Set::Scalar relnorm, Set::Scalar psi_relnorm) const
+    bool CheckNRConvergence(Set::Scalar relnorm, Set::Scalar psi_relnorm,
+                            Set::Scalar resid_rel) const
     {
         if (m_nr_convergence == "update") return relnorm < m_nrtolerance;
         if (m_nr_convergence == "psi_update") return psi_relnorm < m_nrtolerance;
+        if (m_nr_convergence == "residual")
+            return std::isfinite(resid_rel) && resid_rel < m_nrtolerance;
         return false;
     }
 
-    Set::Scalar SelectedNRMetric(Set::Scalar relnorm, Set::Scalar psi_relnorm) const
+    Set::Scalar SelectedNRMetric(Set::Scalar relnorm, Set::Scalar psi_relnorm,
+                                 Set::Scalar resid_rel) const
     {
         if (m_nr_convergence == "psi_update") return psi_relnorm;
+        if (m_nr_convergence == "residual") return resid_rel;
         return relnorm;
     }
 
     void ValidateNRConvergenceInputs() const
     {
         if (m_nr_convergence != "update" &&
-            m_nr_convergence != "psi_update")
+            m_nr_convergence != "psi_update" &&
+            m_nr_convergence != "residual")
             Util::Abort(INFO, "Invalid solver.nr_convergence=", m_nr_convergence,
-                ". Valid values: update, psi_update");
+                ". Valid values: update, psi_update, residual");
         if (!std::isfinite(m_nr_psi_weight_floor) || m_nr_psi_weight_floor < 0.0)
             Util::Abort(INFO, "solver.nr_psi_weight_floor must be finite and nonnegative");
         if (!std::isfinite(m_nr_psi_power) || m_nr_psi_power < 0.0)
@@ -949,6 +1154,9 @@ public:
         // displacement correction over all DOFs. "psi_update" weights the max
         // update by local psi so low-stiffness void displacement drift does not
         // dominate convergence after the stress-bearing region has settled.
+        // "residual" uses the AMR composite nonlinear residual; unlike the
+        // compatibility modes it aborts when the requested residual tolerance
+        // is not achieved within nriters.
         pp_query("nr_convergence", value.m_nr_convergence);
         pp_query("nr_psi_weight_floor", value.m_nr_psi_weight_floor);
         pp_query("nr_psi_power", value.m_nr_psi_power);
