@@ -1,7 +1,10 @@
 //
-// Fill a domain based on a list of points to form a closed 2D shape.
+// Fill a domain based on a list of points to form one or more closed 2D shapes.
 // The distance from each point to the nearest edge is found and an error function is then used to compute
-// the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions for a single closed polgyon
+// the value of phi between 0 (outside) and 1 (inside) the domain. Only works in 2 dimensions.
+// Points belonging to different polygons are distinguished using the ObjNum column of the input file:
+// whenever ObjNum changes by more than obj_num_threshold between consecutive lines, a new polygon begins.
+// Each polygon's field is computed into phi_temp, and the final field is the pointwise max over all polygons.
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
@@ -41,120 +44,154 @@ public:
     };
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
-    {   
-        for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {   
-            if (AMREX_SPACEDIM != 2)
-            {
-                amrex::Abort("This code only supports 2D (AMREX_SPACEDIM must be 2)");
-            }
+    {
+        if (AMREX_SPACEDIM != 2)
+        {
+            amrex::Abort("This code only supports 2D (AMREX_SPACEDIM must be 2)");
+        }
 
-            amrex::Box bx;
-            amrex::IndexType type = a_phi[lev]->ixType();
-            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
-            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
-            else Util::Abort(INFO, "Unkonwn index type");
-            amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+        if ((int)phi_temp.size() != a_phi.size()) phi_temp.resize(a_phi.size());
+        if (!phi_temp[lev] ||
+            phi_temp[lev]->boxArray() != a_phi[lev]->boxArray() ||
+            phi_temp[lev]->DistributionMap() != a_phi[lev]->DistributionMap())
+        {
+            phi_temp[lev] = std::make_unique<amrex::MultiFab>(a_phi[lev]->boxArray(), a_phi[lev]->DistributionMap(),
+                                                                a_phi[lev]->nComp(), a_phi[lev]->nGrow());
+        }
 
-            if (X.back() != X.front())
+        for (unsigned int p = 0; p < polygons.size(); p++)
+        {
+            std::vector<Set::Vector> polygon = polygons[p];
+            if (polygon.back() != polygon.front())
             // The first and last point must match, if they do not add another point to the end
             {
-                X.push_back(X.front());
+                polygon.push_back(polygon.front());
             }
+            bool first_polygon = (p == 0);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                Set::Scalar x_cross;
-                Set::Scalar min_dist_to_edge = std::numeric_limits<Set::Scalar>::max(); // Mininmum distance from point to nearest edge
-                Set::Scalar dist_to_edge; // Distance from point to nearest edge
-                Set::Scalar x1;
-                Set::Scalar y1;
-                Set::Scalar x2;
-                Set::Scalar y2;
-                int num_cross = 0;
+                amrex::Box bx;
+                amrex::IndexType type = a_phi[lev]->ixType();
+                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+                else Util::Abort(INFO, "Unkonwn index type");
+                amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const& phi_t = phi_temp[lev]->array(mfi);
 
-                Set::Scalar px;
-                Set::Scalar py;
-                Set::Scalar dx;
-                Set::Scalar dy;
-                Set::Scalar len2;
-                Set::Scalar t;
-                Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
+                std::vector<Set::Vector> X = polygon;
 
-                for (unsigned int n = 0; n < X.size()-1; n++)
-                {   
-
-                    x1 = X[n](0);
-                    y1 = X[n](1);
-                    x2 = X[n+1](0);
-                    y2 = X[n+1](1);
-
-                    if ((y1 > x(1)) != (y2 > x(1)))
-                    {
-                        x_cross = x1 + (x(1) - y1) * (x2 - x1) / (y2 - y1);
-
-                        if (x_cross > x(0))
-                            num_cross++;
-                    }
-
-                    // Computes the closest point on a line segment (X[n] → X[n+1]) to a query point x,
-                    // using vector projection onto the segment.
-                    //
-                    // Let A = X[n], B = X[n+1], and P = x.
-                    //
-                    // The parameter t is the normalized projection of P onto the infinite line AB:
-                    //
-                    //     t = ((P - A) · (B - A)) / |B - A|^2
-                    //
-                    // If t ∈ [0, 1], the perpendicular projection lies within the segment.
-                    // If t < 0, the closest point is A.
-                    // If t > 1, the closest point is B.
-                    //
-                    // The resulting closest point x_int is then used to compute the Euclidean
-                    // distance from P to the segment, and the minimum distance over all edges is tracked.
-                    px = x(0);
-                    py = x(1);
-                    dx = x2 - x1;
-                    dy = y2 - y1;
-                    len2 = dx*dx + dy*dy;
-                    t = ((px - x1)*dx + (py - y1)*dy) / len2;
-
-                    if (t < 0.0)
-                    {
-                        x_int(0) = x1;
-                        x_int(1) = y1;
-                    }
-                    else if (t > 1.0)
-                    {
-                        x_int(0) = x2;
-                        x_int(1) = y2;
-                    }
-                    else
-                    {
-                        x_int(0) = x1 + t*dx;
-                        x_int(1) = y1 + t*dy;
-                    }
-
-                    dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
-                    min_dist_to_edge = std::min(min_dist_to_edge, dist_to_edge);
-
-                }
-                if (num_cross % 2 == 0) 
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    min_dist_to_edge = 1*min_dist_to_edge; // If the number of crossings is even, the point is inside the shape
-                } else 
-                {
-                    min_dist_to_edge = -1*min_dist_to_edge;
-                }
-                
-                phi(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * eps)));
+                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    Set::Scalar x_cross;
+                    Set::Scalar min_dist_to_edge = std::numeric_limits<Set::Scalar>::max(); // Mininmum distance from point to nearest edge
+                    Set::Scalar dist_to_edge; // Distance from point to nearest edge
+                    Set::Scalar x1;
+                    Set::Scalar y1;
+                    Set::Scalar x2;
+                    Set::Scalar y2;
+                    int num_cross = 0;
 
-                if (invert) {
+                    Set::Scalar px;
+                    Set::Scalar py;
+                    Set::Scalar dx;
+                    Set::Scalar dy;
+                    Set::Scalar len2;
+                    Set::Scalar t;
+                    Set::Vector x_int; // x and y position of the intercept of the mesh point and the edge, assuming edge is infinite
+
+                    for (unsigned int n = 0; n < X.size()-1; n++)
+                    {
+
+                        x1 = X[n](0);
+                        y1 = X[n](1);
+                        x2 = X[n+1](0);
+                        y2 = X[n+1](1);
+
+                        if ((y1 > x(1)) != (y2 > x(1)))
+                        {
+                            x_cross = x1 + (x(1) - y1) * (x2 - x1) / (y2 - y1);
+
+                            if (x_cross > x(0))
+                                num_cross++;
+                        }
+
+                        // Computes the closest point on a line segment (X[n] → X[n+1]) to a query point x,
+                        // using vector projection onto the segment.
+                        //
+                        // Let A = X[n], B = X[n+1], and P = x.
+                        //
+                        // The parameter t is the normalized projection of P onto the infinite line AB:
+                        //
+                        //     t = ((P - A) · (B - A)) / |B - A|^2
+                        //
+                        // If t ∈ [0, 1], the perpendicular projection lies within the segment.
+                        // If t < 0, the closest point is A.
+                        // If t > 1, the closest point is B.
+                        //
+                        // The resulting closest point x_int is then used to compute the Euclidean
+                        // distance from P to the segment, and the minimum distance over all edges is tracked.
+                        px = x(0);
+                        py = x(1);
+                        dx = x2 - x1;
+                        dy = y2 - y1;
+                        len2 = dx*dx + dy*dy;
+                        t = ((px - x1)*dx + (py - y1)*dy) / len2;
+
+                        if (t < 0.0)
+                        {
+                            x_int(0) = x1;
+                            x_int(1) = y1;
+                        }
+                        else if (t > 1.0)
+                        {
+                            x_int(0) = x2;
+                            x_int(1) = y2;
+                        }
+                        else
+                        {
+                            x_int(0) = x1 + t*dx;
+                            x_int(1) = y1 + t*dy;
+                        }
+
+                        dist_to_edge = dist(x(0), x(1), x_int(0), x_int(1));
+                        min_dist_to_edge = std::min(min_dist_to_edge, dist_to_edge);
+
+                    }
+                    if (num_cross % 2 == 0)
+                    {
+                        min_dist_to_edge = 1*min_dist_to_edge; // If the number of crossings is even, the point is inside the shape
+                    } else
+                    {
+                        min_dist_to_edge = -1*min_dist_to_edge;
+                    }
+
+                    phi_t(i,j,k) = 0.5 * (1.0 - std::tanh(min_dist_to_edge /(std::sqrt(2.0) * eps)));
+
+                    // Combine this polygon's field with the running result using a pointwise max,
+                    // so that the domain contains the union of all polygons.
+                    phi(i,j,k) = first_polygon ? phi_t(i,j,k) : std::max(phi(i,j,k), phi_t(i,j,k));
+                });
+            }
+        }
+
+        if (invert)
+        {
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx;
+                amrex::IndexType type = a_phi[lev]->ixType();
+                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+                else Util::Abort(INFO, "Unkonwn index type");
+                amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
                     phi(i,j,k) = 1 - phi(i,j,k);
-                }
-                
-            });
+                });
+            }
         }
     }
 
@@ -190,6 +227,9 @@ public:
         // Amount of rotation about rotation center (clockwise)
         pp.query_default("rotation.angle",value.rotation.angle,"0.0", Unit::Angle());
 
+        // ObjNum jump (between consecutive points in the file) larger than this starts a new polygon
+        pp.query_default("obj_num_threshold",value.objnum_threshold,"0.5", Unit::Less());
+
 
         Unit unit = Unit::Length();
         // Units of length in the file
@@ -201,20 +241,26 @@ public:
         std::string line;
         if (datafile.is_open())
         {
-            value.X.clear();
+            value.polygons.clear();
+            bool have_prev_obj_num = false;
+            Set::Scalar prev_obj_num = 0.0;
 
             while (getline(datafile, line))
             {
                 std::istringstream in(line);
 
-                std::string strx, stry, strz, strR;
-                in >> strx >> stry >> strz >> strR;
+                std::string strx, stry, strz, strObjNum;
+                in >> strx >> stry >> strz;
 
                 Set::Scalar x = (std::stod(strx) * unit).normalized_value();
                 Set::Scalar y = (std::stod(stry) * unit).normalized_value();
                 #if AMREX_SPACEDIM > 2
                 Set::Scalar z = (std::stod(strz) * unit).normalized_value();
                 #endif
+
+                // ObjNum is optional; if the file has no fourth column, treat every point as one polygon
+                Set::Scalar ObjNum = have_prev_obj_num ? prev_obj_num : 0.0;
+                if (in >> strObjNum) ObjNum = std::stod(strObjNum);
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
 
@@ -234,9 +280,17 @@ public:
 
                 X = value.x0 + value.mult*X;
 
-                value.X.push_back(X);
+                // A jump in ObjNum larger than the threshold marks the start of a new polygon
+                if (!have_prev_obj_num || std::abs(ObjNum - prev_obj_num) > value.objnum_threshold)
+                {
+                    value.polygons.push_back(std::vector<Set::Vector>());
+                }
+                have_prev_obj_num = true;
+                prev_obj_num = ObjNum;
+
+                value.polygons.back().push_back(X);
                 if (verbose > 0)
-                    Util::Message(INFO, "x=", value.X.back().transpose());
+                    Util::Message(INFO, "x=", value.polygons.back().back().transpose());
             }
             datafile.close();
         }
@@ -247,10 +301,12 @@ public:
     }
 
 private:
-    std::vector<Set::Vector> X; // Big X is a vector of vectors of each coordinate read into the file
+    std::vector<std::vector<Set::Vector>> polygons; // Each entry is the ordered list of vertices for one closed polygon
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
+    Set::Field<Set::Scalar> phi_temp;
+    Set::Scalar objnum_threshold = 0.5;
     bool invert = false;
 
     struct{
