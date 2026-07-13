@@ -268,6 +268,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // elastic solve at step N uses the pressure from the end of step N-1.)
     pp_query_default("elastic.traction_from_chamber", value.elastic.traction_from_chamber, 0);
 
+    // Scalar multiplier applied to the traction actually used, regardless of
+    // whether it came from elastic.traction or the chamber pressure.
+    pp_query_default("elastic.traction_multiplier", value.elastic.traction_multiplier, 1.0);
+
     // Phi refinement criteria
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
 
@@ -478,7 +482,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
-                const Set::Scalar traction = elastic.traction_from_chamber ? chamber.pressure : elastic.traction;
+                const Set::Scalar traction = (elastic.traction_from_chamber ? chamber.pressure : elastic.traction) * elastic.traction_multiplier;
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 
                 {

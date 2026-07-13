@@ -142,6 +142,9 @@ public:
         // When 1, the interface traction follows the evolving chamber pressure
         // instead of the constant elastic.traction value.
         int traction_from_chamber = 0;
+        // Scalar multiplier applied to the traction actually used (constant or
+        // chamber-derived), after the traction_from_chamber branch.
+        Set::Scalar traction_multiplier = 1.0;
         int phirefinement = -1;
         // Floor for the psi weighting field used by the elastic solver. psi=eta
         // zeroes the gas region, which leaves the masked operator near-singular on
