@@ -385,29 +385,25 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
             auto Rxfab = Rx.const_array(mfi);
             auto diagfab = (*m_diag[amrlev][mglev]).const_array(mfi);
 
-
-            for (int n = 0; n < ncomp; n++)
+            auto m_omega = this->m_omega;
+            amrex::ParallelFor(bx, ncomp, [=] AMREX_GPU_DEVICE(int i, int j, int k, int n)
             {
-                auto m_omega = this->m_omega;
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                {
 
-                    // Skip ghost cells outside problem domain
-                    if (!domain.contains(i,j,k))
-                    {
-                        //continue;
-                    }
-                    else if ( !bx.strictly_contains(i,j,k))
-                    {
-                        xfab(i, j, k, n) = 0.0;
-                        //continue;
-                    }
-                    else
-                    {
-                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
-                    }
-                });
-            }
+                // Skip ghost cells outside problem domain
+                if (!domain.contains(i,j,k))
+                {
+                    //continue;
+                }
+                else if ( !bx.strictly_contains(i,j,k))
+                {
+                    xfab(i, j, k, n) = 0.0;
+                    //continue;
+                }
+                else
+                {
+                    xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                }
+            });
         }
         amrex::Geometry geom = m_geom[amrlev][mglev];
         x.setMultiGhost(true);

@@ -38,6 +38,13 @@ lands.
    (currently re-fetched at Elastic.cpp:860/868, 2-3x per node). Judge by A100
    wall time + ncu executed-instructions, not register count. Bit-exact-able —
    CPU golden compare first, then the budget gate.
+   **LOCAL LEG DONE 2026-07-09** — all four edits implemented, all gates
+   passed (lint, CPU golden, sanitizer full-solve, exact-equality test),
+   verifier CONFIRMED: commit 9470889b1 on `fapply-322b`
+   (docs/agent_plans/20260709-fapply-kernel-surgery/). A1000: Fapply stack
+   spill 192->48 B, Fapply excl wall -4.4%. REMAINING: merge to chamber-gpu
+   (blocked 2026-07-09 by a concurrent uncommitted Elastic.cpp rewrite —
+   merge notes in the task RESULT.md) + the A100 wall/ncu judgment run.
 
 ## Backlog (post next-3)
 

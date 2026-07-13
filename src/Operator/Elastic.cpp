@@ -528,8 +528,14 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
+            // Hoist the center modulus tensor out of the global model fab once:
+            // it is reused for sig, the C(gradgradu) term, and the grad(psi)
+            // correction below, so a single load replaces several DDW(i,j,k)
+            // reads (bit-identical - same value, just fetched once).
+            MATRIX4 const ddw = DDW(i, j, k);
+
             // Stress tensor computed using the model fab
-            Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
+            Set::Matrix sig = (ddw * gradu) * psi_avg;
 
             // Boundary conditions
             /// \todo Important: we need a way to handle corners and edges.
@@ -604,13 +610,13 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     // Only valid as an exact ground truth when DDW is uniform and psi
                     // is disabled (no grad(C) or grad(psi) correction terms below) -
                     // matches this probe's documented reproduction baseline.
-                    Set::Vector f_expected = (DDW(i, j, k) * gradgradu_expected) * psi_avg;
+                    Set::Vector f_expected = (ddw * gradgradu_expected) * psi_avg;
                     AMREX_D_TERM(probe_expected(i, j, k, 0) = f_expected[0];,
                         probe_expected(i, j, k, 1) = f_expected[1];,
                         probe_expected(i, j, k, 2) = f_expected[2];);
                 }
 
-                f = (DDW(i, j, k) * gradgradu) * psi_avg;
+                f = (ddw * gradgradu) * psi_avg;
 
                 if (!m_uniform)
                 {
@@ -618,15 +624,19 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                         AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
                             Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
                             Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten)));
-                    f += (AMREX_D_TERM((Cgrad1 * gradu).col(0),
-                        +(Cgrad2 * gradu).col(1),
-                        +(Cgrad3 * gradu).col(2))) * (psi_avg);
+                    // Column-restricted contraction: only column c of (Cgrad_c * gradu)
+                    // contributes, so compute just that column. MulCol(a,b,c) is
+                    // bit-identical to (a*b).col(c); the vector sum and *psi_avg
+                    // ordering are unchanged.
+                    f += (AMREX_D_TERM(Set::MulCol(Cgrad1, gradu, 0),
+                        +Set::MulCol(Cgrad2, gradu, 1),
+                        +Set::MulCol(Cgrad3, gradu, 2))) * (psi_avg);
                 }
                 if (m_psi_set)
                 {
                     Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
                     gradpsi *= (1.0 - m_psi_small);
-                    f += (DDW(i, j, k) * gradu) * gradpsi;
+                    f += (ddw * gradu) * gradpsi;
                 }
 
 #ifdef AMREX_DEBUG
@@ -846,7 +856,10 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
-
+            // Hoist the center modulus tensor out of the per-component loop: it
+            // does not depend on p, so a single load replaces AMREX_SPACEDIM
+            // DDW(i,j,k) reads (bit-identical).
+            MATRIX4 const ddw = DDW(i, j, k);
 
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
@@ -857,7 +870,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                 amrex::IntVect m(AMREX_D_DECL(i, j, k));
                 if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                 {
-                    Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
+                    Set::Matrix sig = ddw * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
                     f = ALAMO_ELASTIC_OP_BC_EVAL(m_bc, m_bc_type, u, gradu[p], sig, i, j, k, stencilbox);
@@ -865,7 +878,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                 }
                 else
                 {
-                    Set::Vector f = (DDW(i, j, k) * gradgradu[p]) * psi_avg;
+                    Set::Vector f = (ddw * gradgradu[p]) * psi_avg;
                     diag(i, j, k, p) += f(p);
                 }
 
