@@ -2,3 +2,9 @@ date	task	model	tier	cost_usd	outcome
 2026-07-06	meta-workflow-install	opus-4.8	0	n/a	partial
 2026-07-06	efficiency-campaign	fable-5+haiku+sonnet	1	n/a	done (3.1 handed off to NOVA)
 2026-07-07	a100-ab-c1	sonnet-5	0	n/a	done (task 3.1 closed, occupancy flat -> promoted 3.2)
+2026-07-08	cross-section-sweep	fable-5	0	n/a	done (5/5 runs to t=6.5, 0 failures; multifin fix psi_floor=0.1)
+2026-07-08	cross-section-sweep-fine	fable-5	0	n/a	done (5/5 L3 runs to t=6.5, 0 failures; archived showcase_20260708{,_fine})
+2026-07-08	symmetry-decks+param-min	fable-5	0	n/a	done (frontier: void 18/14.5 + floor 0.06; 5/5 confirmed 6.5s)
+2026-07-09	traction-multiplier	sonnet	2	~	done
+2026-07-09	fapply-kernel-surgery	fable-5+sonnet	3	~	done (3.2b local leg: commit 9470889b1 on fapply-322b; stack 192->48B, Fapply excl -4.4% A1000; chamber-gpu merge deferred, concurrent session rewriting Elastic.cpp)
+2026-07-10	fsmooth-launch-fusion	fable-5+sonnet	3	~	done (dc02baf17 on fapply-322b; 2-3x fewer smoother launches, gates green, wall flat locally)

@@ -27,10 +27,10 @@ if [ "$total" -gt "$DOC_BUDGET" ]; then
   exit 1
 fi
 new_md=$(git diff --cached --name-only --diff-filter=A | grep '\.md$' | \
-  grep -vE '^(docs/archive/|docs/agent_plans/|docs/llm/changelog/)' || true)
+  grep -vE '^(AGENTS\.md$|docs/archive/|docs/agent_plans/|docs/llm/changelog/)' || true)
 if [ -n "$new_md" ]; then
   echo "pre-commit: new .md outside allowed dirs:" >&2
   echo "$new_md" >&2
-  echo "add to archive/agent_plans/changelog, or edit allowlist knowingly" >&2
+  echo "add to AGENTS.md, archive/agent_plans/changelog, or edit allowlist knowingly" >&2
   exit 1
 fi

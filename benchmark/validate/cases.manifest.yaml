@@ -84,8 +84,12 @@ cases:
   - id: centre_bore_3d_128_a2_converged
     input: input_3d_centre_bore_128_a2
     dim: 3
-    max_step: 1  # one converged solve is enough to test the fixed_iter hypothesis; natural
-                 # convergence needs ~24-30 V-cycles/solve (vs. fixed_iter's flat 10), too slow for 2 steps locally
+    max_step: 2  # NOTE: the elastic solve does not fire at all on STEP 1 even with
+                 # elastic.interval=1 (confirmed empirically -- zero MLMG/Newton
+                 # activity in STEP 1's log window); the first solve happens on STEP 2.
+                 # max_step=1 was tried and produced an all-zero stress/strain/disp
+                 # comparison (no solve ran at all) -- max_step=2 is the minimum that
+                 # actually exercises the elastic solve.
     hardware: [local, nova]
     np:
       cpu: 8
