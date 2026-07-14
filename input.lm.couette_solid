@@ -11,13 +11,13 @@ plot_file = output.lm.couette_solid
 amr.plot_int = 20
 amr.max_grid_size = 64
 amr.blocking_factor = 4
-amr.regrid_int = 100000
-amr.max_level = 0
-amr.nsubsteps = 1
-amr.n_cell = 256 128
-eta_refinement_criterion = 1.0e100
+amr.regrid_int = 50
+amr.max_level = 2
+amr.nsubsteps = 2
+amr.n_cell = 64 32
+eta_refinement_criterion = 0.01
 
-timestep = 1.0e-3
+timestep = 0.4e-2
 stop_time = 100
 #max_step = 500
 integration.type = RungeKutta
@@ -48,7 +48,7 @@ include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
-projection.amr_enabled = 0
+projection.amr_enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
@@ -59,7 +59,12 @@ reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7
 reference_map.eta_extension = 1.0e-3
 reference_map.extrapolation_sweeps = 4
-reference_map.smoothing_sweeps = 2
+reference_map.reconstruction_alpha = 1.0
+reference_map.reconstruction_power = 1.0
+reference_map.affine_tolerance = 1.0e-7
+reference_map.smoothing_sweeps = 4
+reference_map.smoothing_alpha = 1.0
+reference_map.smoothing_power = 2.0
 reference_map.stress_smoothing_sweeps = 2
 reference_map.stress_smoothing_alpha = 0.05
 
@@ -89,13 +94,20 @@ eta.ic.expression.constant.y0 = 0.25
 eta.ic.expression.constant.hx = 0.12
 eta.ic.expression.constant.hy = 0.08
 eta.ic.expression.constant.eps = 0.015
-eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
+eta.ic.expression.region0 = "1.0-0.5*(1.0+tanh((sqrt(max(abs(x-x0)-hx,0.0)*max(abs(x-x0)-hx,0.0)+max(abs(y-y0)-hy,0.0)*max(abs(y-y0)-hy,0.0))+min(max(abs(x-x0)-hx,abs(y-y0)-hy),0.0))/eps))"
 
+# Keep the initialized tanh profile stationary; mobility sets its restoration rate.
 eta.phase_field.enabled = 1
-eta.phase_field.epsilon = 0.00001
-eta.phase_field.mobility = 1.0_m/s
-eta.phase_field.counter_curvature = 0.0
+eta.phase_field.epsilon = 0.015
+eta.phase_field.mobility = 0.01_m/s
+eta.phase_field.counter_curvature = 1.0
 eta.phase_field.band = 1.0e-3
+eta.phase_field.mapped_distance = 1
+# Grade out corner compression, retain mild diffusion, and relax only the exterior profile.
+eta.phase_field.normal_coherence_threshold = 0.9
+eta.phase_field.normal_coherence_power = 2.0
+eta.phase_field.exterior_reinitialization = 1.0
+eta.phase_field.incoherent_diffusion = 0.25
 
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"
