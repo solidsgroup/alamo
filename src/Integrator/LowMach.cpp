@@ -6,7 +6,6 @@
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Numeric/Stencil.H"
-#include "Operator/Dynamic/ElasticLowMach.H"
 
 #include "Model/Gas/Thermo/Thermo.H"
 #include "Model/Gas/Thermo/CpConstant.H"
@@ -14,6 +13,134 @@
 #include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Model/Gas/EOS/EOS.H"
 #include "Model/Gas/EOS/CPG.H"
+
+namespace
+{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar
+EtaPhaseFieldWeight(const Set::Scalar eta_val, const Set::Scalar eta_band)
+{
+    if (eta_val <= eta_band || eta_val >= 1.0 - eta_band) return 0.0;
+    return eta_val * (1.0 - eta_val);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar
+EtaPhaseFieldFluxX(const amrex::Array4<const Set::Scalar>& eta,
+                   const int i, const int j, const int k,
+                   const Set::Scalar DX[AMREX_SPACEDIM],
+                   const Set::Scalar epsilon,
+                   const Set::Scalar counter_curvature,
+                   const Set::Scalar eta_band,
+                   const Set::Scalar normal_regularization)
+{
+    Set::Vector grad_eta = Set::Vector::Zero();
+    grad_eta(0) = (eta(i+1,j,k) - eta(i,j,k)) / DX[0];
+#if AMREX_SPACEDIM > 1
+    grad_eta(1) = 0.25 * ((eta(i,j+1,k) - eta(i,j-1,k)) +
+                          (eta(i+1,j+1,k) - eta(i+1,j-1,k))) / DX[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    grad_eta(2) = 0.25 * ((eta(i,j,k+1) - eta(i,j,k-1)) +
+                          (eta(i+1,j,k+1) - eta(i+1,j,k-1))) / DX[2];
+#endif
+    const Set::Scalar eta_face = Util::Clamp(0.5 * (eta(i,j,k) + eta(i+1,j,k)), 0.0, 1.0);
+    const Set::Scalar eta_weight = EtaPhaseFieldWeight(eta_face, eta_band);
+    if (eta_weight == 0.0) return 0.0;
+
+    const Set::Scalar grad_norm =
+        std::sqrt(grad_eta.squaredNorm() + normal_regularization * normal_regularization);
+    return 0.5 * epsilon * grad_eta(0)
+           - counter_curvature * eta_weight * grad_eta(0) / grad_norm;
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar
+EtaPhaseFieldFluxY(const amrex::Array4<const Set::Scalar>& eta,
+                   const int i, const int j, const int k,
+                   const Set::Scalar DX[AMREX_SPACEDIM],
+                   const Set::Scalar epsilon,
+                   const Set::Scalar counter_curvature,
+                   const Set::Scalar eta_band,
+                   const Set::Scalar normal_regularization)
+{
+    Set::Vector grad_eta = Set::Vector::Zero();
+    grad_eta(0) = 0.25 * ((eta(i+1,j,k) - eta(i-1,j,k)) +
+                          (eta(i+1,j+1,k) - eta(i-1,j+1,k))) / DX[0];
+#if AMREX_SPACEDIM > 1
+    grad_eta(1) = (eta(i,j+1,k) - eta(i,j,k)) / DX[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    grad_eta(2) = 0.25 * ((eta(i,j,k+1) - eta(i,j,k-1)) +
+                          (eta(i,j+1,k+1) - eta(i,j+1,k-1))) / DX[2];
+#endif
+    const Set::Scalar eta_face = Util::Clamp(0.5 * (eta(i,j,k) + eta(i,j+1,k)), 0.0, 1.0);
+    const Set::Scalar eta_weight = EtaPhaseFieldWeight(eta_face, eta_band);
+    if (eta_weight == 0.0) return 0.0;
+
+    const Set::Scalar grad_norm =
+        std::sqrt(grad_eta.squaredNorm() + normal_regularization * normal_regularization);
+    return 0.5 * epsilon * grad_eta(1)
+           - counter_curvature * eta_weight * grad_eta(1) / grad_norm;
+}
+
+#if AMREX_SPACEDIM > 2
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar
+EtaPhaseFieldFluxZ(const amrex::Array4<const Set::Scalar>& eta,
+                   const int i, const int j, const int k,
+                   const Set::Scalar DX[AMREX_SPACEDIM],
+                   const Set::Scalar epsilon,
+                   const Set::Scalar counter_curvature,
+                   const Set::Scalar eta_band,
+                   const Set::Scalar normal_regularization)
+{
+    Set::Vector grad_eta = Set::Vector::Zero();
+    grad_eta(0) = 0.25 * ((eta(i+1,j,k) - eta(i-1,j,k)) +
+                          (eta(i+1,j,k+1) - eta(i-1,j,k+1))) / DX[0];
+    grad_eta(1) = 0.25 * ((eta(i,j+1,k) - eta(i,j-1,k)) +
+                          (eta(i,j+1,k+1) - eta(i,j-1,k+1))) / DX[1];
+    grad_eta(2) = (eta(i,j,k+1) - eta(i,j,k)) / DX[2];
+    const Set::Scalar eta_face = Util::Clamp(0.5 * (eta(i,j,k) + eta(i,j,k+1)), 0.0, 1.0);
+    const Set::Scalar eta_weight = EtaPhaseFieldWeight(eta_face, eta_band);
+    if (eta_weight == 0.0) return 0.0;
+
+    const Set::Scalar grad_norm =
+        std::sqrt(grad_eta.squaredNorm() + normal_regularization * normal_regularization);
+    return 0.5 * epsilon * grad_eta(2)
+           - counter_curvature * eta_weight * grad_eta(2) / grad_norm;
+}
+#endif
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar
+EtaConservativeAllenCahnSource(const amrex::Array4<const Set::Scalar>& eta,
+                               const int i, const int j, const int k,
+                               const Set::Scalar DX[AMREX_SPACEDIM],
+                               const Set::Scalar epsilon,
+                               const Set::Scalar mobility,
+                               const Set::Scalar counter_curvature,
+                               const Set::Scalar eta_band,
+                               const Set::Scalar normal_regularization)
+{
+    if (mobility == 0.0 || epsilon <= 0.0) return 0.0;
+
+    Set::Scalar div_flux =
+        (EtaPhaseFieldFluxX(eta, i,   j, k, DX, epsilon, counter_curvature, eta_band, normal_regularization) -
+         EtaPhaseFieldFluxX(eta, i-1, j, k, DX, epsilon, counter_curvature, eta_band, normal_regularization)) / DX[0];
+#if AMREX_SPACEDIM > 1
+    div_flux +=
+        (EtaPhaseFieldFluxY(eta, i, j,   k, DX, epsilon, counter_curvature, eta_band, normal_regularization) -
+         EtaPhaseFieldFluxY(eta, i, j-1, k, DX, epsilon, counter_curvature, eta_band, normal_regularization)) / DX[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    div_flux +=
+        (EtaPhaseFieldFluxZ(eta, i, j, k,   DX, epsilon, counter_curvature, eta_band, normal_regularization) -
+         EtaPhaseFieldFluxZ(eta, i, j, k-1, DX, epsilon, counter_curvature, eta_band, normal_regularization)) / DX[2];
+#endif
+    return mobility * div_flux;
+}
+}
 
 namespace Integrator
 {
@@ -33,6 +160,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("density_floor", value.density_floor, value.small);
     pp.query_default("temperature_floor", value.temperature_floor, value.small);
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
+    pp.query_default("thermodynamic_pressure", value.thermodynamic_pressure, "100000.0_Pa", Unit::Pressure());
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
     pp.query_default("projection.enabled", value.projection_enabled, true);
     pp.query_default("projection.amr_enabled", value.projection_amr_enabled, false);
@@ -42,11 +170,20 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("projection.node_reconstruction_sweeps", value.projection_node_reconstruction_sweeps, 1);
     pp.query_default("projection.nodal_iterations", value.projection_nodal_iterations, 200);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
-    pp.query_default("projection.update_pressure", value.projection_update_pressure, false);
+    pp.query_default("projection.update_pressure", value.projection_update_pressure, true);
+    pp.query_default("projection.predictor_pressure_gradient", value.projection_predictor_pressure_gradient, false);
     pp.query_default("include_viscosity", value.include_viscosity, true);
     pp.query_default("include_conduction", value.include_conduction, true);
     pp.query_default("advect_temperature", value.advect_temperature, true);
     pp.query_default("eta.initial_value", value.eta_initial_value, 0.0);
+    pp.query_default("eta.phase_field.enabled", value.eta_phase_field_enabled, false);
+    pp.query_default("eta.phase_field.epsilon", value.eta_phase_field_epsilon, "0.0", Unit::Length());
+    pp.query_default("eta.phase_field.mobility", value.eta_phase_field_mobility, "0.0", Unit::Velocity());
+    pp.query_default("eta.phase_field.counter_curvature", value.eta_phase_field_counter_curvature, 1.0);
+    pp.query_default("eta.phase_field.band", value.eta_phase_field_band, 1.0e-8);
+    pp.query_default("eta.phase_field.normal_regularization", value.eta_phase_field_normal_regularization, 1.0e-12);
+    if (value.eta_phase_field_enabled && value.eta_phase_field_epsilon <= 0.0)
+        Util::Exception(INFO, "eta.phase_field.epsilon must be positive when eta.phase_field.enabled=1");
     pp.query_default("reference_map.eta_cutoff", value.reference_map_eta_cutoff, 0.5);
     pp.query_default("reference_map.eta_core", value.reference_map_eta_core, value.reference_map_eta_cutoff);
     pp.query_default("reference_map.eta_extension", value.reference_map_eta_extension, 1.0e-3);
@@ -57,15 +194,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("solid.model.type", solid_model_type, "none");
     pp.query_default("solid.model.eta_threshold", value.finite_solid_eta_threshold, 0.5);
     pp.query_default("solid.model.J_floor", value.finite_solid_J_floor, 1.0e-6);
-    pp.query_default("solid.model.viscosity", value.finite_solid_viscosity, 0.0);
-    pp.query_default("solid.model.bulk_viscosity", value.finite_solid_bulk_viscosity, 0.0);
-    pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_rhs_sign, 0.0);
-    pp.query_default("solid.model.implicit", value.finite_solid_implicit, true);
-    pp.query_default("solid.model.implicit_coeff_scale", value.finite_solid_implicit_coeff_scale, 1.0e-4);
-    pp.query_default("solid.model.implicit_preserve_rigid_modes", value.finite_solid_implicit_preserve_rigid_modes, true);
-    pp.query_default("solid.model.implicit_tol_rel", value.finite_solid_implicit_tol_rel, 1.0e-8);
-    pp.query_default("solid.model.implicit_tol_abs", value.finite_solid_implicit_tol_abs, 1.0e-10);
-    pp.query_default("solid.model.implicit_verbose", value.finite_solid_implicit_verbose, 0);
+    pp.query_default("solid.model.viscosity", value.finite_solid_viscosity, "0.0", Unit::Pressure() * Unit::Time());
+    pp.query_default("solid.model.bulk_viscosity", value.finite_solid_bulk_viscosity, "0.0", Unit::Pressure() * Unit::Time());
+    pp.query_default("solid.model.interface_viscosity", value.finite_solid_interface_viscosity, "0.0", Unit::Pressure() * Unit::Time());
+    pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_deviatoric_stress_divergence_sign, 0.0);
+    pp.query_default("solid.model.deviatoric_stress_divergence_sign",
+                     value.finite_solid_deviatoric_stress_divergence_sign,
+                     value.finite_solid_deviatoric_stress_divergence_sign);
     if (solid_model_type == "none")
     {
         value.finite_solid_enabled = false;
@@ -80,6 +215,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Util::Exception(INFO, solid_model_type, " is not a valid LowMach solid.model.type");
     }
 
+    pp.select<Numeric::Advect::MUSCL,
+              Numeric::Advect::Upwind,
+              Numeric::Advect::Centered,
+              Numeric::Advect::QUICK,
+              Numeric::Advect::WENO5>("advection",value.advect);
+    if (value.advect.PhiLocation() != Set::HC::Cell ||
+        value.advect.VelocityLocation() != Set::HC::Cell)
+        Util::Exception(INFO, "LowMach currently requires cell-centered phi and velocity advection data");
+
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
@@ -89,7 +233,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.nspecies = value.gas.nspecies;
 
-    int nghost = 2;
+    int nghost = value.advect.NGhost();
+    if (nghost < 2) nghost = 2;
     pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, AMREX_SPACEDIM);
     pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, 1);
     pp.select_default<BC::Constant,BC::Expression>("mass_fraction.bc", value.mass_fraction_bc, value.nspecies);
@@ -118,20 +263,21 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,                value.xi_bc,            AMREX_SPACEDIM, nghost, "xi",                true,  true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf,            value.xi_bc,            AMREX_SPACEDIM, nghost, "xi_old",            false, true, {"x","y"});
 
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              0,      "density",             true,  false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf,            &value.bc_nothing, AMREX_SPACEDIM, 0,      "momentum",            true,  false, {"x","y"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf,            &value.bc_nothing, AMREX_SPACEDIM, 1,      "momentum",            true,  false, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", false, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", true, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.projection_rhs_mf,      &value.bc_nothing, 1,              0,      "projection_rhs",      false, false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf,              &value.bc_nothing, 1,              0,      "energy",              true,  false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.nspecies, 0,      "mole_fraction", true, false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf,     &value.bc_nothing, 1,              0,      "vorticity",     true, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf,              &value.bc_nothing, 1,              1,      "energy",              true,  false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.nspecies, 1,      "mole_fraction", true, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf,     &value.bc_nothing, 1,              1,      "vorticity",     true, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.solid_weight_mf,         &value.bc_nothing, 1,              1,      "solid_weight",        true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.deformation_gradient_mf, &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "F", true, false, {"_xx","_xy","_yx","_yy"});
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.piola_stress_mf,         &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "P", true, false, {"_xx","_xy","_yx","_yy"});
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.elastic_stress_mf,       &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "elastic_stress", true, false, {"_xx","_xy","_yx","_yy"});
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.solid_stress_mf,         &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "solid_stress_rhs", false, false, {"_xx","_xy","_yx","_yy"});
-    value.AddField<Set::Matrix,Set::HC::Node>(value.cauchy_stress_mf, nullptr, 1, 1, "stress", false, true);
-    value.AddField<Set::Matrix,Set::HC::Node>(value.stress_rhs_mf, nullptr, 1, 1, "stress_rhs", false, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.solid_first_piola_kirchhoff_stress_mf,         &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "solid_first_piola_kirchhoff_stress", true, false, {"_xx","_xy","_yx","_yy"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.cell_total_cauchy_stress_mf,       &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "cell_total_cauchy_stress", true, false, {"_xx","_xy","_yx","_yy"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.cell_weighted_solid_deviatoric_cauchy_stress_mf,         &value.bc_nothing, AMREX_SPACEDIM * AMREX_SPACEDIM, 1, "cell_weighted_solid_deviatoric_cauchy_stress", true, false, {"_xx","_xy","_yx","_yy"});
+    value.AddField<Set::Matrix,Set::HC::Node>(value.nodal_total_cauchy_stress_mf, nullptr, 1, 1, "nodal_total_cauchy_stress", false, true);
+    value.AddField<Set::Matrix,Set::HC::Node>(value.nodal_weighted_solid_deviatoric_cauchy_stress_mf, nullptr, 1, 1, "nodal_weighted_solid_deviatoric_cauchy_stress", false, false);
 
     bool allow_unused;
     pp.query_default("allow_unused", allow_unused, false);
@@ -153,19 +299,20 @@ LowMach::UpdateSolidStress(int lev,
     BL_PROFILE("Integrator::LowMach::UpdateSolidStress");
 
     deformation_gradient_mf[lev]->setVal(0.0, 0, deformation_gradient_mf[lev]->nComp(), deformation_gradient_mf[lev]->nGrow());
-    piola_stress_mf[lev]->setVal(0.0, 0, piola_stress_mf[lev]->nComp(), piola_stress_mf[lev]->nGrow());
-    elastic_stress_mf[lev]->setVal(0.0, 0, elastic_stress_mf[lev]->nComp(), elastic_stress_mf[lev]->nGrow());
-    solid_stress_mf[lev]->setVal(0.0, 0, solid_stress_mf[lev]->nComp(), solid_stress_mf[lev]->nGrow());
+    solid_first_piola_kirchhoff_stress_mf[lev]->setVal(0.0, 0, solid_first_piola_kirchhoff_stress_mf[lev]->nComp(), solid_first_piola_kirchhoff_stress_mf[lev]->nGrow());
+    cell_total_cauchy_stress_mf[lev]->setVal(0.0, 0, cell_total_cauchy_stress_mf[lev]->nComp(), cell_total_cauchy_stress_mf[lev]->nGrow());
+    cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->setVal(0.0, 0, cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->nComp(), cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->nGrow());
+    solid_weight_mf[lev]->setVal(0.0, 0, solid_weight_mf[lev]->nComp(), solid_weight_mf[lev]->nGrow());
 
-    for (amrex::MFIter mfi(*cauchy_stress_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*nodal_total_cauchy_stress_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<Set::Matrix> const& stress = cauchy_stress_mf[lev]->array(mfi);
-        amrex::Array4<Set::Matrix> const& stress_rhs = stress_rhs_mf[lev]->array(mfi);
+        amrex::Array4<Set::Matrix> const& nodal_total_cauchy_stress = nodal_total_cauchy_stress_mf[lev]->array(mfi);
+        amrex::Array4<Set::Matrix> const& nodal_weighted_solid_deviatoric_cauchy_stress = nodal_weighted_solid_deviatoric_cauchy_stress_mf[lev]->array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            stress(i,j,k) = Set::Matrix::Zero();
-            stress_rhs(i,j,k) = Set::Matrix::Zero();
+            nodal_total_cauchy_stress(i,j,k) = Set::Matrix::Zero();
+            nodal_weighted_solid_deviatoric_cauchy_stress(i,j,k) = Set::Matrix::Zero();
         });
     }
 
@@ -177,12 +324,14 @@ LowMach::UpdateSolidStress(int lev,
     const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
+    const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
     const Set::Scalar p_scale = pressure_scale;
     const bool fluid_viscous = include_viscosity;
 
     for (amrex::MFIter mfi(xi_mf, true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        amrex::Box bx = mfi.growntilebox(1);
+        bx &= domain;
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
@@ -190,9 +339,10 @@ LowMach::UpdateSolidStress(int lev,
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> F_field = deformation_gradient_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> P_field = piola_stress_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> elastic_stress = elastic_stress_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> solid_stress = solid_stress_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solid_first_piola_kirchhoff_stress = solid_first_piola_kirchhoff_stress_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> cell_total_cauchy_stress = cell_total_cauchy_stress_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress = cell_weighted_solid_deviatoric_cauchy_stress_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solid_weight_field = solid_weight_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -202,11 +352,11 @@ LowMach::UpdateSolidStress(int lev,
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             Set::Scalar div_u = grad_u.trace();
 
-            Set::Matrix fluid_extra_stress = Set::Matrix::Zero();
+            Set::Matrix newtonian_viscous_stress = Set::Matrix::Zero();
             if (fluid_viscous)
             {
                 Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-                fluid_extra_stress += mu * (grad_u + grad_u.transpose());
+                newtonian_viscous_stress += mu * (grad_u + grad_u.transpose());
             }
 
             Set::Matrix solid_sigma = Set::Matrix::Zero();
@@ -221,59 +371,9 @@ LowMach::UpdateSolidStress(int lev,
 
             if (solid_enabled && solid_weight > 0.0)
             {
-                Set::Matrix grad_xi = Set::Matrix::Zero();
-                bool grad_valid = true;
-                auto eta_is_solid = [=] AMREX_GPU_DEVICE (int ii, int jj, int kk) -> bool
-                {
-                    return Util::Clamp(eta(ii,jj,kk), 0.0, 1.0) >= eta_threshold;
-                };
-                auto xi_derivative = [=, &grad_valid] AMREX_GPU_DEVICE (int n, int d) -> Set::Scalar
-                {
-                    int lo_i = i;
-                    int lo_j = j;
-                    int lo_k = k;
-                    int hi_i = i;
-                    int hi_j = j;
-                    int hi_k = k;
-                    if (d == 0)
-                    {
-                        lo_i -= 1;
-                        hi_i += 1;
-                    }
-#if AMREX_SPACEDIM >= 2
-                    else if (d == 1)
-                    {
-                        lo_j -= 1;
-                        hi_j += 1;
-                    }
-#endif
-#if AMREX_SPACEDIM == 3
-                    else
-                    {
-                        lo_k -= 1;
-                        hi_k += 1;
-                    }
-#endif
-
-                    bool lo_valid = eta_is_solid(lo_i, lo_j, lo_k);
-                    bool hi_valid = eta_is_solid(hi_i, hi_j, hi_k);
-                    if (lo_valid && hi_valid)
-                        return (xi(hi_i,hi_j,hi_k,n) - xi(lo_i,lo_j,lo_k,n)) / (2.0 * DX[d]);
-                    if (hi_valid)
-                        return (xi(hi_i,hi_j,hi_k,n) - xi(i,j,k,n)) / DX[d];
-                    if (lo_valid)
-                        return (xi(i,j,k,n) - xi(lo_i,lo_j,lo_k,n)) / DX[d];
-
-                    grad_valid = false;
-                    return n == d ? 1.0 : 0.0;
-                };
-
-                for (int n = 0; n < AMREX_SPACEDIM; ++n)
-                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                        grad_xi(n,d) = xi_derivative(n, d);
-
+                Set::Matrix grad_xi = Numeric::Gradient(xi, i, j, k, DX, sten);
                 Set::Scalar det_grad_xi = grad_xi.determinant();
-                bool valid = grad_valid && Util::Abs(det_grad_xi) > det_floor;
+                bool valid = Util::Abs(det_grad_xi) > det_floor;
                 if (valid)
                 {
 #if AMREX_SPACEDIM == 2
@@ -301,68 +401,60 @@ LowMach::UpdateSolidStress(int lev,
                 }
             }
 
-            Set::Matrix sigma = -p_scale * pressure(i,j,k) * Set::Matrix::Identity() +
-                                (1.0 - solid_weight) * fluid_extra_stress +
-                                solid_weight * solid_sigma;
-            Set::Matrix sigma_rhs = solid_weight * solid_sigma;
+            Set::Matrix solid_sigma_dev = solid_sigma -
+                                          (solid_sigma.trace() / Set::Scalar(AMREX_SPACEDIM)) *
+                                              Set::Matrix::Identity();
+            Set::Matrix strain_rate_dev = grad_u + grad_u.transpose();
+            strain_rate_dev -= (strain_rate_dev.trace() / Set::Scalar(AMREX_SPACEDIM)) *
+                               Set::Matrix::Identity();
+            Set::Matrix interface_damping_stress =
+                solid_interface_viscosity * 4.0 * eta_val * (1.0 - eta_val) * strain_rate_dev;
+            Set::Matrix total_cauchy_stress = -p_scale * pressure(i,j,k) * Set::Matrix::Identity() +
+                                              newtonian_viscous_stress +
+                                              solid_weight * solid_sigma +
+                                              interface_damping_stress;
+            Set::Matrix weighted_solid_deviatoric_cauchy_stress =
+                solid_weight * solid_sigma_dev + interface_damping_stress;
 
             F_field(i,j,k,0) = F(0,0);
             F_field(i,j,k,1) = F(0,1);
             F_field(i,j,k,2) = F(1,0);
             F_field(i,j,k,3) = F(1,1);
-            P_field(i,j,k,0) = P(0,0);
-            P_field(i,j,k,1) = P(0,1);
-            P_field(i,j,k,2) = P(1,0);
-            P_field(i,j,k,3) = P(1,1);
-            elastic_stress(i,j,k,0) = sigma(0,0);
-            elastic_stress(i,j,k,1) = sigma(0,1);
-            elastic_stress(i,j,k,2) = sigma(1,0);
-            elastic_stress(i,j,k,3) = sigma(1,1);
-            solid_stress(i,j,k,0) = sigma_rhs(0,0);
-            solid_stress(i,j,k,1) = sigma_rhs(0,1);
-            solid_stress(i,j,k,2) = sigma_rhs(1,0);
-            solid_stress(i,j,k,3) = sigma_rhs(1,1);
+            solid_first_piola_kirchhoff_stress(i,j,k,0) = P(0,0);
+            solid_first_piola_kirchhoff_stress(i,j,k,1) = P(0,1);
+            solid_first_piola_kirchhoff_stress(i,j,k,2) = P(1,0);
+            solid_first_piola_kirchhoff_stress(i,j,k,3) = P(1,1);
+            cell_total_cauchy_stress(i,j,k,0) = total_cauchy_stress(0,0);
+            cell_total_cauchy_stress(i,j,k,1) = total_cauchy_stress(0,1);
+            cell_total_cauchy_stress(i,j,k,2) = total_cauchy_stress(1,0);
+            cell_total_cauchy_stress(i,j,k,3) = total_cauchy_stress(1,1);
+            cell_weighted_solid_deviatoric_cauchy_stress(i,j,k,0) = weighted_solid_deviatoric_cauchy_stress(0,0);
+            cell_weighted_solid_deviatoric_cauchy_stress(i,j,k,1) = weighted_solid_deviatoric_cauchy_stress(0,1);
+            cell_weighted_solid_deviatoric_cauchy_stress(i,j,k,2) = weighted_solid_deviatoric_cauchy_stress(1,0);
+            cell_weighted_solid_deviatoric_cauchy_stress(i,j,k,3) = weighted_solid_deviatoric_cauchy_stress(1,1);
+            solid_weight_field(i,j,k) = solid_weight;
         });
     }
 
+    solid_weight_mf[lev]->FillBoundary(geom[lev].periodicity());
     deformation_gradient_mf[lev]->FillBoundary(geom[lev].periodicity());
-    piola_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-    elastic_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-    solid_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-    if (lev > 0)
-    {
-        BC::Constant::ZeroNeumann stress_bc(AMREX_SPACEDIM * AMREX_SPACEDIM);
-        stress_bc.define(geom[lev]);
-        amrex::Vector<amrex::Real> ctime{0.0};
-        amrex::Vector<amrex::Real> ftime{0.0};
-        amrex::Vector<amrex::BCRec> bcs(AMREX_SPACEDIM * AMREX_SPACEDIM, stress_bc.GetBCRec());
-        auto fill_stress = [&](amrex::MultiFab& dst, amrex::MultiFab& crse)
-        {
-            amrex::Vector<amrex::MultiFab*> cmf{&crse};
-            amrex::Vector<amrex::MultiFab*> fmf{&dst};
-            amrex::FillPatchTwoLevels(dst, 0.0, cmf, ctime, fmf, ftime,
-                                       0, 0, AMREX_SPACEDIM * AMREX_SPACEDIM,
-                                       geom[lev - 1], geom[lev],
-                                       stress_bc, 0, stress_bc, 0,
-                                       refRatio(lev - 1), &amrex::cell_cons_interp, bcs, 0);
-        };
-        fill_stress(*elastic_stress_mf[lev], *elastic_stress_mf[lev - 1]);
-        fill_stress(*solid_stress_mf[lev], *solid_stress_mf[lev - 1]);
-    }
+    solid_first_piola_kirchhoff_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+    cell_total_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+    cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
 
     amrex::Box cell_domain = geom[lev].Domain();
-    for (amrex::MFIter mfi(*cauchy_stress_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*nodal_total_cauchy_stress_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
-        Set::Patch<const Set::Scalar> elastic_stress = elastic_stress_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> solid_stress = solid_stress_mf.Patch(lev,mfi);
-        amrex::Array4<Set::Matrix> const& cauchy_stress = cauchy_stress_mf[lev]->array(mfi);
-        amrex::Array4<Set::Matrix> const& stress_rhs = stress_rhs_mf[lev]->array(mfi);
+        const amrex::Box& bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> cell_total_cauchy_stress = cell_total_cauchy_stress_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress = cell_weighted_solid_deviatoric_cauchy_stress_mf.Patch(lev,mfi);
+        amrex::Array4<Set::Matrix> const& nodal_total_cauchy_stress = nodal_total_cauchy_stress_mf[lev]->array(mfi);
+        amrex::Array4<Set::Matrix> const& nodal_weighted_solid_deviatoric_cauchy_stress = nodal_weighted_solid_deviatoric_cauchy_stress_mf[lev]->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Matrix sigma = Set::Matrix::Zero();
-            Set::Matrix sigma_rhs = Set::Matrix::Zero();
+            Set::Matrix total_cauchy_stress = Set::Matrix::Zero();
+            Set::Matrix weighted_solid_deviatoric_cauchy_stress = Set::Matrix::Zero();
             Set::Scalar count = 0.0;
             for (int ii = i - 1; ii <= i; ++ii)
             {
@@ -370,28 +462,28 @@ LowMach::UpdateSolidStress(int lev,
                 {
                     amrex::IntVect iv(AMREX_D_DECL(ii,jj,k));
                     if (!cell_domain.contains(iv)) continue;
-                    sigma(0,0) += elastic_stress(ii,jj,k,0);
-                    sigma(0,1) += elastic_stress(ii,jj,k,1);
-                    sigma(1,0) += elastic_stress(ii,jj,k,2);
-                    sigma(1,1) += elastic_stress(ii,jj,k,3);
-                    sigma_rhs(0,0) += solid_stress(ii,jj,k,0);
-                    sigma_rhs(0,1) += solid_stress(ii,jj,k,1);
-                    sigma_rhs(1,0) += solid_stress(ii,jj,k,2);
-                    sigma_rhs(1,1) += solid_stress(ii,jj,k,3);
+                    total_cauchy_stress(0,0) += cell_total_cauchy_stress(ii,jj,k,0);
+                    total_cauchy_stress(0,1) += cell_total_cauchy_stress(ii,jj,k,1);
+                    total_cauchy_stress(1,0) += cell_total_cauchy_stress(ii,jj,k,2);
+                    total_cauchy_stress(1,1) += cell_total_cauchy_stress(ii,jj,k,3);
+                    weighted_solid_deviatoric_cauchy_stress(0,0) += cell_weighted_solid_deviatoric_cauchy_stress(ii,jj,k,0);
+                    weighted_solid_deviatoric_cauchy_stress(0,1) += cell_weighted_solid_deviatoric_cauchy_stress(ii,jj,k,1);
+                    weighted_solid_deviatoric_cauchy_stress(1,0) += cell_weighted_solid_deviatoric_cauchy_stress(ii,jj,k,2);
+                    weighted_solid_deviatoric_cauchy_stress(1,1) += cell_weighted_solid_deviatoric_cauchy_stress(ii,jj,k,3);
                     count += 1.0;
                 }
             }
             if (count > 0.0)
             {
-                sigma /= count;
-                sigma_rhs /= count;
+                total_cauchy_stress /= count;
+                weighted_solid_deviatoric_cauchy_stress /= count;
             }
-            cauchy_stress(i,j,k) = sigma;
-            stress_rhs(i,j,k) = sigma_rhs;
+            nodal_total_cauchy_stress(i,j,k) = total_cauchy_stress;
+            nodal_weighted_solid_deviatoric_cauchy_stress(i,j,k) = weighted_solid_deviatoric_cauchy_stress;
         });
     }
-    cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-    stress_rhs_mf[lev]->FillBoundary(geom[lev].periodicity());
+    nodal_total_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+    nodal_weighted_solid_deviatoric_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -408,11 +500,11 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
 
     for (amrex::MFIter mfi(Y_mf, true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.tilebox();
+        amrex::Box bx = mfi.growntilebox(1);
+        bx &= domain;
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> Y = Y_mf.array(mfi);
-        Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> M = momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E = energy_mf.Patch(lev,mfi);
@@ -420,6 +512,7 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
         Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev,mfi);
         const Set::Scalar rho_floor = density_floor;
         const Set::Scalar p_floor = pressure_floor;
+        const Set::Scalar p0 = thermodynamic_pressure;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -428,7 +521,7 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
             if (!(moles > 0.0)) moles = 1.0 / gas.MW[0];
             for (int n = 0; n < gas.nspecies; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
 
-            Set::Scalar p = Util::Max(pressure(i,j,k), p_floor);
+            Set::Scalar p = Util::Max(p0, p_floor);
             Set::Scalar density = p / (gas.R(X, i, j, k) * T(i,j,k));
             density = Util::Max(density, rho_floor);
             rho(i,j,k) = density;
@@ -459,200 +552,6 @@ LowMach::UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiF
     vorticity_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
-
-void
-LowMach::ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt)
-{
-    BL_PROFILE("Integrator::LowMach::ImplicitElasticVelocitySolve");
-    if (!finite_solid_enabled || !finite_solid_implicit || !(dt > 0.0)) return;
-    if (!(finite_solid_rhs_sign != 0.0)) return;
-    if (finest_level > 0)
-    {
-        static bool warned = false;
-        if (!warned && amrex::ParallelDescriptor::IOProcessor())
-        {
-            Util::Warning(INFO, "LowMach AMR implicit elasticity is diagnostic-only for now; the per-level implicit elastic solve is disabled on AMR.");
-            warned = true;
-        }
-        return;
-    }
-
-    amrex::MultiFab& u_mf = *velocity_mf[lev];
-    amrex::MultiFab& eta = *eta_mf[lev];
-    amrex::MultiFab& rho_mf = *density_mf[lev];
-
-    const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
-    const Set::Scalar rho_floor = density_floor;
-    const Set::Scalar stress_sign = finite_solid_rhs_sign;
-
-    Set::Scalar rigid_mass = 0.0;
-    Set::Scalar rigid_xcm = 0.0;
-    Set::Scalar rigid_ycm = 0.0;
-    Set::Scalar rigid_ux = 0.0;
-    Set::Scalar rigid_uy = 0.0;
-    Set::Scalar rigid_omega = 0.0;
-    if (finite_solid_implicit_preserve_rigid_modes)
-    {
-        Set::Scalar sum_m = 0.0;
-        Set::Scalar sum_mx = 0.0;
-        Set::Scalar sum_my = 0.0;
-        Set::Scalar sum_mux = 0.0;
-        Set::Scalar sum_muy = 0.0;
-        const Set::Scalar* DX = geom[lev].CellSize();
-        const Set::Scalar cell_vol = AMREX_D_TERM(DX[0], * DX[1], * DX[2]);
-        for (amrex::MFIter mfi(u_mf, false); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.validbox();
-            const amrex::Dim3 lo = amrex::lbound(bx);
-            const amrex::Dim3 hi = amrex::ubound(bx);
-            Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
-            Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-            Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-            for (int k = lo.z; k <= hi.z; ++k)
-                for (int j = lo.y; j <= hi.y; ++j)
-                    for (int i = lo.x; i <= hi.x; ++i)
-                    {
-                        Set::Scalar eta_val = Util::Clamp(eta_patch(i,j,k), 0.0, 1.0);
-                        if (eta_val <= eta_threshold) continue;
-                        Set::Scalar denom = Util::Max(1.0 - eta_threshold, 1.0e-12);
-                        Set::Scalar solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
-                        Set::Scalar m = solid_weight * Util::Max(rho(i,j,k), rho_floor) * cell_vol;
-                        Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
-                        sum_m += m;
-                        sum_mx += m * x(0);
-                        sum_my += m * x(1);
-                        sum_mux += m * u(i,j,k,0);
-                        sum_muy += m * u(i,j,k,1);
-                    }
-        }
-        amrex::ParallelDescriptor::ReduceRealSum(sum_m);
-        amrex::ParallelDescriptor::ReduceRealSum(sum_mx);
-        amrex::ParallelDescriptor::ReduceRealSum(sum_my);
-        amrex::ParallelDescriptor::ReduceRealSum(sum_mux);
-        amrex::ParallelDescriptor::ReduceRealSum(sum_muy);
-
-        rigid_mass = sum_m;
-        if (rigid_mass > 0.0)
-        {
-            rigid_xcm = sum_mx / rigid_mass;
-            rigid_ycm = sum_my / rigid_mass;
-            rigid_ux = sum_mux / rigid_mass;
-            rigid_uy = sum_muy / rigid_mass;
-
-#if AMREX_SPACEDIM == 2
-            Set::Scalar sum_I = 0.0;
-            Set::Scalar sum_L = 0.0;
-            for (amrex::MFIter mfi(u_mf, false); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box& bx = mfi.validbox();
-                const amrex::Dim3 lo = amrex::lbound(bx);
-                const amrex::Dim3 hi = amrex::ubound(bx);
-                Set::Patch<const Set::Scalar> eta_patch = eta.array(mfi);
-                Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-                Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-                for (int k = lo.z; k <= hi.z; ++k)
-                    for (int j = lo.y; j <= hi.y; ++j)
-                        for (int i = lo.x; i <= hi.x; ++i)
-                        {
-                            Set::Scalar eta_val = Util::Clamp(eta_patch(i,j,k), 0.0, 1.0);
-                            if (eta_val <= eta_threshold) continue;
-                            Set::Scalar denom = Util::Max(1.0 - eta_threshold, 1.0e-12);
-                            Set::Scalar solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
-                            Set::Scalar m = solid_weight * Util::Max(rho(i,j,k), rho_floor) * cell_vol;
-                            Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
-                            Set::Scalar rx = x(0) - rigid_xcm;
-                            Set::Scalar ry = x(1) - rigid_ycm;
-                            Set::Scalar vx = u(i,j,k,0) - rigid_ux;
-                            Set::Scalar vy = u(i,j,k,1) - rigid_uy;
-                            sum_I += m * (rx * rx + ry * ry);
-                            sum_L += m * (rx * vy - ry * vx);
-                        }
-            }
-            amrex::ParallelDescriptor::ReduceRealSum(sum_I);
-            amrex::ParallelDescriptor::ReduceRealSum(sum_L);
-            if (sum_I > 0.0) rigid_omega = sum_L / sum_I;
-#endif
-        }
-    }
-
-    auto rigid_velocity = [=] AMREX_GPU_HOST_DEVICE (int i, int j, int k, int comp) -> Set::Scalar
-    {
-        if (!(rigid_mass > 0.0)) return 0.0;
-        Set::Vector x = Set::Position(i, j, k, geom[lev], amrex::IndexType::TheCellType());
-        if (comp == 0) return rigid_ux - rigid_omega * (x(1) - rigid_ycm);
-        if (comp == 1) return rigid_uy + rigid_omega * (x(0) - rigid_xcm);
-#if AMREX_SPACEDIM == 3
-        if (comp == 2) return 0.0;
-#endif
-        return 0.0;
-    };
-
-    amrex::MultiFab rhs(u_mf.boxArray(), u_mf.DistributionMap(), AMREX_SPACEDIM, 0);
-    amrex::MultiFab sol(u_mf.boxArray(), u_mf.DistributionMap(), AMREX_SPACEDIM, u_mf.nGrow());
-    amrex::MultiFab::Copy(rhs, u_mf, 0, 0, AMREX_SPACEDIM, 0);
-    amrex::MultiFab::Copy(sol, u_mf, 0, 0, AMREX_SPACEDIM, u_mf.nGrow());
-
-    if (rigid_mass > 0.0)
-    {
-        for (amrex::MFIter mfi(rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.growntilebox();
-            amrex::Array4<Set::Scalar> const& rhs_arr = rhs.array(mfi);
-            amrex::Array4<Set::Scalar> const& sol_arr = sol.array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
-                {
-                    Set::Scalar ur = rigid_velocity(i, j, k, comp);
-                    rhs_arr(i,j,k,comp) -= ur;
-                    sol_arr(i,j,k,comp) -= ur;
-                }
-            });
-        }
-        amrex::Gpu::streamSynchronize();
-    }
-
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> lobc;
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> hibc;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        lobc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-        hibc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-    }
-
-    amrex::LPInfo info;
-    Operator::Dynamic::ElasticLowMach elastic_op({geom[lev]}, {u_mf.boxArray()}, {u_mf.DistributionMap()}, info);
-    elastic_op.setDomainBC(lobc, hibc);
-    elastic_op.setMaxOrder(2);
-    elastic_op.setLevelBC(0, nullptr);
-    elastic_op.setScalars(1.0, dt * stress_sign);
-    elastic_op.setACoeffs(0, 1.0);
-    elastic_op.SetCoefficients(0, eta, rho_mf, finite_solid_model, eta_threshold, rho_floor, finite_solid_implicit_coeff_scale);
-
-    amrex::MLMG mlmg(elastic_op);
-    mlmg.setVerbose(finite_solid_implicit_verbose);
-    mlmg.solve({&sol}, {&rhs}, finite_solid_implicit_tol_rel, finite_solid_implicit_tol_abs);
-
-    if (rigid_mass > 0.0)
-    {
-        for (amrex::MFIter mfi(sol, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.validbox();
-            amrex::Array4<Set::Scalar> const& sol_arr = sol.array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                for (int comp = 0; comp < AMREX_SPACEDIM; ++comp)
-                    sol_arr(i,j,k,comp) += rigid_velocity(i, j, k, comp);
-            });
-        }
-        amrex::Gpu::streamSynchronize();
-    }
-
-    amrex::MultiFab::Copy(u_mf, sol, 0, 0, AMREX_SPACEDIM, 0);
-    velocity_bc->define(geom[lev]);
-    velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-    u_mf.FillBoundary(geom[lev].periodicity());
-}
 
 void
 LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
@@ -1013,12 +912,9 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
     amrex::MultiFab eta_work(eta_stage_mf.boxArray(), eta_stage_mf.DistributionMap(), 1, eta_stage_mf.nGrow());
     amrex::MultiFab::Copy(eta_work, eta_stage_mf, 0, 0, 1, eta_stage_mf.nGrow());
-    auto fill_xi_boundary = [&]()
-    {
-        xi_stage_mf.FillBoundary(geom[lev].periodicity());
-    };
+    eta_work.FillBoundary(geom[lev].periodicity());
 
-    fill_xi_boundary();
+    xi_stage_mf.FillBoundary(geom[lev].periodicity());
 
     amrex::MultiFab xi_protected(xi_stage_mf.boxArray(), xi_stage_mf.DistributionMap(), AMREX_SPACEDIM, xi_ngrow);
     amrex::MultiFab::Copy(xi_protected, xi_stage_mf, 0, 0, AMREX_SPACEDIM, xi_ngrow);
@@ -1027,7 +923,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
     {
         for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.validbox();
+            const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& xi_in = xi_protected.const_array(mfi);
             amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
@@ -1045,7 +941,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
     for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
         amrex::Array4<Set::Scalar> const& known = xi_known.array(mfi);
         amrex::Array4<Set::Scalar> const& xi = xi_stage_mf.array(mfi);
@@ -1065,7 +961,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
     amrex::Gpu::streamSynchronize();
     xi_known.FillBoundary(geom[lev].periodicity());
     restore_protected_xi();
-    fill_xi_boundary();
+    xi_stage_mf.FillBoundary(geom[lev].periodicity());
 
     for (int sweep = 0; sweep < extrap_sweeps; ++sweep)
     {
@@ -1077,7 +973,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
         for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.validbox();
+            const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& xi_in = xi_old.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& known_in = known_old.const_array(mfi);
@@ -1153,7 +1049,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
         amrex::Gpu::streamSynchronize();
         xi_known.FillBoundary(geom[lev].periodicity());
         restore_protected_xi();
-        fill_xi_boundary();
+        xi_stage_mf.FillBoundary(geom[lev].periodicity());
     }
 
     for (int sweep = 0; sweep < smooth_sweeps; ++sweep)
@@ -1166,7 +1062,7 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
 
         for (amrex::MFIter mfi(xi_stage_mf, true); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.validbox();
+            const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<const Set::Scalar> const& eta = eta_work.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& xi_in = xi_old.const_array(mfi);
             amrex::Array4<const Set::Scalar> const& known = known_old.const_array(mfi);
@@ -1229,12 +1125,12 @@ LowMach::RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_stage
         }
         amrex::Gpu::streamSynchronize();
         restore_protected_xi();
-        fill_xi_boundary();
+        xi_stage_mf.FillBoundary(geom[lev].periodicity());
     }
 
     restore_protected_xi();
 
-    fill_xi_boundary();
+    xi_stage_mf.FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -1331,6 +1227,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
+    const auto advect_op = advect;
+    const Numeric::Advect::Options advective_options{Numeric::Advect::Form::Advective};
 
     u_rhs_mf.setVal(0.0, 0, AMREX_SPACEDIM, u_rhs_mf.nGrow());
 
@@ -1342,68 +1240,39 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
-        amrex::Array4<const Set::Matrix> const& stress = stress_rhs_mf[lev]->const_array(mfi);
+        Set::Patch<const Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress =
+            cell_weighted_solid_deviatoric_cauchy_stress_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
         const bool viscous = include_viscosity;
         const Set::Vector gravity = g;
         const Set::Scalar p_scale = pressure_scale;
         const Set::Scalar rho_floor = density_floor;
-        const bool use_implicit_stress = finite_solid_implicit;
-        const Set::Scalar stress_sign = use_implicit_stress ? 0.0 : finite_solid_rhs_sign;
+        const bool pressure_predictor = projection_predictor_pressure_gradient;
+        const Set::Scalar deviatoric_stress_divergence_sign = finite_solid_deviatoric_stress_divergence_sign;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto div_node_stress = [=] AMREX_GPU_DEVICE (int comp) -> Set::Scalar
-            {
-                Set::Scalar s_xlo = 0.5 * (stress(i,j,k)(comp,0) + stress(i,j+1,k)(comp,0));
-                Set::Scalar s_xhi = 0.5 * (stress(i+1,j,k)(comp,0) + stress(i+1,j+1,k)(comp,0));
-                Set::Scalar div = (s_xhi - s_xlo) / DX[0];
-#if AMREX_SPACEDIM >= 2
-                Set::Scalar s_ylo = 0.5 * (stress(i,j,k)(comp,1) + stress(i+1,j,k)(comp,1));
-                Set::Scalar s_yhi = 0.5 * (stress(i,j+1,k)(comp,1) + stress(i+1,j+1,k)(comp,1));
-                div += (s_yhi - s_ylo) / DX[1];
-#endif
-#if AMREX_SPACEDIM == 3
-                Set::Scalar s_zlo = 0.25 * (stress(i,j,k)(comp,2) + stress(i+1,j,k)(comp,2) +
-                                            stress(i,j+1,k)(comp,2) + stress(i+1,j+1,k)(comp,2));
-                Set::Scalar s_zhi = 0.25 * (stress(i,j,k+1)(comp,2) + stress(i+1,j,k+1)(comp,2) +
-                                            stress(i,j+1,k+1)(comp,2) + stress(i+1,j+1,k+1)(comp,2));
-                div += (s_zhi - s_zlo) / DX[2];
-#endif
-                return div;
-            };
-
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
             Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
 
-            Set::Vector vel = Set::Vector::Zero();
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) vel(d) = u(i,j,k,d);
+            Set::Vector grad_p_vec = Set::Vector::Zero();
+            if (pressure_predictor)
+                grad_p_vec = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+            Set::Vector div_sigma = Set::Vector::Zero();
+            if (deviatoric_stress_divergence_sign != 0.0)
+                div_sigma = Numeric::MatrixDivergence(cell_weighted_solid_deviatoric_cauchy_stress, i, j, k, 0, DX, sten);
 
-            Set::Vector grad_p_vec = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+            Set::Vector adv_vec = advect_op.Vector(u, u, i, j, k, 0, DX, advective_options, sten);
+            Set::Vector lap_vec = Numeric::VectorLaplacian(u, i, j, k, 0, DX);
+
+            Set::Vector rhs_vec = adv_vec
+                                  - (p_scale / density) * grad_p_vec
+                                  + gravity
+                                  + (mu / density) * lap_vec
+                                  + (deviatoric_stress_divergence_sign / density) * div_sigma;
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            {
-                Set::Scalar dudx = (u(i+1,j,k,d) - u(i-1,j,k,d)) / (2.0 * DX[0]);
-                Set::Scalar lap = (u(i+1,j,k,d) - 2.0 * u(i,j,k,d) + u(i-1,j,k,d)) / (DX[0] * DX[0]);
-                Set::Scalar div_sigma = div_node_stress(d);
-
-#if AMREX_SPACEDIM >= 2
-                Set::Scalar dudy = (u(i,j+1,k,d) - u(i,j-1,k,d)) / (2.0 * DX[1]);
-                lap += (u(i,j+1,k,d) - 2.0 * u(i,j,k,d) + u(i,j-1,k,d)) / (DX[1] * DX[1]);
-#endif
-#if AMREX_SPACEDIM == 3
-                Set::Scalar dudz = (u(i,j,k+1,d) - u(i,j,k-1,d)) / (2.0 * DX[2]);
-                lap += (u(i,j,k+1,d) - 2.0 * u(i,j,k,d) + u(i,j,k-1,d)) / (DX[2] * DX[2]);
-#endif
-                Set::Scalar adv = vel(0) * dudx;
-#if AMREX_SPACEDIM >= 2
-                adv += vel(1) * dudy;
-#endif
-#if AMREX_SPACEDIM == 3
-                adv += vel(2) * dudz;
-#endif
-                u_rhs(i,j,k,d) = -adv - p_scale * grad_p_vec(d) / density + gravity(d) + mu * lap / density + stress_sign * div_sigma / density;
-            }
+                u_rhs(i,j,k,d) = rhs_vec(d);
         });
     }
 
@@ -1425,6 +1294,13 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
         const Set::Scalar rho_floor = density_floor;
+        const bool eta_phase_enabled = eta_phase_field_enabled;
+        const Set::Scalar eta_phase_epsilon = eta_phase_field_epsilon;
+        const Set::Scalar eta_phase_mobility = eta_phase_field_mobility;
+        const Set::Scalar eta_phase_counter_curvature = eta_phase_field_counter_curvature;
+        const Set::Scalar eta_phase_band = eta_phase_field_band;
+        const Set::Scalar eta_phase_normal_regularization =
+            eta_phase_field_normal_regularization / Util::Max(eta_phase_field_epsilon, small);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -1457,77 +1333,16 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                 Y_rhs(i,j,k,n) = -vel.dot(grad_Y);
             }
 
-            auto advect_scalar = [=] AMREX_GPU_DEVICE (auto const& phi, int n) -> Set::Scalar
-            {
-                Set::Scalar phi_c = phi(i,j,k,n);
-
-                Set::Scalar phi_xm = phi(i-1,j,k,n);
-                Set::Scalar phi_xp = phi(i+1,j,k,n);
-                Set::Scalar slope_xm = Util::MCSlope(phi(i-2,j,k,n), phi_xm, phi_c);
-                Set::Scalar slope_x  = Util::MCSlope(phi_xm, phi_c, phi_xp);
-                Set::Scalar slope_xp = Util::MCSlope(phi_c, phi_xp, phi(i+2,j,k,n));
-
-                Set::Scalar ux_xlo = 0.5 * (u(i-1,j,k,0) + u(i,j,k,0));
-                Set::Scalar ux_xhi = 0.5 * (u(i,j,k,0) + u(i+1,j,k,0));
-
-                Set::Scalar phi_xlo_l = Util::Clamp(phi_xm + 0.5 * slope_xm, phi_xm, phi_c);
-                Set::Scalar phi_xlo_r = Util::Clamp(phi_c  - 0.5 * slope_x,  phi_xm, phi_c);
-                Set::Scalar phi_xhi_l = Util::Clamp(phi_c  + 0.5 * slope_x,  phi_c, phi_xp);
-                Set::Scalar phi_xhi_r = Util::Clamp(phi_xp - 0.5 * slope_xp, phi_c, phi_xp);
-
-                Set::Scalar flux_xlo = ux_xlo * (ux_xlo >= 0.0 ? phi_xlo_l : phi_xlo_r);
-                Set::Scalar flux_xhi = ux_xhi * (ux_xhi >= 0.0 ? phi_xhi_l : phi_xhi_r);
-                Set::Scalar div_phi_u = (flux_xhi - flux_xlo) / DX[0];
-                Set::Scalar div_u = (ux_xhi - ux_xlo) / DX[0];
-
-#if AMREX_SPACEDIM >= 2
-                Set::Scalar phi_ym = phi(i,j-1,k,n);
-                Set::Scalar phi_yp = phi(i,j+1,k,n);
-                Set::Scalar slope_ym = Util::MCSlope(phi(i,j-2,k,n), phi_ym, phi_c);
-                Set::Scalar slope_y  = Util::MCSlope(phi_ym, phi_c, phi_yp);
-                Set::Scalar slope_yp = Util::MCSlope(phi_c, phi_yp, phi(i,j+2,k,n));
-
-                Set::Scalar uy_ylo = 0.5 * (u(i,j-1,k,1) + u(i,j,k,1));
-                Set::Scalar uy_yhi = 0.5 * (u(i,j,k,1) + u(i,j+1,k,1));
-
-                Set::Scalar phi_ylo_l = Util::Clamp(phi_ym + 0.5 * slope_ym, phi_ym, phi_c);
-                Set::Scalar phi_ylo_r = Util::Clamp(phi_c  - 0.5 * slope_y,  phi_ym, phi_c);
-                Set::Scalar phi_yhi_l = Util::Clamp(phi_c  + 0.5 * slope_y,  phi_c, phi_yp);
-                Set::Scalar phi_yhi_r = Util::Clamp(phi_yp - 0.5 * slope_yp, phi_c, phi_yp);
-
-                Set::Scalar flux_ylo = uy_ylo * (uy_ylo >= 0.0 ? phi_ylo_l : phi_ylo_r);
-                Set::Scalar flux_yhi = uy_yhi * (uy_yhi >= 0.0 ? phi_yhi_l : phi_yhi_r);
-                div_phi_u += (flux_yhi - flux_ylo) / DX[1];
-                div_u += (uy_yhi - uy_ylo) / DX[1];
-#endif
-
-#if AMREX_SPACEDIM == 3
-                Set::Scalar phi_zm = phi(i,j,k-1,n);
-                Set::Scalar phi_zp = phi(i,j,k+1,n);
-                Set::Scalar slope_zm = Util::MCSlope(phi(i,j,k-2,n), phi_zm, phi_c);
-                Set::Scalar slope_z  = Util::MCSlope(phi_zm, phi_c, phi_zp);
-                Set::Scalar slope_zp = Util::MCSlope(phi_c, phi_zp, phi(i,j,k+2,n));
-
-                Set::Scalar uz_zlo = 0.5 * (u(i,j,k-1,2) + u(i,j,k,2));
-                Set::Scalar uz_zhi = 0.5 * (u(i,j,k,2) + u(i,j,k+1,2));
-
-                Set::Scalar phi_zlo_l = Util::Clamp(phi_zm + 0.5 * slope_zm, phi_zm, phi_c);
-                Set::Scalar phi_zlo_r = Util::Clamp(phi_c  - 0.5 * slope_z,  phi_zm, phi_c);
-                Set::Scalar phi_zhi_l = Util::Clamp(phi_c  + 0.5 * slope_z,  phi_c, phi_zp);
-                Set::Scalar phi_zhi_r = Util::Clamp(phi_zp - 0.5 * slope_zp, phi_c, phi_zp);
-
-                Set::Scalar flux_zlo = uz_zlo * (uz_zlo >= 0.0 ? phi_zlo_l : phi_zlo_r);
-                Set::Scalar flux_zhi = uz_zhi * (uz_zhi >= 0.0 ? phi_zhi_l : phi_zhi_r);
-                div_phi_u += (flux_zhi - flux_zlo) / DX[2];
-                div_u += (uz_zhi - uz_zlo) / DX[2];
-#endif
-
-                return -div_phi_u + phi_c * div_u;
-            };
-
-            eta_rhs(i,j,k) = advect_scalar(eta, 0);
+            eta_rhs(i,j,k) = advect_op(eta, u, i, j, k, 0, DX, advective_options, sten);
+            if (eta_phase_enabled)
+                eta_rhs(i,j,k) += EtaConservativeAllenCahnSource(eta, i, j, k, DX,
+                                                                  eta_phase_epsilon,
+                                                                  eta_phase_mobility,
+                                                                  eta_phase_counter_curvature,
+                                                                  eta_phase_band,
+                                                                  eta_phase_normal_regularization);
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                xi_rhs(i,j,k,d) = advect_scalar(xi, d);
+                xi_rhs(i,j,k,d) = advect_op(xi, u, i, j, k, d, DX, advective_options, sten);
         });
     }
     u_rhs_mf.FillBoundary(geom[lev].periodicity());
@@ -1617,9 +1432,6 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], new_time);
     UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
     UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
-    ImplicitElasticVelocitySolve(lev, new_time, dt);
-    UpdateDerived(lev, *velocity_mf[lev], *temperature_mf[lev], *mass_fraction_mf[lev]);
-    UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
     ProjectVelocity(lev, new_time, dt);
     velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
     velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -1642,12 +1454,20 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
 {
     if (!dynamictimestep.on) return;
 
-    Set::Scalar vmax = 0.0;
+    Set::Scalar advmax = 0.0;
     Set::Scalar viscmax = 0.0;
+    Set::Scalar elasticmax = 0.0;
+    Set::Scalar phasefieldmax = 0.0;
+    const bool explicit_solid_deviatoric_stress = finite_solid_enabled &&
+                                       finite_solid_deviatoric_stress_divergence_sign != 0.0;
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         const Set::Scalar* DX = geom[lev].CellSize();
         Set::Scalar dxmin = std::min(DX[0], DX[1]);
+        if (eta_phase_field_enabled && eta_phase_field_mobility > 0.0 && eta_phase_field_epsilon > 0.0)
+            phasefieldmax = std::max(phasefieldmax,
+                                     eta_phase_field_mobility / dxmin
+                                     + 0.5 * eta_phase_field_mobility * eta_phase_field_epsilon / (dxmin * dxmin));
 
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -1659,10 +1479,10 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
                 Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
-                return {speed};
+                return {speed / dxmin};
             });
             ReduceTuple hv = reduce_data.value();
-            vmax = std::max(vmax, amrex::get<0>(hv));
+            advmax = std::max(advmax, amrex::get<0>(hv));
         }
 
         for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -1670,12 +1490,20 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
             const Set::Scalar rho_floor = density_floor;
             const bool viscous = include_viscosity;
+            const bool elastic = explicit_solid_deviatoric_stress;
+            const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
+            const Set::Scalar mu_solid = finite_solid_model.mu;
+            const Set::Scalar kappa_solid = finite_solid_model.kappa;
+            const Set::Scalar solid_viscosity = finite_solid_viscosity;
+            const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
+            const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
 
-            amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
-            amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+            amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
@@ -1685,23 +1513,33 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
                     nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
-                return {nu / (dxmin * dxmin)};
+                Set::Scalar elastic_rate = 0.0;
+                if (elastic && Util::Clamp(eta(i,j,k), 0.0, 1.0) > eta_threshold)
+                {
+                    Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
+                    Set::Scalar wave_speed = std::sqrt(Util::Max(kappa_solid + (4.0 / 3.0) * mu_solid, mu_solid) / density);
+                    elastic_rate = wave_speed / dxmin;
+                    nu = Util::Max(nu, (solid_viscosity + solid_bulk_viscosity + solid_interface_viscosity) / density);
+                }
+                return {nu / (dxmin * dxmin), elastic_rate};
             });
             ReduceTuple hv = reduce_data.value();
             viscmax = std::max(viscmax, amrex::get<0>(hv));
+            elasticmax = std::max(elasticmax, amrex::get<1>(hv));
         }
     }
-    amrex::ParallelDescriptor::ReduceRealMax(vmax);
+    amrex::ParallelDescriptor::ReduceRealMax(advmax);
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);
+    amrex::ParallelDescriptor::ReduceRealMax(elasticmax);
+    amrex::ParallelDescriptor::ReduceRealMax(phasefieldmax);
 
     Set::Scalar adv_dt = cfl_v;
-    if (vmax > 0.0)
-    {
-        const Set::Scalar* DX = geom[0].CellSize();
-        adv_dt = cfl * std::min(DX[0], DX[1]) / vmax;
-    }
+    if (advmax > 0.0) adv_dt = cfl / advmax;
     Set::Scalar visc_dt = viscmax > 0.0 ? 0.5 * cfl / viscmax : cfl_v;
-    DynamicTimestep_SyncTimeStep(0, std::min(adv_dt, visc_dt));
+    Set::Scalar elastic_dt = elasticmax > 0.0 ? cfl / elasticmax : cfl_v;
+    Set::Scalar phasefield_dt = phasefieldmax > 0.0 ? cfl / phasefieldmax : cfl_v;
+    DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt}));
+    DynamicTimestep_Update();
 }
 
 
@@ -1817,7 +1655,6 @@ LowMach::TimeStepComplete(Set::Scalar time, int iter)
         UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev]);
     }
     PrintDiagnostics(time, iter);
-    if (dynamictimestep.on) DynamicTimestep_Update();
 }
 
 void

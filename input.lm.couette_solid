@@ -1,27 +1,30 @@
-# LowMach driven cavity recirculation case
-# Run with: ./bin/lowmach-2d-clang++ input.lm
+# LowMach Couette flow with a centered solid box
+# Run with: ./bin/lowmach-2d-clang++ input.lm.couette_solid
+#
+# Purpose:
+#   Lightweight solid/fluid stress diagnostic.  The top and bottom walls impose
+#   opposite x-velocities, the x boundaries are zero-Neumann, and a small diffuse
+#   solid rectangle sits in the middle of the channel.  This is intended to be
+#   much cheaper and easier to inspect than the driven-cavity solid case.
 
-plot_file = output.lm
-amr.plot_int = 5
+plot_file = output.lm.couette_solid
+amr.plot_int = 20
 amr.max_grid_size = 64
 amr.blocking_factor = 4
-amr.regrid_int = 200
-amr.max_level = 2
-#amr.nsubsteps = 2 2
-amr.n_cell = 128 128
-eta_refinement_criterion = 0.1
+amr.regrid_int = 100000
+amr.max_level = 0
+amr.nsubsteps = 1
+amr.n_cell = 256 128
+eta_refinement_criterion = 1.0e100
 
 timestep = 1.0e-3
-stop_time = 200.0
+stop_time = 100
+#max_step = 500
 integration.type = RungeKutta
 integration.rk.type = 3
-#dynamictimestep.on = 1
-#dynamictimestep.min = 0.0
-#dynamictimestep.max = 1.0e-2
-#dynamictimestep.verbose = 0
 
 geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 1.0 1.0 0.0
+geometry.prob_hi = 1.0 0.5 0.0
 geometry.is_periodic = 0 0 0
 
 system.amount = kmol
@@ -37,16 +40,20 @@ gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s
 gas.transport.mixture_averaged.k = 0.02_W/m/K
 gas.eos.type = cpg
 
+advection.type=weno5
+
+
 cfl = 0.25
 include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
-projection.amr_enabled = 1
+projection.amr_enabled = 0
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
 projection.update_pressure = 1
+diagnostics.interval = 20
 
 reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7
@@ -57,7 +64,7 @@ reference_map.smoothing_sweeps = 2
 solid.model.type = finite.neohookean
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
-solid.model.stress_rhs_sign = 0.0
+solid.model.deviatoric_stress_divergence_sign = 1.0
 solid.model.viscosity = 5.0e-3_Pa*s
 solid.model.bulk_viscosity = 5.0e-3_Pa*s
 solid.model.interface_viscosity = 5.0e-3_Pa*s
@@ -66,34 +73,31 @@ solid.model.finite.neohookean.kappa = 1.0e2_Pa
 
 mass_fraction.ic.type = constant
 mass_fraction.ic.constant.value = 1.0
-velocity.ic.type = constant
-velocity.ic.constant.value = 0.0 0.0
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.2*(y - 0.25)"
+velocity.ic.expression.region1 = "0.0"
 temperature.ic.type = constant
 temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-# Passive phase-field marker for reference-map advection tests.
-# xi is initialized internally as xi(x,0)=x.
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.01
-eta.ic.expression.constant.x0 = 0.45
-eta.ic.expression.constant.y0 = 0.65
+eta.ic.expression.constant.x0 = 0.5
+eta.ic.expression.constant.y0 = 0.25
+eta.ic.expression.constant.hx = 0.12
+eta.ic.expression.constant.hy = 0.08
+eta.ic.expression.constant.eps = 0.015
+eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
 
 eta.phase_field.enabled = 1
-eta.phase_field.epsilon = 0.01
-eta.phase_field.mobility = 0.05_m/s
-eta.phase_field.counter_curvature = 1.0
+eta.phase_field.epsilon = 0.00001
+eta.phase_field.mobility = 1.0_m/s
+eta.phase_field.counter_curvature = 0.0
 eta.phase_field.band = 1.0e-3
 
-# # Circle inclusion. Comment this block and uncomment the rectangle block below to switch shapes.
-# eta.ic.expression.constant.R = 0.08
-# eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((sqrt((x-x0)*(x-x0) + (y-y0)*(y-y0)) - R)/eps))"
-
-# Vertical rectangle inclusion.
-eta.ic.expression.constant.hx = 0.035
-eta.ic.expression.constant.hy = 0.12
-eta.ic.expression.region0 = "1.0 - 0.5*(1.0 + tanh((max(abs(x-x0) - hx, abs(y-y0) - hy))/eps))"
+xi.ic.type = expression
+xi.ic.expression.region0 = "x"
+xi.ic.expression.region1 = "y"
 
 mass_fraction.bc.type = constant
 mass_fraction.bc.constant.type.xlo = neumann
@@ -105,20 +109,15 @@ mass_fraction.bc.constant.val.xhi = 0.0
 mass_fraction.bc.constant.val.ylo = 0.0
 mass_fraction.bc.constant.val.yhi = 0.0
 
-velocity.bc.type = expression
-velocity.bc.expression.constant.lid_u = 0.1
-velocity.bc.expression.constant.lid_t = 5.0e-3
-velocity.bc.expression.constant.lid_tw = 1.0e-3
-velocity.bc.expression.constant.lid_xw = 5.0e-2
-velocity.bc.expression.constant.lid_xs = 1.0e-2
-velocity.bc.expression.type.xlo = dirichlet dirichlet
-velocity.bc.expression.type.xhi = dirichlet dirichlet
-velocity.bc.expression.type.ylo = dirichlet dirichlet
-velocity.bc.expression.type.yhi = dirichlet dirichlet
-velocity.bc.expression.val.xlo = 0.0 0.0
-velocity.bc.expression.val.xhi = 0.0 0.0
-velocity.bc.expression.val.ylo = 0.0 0.0
-velocity.bc.expression.val.yhi = "lid_u*0.5*(1.0+tanh((t-lid_t)/lid_tw))*0.5*(tanh((x-lid_xw)/lid_xs)-tanh((x-(1.0-lid_xw))/lid_xs))" 0.0
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = neumann neumann
+velocity.bc.constant.type.xhi = neumann neumann
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = dirichlet dirichlet
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = -0.05 0.0
+velocity.bc.constant.val.yhi =  0.05 0.0
 
 temperature.bc.type = constant
 temperature.bc.constant.type.xlo = neumann
@@ -140,7 +139,6 @@ pressure.bc.constant.val.xhi = 0.0
 pressure.bc.constant.val.ylo = 0.0
 pressure.bc.constant.val.yhi = 0.0
 
-
 eta.bc.type = constant
 eta.bc.constant.type.xlo = neumann
 eta.bc.constant.type.xhi = neumann
@@ -151,12 +149,12 @@ eta.bc.constant.val.xhi = 0.0
 eta.bc.constant.val.ylo = 0.0
 eta.bc.constant.val.yhi = 0.0
 
-xi.bc.type = constant
-xi.bc.constant.type.xlo = neumann
-xi.bc.constant.type.xhi = neumann
-xi.bc.constant.type.ylo = neumann
-xi.bc.constant.type.yhi = neumann
-xi.bc.constant.val.xlo = 0.0 0.0
-xi.bc.constant.val.xhi = 0.0 0.0
-xi.bc.constant.val.ylo = 0.0 0.0
-xi.bc.constant.val.yhi = 0.0 0.0
+xi.bc.type = expression
+xi.bc.expression.type.xlo = neumann neumann
+xi.bc.expression.type.xhi = neumann neumann
+xi.bc.expression.type.ylo = dirichlet dirichlet
+xi.bc.expression.type.yhi = dirichlet dirichlet
+xi.bc.expression.val.xlo = 0.0 0.0
+xi.bc.expression.val.xhi = 0.0 0.0
+xi.bc.expression.val.ylo = "x" "y"
+xi.bc.expression.val.yhi = "x" "y"

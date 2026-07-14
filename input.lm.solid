@@ -1,0 +1,151 @@
+# LowMach all-solid elastodynamics pulse test
+# Run with: ./bin/lowmach-2d-clang++ input.lm.solid
+#
+# eta = 1 everywhere, so the entire domain is treated as solid.  Velocity is
+# fixed to zero on all domain boundaries.  A smooth localized initial y-velocity
+# pulse is placed in the middle of the domain so the explicit deviatoric elastic
+# response can be inspected as it propagates.
+
+plot_file = output.lm.solid
+amr.plot_int = 50
+amr.max_grid_size = 64
+amr.blocking_factor = 4
+amr.regrid_int = 100000
+amr.max_level = 0
+amr.nsubsteps = 1
+amr.n_cell = 128 128
+eta_refinement_criterion = 1.0e100
+
+timestep = 1.0e-4
+stop_time = 0.1
+max_step = 1000
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+cfl = 0.25
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+
+# Disable the projection for this first elastodynamics diagnostic so the
+# localized initial velocity is not immediately projected away.
+projection.enabled = 0
+projection.amr_enabled = 0
+projection.update_pressure = 0
+projection.verbose = 0
+diagnostics.interval = 50
+
+reference_map.eta_cutoff = 0.5
+reference_map.eta_core = 0.7
+reference_map.eta_extension = 1.0e-3
+reference_map.extrapolation_sweeps = 0
+reference_map.smoothing_sweeps = 0
+
+solid.model.type = finite.neohookean
+solid.model.eta_threshold = 0.5
+solid.model.J_floor = 1.0e-6
+solid.model.deviatoric_stress_divergence_sign = 1.0
+solid.model.viscosity = 1.0e-3_Pa*s
+solid.model.bulk_viscosity = 1.0e-3_Pa*s
+solid.model.finite.neohookean.mu = 1.0e1_Pa
+solid.model.finite.neohookean.kappa = 1.0e2_Pa
+
+mass_fraction.ic.type = constant
+mass_fraction.ic.constant.value = 1.0
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.v0 = 2.0e-2
+velocity.ic.expression.constant.x0 = 0.5
+velocity.ic.expression.constant.y0 = 0.5
+velocity.ic.expression.constant.hx = 0.08
+velocity.ic.expression.constant.hy = 0.08
+velocity.ic.expression.constant.eps = 0.015
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "v0*0.25*(tanh((x-(x0-hx))/eps)-tanh((x-(x0+hx))/eps))*(tanh((y-(y0-hy))/eps)-tanh((y-(y0+hy))/eps))"
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+eta.ic.type = constant
+eta.ic.constant.value = 1.0
+
+xi.ic.type = expression
+xi.ic.expression.region0 = "x"
+xi.ic.expression.region1 = "y"
+
+mass_fraction.bc.type = constant
+mass_fraction.bc.constant.type.xlo = neumann
+mass_fraction.bc.constant.type.xhi = neumann
+mass_fraction.bc.constant.type.ylo = neumann
+mass_fraction.bc.constant.type.yhi = neumann
+mass_fraction.bc.constant.val.xlo = 0.0
+mass_fraction.bc.constant.val.xhi = 0.0
+mass_fraction.bc.constant.val.ylo = 0.0
+mass_fraction.bc.constant.val.yhi = 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = dirichlet dirichlet
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = neumann
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0
+
+eta.bc.type = constant
+eta.bc.constant.type.xlo = neumann
+eta.bc.constant.type.xhi = neumann
+eta.bc.constant.type.ylo = neumann
+eta.bc.constant.type.yhi = neumann
+eta.bc.constant.val.xlo = 0.0
+eta.bc.constant.val.xhi = 0.0
+eta.bc.constant.val.ylo = 0.0
+eta.bc.constant.val.yhi = 0.0
+
+xi.bc.type = expression
+xi.bc.expression.type.xlo = dirichlet dirichlet
+xi.bc.expression.type.xhi = dirichlet dirichlet
+xi.bc.expression.type.ylo = dirichlet dirichlet
+xi.bc.expression.type.yhi = dirichlet dirichlet
+xi.bc.expression.val.xlo = "x" "y"
+xi.bc.expression.val.xhi = "x" "y"
+xi.bc.expression.val.ylo = "x" "y"
+xi.bc.expression.val.yhi = "x" "y"

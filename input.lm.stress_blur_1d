@@ -1,0 +1,149 @@
+# LowMach quasi-1D blurred-boundary stress diagnostic.
+# Run with:
+#   ./bin/lowmach-2d-clang++ input.lm.stress_blur_1d
+#
+# Purpose:
+#   Cheap planar-interface case for inspecting how solid stress is mixed through
+#   eta ~= 0.5.  The reference map is initialized with an affine stretch in the
+#   solid, so nonzero solid stress exists immediately without waiting for flow.
+#   The solid is an interior slab so the affine reference map is not polluted by
+#   x-domain boundary conditions.  Inspect the centerline/interior band; the
+#   reference map component xi_y = y is not compatible with periodic y.
+
+plot_file = output.lm.stress_blur_1d
+amr.plot_int = 50
+amr.max_grid_size = 64
+amr.blocking_factor = 4
+amr.regrid_int = 100000
+amr.max_level = 0
+amr.nsubsteps = 1
+amr.n_cell = 128 32
+
+timestep = 1.0e-6
+stop_time = 5.0e-4
+max_step = 500
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 0.25 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+cfl = 0.25
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 0
+projection.amr_enabled = 0
+projection.update_pressure = 0
+
+reference_map.eta_cutoff = 0.5
+reference_map.eta_core = 0.7
+reference_map.eta_extension = 1.0e-3
+reference_map.extrapolation_sweeps = 4
+reference_map.smoothing_sweeps = 2
+
+solid.model.type = finite.neohookean
+solid.model.eta_threshold = 0.5
+solid.model.J_floor = 1.0e-6
+solid.model.stress_rhs_sign = 1.0
+solid.model.viscosity = 0.0
+solid.model.bulk_viscosity = 0.0
+solid.model.finite.neohookean.mu = 1.0e3_Pa
+solid.model.finite.neohookean.kappa = 1.0e4_Pa
+
+mass_fraction.ic.type = constant
+mass_fraction.ic.constant.value = 1.0
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+# Planar solid slab, fluid on both sides, diffuse only in x.
+eta.ic.type = expression
+eta.ic.expression.constant.xa = 0.35
+eta.ic.expression.constant.xb = 0.65
+eta.ic.expression.constant.eps = 0.025
+eta.ic.expression.region0 = "0.5*(tanh((x - xa)/eps) - tanh((x - xb)/eps))"
+
+# Affine inverse map for a uniform x-stretch F_xx = stretch in the solid.
+# RebuildReferenceMapOutsideEta preserves this for eta>=0.5 and resets/extrapolates
+# outside the cutoff, making this a direct test of the blurred-boundary stress.
+xi.ic.type = expression
+xi.ic.expression.constant.stretch = 1.05
+xi.ic.expression.region0 = "x / stretch"
+xi.ic.expression.region1 = "y"
+
+mass_fraction.bc.type = constant
+mass_fraction.bc.constant.type.xlo = neumann
+mass_fraction.bc.constant.type.xhi = neumann
+mass_fraction.bc.constant.type.ylo = neumann
+mass_fraction.bc.constant.type.yhi = neumann
+mass_fraction.bc.constant.val.xlo = 0.0
+mass_fraction.bc.constant.val.xhi = 0.0
+mass_fraction.bc.constant.val.ylo = 0.0
+mass_fraction.bc.constant.val.yhi = 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = neumann neumann
+velocity.bc.constant.type.yhi = neumann neumann
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = neumann
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0
+
+eta.bc.type = constant
+eta.bc.constant.type.xlo = neumann
+eta.bc.constant.type.xhi = neumann
+eta.bc.constant.type.ylo = neumann
+eta.bc.constant.type.yhi = neumann
+eta.bc.constant.val.xlo = 0.0
+eta.bc.constant.val.xhi = 0.0
+eta.bc.constant.val.ylo = 0.0
+eta.bc.constant.val.yhi = 0.0
+
+xi.bc.type = expression
+xi.bc.expression.constant.stretch = 1.05
+xi.bc.expression.type.xlo = dirichlet dirichlet
+xi.bc.expression.type.xhi = dirichlet dirichlet
+xi.bc.expression.type.ylo = dirichlet dirichlet
+xi.bc.expression.type.yhi = dirichlet dirichlet
+xi.bc.expression.val.xlo = "x / stretch" "y"
+xi.bc.expression.val.xhi = "x / stretch" "y"
+xi.bc.expression.val.ylo = "x / stretch" "y"
+xi.bc.expression.val.yhi = "x / stretch" "y"

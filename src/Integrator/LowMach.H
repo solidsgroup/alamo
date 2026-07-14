@@ -14,6 +14,12 @@
 #include "Model/Gas/Gas.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
+#include "Numeric/Advect/Advect.H"
+#include "Numeric/Advect/Centered.H"
+#include "Numeric/Advect/MUSCL.H"
+#include "Numeric/Advect/QUICK.H"
+#include "Numeric/Advect/Upwind.H"
+#include "Numeric/Advect/WENO5.H"
 
 namespace Integrator
 {
@@ -60,7 +66,6 @@ protected:
     void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
     void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
     void CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt);
-    void ImplicitElasticVelocitySolve(int lev, Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
@@ -92,12 +97,13 @@ protected:
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
+    Set::Field<Set::Scalar> solid_weight_mf;
     Set::Field<Set::Scalar> deformation_gradient_mf;
-    Set::Field<Set::Scalar> piola_stress_mf;
-    Set::Field<Set::Scalar> elastic_stress_mf;
-    Set::Field<Set::Scalar> solid_stress_mf;
-    Set::Field<Set::Matrix> cauchy_stress_mf;
-    Set::Field<Set::Matrix> stress_rhs_mf;
+    Set::Field<Set::Scalar> solid_first_piola_kirchhoff_stress_mf;
+    Set::Field<Set::Scalar> cell_total_cauchy_stress_mf;
+    Set::Field<Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress_mf;
+    Set::Field<Set::Matrix> nodal_total_cauchy_stress_mf;
+    Set::Field<Set::Matrix> nodal_weighted_solid_deviatoric_cauchy_stress_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
@@ -125,6 +131,7 @@ protected:
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar temperature_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;
+    Set::Scalar thermodynamic_pressure = 100000.0;
     Set::Scalar pressure_scale = 1.0;
     Set::Scalar projection_tol_rel = 1.0e-11;
     Set::Scalar projection_tol_abs = 1.0e-12;
@@ -138,11 +145,18 @@ protected:
     int diagnostics_interval = 0;
     bool projection_enabled = true;
     bool projection_amr_enabled = false;
-    bool projection_update_pressure = false;
+    bool projection_update_pressure = true;
+    bool projection_predictor_pressure_gradient = false;
     bool include_viscosity = true;
     bool include_conduction = true;
     bool advect_temperature = true;
     Set::Scalar eta_initial_value = 0.0;
+    bool eta_phase_field_enabled = false;
+    Set::Scalar eta_phase_field_epsilon = 0.0;
+    Set::Scalar eta_phase_field_mobility = 0.0;
+    Set::Scalar eta_phase_field_counter_curvature = 1.0;
+    Set::Scalar eta_phase_field_band = 1.0e-8;
+    Set::Scalar eta_phase_field_normal_regularization = 1.0e-12;
     Set::Scalar reference_map_eta_cutoff = 0.5;
     Set::Scalar reference_map_eta_core = 0.5;
     Set::Scalar reference_map_eta_extension = 1.0e-3;
@@ -153,13 +167,14 @@ protected:
     Set::Scalar finite_solid_J_floor = 1.0e-6;
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_bulk_viscosity = 0.0;
-    Set::Scalar finite_solid_rhs_sign = 0.0;
-    bool finite_solid_implicit = true;
-    Set::Scalar finite_solid_implicit_coeff_scale = 1.0e-4;
-    bool finite_solid_implicit_preserve_rigid_modes = true;
-    Set::Scalar finite_solid_implicit_tol_rel = 1.0e-8;
-    Set::Scalar finite_solid_implicit_tol_abs = 1.0e-10;
-    int finite_solid_implicit_verbose = 0;
+    Set::Scalar finite_solid_interface_viscosity = 0.0;
+    Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
+
+    Numeric::Advect::Advect<Numeric::Advect::MUSCL,
+                            Numeric::Advect::Upwind,
+                            Numeric::Advect::Centered,
+                            Numeric::Advect::QUICK,
+                            Numeric::Advect::WENO5> advect;
 };
 }
 

@@ -310,11 +310,13 @@ protected:
                 //const Set::Scalar* DX = this->geom[lev].CellSize();
                 Set::Scalar dt_lev = dynamictimestep.dt_limit_min[lev];
 
-                Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
+                if (dynamictimestep.verbose)
+                    Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
 
                 for (int ilev = lev; ilev > 0; ilev--) dt_lev *= (Set::Scalar)(this->nsubsteps[ilev]);
 
-                Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
+                if (dynamictimestep.verbose)
+                    Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
 
                 new_timestep = std::min(new_timestep,dt_lev);
             }

@@ -587,6 +587,29 @@ Laplacian(const amrex::Array4<const Set::Vector>& f,
 
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
+VectorLaplacian(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& comp,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret = Set::Vector::Zero();
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        ret(d) += Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(
+            f, i, j, k, comp + d, dx, Numeric::DefaultType);
+#if AMREX_SPACEDIM > 1
+        ret(d) += Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(
+            f, i, j, k, comp + d, dx, Numeric::DefaultType);
+#endif
+#if AMREX_SPACEDIM > 2
+        ret(d) += Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(
+            f, i, j, k, comp + d, dx, Numeric::DefaultType);
+#endif
+    }
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix>& dw,
     const int& i, const int& j, const int& k,
     const Set::Scalar DX[AMREX_SPACEDIM],
@@ -653,6 +676,30 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
             ret(2) += (dw(i, j, k + 1)(2, 2) - dw(i, j, k)(2, 2)) / DX[2];)
     }
 #endif
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
+MatrixDivergence(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& comp,
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Vector ret = Set::Vector::Zero();
+    for (int row = 0; row < AMREX_SPACEDIM; ++row)
+    {
+        ret(row) += Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(
+            f, i, j, k, comp + row * AMREX_SPACEDIM + 0, dx, stencil);
+#if AMREX_SPACEDIM > 1
+        ret(row) += Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(
+            f, i, j, k, comp + row * AMREX_SPACEDIM + 1, dx, stencil);
+#endif
+#if AMREX_SPACEDIM > 2
+        ret(row) += Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(
+            f, i, j, k, comp + row * AMREX_SPACEDIM + 2, dx, stencil);
+#endif
+    }
     return ret;
 }
 
