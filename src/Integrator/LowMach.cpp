@@ -189,6 +189,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("reference_map.eta_extension", value.reference_map_eta_extension, 1.0e-3);
     pp.query_default("reference_map.extrapolation_sweeps", value.reference_map_extrapolation_sweeps, 4);
     pp.query_default("reference_map.smoothing_sweeps", value.reference_map_smoothing_sweeps, 2);
+    pp.query_default("reference_map.stress_smoothing_sweeps", value.reference_map_stress_smoothing_sweeps, 0);
+    pp.query_default("reference_map.stress_smoothing_alpha", value.reference_map_stress_smoothing_alpha, 0.1);
 
     std::string solid_model_type;
     pp.query_default("solid.model.type", solid_model_type, "none");
@@ -290,6 +292,88 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 }
 
 void
+LowMach::SmoothReferenceMapForStress(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf)
+{
+    const int smooth_sweeps = reference_map_stress_smoothing_sweeps < 0 ? 0 : reference_map_stress_smoothing_sweeps;
+    const Set::Scalar alpha = reference_map_stress_smoothing_alpha;
+    if (smooth_sweeps == 0 || alpha == 0.0) return;
+
+    const Set::Scalar stress_eta_min = Util::Clamp(reference_map_eta_extension, 0.0, 1.0);
+    const int xi_ngrow = xi_mf.nGrow();
+    amrex::Geometry const geom_lev = geom[lev];
+    amrex::Box const domain = geom[lev].Domain();
+    const amrex::Dim3 lo = amrex::lbound(domain);
+    const amrex::Dim3 hi = amrex::ubound(domain);
+
+    for (int sweep = 0; sweep < smooth_sweeps; ++sweep)
+    {
+        xi_mf.FillBoundary(geom[lev].periodicity());
+
+        amrex::MultiFab xi_old(xi_mf.boxArray(), xi_mf.DistributionMap(), AMREX_SPACEDIM, xi_ngrow);
+        amrex::MultiFab::Copy(xi_old, xi_mf, 0, 0, AMREX_SPACEDIM, xi_ngrow);
+        xi_old.FillBoundary(geom[lev].periodicity());
+
+        for (amrex::MFIter mfi(xi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<const Set::Scalar> const& eta = eta_mf.const_array(mfi);
+            amrex::Array4<const Set::Scalar> const& xi_in = xi_old.const_array(mfi);
+            amrex::Array4<Set::Scalar> const& xi = xi_mf.array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (eta(i,j,k) <= stress_eta_min) return;
+
+                Set::Vector pos = Set::Position(i, j, k, geom_lev, amrex::IndexType::TheCellType());
+                for (int n = 0; n < AMREX_SPACEDIM; ++n)
+                {
+                    Set::Scalar q = xi_in(i,j,k,n) - pos(n);
+                    Set::Scalar lap = 0.0;
+
+                    if (i > lo.x)
+                    {
+                        Set::Vector npos = Set::Position(i - 1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i-1,j,k,n) - npos(n) - q;
+                    }
+                    if (i < hi.x)
+                    {
+                        Set::Vector npos = Set::Position(i + 1, j, k, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i+1,j,k,n) - npos(n) - q;
+                    }
+#if AMREX_SPACEDIM >= 2
+                    if (j > lo.y)
+                    {
+                        Set::Vector npos = Set::Position(i, j - 1, k, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i,j-1,k,n) - npos(n) - q;
+                    }
+                    if (j < hi.y)
+                    {
+                        Set::Vector npos = Set::Position(i, j + 1, k, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i,j+1,k,n) - npos(n) - q;
+                    }
+#endif
+#if AMREX_SPACEDIM == 3
+                    if (k > lo.z)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k - 1, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i,j,k-1,n) - npos(n) - q;
+                    }
+                    if (k < hi.z)
+                    {
+                        Set::Vector npos = Set::Position(i, j, k + 1, geom_lev, amrex::IndexType::TheCellType());
+                        lap += xi_in(i,j,k+1,n) - npos(n) - q;
+                    }
+#endif
+                    xi(i,j,k,n) = pos(n) + q + alpha * lap;
+                }
+            });
+        }
+    }
+
+    xi_mf.FillBoundary(geom[lev].periodicity());
+}
+
+void
 LowMach::UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
                            const amrex::MultiFab& T_mf,
@@ -321,6 +405,7 @@ LowMach::UpdateSolidStress(int lev,
     const Model::Solid::Finite::NeoHookean solid_model = finite_solid_model;
     const bool solid_enabled = finite_solid_enabled;
     const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
+    const Set::Scalar stress_eta_min = Util::Clamp(reference_map_eta_extension, 0.0, 1.0);
     const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
@@ -328,14 +413,24 @@ LowMach::UpdateSolidStress(int lev,
     const Set::Scalar p_scale = pressure_scale;
     const bool fluid_viscous = include_viscosity;
 
-    for (amrex::MFIter mfi(xi_mf, true); mfi.isValid(); ++mfi)
+    amrex::MultiFab xi_stress_mf;
+    const amrex::MultiFab* xi_for_stress_mf = &xi_mf;
+    if (reference_map_stress_smoothing_sweeps > 0 && reference_map_stress_smoothing_alpha != 0.0)
+    {
+        xi_stress_mf.define(xi_mf.boxArray(), xi_mf.DistributionMap(), AMREX_SPACEDIM, xi_mf.nGrow());
+        amrex::MultiFab::Copy(xi_stress_mf, xi_mf, 0, 0, AMREX_SPACEDIM, xi_mf.nGrow());
+        SmoothReferenceMapForStress(lev, eta_mf, xi_stress_mf);
+        xi_for_stress_mf = &xi_stress_mf;
+    }
+
+    for (amrex::MFIter mfi(*xi_for_stress_mf, true); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.growntilebox(1);
         bx &= domain;
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
-        Set::Patch<const Set::Scalar> xi = xi_mf.array(mfi);
+        Set::Patch<const Set::Scalar> xi = xi_for_stress_mf->array(mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> F_field = deformation_gradient_mf.Patch(lev,mfi);
@@ -369,7 +464,7 @@ LowMach::UpdateSolidStress(int lev,
                 solid_weight = Util::SmootherStep((eta_val - eta_threshold) / denom);
             }
 
-            if (solid_enabled && solid_weight > 0.0)
+            if (solid_enabled && eta_val > stress_eta_min)
             {
                 Set::Matrix grad_xi = Numeric::Gradient(xi, i, j, k, DX, sten);
                 Set::Scalar det_grad_xi = grad_xi.determinant();

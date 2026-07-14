@@ -58,6 +58,7 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
     void RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf, Set::Scalar time);
+    void SmoothReferenceMapForStress(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf);
     void UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
                            const amrex::MultiFab& T_mf,
@@ -162,6 +163,8 @@ protected:
     Set::Scalar reference_map_eta_extension = 1.0e-3;
     int reference_map_extrapolation_sweeps = 4;
     int reference_map_smoothing_sweeps = 2;
+    int reference_map_stress_smoothing_sweeps = 0;
+    Set::Scalar reference_map_stress_smoothing_alpha = 0.1;
     bool finite_solid_enabled = false;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
