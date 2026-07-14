@@ -474,53 +474,74 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k)*etaold(i,j,k);
             Set::Vector grad_eta_hydro = -2.0*grad_eta*eta(i,j,k);
 	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            solidrho(i,j,k,0) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
-            
-            if (a_time > 0.0)
-            {
+            Set::Scalar p = 2026500; // 20 atm
+            Set::Scalar R = 319.787;
+
+            solidrho(i,j,k,0) = p/R/830.0*phi;
+            solidrho(i,j,k,1) = p/R/889.0*(1-phi);
+            solidrho(i,j,k,2) = 0.0;
+            solidrho(i,j,k,3) = 0.0;
+            solidrho(i,j,k,4) = 0.0;
+            solidrho(i,j,k,5) = 0.0;
+
+            m0(i,j,k,0) = 5.3235*phi;
+            m0(i,j,k,1) = 2.6404*(1-phi);
+            m0(i,j,k,2) = 0.0;
+            m0(i,j,k,3) = 0.0;
+            m0(i,j,k,4) = 0.0;
+            m0(i,j,k,5) = 0.0;
+
+            u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
+            u0(i,j,k,0) = 0.0;
+
+            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            // solidrho(i,j,k,0) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
+            // if (a_time > 0.0)
+            // {
 	     
-                grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
-                Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
-                deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
+            //     grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+            //     Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+            //     deta_dt(i,j,k) = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
                 
-                if (eta(i, j, k) < small)
-                {
-                    deta_dt(i,j,k) = 0.0;
-                }
+            //     if (eta(i, j, k) < small)
+            //     {
+            //         deta_dt(i,j,k) = 0.0;
+            //     }
                 
-                Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
-                Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
-                // Need to make sure units are correct
+            //     Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+            //     Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+            //     // Need to make sure units are correct
 
-                if ((NSPECIES == 1) && (eta_hydro > 0.1))
-                {
-                    m0(i, j, k) = 0.0;
-                    u0(i, j, k, 1) = 0.0;
-                    u0(i, j, k, 0) = 0.0;
+            //     if ((NSPECIES == 1) && (eta_hydro > 0.1))
+            //     {
+            //         m0(i, j, k) = 0.0;
+            //         u0(i, j, k, 1) = 0.0;
+            //         u0(i, j, k, 0) = 0.0;
                 
-                    m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
-                    // Set::Scalar rho_fluid;
-                    fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
+            //         m0(i,j,k) = (dm_dt_AP + dm_dt_HTPB)/(DX[0]*DX[1]); // Where mdot0 and u0 is nonzero, pressure is too high
+            //         // Set::Scalar rho_fluid;
+            //         fluid_density(i,j,k) = (hydro_density(i,j,k)-eta(i,j,k)*solidrho(i,j,k))/(std::min((1.0-eta(i,j,k)+small),1.0));
                 
-                    u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
-                    u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
+            //         u0(i,j,k,0) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(0); //
+            //         u0(i,j,k,1) = deta_dt(i,j,k)*solidrho(i,j,k)/(fluid_density(i,j,k)+small)*N(1); //
 
-                    // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
-                    // rhofluid = rho - eta*rhosolid/(1-eta+small)
-                    // Pressure breaks when both m0 and u0 are enabled
-                    // Desnity in hydro is mixed density, can mult by hydrodensity
-                    solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-                    solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
-                }
-	        }
+            //         // rho = eta*rhosolid + (1-eta)*rhofluid, solve for rhofluid, remember to add small
+            //         // rhofluid = rho - eta*rhosolid/(1-eta+small)
+            //         // Pressure breaks when both m0 and u0 are enabled
+            //         // Desnity in hydro is mixed density, can mult by hydrodensity
+            //         solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+            //         solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            //     }
+	        // }
         });
     }
-    Util::RealFillBoundary(*density_mf[lev],geom[lev]);    
-    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
-    Util::RealFillBoundary(*eta_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*density_mf[lev],geom[lev],density_mf[lev]->nGrow());
+    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev],solid.density_mf[lev]->nGrow());
+    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev],solid.momentum_mf[lev]->nGrow());
+    Util::RealFillBoundary(*m0_mf[lev],geom[lev],m0_mf[lev]->nGrow());
+    Util::RealFillBoundary(*u0_mf[lev],geom[lev],u0_mf[lev]->nGrow());
+    Util::RealFillBoundary(*eta_mf[lev],geom[lev],eta_mf[lev]->nGrow());
 
 }
 

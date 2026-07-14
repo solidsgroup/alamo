@@ -799,7 +799,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {   
 
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            if (invert) etadot(i,j,k) *= 1.0;
+            if (invert) etadot(i,j,k) *= -1.0;
 
         });
     }
@@ -1523,6 +1523,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Set::Vector N = grad_eta / (grad_eta_mag + small);
                 // Set::Vector T(N(1), -N(0));
                 // u0 = N * u0(0) + T * u0(1);
+                // Normal is u0(0), tangential is u0(1)
 
                 #if AMREX_SPACEDIM == 2
                     Set::Vector T(N(1), -N(0));
