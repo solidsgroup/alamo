@@ -14,6 +14,7 @@
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
 #include "AMReX_TimeIntegrator.H"
+#include "AMReX_FabArrayUtility.H"
 
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/Thermo/Thermo.H"
@@ -125,8 +126,8 @@ namespace
                                 Numeric::StencilType::Central) };
     }
 
-    // If eta is less than cutoff, then the fluid state should simply return the solid state,
-    // Otherwise compute the fluid state by removing the solid contribution from the mixed state
+    // Compute the fluid state by removing the solid contribution from the mixed state.
+    // If cutoff is configured, treat lower-eta cells as solid for the fluid solve.
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Solver::Local::Riemann::State ReconstructFluidState(
         const Solver::Local::Riemann::State& mixed,
@@ -136,14 +137,15 @@ namespace
         Set::Scalar small,
         Set::Scalar cutoff)
     {
+        const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
         if (invert)
         {
             const Set::Scalar eta_fluid = 1.0 - eta_raw;
-            if (eta_fluid <= cutoff) return solid;
+            if (eta_fluid <= eta_cutoff) return solid;
             return (mixed - eta_raw * solid) / (eta_fluid + small);
         }
 
-        if (eta_raw <= cutoff) return solid;
+        if (eta_raw <= eta_cutoff) return solid;
         return (mixed - (1.0 - eta_raw) * solid) / (eta_raw + small);
     }
 
@@ -471,11 +473,10 @@ void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }
 
-// Returns solid values for densities, momentum, and energy if eta < cutoff
-// Otherwise mixed densities are updated according to TryProjectSpeciesDensities
+// When cutoff is configured, keep eta <= cutoff cells on the solid state and
+// reconstruct the retained mixed cells from the fluid/solid blend.
 void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost, bool use_old_eta)
 {
-    // Only remap mixed conserved fields when a cutoff is configured.
     if (!(cutoff >= 0.0 && cutoff < 1.0)) return;
 
     Set::Field<Set::Scalar>* eta_field = use_old_eta ? eta_old_mf : eta_mf;
@@ -733,7 +734,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            if (eta < cutoff)
+            if (cutoff >= 0.0 && cutoff < 1.0 && eta < cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n)
                 {
@@ -831,6 +832,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
             std::array<Set::Scalar, NSPECIES> rhoY_fluid;
             Set::Scalar Mx_fluid = 0.0;
@@ -839,7 +841,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
             Set::Scalar Mz_fluid = 0.0;
             #endif
             Set::Scalar E_fluid = 0.0;
-            if (eta <= cutoff)
+            if (eta <= eta_cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
                 Mx_fluid = M_solid(i,j,k,0);
@@ -998,6 +1000,65 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
+    Set::Scalar diffuse_source_norm = 1.0;
+    {
+        // Normalize against the same cell-centered eta mask used by cutoff,
+        // so retained cells carry the full diffuse source integral.
+        const Set::Scalar cutoff_local = cutoff;
+        const bool invert_local = invert;
+
+        Set::Scalar reference_source_weight = amrex::ReduceSum(
+            *(*eta_old_mf)[lev], amrex::IntVect(0),
+            [=] AMREX_GPU_HOST_DEVICE (const amrex::Box& bx,
+                                       const amrex::Array4<const Set::Scalar>& eta_arr) -> Set::Scalar
+            {
+                Set::Scalar sum = 0.0;
+                const auto lo = amrex::lbound(bx);
+                const auto hi = amrex::ubound(bx);
+                auto sten = BCGhostStencil();
+                for (int k = lo.z; k <= hi.z; ++k)
+                for (int j = lo.y; j <= hi.y; ++j)
+                for (int i = lo.x; i <= hi.x; ++i)
+                {
+                    Set::Vector grad_eta = Numeric::Gradient(eta_arr, i, j, k, 0, DX, sten);
+                    if (invert_local) grad_eta *= -1.0;
+                    sum += grad_eta.lpNorm<2>();
+                }
+                return sum;
+            });
+
+        Set::Scalar active_source_weight = amrex::ReduceSum(
+            *(*eta_old_mf)[lev], amrex::IntVect(0),
+            [=] AMREX_GPU_HOST_DEVICE (const amrex::Box& bx,
+                                       const amrex::Array4<const Set::Scalar>& eta_arr) -> Set::Scalar
+            {
+                Set::Scalar sum = 0.0;
+                const auto lo = amrex::lbound(bx);
+                const auto hi = amrex::ubound(bx);
+                auto sten = BCGhostStencil();
+                for (int k = lo.z; k <= hi.z; ++k)
+                for (int j = lo.y; j <= hi.y; ++j)
+                for (int i = lo.x; i <= hi.x; ++i)
+                {
+                    Set::Scalar eta = invert_local ?
+                        1.0 - eta_arr(i,j,k,0) * eta_arr(i,j,k,0) :
+                        eta_arr(i,j,k,0);
+                    if (cutoff_local >= 0.0 && cutoff_local < 1.0 && eta <= cutoff_local) continue;
+                    Set::Vector grad_eta = Numeric::Gradient(eta_arr, i, j, k, 0, DX, sten);
+                    if (invert_local) grad_eta *= -1.0;
+                    sum += grad_eta.lpNorm<2>();
+                }
+                return sum;
+            });
+
+        amrex::ParallelDescriptor::ReduceRealSum(reference_source_weight);
+        amrex::ParallelDescriptor::ReduceRealSum(active_source_weight);
+        if (active_source_weight > small && reference_source_weight > 0.0)
+        {
+            diffuse_source_norm = reference_source_weight / active_source_weight;
+        }
+    }
+
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -1047,6 +1108,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
             // Reconstruct the gas state from the mixed conserved state before
             // computing any primitive or transport quantity.
@@ -1057,7 +1119,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Scalar Mz_fluid = 0.0;
             #endif
             Set::Scalar E_fluid = 0.0;
-            if (eta <= cutoff)
+            if (eta <= eta_cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
                 Mx_fluid = M_solid(i,j,k,0);
@@ -1232,6 +1294,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX, sten);
             if (invert) grad_eta *= -1.0;
             if (invert) hess_eta *= -1.0;
+            const bool cutoff_enabled = cutoff >= 0.0 && cutoff < 1.0;
+            const Set::Scalar eta_cutoff = cutoff_enabled ? cutoff : small;
+            const Set::Scalar source_cutoff = cutoff_enabled ? cutoff : 0.0;
+            Set::Scalar source_delta = eta > source_cutoff ? diffuse_source_norm * grad_eta_mag : 0.0;
+            Set::Scalar source_scale = source_delta / (grad_eta_mag + small);
 
             #if AMREX_SPACEDIM == 2
                 Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
@@ -1244,6 +1311,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1), _u0(i, j, k, 2)); // Velocity
                 Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
             #endif
+            // The cell-centered eta flux scaling omits the advective
+            // F dot grad(eta) term. Add it for transported conserved quantities
+            // only; pressure remains handled by the Riemann flux.
+            Set::Scalar eta_transport_weight = cutoff_enabled ? 1.0 - cutoff : 1.0;
+            Set::Scalar eta_transport_rate = source_delta > 0.0 ? eta_transport_weight * u.dot(grad_eta) : 0.0;
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX, sten);
             Set::Vector gradrho      = Numeric::Gradient(rho_sum,i,j,k,0,DX, sten);
@@ -1284,13 +1356,13 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Scalar rho_solid_sum = 0.0;
             for (int n=0; n<NSPECIES; ++n )
             {
-                mdot0[n] = m0(i,j,k,n)*grad_eta_mag;
+                mdot0[n] = m0(i,j,k,n)*source_delta;
                 mdot0_total += mdot0[n];
                 rho_solid_sum += rho_solid(i,j,k,n);
             }
 
             Set::Vector Pdot0 = mdot0_total * u0;
-            Set::Scalar qdot0 = q0.dot(grad_eta);
+            Set::Scalar qdot0 = q0.dot(grad_eta) * source_scale;
             if (rho_solid_sum > small)
             {
                 qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum;
@@ -1407,6 +1479,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             const int momentum_source_comp = NSPECIES;
             const int energy_source_comp = NSPECIES + AMREX_SPACEDIM;
+            Set::Scalar E_fluid_transport = E_solid(i,j,k);
+            if (eta > eta_cutoff)
+            {
+                E_fluid_transport = (E(i,j,k) - E_solid(i,j,k) * (1.0 - eta)) / (eta + small);
+            }
             std::array<Set::Scalar, NSPECIES> drhof_dt_hydro;
             for (int n=0; n<NSPECIES; ++n)
             {
@@ -1417,7 +1494,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #if AMREX_SPACEDIM == 3
                     (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2] +
 #endif
-                    Source(i, j, k, n);
+                    Source(i, j, k, n) -
+                    scratch(i,j,k,n) * eta_transport_rate;
                 if (NSPECIES > 1)
                 {
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
@@ -1458,7 +1536,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             {
                 rhoY_intermediate[n] = scratch(i,j,k,n);
             }
-            if (eta > cutoff)
+            if (eta > eta_cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n)
                 {
@@ -1500,7 +1578,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #endif
                 div_tau(0) * eta +
                 g(0)*rho_sum(i,j,k) +
-                Source(i, j, k, momentum_source_comp);
+                Source(i, j, k, momentum_source_comp) -
+                rho_sum(i,j,k) * u(0) * eta_transport_rate;
 
             M_rhs(i,j,k,0) =
                 //M_new(i, j, k, 0) = M(i, j, k, 0) +
@@ -1519,7 +1598,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #endif
                 div_tau(1) * eta +
                 g(1)*rho_sum(i,j,k) +
-                Source(i, j, k, momentum_source_comp+1);
+                Source(i, j, k, momentum_source_comp+1) -
+                rho_sum(i,j,k) * u(1) * eta_transport_rate;
 
             M_rhs(i,j,k,1) =
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
@@ -1537,7 +1617,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2] +
                 div_tau(2) * eta +
                 g(2)*rho_sum(i,j,k) +
-                Source(i, j, k, momentum_source_comp+2);
+                Source(i, j, k, momentum_source_comp+2) -
+                rho_sum(i,j,k) * u(2) * eta_transport_rate;
 
             M_rhs(i,j,k,2) =
                     dMzf_dt +
@@ -1558,7 +1639,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 )) +
                 rho_sum(i,j,k)*g.dot(u) +
                 Source(i, j, k, energy_source_comp) +
-                eta * qdot;
+                eta * qdot -
+                E_fluid_transport * eta_transport_rate;
 
             if (NSPECIES > 1)
             {
