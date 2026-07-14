@@ -55,7 +55,7 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-
+    
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;

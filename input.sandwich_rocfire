@@ -39,7 +39,7 @@ details = 1
 #restart = output.sandwich_rocfire_part1/13900cell
 #restart = output.sandwich_rocfire_part2/14000cell
 #restart = output.sandwich_rocfire_part1_new/31500cell
-restart = output.sandwich_rocfire_part2_new/32300cell
+# restart = output.sandwich_rocfire_part2_new/32300cell
 
 ### MESHING ###
 amr.plot_dt = 1e-6
@@ -237,6 +237,8 @@ bc_1.constant.type.xlo = neumann
 bc_1.constant.type.xhi = neumann
 bc_1.constant.type.ylo = neumann
 bc_1.constant.type.yhi = neumann
+
+allow_unused=True
 
 ### HYDRO REFINEMENT CRITERIA ###
 eta_refinement_criterion = 1e8
