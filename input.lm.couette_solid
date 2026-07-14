@@ -54,6 +54,7 @@ projection.tol_abs = 1.0e-12
 projection.verbose = 0
 projection.update_pressure = 1
 diagnostics.interval = 20
+diagnostics.extended_fields = 0
 
 reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7

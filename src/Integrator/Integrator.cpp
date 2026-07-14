@@ -801,21 +801,23 @@ Integrator::PlotFileName(int lev, std::string prefix) const
 }
 
 void
-Integrator::WritePlotFile(bool initial) const
+Integrator::WritePlotFile(bool initial)
 {
     WritePlotFile(t_new[0], istep, initial, "");
 }
 void
-Integrator::WritePlotFile(std::string prefix, Set::Scalar time, int step) const
+Integrator::WritePlotFile(std::string prefix, Set::Scalar time, int step)
 {
     amrex::Vector<int> istep(max_level + 1, step);
     WritePlotFile(time, istep, false, prefix);
 }
 
 void
-Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix) const
+Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix)
 {
     BL_PROFILE("Integrator::WritePlotFile");
+    PreparePlotFile(time, iter);
+
     int nlevels = finest_level + 1;
     if (max_plot_level >= 0) nlevels = std::min(nlevels, max_plot_level);
 

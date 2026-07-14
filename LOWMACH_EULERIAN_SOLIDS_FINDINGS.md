@@ -281,6 +281,53 @@ changed phase mass by approximately `1.3e-4` through `t=8`. This supports the
 conclusion that most earlier positive mass drift came from AMR transport and
 regridding rather than the conservative face flux.
 
+## Integrator Streamlining
+
+The LowMach hot path previously treated derived diagnostics as integration
+state. Every RK RHS and post-stage callback recomputed and ghost-filled
+momentum, total energy, vorticity, solid weight, deformation gradient,
+first-Piola stress, total Cauchy stress, and two nodal stress tensors. Most of
+those fields were never consumed by the evolution equations.
+
+The streamlined implementation now:
+
+- computes only density, mole fraction, and weighted cell solid stress in the
+  RHS;
+- keeps the required post-stage and post-projection reference-map passes;
+- removes the registered projection RHS scratch field and allocates it only in
+  the single-level projection where it is used;
+- removes the two unused nodal stress fields, including the unnecessary nodal
+  restart field;
+- updates plot diagnostics through an integrator plot-preparation hook, so they
+  are current at initial, periodic, and final plot writes without being updated
+  on every timestep;
+- registers momentum, energy, vorticity, solid weight, `F`, first-Piola stress,
+  total Cauchy stress, and mole-fraction output only when
+  `diagnostics.extended_fields = 1`.
+
+The default registry is reduced from 23 cell fields plus 2 nodal fields to 15
+cell fields and no nodal fields. The compact plotfile retains velocity,
+temperature, mass fraction, `eta`, `xi`, density, pressure, pressure correction,
+and weighted solid deviatoric Cauchy stress. Set
+`diagnostics.extended_fields = 1` to recover the larger cell-diagnostic output
+set for focused analysis.
+
+On the 12-rank, 60-step AMR Couette-solid benchmark, wall time decreased from
+`6.14 s` to `5.47 s` without plot output. With the old and extended diagnostic
+plot sets enabled at step 60, wall time decreased from `6.28 s` to `5.58 s`.
+These short-run measurements indicate an approximately 11 percent speedup;
+startup and final I/O are included. A separate six-rank Couette run was active
+on the host during both measurements, so this is an indicative paired result,
+not a controlled performance benchmark.
+
+An AMReX plotfile comparison against the preserved pre-streamlining executable
+at step 60 found identical temperature, composition, and density. Maximum
+differences were approximately `3e-8` in `xi`, `1e-6` in `eta`, and `9e-8` in
+velocity, consistent with floating-point propagation through the parallel
+projection and stress kernels. A trial that removed RK post-stage or the second
+post-projection reference-map pass produced materially larger differences and
+was rejected.
+
 ## Validation Performed
 
 - Clean 2D clang build passed.

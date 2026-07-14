@@ -171,6 +171,7 @@ protected:
     /// This optional function is called at the end of every timestep, and can be used
     /// to complete additional global solves, e.g. a MLMG implicit solve.
     virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
+    virtual void PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*/) {};
 
     /// This is a function that is called by `Integrator` to update the variables registered in
     /// RegisterIntegratedVariable; you can override this to do your integration.
@@ -382,9 +383,9 @@ private:
     std::vector<std::string> PlotFileName(int lev, std::string prefix = "") const;
 protected:
     void IntegrateVariables(Set::Scalar cur_time, int step);
-    void WritePlotFile(bool initial = false) const;
-    void WritePlotFile(std::string prefix, Set::Scalar time, int step) const;
-    void WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix = "") const;
+    void WritePlotFile(bool initial = false);
+    void WritePlotFile(std::string prefix, Set::Scalar time, int step);
+    void WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix = "");
 
     //
     // MEMBER VARIABLES

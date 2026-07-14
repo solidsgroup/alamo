@@ -53,6 +53,7 @@ protected:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int iter) override;
+    void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
     void PrintDiagnostics(Set::Scalar time, int iter);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
@@ -63,8 +64,10 @@ protected:
                            const amrex::MultiFab& u_mf,
                            const amrex::MultiFab& T_mf,
                            const amrex::MultiFab& eta_mf,
-                           const amrex::MultiFab& xi_mf);
-    void UpdateDerived(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
+                           const amrex::MultiFab& xi_mf,
+                           bool write_diagnostics = false);
+    void UpdateThermodynamics(int lev, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
+    void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
     void CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
@@ -94,7 +97,6 @@ protected:
     Set::Field<Set::Scalar> momentum_mf;
     Set::Field<Set::Scalar> pressure_mf;
     Set::Field<Set::Scalar> pressure_correction_mf;
-    Set::Field<Set::Scalar> projection_rhs_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
@@ -103,8 +105,6 @@ protected:
     Set::Field<Set::Scalar> solid_first_piola_kirchhoff_stress_mf;
     Set::Field<Set::Scalar> cell_total_cauchy_stress_mf;
     Set::Field<Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress_mf;
-    Set::Field<Set::Matrix> nodal_total_cauchy_stress_mf;
-    Set::Field<Set::Matrix> nodal_weighted_solid_deviatoric_cauchy_stress_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
@@ -144,6 +144,7 @@ protected:
     int projection_node_reconstruction_sweeps = 1;
     int projection_nodal_iterations = 200;
     int diagnostics_interval = 0;
+    bool diagnostics_extended_fields = false;
     bool projection_enabled = true;
     bool projection_amr_enabled = false;
     bool projection_update_pressure = true;
