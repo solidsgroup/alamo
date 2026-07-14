@@ -147,162 +147,6 @@ namespace
         return (mixed - (1.0 - eta_raw) * solid) / (eta_raw + small);
     }
 
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar EffectiveFluidEta(Set::Scalar eta_raw, bool invert)
-    {
-        Set::Scalar eta = invert ? 1.0 - eta_raw * eta_raw : eta_raw;
-        if (eta < 0.0) eta = 0.0;
-        if (eta > 1.0) eta = 1.0;
-        return eta;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar StateDensity(const Solver::Local::Riemann::State& state, Set::Scalar small)
-    {
-        Set::Scalar rho = 0.0;
-        for (int n = 0; n < NSPECIES; ++n) rho += state.rho[n];
-        return std::max(rho, small);
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar FluxMass(const Solver::Local::Riemann::Flux& flux)
-    {
-        Set::Scalar mass = 0.0;
-        for (int n = 0; n < NSPECIES; ++n) mass += flux.mass[n];
-        return mass;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar DirectionNormalVelocity(const Set::Vector& velocity, int direction)
-    {
-        return velocity(direction);
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar DirectionTangentVelocity(const Set::Vector& velocity, int direction)
-    {
-        if (direction == 0) return velocity(1);
-        return velocity(0);
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar DirectionTangent2Velocity(const Set::Vector& velocity, int direction)
-    {
-#if AMREX_SPACEDIM == 3
-        if (direction == 2) return velocity(1);
-        return velocity(2);
-#else
-        (void)velocity;
-        (void)direction;
-        return 0.0;
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::State MirrorWallStateImpl(
-        const Solver::Local::Riemann::State& interior,
-        Set::Scalar wall_normal_velocity,
-        Set::Scalar wall_tangent_velocity,
-        Set::Scalar wall_tangent2_velocity,
-        Set::Scalar small)
-    {
-        Solver::Local::Riemann::State ghost = interior;
-        const Set::Scalar rho = StateDensity(interior, small);
-        const Set::Scalar un = interior.M_normal / rho;
-        const Set::Scalar ut = interior.M_tangent / rho;
-        const Set::Scalar un_wall = 2.0 * wall_normal_velocity - un;
-        const Set::Scalar ut_wall = 2.0 * wall_tangent_velocity - ut;
-
-        ghost.M_normal = rho * un_wall;
-        ghost.M_tangent = rho * ut_wall;
-#if AMREX_SPACEDIM == 3
-        const Set::Scalar ut2 = interior.M_tangent2 / rho;
-        const Set::Scalar ut2_wall = 2.0 * wall_tangent2_velocity - ut2;
-        ghost.M_tangent2 = rho * ut2_wall;
-#else
-        (void)wall_tangent2_velocity;
-#endif
-        ghost.E = interior.E + 0.5 * rho *
-            (un_wall * un_wall + ut_wall * ut_wall
-#if AMREX_SPACEDIM == 3
-            + ut2_wall * ut2_wall
-#endif
-            - un * un - ut * ut
-#if AMREX_SPACEDIM == 3
-            - ut2 * ut2
-#endif
-            );
-        return ghost;
-    }
-
-    [[maybe_unused]]
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::State MirrorWallState(
-        const Solver::Local::Riemann::State& interior,
-        Set::Scalar wall_normal_velocity,
-        Set::Scalar wall_tangent_velocity,
-        Set::Scalar small)
-    {
-        return MirrorWallStateImpl(
-            interior, wall_normal_velocity, wall_tangent_velocity, 0.0, small);
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::State MirrorWallState(
-        const Solver::Local::Riemann::State& interior,
-        Set::Scalar wall_normal_velocity,
-        Set::Scalar wall_tangent_velocity,
-        Set::Scalar wall_tangent2_velocity,
-        Set::Scalar small)
-    {
-        return MirrorWallStateImpl(
-            interior, wall_normal_velocity, wall_tangent_velocity, wall_tangent2_velocity, small);
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::Flux PrescribedWallFlux(
-        const Solver::Local::Riemann::Flux& reflected_flux,
-        const std::array<Set::Scalar, NSPECIES>& prescribed_mass_flux,
-        Set::Scalar reflected_normal_velocity,
-        Set::Scalar reflected_tangent_velocity,
-        Set::Scalar prescribed_normal_velocity,
-        Set::Scalar prescribed_tangent_velocity,
-        Set::Scalar injection_specific_energy,
-        Set::Scalar conductive_energy_flux,
-        Set::Scalar reflected_tangent2_velocity = 0.0,
-        Set::Scalar prescribed_tangent2_velocity = 0.0)
-    {
-        Solver::Local::Riemann::Flux flux;
-        const Set::Scalar reflected_mass_flux = FluxMass(reflected_flux);
-        Set::Scalar prescribed_mass_flux_total = 0.0;
-        for (int n = 0; n < NSPECIES; ++n)
-        {
-            flux.mass[n] = prescribed_mass_flux[n];
-            prescribed_mass_flux_total += prescribed_mass_flux[n];
-        }
-
-        flux.momentum_normal =
-            reflected_flux.momentum_normal -
-            reflected_mass_flux * reflected_normal_velocity +
-            prescribed_mass_flux_total * prescribed_normal_velocity;
-        flux.momentum_tangent =
-            reflected_flux.momentum_tangent -
-            reflected_mass_flux * reflected_tangent_velocity +
-            prescribed_mass_flux_total * prescribed_tangent_velocity;
-#if AMREX_SPACEDIM == 3
-        flux.momentum_tangent2 =
-            reflected_flux.momentum_tangent2 -
-            reflected_mass_flux * reflected_tangent2_velocity +
-            prescribed_mass_flux_total * prescribed_tangent2_velocity;
-#else
-        (void)reflected_tangent2_velocity;
-        (void)prescribed_tangent2_velocity;
-#endif
-        flux.energy =
-            prescribed_mass_flux_total * injection_specific_energy +
-            conductive_energy_flux;
-        return flux;
-    }
 }
 
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
@@ -631,7 +475,7 @@ void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
 // Otherwise mixed densities are updated according to TryProjectSpeciesDensities
 void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost, bool use_old_eta)
 {
-    // Only cutoff-wall mode should remap mixed conserved fields to a solid state.
+    // Only remap mixed conserved fields when a cutoff is configured.
     if (!(cutoff >= 0.0 && cutoff < 1.0)) return;
 
     Set::Field<Set::Scalar>* eta_field = use_old_eta ? eta_old_mf : eta_mf;
@@ -1380,26 +1224,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             // and Riemann states that sample the specified physical BCs.
             auto sten = BCGhostStencil();
 
-            Set::Scalar eta = EffectiveFluidEta(eta_patch(i,j,k), invert);
-            if (eta <= cutoff)
-            {
-                for (int n=0; n<NSPECIES; ++n) rho_rhs(i,j,k,n) = 0.0;
-                M_rhs(i,j,k,0) = 0.0;
-                M_rhs(i,j,k,1) = 0.0;
-                #if AMREX_SPACEDIM == 3
-                M_rhs(i,j,k,2) = 0.0;
-                #endif
-                E_rhs(i,j,k) = 0.0;
-                for (int n=0; n<NSPECIES+AMREX_SPACEDIM+1; ++n) Source(i,j,k,n) = 0.0;
-                #if AMREX_SPACEDIM == 2
-                omega(i,j,k) = 0.0;
-                #elif AMREX_SPACEDIM == 3
-                omega(i,j,k,0) = 0.0;
-                omega(i,j,k,1) = 0.0;
-                omega(i,j,k,2) = 0.0;
-                #endif
-                return;
-            }
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX, sten);
@@ -1560,206 +1385,16 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Solver::Local::Riemann::Flux flux_zlo, flux_zhi;
 #endif
 
-            const Set::Scalar eta_xlo = EffectiveFluidEta(eta_patch(i-1,j,k), invert);
-            const Set::Scalar eta_xhi = EffectiveFluidEta(eta_patch(i+1,j,k), invert);
-            const Set::Scalar eta_ylo = EffectiveFluidEta(eta_patch(i,j-1,k), invert);
-            const Set::Scalar eta_yhi = EffectiveFluidEta(eta_patch(i,j+1,k), invert);
-#if AMREX_SPACEDIM == 3
-            const Set::Scalar eta_zlo = EffectiveFluidEta(eta_patch(i,j,k-1), invert);
-            const Set::Scalar eta_zhi = EffectiveFluidEta(eta_patch(i,j,k+1), invert);
-#endif
-
-            const Set::Scalar injection_specific_energy =
-                (rho_solid_sum > small) ? E_solid(i,j,k) / rho_solid_sum : 0.0;
-            const bool cutoff_wall_enforced = (cutoff >= 0.0 && cutoff < 1.0);
-
             try
             {
-                if (eta_xlo <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_x_fluid, small);
-                    const Solver::Local::Riemann::State state_xlo_wall =
-                        MirrorWallState(state_x_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, X),
-                            DirectionTangent2Velocity(u0, X), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_xlo_wall, state_x_fluid, gas, molef, i, j, k, 0, small);
-                    flux_xlo = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, X),
-                        DirectionNormalVelocity(u0, X), DirectionTangentVelocity(u0, X),
-                        injection_specific_energy, q0(X),
-                        DirectionTangent2Velocity(u0, X), DirectionTangent2Velocity(u0, X));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small);
-                    flux_xlo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
-                if (eta_ylo <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_y_fluid, small);
-                    const Solver::Local::Riemann::State state_ylo_wall =
-                        MirrorWallState(state_y_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, Y),
-                            DirectionTangent2Velocity(u0, Y), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_ylo_wall, state_y_fluid, gas, molef, i, j, k, 2, small);
-                    flux_ylo = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, Y),
-                        DirectionNormalVelocity(u0, Y), DirectionTangentVelocity(u0, Y),
-                        injection_specific_energy, q0(Y),
-                        DirectionTangent2Velocity(u0, Y), DirectionTangent2Velocity(u0, Y));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small);
-                    flux_ylo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
-
-                if (eta_xhi <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = -m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_x_fluid, small);
-                    const Solver::Local::Riemann::State state_xhi_wall =
-                        MirrorWallState(state_x_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, X),
-                            DirectionTangent2Velocity(u0, X), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_x_fluid, state_xhi_wall, gas, molef, i, j, k, 1, small);
-                    flux_xhi = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, X),
-                        DirectionNormalVelocity(u0, X), DirectionTangentVelocity(u0, X),
-                        injection_specific_energy, q0(X),
-                        DirectionTangent2Velocity(u0, X), DirectionTangent2Velocity(u0, X));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small);
-                    flux_xhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
-
-                if (eta_yhi <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = -m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_y_fluid, small);
-                    const Solver::Local::Riemann::State state_yhi_wall =
-                        MirrorWallState(state_y_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, Y),
-                            DirectionTangent2Velocity(u0, Y), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_y_fluid, state_yhi_wall, gas, molef, i, j, k, 3, small);
-                    flux_yhi = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, Y),
-                        DirectionNormalVelocity(u0, Y), DirectionTangentVelocity(u0, Y),
-                        injection_specific_energy, q0(Y),
-                        DirectionTangent2Velocity(u0, Y), DirectionTangent2Velocity(u0, Y));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small);
-                    flux_yhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
 #if AMREX_SPACEDIM == 3
-                if (eta_zlo <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_z_fluid, small);
-                    const Solver::Local::Riemann::State state_zlo_wall =
-                        MirrorWallState(state_z_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, Z),
-                            DirectionTangent2Velocity(u0, Z), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_zlo_wall, state_z_fluid, gas, molef, i, j, k, 4, small);
-                    flux_zlo = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, Z),
-                        DirectionNormalVelocity(u0, Z), DirectionTangentVelocity(u0, Z),
-                        injection_specific_energy, q0(Z),
-                        DirectionTangent2Velocity(u0, Z), DirectionTangent2Velocity(u0, Z));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small);
-                    flux_zlo = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
-
-                if (eta_zhi <= cutoff)
-                {
-                    std::array<Set::Scalar, NSPECIES> prescribed_mass_flux;
-                    Set::Scalar prescribed_mass_flux_total = 0.0;
-                    for (int n = 0; n < NSPECIES; ++n)
-                    {
-                        prescribed_mass_flux[n] = -m0(i,j,k,n);
-                        prescribed_mass_flux_total += prescribed_mass_flux[n];
-                    }
-                    const Set::Scalar reflected_normal_velocity =
-                        prescribed_mass_flux_total / StateDensity(state_z_fluid, small);
-                    const Solver::Local::Riemann::State state_zhi_wall =
-                        MirrorWallState(state_z_fluid, reflected_normal_velocity,
-                            DirectionTangentVelocity(u0, Z),
-                            DirectionTangent2Velocity(u0, Z), small);
-                    const Solver::Local::Riemann::Flux reflected_flux =
-                        riemannsolver->Solve(state_z_fluid, state_zhi_wall, gas, molef, i, j, k, 5, small);
-                    flux_zhi = PrescribedWallFlux(
-                        reflected_flux, prescribed_mass_flux,
-                        reflected_normal_velocity, DirectionTangentVelocity(u0, Z),
-                        DirectionNormalVelocity(u0, Z), DirectionTangentVelocity(u0, Z),
-                        injection_specific_energy, q0(Z),
-                        DirectionTangent2Velocity(u0, Z), DirectionTangent2Velocity(u0, Z));
-                }
-                else
-                {
-                    Solver::Local::Riemann::Flux fluid_flux = riemannsolver->Solve(
-                        state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small);
-                    flux_zhi = cutoff_wall_enforced ? fluid_flux : fluid_flux * eta;
-                }
+                flux_zlo = riemannsolver->Solve(state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small) * eta;
+                flux_zhi = riemannsolver->Solve(state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small) * eta;
 #endif
             }
             catch(...)
@@ -1808,27 +1443,15 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #endif
             Source(i,j, k, energy_source_comp) = qdot0 + interface_momentum_source.dot(u);
 
-            // Lagrange terms to enforce no-penetration for pure diffuse mode.
-            // In cutoff-wall mode, the Riemann wall flux imposes no-penetration
-            // at the cutoff face; applying this over the full eta ramp adds a
-            // second, finite-thickness constraint and creates an interface peak.
-            if (!cutoff_wall_enforced)
-            {
-                const Set::Scalar momentum_density_for_lagrange =
-                    std::max(eta * rho_sum(i,j,k), small);
-                const Set::Scalar lagrange_rate =
-                    lagrange * grad_eta_mag * grad_eta_mag / momentum_density_for_lagrange;
-                const Set::Scalar lagrange_factor =
-                    lagrange / (1.0 + dt * lagrange_rate);
-                Set::Vector lagrange_momentum_source =
-                    -lagrange_factor * (u-u0).dot(grad_eta) * grad_eta;
-                Source(i,j,k,momentum_source_comp  ) += lagrange_momentum_source(0);
-                Source(i,j,k,momentum_source_comp+1) += lagrange_momentum_source(1);
+            // Lagrange terms to enforce no-penetration
+            Set::Vector lagrange_momentum_source =
+                -lagrange*(u-u0).dot(grad_eta)*grad_eta;
+            Source(i,j,k,momentum_source_comp  ) += lagrange_momentum_source(0);
+            Source(i,j,k,momentum_source_comp+1) += lagrange_momentum_source(1);
 #if AMREX_SPACEDIM == 3
-                Source(i,j,k,momentum_source_comp+2) += lagrange_momentum_source(2);
+            Source(i,j,k,momentum_source_comp+2) += lagrange_momentum_source(2);
 #endif
-                Source(i,j,k,energy_source_comp) += lagrange_momentum_source.dot(u0);
-            }
+            Source(i,j,k,energy_source_comp) += lagrange_momentum_source.dot(u);
 
             std::array<Set::Scalar, NSPECIES> rhoY_intermediate;
             for (int n=0; n<NSPECIES; ++n)
