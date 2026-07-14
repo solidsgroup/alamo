@@ -1,0 +1,69 @@
+
+alamo.program = lagrangian_shock
+alamo.program.mechanics.model = linear.isotropic
+
+
+amr.n_cell           = 4000 8
+geometry.prob_lo      = 0.0    0.0
+geometry.prob_hi      = 0.004  0.0001
+geometry.is_periodic  = 0 1
+
+amr.max_level     = 0
+amr.max_grid_size = 512
+amr.plot_int         = 100
+timestep  = 1e-11
+stop_time = 2.5e-6
+
+
+plot_file   = tests/shock/output
+amr.plot_dt = 5e-8
+
+
+type = dynamic
+time_evolving = true
+viscous.mu_dashpot = 0
+viscous.mu_newton  = 0
+
+nmodels = 1
+model1.E  = 186e9
+model1.nu = 0.34
+
+
+velocity.ic.type = none
+
+bc.type = expression
+
+bc.expression.type.xlo    = disp trac
+bc.expression.type.xhi    = trac trac
+bc.expression.type.ylo    = trac trac
+bc.expression.type.yhi    = trac trac
+bc.expression.type.xloylo = disp trac
+bc.expression.type.xloyhi = disp trac
+bc.expression.type.xhiylo = trac trac
+bc.expression.type.xhiyhi = trac trac
+
+bc.expression.val.xlo     = "98.0*t" 0.0
+bc.expression.val.xhi     = 0.0 0.0
+bc.expression.val.ylo     = 0.0 0.0
+bc.expression.val.yhi     = 0.0 0.0
+bc.expression.val.xloylo  = "98.0*t" 0.0
+bc.expression.val.xloyhi  = "98.0*t" 0.0
+bc.expression.val.xhiylo  = 0.0 0.0
+bc.expression.val.xhiyhi  = 0.0 0.0
+
+
+eos.C0     = 3430.0
+eos.s1     = 1.19
+eos.Gamma0 = 1.67
+eos.rho0   = 16580.0
+eos.Cv     = 140.0
+
+hydro.rho0 = 16580.0
+e_init     = 0.0
+
+av.CQ = 2.0
+av.CL = 0.5
+cfl   = 0.4
+
+diag_file = lagshock_diag.dat
+diag_dt   = 1e-10

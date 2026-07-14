@@ -1,0 +1,241 @@
+alamo.program = lagrangian_shock_cp_damage
+alamo.program.mechanics.model = finite.crystalplastic
+
+### DIV09: y-domain = 0.0012 (=0.0108/9). dx unchanged (256 over 0.003504 -> 1.36875e-5).
+### DIV09: for square cells (dy~dx) at y=0.0012 use n_cell_y=88 -> dy=1.3636e-5 (dy/dx=0.996).
+### OLD: amr.n_cell = 256 64      # halfY (0.0054): dy=8.4375e-5, cells ~6x tall
+### OLD: amr.n_cell = 256 384     # halfY square recommendation
+amr.n_cell           = 256 64
+geometry.prob_lo     = 0.0   0.0
+#geometry.prob_hi     = 0.00504 0.00104
+#geometry.prob_hi     = 0.00504 0.0108
+#geometry.prob_hi     = 0.003504 0.00104
+### OLD: geometry.prob_hi     = 0.003504 0.0108     # full y
+### OLD: geometry.prob_hi     = 0.003504 0.00104
+### OLD: geometry.prob_hi     = 0.003504 0.0007
+### OLD: geometry.prob_hi     = 0.003504 0.00052
+### OLD: geometry.prob_hi     = 0.003504 0.0054     # halfY
+geometry.prob_hi     = 0.003504 0.0012              ### DIV09: 0.0108/9
+geometry.is_periodic = 0 1
+#geometry.is_periodic = 0 0
+amr.blocking_factor  = 4
+amr.regrid_int       = 100
+amr.grid_eff         = 1.0
+amr.node.all         = 1
+amr.plot_int         = 100
+amr.nsubsteps        = 1
+ref_threshold.euler  = 0.005
+amr.n_error_buff     = 0
+amr.max_level        = 0
+amr.max_grid_size    = 512
+
+timestep  = 1e-9        ### DIV09: unchanged - CFL governed by dx (unchanged); shock is in x
+stop_time = 2.5e-6      ### DIV09: unchanged - x-transit/timing untouched by y-slice
+
+plot_file = tests/shock_cp_damage/output_at1
+
+type = dynamic
+time_evolving = true
+viscous.mu_dashpot = 0
+viscous.mu_newton  = 0
+
+euler.ic.type                 = eulerangles
+euler.ic.eulerangles.fit      = coord
+euler.ic.eulerangles.coord.lo = 0.00105 0.0
+### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.0108
+### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.00104
+### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.0007
+### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.00052
+### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.0054
+euler.ic.eulerangles.coord.hi = 0.003504 0.0012     ### DIV09
+#euler.ic.eulerangles.filename = tests/shock_cp_damage/target_test.png
+#euler.ic.eulerangles.filename = tests/shock_cp_damage/orientation_macro.png
+### OLD: euler.ic.eulerangles.filename = tests/shock_cp_damage/orientation_macro_small_halfY.png
+### DIV09: point to the div09 slice of the ORIENTATION map (same y-cut boundaries as the void slice).
+euler.ic.eulerangles.filename = tests/shock_cp_damage/orient_100_div09_slice0.png
+#euler.ic.eulerangles.fit      = stretch
+
+nmodels = 1
+model1.C11 = 261.0
+model1.C12 = 156.3
+model1.C44 = 82.60
+model1.euler1 = 0.0
+model1.euler2 = 0.0
+model1.euler3 = 0.0
+model1.gammadot0   = 2.5143e9
+model1.DeltaG      = 1.5762e-19
+model1.p_exp       = 0.3387
+model1.q_exp       = 1.9519
+model1.burg        = 2.863e-7
+model1.theta       = 294.0
+#model1.tstart      = 1.3e-6
+model1.tstart      = 0
+model1.B0          = 2.9574e-5
+model1.cs          = 1.937e6
+model1.fD          = 1.0e11
+model1.g0          = 0.2
+model1.tau_p_110   = 0.406
+model1.tau_p_112T  = 0.349
+model1.tau_p_112AT = 0.555
+model1.tau_a0      = 0.027
+model1.tau_r0      = 0.525
+model1.Cfor        = 0.0
+model1.Ccop        = 0.5
+#model1.CM          = 0.98
+model1.CM          = 0.3502
+model1.CT_ratio    = 0.8836
+model1.nrec        = 4.0
+model1.varsigma    = 0.1
+model1.rho0_sat    = 2.6596e9
+model1.gdot0_sat   = 2.5143e9
+model1.A_sat       = 1.5762e-19
+model1.rho0_total  = 6.0e6
+#model1.mob_frac0   = 0.50
+model1.mob_frac0   = 0.015
+model1.use_modscaled_taur = 0
+model1.enable_nucleation  = 0
+model1.use_implicit       = 0
+
+eos.C0     = 3430.0
+eos.s1     = 1.19
+eos.Gamma0 = 1.67
+eos.rho0   = 16580.0
+eos.Cv     = 140.0
+
+hydro.rho0 = 16580.0
+e_init     = 0.0
+
+#av.CQ = 2.0
+#av.CL = 0.5
+av.CQ = 2
+av.CL = 0.5
+cfl   = 0.4
+
+taylor_quinney = 0.69
+theta_init     = 294.0
+hg_coeff       = 0.0
+
+diag_file = lagshockcp_damage_diag_at1.dat
+diag_dt   = 1e-10
+
+stress_scale = 1e9
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "196.0*(x<0.00105)"   ### DIV09: unchanged (flyer is x-based, y-independent)
+velocity.ic.expression.region1 = "0.0"
+
+geometry.is_periodic = 0 1
+
+bc.type = expression
+bc.expression.type.xlo    = trac trac
+bc.expression.type.xhi    = trac trac
+bc.expression.type.ylo    = trac trac
+bc.expression.type.yhi    = trac trac
+bc.expression.type.xloylo = trac trac
+bc.expression.type.xloyhi = trac trac
+bc.expression.type.xhiylo = trac trac
+bc.expression.type.xhiyhi = trac trac
+
+bc.expression.val.xlo     = 0.0 0.0
+bc.expression.val.xhi     = 0.0 0.0
+bc.expression.val.ylo     = 0.0 0.0
+bc.expression.val.yhi     = 0.0 0.0
+bc.expression.val.xloylo  = 0.0 0.0
+bc.expression.val.xloyhi  = 0.0 0.0
+bc.expression.val.xhiylo  = 0.0 0.0
+bc.expression.val.xhiyhi  = 0.0 0.0
+
+
+damage.model = at1
+#damage.model = double_well
+damage.barrier_height   = 1.0e7
+damage.M     = 1e-1
+#damage.M     = 1.5
+### DIV09: Gc, ell UNCHANGED - dx is preserved, so ell/dx and the spall-strength calibration are unaffected.
+### OLD: damage.Gc    = 2.108185e4
+### OLD: damage.Gc    = 1.083333e4
+damage.Gc    = 3.645833e3
+### OLD: damage.ell   = 3.162278e-5
+### OLD: damage.ell   = 1.625e-5
+damage.ell   = 5.46875e-6
+damage.small = 1e-3
+damage.d_seed_floor = 0.96
+
+growth.M              = 1e-2
+#growth.M              = 1.5
+eta_ref_threshold = 1e-2
+
+d.bc.constant.type.xlo = neumann
+d.bc.constant.type.xhi = neumann
+d.bc.constant.type.ylo = neumann
+d.bc.constant.type.yhi = neumann
+
+d.bc.constant.val.xlo = 0.0
+d.bc.constant.val.xhi = 0.0
+d.bc.constant.val.ylo = 0.0
+d.bc.constant.val.yhi = 0.0
+
+nucleation.enable                 =1
+
+
+nucleation.use_stress             = 5
+#nucleation.use_stress             = 4
+#nucleation.use_stress             = 0
+nucleation.heatmap_threshold      = 0.0
+
+nucleation.void_radius            = 5e-6
+nucleation.eps                    = 1.5e-7
+nucleation.exclusion_radius       = 2.0e-5
+nucleation.check_frequency        = 10
+nucleation.boundary_exclude_cells = 2
+### DIV09: max_voids is only a cap; ~1/4.5 the halfY area -> expect few voids. Left at 20 (non-binding).
+### OLD: nucleation.max_voids     = 20
+nucleation.max_voids              = 25
+nucleation.seed                   = 12345
+
+#nucleation.hm_beta = 0.0
+#nucleation.hm_alpha = 0.0
+
+
+nucleation.hm_alpha = 0.97
+nucleation.hm_beta = 2.0
+
+nucleation.p_ref       = 5e9
+nucleation.p_thresh    = 4.75e9   # needed for mode 5
+
+nucleation.base_rate   = 3.0e8
+
+nucleation.g1_ref      = 6.3
+
+# sigma_spall and m_exp are ignored in mode 5
+nucleation.sigma_spall = 6.0e9
+#nucleation.sigma_spall = 6.0e9
+nucleation.m_exp       = 1.0
+
+### DIV09: div09 domain midplane = 0.0012/2 = 0.0006 (seed_void disabled anyway).
+### OLD NOTE: 0.0054-domain midplane was 0.0027; 0.00052 value is stale.
+seed_void.enabled = 0
+seed_void.x       = 0.00252
+seed_void.y       = 0.0006          ### DIV09: was 0.00052 (stale); disabled regardless
+seed_void.radius  = 1.5e-4
+
+heatmap.ic.type        = hm
+heatmap.ic.hm.fit       = coord
+heatmap.ic.hm.coord.lo  = 0.00105 0.0
+### OLD: heatmap.ic.hm.coord.hi  = 0.003504 0.0108
+### OLD: heatmap.ic.hm.coord.hi  = 0.003504 0.00104
+### OLD: heatmap.ic.hm.coord.hi  = 0.003504 0.0007
+### OLD: heatmap.ic.hm.coord.hi  = 0.003504 0.00052
+### OLD: heatmap.ic.hm.coord.hi  = 0.003504 0.0054
+heatmap.ic.hm.coord.hi  = 0.003504 0.0012           ### DIV09
+#heatmap.ic.hm.filename = tests/shock_cp_damage/target_prediction.png
+#heatmap.ic.hm.filename = tests/shock_cp_damage/heatmap_macro.png
+### OLD: heatmap.ic.hm.filename = tests/shock_cp_damage/heatmap_macro_small_halfY.png
+### DIV09: point to the div09 slice of the HEATMAP (same y-cut boundaries as the orientation/void slices).
+heatmap.ic.hm.filename = tests/shock_cp_damage/void_div09_slice0_gray.png
+
+#heatmap.ic.hm.fit      = stretch
+
+xt.enable = 0
+xt.file   = lagshockcp_damage_xt_at1.dat
+xt.dt     = 1.0e-9

@@ -1,0 +1,174 @@
+alamo.program = lagrangian_shock_cp
+alamo.program.mechanics.model = finite.crystalplastic
+
+amr.n_cell           = 64 64
+#amr.n_cell           = 32 16
+geometry.prob_lo      = 0.0   0.0
+#geometry.prob_hi      = 0.00504 0.00504
+geometry.prob_hi      = 0.00504 0.0108
+geometry.is_periodic  = 0 1
+amr.blocking_factor = 4
+amr.regrid_int      = 100
+amr.grid_eff        = 1.0
+amr.node.all        = 1
+amr.plot_int        = 10
+amr.nsubsteps = 1
+ref_threshold.euler = 0.005
+amr.n_error_buff = 0
+amr.max_level     = 0
+amr.max_grid_size = 256
+
+
+timestep  = 1e-9
+#stop_time = 1.85e-6
+stop_time = 1e-6
+
+plot_file    = tests/shock_cp/output
+amr.plot_int = 1
+
+type = dynamic
+time_evolving = true
+viscous.mu_dashpot = 0
+viscous.mu_newton  = 0
+
+euler.ic.type                 = eulerangles
+#euler.ic.eulerangles.filename = tests/shock_cp/quaternion.png
+euler.ic.eulerangles.filename = tests/shock_cp/orientation_macro.png
+euler.ic.eulerangles.fit      = stretch
+
+
+#Material model (Nguyen 2021, Ta)
+nmodels = 1
+
+model1.C11 = 261.0
+model1.C12 = 156.3
+model1.C44 = 82.60
+
+# Default orientation 
+model1.euler1 = 0.0
+model1.euler2 = 0.0
+model1.euler3 = 0.0
+
+# Flow rule (Nguyen 2021 Table 5 posteriors)
+model1.gammadot0   = 2.5143e9
+model1.DeltaG      = 1.5762e-19
+model1.p_exp       = 0.3387
+model1.q_exp       = 1.9519
+
+# Burgers vector, temperature
+model1.burg        = 2.863e-7
+model1.theta       = 294.0
+model1.tstart      =0
+#model1.tstart      = 1e10
+# Phonon drag
+model1.B0          = 2.9574e-5
+model1.cs          = 1.937e6
+model1.fD          = 1.0e11
+model1.g0          = 0.2
+
+# Peierls stress
+model1.tau_p_110   = 0.406
+model1.tau_p_112T  = 0.349
+model1.tau_p_112AT = 0.555
+
+# Hardening
+model1.tau_a0      = 0.027
+model1.tau_r0      = 0.525
+model1.Cfor        = 0.0
+model1.Ccop        = 0.5
+
+# Kocks-Mecking density evolution
+model1.CM          = 0.3502
+model1.CT_ratio    = 0.8836
+model1.nrec        = 4.0
+model1.varsigma    = 0.1
+
+# Saturation density
+model1.rho0_sat    = 2.6596e9
+model1.gdot0_sat   = 2.5143e9
+model1.A_sat       = 1.5762e-19
+
+# Initial dislocation density
+model1.rho0_total  = 6.0e6
+model1.mob_frac0   = 0.015
+
+# Switches
+model1.use_modscaled_taur = 0
+model1.enable_nucleation  = 1
+model1.use_implicit       = 1
+
+
+#EOS (Mie-Gruneisen, Ta)
+eos.C0     = 3430.0
+eos.s1     = 1.19
+eos.Gamma0 = 1.67
+eos.rho0   = 16580.0
+eos.Cv     = 140.0
+
+hydro.rho0 = 16580.0
+e_init     = 0.0
+
+
+#Artificial viscosity
+av.CQ = 2
+av.CL = 0.5
+cfl   = 0.4
+
+
+#Temperature (Taylor-Quinney)
+taylor_quinney = 0.69
+theta_init     = 294.0
+hg_coeff       = 0.5
+
+
+#Diagnostic
+diag_file = lagshockcp_poly_diag.dat
+diag_dt   = 1e-10
+
+stress_scale = 1e9
+
+# Symmetric impact: flyer (x < 1.05 mm) at 196 m/s
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "196.0*(x<0.00105)"
+velocity.ic.expression.region1 = "0.0"
+
+# All traction-free = free surfaces at xlo, xhi
+#bc.type = expression
+
+#bc.expression.type.xlo    = trac trac
+#bc.expression.type.xhi    = trac trac
+#bc.expression.type.ylo    = trac trac
+#bc.expression.type.yhi    = trac trac
+#bc.expression.type.xloylo = trac trac
+#bc.expression.type.xloyhi = trac trac
+#bc.expression.type.xhiylo = trac trac
+#bc.expression.type.xhiyhi = trac trac
+
+#bc.expression.val.xlo     = 0.0 0.0
+#bc.expression.val.xhi     = 0.0 0.0
+#bc.expression.val.ylo     = 0.0 0.0
+#bc.expression.val.yhi     = 0.0 0.0
+#bc.expression.val.xloylo  = 0.0 0.0
+#bc.expression.val.xloyhi  = 0.0 0.0
+#bc.expression.val.xhiylo  = 0.0 0.0
+#bc.expression.val.xhiyhi  = 0.0 0.0
+
+bc.type = expression
+
+bc.expression.type.xlo    = trac trac
+bc.expression.type.xhi    = trac trac
+#bc.expression.type.ylo    = disp trac
+#bc.expression.type.yhi    = disp trac
+bc.expression.type.xloylo = trac trac
+bc.expression.type.xloyhi = trac trac
+bc.expression.type.xhiylo = trac trac
+bc.expression.type.xhiyhi = trac trac
+
+bc.expression.val.xlo     = 0.0 0.0
+bc.expression.val.xhi     = 0.0 0.0
+bc.expression.val.ylo     = 0.0 0.0
+bc.expression.val.yhi     = 0.0 0.0
+bc.expression.val.xloylo  = 0.0 0.0
+bc.expression.val.xloyhi  = 0.0 0.0
+bc.expression.val.xhiylo  = 0.0 0.0
+bc.expression.val.xhiyhi  = 0.0 0.0

@@ -1,0 +1,219 @@
+alamo.program = lagrangian_shock_cp_damage
+alamo.program.mechanics.model = finite.crystalplastic
+
+### 512x256: x refined 2x AND y refined 4x relative to the DIV04 base (256 64). NOTE: this CHANGES the cell aspect ratio.
+### 512x256: dx = 0.003504/512 = 6.84375e-6 (= DIV04 dx / 2 = 1.36875e-5/2); dy = 0.0027/256 = 1.0546875e-5 (= DIV04 dy / 4).
+### 512x256: dy/dx = 1.541 (was 3.082 in DIV04/4X/64x16). Cells are ~2x closer to square.
+### 512x256: this is NOT a uniform refinement of DIV04 or 4X, so it does not lie on their convergence line.
+### OLD: amr.n_cell = 256 64                     ### DIV04 (dx=1.36875e-5, dy=4.21875e-5, aspect 3.082)
+### OLD: amr.n_cell = 1024 256                   ### 4X   (dx=3.421875e-6, dy=1.0546875e-5, aspect 3.082)
+amr.n_cell           = 64 16                  ### 512x256 (aspect 1.541)
+geometry.prob_lo     = 0.0   0.0
+### OLD: geometry.prob_hi     = 0.003504 0.0108     # full y
+### OLD: geometry.prob_hi     = 0.003504 0.0012     # DIV09
+geometry.prob_hi     = 0.003504 0.0027             ### DIV04 y-domain (UNCHANGED)
+geometry.is_periodic = 0 1
+amr.blocking_factor  = 4                           ### 512x256: divides 512 and 256 (-> 128, 64); OK
+amr.regrid_int       = 100
+amr.grid_eff         = 1.0
+amr.node.all         = 1
+### OLD: amr.plot_int = 1000
+amr.plot_int         = 100                         ### 512x256: dx = 2x that of 4X => ~half the steps; halved to keep a comparable frame count
+amr.nsubsteps        = 1
+ref_threshold.euler  = 0.005
+amr.n_error_buff     = 0
+amr.max_level        = 0
+amr.max_grid_size    = 512
+
+### 512x256: dt is CFL-adapted every step; STEP 0 uses this seed at the unshocked state (c = C0 = 3430).
+### 512x256: CFL uses min(dx,dy) = dx = 6.84375e-6. Ceiling = 0.4*dx/3430 = 7.98e-10. Seed = 5e-10 (~0.63 of ceiling).
+### OLD: timestep  = 1e-9      ### DIV04 seed
+### OLD: timestep  = 2.5e-11   ### 4X seed
+timestep  = 1e-9      ### 512x256
+stop_time = 2.5e-6      ### UNCHANGED (x-transit timing untouched by mesh)
+
+### OLD: plot_file = tests/shock_cp_damage/output_at1
+### OLD: plot_file = tests/shock_cp_damage/output_at1_1024x256
+plot_file = tests/shock_cp_damage/output_at1_512x256   ### 512x256
+
+type = dynamic
+time_evolving = true
+viscous.mu_dashpot = 0
+viscous.mu_newton  = 0
+
+euler.ic.type                 = eulerangles
+euler.ic.eulerangles.fit      = coord
+euler.ic.eulerangles.coord.lo = 0.00105 0.0
+euler.ic.eulerangles.coord.hi = 0.003504 0.0027    ### DIV04 (UNCHANGED: same PNG; fit=coord supersamples it at 512x256 -> finer grain resolution than DIV04)
+euler.ic.eulerangles.filename = tests/shock_cp_damage/orient_100_div04_slice0.png
+
+nmodels = 1
+model1.C11 = 261.0
+model1.C12 = 156.3
+model1.C44 = 82.60
+model1.euler1 = 0.0
+model1.euler2 = 0.0
+model1.euler3 = 0.0
+model1.gammadot0   = 2.5143e9
+model1.DeltaG      = 1.5762e-19
+model1.p_exp       = 0.3387
+model1.q_exp       = 1.9519
+model1.burg        = 2.863e-7
+model1.theta       = 294.0
+model1.tstart      = 0
+model1.B0          = 2.9574e-5
+model1.cs          = 1.937e6
+model1.fD          = 1.0e11
+model1.g0          = 0.2
+model1.tau_p_110   = 0.406
+model1.tau_p_112T  = 0.349
+model1.tau_p_112AT = 0.555
+model1.tau_a0      = 0.027
+model1.tau_r0      = 0.525
+model1.Cfor        = 0.0
+model1.Ccop        = 0.5
+model1.CM          = 0.3502
+model1.CT_ratio    = 0.8836
+model1.nrec        = 4.0
+model1.varsigma    = 0.1
+model1.rho0_sat    = 2.6596e9
+model1.gdot0_sat   = 2.5143e9
+model1.A_sat       = 1.5762e-19
+model1.rho0_total  = 6.0e6
+model1.mob_frac0   = 0.015
+model1.use_modscaled_taur = 0
+model1.enable_nucleation  = 0
+model1.use_implicit       = 0
+
+eos.C0     = 3430.0
+eos.s1     = 1.19
+eos.Gamma0 = 1.67
+eos.rho0   = 16580.0
+eos.Cv     = 140.0
+
+hydro.rho0 = 16580.0
+e_init     = 0.0
+
+av.CQ = 2                ### UNCHANGED (shock width ~ CQ*dx = 1.369e-5 here)
+av.CL = 0.5             ### UNCHANGED
+cfl   = 0.4
+
+taylor_quinney = 0.69
+theta_init     = 294.0
+hg_coeff       = 0.0
+
+### OLD: diag_file = lagshockcp_damage_diag_at1.dat
+### OLD: diag_file = lagshockcp_damage_diag_at1_1024x256.dat
+diag_file = lagshockcp_damage_diag_at1_512x256.dat   ### 512x256
+diag_dt   = 1e-10   ### UNCHANGED (physical interval)
+
+stress_scale = 1e9
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "196.0*(x<0.00105)"   ### UNCHANGED (flyer x-based; spans 0.00105/dx = 153.4 cells)
+velocity.ic.expression.region1 = "0.0"
+
+geometry.is_periodic = 0 1
+
+bc.type = expression
+bc.expression.type.xlo    = trac trac
+bc.expression.type.xhi    = trac trac
+bc.expression.type.ylo    = trac trac
+bc.expression.type.yhi    = trac trac
+bc.expression.type.xloylo = trac trac
+bc.expression.type.xloyhi = trac trac
+bc.expression.type.xhiylo = trac trac
+bc.expression.type.xhiyhi = trac trac
+
+bc.expression.val.xlo     = 0.0 0.0
+bc.expression.val.xhi     = 0.0 0.0
+bc.expression.val.ylo     = 0.0 0.0
+bc.expression.val.yhi     = 0.0 0.0
+bc.expression.val.xloylo  = 0.0 0.0
+bc.expression.val.xloyhi  = 0.0 0.0
+bc.expression.val.xhiylo  = 0.0 0.0
+bc.expression.val.xhiyhi  = 0.0 0.0
+
+
+damage.model = at1
+damage.barrier_height   = 1.0e7   ### UNCHANGED (double_well only; inert under model=at1)
+damage.M     = 1e-2               ### UNCHANGED (AC diffusion limit dt<=dx^2/(M*Gc*ell) is mesh-invariant: Gc*ell ~ dx^2)
+
+### 512x256: hold Gc/ell = 6.667e8 = const (=> AT1 spall strength sigma_c = sqrt(3 E Gc / 8 ell) fixed), ell ~ 0.40*dx.
+### 512x256: dx = DIV04/2 => Gc/2 and ell/2 (ratio preserved: 1.8229165e3/2.734375e-6 = 6.667e8; ell/dx = 0.3995).
+### 512x256 NOTE: with the new aspect, ell/dy = 0.260 (was 0.130 at 3.08); ell/dx = 0.3995 unchanged.
+### OLD: damage.Gc    = 3.645833e3      ### DIV04 (Gc/ell = 6.667e8)
+### OLD: damage.Gc    = 9.1145825e2     ### 4X
+damage.Gc    = 1.8229165e3             ### 512x256: = 3.645833e3 / 2
+### OLD: damage.ell   = 5.46875e-6      ### DIV04 (ell/dx ~= 0.40)
+### OLD: damage.ell   = 1.3671875e-6    ### 4X
+damage.ell   = 2.734375e-6             ### 512x256: = 5.46875e-6 / 2 (ell/dx = 0.3995, preserved)
+damage.small = 1e-3
+damage.d_seed_floor = 0.96
+
+growth.M              = 5e-2      ### UNCHANGED (physical Rice-Tracey growth rate)
+eta_ref_threshold = 1e-2
+
+d.bc.constant.type.xlo = neumann
+d.bc.constant.type.xhi = neumann
+d.bc.constant.type.ylo = neumann
+d.bc.constant.type.yhi = neumann
+
+d.bc.constant.val.xlo = 0.0
+d.bc.constant.val.xhi = 0.0
+d.bc.constant.val.ylo = 0.0
+d.bc.constant.val.yhi = 0.0
+
+nucleation.enable                 =1
+
+
+nucleation.use_stress             = 5
+nucleation.heatmap_threshold      = 0.0
+
+nucleation.void_radius            = 5e-6     ### UNCHANGED (physical; now 0.73*dx -> still sub-cell)
+nucleation.eps                    = 1.5e-7   ### UNCHANGED (physical)
+nucleation.exclusion_radius       = 2.0e-5   ### UNCHANGED (physical; now 2.92*dx -> supra-cell, exclusion functions normally)
+nucleation.check_frequency        = 10
+### 512x256: boundary_exclude_cells band = N*dx (x only; y is periodic). Target 2.7375e-5 / dx(6.84375e-6) = 4.0 exactly.
+### OLD: nucleation.boundary_exclude_cells = 2   ### DIV04 (band = 2.7375e-5)
+### OLD: nucleation.boundary_exclude_cells = 8   ### 4X   (band = 2.7375e-5)
+nucleation.boundary_exclude_cells = 4            ### 512x256: 4*dx = 2.7375e-5 (same physical band)
+nucleation.max_voids              = 50           ### UNCHANGED (non-binding)
+nucleation.seed                   = 12345
+### 512x256 NOTE: same seed, but different cell count + dt => different RNG draw; population-level PCC is the comparison, not per-void identity.
+
+nucleation.hm_alpha = 0.97       ### (inert in mode 5; used only by mode 3)
+nucleation.hm_beta = 2.0
+
+nucleation.p_ref       = 5e9
+nucleation.p_thresh    = 4.8e9   # needed for mode 5
+
+### 512x256: base_rate is PER-CELL (P_accept = 1 - exp(-rate*dt_eff), per cell, no volume factor). Expected count ~ base_rate * N_cells.
+### 512x256: N_cells = 512*256 = 131072 = 8*DIV04 => divide base_rate by 8 to hold nucleation DENSITY (voids/area) fixed.
+### 512x256: check base_rate*N_cells = 3.75e7*131072 = 4.915e12 = 3.0e8*16384 (DIV04). Preserved.
+### OLD: nucleation.base_rate   = 3.0e8      ### DIV04
+### OLD: nucleation.base_rate   = 1.875e7    ### 4X
+nucleation.base_rate   = 3.75e7             ### 512x256: = 3.0e8 / 8
+
+nucleation.g1_ref      = 6.3
+
+# sigma_spall and m_exp are ignored in mode 5
+nucleation.sigma_spall = 6.0e9
+nucleation.m_exp       = 1.0
+
+seed_void.enabled = 0
+seed_void.x       = 0.00252
+seed_void.y       = 0.00135         ### DIV04 midplane (disabled regardless)
+seed_void.radius  = 1.5e-4
+
+heatmap.ic.type        = hm
+heatmap.ic.hm.fit       = coord
+heatmap.ic.hm.coord.lo  = 0.00105 0.0
+heatmap.ic.hm.coord.hi  = 0.003504 0.0027           ### DIV04 (UNCHANGED: same PNG; supersampled at 512x256)
+heatmap.ic.hm.filename = tests/shock_cp_damage/void_div04_slice0_rgb.png
+
+xt.enable = 0
+### OLD: xt.file   = lagshockcp_damage_xt_at1_macrodiv4.dat
+### OLD: xt.file   = lagshockcp_damage_xt_at1_1024x256.dat
+xt.file   = lagshockcp_damage_xt_at1_512x256.dat   ### 512x256
+xt.dt     = 1.0e-9
