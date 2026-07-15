@@ -409,7 +409,7 @@ void Hydro::Mix(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k): eta_patch(i,j,k);
 
             // Initially compute primitives (T,P,u) from given initial conditions
             // But from then on, compute them from mixed values to avoid zero T conditions
@@ -498,7 +498,7 @@ void Hydro::ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::Mult
         bool invert_local = invert;
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert_local ? 1.0 - eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert_local ? 1.0 - eta_patch(i,j,k): eta_patch(i,j,k);
             if (eta < 0.0) eta = 0.0;
             if (eta > 1.0) eta = 1.0;
 
@@ -732,7 +732,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k): eta_patch(i,j,k);
 
             if (cutoff >= 0.0 && cutoff < 1.0 && eta < cutoff)
             {
@@ -831,7 +831,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k): eta_patch(i,j,k);
             const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
             std::array<Set::Scalar, NSPECIES> rhoY_fluid;
@@ -923,7 +923,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k): eta_patch(i,j,k);
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX, sten);
             #if AMREX_SPACEDIM == 2
@@ -1041,7 +1041,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 for (int i = lo.x; i <= hi.x; ++i)
                 {
                     Set::Scalar eta = invert_local ?
-                        1.0 - eta_arr(i,j,k,0) * eta_arr(i,j,k,0) :
+                        1.0 - eta_arr(i,j,k,0):
                         eta_arr(i,j,k,0);
                     if (cutoff_local >= 0.0 && cutoff_local < 1.0 && eta <= cutoff_local) continue;
                     Set::Vector grad_eta = Numeric::Gradient(eta_arr, i, j, k, 0, DX, sten);
@@ -1107,7 +1107,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         // First ParallelFor loop to get initial values needed for gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
             const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
             // Reconstruct the gas state from the mixed conserved state before
@@ -1286,7 +1286,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             // and Riemann states that sample the specified physical BCs.
             auto sten = BCGhostStencil();
 
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX, sten);
