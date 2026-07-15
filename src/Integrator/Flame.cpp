@@ -342,6 +342,19 @@ void Flame::Initialize(int lev)
         // and overwrites those fields every step - so re-derive them here and
         // re-mix once, at t=0, to avoid a one-step inconsistency between the sharp
         // mask Mix() used and the phi-based mask every subsequent step uses.
+        //
+        // AMReX's initial grid-hierarchy construction can call Initialize(lev) more
+        // than once for the same level (e.g. an initial pass followed by a regrid
+        // pass once finer levels exist) - Mix() overwrites density_mf/velocity_mf/
+        // pressure_mf in place, so re-running it without first resetting those
+        // fields from their ICs would blend an already-mixed state a second time
+        // (or, if the mixed[lev] guard below causes Hydro::Initialize's own Mix()
+        // call to have been skipped on a later pass, blend a stale one). Explicitly
+        // re-seeding here makes this Mix() call idempotent no matter how many times
+        // Initialize(lev) runs for this level.
+        Hydro::velocity_ic->Initialize(lev, Hydro::velocity_mf, 0.0);
+        Hydro::pressure_ic->Initialize(lev, Hydro::pressure_mf, 0.0);
+        Hydro::density_ic ->Initialize(lev, Hydro::density_mf,  0.0);
         UpdateFluxes(lev, 0.0, 0.0);
         if (lev < (int)mixed.size()) mixed[lev] = false;
         Mix(lev);
