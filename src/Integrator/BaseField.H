@@ -47,14 +47,18 @@ template<class T>
 class Field : public BaseField
 {
 public:
-    class EmptyBC
+    class EmptyBC : public BC::BC<T>
     {
     public:
-        virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & /*mf*/, 
-                                int /*dcomp*/, int /*ncomp*/, amrex::IntVect const& /*nghost*/, 
-                                amrex::Real /*time*/, int /*bccomp*/) 
-        {  /* Do nothing - this is a shell to satisfy the FillPatch functions.*/   }
-        amrex::BCRec GetBCRec() {return amrex::BCRec();}
+        void FillBoundary(amrex::BaseFab<T>&,
+                          const amrex::Box&,
+                          int, int, int,
+                          amrex::Real,
+                          BC::Orientation = BC::Orientation::All,
+                          const amrex::Mask* = nullptr) override
+        {}
+
+        amrex::BCRec GetBCRec() override { return amrex::BCRec(); }
     };
 
     Field(Set::Field<T> & a_field, 
@@ -62,7 +66,7 @@ public:
         const amrex::Vector<amrex::IntVect> &a_refRatio,
         int a_ncomp, int a_nghost) : 
         m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
-        m_ncomp(a_ncomp), m_nghost(a_nghost)
+        m_ncomp(a_ncomp), m_nghost(a_nghost), m_bc(&m_empty_bc)
     {} 
     
     void 
@@ -203,7 +207,8 @@ public:
         else if (m_gridtype == Set::Hypercube::Cell)
         {
             amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
-            this->FillPatch(lev, time, m_field, new_state, 0);
+            if (evolving) this->FillPatch(lev, time, m_field, new_state, 0);
+            else new_state.setVal(T::Zero());
             std::swap(new_state, *m_field[lev]);
         }
         else
@@ -225,7 +230,8 @@ public:
         else if (m_gridtype == Set::Hypercube::Cell)
         {
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-            FillCoarsePatch(lev,time,0,m_ncomp);
+            if (evolving) FillCoarsePatch(lev,time,0,m_ncomp);
+            else m_field[lev]->setVal(T::Zero());
         }
         else
             Util::Abort(INFO,"Invalid grid");
@@ -291,6 +297,7 @@ private:
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;
+    EmptyBC m_empty_bc;
     BC::BC<T> *m_bc;
     
     Numeric::Interpolator::NodeBilinear<T> node_bilinear;
@@ -310,7 +317,7 @@ public:
         return m_field.Name(i);
     }
     virtual void setBC(void * a_bc) override {
-        m_bc = (BC::BC<T> *)(a_bc);
+        m_bc = a_bc ? static_cast<BC::BC<T>*>(a_bc) : &m_empty_bc;
     }
     virtual void * getBC() override {
         return (void*)m_bc;

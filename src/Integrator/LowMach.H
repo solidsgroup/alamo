@@ -20,6 +20,8 @@
 #include "Numeric/Advect/QUICK.H"
 #include "Numeric/Advect/Upwind.H"
 #include "Numeric/Advect/WENO5.H"
+#include "Model/PhaseField/AllenCahn.H"
+#include "Numeric/ReferenceMap/Reconstruction.H"
 
 namespace Integrator
 {
@@ -58,8 +60,6 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    void RebuildReferenceMapOutsideEta(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf, Set::Scalar time);
-    void SmoothReferenceMapForStress(int lev, const amrex::MultiFab& eta_mf, amrex::MultiFab& xi_mf);
     void UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
                            const amrex::MultiFab& T_mf,
@@ -100,10 +100,10 @@ protected:
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
     Set::Field<Set::Scalar> solid_weight_mf;
-    Set::Field<Set::Scalar> deformation_gradient_mf;
-    Set::Field<Set::Scalar> solid_first_piola_kirchhoff_stress_mf;
-    Set::Field<Set::Scalar> cell_total_cauchy_stress_mf;
-    Set::Field<Set::Scalar> cell_weighted_solid_deviatoric_cauchy_stress_mf;
+    Set::Field<Set::Matrix> deformation_gradient_mf;
+    Set::Field<Set::Matrix> solid_first_piola_kirchhoff_stress_mf;
+    Set::Field<Set::Matrix> cell_total_cauchy_stress_mf;
+    Set::Field<Set::Matrix> cell_weighted_solid_deviatoric_cauchy_stress_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
@@ -151,29 +151,6 @@ protected:
     bool include_conduction = true;
     bool advect_temperature = true;
     Set::Scalar eta_initial_value = 0.0;
-    bool eta_phase_field_enabled = false;
-    Set::Scalar eta_phase_field_epsilon = 0.0;
-    Set::Scalar eta_phase_field_mobility = 0.0;
-    Set::Scalar eta_phase_field_counter_curvature = 1.0;
-    Set::Scalar eta_phase_field_band = 1.0e-8;
-    Set::Scalar eta_phase_field_normal_regularization = 1.0e-12;
-    bool eta_phase_field_mapped_distance = true;
-    Set::Scalar eta_phase_field_normal_coherence_threshold = 0.0;
-    Set::Scalar eta_phase_field_normal_coherence_power = 1.0;
-    Set::Scalar eta_phase_field_exterior_reinitialization = 0.0;
-    Set::Scalar eta_phase_field_incoherent_diffusion = 0.0;
-    Set::Scalar reference_map_eta_cutoff = 0.5;
-    Set::Scalar reference_map_eta_core = 0.5;
-    Set::Scalar reference_map_eta_extension = 1.0e-3;
-    int reference_map_extrapolation_sweeps = 4;
-    Set::Scalar reference_map_reconstruction_alpha = 1.0;
-    Set::Scalar reference_map_reconstruction_power = 1.0;
-    Set::Scalar reference_map_affine_tolerance = 1.0e-7;
-    int reference_map_smoothing_sweeps = 2;
-    Set::Scalar reference_map_smoothing_alpha = 1.0;
-    Set::Scalar reference_map_smoothing_power = 2.0;
-    int reference_map_stress_smoothing_sweeps = 0;
-    Set::Scalar reference_map_stress_smoothing_alpha = 0.1;
     bool finite_solid_enabled = false;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
@@ -187,6 +164,8 @@ protected:
                             Numeric::Advect::Centered,
                             Numeric::Advect::QUICK,
                             Numeric::Advect::WENO5> advect;
+    Model::PhaseField::AllenCahn eta_phase_field;
+    Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
 };
 }
 

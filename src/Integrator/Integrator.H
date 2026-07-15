@@ -589,8 +589,7 @@ void Integrator::AddField
         m_basefields_cell.back()->writeout = writeout;
         m_basefields_cell.back()->setName(name);
         m_basefields_cell.back()->evolving = evolving;
-        if (new_bc) m_basefields_cell.back()->setBC(new_bc);
-        else m_basefields_cell.back()->setBC(&bcnothing);
+        m_basefields_cell.back()->setBC(new_bc);
         m_basefields_cell.back()->m_gridtype = Set::Hypercube::Cell;
     }
     else

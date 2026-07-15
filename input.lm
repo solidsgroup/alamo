@@ -7,9 +7,10 @@ amr.max_grid_size = 64
 amr.blocking_factor = 4
 amr.regrid_int = 50
 amr.max_level = 2
-amr.nsubsteps = 2
+amr.nsubsteps = 1
 amr.n_cell = 64 64
 eta_refinement_criterion = 0.01
+velocity_refinement_criterion = 0.01
 
 timestep = 1.0e-3
 stop_time = 200.0
@@ -92,16 +93,10 @@ eta.ic.expression.constant.hx = 0.035
 eta.ic.expression.constant.hy = 0.12
 eta.ic.expression.region0 = "1.0-0.5*(1.0+tanh((sqrt(max(abs(x-x0)-hx,0.0)*max(abs(x-x0)-hx,0.0)+max(abs(y-y0)-hy,0.0)*max(abs(y-y0)-hy,0.0))+min(max(abs(x-x0)-hx,abs(y-y0)-hy),0.0))/eps))"
 
-eta.phase_field.enabled = 1
-eta.phase_field.epsilon = 0.01
-eta.phase_field.mobility = 0.01_m/s
-eta.phase_field.counter_curvature = 1.0
-eta.phase_field.band = 1.0e-3
-eta.phase_field.mapped_distance = 1
-eta.phase_field.normal_coherence_threshold = 0.9
-eta.phase_field.normal_coherence_power = 2.0
-eta.phase_field.exterior_reinitialization = 1.0
-eta.phase_field.incoherent_diffusion = 0.25
+# Allen-Cahn phase-field evolution
+eta.phase_field.mobility = 0.01_1/Pa/s
+eta.phase_field.sigma = 0.01_J/m^2
+eta.phase_field.epsilon = 0.01_m
 
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"
@@ -130,7 +125,7 @@ velocity.bc.expression.type.yhi = dirichlet dirichlet
 velocity.bc.expression.val.xlo = 0.0 0.0
 velocity.bc.expression.val.xhi = 0.0 0.0
 velocity.bc.expression.val.ylo = 0.0 0.0
-velocity.bc.expression.val.yhi = "lid_u*0.5*(1.0+tanh((t-lid_t)/lid_tw))*0.5*(tanh((x-lid_xw)/lid_xs)-tanh((x-(1.0-lid_xw))/lid_xs))" 0.0
+velocity.bc.expression.val.yhi = "lid_u" "0.0" #"lid_u*0.5*(1.0+tanh((t-lid_t)/lid_tw))*0.5*(tanh((x-lid_xw)/lid_xs)-tanh((x-(1.0-lid_xw))/lid_xs))" 0.0
 
 temperature.bc.type = constant
 temperature.bc.constant.type.xlo = neumann
