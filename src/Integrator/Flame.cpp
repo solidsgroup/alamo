@@ -325,10 +325,27 @@ void Flame::Initialize(int lev)
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
 
-    if (hydro.on) Hydro::Initialize(lev);
-
+    // phi_mf must also be populated before Hydro::Initialize/Mix(): UpdateFluxes
+    // (called below) derives Hydro::solid.density_mf from the diffuse phi field,
+    // and Mix() needs that solid state to already be phi-consistent.
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
+
+    if (hydro.on)
+    {
+        Hydro::Initialize(lev);
+
+        // Hydro::Initialize seeded solid.density_mf/solid.momentum_mf/m0_mf/u0_mf
+        // from the sharp x-position IC (hydro.solid.density.ic etc.), then Mix()
+        // blended the fluid/solid state using that sharp mask. UpdateFluxes is the
+        // authoritative, phi-based (diffuse-interface) source of the AP/HTPB split
+        // and overwrites those fields every step - so re-derive them here and
+        // re-mix once, at t=0, to avoid a one-step inconsistency between the sharp
+        // mask Mix() used and the phi-based mask every subsequent step uses.
+        UpdateFluxes(lev, 0.0, 0.0);
+        if (lev < (int)mixed.size()) mixed[lev] = false;
+        Mix(lev);
+    }
 
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
