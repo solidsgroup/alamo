@@ -3,8 +3,8 @@ system.time = s
 
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
-amr.max_level = 4
-amr.n_cell = 16 16 0
+amr.max_level = 0
+amr.n_cell = 256 256 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 16
 amr.regrid_int = 100
@@ -103,6 +103,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1
 thermal.Tref = 300.0_K
+thermal.Tcutoff = 640.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -133,7 +134,8 @@ laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
 laser.ic.expression.constant.eps = 20.0_um
 laser.ic.expression.constant.y0 = 20.0_um
-laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((y-y0)/eps))"
+laser.ic.expression.region0 = "0.0"
+# laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((y-y0)/eps))"
 
 ### RIEMANN SOLVER ###
 hydro.solver.type = hllc
@@ -179,7 +181,7 @@ hydro.chemistry.type = frozen
 
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
-hydro.cutoff = 0.05
+hydro.cutoff = 0.01
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
 # Under Flame, the propellant.fullfeedback model computes the interfacial

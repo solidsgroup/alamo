@@ -494,8 +494,12 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
             u0(i,j,k,0) = 0.0;
 
-            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            solidM(i,j,k,0) = 0.0;
+            solidM(i,j,k,1) = 0.0;
+
+            // solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+            // solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            
             // solidrho(i,j,k,0) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0-phi);
             // if (a_time > 0.0)
             // {

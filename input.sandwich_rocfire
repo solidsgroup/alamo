@@ -61,8 +61,8 @@ geometry.is_periodic = 1 0 0
 timestep  = 1.0e-8
 stop_time = 5.0e-3
 
-integration.type = RungeKutta
-integration.rk.type = 3
+# integration.type = RungeKutta
+# integration.rk.type = 3
 
 ### HYDRO PARAM ###
 cfl   = 0.4
