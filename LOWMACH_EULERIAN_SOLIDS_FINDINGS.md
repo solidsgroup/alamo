@@ -1,6 +1,6 @@
 # LowMach Eulerian Solids Findings
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 This file summarizes the current LowMach Eulerian-solid investigation. Unlike
 the previous version of this note, the reference-map, AMR, and phase-field
@@ -109,8 +109,24 @@ AMR changed more than resolution in this problem:
 - A level-local projection does not enforce one composite divergence constraint
   across coarse/fine interfaces.
 
-`projection.amr_enabled = 1` is now used so the correction solve is composite
-across all active levels before velocity is averaged down.
+The projection now always constructs one hierarchy-wide solve across all active
+levels before velocity is averaged down. The same code handles a one-level
+hierarchy, so no separate AMR projection switch is needed.
+
+After recursive level advancement, subcycling, and state average-down complete,
+`TimeStepComplete` calls `ProjectVelocity` exactly once. That routine builds one
+`MLABecLaplacian` over levels `0..finest_level`, solves for the pressure
+correction on the full hierarchy, corrects velocity and pressure on every
+active level, and averages the corrected fine velocity back to covered coarse
+cells. With `finest_level = 0`, the same vectors and operator simply contain one
+level; a separate level-local implementation would duplicate the same
+variable-density projection without adding behavior.
+
+The former `projection.amr_enabled` input has been removed from parsing and all
+repository inputs. `projection.enabled = 1` now always means that this unified
+projection runs, independent of the number of active AMR levels. Existing
+external inputs should delete `projection.amr_enabled`; leaving it present will
+be reported as an unused input by the strict input parser.
 
 The original AMR phase trigger was also too narrow. With
 `eta_refinement_criterion = 0.1`, the `eta=0.1` contour sat at the edge of the
@@ -127,7 +143,7 @@ amr.max_level = 2
 amr.nsubsteps = 2
 amr.regrid_int = 50
 eta_refinement_criterion = 0.01
-projection.amr_enabled = 1
+projection.enabled = 1
 ```
 
 Lowering the eta criterion made the `eta=0.01` contour substantially smoother.
@@ -294,8 +310,10 @@ The streamlined implementation now:
 - computes only density, mole fraction, and weighted cell solid stress in the
   RHS;
 - keeps the required post-stage and post-projection reference-map passes;
-- removes the registered projection RHS scratch field and allocates it only in
-  the single-level projection where it is used;
+- removes the registered projection RHS scratch field and allocates it only
+  while the hierarchy projection is active;
+- uses one hierarchy-wide projection implementation for both single-level and
+  AMR runs; `projection.enabled` is now the only projection switch;
 - removes the two unused nodal stress fields, including the unnecessary nodal
   restart field;
 - updates plot diagnostics through an integrator plot-preparation hook, so they
@@ -334,6 +352,9 @@ was rejected.
 - 3D clang compilation passed; no full 3D solid run has been performed.
 - New mapped-distance and legacy `mapped_distance=0` paths passed one-step MPI
   smoke tests.
+- The unified projection passed three-step MPI smoke tests with `max_level=0`
+  and `max_level=2`. Single-level velocity and divergence diagnostics matched
+  the preserved pre-unification executable through all three steps.
 - The selected AMR configuration was run through `t=20`.
 - The installed `bin/lowmach-2d-clang++` matches the selected tested build.
 - `git diff --check` passes.

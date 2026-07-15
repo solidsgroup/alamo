@@ -418,7 +418,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("thermodynamic_pressure", value.thermodynamic_pressure, "100000.0_Pa", Unit::Pressure());
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
     pp.query_default("projection.enabled", value.projection_enabled, true);
-    pp.query_default("projection.amr_enabled", value.projection_amr_enabled, false);
     pp.query_default("projection.tol_rel", value.projection_tol_rel, 1.0e-11);
     pp.query_default("projection.tol_abs", value.projection_tol_abs, 1.0e-12);
     pp.query_default("projection.verbose", value.projection_verbose, 0);
@@ -909,150 +908,10 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
 
 
 void
-LowMach::ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt)
+LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrator::LowMach::ProjectVelocity");
     if (!projection_enabled || !(dt > 0.0)) return;
-    if (finest_level > 0) return;
-
-    amrex::MultiFab& u_mf = *velocity_mf[lev];
-    UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
-    velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-    u_mf.FillBoundary(geom[lev].periodicity());
-
-    amrex::MultiFab& phi_mf = *pressure_correction_mf[lev];
-    amrex::MultiFab& rho_mf = *density_mf[lev];
-    amrex::MultiFab& p_mf = *pressure_mf[lev];
-    amrex::MultiFab rhs_mf(u_mf.boxArray(), u_mf.DistributionMap(), 1, 0);
-
-    const Set::Scalar* DX = geom[lev].CellSize();
-    amrex::Box domain = geom[lev].Domain();
-    rhs_mf.setVal(0.0);
-    phi_mf.setVal(0.0);
-
-    for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-        Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
-        const Set::Scalar inv_dt = 1.0 / dt;
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
-            Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
-            Set::Scalar div_u = 0.0;
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) div_u += grad_u(d,d);
-            rhs(i,j,k) = div_u * inv_dt;
-        });
-    }
-
-    const Set::Scalar rhs_mean = rhs_mf.sum(0, false) / rhs_mf.boxArray().d_numPts();
-    for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            rhs(i,j,k) -= rhs_mean;
-        });
-    }
-
-    amrex::MultiFab beta_cc(rhs_mf.boxArray(), rhs_mf.DistributionMap(), 1, 1);
-    beta_cc.setVal(0.0);
-    for (amrex::MFIter mfi(beta_cc, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-        Set::Patch<Set::Scalar> beta = beta_cc.array(mfi);
-        const Set::Scalar rho_floor = density_floor;
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            beta(i,j,k) = 1.0 / Util::Max(rho(i,j,k), rho_floor);
-        });
-    }
-    beta_cc.FillBoundary(geom[lev].periodicity());
-
-    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_face;
-    amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> beta_face_ptr;
-    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> beta_face_const_ptr;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        amrex::BoxArray face_ba = rhs_mf.boxArray();
-        face_ba.surroundingNodes(d);
-        beta_face[d].define(face_ba, rhs_mf.DistributionMap(), 1, 0);
-        beta_face_ptr[d] = &beta_face[d];
-        beta_face_const_ptr[d] = &beta_face[d];
-    }
-    amrex::average_cellcenter_to_face(beta_face_ptr, beta_cc, geom[lev], 1, true, 0);
-
-    amrex::LPInfo info;
-    amrex::MLABecLaplacian mlabec({geom[lev]}, {rhs_mf.boxArray()}, {rhs_mf.DistributionMap()}, info);
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> lobc;
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> hibc;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        lobc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-        hibc[d] = geom[lev].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-    }
-    mlabec.setDomainBC(lobc, hibc);
-    mlabec.setLevelBC(0, nullptr);
-    mlabec.setScalars(0.0, -1.0);
-    mlabec.setACoeffs(0, 0.0);
-    mlabec.setBCoeffs(0, beta_face_const_ptr);
-
-    amrex::MLMG mlmg(mlabec);
-    mlmg.setVerbose(projection_verbose);
-    mlmg.solve({&phi_mf}, {&rhs_mf}, projection_tol_rel, projection_tol_abs);
-
-    const Set::Scalar phi_mean = phi_mf.sum(0, false) / phi_mf.boxArray().d_numPts();
-    for (amrex::MFIter mfi(phi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> phi = phi_mf.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            phi(i,j,k) -= phi_mean;
-        });
-    }
-    phi_mf.FillBoundary(geom[lev].periodicity());
-
-    for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> u = u_mf.array(mfi);
-        Set::Patch<const Set::Scalar> phi = phi_mf.array(mfi);
-        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-        Set::Patch<Set::Scalar> p = p_mf.array(mfi);
-        const Set::Scalar rho_floor = density_floor;
-        const Set::Scalar p_floor = pressure_floor;
-        const Set::Scalar p_scale = pressure_scale;
-        const Set::Scalar p_scale_inv = 1.0 / p_scale;
-        const bool update_pressure = projection_update_pressure;
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
-            Set::Vector grad_phi = Numeric::Gradient(phi, i, j, k, 0, DX, sten);
-            const Set::Scalar beta = 1.0 / Util::Max(rho(i,j,k), rho_floor);
-            for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                u(i,j,k,d) -= dt * beta * grad_phi(d);
-            if (update_pressure) p(i,j,k) = Util::Max(p(i,j,k) + p_scale_inv * phi(i,j,k), p_floor);
-        });
-    }
-
-    velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-    u_mf.FillBoundary(geom[lev].periodicity());
-    pressure_bc->define(geom[lev]);
-    pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, time, 0);
-    pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
-}
-
-void
-LowMach::CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt)
-{
-    BL_PROFILE("Integrator::LowMach::CompositeProjectVelocity");
-    if (!projection_enabled || !projection_amr_enabled || !(dt > 0.0) || finest_level <= 0) return;
 
     const int nlev = finest_level + 1;
     amrex::Vector<amrex::Geometry> proj_geom(nlev);
@@ -1761,7 +1620,6 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     xi_mf[lev]->FillBoundary(geom[lev].periodicity());
 
     RebuildReferenceMapOutsideEta(lev, *eta_mf[lev], *xi_mf[lev], new_time);
-    ProjectVelocity(lev, new_time, dt);
     eta_bc->FillBoundary(*eta_mf[lev], 0, 1, new_time, 0);
     eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
@@ -1969,7 +1827,7 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
 void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
-    CompositeProjectVelocity(time + dt[0], dt[0]);
+    ProjectVelocity(time + dt[0], dt[0]);
     PrintDiagnostics(time, iter);
 }
 

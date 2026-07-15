@@ -45,7 +45,6 @@ include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 0
-projection.amr_enabled = 0
 projection.update_pressure = 0
 
 reference_map.eta_cutoff = 0.5

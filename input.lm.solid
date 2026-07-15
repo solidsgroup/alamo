@@ -45,7 +45,6 @@ advect_temperature = 0
 # Disable the projection for this first elastodynamics diagnostic so the
 # localized initial velocity is not immediately projected away.
 projection.enabled = 0
-projection.amr_enabled = 0
 projection.update_pressure = 0
 projection.verbose = 0
 diagnostics.interval = 50

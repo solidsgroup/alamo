@@ -44,7 +44,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize, TwoSlopeNorm
+from matplotlib.colors import Normalize, TwoSlopeNorm, to_rgba
 from matplotlib.collections import LineCollection
 import numpy as np
 import yt
@@ -191,6 +191,11 @@ def parse_args() -> argparse.Namespace:
         help="number of massless visualization tracers; 0 disables (default: 400)",
     )
     parser.add_argument(
+        "--particle-color",
+        default="white",
+        help="Matplotlib color for tracer points and trails (default: white)",
+    )
+    parser.add_argument(
         "--trail-length",
         type=int,
         default=12,
@@ -275,6 +280,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--xiy-levels must be at least 1")
     if args.particles < 0:
         parser.error("--particles cannot be negative")
+    try:
+        to_rgba(args.particle_color)
+    except ValueError as error:
+        parser.error(f"invalid --particle-color: {error}")
     if args.trail_length < 1:
         parser.error("--trail-length must be at least 1")
     if args.tracer_cfl <= 0.0:
@@ -657,6 +666,7 @@ def add_particle_trails(
     history: deque[np.ndarray],
     frame: FrameData,
     eta_threshold: float,
+    particle_color: str,
 ) -> None:
     if not history or history[-1].size == 0:
         return
@@ -664,6 +674,7 @@ def add_particle_trails(
         snapshots = list(history)
         segments = []
         colors = []
+        red, green, blue, base_alpha = to_rgba(particle_color)
         for age, (start, end) in enumerate(zip(snapshots[:-1], snapshots[1:]), start=1):
             segment_array = np.stack((start, end), axis=1)
             midpoint = 0.5 * (start + end)
@@ -675,7 +686,9 @@ def add_particle_trails(
             segment_array = segment_array[fluid]
             segments.extend(segment_array)
             alpha = 0.08 + 0.48 * age / (len(snapshots) - 1)
-            colors.extend([(1.0, 1.0, 1.0, alpha)] * len(segment_array))
+            colors.extend(
+                [(red, green, blue, base_alpha * alpha)] * len(segment_array)
+            )
         if segments:
             ax.add_collection(
                 LineCollection(segments, colors=colors, linewidths=0.45, zorder=7)
@@ -690,7 +703,7 @@ def add_particle_trails(
         particles[:, 0],
         particles[:, 1],
         s=4.0,
-        c="white",
+        c=particle_color,
         edgecolors="black",
         linewidths=0.18,
         alpha=0.9,
@@ -778,7 +791,9 @@ def render_frame(
         + fr"von Mises stress for $\eta>{args.eta_threshold:g}$"
     )
 
-    add_particle_trails(ax, history, frame, args.eta_threshold)
+    add_particle_trails(
+        ax, history, frame, args.eta_threshold, args.particle_color
+    )
     fig.suptitle(
         f"{frame.path.parent.name}/{frame.path.name}    step={frame.step}    t={frame.time:.6g}",
         fontsize=11,

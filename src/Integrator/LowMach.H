@@ -68,8 +68,7 @@ protected:
                            bool write_diagnostics = false);
     void UpdateThermodynamics(int lev, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
-    void ProjectVelocity(int lev, Set::Scalar time, Set::Scalar dt);
-    void CompositeProjectVelocity(Set::Scalar time, Set::Scalar dt);
+    void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
@@ -146,7 +145,6 @@ protected:
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
     bool projection_enabled = true;
-    bool projection_amr_enabled = false;
     bool projection_update_pressure = true;
     bool projection_predictor_pressure_gradient = false;
     bool include_viscosity = true;

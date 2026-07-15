@@ -44,7 +44,6 @@ include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
-projection.amr_enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
