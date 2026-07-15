@@ -139,7 +139,7 @@ laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 -
 hydro.solver.type = hllc
 
 hydro.on = 1
-hydro.tstart = 1.0e-7
+hydro.tstart = 0.0
 
 ### GAS MODEL (ported from input.sandwich_rocfire) ###
 system.amount = kmol

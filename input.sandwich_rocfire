@@ -21,20 +21,21 @@ gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
 
 gas.eos.type = tpg
 
-chemistry.type = rocfire
+chemistry.type = frozen
+# chemistry.type = rocfire
 # Rocfire rates use A * (P / pressure_reference)^n, matching the original
 # 1/bar^n pressure dependence without putting fractional pressure units on A.
-chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
-chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
-chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
-chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+# chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+# chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+# chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+# chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 # Binder pyrolysis loss is an unresolved 77.5/22.5 AP/HTPB mass-weighted value.
-chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
-chemistry.rocfire.pressure_reference = 1_bar
-chemistry.rocfire.nsubsteps = 1
+# chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
+# chemistry.rocfire.pressure_reference = 1_bar
+# chemistry.rocfire.nsubsteps = 1
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire
+plot_file = output.sandwich_rocfire_hydro_frozen
 details = 1
 #restart = output.sandwich_rocfire_part1/13900cell
 #restart = output.sandwich_rocfire_part2/14000cell
@@ -42,8 +43,8 @@ details = 1
 # restart = output.sandwich_rocfire_part2_new/32300cell
 
 ### MESHING ###
-amr.plot_dt = 1e-6
-#amr.plot_int = 10
+# amr.plot_dt = 1e-6
+amr.plot_int = 10
 amr.max_level = 4
 amr.max_grid_size = 500000
 amr.blocking_factor = 16
@@ -66,7 +67,7 @@ integration.rk.type = 3
 ### HYDRO PARAM ###
 cfl   = 0.4
 small = 1e-8
-cutoff = 0.2
+cutoff = 0.01
 
 ### ETA IC ###
 eta.ic.type = expression
