@@ -1,3 +1,13 @@
+//
+// This header defines the :code:Model::Gas::Thermo::Thermo:code: static dispatch
+// wrapper for thermodynamic property models.
+//
+// The :code:Thermo:code: class selects one thermodynamic model at input parsing time
+// and dispatches mixture and species calls for molar heat capacity, enthalpy, and
+// entropy. This keeps thermodynamic property evaluation lightweight in per-cell gas,
+// chemistry, and equation-of-state calculations.
+//
+
 #ifndef MODEL_GAS_THERMO_H_
 #define MODEL_GAS_THERMO_H_
 
@@ -29,7 +39,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -46,7 +56,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -63,7 +73,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -80,7 +90,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double cp_mol_species(double T, int n) const
+    Set::Scalar cp_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -97,7 +107,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double enthalpy_mol_species(double T, int n) const
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -114,7 +124,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double entropy_mol_species(double T, int n) const
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))
         {

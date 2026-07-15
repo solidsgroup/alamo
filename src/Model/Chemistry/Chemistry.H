@@ -1,17 +1,17 @@
-// 
-// This header defines the :code:Model::Chemistry::Chemistry class, which introduces a static 
-// dispatch mechanism to replicate traditional dynamic polymorphism without incurring the performance 
-// cost of virtual table lookups. 
-// 
-// The :code:Chemistry class acts as the static equivalent of a pure abstract interface for 
-// chemical reaction models. The function :code:compute statically dispatches to the 
-// appropriate underlying implementation, encapsulating key properties for reaction rates 
-// and heat release. The :code:compute function is resolved at compile-time for GPU 
-// compatibility and runtime performance.
-// 
-// This system enables polymorphic behavior without relying on runtime virtual functions, making it 
+//
+// This header defines the :code:Model::Chemistry::Chemistry class, which introduces a static
+// dispatch mechanism to replicate traditional dynamic polymorphism without incurring the performance
+// cost of virtual table lookups.
+//
+// The :code:Chemistry class acts as the static equivalent of a pure abstract interface for
+// chemical reaction models. The function :code:ComputeChemistrySources statically dispatches to the
+// appropriate underlying implementation, encapsulating key properties for reaction rates
+// and heat release. The :code:ComputeChemistrySources function is resolved at compile-time for GPU
+// compatibility and runtime performance, and returns the species production rates and heat release.
+//
+// This system enables polymorphic behavior without relying on runtime virtual functions, making it
 // suitable for high-performance computing environments.
-// 
+//
 
 #ifndef MODEL_CHEMISTRY_H
 #define MODEL_CHEMISTRY_H
@@ -37,16 +37,16 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double,NSPECIES>,Set::Scalar>
-    compute (const Set::Scalar P, const Set::Scalar T, const std::array<double,NSPECIES>& rhoY,
+    std::pair<std::array<Set::Scalar,NSPECIES>,Set::Scalar>
+    ComputeChemistrySources (const Set::Scalar P, const Set::Scalar T, const std::array<Set::Scalar,NSPECIES>& rhoY,
                 const Set::Scalar dt, const Model::Gas::Gas* gas = nullptr)
     {
         if constexpr (I < sizeof...(OBJ))
         {
-            if (selected == I) return std::get<I>(obj).compute(P,T,rhoY,dt,gas);
-            else return compute<I+1>(P,T,rhoY,dt,gas);
+            if (selected == I) return std::get<I>(obj).ComputeChemistrySources(P,T,rhoY,dt,gas);
+            else return ComputeChemistrySources<I+1>(P,T,rhoY,dt,gas);
         }
-        else 
+        else
         {
             Util::Abort(INFO,selected);
             return {};

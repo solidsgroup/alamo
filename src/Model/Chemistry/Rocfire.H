@@ -1,3 +1,22 @@
+//
+// :code:Model::Chemistry::Rocfire:code: implements a very specific finite rate
+// kinetics model for AP/HTPB combustion using a 4 step, 6 species global reaction
+// mechanism.  The mechanism utilizes a different form of equations for computing
+// reaction rates than typical Cantera/Chemkin style kinetics, so this implementation
+// is separate from :code:Model::Chemistry::FiniteRate:code:.
+//
+// The mechanism is available in public literature, but was originally developed
+// for implementation in Thomas Jackson's (University of Florida) Rocfire
+// software, which is the impetus for the model name.  Note that the Alamo
+// implementation was developed completely independent from Rocfire, and solely
+// from publicly available resources.
+// 
+// Reference: Gross, M. L., Hedman, T. D., Son, S. F., Jackson, T. L., &
+// Beckstead, M. W. (2013). Coupling micro and meso-scale combustion models of
+// AP/HTPB propellants. Combustion and Flame, 160(5), 982–992.
+// https://doi.org/10.1016/j.combustflame.2013.01.016
+//
+
 #ifndef MODEL_CHEMISTRY_ROCFIRE_H
 #define MODEL_CHEMISTRY_ROCFIRE_H
 
@@ -24,17 +43,17 @@ struct Rocfire
     static constexpr int Primary = 4;
     static constexpr int Final = 5;
 
-    std::array<double, nreactions> A = {{27000.0, 25300.0, 5000.0, 400.0}};
-    std::array<double, nreactions> pressure_exponent = {{1.6, 1.7, 1.7, 1.7}};
-    std::array<double, nreactions> activation_energy =
+    std::array<Set::Scalar, nreactions> A = {{27000.0, 25300.0, 5000.0, 400.0}};
+    std::array<Set::Scalar, nreactions> pressure_exponent = {{1.6, 1.7, 1.7, 1.7}};
+    std::array<Set::Scalar, nreactions> activation_energy =
         {{15.9 * 4184.0, 14.5 * 4184.0, 11.3 * 4184.0, 14.5 * 4184.0}};
-    std::array<double, nreactions> qgas =
+    std::array<Set::Scalar, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
-    std::array<double, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
-    double pressure_reference = 100000.0;
+    std::array<Set::Scalar, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
+    Set::Scalar pressure_reference = 100000.0;
     int nsubsteps = 1;
-    double beta = 7.974;
-    double gamma = 3.19;
+    Set::Scalar beta = 7.974;
+    Set::Scalar gamma = 3.19;
 
     Rocfire() = default;
     Rocfire(IO::ParmParse &pp, std::string name)
@@ -44,24 +63,24 @@ struct Rocfire
 
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    static double sum_species(const std::array<double, NSPECIES>& values)
+    static Set::Scalar sum_species(const std::array<Set::Scalar, NSPECIES>& values)
     {
-        double sum = 0.0;
+        Set::Scalar sum = 0.0;
         for (int n = 0; n < NSPECIES; ++n) sum += values[n];
         return sum;
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::array<double, nreactions>
+    std::array<Set::Scalar, nreactions>
     compute_progress_rates(
         const Set::Scalar P,
         const Set::Scalar T,
-        const std::array<double, NSPECIES>& rhoY) const
+        const std::array<Set::Scalar, NSPECIES>& rhoY) const
     {
-        std::array<double, nreactions> progress = {{0.0, 0.0, 0.0, 0.0}};
+        std::array<Set::Scalar, nreactions> progress = {{0.0, 0.0, 0.0, 0.0}};
 
-        double rho = 0.0;
-        std::array<double, NSPECIES> Y;
+        Set::Scalar rho = 0.0;
+        std::array<Set::Scalar, NSPECIES> Y;
         for (int n = 0; n < NSPECIES; ++n)
         {
             rho += rhoY[n];
@@ -76,7 +95,7 @@ struct Rocfire
             Y[n] = std::max(rhoY[n], 0.0) / rho;
         }
 
-        std::array<double, nreactions> k;
+        std::array<Set::Scalar, nreactions> k;
         for (int r = 0; r < nreactions; ++r)
         {
             k[r] = A[r] * std::pow(P / pressure_reference, pressure_exponent[r])
@@ -91,10 +110,10 @@ struct Rocfire
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double, NSPECIES>, Set::Scalar>
-    source_from_progress(const std::array<double, nreactions>& progress) const
+    std::pair<std::array<Set::Scalar, NSPECIES>, Set::Scalar>
+    source_from_progress(const std::array<Set::Scalar, nreactions>& progress) const
     {
-        std::array<double, NSPECIES> wdot;
+        std::array<Set::Scalar, NSPECIES> wdot;
         for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
 
         wdot[AP]       -= progress[0];
@@ -111,7 +130,7 @@ struct Rocfire
         wdot[Premixed] -= progress[3];
         wdot[Final]    += (gamma + 1.0) * progress[3];
 
-        const double qdot =
+        const Set::Scalar qdot =
             (qgas[0] + qsolid[0]) * progress[0]
             + (qgas[1] + qsolid[1]) * progress[1]
             + /*(beta + 1.0) * */qgas[2] * progress[2]
@@ -121,25 +140,25 @@ struct Rocfire
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double, NSPECIES>, Set::Scalar>
+    std::pair<std::array<Set::Scalar, NSPECIES>, Set::Scalar>
     evaluate_source(
         const Set::Scalar P,
         const Set::Scalar T,
-        const std::array<double, NSPECIES>& rhoY,
+        const std::array<Set::Scalar, NSPECIES>& rhoY,
         const Set::Scalar dt) const
     {
-        std::array<double, nreactions> progress = compute_progress_rates(P, T, rhoY);
-        std::pair<std::array<double, NSPECIES>, Set::Scalar> source = source_from_progress(progress);
+        std::array<Set::Scalar, nreactions> progress = compute_progress_rates(P, T, rhoY);
+        std::pair<std::array<Set::Scalar, NSPECIES>, Set::Scalar> source = source_from_progress(progress);
 
         if (dt > 0.0)
         {
-            double limiter = 1.0;
+            Set::Scalar limiter = 1.0;
             for (int n = 0; n < NSPECIES; ++n)
             {
                 if (source.first[n] < 0.0)
                 {
-                    const double available = std::max(rhoY[n], 0.0);
-                    const double requested = -source.first[n] * dt;
+                    const Set::Scalar available = std::max(rhoY[n], 0.0);
+                    const Set::Scalar requested = -source.first[n] * dt;
                     if (requested > available && requested > 0.0)
                     {
                         limiter = std::min(limiter, available / requested);
@@ -158,15 +177,15 @@ struct Rocfire
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double,NSPECIES>,Set::Scalar>
-    compute(
+    std::pair<std::array<Set::Scalar,NSPECIES>,Set::Scalar>
+    ComputeChemistrySources(
         const Set::Scalar P,
         const Set::Scalar T,
-        const std::array<double, NSPECIES>& rhoY,
+        const std::array<Set::Scalar, NSPECIES>& rhoY,
         const Set::Scalar dt,
         const Model::Gas::Gas* /*gas*/) const
     {
-        std::array<double, NSPECIES> wdot;
+        std::array<Set::Scalar, NSPECIES> wdot;
         for (int n = 0; n < NSPECIES; ++n)
         {
             wdot[n] = 0.0;
@@ -179,8 +198,8 @@ struct Rocfire
         }
         else
         {
-            std::array<double, NSPECIES> rhoY_valid;
-            double density_scale = 0.0;
+            std::array<Set::Scalar, NSPECIES> rhoY_valid;
+            Set::Scalar density_scale = 0.0;
             for (int n = 0; n < NSPECIES; ++n)
             {
                 if (!std::isfinite(rhoY[n]))
@@ -191,7 +210,7 @@ struct Rocfire
                 density_scale += std::abs(rhoY[n]);
             }
 
-            const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+            const Set::Scalar density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
             for (int n = 0; n < NSPECIES; ++n)
             {
                 rhoY_valid[n] = rhoY[n];
@@ -210,13 +229,13 @@ struct Rocfire
 
             if (dt > 0.0 && nsubsteps > 1)
             {
-                const double dt_sub = dt / nsubsteps;
-                std::array<double, NSPECIES> rhoY_sub = rhoY_valid;
+                const Set::Scalar dt_sub = dt / nsubsteps;
+                std::array<Set::Scalar, NSPECIES> rhoY_sub = rhoY_valid;
                 Set::Scalar qdot_integral = 0.0;
 
                 for (int s = 0; s < nsubsteps; ++s)
                 {
-                    std::pair<std::array<double, NSPECIES>, Set::Scalar> source =
+                    std::pair<std::array<Set::Scalar, NSPECIES>, Set::Scalar> source =
                         evaluate_source(P, T, rhoY_sub, dt_sub);
                     for (int n = 0; n < NSPECIES; ++n)
                     {
@@ -243,11 +262,11 @@ struct Rocfire
         Util::Message(INFO, pp.getPrefix());
         Util::Assert(INFO, TEST(NSPECIES == 6), "Rocfire chemistry requires NSPECIES=6.");
 
-        std::vector<double> A;
-        std::vector<double> pressure_exponent;
-        std::vector<double> activation_energy;
-        std::vector<double> qgas;
-        std::vector<double> qsolid;
+        std::vector<Set::Scalar> A;
+        std::vector<Set::Scalar> pressure_exponent;
+        std::vector<Set::Scalar> activation_energy;
+        std::vector<Set::Scalar> qgas;
+        std::vector<Set::Scalar> qsolid;
 
         pp.queryarr_default("A", A,
             {"27.0e3_g/cm^3/s", "25.3e3_g/cm^3/s", "5.0e3_g/cm^3/s", "0.4e3_g/cm^3/s"},

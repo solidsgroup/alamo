@@ -1,3 +1,13 @@
+//
+// :code:Model::Gas::Thermo::NASA7:code: computes species and mixture thermodynamic
+// properties from NASA seven-coefficient polynomial fits.
+//
+// Coefficients may be read directly from the Alamo input file or imported from a
+// Cantera .yaml file. The model evaluates nondimensional species :code:cp/R:code:,
+// :code:h/RT:code:, and :code:s/R:code: and forms mole-fraction-weighted mixture
+// properties.
+//
+
 #ifndef MODEL_GAS_THERMO_NASA7_H_
 #define MODEL_GAS_THERMO_NASA7_H_
 
@@ -7,7 +17,7 @@
 #include <memory>
 #include "Model/Gas/Thermo/Thermo.H"
 #include "IO/ParmParse.H"
-#include "IO/YamlParse.H"
+#include "IO/CanteraYamlParse.H"
 #include "Set/Set.H"
 
 namespace Model {
@@ -20,9 +30,9 @@ public:
     static constexpr const char* name = "nasa7";
 
 private:
-    std::vector<std::array<double, 3>> Tranges;
-    std::vector<std::array<std::array<double, 7>, 2>> coeffs;
-    
+    std::vector<std::array<Set::Scalar, 3>> Tranges;
+    std::vector<std::array<std::array<Set::Scalar, 7>, 2>> coeffs;
+
 public:
     NASA7() {};
 
@@ -97,9 +107,9 @@ public:
         }
         else if (type == "input")
         {
-            std::vector<double> flat_Tranges;
-            std::vector<double> flat_coeffs_lo;
-            std::vector<double> flat_coeffs_hi;
+            std::vector<Set::Scalar> flat_Tranges;
+            std::vector<Set::Scalar> flat_coeffs_lo;
+            std::vector<Set::Scalar> flat_coeffs_hi;
 
             // Array of temperature ranges for NASA7 polynomial curve fits, must be size 3 or 3 x NSPECIES
             // T_lo, T_mid, T_high
@@ -142,58 +152,58 @@ public:
 
 private:
     // Compute nondimensional quantities (cp/R, h/(RT), s/R) from NASA7 coefficients
-    double cp_R(double T, const std::array<double, 3>& Trange, const std::array<std::array<double, 7>, 2>& coeff) const
+    Set::Scalar cp_R(Set::Scalar T, const std::array<Set::Scalar, 3>& Trange, const std::array<std::array<Set::Scalar, 7>, 2>& coeff) const
     {
         int hilo = (T <= Trange[1]) ? 0 : 1;
-        const std::array<double, 7>& a = coeff[hilo];
+        const std::array<Set::Scalar, 7>& a = coeff[hilo];
         return a[0] + a[1]*T + a[2]*T*T + a[3]*T*T*T + a[4]*T*T*T*T;
-    }   
-    
-    double h_RT(double T, const std::array<double, 3>& Trange, const std::array<std::array<double, 7>, 2>& coeff) const
+    }
+
+    Set::Scalar h_RT(Set::Scalar T, const std::array<Set::Scalar, 3>& Trange, const std::array<std::array<Set::Scalar, 7>, 2>& coeff) const
     {
         int hilo = (T <= Trange[1]) ? 0 : 1;
-        const std::array<double, 7>& a = coeff[hilo];
+        const std::array<Set::Scalar, 7>& a = coeff[hilo];
         return a[0] + 0.5*a[1]*T + (1.0/3.0)*a[2]*T*T + 0.25*a[3]*T*T*T + 0.2*a[4]*T*T*T*T + a[5]/T;
     }
 
-    double s_R(double T, const std::array<double, 3>& Trange, const std::array<std::array<double, 7>, 2>& coeff) const
+    Set::Scalar s_R(Set::Scalar T, const std::array<Set::Scalar, 3>& Trange, const std::array<std::array<Set::Scalar, 7>, 2>& coeff) const
     {
         int hilo = (T <= Trange[1]) ? 0 : 1;
-        const std::array<double, 7>& a = coeff[hilo];
+        const std::array<Set::Scalar, 7>& a = coeff[hilo];
         return a[0]*log(T) + a[1]*T + 0.5*a[2]*T*T + (1.0/3.0)*a[3]*T*T*T + 0.25*a[4]*T*T*T*T + a[6];
     }
 
 public:
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Specific heat (constant pressure), J/(kmol-K)
-        double cp = 0.0;
+        Set::Scalar cp = 0.0;
         for (int n=0; n<NSPECIES; ++n) cp += X(i,j,k,n) * cp_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
         return cp;
-    }        
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    }
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Specific enthalpy, J/kmol)
-        double h = 0.0;
+        Set::Scalar h = 0.0;
         for (int n=0; n<NSPECIES; ++n) h += X(i,j,k,n) * h_RT(T, Tranges[n], coeffs[n]) * Set::Constant::Rg * T;
         return h;
     }
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // specific entropy, J/(kmol-K)
-        double s = 0.0;
+        Set::Scalar s = 0.0;
         for (int n=0; n<NSPECIES; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
         return s;
     }
-    double cp_mol_species(double T, int n) const
+    Set::Scalar cp_mol_species(Set::Scalar T, int n) const
     {
         return cp_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
     }
-    double enthalpy_mol_species(double T, int n) const
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         return h_RT(T, Tranges[n], coeffs[n]) * Set::Constant::Rg * T;
     }
-    double entropy_mol_species(double T, int n) const
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const
     {
         return s_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
     }

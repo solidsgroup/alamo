@@ -1,3 +1,23 @@
+//
+// :code:Model::Chemistry::Equilibrium:code: equilibrates an ideal-gas mixture assuming
+// constant volume and internal energy, which is consistent with a finite volume flow
+// solver.
+//
+// Equilibrium is computed with an element-potential Newton solve for the species mole
+// numbers and equilibrium temperature. This is the stationarity system associated with
+// Gibbs free-energy minimization subject to elemental conservation, coupled to an
+// internal-energy conservation residual. It does not use equilibrium constants computed
+// from forward and backward reaction rate constants.
+//
+// The solve requires species elemental composition, molecular weights, and thermodynamic
+// properties h(T), s(T), and cp(T), typically provided through the gas model and a
+// Cantera .yaml file. In order to readily interface with the fluid governing conservation
+// equations, artificial :code:wdot:code: and :code:qdot:code: sources are computed using
+// the current time step so that the equilibrium state is reached after one time step.
+//
+// i.e. wdot = (rho_equil - rho_current)/dt
+//
+
 #ifndef MODEL_CHEMISTRY_EQUILIBRIUM_H
 #define MODEL_CHEMISTRY_EQUILIBRIUM_H
 
@@ -15,29 +35,32 @@ namespace Chemistry
 
 struct Equilibrium
 {
+    using EigenVector = Eigen::Matrix<Set::Scalar, Eigen::Dynamic, 1>;
+    using EigenMatrix = Eigen::Matrix<Set::Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+
     static constexpr const char* name = "equilibrium";
 
-    Equilibrium() = default; 
-    Equilibrium(IO::ParmParse &pp, std::string name) 
-    { 
-        pp_queryclass(name,*this); 
-    } 
+    Equilibrium() = default;
+    Equilibrium(IO::ParmParse &pp, std::string name)
+    {
+        pp_queryclass(name,*this);
+    }
 
 #ifdef ALAMO_YAML
     std::string yaml;
     CanteraYAML::CanteraKinetics kinetics;
-    Eigen::MatrixXd nu; // Stoichiometric matrix (NSPECIES x NREACTIONS)
-    Eigen::MatrixXd atom_matrix; // (NELEMENTS x NSPECIES)
+    EigenMatrix nu; // Stoichiometric matrix (NSPECIES x NREACTIONS)
+    EigenMatrix atom_matrix; // (NELEMENTS x NSPECIES)
     int NE = 0; // Number of elements
 #endif
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static bool sanitize_species_densities(
-        const std::array<double, NSPECIES>& input,
-        std::array<double, NSPECIES>& output,
+        const std::array<Set::Scalar, NSPECIES>& input,
+        std::array<Set::Scalar, NSPECIES>& output,
         const char* context)
     {
-        double density_scale = 0.0;
+        Set::Scalar density_scale = 0.0;
         for (int i = 0; i < NSPECIES; ++i)
         {
             if (!std::isfinite(input[i]))
@@ -45,8 +68,8 @@ struct Equilibrium
             density_scale += std::abs(input[i]);
         }
 
-        const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
-        double clipped_density = 0.0;
+        const Set::Scalar density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+        Set::Scalar clipped_density = 0.0;
         for (int i = 0; i < NSPECIES; ++i)
         {
             output[i] = input[i];
@@ -64,36 +87,36 @@ struct Equilibrium
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::pair<std::array<double,NSPECIES>,Set::Scalar>
-    compute(
+    std::pair<std::array<Set::Scalar,NSPECIES>,Set::Scalar>
+    ComputeChemistrySources(
         const Set::Scalar /*P_orig*/,
         const Set::Scalar T_orig,
-        const std::array<double, NSPECIES>& rhoY,
+        const std::array<Set::Scalar, NSPECIES>& rhoY,
         const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
         if (dt <= 0)
         {
-            std::array<double, NSPECIES> wdot;
+            std::array<Set::Scalar, NSPECIES> wdot;
             for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
             return {wdot, 0.0};
         }
-        
+
         if constexpr (NSPECIES <= 1)
         {
             Util::IgnoreUnused(T_orig, rhoY, gas);
-            std::array<double, NSPECIES> wdot;
+            std::array<Set::Scalar, NSPECIES> wdot;
             for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
             return {wdot, 0.0};
         }
 #ifdef ALAMO_YAML
         else
         {
-            const double R = Set::Constant::Rg;
-            const double P0 = 101325.0; // Standard pressure
-            std::array<double, NSPECIES> wdot;
+            const Set::Scalar R = Set::Constant::Rg;
+            const Set::Scalar P0 = 101325.0; // Standard pressure
+            std::array<Set::Scalar, NSPECIES> wdot;
             for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
-            std::array<double, NSPECIES> rhoY_valid;
+            std::array<Set::Scalar, NSPECIES> rhoY_valid;
             if (!sanitize_species_densities(rhoY, rhoY_valid, "Equilibrium chemistry"))
             {
                 return {wdot, 0.0};
@@ -101,11 +124,11 @@ struct Equilibrium
 
             // 1. Calculate initial element counts and energy
             // n_i is in kmol/m^3 (assuming V=1)
-            Eigen::VectorXd n_orig(NSPECIES);
-            Eigen::VectorXd b(NE);
+            EigenVector n_orig(NSPECIES);
+            EigenVector b(NE);
             b.setZero();
-            double e_total_0 = 0.0;
-            
+            Set::Scalar e_total_0 = 0.0;
+
             for (int i = 0; i < NSPECIES; ++i) {
                 n_orig(i) = rhoY_valid[i] / gas->MW[i]; // kmol/m^3
                 for (int k = 0; k < NE; ++k) b(k) += atom_matrix(k, i) * n_orig(i);
@@ -117,7 +140,7 @@ struct Equilibrium
             // gamma_k = lambda_k / RT
             // n_i = (P0 / RT) * exp( sum_k A_ki * gamma_k - g_i^0(T) / RT )
 
-            Eigen::VectorXd gamma = Eigen::VectorXd::Zero(NE);
+            EigenVector gamma = EigenVector::Zero(NE);
             {
                 int n_active_species = 0;
                 for (int i = 0; i < NSPECIES; ++i)
@@ -127,13 +150,13 @@ struct Equilibrium
 
                 if (n_active_species >= NE)
                 {
-                    Eigen::MatrixXd A_ls(n_active_species, NE);
-                    Eigen::VectorXd rhs_ls(n_active_species);
+                    EigenMatrix A_ls(n_active_species, NE);
+                    EigenVector rhs_ls(n_active_species);
                     int row = 0;
                     for (int i = 0; i < NSPECIES; ++i)
                     {
                         if (n_orig(i) <= 1.0e-30) continue;
-                        double mu0_i = gas->enthalpy_mol_species(T_orig, i) - T_orig * gas->entropy_mol_species(T_orig, i);
+                        Set::Scalar mu0_i = gas->enthalpy_mol_species(T_orig, i) - T_orig * gas->entropy_mol_species(T_orig, i);
                         rhs_ls(row) = std::log(std::max(n_orig(i) * R * T_orig / P0, 1.0e-300)) + mu0_i / (R * T_orig);
                         for (int k = 0; k < NE; ++k) A_ls(row, k) = atom_matrix(k, i);
                         ++row;
@@ -143,36 +166,36 @@ struct Equilibrium
                 }
                 else
                 {
-                    double n_tot_guess = n_orig.sum();
+                    Set::Scalar n_tot_guess = n_orig.sum();
                     for (int k = 0; k < NE; ++k)
                         gamma(k) = std::log(std::max(b(k), 1e-10) / std::max(n_tot_guess, 1e-10));
                 }
             }
 
-            double T = T_orig;
+            Set::Scalar T = T_orig;
             const int max_iter = 200;
-            const double tolerance = 1e-10;
+            const Set::Scalar tolerance = 1e-10;
             bool finite_state = true;
             bool converged = false;
             bool best_state_valid = false;
-            double initial_residual_norm = -1.0;
-            double best_residual_norm = std::numeric_limits<double>::infinity();
-            Eigen::VectorXd best_gamma = gamma;
-            double best_T = T;
+            Set::Scalar initial_residual_norm = -1.0;
+            Set::Scalar best_residual_norm = std::numeric_limits<Set::Scalar>::infinity();
+            EigenVector best_gamma = gamma;
+            Set::Scalar best_T = T;
 
             for (int iter = 0; iter < max_iter; ++iter) {
-                Eigen::VectorXd n(NSPECIES);
-                Eigen::VectorXd mu0(NSPECIES); // Standard state chemical potential (Gibbs energy)
+                EigenVector n(NSPECIES);
+                EigenVector mu0(NSPECIES); // Standard state chemical potential (Gibbs energy)
                 for (int i = 0; i < NSPECIES; ++i) {
                     // mu0_i = g0_i = h0_i - T*s0_i
                     mu0(i) = gas->enthalpy_mol_species(T, i) - T * gas->entropy_mol_species(T, i);
-                    double arg = - mu0(i) / (R * T);
+                    Set::Scalar arg = - mu0(i) / (R * T);
                     for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma(k);
                     n(i) = (P0 / (R * T)) * std::exp(std::clamp(arg, -100.0, 100.0));
                 }
 
-                Eigen::VectorXd f(NE + 1);
-                Eigen::MatrixXd J(NE + 1, NE + 1);
+                EigenVector f(NE + 1);
+                EigenMatrix J(NE + 1, NE + 1);
                 f.setZero(); J.setZero();
 
                 // Element conservation residuals
@@ -182,11 +205,11 @@ struct Equilibrium
                 }
 
                 // Energy conservation residual (scaled)
-                double e_total = 0.0;
+                Set::Scalar e_total = 0.0;
                 for (int i = 0; i < NSPECIES; ++i) e_total += n(i) * (gas->enthalpy_mol_species(T, i) - R * T);
-                f(NE) = (e_total - e_total_0) / (R * T_orig); 
+                f(NE) = (e_total - e_total_0) / (R * T_orig);
 
-                double residual_norm = f.norm();
+                Set::Scalar residual_norm = f.norm();
                 if (initial_residual_norm < 0.0) initial_residual_norm = residual_norm;
                 if (std::isfinite(residual_norm) && residual_norm < best_residual_norm)
                 {
@@ -211,39 +234,39 @@ struct Equilibrium
                 // J_k,NE = df_k / dlnT = T * sum_i A_ki * dn_i/dT = sum_i A_ki * n_i * (e_i / RT)
                 for (int k = 0; k < NE; ++k) {
                     for (int i = 0; i < NSPECIES; ++i) {
-                        double e_i = gas->enthalpy_mol_species(T, i) - R * T;
+                        Set::Scalar e_i = gas->enthalpy_mol_species(T, i) - R * T;
                         J(k, NE) += atom_matrix(k, i) * n(i) * (e_i / (R * T));
                     }
                 }
                 // J_NE,l = df_NE / d_gamma_l = (1/RT_orig) * sum_i e_i * n_i * A_li
                 for (int l = 0; l < NE; ++l) {
                     for (int i = 0; i < NSPECIES; ++i) {
-                        double e_i = gas->enthalpy_mol_species(T, i) - R * T;
+                        Set::Scalar e_i = gas->enthalpy_mol_species(T, i) - R * T;
                         J(NE, l) += (e_i / (R * T_orig)) * n(i) * atom_matrix(l, i);
                     }
                 }
                 // J_NE,NE = df_NE / dlnT = (T/RT_orig) * dE/dT = (T/RT_orig) * sum(n_i cv_i + e_i dn_i/dT)
                 for (int i = 0; i < NSPECIES; ++i) {
-                    double cv_i = gas->cp_mol_species(T, i) - R;
-                    double e_i = gas->enthalpy_mol_species(T, i) - R * T;
+                    Set::Scalar cv_i = gas->cp_mol_species(T, i) - R;
+                    Set::Scalar e_i = gas->enthalpy_mol_species(T, i) - R * T;
                     J(NE, NE) += (n(i) * cv_i * T + e_i * n(i) * (e_i / (R * T))) / (R * T_orig);
                 }
 
-                Eigen::VectorXd step = J.colPivHouseholderQr().solve(-f);
+                EigenVector step = J.colPivHouseholderQr().solve(-f);
                 if (!std::isfinite(step.norm()))
                 {
                     finite_state = false;
                     break;
                 }
 
-                double alpha = 1.0;
+                Set::Scalar alpha = 1.0;
                 if (std::abs(step(NE)) > 0.5) alpha = 0.5 / std::abs(step(NE));
 
                 bool accepted = false;
-                Eigen::VectorXd gamma_trial(NE);
-                Eigen::VectorXd n_trial(NSPECIES);
-                Eigen::VectorXd f_trial(NE + 1);
-                double T_trial = T;
+                EigenVector gamma_trial(NE);
+                EigenVector n_trial(NSPECIES);
+                EigenVector f_trial(NE + 1);
+                Set::Scalar T_trial = T;
 
                 for (int line_iter = 0; line_iter < 12; ++line_iter)
                 {
@@ -258,8 +281,8 @@ struct Equilibrium
 
                     for (int i = 0; i < NSPECIES; ++i)
                     {
-                        double mu0_i = gas->enthalpy_mol_species(T_trial, i) - T_trial * gas->entropy_mol_species(T_trial, i);
-                        double arg = - mu0_i / (R * T_trial);
+                        Set::Scalar mu0_i = gas->enthalpy_mol_species(T_trial, i) - T_trial * gas->entropy_mol_species(T_trial, i);
+                        Set::Scalar arg = - mu0_i / (R * T_trial);
                         for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma_trial(k);
                         n_trial(i) = (P0 / (R * T_trial)) * std::exp(std::clamp(arg, -100.0, 100.0));
                     }
@@ -270,12 +293,12 @@ struct Equilibrium
                         for (int i = 0; i < NSPECIES; ++i) f_trial(k) += atom_matrix(k, i) * n_trial(i);
                         f_trial(k) -= b(k);
                     }
-                    double e_total_trial = 0.0;
+                    Set::Scalar e_total_trial = 0.0;
                     for (int i = 0; i < NSPECIES; ++i)
                         e_total_trial += n_trial(i) * (gas->enthalpy_mol_species(T_trial, i) - R * T_trial);
                     f_trial(NE) = (e_total_trial - e_total_0) / (R * T_orig);
 
-                    double trial_residual_norm = f_trial.norm();
+                    Set::Scalar trial_residual_norm = f_trial.norm();
                     if (std::isfinite(trial_residual_norm) && trial_residual_norm < best_residual_norm)
                     {
                         best_residual_norm = trial_residual_norm;
@@ -307,7 +330,7 @@ struct Equilibrium
 
             if (!converged)
             {
-                double acceptable_residual_norm = std::max(1.0e-8, 1.0e-6 * std::max(initial_residual_norm, 1.0));
+                Set::Scalar acceptable_residual_norm = std::max(1.0e-8, 1.0e-6 * std::max(initial_residual_norm, 1.0));
                 if (!best_state_valid || !std::isfinite(best_residual_norm) || best_residual_norm > acceptable_residual_norm)
                 {
                     return {wdot, 0.0};
@@ -321,20 +344,20 @@ struct Equilibrium
             }
 
             // 3. Output results
-            Eigen::VectorXd n_eq(NSPECIES);
+            EigenVector n_eq(NSPECIES);
             for (int i = 0; i < NSPECIES; ++i) {
-                double mu0 = gas->enthalpy_mol_species(T, i) - T * gas->entropy_mol_species(T, i);
-                double arg = - mu0 / (R * T);
+                Set::Scalar mu0 = gas->enthalpy_mol_species(T, i) - T * gas->entropy_mol_species(T, i);
+                Set::Scalar arg = - mu0 / (R * T);
                 for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma(k);
                 if (!std::isfinite(arg)) return {wdot, 0.0};
                 n_eq(i) = (P0 / (R * T)) * std::exp(std::clamp(arg, -100.0, 100.0));
                 wdot[i] = (n_eq(i) * gas->MW[i] - rhoY_valid[i]) / dt;
             }
-            
+
             Set::Scalar qdot = 0.0;
             for (int i = 0; i < NSPECIES; ++i) {
-                double h_i = gas->enthalpy_mol_species(T_orig, i);
-                double e_i = (h_i - R * T_orig) / gas->MW[i]; // J/kg
+                Set::Scalar h_i = gas->enthalpy_mol_species(T_orig, i);
+                Set::Scalar e_i = (h_i - R * T_orig) / gas->MW[i]; // J/kg
                 qdot -= wdot[i] * e_i;
             }
 
@@ -344,7 +367,7 @@ struct Equilibrium
         else
         {
             Util::IgnoreUnused(T_orig, rhoY, gas);
-            std::array<double, NSPECIES> wdot;
+            std::array<Set::Scalar, NSPECIES> wdot;
             for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
             return {wdot, 0.0};
         }
@@ -360,8 +383,8 @@ struct Equilibrium
             // Cantera yaml file
             pp_query_required("yaml", value.yaml);
             value.kinetics = CanteraYAML::ParseYaml(value.yaml);
-            ChemUtil::PreparedKinetics<NSPECIES> prepared =
-                ChemUtil::PrepareKinetics<NSPECIES>(value.kinetics, "Equilibrium chemistry");
+            Util::Chemistry::PreparedKinetics<NSPECIES> prepared =
+                Util::Chemistry::PrepareKinetics<NSPECIES>(value.kinetics, "Equilibrium chemistry");
 
             int NS = NSPECIES;
             int NR = prepared.NR;

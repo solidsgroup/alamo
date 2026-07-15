@@ -1,5 +1,5 @@
-#ifndef IO_YAMLPARSE
-#define IO_YAMLPARSE
+#ifndef IO_CANTERAYAMLPARSE
+#define IO_CANTERAYAMLPARSE
 
 #include "Util/Util.H"
 #include <string>

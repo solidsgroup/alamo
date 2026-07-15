@@ -2,7 +2,7 @@
 #define UTIL_CHEMISTRY_H
 
 #include "AMReX_Extension.H"
-#include "IO/YamlParse.H"
+#include "IO/CanteraYamlParse.H"
 #include <map>
 #include <string>
 #include <vector>
@@ -11,11 +11,9 @@
 #include <cstdint>
 #include <cmath>
 
-namespace Model
+namespace Util
 {
 namespace Chemistry
-{
-namespace ChemUtil
 {
 
 inline bool IsThirdBodyToken(const std::string& token)
@@ -450,8 +448,7 @@ inline double AtomicWeights(const int symbol) {
     return _AtomicWeights[symbol];
 }
 
-} // namespace ChemUtil
 } // namespace Chemistry
-} // namespace Model
+} // namespace Util
 
 #endif
