@@ -62,7 +62,6 @@ protected:
 
     void UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
-                           const amrex::MultiFab& T_mf,
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics = false);
@@ -99,11 +98,8 @@ protected:
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
-    Set::Field<Set::Scalar> solid_weight_mf;
     Set::Field<Set::Matrix> deformation_gradient_mf;
-    Set::Field<Set::Matrix> solid_first_piola_kirchhoff_stress_mf;
-    Set::Field<Set::Matrix> cell_total_cauchy_stress_mf;
-    Set::Field<Set::Matrix> cell_weighted_solid_deviatoric_cauchy_stress_mf;
+    Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;

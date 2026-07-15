@@ -128,16 +128,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", true, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.nspecies, 1, "mole_fraction", value.diagnostics_extended_fields, false);
-    value.AddField<Set::Matrix,Set::HC::Cell>(value.cell_weighted_solid_deviatoric_cauchy_stress_mf, nullptr, 1, 1, "cell_weighted_solid_deviatoric_cauchy_stress", true, false);
+    value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", value.finite_solid_enabled, false);
     if (value.diagnostics_extended_fields)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.solid_weight_mf, &value.bc_nothing, 1, 1, "solid_weight", true, false);
         value.AddField<Set::Matrix,Set::HC::Cell>(value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
-        value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_first_piola_kirchhoff_stress_mf, nullptr, 1, 1, "solid_first_piola_kirchhoff_stress", true, false);
-        value.AddField<Set::Matrix,Set::HC::Cell>(value.cell_total_cauchy_stress_mf, nullptr, 1, 1, "cell_total_cauchy_stress", true, false);
     }
 
     bool allow_unused;
@@ -153,21 +150,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 void
 LowMach::UpdateSolidStress(int lev,
                            const amrex::MultiFab& u_mf,
-                           const amrex::MultiFab& T_mf,
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics)
 {
     BL_PROFILE("Integrator::LowMach::UpdateSolidStress");
 
-    cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->setVal(Set::Matrix::Zero());
+    solid_deviatoric_stress_mf[lev]->setVal(Set::Matrix::Zero());
     if (write_diagnostics)
-    {
         deformation_gradient_mf[lev]->setVal(Set::Matrix::Zero());
-        solid_first_piola_kirchhoff_stress_mf[lev]->setVal(Set::Matrix::Zero());
-        cell_total_cauchy_stress_mf[lev]->setVal(Set::Matrix::Zero());
-        solid_weight_mf[lev]->setVal(0.0);
-    }
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -180,8 +171,6 @@ LowMach::UpdateSolidStress(int lev,
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
     const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
-    const Set::Scalar p_scale = pressure_scale;
-    const bool fluid_viscous = include_viscosity;
 
     amrex::MultiFab xi_stress_mf;
     const amrex::MultiFab* xi_for_stress_mf = &xi_mf;
@@ -198,38 +187,19 @@ LowMach::UpdateSolidStress(int lev,
         amrex::Box bx = mfi.growntilebox(1);
         bx &= domain;
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-        Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
         Set::Patch<const Set::Scalar> xi = xi_for_stress_mf->array(mfi);
-        Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
-        Set::Patch<Set::Matrix> cell_weighted_solid_deviatoric_cauchy_stress = cell_weighted_solid_deviatoric_cauchy_stress_mf.Patch(lev,mfi);
+        Set::Patch<Set::Matrix> solid_deviatoric_stress = solid_deviatoric_stress_mf.Patch(lev,mfi);
         amrex::Array4<Set::Matrix> F_field;
-        amrex::Array4<Set::Matrix> solid_first_piola_kirchhoff_stress;
-        amrex::Array4<Set::Matrix> cell_total_cauchy_stress;
-        amrex::Array4<Set::Scalar> solid_weight_field;
         if (write_diagnostics)
-        {
             F_field = deformation_gradient_mf[lev]->array(mfi);
-            solid_first_piola_kirchhoff_stress = solid_first_piola_kirchhoff_stress_mf[lev]->array(mfi);
-            cell_total_cauchy_stress = cell_total_cauchy_stress_mf[lev]->array(mfi);
-            solid_weight_field = solid_weight_mf[lev]->array(mfi);
-        }
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix F = Set::Matrix::Identity();
-            Set::Matrix P = Set::Matrix::Zero();
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             Set::Scalar div_u = grad_u.trace();
-
-            Set::Matrix newtonian_viscous_stress = Set::Matrix::Zero();
-            if (write_diagnostics && fluid_viscous)
-            {
-                Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-                newtonian_viscous_stress += mu * (grad_u + grad_u.transpose());
-            }
 
             Set::Matrix solid_sigma = Set::Matrix::Zero();
 
@@ -251,10 +221,7 @@ LowMach::UpdateSolidStress(int lev,
 
                 Set::Scalar J = F.determinant();
                 if (valid && Util::Abs(J) > det_floor)
-                {
-                    P = solid_model.DW(F);
-                    solid_sigma = (P * F.transpose()) / J;
-                }
+                    solid_sigma = (solid_model.DW(F) * F.transpose()) / J;
 
                 if (solid_viscosity != 0.0 || solid_bulk_viscosity != 0.0)
                 {
@@ -271,33 +238,16 @@ LowMach::UpdateSolidStress(int lev,
                                Set::Matrix::Identity();
             Set::Matrix interface_damping_stress =
                 solid_interface_viscosity * 4.0 * eta_val * (1.0 - eta_val) * strain_rate_dev;
-            Set::Matrix weighted_solid_deviatoric_cauchy_stress =
+            solid_deviatoric_stress(i,j,k) =
                 solid_weight * solid_sigma_dev + interface_damping_stress;
-
-            cell_weighted_solid_deviatoric_cauchy_stress(i,j,k) =
-                weighted_solid_deviatoric_cauchy_stress;
             if (write_diagnostics)
-            {
-                Set::Matrix total_cauchy_stress = -p_scale * pressure(i,j,k) * Set::Matrix::Identity() +
-                                                  newtonian_viscous_stress +
-                                                  solid_weight * solid_sigma +
-                                                  interface_damping_stress;
                 F_field(i,j,k) = F;
-                solid_first_piola_kirchhoff_stress(i,j,k) = P;
-                cell_total_cauchy_stress(i,j,k) = total_cauchy_stress;
-                solid_weight_field(i,j,k) = solid_weight;
-            }
         });
     }
 
-    cell_weighted_solid_deviatoric_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+    solid_deviatoric_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
     if (write_diagnostics)
-    {
-        solid_weight_mf[lev]->FillBoundary(geom[lev].periodicity());
         deformation_gradient_mf[lev]->FillBoundary(geom[lev].periodicity());
-        solid_first_piola_kirchhoff_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-        cell_total_cauchy_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
-    }
 }
 
 void
@@ -408,7 +358,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
         UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
 
-        phi[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, pressure_correction_mf[lev]->nGrow()));
+        phi[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 1));
         rhs[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 0));
         beta_cc[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 1));
         phi[lev]->setVal(0.0);
@@ -513,35 +463,12 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
     amrex::MLMG mlmg(mlabec);
     mlmg.setVerbose(projection_verbose);
+    mlmg.setFinalFillBC(true);
     mlmg.solve(phi_ptr, rhs_ptr, projection_tol_rel, projection_tol_abs);
 
-    BC::Constant::ZeroNeumann phi_bc(1);
     for (int lev = 0; lev < nlev; ++lev)
     {
-        phi_bc.define(geom[lev]);
-        if (lev == 0)
-        {
-            phi_bc.FillBoundary(*phi[lev], 0, 1, time, 0);
-            phi[lev]->FillBoundary(geom[lev].periodicity());
-        }
-        else
-        {
-            amrex::Vector<amrex::MultiFab*> cmf{phi[lev - 1].get()};
-            amrex::Vector<amrex::MultiFab*> fmf{phi[lev].get()};
-            amrex::Vector<amrex::Real> ctime{time};
-            amrex::Vector<amrex::Real> ftime{time};
-            amrex::Vector<amrex::BCRec> bcs(1, phi_bc.GetBCRec());
-            amrex::FillPatchTwoLevels(*phi[lev], time, cmf, ctime, fmf, ftime,
-                                       0, 0, 1, geom[lev - 1], geom[lev],
-                                       phi_bc, 0, phi_bc, 0,
-                                       refRatio(lev - 1), &amrex::cell_cons_interp, bcs, 0);
-        }
-    }
-
-    for (int lev = 0; lev < nlev; ++lev)
-    {
-        amrex::MultiFab::Copy(*pressure_correction_mf[lev], *phi[lev], 0, 0, 1, pressure_correction_mf[lev]->nGrow());
-        pressure_correction_mf[lev]->FillBoundary(geom[lev].periodicity());
+        amrex::MultiFab::Copy(*pressure_correction_mf[lev], *phi[lev], 0, 0, 1, 0);
     }
     for (int lev = 0; lev < nlev; ++lev)
     {
@@ -562,7 +489,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             Set::Patch<Set::Scalar> u = u_mf.array(mfi);
             Set::Patch<Set::Scalar> p = p_mf.array(mfi);
             Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-            Set::Patch<const Set::Scalar> phi_arr = pressure_correction_mf[lev]->array(mfi);
+            Set::Patch<const Set::Scalar> phi_arr = phi[lev]->array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -662,7 +589,7 @@ LowMach::Initialize(int lev)
     reference_map_reconstruction(
         geom[lev], *eta_old_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
     UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
-    UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+    UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
 }
 
@@ -681,7 +608,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 {
     UpdateThermodynamics(lev, T_mf, Y_mf);
     if (finite_solid_deviatoric_stress_divergence_sign != 0.0)
-        UpdateSolidStress(lev, u_mf, T_mf, eta_mf, xi_mf);
+        UpdateSolidStress(lev, u_mf, eta_mf, xi_mf);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -698,8 +625,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Matrix> cell_weighted_solid_deviatoric_cauchy_stress =
-            cell_weighted_solid_deviatoric_cauchy_stress_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Matrix> solid_deviatoric_stress =
+            solid_deviatoric_stress_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
         const bool viscous = include_viscosity;
         const Set::Vector gravity = g;
@@ -720,7 +647,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector div_sigma = Set::Vector::Zero();
             if (deviatoric_stress_divergence_sign != 0.0)
                 div_sigma = Numeric::Divergence(
-                    cell_weighted_solid_deviatoric_cauchy_stress, i, j, k, DX, sten);
+                    solid_deviatoric_stress, i, j, k, DX, sten);
 
             Set::Vector adv_vec = advect_op.Vector(u, u, i, j, k, 0, DX, advective_options, sten);
             Set::Vector lap_vec = Set::Vector::Zero();
@@ -1097,7 +1024,7 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
-        UpdateSolidStress(lev, *velocity_mf[lev], *temperature_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+        UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
         UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
     }
 }
