@@ -377,8 +377,14 @@ void Hydro::Initialize(int lev)
 
     Source_mf[lev]   ->setVal(0.0);
 
-    if (managed)  { if (lev >= (int)mixed.size()) mixed.push_back(false);}
-    else  Mix(lev);
+    // momentum_mf/energy_mf (the fluid conserved fields) are never set from an IC
+    // directly - they are only ever populated by Mix(), which derives them from
+    // density_ic/velocity_ic/pressure_ic. Standalone (!managed) Hydro always ran
+    // Mix() here so momentum/energy were valid from t=0. The managed (Flame) path
+    // used to skip this and only mix on the first Advance() call, one full
+    // timestep late, leaving momentum_mf/energy_mf at zero at t=0.
+    if (managed) { if (lev >= (int)mixed.size()) mixed.push_back(false); }
+    Mix(lev);
 }
 
 void Hydro::Mix(int lev)
@@ -454,6 +460,7 @@ void Hydro::Mix(int lev)
         });
         //Util::Abort(INFO);
     }
+    if (managed) { if (lev < (int)mixed.size()) mixed[lev] = true; }
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
@@ -603,7 +610,6 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-
     if (!managed) std::swap((*eta_old_mf)[lev], (*eta_mf)[lev]);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);

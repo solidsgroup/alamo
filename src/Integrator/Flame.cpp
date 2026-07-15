@@ -318,10 +318,15 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-    if (hydro.on) Hydro::Initialize(lev);
 
+    // eta_mf/eta_old_mf must be populated before Hydro::Initialize runs: Hydro's
+    // managed Initialize path calls Mix(), which reads eta_old_mf to blend the
+    // fluid/solid conserved state (momentum_mf/energy_mf) at t=0.
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
+
+    if (hydro.on) Hydro::Initialize(lev);
+
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
@@ -545,7 +550,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev],solid.momentum_mf[lev]->nGrow());
     Util::RealFillBoundary(*m0_mf[lev],geom[lev],m0_mf[lev]->nGrow());
     Util::RealFillBoundary(*u0_mf[lev],geom[lev],u0_mf[lev]->nGrow());
-    Util::RealFillBoundary(*eta_mf[lev],geom[lev],eta_mf[lev]->nGrow());
+
+    // Use the BC-aware fill (periodicity + physical eta BC) rather than a bare
+    // FillBoundary, so grad_eta/hess_eta in Hydro::RHS see correctly filled ghost
+    // cells (matching standalone Hydro::Advance's eta_bc->FillBoundary calls).
+    // eta_old_mf must be filled too since Hydro::RHS's Hessian stencil reads it
+    // and it otherwise only inherits stale ghost data through the eta/eta_old swap.
+    bc_eta->define(geom[lev]);
+    bc_eta->FillBoundary(*eta_mf[lev], 0, 1, a_time, 0);
+    bc_eta->FillBoundary(*eta_old_mf[lev], 0, 1, a_time, 0);
 
 }
 
