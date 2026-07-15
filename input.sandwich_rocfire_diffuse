@@ -35,7 +35,7 @@ chemistry.type = frozen
 # chemistry.rocfire.nsubsteps = 1
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire_hydro_frozen
+plot_file = output.sandwich_rocfire_hydro_diffuse
 details = 1
 #restart = output.sandwich_rocfire_part1/13900cell
 #restart = output.sandwich_rocfire_part2/14000cell
@@ -80,6 +80,14 @@ eta.ic.expression.region0        = "0.5 * (1 + erf((y)/eps))"
 ### AP/HTPB SOURCE ASSUMPTIONS ###
 # This is the 20 atm diffuse-source analogue of the gas-injection case.
 # AP occupies the center strip (-0.0002 < x < 0.0002); HTPB occupies the two outer strips.
+# Unlike input.sandwich_rocfire, the AP/HTPB split here is a DIFFUSE (erf-smoothed)
+# transition, not a sharp boolean mask - matching the phi field used by
+# input.sandwich_rocfire_flame (Flame::UpdateFluxes / phi.ic.laminate: center=0,
+# thickness=0.0004_m, eps=10_um). phiAP = 1 at x=0 (AP center), phiAP = 0 far from
+# the strip; phiHTPB = 1 - phiAP. Every place that used to multiply by the sharp
+# mask (x>-0.0002)*(x<0.0002) or its complement now multiplies by phiAP/phiHTPB
+# instead, so this input has the same diffuse-interface AP/HTPB physics as Flame.
+#
 # m0 is an interfacial mass flux [kg/m2/s], not a volumetric density rate.
 # Hydro multiplies it by |grad eta| to form the conserved density source.
 #
@@ -92,8 +100,8 @@ eta.ic.expression.region0        = "0.5 * (1 + erf((y)/eps))"
 # rhoE = rho * Cv * (T - T_ref) + 0.5 * rho * |u|^2.
 
 m0.ic.type = expression
-m0.ic.expression.region0 = "5.3235 * (x>-0.0002) * (x<0.0002)"
-m0.ic.expression.region1 = "2.6404 * ((x<=-0.0002) + (x>=0.0002))"
+m0.ic.expression.region0 = "5.3235 * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+m0.ic.expression.region1 = "2.6404 * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 m0.ic.expression.region2 = "0.0"
 m0.ic.expression.region3 = "0.0"
 m0.ic.expression.region4 = "0.0"
@@ -105,13 +113,13 @@ u0.ic.expression.constant.T = 700.0
 u0.ic.expression.constant.T_final = 3000.0
 u0.ic.expression.constant.R = 319.787
 u0.ic.expression.region0 = "0.0"
-u0.ic.expression.region1 = "5.3235 / (P/R/830.0) * (x>-0.0002)*(x<0.0002) + 2.6404 / (P/R/889.0) * ((x<=-0.0002) + (x>=0.0002))"
+u0.ic.expression.region1 = "5.3235 / (P/R/830.0) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + 2.6404 / (P/R/889.0) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 
 q.ic.type = expression
 # Additional heat flux only. The total energy carried by m0 is computed from
 # the gas-equivalent solid.energy state in Hydro.
 q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "0.0" #"(-53.235 * (x>-0.0002)*(x<0.0002) - 38.2858 * ((x<=-0.0002) + (x>=0.0002)))*41840.0"
+q.ic.expression.region1 = "0.0"
 
 density.ic.type = expression
 density.ic.expression.constant.eps = 1e-5
@@ -124,8 +132,8 @@ density.ic.expression.constant.y_flame = 2.0e-5
 density.ic.expression.constant.eps_y = 1.0e-5
 density.ic.expression.constant.beta = 7.974
 density.ic.expression.constant.gamma = 3.19
-density.ic.expression.region0 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_AP * (x>-0.0002)*(x<0.0002)"
-density.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_HTPB * ((x<=-0.0002) + (x>=0.0002))"
+density.ic.expression.region0 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_AP * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+density.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_HTPB * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 density.ic.expression.region2 = "0.0"
 density.ic.expression.region3 = "0.0"
 density.ic.expression.region4 = "0.0"
@@ -143,7 +151,7 @@ velocity.ic.expression.constant.rhou_AP = 5.3235
 velocity.ic.expression.constant.rhou_HTPB = 2.6404
 velocity.ic.expression.constant.fact = 1.0
 velocity.ic.expression.region0 = "0.0"
-velocity.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * (rhou_AP/(P/R/T_AP) * (x>-0.0002)*(x<0.0002) + rhou_HTPB/(P/R/T_HTPB) * ((x<=-0.0002) + (x>=0.0002))) + 0.5*(1.0 + erf((y-y_flame)/eps_y)) * ((rhou_AP + rhou_HTPB) / (P/R/T_final) / 2.0)"
+velocity.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * (rhou_AP/(P/R/T_AP) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + rhou_HTPB/(P/R/T_HTPB) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))) + 0.5*(1.0 + erf((y-y_flame)/eps_y)) * ((rhou_AP + rhou_HTPB) / (P/R/T_final) / 2.0)"
 
 pressure.ic.type = expression
 pressure.ic.expression.region0 = "2026500"
@@ -153,8 +161,8 @@ solid.density.ic.expression.constant.P = 2026500 # 20 atm
 solid.density.ic.expression.constant.R = 319.787
 solid.density.ic.expression.constant.T = 700.0
 solid.density.ic.expression.constant.T_final = 3000.0
-solid.density.ic.expression.region0 = "P/R/830.0*(x>-0.0002)*(x<0.0002)"
-solid.density.ic.expression.region1 = "P/R/889.0*((x<=-0.0002) + (x>=0.0002))"
+solid.density.ic.expression.region0 = "P/R/830.0*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+solid.density.ic.expression.region1 = "P/R/889.0*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 solid.density.ic.expression.region2 = "0.0"
 solid.density.ic.expression.region3 = "0.0"
 solid.density.ic.expression.region4 = "0.0"
@@ -171,7 +179,7 @@ solid.energy.ic.expression.constant.T = 700.0
 solid.energy.ic.expression.constant.T_final = 3000.0
 solid.energy.ic.expression.constant.T0 = 298.15
 solid.energy.ic.expression.constant.cv = 935.413
-solid.energy.ic.expression.region0 = "(P/R/830.0 * cv*(830.0-T0) + 0.5*5.3235^2/(P/R/830.0)) * (x>-0.0002) * (x<0.0002) + (P/R/889.0 * cv*(889.0-T0) + 0.5*2.6404^2/(P/R/889.0)) * ((x<=-0.0002) + (x>=0.0002))"
+solid.energy.ic.expression.region0 = "(P/R/830.0 * cv*(830.0-T0) + 0.5*5.3235^2/(P/R/830.0)) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + (P/R/889.0 * cv*(889.0-T0) + 0.5*2.6404^2/(P/R/889.0)) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann

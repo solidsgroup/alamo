@@ -18,7 +18,7 @@ amr.phi_refinement_criterion = 0.5
 amr.abort_on_nan = False
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire_flame
+plot_file = output.sandwich_rocfire_flame_diffuse
 amr.plot_dt = 1e-6
 hydro.details = 1.0
 amr.plot_int = 1
@@ -210,6 +210,12 @@ hydro.q.ic.expression.region0 = "0.0"
 hydro.q.ic.expression.region1 = "0.0"
 
 ### Initial gas state (ported from input.sandwich_rocfire) ###
+# DIAGNOSTIC/diffuse variant: AP/HTPB split made diffuse (erf-smoothed, matching
+# phi.ic.laminate: center=0, thickness=0.0004m, eps=10um) instead of the sharp x-mask, so
+# the gas phase is self-consistent with the diffuse solid phase Flame::UpdateFluxes
+# already derives from phi every step. Same erf form applied to solid.density.ic and
+# solid.energy.ic below for full consistency (those are overwritten by UpdateFluxes after
+# t=0, but the t=0 IC itself is made consistent too).
 hydro.density.ic.type = expression
 hydro.density.ic.expression.constant.eps = 1e-5
 hydro.density.ic.expression.constant.P = 2026500 # 20 atm
@@ -221,8 +227,8 @@ hydro.density.ic.expression.constant.y_flame = 2.0e-5
 hydro.density.ic.expression.constant.eps_y = 1.0e-5
 hydro.density.ic.expression.constant.beta = 7.974
 hydro.density.ic.expression.constant.gamma = 3.19
-hydro.density.ic.expression.region0 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_AP * (x>-0.0002)*(x<0.0002)"
-hydro.density.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_HTPB * ((x<=-0.0002) + (x>=0.0002))"
+hydro.density.ic.expression.region0 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_AP * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.density.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_HTPB * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 hydro.density.ic.expression.region2 = "0.0"
 hydro.density.ic.expression.region3 = "0.0"
 hydro.density.ic.expression.region4 = "0.0"
@@ -240,7 +246,7 @@ hydro.velocity.ic.expression.constant.rhou_AP = 5.3235
 hydro.velocity.ic.expression.constant.rhou_HTPB = 2.6404
 hydro.velocity.ic.expression.constant.fact = 1.0
 hydro.velocity.ic.expression.region0 = "0.0"
-hydro.velocity.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * (rhou_AP/(P/R/T_AP) * (x>-0.0002)*(x<0.0002) + rhou_HTPB/(P/R/T_HTPB) * ((x<=-0.0002) + (x>=0.0002))) + 0.5*(1.0 + erf((y-y_flame)/eps_y)) * ((rhou_AP + rhou_HTPB) / (P/R/T_final) / 2.0)"
+hydro.velocity.ic.expression.region1 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * (rhou_AP/(P/R/T_AP) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + rhou_HTPB/(P/R/T_HTPB) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))) + 0.5*(1.0 + erf((y-y_flame)/eps_y)) * ((rhou_AP + rhou_HTPB) / (P/R/T_final) / 2.0)"
 
 hydro.pressure.ic.type = expression
 hydro.pressure.ic.expression.region0 = "2026500"
@@ -250,8 +256,8 @@ hydro.solid.density.ic.expression.constant.P = 2026500 # 20 atm
 hydro.solid.density.ic.expression.constant.R = 319.787
 hydro.solid.density.ic.expression.constant.T = 700.0
 hydro.solid.density.ic.expression.constant.T_final = 3000.0
-hydro.solid.density.ic.expression.region0 = "P/R/830.0*(x>-0.0002)*(x<0.0002)"
-hydro.solid.density.ic.expression.region1 = "P/R/889.0*((x<=-0.0002) + (x>=0.0002))"
+hydro.solid.density.ic.expression.region0 = "P/R/830.0*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.solid.density.ic.expression.region1 = "P/R/889.0*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 hydro.solid.density.ic.expression.region2 = "0.0"
 hydro.solid.density.ic.expression.region3 = "0.0"
 hydro.solid.density.ic.expression.region4 = "0.0"
@@ -268,7 +274,7 @@ hydro.solid.energy.ic.expression.constant.T = 700.0
 hydro.solid.energy.ic.expression.constant.T_final = 3000.0
 hydro.solid.energy.ic.expression.constant.T0 = 298.15
 hydro.solid.energy.ic.expression.constant.cv = 935.413
-hydro.solid.energy.ic.expression.region0 = "(P/R/830.0 * cv*(830.0-T0) + 0.5*5.3235^2/(P/R/830.0)) * (x>-0.0002) * (x<0.0002) + (P/R/889.0 * cv*(889.0-T0) + 0.5*2.6404^2/(P/R/889.0)) * ((x<=-0.0002) + (x>=0.0002))"
+hydro.solid.energy.ic.expression.region0 = "(P/R/830.0 * cv*(830.0-T0) + 0.5*5.3235^2/(P/R/830.0)) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + (P/R/889.0 * cv*(889.0-T0) + 0.5*2.6404^2/(P/R/889.0)) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 
 ### HYDRO BC (ported from input.sandwich_rocfire) ###
 hydro.density.bc.type = expression
