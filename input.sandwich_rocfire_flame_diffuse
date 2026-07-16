@@ -1,6 +1,8 @@
 alamo.program = flame
 system.time = s
 
+hydro.advection.type = muscl
+
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
 amr.max_level = 3

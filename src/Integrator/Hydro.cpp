@@ -1418,81 +1418,93 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             const int Z = 2;
 #endif
 
-            Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
-            Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X);
-            Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
-
-            Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
-            Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
-            Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
+//            if (use_advect == 0) {
+                Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
+                Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X);
+                Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
+    
+                Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
+                Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
+                Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
 #if AMREX_SPACEDIM == 3
-            Solver::Local::Riemann::State state_zlo(rho, M, E, i, j, k-1, Z);
-            Solver::Local::Riemann::State state_z  (rho, M, E, i, j, k  , Z);
-            Solver::Local::Riemann::State state_zhi(rho, M, E, i, j, k+1, Z);
+                Solver::Local::Riemann::State state_zlo(rho, M, E, i, j, k-1, Z);
+                Solver::Local::Riemann::State state_z  (rho, M, E, i, j, k  , Z);
+                Solver::Local::Riemann::State state_zhi(rho, M, E, i, j, k+1, Z);
 #endif
-
-            //states of solid fields
-            Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X);
-            Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, i  , j, k, X);
-            Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, i+1, j, k, X);
-
-            Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y);
-            Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y);
-            Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y);
+    
+                //states of solid fields
+                Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X);
+                Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, i  , j, k, X);
+                Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, i+1, j, k, X);
+    
+                Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y);
+                Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y);
+                Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y);
 #if AMREX_SPACEDIM == 3
-            Solver::Local::Riemann::State state_zlo_solid(rho_solid, M_solid, E_solid, i, j, k-1, Z);
-            Solver::Local::Riemann::State state_z_solid  (rho_solid, M_solid, E_solid, i, j, k  , Z);
-            Solver::Local::Riemann::State state_zhi_solid(rho_solid, M_solid, E_solid, i, j, k+1, Z);
-#endif
-
-            Solver::Local::Riemann::State state_x_fluid =
-                ReconstructFluidState(state_x, state_x_solid, eta_patch(i,j,k), invert, small, cutoff);
-            Solver::Local::Riemann::State state_y_fluid =
-                ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_zlo_solid(rho_solid, M_solid, E_solid, i, j, k-1, Z);
+                Solver::Local::Riemann::State state_z_solid  (rho_solid, M_solid, E_solid, i, j, k  , Z);
+                Solver::Local::Riemann::State state_zhi_solid(rho_solid, M_solid, E_solid, i, j, k+1, Z);
+    #endif
+    
+                Solver::Local::Riemann::State state_x_fluid =
+                    ReconstructFluidState(state_x, state_x_solid, eta_patch(i,j,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_y_fluid =
+                    ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small, cutoff);
 #if AMREX_SPACEDIM == 3
-            Solver::Local::Riemann::State state_z_fluid =
-                ReconstructFluidState(state_z, state_z_solid, eta_patch(i,j,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_z_fluid =
+                    ReconstructFluidState(state_z, state_z_solid, eta_patch(i,j,k), invert, small, cutoff);
 #endif
-
-            Solver::Local::Riemann::State state_xlo_fluid =
-                ReconstructFluidState(state_xlo, state_xlo_solid, eta_patch(i-1,j,k), invert, small, cutoff);
-            Solver::Local::Riemann::State state_xhi_fluid =
-                ReconstructFluidState(state_xhi, state_xhi_solid, eta_patch(i+1,j,k), invert, small, cutoff);
-            Solver::Local::Riemann::State state_ylo_fluid =
-                ReconstructFluidState(state_ylo, state_ylo_solid, eta_patch(i,j-1,k), invert, small, cutoff);
-            Solver::Local::Riemann::State state_yhi_fluid =
-                ReconstructFluidState(state_yhi, state_yhi_solid, eta_patch(i,j+1,k), invert, small, cutoff);
+    
+                Solver::Local::Riemann::State state_xlo_fluid =
+                    ReconstructFluidState(state_xlo, state_xlo_solid, eta_patch(i-1,j,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_xhi_fluid =
+                    ReconstructFluidState(state_xhi, state_xhi_solid, eta_patch(i+1,j,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_ylo_fluid =
+                    ReconstructFluidState(state_ylo, state_ylo_solid, eta_patch(i,j-1,k), invert, small, cutoff);
+                Solver::Local::Riemann::State state_yhi_fluid =
+                    ReconstructFluidState(state_yhi, state_yhi_solid, eta_patch(i,j+1,k), invert, small, cutoff);
 #if AMREX_SPACEDIM == 3
-            Solver::Local::Riemann::State state_zlo_fluid =
-                ReconstructFluidState(state_zlo, state_zlo_solid, eta_patch(i,j,k-1), invert, small, cutoff);
-            Solver::Local::Riemann::State state_zhi_fluid =
-                ReconstructFluidState(state_zhi, state_zhi_solid, eta_patch(i,j,k+1), invert, small, cutoff);
+                Solver::Local::Riemann::State state_zlo_fluid =
+                    ReconstructFluidState(state_zlo, state_zlo_solid, eta_patch(i,j,k-1), invert, small, cutoff);
+                Solver::Local::Riemann::State state_zhi_fluid =
+                    ReconstructFluidState(state_zhi, state_zhi_solid, eta_patch(i,j,k+1), invert, small, cutoff);
 #endif
-
-            Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+    
+                Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 #if AMREX_SPACEDIM == 3
-            Solver::Local::Riemann::Flux flux_zlo, flux_zhi;
+                Solver::Local::Riemann::Flux flux_zlo, flux_zhi;
 #endif
-
-            try
-            {
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
-
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+    
+                try
+                {
+                    flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                    flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
+    
+                    flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                    flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
 #if AMREX_SPACEDIM == 3
-                flux_zlo = riemannsolver->Solve(state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small) * eta;
-                flux_zhi = riemannsolver->Solve(state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small) * eta;
+                    flux_zlo = riemannsolver->Solve(state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small) * eta;
+                    flux_zhi = riemannsolver->Solve(state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small) * eta;
 #endif
-            }
-            catch(...)
-            {
-                Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i,"j=",j,"k=",k);
-                Util::Abort(INFO);
-            }
+                }
+                catch(...)
+                {
+                    Util::ParallelMessage(INFO,"lev=",lev);
+                    Util::ParallelMessage(INFO,"i=",i,"j=",j,"k=",k);
+                    Util::Abort(INFO);
+                }
 
+//            }
+//            else
+//            {
+                std::array<Set::Scalar, NSPECIES> adv_mass;
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    adv_mass[n] = advect_op.Scalar(rho, velocity, i, j, k, n, DX, advective_options, sten);
+                }
+                Set::Vector adv_mom = advect_op.Vector(M, velocity, i, j, k, 0, DX, advective_options, sten);
+                Set::Scalar adv_energy = advect_op.Scalar(E, velocity, i, j, k, 0, DX, advective_options, sten);
+//            }
 
             const int momentum_source_comp = NSPECIES;
             const int energy_source_comp = NSPECIES + AMREX_SPACEDIM;
@@ -1506,11 +1518,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             {
                 Source(i,j, k, n) = mdot0[n];
                 drhof_dt_hydro[n] =
-                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
-                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
-#if AMREX_SPACEDIM == 3
-                    (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2] +
-#endif
+//                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
+//                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
+//#if AMREX_SPACEDIM == 3
+//                    (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2] +
+//#endif
+                    adv_mass[n] +
                     Source(i, j, k, n) -
                     scratch(i,j,k,n) * eta_transport_rate;
                 if (NSPECIES > 1)
@@ -1588,11 +1601,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             }
 
             Set::Scalar dMxf_dt =
-                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
-                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-#if AMREX_SPACEDIM == 3
-                (flux_zlo.momentum_tangent - flux_zhi.momentum_tangent) / DX[2] +
-#endif
+//                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
+//                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
+//#if AMREX_SPACEDIM == 3
+//                (flux_zlo.momentum_tangent - flux_zhi.momentum_tangent) / DX[2] +
+//#endif
+                adv_mom(0) +
                 div_tau(0) * eta +
                 g(0)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp) -
@@ -1608,11 +1622,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 ;
 
             Set::Scalar dMyf_dt =
-                (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
-                (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-#if AMREX_SPACEDIM == 3
-                (flux_zlo.momentum_tangent2 - flux_zhi.momentum_tangent2) / DX[2] +
-#endif
+//                (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
+//                (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
+//#if AMREX_SPACEDIM == 3
+//                (flux_zlo.momentum_tangent2 - flux_zhi.momentum_tangent2) / DX[2] +
+//#endif
+                adv_mom(1) +
                 div_tau(1) * eta +
                 g(1)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp+1) -
@@ -1629,9 +1644,10 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
 #if AMREX_SPACEDIM == 3
             Set::Scalar dMzf_dt =
-                (flux_xlo.momentum_tangent2 - flux_xhi.momentum_tangent2) / DX[0] +
-                (flux_ylo.momentum_tangent2 - flux_yhi.momentum_tangent2) / DX[1] +
-                (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2] +
+//                (flux_xlo.momentum_tangent2 - flux_xhi.momentum_tangent2) / DX[0] +
+//                (flux_ylo.momentum_tangent2 - flux_yhi.momentum_tangent2) / DX[1] +
+//                (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2] +
+                adv_mom(2) +
                 div_tau(2) * eta +
                 g(2)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp+2) -
@@ -1644,11 +1660,12 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #endif
 
             Set::Scalar dEf_dt =
-                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
-                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-#if AMREX_SPACEDIM == 3
-                (flux_zlo.energy - flux_zhi.energy) / DX[2] +
-#endif
+//                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
+//                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
+//#if AMREX_SPACEDIM == 3
+//                (flux_zlo.energy - flux_zhi.energy) / DX[2] +
+//#endif
+                adv_energy +
                 eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1]
 #if AMREX_SPACEDIM == 3
                 + grad_mixed_kTz[2]

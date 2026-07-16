@@ -221,6 +221,7 @@ protected:
 
     bool managed = false;
     bool invert = false;
+    bool use_advect = true;
 
     std::vector<bool> mixed;
 
