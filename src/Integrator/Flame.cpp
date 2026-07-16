@@ -722,7 +722,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
             }
-            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta*100; //artifically increase mobility to test regression with kinetics
+            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta*1000; //artifically increase mobility to test regression with kinetics
             
             if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
 

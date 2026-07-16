@@ -4,7 +4,7 @@ system.time = s
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
 amr.max_level = 4
-amr.max_plot_level=3
+#amr.max_plot_level=3
 # amr.n_cell = 256 256 0
 amr.n_cell = 16 16 0
 amr.max_grid_size = 500000
@@ -20,14 +20,14 @@ amr.abort_on_nan = False
 
 ### OUTPUT ###
 plot_file = output.sandwich_rocfire_flame_diffuse_movement
-amr.plot_dt = 5e-6
+amr.plot_dt = 1e-5
 hydro.details = 1.0
-amr.plot_int = 1
+#amr.plot_int = 1
 
 ### TIME STEP ###
 timestep  = 1.0e-8
 # stop_time = 100.0e-8
-stop_time = 5.0e-1
+stop_time = 5.0e-3
 
 integration.type = RungeKutta
 integration.rk.type = 3
@@ -40,6 +40,10 @@ geometry.is_periodic = 1 0 0
 small = 1.0e-8
 pf.eps = 1.0_um
 pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
 
 ### Eta initial condition ###
 # Burn front normal is y (solid for small y, gas for large y), matching
@@ -300,7 +304,7 @@ hydro.momentum.bc.expression.type.yhi = neumann dirichlet
 hydro.momentum.bc.expression.type.ylo = neumann neumann
 hydro.momentum.bc.expression.val.xhi = "0.0" "0.0"
 hydro.momentum.bc.expression.val.xlo = "0.0" "0.0"
-hydro.momentum.bc.expression.val.yhi = "0.0" "(5.3235 + 2.6404) / 2.0"
+hydro.momentum.bc.expression.val.yhi = "0.0" "0.0"
 hydro.momentum.bc.expression.val.ylo = "0.0" "0.0"
 
 hydro.energy.bc.type = expression
