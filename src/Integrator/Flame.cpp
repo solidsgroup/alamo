@@ -120,8 +120,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
 
-    value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag_mf", true);
-    value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt_mf", true);
+    value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag", true);
+    value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt", true);
     value.RegisterNewFab(value.hydro_density_mf, value.bc_eta, 1, 2, "fluid.density", true);
     
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
@@ -379,6 +379,7 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
+	deta_dt_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
@@ -504,14 +505,14 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-
+	    
             Set::Scalar eta_hydro = 1 - eta(i,j,k)*eta(i,j,k);
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k)*etaold(i,j,k);
             Set::Vector grad_eta_hydro = -2.0*grad_eta*eta(i,j,k);
 	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
             Set::Scalar p = 2026500; // 20 atm
             Set::Scalar R = 319.787;
-
+	    deta_dt(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/(dt);
             solidrho(i,j,k,0) = p/R/830.0*phi;
             solidrho(i,j,k,1) = p/R/889.0*(1-phi);
             solidrho(i,j,k,2) = 0.0;
@@ -704,7 +705,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
-
+	    
             // 
             // EVOLVE PHASE FIELD (ETA)
             // 
@@ -721,7 +722,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
             }
-            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta*100; //artifically increase mobility to test regression with kinetics
             
             if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
 

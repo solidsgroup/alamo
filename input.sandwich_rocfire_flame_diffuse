@@ -4,6 +4,7 @@ system.time = s
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
 amr.max_level = 4
+amr.max_plot_level=3
 # amr.n_cell = 256 256 0
 amr.n_cell = 16 16 0
 amr.max_grid_size = 500000
@@ -18,18 +19,18 @@ amr.phi_refinement_criterion = 0.5
 amr.abort_on_nan = False
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire_flame_diffuse
-amr.plot_dt = 1e-6
+plot_file = output.sandwich_rocfire_flame_diffuse_movement
+amr.plot_dt = 5e-6
 hydro.details = 1.0
 amr.plot_int = 1
 
 ### TIME STEP ###
 timestep  = 1.0e-8
-stop_time = 100.0e-8
-#stop_time = 5.0e-3
+# stop_time = 100.0e-8
+stop_time = 5.0e-1
 
-# integration.type = RungeKutta
-# integration.rk.type = 3
+integration.type = RungeKutta
+integration.rk.type = 3
 
 ### Geometry and base grid size (ported from input.sandwich_rocfire) ###
 geometry.prob_lo = -0.0003 -0.0001 0.0 # [ m ]
@@ -105,7 +106,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1
 thermal.Tref = 300.0_K
-thermal.Tcutoff = 640.0_K
+thermal.Tcutoff = 0.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -136,8 +137,8 @@ laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
 laser.ic.expression.constant.eps = 20.0_um
 laser.ic.expression.constant.y0 = 20.0_um
-laser.ic.expression.region0 = "0.0"
-# laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((y-y0)/eps))"
+# laser.ic.expression.region0 = "0.0"
+laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((y-y0)/eps))"
 
 ### RIEMANN SOLVER ###
 hydro.solver.type = hllc
@@ -169,17 +170,18 @@ elastic.type = disable
 hydro.gas.eos.type = tpg
 
 ### CHEMISTRY (ported from input.sandwich_rocfire) ###
-hydro.chemistry.type = frozen
+# hydro.chemistry.type = frozen
+hydro.chemistry.type = rocfire
 # Rocfire rates use A * (P / pressure_reference)^n, matching the original
 # 1/bar^n pressure dependence without putting fractional pressure units on A.
-#hydro.chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
-#hydro.chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
-#hydro.chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
-#hydro.chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+hydro.chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+hydro.chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+hydro.chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+hydro.chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 # Binder pyrolysis loss is an unresolved 77.5/22.5 AP/HTPB mass-weighted value.
-#hydro.chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
-#hydro.chemistry.rocfire.pressure_reference = 1_bar
-#hydro.chemistry.rocfire.nsubsteps = 1
+hydro.chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
+hydro.chemistry.rocfire.pressure_reference = 1_bar
+hydro.chemistry.rocfire.nsubsteps = 1
 
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
