@@ -25,7 +25,7 @@ hydro.details = 1.0
 amr.plot_int = 1
 
 ### TIME STEP ###
-timestep  = 1.0e-8_s
+timestep  = 2.0e-8_s
 stop_time = 100.0e-8_s
 #stop_time = 5.0e-3_s
 
@@ -185,7 +185,7 @@ hydro.chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 # Binder pyrolysis loss is an unresolved 77.5/22.5 AP/HTPB mass-weighted value.
 hydro.chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
 hydro.chemistry.rocfire.pressure_reference = 1_bar
-hydro.chemistry.rocfire.nsubsteps = 10
+hydro.chemistry.rocfire.nsubsteps = 100
 
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
@@ -330,3 +330,8 @@ hydro.gradu_refinement_criterion   = 1e8
 hydro.temp_refinement_criterion = 0.1
 
 hydro.prescribedflowmode = absolute
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max = 1e-4
+dynamictimestep.min = 1e-8
