@@ -12,7 +12,7 @@ amr.n_cell = 64 64
 eta_refinement_criterion = 0.01
 velocity_refinement_criterion = 0.01
 
-timestep = 1.0e-3
+timestep = 2.5e-3
 stop_time = 200.0
 integration.type = RungeKutta
 integration.rk.type = 3
@@ -66,6 +66,7 @@ reference_map.stress_smoothing_sweeps = 2
 reference_map.stress_smoothing_alpha = 0.05
 
 solid.model.type = finite.neohookean
+solid.model.reference_density = 100.0_kg/m^3
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
 solid.model.deviatoric_stress_divergence_sign = 1.0

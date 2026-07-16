@@ -69,6 +69,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     else if (solid_model_type == "finite.neohookean")
     {
         value.finite_solid_enabled = true;
+        pp.query_required("solid.model.reference_density",
+                          value.finite_solid_reference_density, Unit::Density());
         pp.queryclass<Model::Solid::Finite::NeoHookean>("solid.model.finite.neohookean", value.finite_solid_model);
     }
     else
@@ -93,11 +95,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.nspecies = value.gas.nspecies;
+    value.ncomponents = value.nspecies + (value.finite_solid_enabled ? 1 : 0);
 
     int nghost = value.advect.NGhost();
     if (nghost < 3) nghost = 3;
     pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, AMREX_SPACEDIM);
     pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, 1);
+    pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("component_density.bc", value.component_density_bc, value.ncomponents);
     pp.select_default<BC::Constant,BC::Expression>("mass_fraction.bc", value.mass_fraction_bc, value.nspecies);
     pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, 1);
     pp.select_default<BC::Constant::ZeroNeumann, BC::Constant,BC::Expression>("eta.bc", value.eta_bc, 1);
@@ -117,10 +121,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_mf,       value.temperature_bc,   1,              nghost, "temperature",       true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_old_mf,   value.temperature_bc,   1,              nghost, "temperature_old",   false, true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf,     value.mass_fraction_bc, value.nspecies, nghost, "mass_fraction",     true,  true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_old_mf, value.mass_fraction_bc, value.nspecies, nghost, "mass_fraction_old", false, true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf,               value.eta_bc,           1,              nghost, "eta",               true,  true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_old_mf,           value.eta_bc,           1,              nghost, "eta_old",           false, true);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.ncomponents, nghost, "component_density",     true,  true);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.ncomponents, nghost, "component_density_old", false, true);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, value.mass_fraction_bc, value.nspecies, nghost, "mass_fraction", true, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, value.eta_bc, 1, nghost, "eta", true, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,                value.xi_bc,            AMREX_SPACEDIM, nghost, "xi",                true,  true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf,            value.xi_bc,            AMREX_SPACEDIM, nghost, "xi_old",            false, true, {"x","y"});
 
@@ -251,41 +255,61 @@ LowMach::UpdateSolidStress(int lev,
 }
 
 void
-LowMach::UpdateThermodynamics(int lev, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf)
+LowMach::UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
+                              const amrex::MultiFab& component_density_mf)
 {
-    amrex::Box domain = geom[lev].Domain();
-
     density_mf[lev]->setVal(0.0);
+    mass_fraction_mf[lev]->setVal(0.0);
     mole_fraction_mf[lev]->setVal(0.0);
+    eta_mf[lev]->setVal(0.0);
 
-    for (amrex::MFIter mfi(Y_mf, true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(component_density_mf, true); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.growntilebox(1);
-        bx &= domain;
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-        Set::Patch<const Set::Scalar> Y = Y_mf.array(mfi);
+        Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
         Set::Patch<Set::Scalar> rho = density_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
-        const Set::Scalar rho_floor = density_floor;
-        const Set::Scalar p_floor = pressure_floor;
+        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        const int nsp = nspecies;
+        const int ncomp = ncomponents;
+        const bool solid_enabled = finite_solid_enabled;
+        const Set::Scalar solid_density = finite_solid_reference_density;
+        const Set::Scalar composition_floor = small;
         const Set::Scalar p0 = thermodynamic_pressure;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            Set::Scalar gas_partial_density = 0.0;
+            Set::Scalar total_partial_density = 0.0;
+            for (int n = 0; n < nsp; ++n) gas_partial_density += component_density(i,j,k,n);
+            for (int n = 0; n < ncomp; ++n) total_partial_density += component_density(i,j,k,n);
+
+            // Gas fractions are conditional on gas being present; component densities remain authoritative.
+            for (int n = 0; n < nsp; ++n)
+                Y(i,j,k,n) = gas_partial_density > composition_floor ?
+                    component_density(i,j,k,n) / gas_partial_density : (n == 0 ? 1.0 : 0.0);
+
             Set::Scalar moles = 0.0;
             for (int n = 0; n < gas.nspecies; ++n) moles += Y(i,j,k,n) / gas.MW[n];
-            if (!(moles > 0.0)) moles = 1.0 / gas.MW[0];
             for (int n = 0; n < gas.nspecies; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
 
-            Set::Scalar p = Util::Max(p0, p_floor);
-            Set::Scalar density = p / (gas.R(X, i, j, k) * T(i,j,k));
-            density = Util::Max(density, rho_floor);
-            rho(i,j,k) = density;
+            Set::Scalar gas_intrinsic_density = p0 / (gas.R(X, i, j, k) * T(i,j,k));
+            Set::Scalar gas_volume = gas_partial_density / gas_intrinsic_density;
+            Set::Scalar solid_volume = solid_enabled ? component_density(i,j,k,nsp) / solid_density : 0.0;
+            Set::Scalar volume = gas_volume + solid_volume;
+
+            // Normalize by occupied volume so transport errors do not violate mixture closure.
+            rho(i,j,k) = volume > composition_floor ? total_partial_density / volume : gas_intrinsic_density;
+            eta(i,j,k) = solid_enabled && volume > composition_floor ? solid_volume / volume : 0.0;
         });
     }
 
     density_mf[lev]->FillBoundary(geom[lev].periodicity());
+    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
     mole_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -356,7 +380,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
         velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
+        UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
 
         phi[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 1));
         rhs[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 0));
@@ -524,10 +548,10 @@ LowMach::Initialize(int lev)
     velocity_old_mf[lev]->setVal(0.0, 0, velocity_old_mf[lev]->nComp(), velocity_old_mf[lev]->nGrow());
     temperature_mf[lev]->setVal(0.0, 0, temperature_mf[lev]->nComp(), temperature_mf[lev]->nGrow());
     temperature_old_mf[lev]->setVal(0.0, 0, temperature_old_mf[lev]->nComp(), temperature_old_mf[lev]->nGrow());
+    component_density_mf[lev]->setVal(0.0, 0, component_density_mf[lev]->nComp(), component_density_mf[lev]->nGrow());
+    component_density_old_mf[lev]->setVal(0.0, 0, component_density_old_mf[lev]->nComp(), component_density_old_mf[lev]->nGrow());
     mass_fraction_mf[lev]->setVal(0.0, 0, mass_fraction_mf[lev]->nComp(), mass_fraction_mf[lev]->nGrow());
-    mass_fraction_old_mf[lev]->setVal(0.0, 0, mass_fraction_old_mf[lev]->nComp(), mass_fraction_old_mf[lev]->nGrow());
     eta_mf[lev]->setVal(0.0, 0, eta_mf[lev]->nComp(), eta_mf[lev]->nGrow());
-    eta_old_mf[lev]->setVal(0.0, 0, eta_old_mf[lev]->nComp(), eta_old_mf[lev]->nGrow());
     xi_mf[lev]->setVal(0.0, 0, xi_mf[lev]->nComp(), xi_mf[lev]->nGrow());
     xi_old_mf[lev]->setVal(0.0, 0, xi_old_mf[lev]->nComp(), xi_old_mf[lev]->nGrow());
     pressure_mf[lev]->setVal(0.0, 0, pressure_mf[lev]->nComp(), pressure_mf[lev]->nGrow());
@@ -536,18 +560,12 @@ LowMach::Initialize(int lev)
     velocity_ic->Initialize(lev, velocity_old_mf, 0.0);
     temperature_ic->Initialize(lev, temperature_mf, 0.0);
     temperature_ic->Initialize(lev, temperature_old_mf, 0.0);
+    // The legacy composition and eta ICs are converted once into component partial densities.
     mass_fraction_ic->Initialize(lev, mass_fraction_mf, 0.0);
-    mass_fraction_ic->Initialize(lev, mass_fraction_old_mf, 0.0);
     if (eta_ic)
-    {
         eta_ic->Initialize(lev, eta_mf, 0.0);
-        eta_ic->Initialize(lev, eta_old_mf, 0.0);
-    }
     else
-    {
         eta_mf[lev]->setVal(eta_initial_value);
-        eta_old_mf[lev]->setVal(eta_initial_value);
-    }
     xi_ic->Initialize(lev, xi_mf, 0.0);
     xi_ic->Initialize(lev, xi_old_mf, 0.0);
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
@@ -555,6 +573,7 @@ LowMach::Initialize(int lev)
 
     velocity_bc->define(geom[lev]);
     temperature_bc->define(geom[lev]);
+    component_density_bc->define(geom[lev]);
     mass_fraction_bc->define(geom[lev]);
     eta_bc->define(geom[lev]);
     xi_bc->define(geom[lev]);
@@ -568,6 +587,44 @@ LowMach::Initialize(int lev)
     mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
     eta_bc->FillBoundary(*eta_mf[lev], 0, 1, 0.0, 0);
     eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+    for (amrex::MFIter mfi(*component_density_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
+        const int nsp = nspecies;
+        const bool solid_enabled = finite_solid_enabled;
+        const Set::Scalar solid_density = finite_solid_reference_density;
+        const Set::Scalar p0 = thermodynamic_pressure;
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar mass = 0.0;
+            for (int n = 0; n < nsp; ++n) mass += Y(i,j,k,n);
+            for (int n = 0; n < nsp; ++n) Y(i,j,k,n) /= mass;
+
+            Set::Scalar moles = 0.0;
+            for (int n = 0; n < nsp; ++n) moles += Y(i,j,k,n) / gas.MW[n];
+            for (int n = 0; n < nsp; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
+
+            Set::Scalar solid_volume_fraction = solid_enabled ? eta(i,j,k) : 0.0;
+            Set::Scalar gas_density = p0 / (gas.R(X, i, j, k) * T(i,j,k));
+            for (int n = 0; n < nsp; ++n)
+                component_density(i,j,k,n) = (1.0 - solid_volume_fraction) * gas_density * Y(i,j,k,n);
+            if (solid_enabled)
+                component_density(i,j,k,nsp) = solid_volume_fraction * solid_density;
+        });
+    }
+    component_density_bc->FillBoundary(*component_density_mf[lev], 0, ncomponents, 0.0, 0);
+    component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+    amrex::MultiFab::Copy(*component_density_old_mf[lev], *component_density_mf[lev],
+                          0, 0, ncomponents, component_density_mf[lev]->nGrow());
+    UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
+
     xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
     xi_mf[lev]->FillBoundary(geom[lev].periodicity());
 
@@ -575,10 +632,6 @@ LowMach::Initialize(int lev)
     velocity_old_mf[lev]->FillBoundary(geom[lev].periodicity());
     temperature_bc->FillBoundary(*temperature_old_mf[lev], 0, 1, 0.0, 0);
     temperature_old_mf[lev]->FillBoundary(geom[lev].periodicity());
-    mass_fraction_bc->FillBoundary(*mass_fraction_old_mf[lev], 0, nspecies, 0.0, 0);
-    mass_fraction_old_mf[lev]->FillBoundary(geom[lev].periodicity());
-    eta_bc->FillBoundary(*eta_old_mf[lev], 0, 1, 0.0, 0);
-    eta_old_mf[lev]->FillBoundary(geom[lev].periodicity());
     xi_bc->FillBoundary(*xi_old_mf[lev], 0, AMREX_SPACEDIM, 0.0, 0);
     xi_old_mf[lev]->FillBoundary(geom[lev].periodicity());
 
@@ -587,8 +640,7 @@ LowMach::Initialize(int lev)
     reference_map_reconstruction(
         geom[lev], *eta_mf[lev], *xi_mf[lev], *xi_bc, 0.0);
     reference_map_reconstruction(
-        geom[lev], *eta_old_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
-    UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
+        geom[lev], *eta_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
     UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
 }
@@ -597,18 +649,15 @@ void
 LowMach::RHS(int lev, Set::Scalar /*time*/,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
-             amrex::MultiFab& Y_rhs_mf,
-             amrex::MultiFab& eta_rhs_mf,
+             amrex::MultiFab& component_density_rhs_mf,
              amrex::MultiFab& xi_rhs_mf,
              const amrex::MultiFab& u_mf,
              const amrex::MultiFab& T_mf,
-             const amrex::MultiFab& Y_mf,
-             const amrex::MultiFab& eta_mf,
+             const amrex::MultiFab& component_density_mf,
              const amrex::MultiFab& xi_mf)
 {
-    UpdateThermodynamics(lev, T_mf, Y_mf);
     if (finite_solid_deviatoric_stress_divergence_sign != 0.0)
-        UpdateSolidStress(lev, u_mf, eta_mf, xi_mf);
+        UpdateSolidStress(lev, u_mf, *eta_mf[lev], xi_mf);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -669,16 +718,19 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const amrex::Box& bx = mfi.validbox();
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-        Set::Patch<const Set::Scalar> Y = Y_mf.array(mfi);
-        Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
+        Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+        Set::Patch<const Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> xi = xi_mf.array(mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> T_rhs = T_rhs_mf.array(mfi);
-        Set::Patch<Set::Scalar> Y_rhs = Y_rhs_mf.array(mfi);
-        Set::Patch<Set::Scalar> eta_rhs = eta_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
         Set::Patch<Set::Scalar> xi_rhs = xi_rhs_mf.array(mfi);
         const int nsp = nspecies;
+        const int ncomp = ncomponents;
+        const bool solid_enabled = finite_solid_enabled;
+        const Set::Scalar solid_density = finite_solid_reference_density;
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
         const Set::Scalar rho_floor = density_floor;
@@ -709,15 +761,19 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                     T_rhs(i,j,k) += kappa / (density * cp) * Numeric::Laplacian(T, i, j, k, 0, DX);
             }
 
-            for (int n = 0; n < nsp; ++n)
-            {
-                Set::Vector grad_Y = Numeric::Gradient(Y, i, j, k, n, DX, sten);
-                Y_rhs(i,j,k,n) = -vel.dot(grad_Y);
-            }
+            // A conservative update requires a face velocity projected with the same divergence.
+            for (int n = 0; n < ncomp; ++n)
+                component_density_rhs(i,j,k,n) =
+                    advect_op(component_density, u, i, j, k, n, DX, advective_options, sten);
 
-            eta_rhs(i,j,k) =
-                advect_op(eta, u, i, j, k, 0, DX, advective_options, sten) +
-                allen_cahn(eta, i, j, k, DX);
+            if (solid_enabled)
+            {
+                // Allen-Cahn transfers mass between the solid and gas components without changing total density.
+                Set::Scalar solid_source = solid_density * allen_cahn(eta, i, j, k, DX);
+                component_density_rhs(i,j,k,nsp) += solid_source;
+                for (int n = 0; n < nsp; ++n)
+                    component_density_rhs(i,j,k,n) -= Y(i,j,k,n) * solid_source;
+            }
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
                 xi_rhs(i,j,k,d) = advect_op(xi, u, i, j, k, d, DX, advective_options, sten);
         });
@@ -730,28 +786,24 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(velocity_old_mf[lev], velocity_mf[lev]);
     std::swap(temperature_old_mf[lev], temperature_mf[lev]);
-    std::swap(mass_fraction_old_mf[lev], mass_fraction_mf[lev]);
-    std::swap(eta_old_mf[lev], eta_mf[lev]);
+    std::swap(component_density_old_mf[lev], component_density_mf[lev]);
     std::swap(xi_old_mf[lev], xi_mf[lev]);
 
     amrex::Vector<amrex::MultiFab> solution_new;
     solution_new.emplace_back(*velocity_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
     solution_new.emplace_back(*temperature_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
-    solution_new.emplace_back(*mass_fraction_mf[lev].get(), amrex::MakeType::make_alias, 0, nspecies);
-    solution_new.emplace_back(*eta_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
+    solution_new.emplace_back(*component_density_mf[lev].get(), amrex::MakeType::make_alias, 0, ncomponents);
     solution_new.emplace_back(*xi_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
 
     amrex::Vector<amrex::MultiFab> solution_old;
     solution_old.emplace_back(*velocity_old_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
     solution_old.emplace_back(*temperature_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
-    solution_old.emplace_back(*mass_fraction_old_mf[lev].get(), amrex::MakeType::make_alias, 0, nspecies);
-    solution_old.emplace_back(*eta_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
+    solution_old.emplace_back(*component_density_old_mf[lev].get(), amrex::MakeType::make_alias, 0, ncomponents);
     solution_old.emplace_back(*xi_old_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
 
     velocity_bc->define(geom[lev]);
     temperature_bc->define(geom[lev]);
-    mass_fraction_bc->define(geom[lev]);
-    eta_bc->define(geom[lev]);
+    component_density_bc->define(geom[lev]);
     xi_bc->define(geom[lev]);
 
     amrex::TimeIntegrator timeintegrator(solution_new, time);
@@ -763,17 +815,16 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         state_mf[0].FillBoundary(geom[lev].periodicity());
         temperature_bc->FillBoundary(state_mf[1], 0, 1, rhs_time, 0);
         state_mf[1].FillBoundary(geom[lev].periodicity());
-        mass_fraction_bc->FillBoundary(state_mf[2], 0, nspecies, rhs_time, 0);
+        component_density_bc->FillBoundary(state_mf[2], 0, ncomponents, rhs_time, 0);
         state_mf[2].FillBoundary(geom[lev].periodicity());
-        eta_bc->FillBoundary(state_mf[3], 0, 1, rhs_time, 0);
+        xi_bc->FillBoundary(state_mf[3], 0, AMREX_SPACEDIM, rhs_time, 0);
         state_mf[3].FillBoundary(geom[lev].periodicity());
-        xi_bc->FillBoundary(state_mf[4], 0, AMREX_SPACEDIM, rhs_time, 0);
-        state_mf[4].FillBoundary(geom[lev].periodicity());
 
+        UpdateComponentState(lev, state_mf[1], state_mf[2]);
         reference_map_reconstruction(
-            geom[lev], state_mf[3], state_mf[4], *xi_bc, rhs_time);
-        RHS(lev, rhs_time, rhs_mf[0], rhs_mf[1], rhs_mf[2], rhs_mf[3], rhs_mf[4],
-            state_mf[0], state_mf[1], state_mf[2], state_mf[3], state_mf[4]);
+            geom[lev], *eta_mf[lev], state_mf[3], *xi_bc, rhs_time);
+        RHS(lev, rhs_time, rhs_mf[0], rhs_mf[1], rhs_mf[2], rhs_mf[3],
+            state_mf[0], state_mf[1], state_mf[2], state_mf[3]);
     });
 
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab>& stage_mf, Set::Scalar stage_time)
@@ -782,15 +833,14 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         stage_mf[0].FillBoundary(geom[lev].periodicity());
         temperature_bc->FillBoundary(stage_mf[1], 0, 1, stage_time, 0);
         stage_mf[1].FillBoundary(geom[lev].periodicity());
-        mass_fraction_bc->FillBoundary(stage_mf[2], 0, nspecies, stage_time, 0);
+        component_density_bc->FillBoundary(stage_mf[2], 0, ncomponents, stage_time, 0);
         stage_mf[2].FillBoundary(geom[lev].periodicity());
-        eta_bc->FillBoundary(stage_mf[3], 0, 1, stage_time, 0);
+        xi_bc->FillBoundary(stage_mf[3], 0, AMREX_SPACEDIM, stage_time, 0);
         stage_mf[3].FillBoundary(geom[lev].periodicity());
-        xi_bc->FillBoundary(stage_mf[4], 0, AMREX_SPACEDIM, stage_time, 0);
-        stage_mf[4].FillBoundary(geom[lev].periodicity());
 
+        UpdateComponentState(lev, stage_mf[1], stage_mf[2]);
         reference_map_reconstruction(
-            geom[lev], stage_mf[3], stage_mf[4], *xi_bc, stage_time);
+            geom[lev], *eta_mf[lev], stage_mf[3], *xi_bc, stage_time);
     });
 
     timeintegrator.advance(solution_old, solution_new, time, dt);
@@ -799,17 +849,14 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
     temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, new_time, 0);
     temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
-    mass_fraction_bc->FillBoundary(*mass_fraction_mf[lev], 0, nspecies, new_time, 0);
-    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
-    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, new_time, 0);
-    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    component_density_bc->FillBoundary(*component_density_mf[lev], 0, ncomponents, new_time, 0);
+    component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
     xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
     xi_mf[lev]->FillBoundary(geom[lev].periodicity());
 
+    UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
     reference_map_reconstruction(
         geom[lev], *eta_mf[lev], *xi_mf[lev], *xi_bc, new_time);
-    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, new_time, 0);
-    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);
     xi_mf[lev]->FillBoundary(geom[lev].periodicity());
     reference_map_reconstruction(
@@ -829,11 +876,12 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                                        finite_solid_deviatoric_stress_divergence_sign != 0.0;
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
+        UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         Set::Scalar dxmin = std::min(DX[0], DX[1]);
-        phasefieldmax = std::max(
-            phasefieldmax, eta_phase_field.StabilityRate(dxmin));
+        if (finite_solid_enabled)
+            phasefieldmax = std::max(
+                phasefieldmax, eta_phase_field.StabilityRate(dxmin));
 
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -1023,7 +1071,7 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
 {
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        UpdateThermodynamics(lev, *temperature_mf[lev], *mass_fraction_mf[lev]);
+        UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
         UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
         UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
     }

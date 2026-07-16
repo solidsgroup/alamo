@@ -38,6 +38,7 @@ public:
     {
         delete velocity_bc;
         delete temperature_bc;
+        delete component_density_bc;
         delete mass_fraction_bc;
         delete pressure_bc;
         delete eta_bc;
@@ -65,29 +66,28 @@ protected:
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics = false);
-    void UpdateThermodynamics(int lev, const amrex::MultiFab& T_mf, const amrex::MultiFab& Y_mf);
+    void UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
+                              const amrex::MultiFab& component_density_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
-             amrex::MultiFab& Y_rhs_mf,
-             amrex::MultiFab& eta_rhs_mf,
+             amrex::MultiFab& component_density_rhs_mf,
              amrex::MultiFab& xi_rhs_mf,
              const amrex::MultiFab& u_mf,
              const amrex::MultiFab& T_mf,
-             const amrex::MultiFab& Y_mf,
-             const amrex::MultiFab& eta_mf,
+             const amrex::MultiFab& component_density_mf,
              const amrex::MultiFab& xi_mf);
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> velocity_old_mf;
     Set::Field<Set::Scalar> temperature_mf;
     Set::Field<Set::Scalar> temperature_old_mf;
+    Set::Field<Set::Scalar> component_density_mf;
+    Set::Field<Set::Scalar> component_density_old_mf;
     Set::Field<Set::Scalar> mass_fraction_mf;
-    Set::Field<Set::Scalar> mass_fraction_old_mf;
     Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -103,6 +103,7 @@ protected:
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
+    BC::BC<Set::Scalar>* component_density_bc = nullptr;
     BC::BC<Set::Scalar>* mass_fraction_bc = nullptr;
     BC::BC<Set::Scalar>* pressure_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
@@ -119,6 +120,7 @@ protected:
     Model::Gas::Gas gas;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     int nspecies = 0;
+    int ncomponents = 0;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -148,6 +150,7 @@ protected:
     bool advect_temperature = true;
     Set::Scalar eta_initial_value = 0.0;
     bool finite_solid_enabled = false;
+    Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
     Set::Scalar finite_solid_viscosity = 0.0;

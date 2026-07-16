@@ -61,11 +61,7 @@ except ImportError:  # yt < 4.4
 
 FIELD_TYPE = "boxlib"
 DEFAULT_STRESS_PREFIXES = (
-    "cell_weighted_solid_deviatoric_cauchy_stress",
-    "cell_total_cauchy_stress",
-    "cauchy_stress",
-    "elastic_stress",
-    "stress",
+    "solid_deviatoric_stress",
 )
 
 
