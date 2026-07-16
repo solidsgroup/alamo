@@ -26,7 +26,7 @@ amr.plot_int = 1
 
 ### TIME STEP ###
 timestep  = 2.0e-8_s
-stop_time = 100.0e-8_s
+stop_time = 1000.0e-8_s
 #stop_time = 5.0e-3_s
 
 integration.type = RungeKutta
@@ -188,7 +188,7 @@ hydro.chemistry.rocfire.pressure_reference = 1_bar
 hydro.chemistry.rocfire.nsubsteps = 100
 
 ### HYDRO PARAM ###
-hydro.cfl   = 0.4
+hydro.cfl   = 10.0
 hydro.cutoff = 0.01
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
@@ -334,4 +334,4 @@ hydro.prescribedflowmode = absolute
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
 dynamictimestep.max = 1e-4
-dynamictimestep.min = 1e-8
+dynamictimestep.min = 1e-9
