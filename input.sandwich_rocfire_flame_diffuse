@@ -3,7 +3,7 @@ system.time = s
 
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
-amr.max_level = 2
+amr.max_level = 3
 #amr.max_plot_level=3
 # amr.n_cell = 256 256 0
 amr.n_cell = 16 16 0
@@ -12,7 +12,7 @@ amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.cell.all = 1
-amr.nsubsteps = 4
+amr.nsubsteps = 2
 # Flame-specific refinement criteria (no analogue in standalone hydro/rocfire input)
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
@@ -26,8 +26,8 @@ hydro.details = 1.0
 amr.plot_int = 1
 
 ### TIME STEP ###
-timestep  = 5.0e-8_s
-stop_time = 1000.0e-8_s
+timestep  = 2.0e-8_s
+stop_time = 10000.0e-8_s
 #stop_time = 5.0e-3_s
 
 integration.type = RungeKutta
@@ -186,7 +186,7 @@ hydro.chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 # Binder pyrolysis loss is an unresolved 77.5/22.5 AP/HTPB mass-weighted value.
 hydro.chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g #-145.0_cal/g
 hydro.chemistry.rocfire.pressure_reference = 1_bar
-hydro.chemistry.rocfire.nsubsteps = 100
+hydro.chemistry.rocfire.nsubsteps = 2
 
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
