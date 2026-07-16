@@ -20,6 +20,12 @@
 #include "Model/Chemistry/Equilibrium.H"
 #include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Rocfire.H"
+#include "Numeric/Advect/Advect.H"
+#include "Numeric/Advect/Centered.H"
+#include "Numeric/Advect/MUSCL.H"
+#include "Numeric/Advect/QUICK.H"
+#include "Numeric/Advect/Upwind.H"
+#include "Numeric/Advect/WENO5.H"
 
 namespace Integrator
 {
@@ -189,6 +195,13 @@ protected:
         Model::Chemistry::Equilibrium,
         Model::Chemistry::FiniteRate,
         Model::Chemistry::Rocfire> chemistry;
+
+    Numeric::Advect::Advect<
+        Numeric::Advect::MUSCL,
+        Numeric::Advect::Upwind,
+        Numeric::Advect::Centered,
+        Numeric::Advect::QUICK,
+        Numeric::Advect::WENO5> advect;
 
     Model::Gas::Gas gas;
 

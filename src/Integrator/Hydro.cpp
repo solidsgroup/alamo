@@ -168,6 +168,24 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         Util::Message(INFO, "Model::Gas::Transport = ", value.gas.transport.model_name());
         Util::Message(INFO, "NSPECIES = ", NSPECIES);
 
+        // Riemann solver
+        pp.select_default<  Solver::Local::Riemann::Roe,
+                            Solver::Local::Riemann::HLLE,
+                            Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
+
+        // Chemistry Model
+        pp.select<  Model::Chemistry::Frozen,
+                    Model::Chemistry::Equilibrium,
+                    Model::Chemistry::FiniteRate,
+                    Model::Chemistry::Rocfire>("chemistry",value.chemistry);
+
+        // Advection Scheme
+        pp.select<Numeric::Advect::MUSCL,
+                  Numeric::Advect::Upwind,
+                  Numeric::Advect::Centered,
+                  Numeric::Advect::QUICK,
+                  Numeric::Advect::WENO5>("advection",value.advect);
+
         pp.forbid("scheme","use integration.type instead");
 
         // eta-based refinement
@@ -208,7 +226,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 1;
+        int nghost = value.advect.NGhost();
 
         if (!value.managed)
         {
@@ -302,17 +320,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("u0.ic",value.ic_u0,value.geom);
     // diffuse boundary prescribed heat flux
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
-
-    // Riemann solver
-    pp.select_default<  Solver::Local::Riemann::Roe,
-                        Solver::Local::Riemann::HLLE,
-                        Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
-
-    // Chemistry Model
-    pp.select<  Model::Chemistry::Frozen,
-                Model::Chemistry::Equilibrium,
-                Model::Chemistry::FiniteRate,
-                Model::Chemistry::Rocfire>("chemistry",value.chemistry);
 
     std::string prescribedflowmode_str;
     //
@@ -979,7 +986,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
     ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
 
-    int nghost = 1;
+    int nghost = advect.NGhost();
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
     amrex::MultiFab rho_sum_mf(ba,dm,1,nghost);             // sum_k[rhoY_k]
@@ -1226,6 +1233,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     rhoHDYz_mf.FillBoundary(true);
     rhoDYz_mf.FillBoundary(true);
     #endif
+
+    const auto advect_op = advect;
+    const Numeric::Advect::Options advective_options{Numeric::Advect::Form::Advective};
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
