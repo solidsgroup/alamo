@@ -26,7 +26,7 @@ hydro.details = 1.0
 amr.plot_int = 1
 
 ### TIME STEP ###
-timestep  = 2.0e-8_s
+timestep  = 5.0e-8_s
 stop_time = 1000.0e-8_s
 #stop_time = 5.0e-3_s
 
