@@ -27,7 +27,7 @@ amr.plot_int = 1
 
 ### TIME STEP ###
 timestep  = 2.0e-8_s
-stop_time = 10000.0e-8_s
+stop_time = 100.0e-8_s
 #stop_time = 5.0e-3_s
 
 integration.type = RungeKutta
