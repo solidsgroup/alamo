@@ -3,7 +3,7 @@ system.time = s
 
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
-amr.max_level = 3
+amr.max_level = 2
 #amr.max_plot_level=3
 # amr.n_cell = 256 256 0
 amr.n_cell = 16 16 0
@@ -12,6 +12,7 @@ amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.cell.all = 1
+amr.nsubsteps = 4
 # Flame-specific refinement criteria (no analogue in standalone hydro/rocfire input)
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
@@ -188,7 +189,7 @@ hydro.chemistry.rocfire.pressure_reference = 1_bar
 hydro.chemistry.rocfire.nsubsteps = 100
 
 ### HYDRO PARAM ###
-hydro.cfl   = 10.0
+hydro.cfl   = 0.4
 hydro.cutoff = 0.01
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
@@ -331,7 +332,7 @@ hydro.temp_refinement_criterion = 0.1
 
 hydro.prescribedflowmode = absolute
 
-dynamictimestep.on = 1
-dynamictimestep.verbose = 1
-dynamictimestep.max = 1e-4
-dynamictimestep.min = 1e-9
+dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max = 1e-4
+#dynamictimestep.min = 1e-9
