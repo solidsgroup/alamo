@@ -83,9 +83,9 @@ public:
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_ap) L = m_ap * Pbar * exp(-E_ap / (T+400)) * phi;
-        else L = m_ap * exp(-E_ap / (T+400)) * phi;
-        L += m_htpb * exp(-E_htpb / (T+400)) * (1.0 - phi);
+        if (mob_ap) L = m_ap * Pbar * exp(-E_ap / (T)) * phi;
+        else L = m_ap * exp(-E_ap / (T)) * phi;
+        L += m_htpb * exp(-E_htpb / (T)) * (1.0 - phi);
         if (T <= bound) L = 0.0; // artically increase the mobility, delete later
         return L;
     }

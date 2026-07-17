@@ -21,14 +21,14 @@ amr.abort_on_nan = False
 
 ### OUTPUT ###
 plot_file = output.sandwich_rocfire_flame_diffuse_movement
-#amr.plot_dt = 1e-5
+amr.plot_dt = 1e-3
 hydro.details = 1.0
 amr.plot_int = 1
 
 ### TIME STEP ###
 timestep  = 2.0e-8_s
-stop_time = 100.0e-8_s
-#stop_time = 5.0e-3_s
+#stop_time = 100.0e-8_s
+stop_time = 5.0e-2_s
 
 integration.type = RungeKutta
 integration.rk.type = 3
@@ -141,9 +141,12 @@ laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
 laser.ic.expression.constant.eps = 20.0_um
-laser.ic.expression.constant.y0 = 20.0_um
+laser.ic.expression.constant.y0 = 0.0_um
 # laser.ic.expression.region0 = "0.0"
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((y-y0)/eps))"
+
+hydro.rho_ap = 1920.0
+hydro.rho_htpb = 950.0
 
 ### RIEMANN SOLVER ###
 hydro.solver.type = hllc
@@ -263,8 +266,8 @@ hydro.solid.density.ic.expression.constant.P = 2026500 # 20 atm
 hydro.solid.density.ic.expression.constant.R = 319.787
 hydro.solid.density.ic.expression.constant.T = 700.0
 hydro.solid.density.ic.expression.constant.T_final = 3000.0
-hydro.solid.density.ic.expression.region0 = "P/R/830.0*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
-hydro.solid.density.ic.expression.region1 = "P/R/889.0*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.solid.density.ic.expression.region0 = "1920*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.solid.density.ic.expression.region1 = "950*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 hydro.solid.density.ic.expression.region2 = "0.0"
 hydro.solid.density.ic.expression.region3 = "0.0"
 hydro.solid.density.ic.expression.region4 = "0.0"
