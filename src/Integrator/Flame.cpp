@@ -17,6 +17,14 @@
 #include "Model/Propellant/Homogenize.H"
 #include <cmath>
 
+#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Transport/Transport.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/EOS.H"
+#include "Model/Gas/EOS/CPG.H"
+
 
 namespace Integrator
 {
@@ -122,6 +130,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag", true);
     value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt", true);
+    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 2, "L", true);
     value.RegisterNewFab(value.hydro_density_mf, value.bc_eta, 1, 2, "fluid.density", true);
     
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
@@ -380,6 +389,7 @@ void Flame::Initialize(int lev)
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
 	deta_dt_mf[lev]->setVal(0.0);
+        L_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
@@ -506,32 +516,95 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         {   
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 	    
-            Set::Scalar eta_hydro = 1 - eta(i,j,k)*eta(i,j,k);
-            Set::Scalar etaold_hydro = 1 - etaold(i,j,k)*etaold(i,j,k);
-            Set::Vector grad_eta_hydro = -2.0*grad_eta*eta(i,j,k);
+            Set::Scalar eta_hydro = 1 - eta(i,j,k);
+            Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
+            Set::Vector grad_eta_hydro = -1.0*grad_eta;
 	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            Set::Scalar p = 2026500; // 20 atm
-            Set::Scalar R = 319.787;
-	    deta_dt(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/(dt);
-            solidrho(i,j,k,0) = p/R/830.0*phi;
-            solidrho(i,j,k,1) = p/R/889.0*(1-phi);
+            grad_eta_mag(i,j,k) = grad_eta_hydro.lpNorm<2>();
+            Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+            deta_dt(i,j,k) = (etaold(i,j,k) - eta(i,j,k))/(dt);
+
+            solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            solidrho(i,j,k,1) = hydro.rho_htpb*(1-phi);
             solidrho(i,j,k,2) = 0.0;
             solidrho(i,j,k,3) = 0.0;
             solidrho(i,j,k,4) = 0.0;
             solidrho(i,j,k,5) = 0.0;
 
-            m0(i,j,k,0) = 5.3235*phi;
-            m0(i,j,k,1) = 2.6404*(1-phi);
+            if (eta(i, j, k) < small)
+            {
+                deta_dt(i,j,k) = 0.0;
+            }
+            
+            m0(i,j,k,0) = hydro.rho_ap*phi*deta_dt(i,j,k);
+            m0(i,j,k,1) = hydro.rho_htpb*(1-phi)*deta_dt(i,j,k);
             m0(i,j,k,2) = 0.0;
             m0(i,j,k,3) = 0.0;
             m0(i,j,k,4) = 0.0;
             m0(i,j,k,5) = 0.0;
 
-            u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
-            u0(i,j,k,0) = 0.0;
+            Set::Scalar density_gas_tot = 0.0;
+            Set::Scalar density_solid_tot = 0.0;
+            Set::Scalar u0_mag;
 
-            solidM(i,j,k,0) = 0.0;
-            solidM(i,j,k,1) = 0.0;
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                density_gas_tot += hydro_density(i,j,k,n);
+                density_solid_tot += solidrho(i,j,k,n);
+            }
+
+            Set::Scalar c;
+            if (grad_eta_mag(i,j,k) > small) {
+                c = deta_dt(i,j,k)/grad_eta_mag(i,j,k);
+            } else {
+                c = 0.0;
+            }
+            u0_mag = c*(density_solid_tot)*eta(i,j,k)/(density_gas_tot*eta_hydro);
+
+            u0(i,j,k,0) = u0_mag*N(0);
+            u0(i,j,k,1) = u0_mag*N(1);
+
+            // Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+            // Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+            // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+
+            // Set::Scalar density_gas_tot = 0.0;
+            // Set::Scalar density_solid_tot = 0.0;
+            // Set::Scalar u0_mag;
+
+            // for (int n=0; n<NSPECIES; ++n)
+            // {
+            //     density_gas_tot += hydro_density(i,j,k,n);
+            //     density_solid_tot += solidrho(i,j,k,n);
+            // }
+            
+            // u0_mag = deta_dt(i,j,k)*density_solid_tot/density_gas_tot;
+            // u0(i,j,k,0) = u0_mag*N(0);
+            // u0(i,j,k,1) = u0_mag*N(1);
+
+            // Set::Scalar p = 2026500; // 20 atm
+            // Set::Scalar R = 319.787;
+	        // deta_dt(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/(dt);
+            // solidrho(i,j,k,0) = p/R/830.0*phi;
+            // solidrho(i,j,k,1) = p/R/889.0*(1-phi);
+            // solidrho(i,j,k,2) = 0.0;
+            // solidrho(i,j,k,3) = 0.0;
+            // solidrho(i,j,k,4) = 0.0;
+            // solidrho(i,j,k,5) = 0.0;
+
+            // m0(i,j,k,0) = 5.3235*phi;
+            // m0(i,j,k,1) = 2.6404*(1-phi);
+            // m0(i,j,k,2) = 0.0;
+            // m0(i,j,k,3) = 0.0;
+            // m0(i,j,k,4) = 0.0;
+            // m0(i,j,k,5) = 0.0;
+
+            // u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
+            // u0(i,j,k,0) = 0.0;
+
+            // solidM(i,j,k,0) = 0.0;
+            // solidM(i,j,k,1) = 0.0;
 
             // solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
             // solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
@@ -682,13 +755,20 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // Diagnostic fields
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
+        {   
+
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+
             //
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
@@ -705,7 +785,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
-	    
+            L_out(i,j,k) = L;
+
             // 
             // EVOLVE PHASE FIELD (ETA)
             // 
@@ -722,9 +803,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
             }
-            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta*1000; //artifically increase mobility to test regression with kinetics
+            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta; //artifically increase mobility to test regression with kinetics
             
             if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
+
+            deta_dt(i,j,k) = (eta(i,j,k) - etanew(i,j,k))/(dt);
 
             if (thermal.on)
             {
