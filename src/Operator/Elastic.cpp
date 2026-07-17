@@ -241,11 +241,11 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             // ddw is reused below (sig, C(gradgradu), grad(psi) correction) - loaded once.
             MATRIX4 const ddw = DDW(i, j, k);
 
-            Set::Matrix sig = (ddw * gradu) * psi_avg;
-
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
+                // Only boundary rows consume the stress tensor.
+                Set::Matrix sig = (ddw * gradu) * psi_avg;
                 f = ALAMO_ELASTIC_OP_BC_EVAL(m_bc, m_bc_type, u, gradu, sig, i, j, k, stencilbox);
             }
             else
