@@ -76,7 +76,7 @@ public:
         if (value.m_type == Type::Static)
         {
             // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-            pp_queryclass("solver", value.solver);
+            pp.queryclass("solver", value.solver);
         }
         if (value.m_type == Type::Dynamic)
         {
@@ -195,7 +195,9 @@ protected:
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
         IO::ParmParse pp("elasticop");
-        pp_queryclass(elastic_op);
+
+        // Elastic operator
+        pp.queryclass(elastic_op);
 
         solver.Define(elastic_op);
         if (psi_on) solver.setPsi(psi_mf);
