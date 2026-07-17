@@ -22,6 +22,7 @@
 #include "Numeric/Advect/WENO5.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Numeric/ReferenceMap/Reconstruction.H"
+#include "Operator/PressurePoisson.H"
 
 namespace Integrator
 {
@@ -39,16 +40,13 @@ public:
         delete velocity_bc;
         delete temperature_bc;
         delete component_density_bc;
-        delete mass_fraction_bc;
         delete pressure_bc;
-        delete eta_bc;
         delete xi_bc;
 
         delete velocity_ic;
         delete temperature_ic;
-        delete mass_fraction_ic;
+        delete component_density_ic;
         delete pressure_ic;
-        delete eta_ic;
         delete xi_ic;
     }
 
@@ -104,17 +102,14 @@ protected:
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
     BC::BC<Set::Scalar>* component_density_bc = nullptr;
-    BC::BC<Set::Scalar>* mass_fraction_bc = nullptr;
     BC::BC<Set::Scalar>* pressure_bc = nullptr;
-    BC::BC<Set::Scalar>* eta_bc = nullptr;
     BC::BC<Set::Scalar>* xi_bc = nullptr;
     BC::Nothing bc_nothing;
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* temperature_ic = nullptr;
-    IC::IC<Set::Scalar>* mass_fraction_ic = nullptr;
+    IC::IC<Set::Scalar>* component_density_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
-    IC::IC<Set::Scalar>* eta_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
 
     Model::Gas::Gas gas;
@@ -127,34 +122,25 @@ protected:
     Set::Scalar cfl_v = 1.0e100;
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
-    Set::Scalar temperature_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;
     Set::Scalar thermodynamic_pressure = 100000.0;
     Set::Scalar pressure_scale = 1.0;
-    Set::Scalar projection_tol_rel = 1.0e-11;
-    Set::Scalar projection_tol_abs = 1.0e-12;
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
-    int projection_verbose = 0;
-    int projection_node_reconstruction_sweeps = 1;
-    int projection_nodal_iterations = 200;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
-    bool projection_predictor_pressure_gradient = false;
     bool include_viscosity = true;
     bool include_conduction = true;
     bool advect_temperature = true;
-    Set::Scalar eta_initial_value = 0.0;
     bool finite_solid_enabled = false;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
     Set::Scalar finite_solid_viscosity = 0.0;
-    Set::Scalar finite_solid_bulk_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
 
@@ -165,6 +151,7 @@ protected:
                             Numeric::Advect::WENO5> advect;
     Model::PhaseField::AllenCahn eta_phase_field;
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
+    Operator::PressurePoisson pressure_poisson;
 };
 }
 

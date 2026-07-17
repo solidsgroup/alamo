@@ -71,8 +71,8 @@ diagnostics.extended_fields = 1
 
 velocity_refinement_criterion = 5.0e-2
 
-mass_fraction.ic.type = constant
-mass_fraction.ic.constant.value = 1.0
+component_density.ic.type = constant
+component_density.ic.constant.value = 1.12254198039921
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
@@ -80,15 +80,15 @@ temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-mass_fraction.bc.type = constant
-mass_fraction.bc.constant.type.xlo = neumann
-mass_fraction.bc.constant.type.xhi = neumann
-mass_fraction.bc.constant.type.ylo = neumann
-mass_fraction.bc.constant.type.yhi = neumann
-mass_fraction.bc.constant.val.xlo = 0.0
-mass_fraction.bc.constant.val.xhi = 0.0
-mass_fraction.bc.constant.val.ylo = 0.0
-mass_fraction.bc.constant.val.yhi = 0.0
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.val.xlo = 0.0
+component_density.bc.constant.val.xhi = 0.0
+component_density.bc.constant.val.ylo = 0.0
+component_density.bc.constant.val.yhi = 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = dirichlet dirichlet

@@ -15,6 +15,37 @@
 namespace Model {
 namespace Gas {
 
+/// Cell-local mole fractions reconstructed lazily from gas partial densities.
+class MoleFraction
+{
+public:
+    MoleFraction(const amrex::Array4<const Set::Scalar>& a_partial_density,
+                 const double* a_molecular_weight,
+                 const int a_nspecies,
+                 const int i, const int j, const int k)
+        : partial_density(a_partial_density),
+          molecular_weight(a_molecular_weight),
+          inverse_moles(0.0)
+    {
+        for (int n = 0; n < a_nspecies; ++n)
+            inverse_moles += partial_density(i,j,k,n) / molecular_weight[n];
+        inverse_moles = inverse_moles > 0.0 ? 1.0 / inverse_moles : 0.0;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar operator()(const int i, const int j, const int k, const int n) const
+    {
+        return inverse_moles > 0.0 ?
+            (partial_density(i,j,k,n) / molecular_weight[n]) * inverse_moles :
+            (n == 0 ? 1.0 : 0.0);
+    }
+
+private:
+    amrex::Array4<const Set::Scalar> partial_density;
+    const double* molecular_weight;
+    Set::Scalar inverse_moles;
+};
+
 class Gas {
 protected:
 public:
@@ -74,6 +105,42 @@ public:
             double density, double momentumx, double momentumy, double T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
+    MoleFraction MoleFractions(const amrex::Array4<const Set::Scalar>& partial_density,
+                               const int i, const int j, const int k) const
+    {
+        return MoleFraction(partial_density, MW.data(), nspecies, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
+    double cp_mol(double T, const Composition& X, int i, int j, int k) const
+    {
+        return thermo.cp_mol(T, X, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
+    double dynamic_viscosity(double T, const Composition& X, int i, int j, int k) const
+    {
+        return transport.dynamic_viscosity(T, X, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
+    double thermal_conductivity(double T, const Composition& X, int i, int j, int k) const
+    {
+        return transport.thermal_conductivity(T, X, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
+    double ComputeE(double density, double momentumx, double momentumy, double T,
+                    const Composition& X, int i, int j, int k) const
+    {
+        return eos.ComputeE(density, momentumx, momentumy, T,
+                            R(X,i,j,k), gamma(T,X,i,j,k));
+    }
+
 // Universal methods inherent to Gas
 public:
     void ComputeLocalFractions(
@@ -96,7 +163,8 @@ public:
             mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
         }
     }
-    double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    template<class Composition>
+    double GetMW(const Composition& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
         for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
@@ -108,23 +176,28 @@ public:
         for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
-    double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
+    template<class Composition>
+    double R(const Composition& X, int i, int j, int k) const {
         // Specific gas constant, J/(kg-K)
         return Rg/GetMW(X, i, j, k);
     }
-    double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    template<class Composition>
+    double cp_mass(double T, const Composition& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
         return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    template<class Composition>
+    double cv_mol(double T, const Composition& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
         return cp_mol(T, X, i, j, k) - Rg;
     }
-    double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    template<class Composition>
+    double cv_mass(double T, const Composition& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
         return cv_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double gamma(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
+    template<class Composition>
+    double gamma(double T, const Composition& X, int i, int j, int k) const  {
         // Specific heat ratio
         return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
     }

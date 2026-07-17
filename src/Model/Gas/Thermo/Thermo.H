@@ -22,16 +22,16 @@ private:
 
 
 public:
-    template<int I = 0>
+    template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    double cp_mol(double T, const Composition& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).cp_mol(T,X,i,j,k);
             else
-                return cp_mol<I+1>(T,X,i,j,k);
+                return cp_mol<Composition,I+1>(T,X,i,j,k);
         }
         else {
             Util::Abort(INFO, selected);
@@ -39,34 +39,32 @@ public:
         }
     }
 
-
-    template<int I = 0>
+    template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    double enthalpy_mol(double T, const Composition& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).enthalpy_mol(T,X,i,j,k);
             else
-                return enthalpy_mol<I+1>(T,X,i,j,k);
+                return enthalpy_mol<Composition,I+1>(T,X,i,j,k);
         }
         else {
             Util::Abort(INFO, selected);
             return NAN;
         }
     }
-
-    template<int I = 0>
+    template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    double entropy_mol(double T, const Composition& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).entropy_mol(T,X,i,j,k);
             else
-                return entropy_mol<I+1>(T,X,i,j,k);
+                return entropy_mol<Composition,I+1>(T,X,i,j,k);
         }
         else {
             Util::Abort(INFO, selected);

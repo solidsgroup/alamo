@@ -14,8 +14,7 @@ namespace ReferenceMap
 void
 Reconstruction::Parse(Reconstruction& value, IO::ParmParse& pp)
 {
-    pp.query_default("eta_cutoff", value.eta_cutoff, 0.5);
-    pp.query_default("eta_core", value.eta_core, value.eta_cutoff);
+    pp.query_default("eta_core", value.eta_core, 0.5);
     pp.query_default("eta_extension", value.eta_extension, 1.0e-3);
     pp.query_default("extrapolation_sweeps", value.extrapolation_sweeps, 4);
     pp.query_default("reconstruction_alpha", value.reconstruction_alpha, 1.0);

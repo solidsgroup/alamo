@@ -45,9 +45,7 @@ include_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 0
-projection.update_pressure = 0
 
-reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7
 reference_map.eta_extension = 1.0e-3
 reference_map.extrapolation_sweeps = 4
@@ -57,27 +55,25 @@ solid.model.type = finite.neohookean
 solid.model.reference_density = 1.0_kg/m^3
 solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
-solid.model.stress_rhs_sign = 1.0
+solid.model.deviatoric_stress_divergence_sign = 1.0
 solid.model.viscosity = 0.0
-solid.model.bulk_viscosity = 0.0
 solid.model.finite.neohookean.mu = 1.0e3_Pa
 solid.model.finite.neohookean.kappa = 1.0e4_Pa
 
-mass_fraction.ic.type = constant
-mass_fraction.ic.constant.value = 1.0
+component_density.ic.type = expression
+component_density.ic.expression.constant.rhog = 1.12254198039921
+component_density.ic.expression.constant.rhos = 1.0
+component_density.ic.expression.constant.xa = 0.35
+component_density.ic.expression.constant.xb = 0.65
+component_density.ic.expression.constant.eps = 0.025
+component_density.ic.expression.region0 = "rhog*(1.0-0.5*(tanh((x-xa)/eps)-tanh((x-xb)/eps)))"
+component_density.ic.expression.region1 = "rhos*0.5*(tanh((x-xa)/eps)-tanh((x-xb)/eps))"
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
 temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
-
-# Planar solid slab, fluid on both sides, diffuse only in x.
-eta.ic.type = expression
-eta.ic.expression.constant.xa = 0.35
-eta.ic.expression.constant.xb = 0.65
-eta.ic.expression.constant.eps = 0.025
-eta.ic.expression.region0 = "0.5*(tanh((x - xa)/eps) - tanh((x - xb)/eps))"
 
 # Affine inverse map for a uniform x-stretch F_xx = stretch in the solid.
 # RebuildReferenceMapOutsideEta preserves this for eta>=0.5 and resets/extrapolates
@@ -87,15 +83,15 @@ xi.ic.expression.constant.stretch = 1.05
 xi.ic.expression.region0 = "x / stretch"
 xi.ic.expression.region1 = "y"
 
-mass_fraction.bc.type = constant
-mass_fraction.bc.constant.type.xlo = neumann
-mass_fraction.bc.constant.type.xhi = neumann
-mass_fraction.bc.constant.type.ylo = neumann
-mass_fraction.bc.constant.type.yhi = neumann
-mass_fraction.bc.constant.val.xlo = 0.0
-mass_fraction.bc.constant.val.xhi = 0.0
-mass_fraction.bc.constant.val.ylo = 0.0
-mass_fraction.bc.constant.val.yhi = 0.0
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+component_density.bc.constant.val.xlo = 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = dirichlet dirichlet
@@ -126,16 +122,6 @@ pressure.bc.constant.val.xlo = 0.0
 pressure.bc.constant.val.xhi = 0.0
 pressure.bc.constant.val.ylo = 0.0
 pressure.bc.constant.val.yhi = 0.0
-
-eta.bc.type = constant
-eta.bc.constant.type.xlo = neumann
-eta.bc.constant.type.xhi = neumann
-eta.bc.constant.type.ylo = neumann
-eta.bc.constant.type.yhi = neumann
-eta.bc.constant.val.xlo = 0.0
-eta.bc.constant.val.xhi = 0.0
-eta.bc.constant.val.ylo = 0.0
-eta.bc.constant.val.yhi = 0.0
 
 xi.bc.type = expression
 xi.bc.expression.constant.stretch = 1.05

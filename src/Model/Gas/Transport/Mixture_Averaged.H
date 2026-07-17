@@ -100,14 +100,16 @@ private:
     double mu_enskog(double T, int i) const {
         return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
     }
-    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
+    template<class Composition>
+    double k_eucken(double T, const Composition& X, int i, int j, int k, int n) const
     {
         double cp = thermo.cp_mol(T, X, i, j, k);
         return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Rg) / MW[n];
     }
 
 public:
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+    template<class Composition>
+    double dynamic_viscosity(double T, const Composition& X, int i, int j, int k) const
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
@@ -156,7 +158,8 @@ public:
         return mu_mix;
     }
 
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+    template<class Composition>
+    double thermal_conductivity(double T, const Composition& X, int i, int j, int k) const
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;

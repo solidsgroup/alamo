@@ -1,5 +1,5 @@
 # LowMach driven cavity recirculation case
-# Run with: ./bin/lowmach-2d-clang++ input.lm
+# Run with: ./bin/lowmach-2d-clang++ input.lm.cavity
 
 plot_file = output.lm.cavity
 amr.plot_int = 25
@@ -9,7 +9,6 @@ amr.regrid_int = 2
 amr.max_level = 0
 amr.nsubsteps = 1
 amr.n_cell = 256 256
-eta_refinement_criterion = 1.0e100
 
 timestep = 1.0e-3
 stop_time = 1.0
@@ -39,31 +38,11 @@ projection.enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
-projection.node_reconstruction_sweeps = 1
 projection.update_pressure = 0
 diagnostics.interval = 25
 
-reference_map.eta_cutoff = 0.5
-reference_map.eta_core = 0.7
-reference_map.extrapolation_sweeps = 4
-reference_map.smoothing_sweeps = 2
-
-solid.model.type = none
-solid.model.eta_threshold = 0.5
-solid.model.J_floor = 1.0e-6
-solid.model.stress_cap = 1.0e100
-solid.model.stress_rhs_sign = 0.0
-solid.model.implicit = 0
-solid.model.implicit_coeff_scale = 1.0e-4
-solid.model.implicit_preserve_rigid_modes = 1
-solid.model.implicit_tol_rel = 1.0e-8
-solid.model.implicit_tol_abs = 1.0e-10
-solid.model.implicit_verbose = 0
-solid.model.viscosity = 0.0
-solid.model.bulk_viscosity = 0.0
-
-mass_fraction.ic.type = constant
-mass_fraction.ic.constant.value = 1.0
+component_density.ic.type = constant
+component_density.ic.constant.value = 1.12254198039921
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
@@ -71,20 +50,15 @@ temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-# Passive phase-field marker for reference-map advection tests.
-# xi is initialized internally as xi(x,0)=x.
-eta.ic.type = constant
-eta.ic.constant.value = 0.0
-
-mass_fraction.bc.type = constant
-mass_fraction.bc.constant.type.xlo = neumann
-mass_fraction.bc.constant.type.xhi = neumann
-mass_fraction.bc.constant.type.ylo = neumann
-mass_fraction.bc.constant.type.yhi = neumann
-mass_fraction.bc.constant.val.xlo = 0.0
-mass_fraction.bc.constant.val.xhi = 0.0
-mass_fraction.bc.constant.val.ylo = 0.0
-mass_fraction.bc.constant.val.yhi = 0.0
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.val.xlo = 0.0
+component_density.bc.constant.val.xhi = 0.0
+component_density.bc.constant.val.ylo = 0.0
+component_density.bc.constant.val.yhi = 0.0
 
 velocity.bc.type = expression
 velocity.bc.expression.type.xlo = dirichlet dirichlet
@@ -115,24 +89,3 @@ pressure.bc.constant.val.xlo = 0.0
 pressure.bc.constant.val.xhi = 0.0
 pressure.bc.constant.val.ylo = 0.0
 pressure.bc.constant.val.yhi = 0.0
-
-
-eta.bc.type = constant
-eta.bc.constant.type.xlo = neumann
-eta.bc.constant.type.xhi = neumann
-eta.bc.constant.type.ylo = neumann
-eta.bc.constant.type.yhi = neumann
-eta.bc.constant.val.xlo = 0.0
-eta.bc.constant.val.xhi = 0.0
-eta.bc.constant.val.ylo = 0.0
-eta.bc.constant.val.yhi = 0.0
-
-xi.bc.type = constant
-xi.bc.constant.type.xlo = neumann
-xi.bc.constant.type.xhi = neumann
-xi.bc.constant.type.ylo = neumann
-xi.bc.constant.type.yhi = neumann
-xi.bc.constant.val.xlo = 0.0 0.0
-xi.bc.constant.val.xhi = 0.0 0.0
-xi.bc.constant.val.ylo = 0.0 0.0
-xi.bc.constant.val.yhi = 0.0 0.0

@@ -1,8 +1,5 @@
 #include "LowMach.H"
 
-#include "AMReX_MLABecLaplacian.H"
-#include "AMReX_FillPatchUtil.H"
-#include "AMReX_MLMG.H"
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Numeric/Stencil.H"
@@ -30,38 +27,24 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("cfl_v", value.cfl_v, 1.0e100);
     pp.query_default("small", value.small, 1.0e-12);
     pp.query_default("density_floor", value.density_floor, value.small);
-    pp.query_default("temperature_floor", value.temperature_floor, value.small);
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
     pp.query_default("thermodynamic_pressure", value.thermodynamic_pressure, "100000.0_Pa", Unit::Pressure());
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
     pp.query_default("projection.enabled", value.projection_enabled, true);
-    pp.query_default("projection.tol_rel", value.projection_tol_rel, 1.0e-11);
-    pp.query_default("projection.tol_abs", value.projection_tol_abs, 1.0e-12);
-    pp.query_default("projection.verbose", value.projection_verbose, 0);
-    pp.query_default("projection.node_reconstruction_sweeps", value.projection_node_reconstruction_sweeps, 1);
-    pp.query_default("projection.nodal_iterations", value.projection_nodal_iterations, 200);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
     pp.query_default("diagnostics.extended_fields", value.diagnostics_extended_fields, false);
-    pp.query_default("projection.update_pressure", value.projection_update_pressure, true);
-    pp.query_default("projection.predictor_pressure_gradient", value.projection_predictor_pressure_gradient, false);
+    if (value.projection_enabled)
+    {
+        pp.query_default("projection.update_pressure", value.projection_update_pressure, true);
+        pp.queryclass("projection", value.pressure_poisson);
+    }
     pp.query_default("include_viscosity", value.include_viscosity, true);
     pp.query_default("include_conduction", value.include_conduction, true);
     pp.query_default("advect_temperature", value.advect_temperature, true);
-    pp.query_default("eta.initial_value", value.eta_initial_value, 0.0);
-    pp.queryclass("eta.phase_field", value.eta_phase_field);
     pp.queryclass("reference_map", value.reference_map_reconstruction);
 
     std::string solid_model_type;
     pp.query_default("solid.model.type", solid_model_type, "none");
-    pp.query_default("solid.model.eta_threshold", value.finite_solid_eta_threshold, 0.5);
-    pp.query_default("solid.model.J_floor", value.finite_solid_J_floor, 1.0e-6);
-    pp.query_default("solid.model.viscosity", value.finite_solid_viscosity, "0.0", Unit::Pressure() * Unit::Time());
-    pp.query_default("solid.model.bulk_viscosity", value.finite_solid_bulk_viscosity, "0.0", Unit::Pressure() * Unit::Time());
-    pp.query_default("solid.model.interface_viscosity", value.finite_solid_interface_viscosity, "0.0", Unit::Pressure() * Unit::Time());
-    pp.query_default("solid.model.stress_rhs_sign", value.finite_solid_deviatoric_stress_divergence_sign, 0.0);
-    pp.query_default("solid.model.deviatoric_stress_divergence_sign",
-                     value.finite_solid_deviatoric_stress_divergence_sign,
-                     value.finite_solid_deviatoric_stress_divergence_sign);
     if (solid_model_type == "none")
     {
         value.finite_solid_enabled = false;
@@ -69,9 +52,18 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     else if (solid_model_type == "finite.neohookean")
     {
         value.finite_solid_enabled = true;
+        pp.query_default("solid.model.eta_threshold", value.finite_solid_eta_threshold, 0.5);
+        pp.query_default("solid.model.J_floor", value.finite_solid_J_floor, 1.0e-6);
+        pp.query_default("solid.model.viscosity", value.finite_solid_viscosity,
+                         "0.0", Unit::Pressure() * Unit::Time());
+        pp.query_default("solid.model.interface_viscosity", value.finite_solid_interface_viscosity,
+                         "0.0", Unit::Pressure() * Unit::Time());
+        pp.query_default("solid.model.deviatoric_stress_divergence_sign",
+                         value.finite_solid_deviatoric_stress_divergence_sign, 0.0);
         pp.query_required("solid.model.reference_density",
                           value.finite_solid_reference_density, Unit::Density());
         pp.queryclass<Model::Solid::Finite::NeoHookean>("solid.model.finite.neohookean", value.finite_solid_model);
+        pp.queryclass("eta.phase_field", value.eta_phase_field);
     }
     else
     {
@@ -102,19 +94,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, AMREX_SPACEDIM);
     pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, 1);
     pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("component_density.bc", value.component_density_bc, value.ncomponents);
-    pp.select_default<BC::Constant,BC::Expression>("mass_fraction.bc", value.mass_fraction_bc, value.nspecies);
     pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, 1);
-    pp.select_default<BC::Constant::ZeroNeumann, BC::Constant,BC::Expression>("eta.bc", value.eta_bc, 1);
     pp.select_default<BC::Constant::ZeroNeumann, BC::Constant,BC::Expression>("xi.bc", value.xi_bc, AMREX_SPACEDIM);
 
     pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, value.geom);
     pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, value.geom);
-    pp.select_default<IC::Constant,IC::Expression>("mass_fraction.ic", value.mass_fraction_ic, value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("component_density.ic", value.component_density_ic, value.geom);
     pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, value.geom);
-    if (pp.contains("eta.ic.type"))
-        pp.select_default<IC::Constant,IC::Expression>("eta.ic", value.eta_ic, value.geom);
-    else
-        value.eta_ic = nullptr;
     pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, value.geom);
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, {"x","y"});
@@ -123,18 +109,18 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_old_mf,   value.temperature_bc,   1,              nghost, "temperature_old",   false, true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.ncomponents, nghost, "component_density",     true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.ncomponents, nghost, "component_density_old", false, true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, value.mass_fraction_bc, value.nspecies, nghost, "mass_fraction", true, false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, value.eta_bc, 1, nghost, "eta", true, false);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,                value.xi_bc,            AMREX_SPACEDIM, nghost, "xi",                true,  true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf,            value.xi_bc,            AMREX_SPACEDIM, nghost, "xi_old",            false, true, {"x","y"});
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", true, false);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.nspecies, 1, "mole_fraction", value.diagnostics_extended_fields, false);
     value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", value.finite_solid_enabled, false);
     if (value.diagnostics_extended_fields)
     {
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.nspecies, 1, "mass_fraction", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.nspecies, 1, "mole_fraction", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
@@ -173,7 +159,6 @@ LowMach::UpdateSolidStress(int lev,
         Util::Clamp(reference_map_reconstruction.EtaExtension(), 0.0, 1.0);
     const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
-    const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
     const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
 
     amrex::MultiFab xi_stress_mf;
@@ -203,7 +188,6 @@ LowMach::UpdateSolidStress(int lev,
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix F = Set::Matrix::Identity();
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
-            Set::Scalar div_u = grad_u.trace();
 
             Set::Matrix solid_sigma = Set::Matrix::Zero();
 
@@ -227,11 +211,8 @@ LowMach::UpdateSolidStress(int lev,
                 if (valid && Util::Abs(J) > det_floor)
                     solid_sigma = (solid_model.DW(F) * F.transpose()) / J;
 
-                if (solid_viscosity != 0.0 || solid_bulk_viscosity != 0.0)
-                {
-                    solid_sigma += solid_viscosity * (grad_u + grad_u.transpose()) +
-                                   solid_bulk_viscosity * div_u * Set::Matrix::Identity();
-                }
+                if (solid_viscosity != 0.0)
+                    solid_sigma += solid_viscosity * (grad_u + grad_u.transpose());
             }
 
             Set::Matrix solid_sigma_dev = solid_sigma -
@@ -259,9 +240,12 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
                               const amrex::MultiFab& component_density_mf)
 {
     density_mf[lev]->setVal(0.0);
-    mass_fraction_mf[lev]->setVal(0.0);
-    mole_fraction_mf[lev]->setVal(0.0);
     eta_mf[lev]->setVal(0.0);
+    if (diagnostics_extended_fields)
+    {
+        mass_fraction_mf[lev]->setVal(0.0);
+        mole_fraction_mf[lev]->setVal(0.0);
+    }
 
     for (amrex::MFIter mfi(component_density_mf, true); mfi.isValid(); ++mfi)
     {
@@ -269,31 +253,29 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
         Set::Patch<Set::Scalar> rho = density_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        amrex::Array4<Set::Scalar> mass_fraction;
+        amrex::Array4<Set::Scalar> mole_fraction;
+        if (diagnostics_extended_fields)
+        {
+            mass_fraction = mass_fraction_mf[lev]->array(mfi);
+            mole_fraction = mole_fraction_mf[lev]->array(mfi);
+        }
         const int nsp = nspecies;
         const int ncomp = ncomponents;
         const bool solid_enabled = finite_solid_enabled;
+        const bool write_composition = diagnostics_extended_fields;
         const Set::Scalar solid_density = finite_solid_reference_density;
         const Set::Scalar composition_floor = small;
         const Set::Scalar p0 = thermodynamic_pressure;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             Set::Scalar gas_partial_density = 0.0;
             Set::Scalar total_partial_density = 0.0;
             for (int n = 0; n < nsp; ++n) gas_partial_density += component_density(i,j,k,n);
             for (int n = 0; n < ncomp; ++n) total_partial_density += component_density(i,j,k,n);
-
-            // Gas fractions are conditional on gas being present; component densities remain authoritative.
-            for (int n = 0; n < nsp; ++n)
-                Y(i,j,k,n) = gas_partial_density > composition_floor ?
-                    component_density(i,j,k,n) / gas_partial_density : (n == 0 ? 1.0 : 0.0);
-
-            Set::Scalar moles = 0.0;
-            for (int n = 0; n < gas.nspecies; ++n) moles += Y(i,j,k,n) / gas.MW[n];
-            for (int n = 0; n < gas.nspecies; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
 
             Set::Scalar gas_intrinsic_density = p0 / (gas.R(X, i, j, k) * T(i,j,k));
             Set::Scalar gas_volume = gas_partial_density / gas_intrinsic_density;
@@ -303,13 +285,26 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
             // Normalize by occupied volume so transport errors do not violate mixture closure.
             rho(i,j,k) = volume > composition_floor ? total_partial_density / volume : gas_intrinsic_density;
             eta(i,j,k) = solid_enabled && volume > composition_floor ? solid_volume / volume : 0.0;
+
+            if (write_composition)
+            {
+                for (int n = 0; n < nsp; ++n)
+                {
+                    mass_fraction(i,j,k,n) = gas_partial_density > composition_floor ?
+                        component_density(i,j,k,n) / gas_partial_density : (n == 0 ? 1.0 : 0.0);
+                    mole_fraction(i,j,k,n) = X(i,j,k,n);
+                }
+            }
         });
     }
 
     density_mf[lev]->FillBoundary(geom[lev].periodicity());
-    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
-    mole_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
     eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    if (diagnostics_extended_fields)
+    {
+        mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+        mole_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
 }
 
 void
@@ -329,14 +324,15 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
         bx &= domain;
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
+        Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> M = momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E = energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             const Set::Scalar density = rho(i,j,k);
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
                 M(i,j,k,d) = density * u(i,j,k,d);
@@ -361,51 +357,31 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     if (!projection_enabled || !(dt > 0.0)) return;
 
     const int nlev = finest_level + 1;
-    amrex::Vector<amrex::Geometry> proj_geom(nlev);
-    amrex::Vector<amrex::BoxArray> proj_grids(nlev);
-    amrex::Vector<amrex::DistributionMapping> proj_dmap(nlev);
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> phi(nlev);
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs(nlev);
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> beta_cc(nlev);
-    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> beta_face(nlev);
-    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> beta_face_const(nlev);
+    pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
 
     for (int lev = 0; lev < nlev; ++lev)
     {
-        proj_geom[lev] = geom[lev];
-        proj_grids[lev] = velocity_mf[lev]->boxArray();
-        proj_dmap[lev] = velocity_mf[lev]->DistributionMap();
-
         velocity_bc->define(geom[lev]);
         velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
         velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
-
         UpdateComponentState(lev, *temperature_mf[lev], *component_density_mf[lev]);
 
-        phi[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 1));
-        rhs[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 0));
-        beta_cc[lev].reset(new amrex::MultiFab(proj_grids[lev], proj_dmap[lev], 1, 1));
-        phi[lev]->setVal(0.0);
-        rhs[lev]->setVal(0.0);
-        beta_cc[lev]->setVal(0.0);
-    }
-
-    for (int lev = 0; lev < nlev; ++lev)
-    {
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
         amrex::MultiFab& u_mf = *velocity_mf[lev];
         amrex::MultiFab& rho_mf = *density_mf[lev];
+        amrex::MultiFab& rhs_mf = pressure_poisson.RHS(lev);
+        amrex::MultiFab& beta_mf = pressure_poisson.Coefficient(lev);
         const Set::Scalar inv_dt = 1.0 / dt;
         const Set::Scalar rho_floor = density_floor;
 
-        for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
             Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-            Set::Patch<Set::Scalar> rhs_arr = rhs[lev]->array(mfi);
-            Set::Patch<Set::Scalar> beta = beta_cc[lev]->array(mfi);
+            Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
+            Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -413,87 +389,17 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
                 Set::Scalar div_u = 0.0;
                 for (int d = 0; d < AMREX_SPACEDIM; ++d) div_u += grad_u(d,d);
-                rhs_arr(i,j,k) = div_u * inv_dt;
+                rhs(i,j,k) = div_u * inv_dt;
                 beta(i,j,k) = 1.0 / Util::Max(rho(i,j,k), rho_floor);
             });
         }
-
-        beta_cc[lev]->FillBoundary(geom[lev].periodicity());
     }
 
-    BC::Constant::ZeroNeumann beta_bc(1);
-    for (int lev = 0; lev < nlev; ++lev)
-    {
-        beta_bc.define(geom[lev]);
-        if (lev == 0)
-        {
-            beta_bc.FillBoundary(*beta_cc[lev], 0, 1, time, 0);
-            beta_cc[lev]->FillBoundary(geom[lev].periodicity());
-        }
-        else
-        {
-            amrex::Vector<amrex::MultiFab*> cmf{beta_cc[lev - 1].get()};
-            amrex::Vector<amrex::MultiFab*> fmf{beta_cc[lev].get()};
-            amrex::Vector<amrex::Real> ctime{time};
-            amrex::Vector<amrex::Real> ftime{time};
-            amrex::Vector<amrex::BCRec> bcs(1, beta_bc.GetBCRec());
-            amrex::FillPatchTwoLevels(*beta_cc[lev], time, cmf, ctime, fmf, ftime,
-                                       0, 0, 1, geom[lev - 1], geom[lev],
-                                       beta_bc, 0, beta_bc, 0,
-                                       refRatio(lev - 1), &amrex::cell_cons_interp, bcs, 0);
-        }
-    }
+    pressure_poisson.Solve(time);
 
     for (int lev = 0; lev < nlev; ++lev)
-    {
-        amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> beta_face_ptr;
-        for (int d = 0; d < AMREX_SPACEDIM; ++d)
-        {
-            amrex::BoxArray face_ba = proj_grids[lev];
-            face_ba.surroundingNodes(d);
-            beta_face[lev][d].define(face_ba, proj_dmap[lev], 1, 0);
-            beta_face_ptr[d] = &beta_face[lev][d];
-            beta_face_const[lev][d] = &beta_face[lev][d];
-        }
-        amrex::average_cellcenter_to_face(beta_face_ptr, *beta_cc[lev], geom[lev], 1, true, 0);
-    }
-
-    amrex::LPInfo info;
-    amrex::MLABecLaplacian mlabec(proj_geom, proj_grids, proj_dmap, info);
-    mlabec.setMaxOrder(2);
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> lobc;
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> hibc;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        lobc[d] = geom[0].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-        hibc[d] = geom[0].isPeriodic(d) ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-    }
-    mlabec.setDomainBC(lobc, hibc);
-    mlabec.setScalars(0.0, -1.0);
-    for (int lev = 0; lev < nlev; ++lev)
-    {
-        mlabec.setLevelBC(lev, nullptr);
-        mlabec.setACoeffs(lev, 0.0);
-        mlabec.setBCoeffs(lev, beta_face_const[lev]);
-    }
-
-    amrex::Vector<amrex::MultiFab*> phi_ptr(nlev);
-    amrex::Vector<amrex::MultiFab const*> rhs_ptr(nlev);
-    for (int lev = 0; lev < nlev; ++lev)
-    {
-        phi_ptr[lev] = phi[lev].get();
-        rhs_ptr[lev] = rhs[lev].get();
-    }
-
-    amrex::MLMG mlmg(mlabec);
-    mlmg.setVerbose(projection_verbose);
-    mlmg.setFinalFillBC(true);
-    mlmg.solve(phi_ptr, rhs_ptr, projection_tol_rel, projection_tol_abs);
-
-    for (int lev = 0; lev < nlev; ++lev)
-    {
-        amrex::MultiFab::Copy(*pressure_correction_mf[lev], *phi[lev], 0, 0, 1, 0);
-    }
+        amrex::MultiFab::Copy(*pressure_correction_mf[lev],
+                              pressure_poisson.Solution(lev), 0, 0, 1, 0);
     for (int lev = 0; lev < nlev; ++lev)
     {
         amrex::MultiFab& u_mf = *velocity_mf[lev];
@@ -513,16 +419,16 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             Set::Patch<Set::Scalar> u = u_mf.array(mfi);
             Set::Patch<Set::Scalar> p = p_mf.array(mfi);
             Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-            Set::Patch<const Set::Scalar> phi_arr = phi[lev]->array(mfi);
+            Set::Patch<const Set::Scalar> phi = pressure_poisson.Solution(lev).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, domain);
-                Set::Vector grad_phi = Numeric::Gradient(phi_arr, i, j, k, 0, DX, sten);
+                Set::Vector grad_phi = Numeric::Gradient(phi, i, j, k, 0, DX, sten);
                 const Set::Scalar beta = 1.0 / Util::Max(rho(i,j,k), rho_floor);
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
                     u(i,j,k,d) -= dt * beta * grad_phi(d);
-                if (update_pressure) p(i,j,k) = Util::Max(p(i,j,k) + p_scale_inv * phi_arr(i,j,k), p_floor);
+                if (update_pressure) p(i,j,k) = Util::Max(p(i,j,k) + p_scale_inv * phi(i,j,k), p_floor);
             });
         }
 
@@ -550,7 +456,6 @@ LowMach::Initialize(int lev)
     temperature_old_mf[lev]->setVal(0.0, 0, temperature_old_mf[lev]->nComp(), temperature_old_mf[lev]->nGrow());
     component_density_mf[lev]->setVal(0.0, 0, component_density_mf[lev]->nComp(), component_density_mf[lev]->nGrow());
     component_density_old_mf[lev]->setVal(0.0, 0, component_density_old_mf[lev]->nComp(), component_density_old_mf[lev]->nGrow());
-    mass_fraction_mf[lev]->setVal(0.0, 0, mass_fraction_mf[lev]->nComp(), mass_fraction_mf[lev]->nGrow());
     eta_mf[lev]->setVal(0.0, 0, eta_mf[lev]->nComp(), eta_mf[lev]->nGrow());
     xi_mf[lev]->setVal(0.0, 0, xi_mf[lev]->nComp(), xi_mf[lev]->nGrow());
     xi_old_mf[lev]->setVal(0.0, 0, xi_old_mf[lev]->nComp(), xi_old_mf[lev]->nGrow());
@@ -560,12 +465,7 @@ LowMach::Initialize(int lev)
     velocity_ic->Initialize(lev, velocity_old_mf, 0.0);
     temperature_ic->Initialize(lev, temperature_mf, 0.0);
     temperature_ic->Initialize(lev, temperature_old_mf, 0.0);
-    // The legacy composition and eta ICs are converted once into component partial densities.
-    mass_fraction_ic->Initialize(lev, mass_fraction_mf, 0.0);
-    if (eta_ic)
-        eta_ic->Initialize(lev, eta_mf, 0.0);
-    else
-        eta_mf[lev]->setVal(eta_initial_value);
+    component_density_ic->Initialize(lev, component_density_mf, 0.0);
     xi_ic->Initialize(lev, xi_mf, 0.0);
     xi_ic->Initialize(lev, xi_old_mf, 0.0);
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
@@ -574,8 +474,6 @@ LowMach::Initialize(int lev)
     velocity_bc->define(geom[lev]);
     temperature_bc->define(geom[lev]);
     component_density_bc->define(geom[lev]);
-    mass_fraction_bc->define(geom[lev]);
-    eta_bc->define(geom[lev]);
     xi_bc->define(geom[lev]);
     pressure_bc->define(geom[lev]);
 
@@ -583,42 +481,6 @@ LowMach::Initialize(int lev)
     velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
     temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, 0.0, 0);
     temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
-    mass_fraction_bc->FillBoundary(*mass_fraction_mf[lev], 0, nspecies, 0.0, 0);
-    mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
-    eta_bc->FillBoundary(*eta_mf[lev], 0, 1, 0.0, 0);
-    eta_mf[lev]->FillBoundary(geom[lev].periodicity());
-
-    for (amrex::MFIter mfi(*component_density_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
-        const int nsp = nspecies;
-        const bool solid_enabled = finite_solid_enabled;
-        const Set::Scalar solid_density = finite_solid_reference_density;
-        const Set::Scalar p0 = thermodynamic_pressure;
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            Set::Scalar mass = 0.0;
-            for (int n = 0; n < nsp; ++n) mass += Y(i,j,k,n);
-            for (int n = 0; n < nsp; ++n) Y(i,j,k,n) /= mass;
-
-            Set::Scalar moles = 0.0;
-            for (int n = 0; n < nsp; ++n) moles += Y(i,j,k,n) / gas.MW[n];
-            for (int n = 0; n < nsp; ++n) X(i,j,k,n) = (Y(i,j,k,n) / gas.MW[n]) / moles;
-
-            Set::Scalar solid_volume_fraction = solid_enabled ? eta(i,j,k) : 0.0;
-            Set::Scalar gas_density = p0 / (gas.R(X, i, j, k) * T(i,j,k));
-            for (int n = 0; n < nsp; ++n)
-                component_density(i,j,k,n) = (1.0 - solid_volume_fraction) * gas_density * Y(i,j,k,n);
-            if (solid_enabled)
-                component_density(i,j,k,nsp) = solid_volume_fraction * solid_density;
-        });
-    }
     component_density_bc->FillBoundary(*component_density_mf[lev], 0, ncomponents, 0.0, 0);
     component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
     amrex::MultiFab::Copy(*component_density_old_mf[lev], *component_density_mf[lev],
@@ -661,7 +523,6 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
-    const auto advect_op = advect;
     const Numeric::Advect::Options advective_options{Numeric::Advect::Form::Advective};
 
     u_rhs_mf.setVal(0.0, 0, AMREX_SPACEDIM, u_rhs_mf.nGrow());
@@ -671,9 +532,9 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const amrex::Box& bx = mfi.tilebox();
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
+        Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<const Set::Matrix> solid_deviatoric_stress =
             solid_deviatoric_stress_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
@@ -681,33 +542,32 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const Set::Vector gravity = g;
         const Set::Scalar p_scale = pressure_scale;
         const Set::Scalar rho_floor = density_floor;
-        const bool pressure_predictor = projection_predictor_pressure_gradient;
         const Set::Scalar deviatoric_stress_divergence_sign = finite_solid_deviatoric_stress_divergence_sign;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
+
             Set::Scalar mu = viscous ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
 
-            Set::Vector grad_p_vec = Set::Vector::Zero();
-            if (pressure_predictor)
-                grad_p_vec = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
-            Set::Vector div_sigma = Set::Vector::Zero();
-            if (deviatoric_stress_divergence_sign != 0.0)
-                div_sigma = Numeric::Divergence(
-                    solid_deviatoric_stress, i, j, k, DX, sten);
+            Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
 
-            Set::Vector adv_vec = advect_op.Vector(u, u, i, j, k, 0, DX, advective_options, sten);
-            Set::Vector lap_vec = Set::Vector::Zero();
-            if (viscous)
-                lap_vec = Numeric::VectorLaplacian(u, i, j, k, 0, DX);
+            Set::Vector div_sigma = Numeric::Divergence(solid_deviatoric_stress, i, j, k, DX, sten);
 
-            Set::Vector rhs_vec = adv_vec
-                                  - (p_scale / density) * grad_p_vec
+            Set::Vector adv_u = advect.Vector(u, u, i, j, k, 0, DX, advective_options, sten);
+
+            Set::Vector lap_u = Numeric::VectorLaplacian(u, i, j, k, 0, DX);
+
+            // This is where it all happens: calculate \partial u / \partial t
+            Set::Vector rhs_vec = adv_u
+                                  - (p_scale / density) * grad_p
                                   + gravity
-                                  + (mu / density) * lap_vec
+                                  + (mu / density) * lap_u
                                   + (deviatoric_stress_divergence_sign / density) * div_sigma;
+
+            // Put the result into the multicomponent field
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
                 u_rhs(i,j,k,d) = rhs_vec(d);
         });
@@ -719,11 +579,9 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
-        Set::Patch<const Set::Scalar> Y = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> xi = xi_mf.array(mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> T_rhs = T_rhs_mf.array(mfi);
         Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
         Set::Patch<Set::Scalar> xi_rhs = xi_rhs_mf.array(mfi);
@@ -734,10 +592,12 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
         const Set::Scalar rho_floor = density_floor;
+        const Set::Scalar composition_floor = small;
         const auto allen_cahn = eta_phase_field;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Vector vel = Set::Vector::Zero();
             vel(0) = u(i,j,k,0);
@@ -764,18 +624,25 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             // A conservative update requires a face velocity projected with the same divergence.
             for (int n = 0; n < ncomp; ++n)
                 component_density_rhs(i,j,k,n) =
-                    advect_op(component_density, u, i, j, k, n, DX, advective_options, sten);
+                    advect(component_density, u, i, j, k, n, DX, advective_options, sten);
 
             if (solid_enabled)
             {
                 // Allen-Cahn transfers mass between the solid and gas components without changing total density.
                 Set::Scalar solid_source = solid_density * allen_cahn(eta, i, j, k, DX);
                 component_density_rhs(i,j,k,nsp) += solid_source;
+                Set::Scalar gas_partial_density = 0.0;
                 for (int n = 0; n < nsp; ++n)
-                    component_density_rhs(i,j,k,n) -= Y(i,j,k,n) * solid_source;
+                    gas_partial_density += component_density(i,j,k,n);
+                for (int n = 0; n < nsp; ++n)
+                {
+                    Set::Scalar mass_fraction = gas_partial_density > composition_floor ?
+                        component_density(i,j,k,n) / gas_partial_density : (n == 0 ? 1.0 : 0.0);
+                    component_density_rhs(i,j,k,n) -= mass_fraction * solid_source;
+                }
             }
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                xi_rhs(i,j,k,d) = advect_op(xi, u, i, j, k, d, DX, advective_options, sten);
+                xi_rhs(i,j,k,d) = advect(xi, u, i, j, k, d, DX, advective_options, sten);
         });
     }
     u_rhs_mf.FillBoundary(geom[lev].periodicity());
@@ -903,9 +770,9 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> X = mole_fraction_mf.Patch(lev,mfi);
             const Set::Scalar rho_floor = density_floor;
             const bool viscous = include_viscosity;
             const bool elastic = explicit_solid_deviatoric_stress;
@@ -913,7 +780,6 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             const Set::Scalar mu_solid = finite_solid_model.mu;
             const Set::Scalar kappa_solid = finite_solid_model.kappa;
             const Set::Scalar solid_viscosity = finite_solid_viscosity;
-            const Set::Scalar solid_bulk_viscosity = finite_solid_bulk_viscosity;
             const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
 
             amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax> reduce_op;
@@ -921,6 +787,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
+                const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
                 Set::Scalar nu = 0.0;
                 if (viscous)
                 {
@@ -933,7 +800,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
                     Set::Scalar wave_speed = std::sqrt(Util::Max(kappa_solid + (4.0 / 3.0) * mu_solid, mu_solid) / density);
                     elastic_rate = wave_speed / dxmin;
-                    nu = Util::Max(nu, (solid_viscosity + solid_bulk_viscosity + solid_interface_viscosity) / density);
+                    nu = Util::Max(nu, (solid_viscosity + solid_interface_viscosity) / density);
                 }
                 return {nu / (dxmin * dxmin), elastic_rate};
             });

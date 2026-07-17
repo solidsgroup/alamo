@@ -55,7 +55,6 @@ projection.update_pressure = 1
 diagnostics.interval = 20
 diagnostics.extended_fields = 0
 
-reference_map.eta_cutoff = 0.5
 reference_map.eta_core = 0.7
 reference_map.eta_extension = 1.0e-3
 reference_map.extrapolation_sweeps = 4
@@ -74,13 +73,20 @@ solid.model.eta_threshold = 0.5
 solid.model.J_floor = 1.0e-6
 solid.model.deviatoric_stress_divergence_sign = 1.0
 solid.model.viscosity = 5.0e-3_Pa*s
-solid.model.bulk_viscosity = 5.0e-3_Pa*s
 solid.model.interface_viscosity = 5.0e-3_Pa*s
 solid.model.finite.neohookean.mu = 5.0e-2_Pa
 solid.model.finite.neohookean.kappa = 5.0e-1_Pa
 
-mass_fraction.ic.type = constant
-mass_fraction.ic.constant.value = 1.0
+component_density.ic.type = expression
+component_density.ic.expression.constant.rhog = 1.12254198039921
+component_density.ic.expression.constant.rhos = 1.0
+component_density.ic.expression.constant.x0 = 0.5
+component_density.ic.expression.constant.y0 = 0.25
+component_density.ic.expression.constant.hx = 0.12
+component_density.ic.expression.constant.hy = 0.08
+component_density.ic.expression.constant.eps = 0.015
+component_density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt(max(abs(x-x0)-hx,0.0)*max(abs(x-x0)-hx,0.0)+max(abs(y-y0)-hy,0.0)*max(abs(y-y0)-hy,0.0))+min(max(abs(x-x0)-hx,abs(y-y0)-hy),0.0))/eps))"
+component_density.ic.expression.region1 = "rhos*(1.0-0.5*(1.0+tanh((sqrt(max(abs(x-x0)-hx,0.0)*max(abs(x-x0)-hx,0.0)+max(abs(y-y0)-hy,0.0)*max(abs(y-y0)-hy,0.0))+min(max(abs(x-x0)-hx,abs(y-y0)-hy),0.0))/eps)))"
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.2*(y - 0.25)"
 velocity.ic.expression.region1 = "0.0"
@@ -89,40 +95,23 @@ temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-eta.ic.type = expression
-eta.ic.expression.constant.x0 = 0.5
-eta.ic.expression.constant.y0 = 0.25
-eta.ic.expression.constant.hx = 0.12
-eta.ic.expression.constant.hy = 0.08
-eta.ic.expression.constant.eps = 0.015
-eta.ic.expression.region0 = "1.0-0.5*(1.0+tanh((sqrt(max(abs(x-x0)-hx,0.0)*max(abs(x-x0)-hx,0.0)+max(abs(y-y0)-hy,0.0)*max(abs(y-y0)-hy,0.0))+min(max(abs(x-x0)-hx,abs(y-y0)-hy),0.0))/eps))"
-
-# Keep the initialized tanh profile stationary; mobility sets its restoration rate.
-eta.phase_field.enabled = 1
-eta.phase_field.epsilon = 0.015
-eta.phase_field.mobility = 0.01_m/s
-eta.phase_field.counter_curvature = 1.0
-eta.phase_field.band = 1.0e-3
-eta.phase_field.mapped_distance = 1
-# Grade out corner compression, retain mild diffusion, and relax only the exterior profile.
-eta.phase_field.normal_coherence_threshold = 0.9
-eta.phase_field.normal_coherence_power = 2.0
-eta.phase_field.exterior_reinitialization = 1.0
-eta.phase_field.incoherent_diffusion = 0.25
+eta.phase_field.mobility = 0.01_1/Pa/s
+eta.phase_field.sigma = 0.01_J/m^2
+eta.phase_field.epsilon = 0.015_m
 
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"
 xi.ic.expression.region1 = "y"
 
-mass_fraction.bc.type = constant
-mass_fraction.bc.constant.type.xlo = neumann
-mass_fraction.bc.constant.type.xhi = neumann
-mass_fraction.bc.constant.type.ylo = neumann
-mass_fraction.bc.constant.type.yhi = neumann
-mass_fraction.bc.constant.val.xlo = 0.0
-mass_fraction.bc.constant.val.xhi = 0.0
-mass_fraction.bc.constant.val.ylo = 0.0
-mass_fraction.bc.constant.val.yhi = 0.0
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+component_density.bc.constant.val.xlo = 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = neumann neumann
@@ -153,16 +142,6 @@ pressure.bc.constant.val.xlo = 0.0
 pressure.bc.constant.val.xhi = 0.0
 pressure.bc.constant.val.ylo = 0.0
 pressure.bc.constant.val.yhi = 0.0
-
-eta.bc.type = constant
-eta.bc.constant.type.xlo = neumann
-eta.bc.constant.type.xhi = neumann
-eta.bc.constant.type.ylo = neumann
-eta.bc.constant.type.yhi = neumann
-eta.bc.constant.val.xlo = 0.0
-eta.bc.constant.val.xhi = 0.0
-eta.bc.constant.val.ylo = 0.0
-eta.bc.constant.val.yhi = 0.0
 
 xi.bc.type = expression
 xi.bc.expression.type.xlo = neumann neumann

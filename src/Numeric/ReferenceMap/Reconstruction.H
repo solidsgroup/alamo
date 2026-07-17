@@ -39,7 +39,6 @@ public:
     Set::Scalar EtaExtension() const { return eta_extension; }
 
 private:
-    Set::Scalar eta_cutoff = 0.5;
     Set::Scalar eta_core = 0.5;
     Set::Scalar eta_extension = 1.0e-3;
     int extrapolation_sweeps = 4;
