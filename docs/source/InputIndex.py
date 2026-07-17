@@ -33,21 +33,30 @@ def codetarget(file,line):
 
 
 
+def _slugify(name):
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").lower()
+    slug = re.sub(r"_+", "_", slug)
+    return slug if slug else "section"
+
+
 class HTMLPrinter:
     tbody_cntr = 0
 
     f = None
     intable = False
     mypr = "     "
-    def __init__(self,exe):
-        self.f = open(f"InputIndex_{exe}.rst","w",encoding='utf-8')
-        print(exe,file=self.f)
-        print("--------------------------",file=self.f)
+    def __init__(self, filename, title, doc_src=None):
+        self.f = open(filename,"w",encoding='utf-8')
+        print(title,file=self.f)
+        print("-"*len(title),file=self.f)
         print("",file=self.f)
         print("",file=self.f)
-        print(scraper.getdocumentation(f"../../src/{exe}"), file=self.f)
-        print("",file=self.f)
-        print("",file=self.f)
+        if doc_src:
+            doc = scraper.getdocumentation(doc_src)
+            if doc:
+                print(doc, file=self.f)
+                print("",file=self.f)
+                print("",file=self.f)
         print(".. raw:: html",file=self.f)
         print("",file=self.f)
 
@@ -238,16 +247,97 @@ class HTMLPrinter:
         print("~"*len(sanitizedname), file=self.f)
         print("\n\n",file=self.f)
 
+class SectionCollector:
+    def __init__(self):
+        self.sections = []
+    def __del__(self):
+        True
+    def starttable(self):
+        True
+    def endtable(self):
+        True
+    def printinput(self,input,prefix,lev,classes=[]):
+        True
+    def printconditionalstart(self,input,prefix,lev,classes=[], things=None):
+        True
+    def printconditional(self,inputname,inputvalue,lev,classes=[]):
+        True
+    def printconditionalend(self,inputname,inputvalue,lev,classes=[]):
+        True
+    def printtablename(self,inputname,lev):
+        if inputname not in self.sections:
+            self.sections.append(inputname)
+
+
+class MultiFilePrinter:
+    def __init__(self, exe, sections):
+        self.exe = exe
+        self.sections = sections
+        self.section_files = {name: f"InputIndex_{exe}_{_slugify(name)}.rst" for name in sections}
+        self.section_printers = {}
+        self.index_printer = HTMLPrinter(f"InputIndex_{exe}.rst", exe, doc_src=f"../../src/{exe}")
+        self.current = self.index_printer
+        self.index_toctree_written = False
+
+    def __del__(self):
+        for printer in self.section_printers.values():
+            del printer
+        del self.index_printer
+
+    def _write_index_toctree(self):
+        if self.index_toctree_written or not self.sections:
+            return
+        print("\n\n", file=self.index_printer.f)
+        print("Integrator Options", file=self.index_printer.f)
+        print("~~~~~~~~~~~~~~~~~~", file=self.index_printer.f)
+        print("", file=self.index_printer.f)
+        print(".. toctree::", file=self.index_printer.f)
+        print("   :maxdepth: 1", file=self.index_printer.f)
+        print("", file=self.index_printer.f)
+        for name in self.sections:
+            basename = os.path.splitext(self.section_files[name])[0]
+            print(f"   {basename}", file=self.index_printer.f)
+        print("", file=self.index_printer.f)
+        self.index_toctree_written = True
+
+    def starttable(self):
+        self.current.starttable()
+    def endtable(self):
+        self.current.endtable()
+    def printinput(self,input,prefix,lev,classes=[]):
+        if lev == 0 and self.current is not self.index_printer:
+            self.current = self.index_printer
+        self.current.printinput(input,prefix,lev,classes)
+    def printconditionalstart(self,input,prefix,lev,classes=[], things=None):
+        if lev == 0 and self.current is not self.index_printer:
+            self.current = self.index_printer
+        self.current.printconditionalstart(input,prefix,lev,classes)
+    def printconditional(self,inputname,inputvalue,lev,classes=[]):
+        if lev == 0 and self.current is not self.index_printer:
+            self.current = self.index_printer
+        self.current.printconditional(inputname,inputvalue,lev,classes)
+    def printconditionalend(self,inputname,inputvalue,lev,classes=[]):
+        self.current.printconditionalend(inputname,inputvalue,lev,classes)
+    def printtablename(self,inputname,lev):
+        if self.current is self.index_printer:
+            if self.index_printer.intable:
+                self.index_printer.endtable()
+            self._write_index_toctree()
+        if inputname not in self.section_printers:
+            filename = self.section_files[inputname]
+            self.section_printers[inputname] = HTMLPrinter(filename, inputname, doc_src=None)
+        self.current = self.section_printers[inputname]
+
 
 for exe in ["alamo","mechanics","hydro","sfi","thermoelastic","topop"]:
     try:
-        printer = HTMLPrinter(exe)
+        collector = SectionCollector()
+        recurse.recurse("../../src/",exe,printer=collector)
+
+        printer = MultiFilePrinter(exe, collector.sections)
         recurse.recurse("../../src/",exe,printer=printer)
         del printer
     except Exception as e:
-        del printer
         print("Problem writing file for ",exe)
         print(e) 
         raise(e)
-
-
