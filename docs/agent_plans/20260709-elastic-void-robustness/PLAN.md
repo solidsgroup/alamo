@@ -1,4 +1,7 @@
 # TASK: elastic-void-robustness
+
+> **Task status, 2026-07-13: BLOCKED.** Steps 3–4 established only focused finite-soft-void behavior. The full GCC suite found blocking solver failures; this task is reopened through docs/agent_plans/20260713-elastic-regression-recovery/PLAN.md. See results/REGRESSION_RECOVERY_HANDOFF.md. Do not commit or refresh references.
+
 # Folder: docs/agent_plans/20260709-elastic-void-robustness/
 
 ---
@@ -86,6 +89,8 @@ DO: modify only the required Elastic/Newton/MLMG code; add a focused regression
 for exact-zero mask and soft void in each supported dimension.
 CHECK: compile cleanly and all focused oracles pass with no implicit floor.
 
+Status: focused implementation completed for the user-selected finite-soft-void formulation, but it is not accepted. Full-suite failures block this task; see results/FULL_SUITE_REVIEW_20260713.md and results/REGRESSION_RECOVERY_HANDOFF.md. Raw exact-zero psi masking remains outside this formulation because it needs an inactive-DOF or nullspace policy.
+
 ### Step 4 - adversarial verification
 VERIFY: source diff and focused regressions are complete.
 DO: test resolution, decomposition, and void-stiffness sensitivity; compare
@@ -93,14 +98,16 @@ solid-region stress/displacement to the stabilized reference where meaningful.
 CHECK: both dimensions remain converged and finite; no test relies on a hidden
 coefficient floor or forced iteration count.
 
+Status: focused verification completed, but full-suite verification failed. The 2-D/3-D focused regressions, a two-rank 2-D smoke test, and sensitivity screens remain historical evidence only; the recovery plan owns further validation.
+
 ## Checkpoints
 
 - [x] After plan restatement: diagnosis first, no source edit before a
       reproducible failure and mechanism.
 - [x] Before source edit: failure signature, proposed invariant, and affected
       path recorded in NOTES.md; awaiting human confirmation.
-- [ ] Before commit: diff summary, focused oracle output, and adversarial
-      review findings.
+- [x] Before handoff (no commit requested): diff summary, focused oracle
+      output, and adversarial review findings recorded in `results/`.
 
 ## Adversarial review
 
@@ -111,7 +118,8 @@ findings to results/REVIEW.md.
 
 ## Closeout
 
-- [ ] Oracle passes; status.sh all green
-- [ ] results/RESULT.md states mechanism, validation matrix, and limitations
-- [ ] touch results/DONE
-- [ ] Session log line appended to docs/llm/SESSION_LOG.tsv
+- [ ] Full regression oracle passes; current full GCC result is blocked
+- [x] Focused evidence and full-suite review recorded in results/
+- [x] Regression-recovery handoff and follow-on Tier-3 plan created
+- [ ] results/DONE must not claim completion; a blocked marker is retained for audit
+- [x] Session log corrected with blocked state

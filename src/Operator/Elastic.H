@@ -55,7 +55,8 @@ public:
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi);
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
     {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
-    Set::Scalar PsiRegularization() const { return m_psi_small; }
+    void SetConservativeFaceFlux(bool a_enabled)
+    { m_conservative_face_flux = a_enabled; }
 
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
@@ -125,6 +126,14 @@ public:
 
     virtual int getNComp() const override {return AMREX_SPACEDIM;};
     virtual bool isCrossStencil () const { return false; }
+protected:
+    bool useQuadraticAmrInterpolation() const override
+    { return m_conservative_face_flux; }
+    bool retainCoarseFineResidualRow() const override
+    { return m_conservative_face_flux; }
+    bool relaxCoarseFineGhostRows() const override
+    { return !m_conservative_face_flux; }
+public:
     virtual void prepareForSolve () override
     {
         if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
@@ -143,12 +152,11 @@ public:
     /// The models contain elastic constants and contain methods for converting strain to stress
     amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
-    // This is a mask variable.  `m_psi_small` is an explicit compatibility
-    // regularization only; its default is zero so masked solves do not receive
-    // an implicit stiffness floor.
+    // This is a mask variable.
     amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
-    Set::Scalar m_psi_small = 0.0;
+    Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
+    bool m_conservative_face_flux = false;
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
@@ -186,9 +194,9 @@ public:
 public:
     static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
-        // Explicit compatibility regularization for a masked solve.  It is
-        // zero by default and, when requested, is applied consistently in the
-        // residual and tangent rather than as an implicit operator-only floor.
+        // Regularization offset value used in near-singular elastic solves.
+        // It should be small - if it is too large, you will get better convergence
+        // but less correct values!
         pp_query("small",value.m_psi_small); 
     }
 

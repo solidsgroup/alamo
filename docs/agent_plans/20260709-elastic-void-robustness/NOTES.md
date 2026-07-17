@@ -180,3 +180,7 @@ zero-support rows and disconnected rigid modes; handling those inactive DOFs
 or a nullspace is a separate Tier-3 formulation.  This correction must instead
 fail fast with a clear message for that unsupported masked case.  The physical
 no-floor oracle remains `elastic.use_psi=0` with a finite soft `model_void`.
+
+## Full-suite review and recovery handoff (2026-07-13)
+
+The focused investigation above is historical evidence only. The full GCC regression run is blocking: 13 runtime failures and 17 numerical-check failures. Read results/FULL_SUITE_REVIEW_20260713.md and results/REGRESSION_RECOVERY_HANDOFF.md before further source work. The follow-on task is docs/agent_plans/20260713-elastic-regression-recovery/PLAN.md.

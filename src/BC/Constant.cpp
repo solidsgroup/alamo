@@ -67,9 +67,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
     Util::Assert(INFO,TEST(a_in.nComp() == (int)m_ncomp));
 
-    AMREX_D_TERM(   int DX_0 = DX[0];,
-                    int DX_1 = DX[1];,
-                    int DX_2 = DX[2];);
+    AMREX_D_TERM(   amrex::Real DX_0 = DX[0];,
+                    amrex::Real DX_1 = DX[1];,
+                    amrex::Real DX_2 = DX[2];);
 
     amrex::Box box = a_box;
     box.grow(ngrow);

@@ -721,29 +721,6 @@ Divergence( const amrex::Array4<const Set::Matrix>& dw,
     return ret;
 }
 
-/// \brief Backward stress divergence paired with `ForwardGradient`.
-///
-/// This is intentionally a different operator from `Divergence`: composing
-/// the two gives the ordinary one-cell second-difference rather than the
-/// checkerboard-null central/central composition.
-[[nodiscard]]
-AMREX_GPU_HOST_DEVICE
-AMREX_FORCE_INLINE
-Set::Vector
-BackwardDivergence(const amrex::Array4<const Set::Matrix>& dw,
-                   const int& i, const int& j, const int& k,
-                   const Set::Scalar DX[AMREX_SPACEDIM])
-{
-    Set::Vector ret = Set::Vector::Zero();
-
-    AMREX_D_TERM(
-        ret += (dw(i, j, k).col(0) - dw(i - 1, j, k).col(0)) / DX[0];,
-        ret += (dw(i, j, k).col(1) - dw(i, j - 1, k).col(1)) / DX[1];,
-        ret += (dw(i, j, k).col(2) - dw(i, j, k - 1).col(2)) / DX[2];);
-
-    return ret;
-}
-
 
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
@@ -861,36 +838,6 @@ Gradient(   const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-/// \brief Forward displacement gradient used by the paired elastic stencil.
-///
-/// At a high physical boundary (`StencilType::Lo`) this falls back to the
-/// backward one-sided difference so callers can safely use it in boundary
-/// paths.  Interior and low-boundary directions use the forward difference.
-[[nodiscard]]
-AMREX_GPU_HOST_DEVICE
-AMREX_FORCE_INLINE
-Set::Matrix
-ForwardGradient(const amrex::Array4<const Set::Scalar>& f,
-                const int& i, const int& j, const int& k,
-                const Set::Scalar dx[AMREX_SPACEDIM],
-                std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType())
-{
-    Set::Matrix ret;
-
-    AMREX_D_TERM(
-        ret(0, 0) = (stencil[0] == StencilType::Lo ? f(i, j, k, 0) - f(i - 1, j, k, 0) : f(i + 1, j, k, 0) - f(i, j, k, 0)) / dx[0];,
-        ret(0, 1) = (stencil[1] == StencilType::Lo ? f(i, j, k, 0) - f(i, j - 1, k, 0) : f(i, j + 1, k, 0) - f(i, j, k, 0)) / dx[1];
-        ret(1, 0) = (stencil[0] == StencilType::Lo ? f(i, j, k, 1) - f(i - 1, j, k, 1) : f(i + 1, j, k, 1) - f(i, j, k, 1)) / dx[0];
-        ret(1, 1) = (stencil[1] == StencilType::Lo ? f(i, j, k, 1) - f(i, j - 1, k, 1) : f(i, j + 1, k, 1) - f(i, j, k, 1)) / dx[1];,
-        ret(0, 2) = (stencil[2] == StencilType::Lo ? f(i, j, k, 0) - f(i, j, k - 1, 0) : f(i, j, k + 1, 0) - f(i, j, k, 0)) / dx[2];
-        ret(1, 2) = (stencil[2] == StencilType::Lo ? f(i, j, k, 1) - f(i, j, k - 1, 1) : f(i, j, k + 1, 1) - f(i, j, k, 1)) / dx[2];
-        ret(2, 0) = (stencil[0] == StencilType::Lo ? f(i, j, k, 2) - f(i - 1, j, k, 2) : f(i + 1, j, k, 2) - f(i, j, k, 2)) / dx[0];
-        ret(2, 1) = (stencil[1] == StencilType::Lo ? f(i, j, k, 2) - f(i, j - 1, k, 2) : f(i, j + 1, k, 2) - f(i, j, k, 2)) / dx[1];
-        ret(2, 2) = (stencil[2] == StencilType::Lo ? f(i, j, k, 2) - f(i, j, k - 1, 2) : f(i, j, k + 1, 2) - f(i, j, k, 2)) / dx[2];);
-
-    return ret;
-}
-
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
@@ -915,91 +862,82 @@ Gradient(   const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-/// \brief Forward displacement gradient used by the paired elastic stencil.
+/// \brief Displacement gradient at the midpoint of a positive coordinate face.
 ///
-/// See the scalar-multifab overload above for the high-boundary fallback.
+/// The derivative normal to the face is the centered face difference.  Each
+/// tangential derivative is the average of the centered nodal derivatives at
+/// the two face endpoints.  This is second-order at the face midpoint and,
+/// unlike a fully forward nodal gradient, gives the standard one-cell normal
+/// second difference after conservative flux differencing.
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
-ForwardGradient(const amrex::Array4<const Set::Vector>& f,
-                const int& i, const int& j, const int& k,
-                const Set::Scalar dx[AMREX_SPACEDIM],
-                std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType())
+FaceGradient(const amrex::Array4<const Set::Vector>& f,
+             const int i, const int j, const int k, const int face,
+             const Set::Scalar dx[AMREX_SPACEDIM])
 {
-    Set::Matrix ret;
+    Set::Matrix ret = Set::Matrix::Zero();
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
 
-#if AMREX_SPACEDIM > 0
-    ret.col(0) = (stencil[0] == StencilType::Lo ? f(i, j, k, 0) - f(i - 1, j, k, 0) : f(i + 1, j, k, 0) - f(i, j, k, 0)) / dx[0];
-#endif
+    ret.col(face) = (f(ip, jp, kp) - f(i, j, k)) / dx[face];
+
 #if AMREX_SPACEDIM > 1
-    ret.col(1) = (stencil[1] == StencilType::Lo ? f(i, j, k, 0) - f(i, j - 1, k, 0) : f(i, j + 1, k, 0) - f(i, j, k, 0)) / dx[1];
+    if (face != 0)
+        ret.col(0) = (f(i + 1, j, k) - f(i - 1, j, k)
+                    + f(ip + 1, jp, kp) - f(ip - 1, jp, kp))
+                   / (4.0 * dx[0]);
+    if (face != 1)
+        ret.col(1) = (f(i, j + 1, k) - f(i, j - 1, k)
+                    + f(ip, jp + 1, kp) - f(ip, jp - 1, kp))
+                   / (4.0 * dx[1]);
 #endif
 #if AMREX_SPACEDIM > 2
-    ret.col(2) = (stencil[2] == StencilType::Lo ? f(i, j, k, 0) - f(i, j, k - 1, 0) : f(i, j, k + 1, 0) - f(i, j, k, 0)) / dx[2];
+    if (face != 2)
+        ret.col(2) = (f(i, j, k + 1) - f(i, j, k - 1)
+                    + f(ip, jp, kp + 1) - f(ip, jp, kp - 1))
+                   / (4.0 * dx[2]);
 #endif
-
     return ret;
 }
 
-/// \brief Elastic gradient with a conservative paired bulk stencil and a
-/// traction-compatible physical-boundary closure.
-///
-/// In the interior this is the forward member of the `D- G+` pair.  On a
-/// physical face it retains the one-sided normal derivative but uses centered
-/// tangential derivatives.  That is the natural strong-traction closure: the
-/// same closure is used for the nonlinear residual, tangent, and the boundary
-/// flux consumed by the adjacent interior divergence row.
-/// Periodic ghost-shell stencil edges are deliberately *not* physical faces;
-/// their forward/backward fallback is retained so the periodic operator stays
-/// translation invariant.
+/// \brief Scalar-MultiFab overload of `FaceGradient`.
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
-PairedGradient(const amrex::Array4<const Set::Scalar>& f,
-               const int& i, const int& j, const int& k,
-               const Set::Scalar dx[AMREX_SPACEDIM],
-               std::array<StencilType, AMREX_SPACEDIM> stencil,
-               const std::array<bool, AMREX_SPACEDIM>& periodic)
+FaceGradient(const amrex::Array4<const Set::Scalar>& f,
+             const int i, const int j, const int k, const int face,
+             const Set::Scalar dx[AMREX_SPACEDIM])
 {
-    auto physical_stencil = stencil;
-    AMREX_D_TERM(
-        if (periodic[0]) physical_stencil[0] = StencilType::Central;,
-        if (periodic[1]) physical_stencil[1] = StencilType::Central;,
-        if (periodic[2]) physical_stencil[2] = StencilType::Central;);
+    Set::Matrix ret = Set::Matrix::Zero();
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
 
-    const bool on_physical_boundary = AMREX_D_TERM(
-        physical_stencil[0] != StencilType::Central,
-        || physical_stencil[1] != StencilType::Central,
-        || physical_stencil[2] != StencilType::Central);
-    return on_physical_boundary ? Gradient(f, i, j, k, dx, physical_stencil)
-                                : ForwardGradient(f, i, j, k, dx, stencil);
-}
-
-/// \brief `Set::Vector` overload of `PairedGradient`.
-[[nodiscard]]
-AMREX_GPU_HOST_DEVICE
-AMREX_FORCE_INLINE
-Set::Matrix
-PairedGradient(const amrex::Array4<const Set::Vector>& f,
-               const int& i, const int& j, const int& k,
-               const Set::Scalar dx[AMREX_SPACEDIM],
-               std::array<StencilType, AMREX_SPACEDIM> stencil,
-               const std::array<bool, AMREX_SPACEDIM>& periodic)
-{
-    auto physical_stencil = stencil;
-    AMREX_D_TERM(
-        if (periodic[0]) physical_stencil[0] = StencilType::Central;,
-        if (periodic[1]) physical_stencil[1] = StencilType::Central;,
-        if (periodic[2]) physical_stencil[2] = StencilType::Central;);
-
-    const bool on_physical_boundary = AMREX_D_TERM(
-        physical_stencil[0] != StencilType::Central,
-        || physical_stencil[1] != StencilType::Central,
-        || physical_stencil[2] != StencilType::Central);
-    return on_physical_boundary ? Gradient(f, i, j, k, dx, physical_stencil)
-                                : ForwardGradient(f, i, j, k, dx, stencil);
+    for (int n = 0; n < AMREX_SPACEDIM; ++n)
+    {
+        ret(n, face) = (f(ip, jp, kp, n) - f(i, j, k, n)) / dx[face];
+#if AMREX_SPACEDIM > 1
+        if (face != 0)
+            ret(n, 0) = (f(i + 1, j, k, n) - f(i - 1, j, k, n)
+                       + f(ip + 1, jp, kp, n) - f(ip - 1, jp, kp, n))
+                      / (4.0 * dx[0]);
+        if (face != 1)
+            ret(n, 1) = (f(i, j + 1, k, n) - f(i, j - 1, k, n)
+                       + f(ip, jp + 1, kp, n) - f(ip, jp - 1, kp, n))
+                      / (4.0 * dx[1]);
+#endif
+#if AMREX_SPACEDIM > 2
+        if (face != 2)
+            ret(n, 2) = (f(i, j, k + 1, n) - f(i, j, k - 1, n)
+                       + f(ip, jp, kp + 1, n) - f(ip, jp, kp - 1, n))
+                      / (4.0 * dx[2]);
+#endif
+    }
+    return ret;
 }
 
 [[nodiscard]]
@@ -1676,94 +1614,6 @@ public:
             + f(i, j - jlo, k - klo, m) + f(i - ilo, j - jlo, k - klo, m)
         )) * AMREX_D_PICK(0.5, 0.25, 0.125);
     }
-
-    /// \brief Average the distinct physical cells adjacent to a node.
-    ///
-    /// Unlike `CellToNodeAverage`, this never reads a non-periodic physical
-    /// ghost cell.  At a physical face/edge/corner its clamped duplicate cell
-    /// is counted once, while periodic directions use the already-filled
-    /// neighboring ghost cell.  This gives the paired elastic residual,
-    /// tangent, and diagonal one decomposition-independent raw-psi policy.
-    [[nodiscard]]
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    static Set::Scalar CellToNodeAverageBounded(const amrex::Array4<const Set::Scalar>& f,
-                                                const int& i, const int& j, const int& k, const int& m,
-                                                const amrex::Dim3& cell_lo, const amrex::Dim3& cell_hi,
-                                                const std::array<bool, AMREX_SPACEDIM>& periodic)
-    {
-        int i0 = i - 1, i1 = i;
-#if AMREX_SPACEDIM > 1
-        int j0 = j - 1, j1 = j;
-#endif
-#if AMREX_SPACEDIM > 2
-        int k0 = k - 1, k1 = k;
-#endif
-
-        if (!periodic[0])
-        {
-            i0 = i0 < cell_lo.x ? cell_lo.x : (i0 > cell_hi.x ? cell_hi.x : i0);
-            i1 = i1 < cell_lo.x ? cell_lo.x : (i1 > cell_hi.x ? cell_hi.x : i1);
-        }
-#if AMREX_SPACEDIM > 1
-        if (!periodic[1])
-        {
-            j0 = j0 < cell_lo.y ? cell_lo.y : (j0 > cell_hi.y ? cell_hi.y : j0);
-            j1 = j1 < cell_lo.y ? cell_lo.y : (j1 > cell_hi.y ? cell_hi.y : j1);
-        }
-#endif
-#if AMREX_SPACEDIM > 2
-        if (!periodic[2])
-        {
-            k0 = k0 < cell_lo.z ? cell_lo.z : (k0 > cell_hi.z ? cell_hi.z : k0);
-            k1 = k1 < cell_lo.z ? cell_lo.z : (k1 > cell_hi.z ? cell_hi.z : k1);
-        }
-#endif
-
-        const int nx = i0 == i1 ? 1 : 2;
-#if AMREX_SPACEDIM > 1
-        const int ny = j0 == j1 ? 1 : 2;
-#endif
-#if AMREX_SPACEDIM > 2
-        const int nz = k0 == k1 ? 1 : 2;
-#endif
-
-        Set::Scalar sum = 0.0;
-        for (int ii = 0; ii < nx; ++ii)
-        {
-            const int ix = ii == 0 ? i0 : i1;
-#if AMREX_SPACEDIM == 1
-            sum += f(ix, j, k, m);
-#elif AMREX_SPACEDIM == 2
-            for (int jj = 0; jj < ny; ++jj)
-            {
-                const int iy = jj == 0 ? j0 : j1;
-                sum += f(ix, iy, k, m);
-            }
-#else
-            for (int jj = 0; jj < ny; ++jj)
-            {
-                const int iy = jj == 0 ? j0 : j1;
-                for (int kk = 0; kk < nz; ++kk)
-                {
-                    const int iz = kk == 0 ? k0 : k1;
-                    sum += f(ix, iy, iz, m);
-                }
-            }
-#endif
-        }
-
-        const int count = nx
-#if AMREX_SPACEDIM > 1
-            * ny
-#endif
-#if AMREX_SPACEDIM > 2
-            * nz
-#endif
-            ;
-        return sum / static_cast<Set::Scalar>(count);
-    }
-
     template <class T>
     [[nodiscard]]
     AMREX_GPU_HOST_DEVICE

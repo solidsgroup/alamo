@@ -1,0 +1,1 @@
+blocked: focused oracle passed, but full GCC regression review found 13 runtime and 17 numerical-check failures; see FULL_SUITE_REVIEW_20260713.md and REGRESSION_RECOVERY_HANDOFF.md
