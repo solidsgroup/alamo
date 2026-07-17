@@ -574,6 +574,17 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             u0(i,j,k,0) = u0_mag*N(0);
             u0(i,j,k,1) = u0_mag*N(1);
 
+            // De-mix the pure-gas density from the mixed conserved density for
+            // visualization: hydro_density is eta_hydro*rho_gas + (1-eta_hydro)*rho_solid
+            // (Hydro::Mix, using Hydro's fluid=1 convention), so invert that blend.
+            // In cells that are effectively all solid (eta_hydro ~ 0) this is not
+            // well defined; report the solid density there instead of dividing by ~0.
+            Set::Scalar eta_hydro_local = 1.0 - eta(i,j,k);
+            if (eta_hydro_local > small)
+                fluid_density(i,j,k) = (density_gas_tot - (1.0 - eta_hydro_local)*density_solid_tot) / eta_hydro_local;
+            else
+                fluid_density(i,j,k) = density_solid_tot;
+
             // Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
             // Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
             // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
