@@ -31,6 +31,13 @@ class LowMach : virtual public Integrator
 public:
     static constexpr const char* name = "lowmach";
 
+    enum class Mechanics
+    {
+        Fluid,
+        DeformableSolid,
+        RigidSolid
+    };
+
     LowMach() {};
     LowMach(IO::ParmParse& pp);
     static void Parse(LowMach& value, IO::ParmParse& pp);
@@ -64,19 +71,18 @@ protected:
                            const amrex::MultiFab& eta_mf,
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics = false);
-    void UpdateComponentState(int lev, const amrex::MultiFab& T_mf,
-                              const amrex::MultiFab& component_density_mf);
+    void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
              amrex::MultiFab& u_rhs_mf,
              amrex::MultiFab& T_rhs_mf,
              amrex::MultiFab& component_density_rhs_mf,
-             amrex::MultiFab& xi_rhs_mf,
+             amrex::MultiFab* xi_rhs_mf,
              const amrex::MultiFab& u_mf,
              const amrex::MultiFab& T_mf,
              const amrex::MultiFab& component_density_mf,
-             const amrex::MultiFab& xi_mf);
+             const amrex::MultiFab* xi_mf);
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> velocity_old_mf;
@@ -114,8 +120,12 @@ protected:
 
     Model::Gas::Gas gas;
     Model::Solid::Finite::NeoHookean finite_solid_model;
+    // Component fields store species partial densities; mechanics only selects
+    // how each component contributes to the momentum equation.
+    std::vector<Mechanics> species_mechanics;
+    int ngas_species = 0;
     int nspecies = 0;
-    int ncomponents = 0;
+    int deformable_solid_species = -1;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -123,7 +133,6 @@ protected:
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;
-    Set::Scalar thermodynamic_pressure = 100000.0;
     Set::Scalar pressure_scale = 1.0;
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
@@ -136,7 +145,6 @@ protected:
     bool include_viscosity = true;
     bool include_conduction = true;
     bool advect_temperature = true;
-    bool finite_solid_enabled = false;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;

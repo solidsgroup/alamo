@@ -73,6 +73,7 @@ gas.transport.mixture_averaged.type = constant
 gas.transport.mixture_averaged.mu = 1.0e-1_Pa*s
 gas.transport.mixture_averaged.k = 0.02_W/m/K
 gas.eos.type = cpg
+species.mechanics = fluid
 
 cfl = 0.25
 include_viscosity = 1
