@@ -341,16 +341,11 @@ public:
 
         // Per-polygon void flag: nonzero marks a polygon as a void/negative region that is cut out of
         // the solid field instead of being unioned into it. Must have one entry per polygon if given.
-        if (pp.queryarr("invert", value.invert))
-        {
-            Util::AssertException(INFO, TEST(value.invert.size() == value.polygons.size()),
-                "'invert' must have one entry per polygon: expected ", value.polygons.size(),
-                " but got ", value.invert.size());
-        }
-        else
-        {
-            value.invert.assign(value.polygons.size(), 0);
-        }
+        pp.queryarr("invert", value.invert);
+            
+        Util::AssertException(  INFO, TEST(value.invert.size() == value.polygons.size()),
+                                "'invert' must have one entry per polygon: expected ", value.polygons.size(),
+                                " but got ", value.invert.size());
     }
 
 private:
