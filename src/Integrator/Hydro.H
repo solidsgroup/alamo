@@ -216,12 +216,15 @@ protected:
     };
     PrescribedFlowMode prescribedflowmode;
 
+    enum class FluxScheme {
+        Riemann, Advect
+    };
+    FluxScheme flux_scheme = FluxScheme::Riemann;
 
     Set::Vector g;
 
     bool managed = false;
     bool invert = false;
-    bool use_advect = true;
 
     std::vector<bool> mixed;
 

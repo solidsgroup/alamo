@@ -276,6 +276,24 @@ struct Flux {
 
 };
 
+struct FluxDivergence {
+    std::array<Set::Scalar, NSPECIES> mass;
+    Set::Vector momentum;
+    Set::Scalar energy = 0.0;
+
+    FluxDivergence()
+        : momentum(Set::Vector::Zero())
+    {
+        mass.fill(0.0);
+    }
+
+    FluxDivergence(
+        std::array<Set::Scalar, NSPECIES> a_mass,
+        Set::Vector a_momentum,
+        Set::Scalar a_energy)
+        : mass(a_mass), momentum(a_momentum), energy(a_energy) {}
+};
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Scalar ComputeStateTemperature(
     Model::Gas::Gas& gas,
@@ -300,6 +318,77 @@ class Riemann
 {
 public:
     virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) = 0;
+
+    FluxDivergence ComputeFluxDivergence(
+        const State& xlo, const State& x, const State& xhi,
+        const State& ylo, const State& y, const State& yhi,
+#if AMREX_SPACEDIM == 3
+        const State& zlo, const State& z, const State& zhi,
+#endif
+        Model::Gas::Gas& gas,
+        Set::Patch<const Set::Scalar>& X,
+        int i,
+        int j,
+        int k,
+        Set::Scalar eta,
+        const Set::Scalar* DX,
+        Set::Scalar small)
+    {
+        Flux flux_xlo = Solve(xlo, x, gas, X, i, j, k, 0, small) * eta;
+        Flux flux_xhi = Solve(x, xhi, gas, X, i, j, k, 1, small) * eta;
+        Flux flux_ylo = Solve(ylo, y, gas, X, i, j, k, 2, small) * eta;
+        Flux flux_yhi = Solve(y, yhi, gas, X, i, j, k, 3, small) * eta;
+#if AMREX_SPACEDIM == 3
+        Flux flux_zlo = Solve(zlo, z, gas, X, i, j, k, 4, small) * eta;
+        Flux flux_zhi = Solve(z, zhi, gas, X, i, j, k, 5, small) * eta;
+#endif
+
+        FluxDivergence result;
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            result.mass[n] =
+                (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
+                (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1]
+#if AMREX_SPACEDIM == 3
+                + (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2]
+#endif
+                ;
+        }
+
+        result.momentum(0) =
+            (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
+            (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1]
+#if AMREX_SPACEDIM == 3
+            + (flux_zlo.momentum_tangent - flux_zhi.momentum_tangent) / DX[2]
+#endif
+            ;
+
+        result.momentum(1) =
+            (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
+            (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1]
+#if AMREX_SPACEDIM == 3
+            + (flux_zlo.momentum_tangent2 - flux_zhi.momentum_tangent2) / DX[2]
+#endif
+            ;
+
+#if AMREX_SPACEDIM == 3
+        result.momentum(2) =
+            (flux_xlo.momentum_tangent2 - flux_xhi.momentum_tangent2) / DX[0] +
+            (flux_ylo.momentum_tangent2 - flux_yhi.momentum_tangent2) / DX[1] +
+            (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2];
+#endif
+
+        result.energy =
+            (flux_xlo.energy - flux_xhi.energy) / DX[0] +
+            (flux_ylo.energy - flux_yhi.energy) / DX[1]
+#if AMREX_SPACEDIM == 3
+            + (flux_zlo.energy - flux_zhi.energy) / DX[2]
+#endif
+            ;
+
+        return result;
+    }
+
     virtual ~Riemann() = default;
 };
 

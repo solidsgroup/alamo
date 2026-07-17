@@ -1,7 +1,8 @@
 alamo.program = flame
 system.time = s
 
-hydro.advection.type = muscl
+#hydro.flux_scheme = advect
+#hydro.advection.type = muscl
 
 ### AMR and output parameters ###
 # Domain / mesh ported from input.sandwich_rocfire (finer mesh, larger domain)
@@ -174,7 +175,7 @@ hydro.gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
 ### elasticity ###
 elastic.type = disable
 
-hydro.gas.eos.type = tpg
+hydro.gas.eos.type = cpg
 
 ### CHEMISTRY (ported from input.sandwich_rocfire) ###
 # hydro.chemistry.type = frozen

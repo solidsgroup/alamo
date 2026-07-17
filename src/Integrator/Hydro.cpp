@@ -126,27 +126,106 @@ namespace
                                 Numeric::StencilType::Central) };
     }
 
-    // Compute the fluid state by removing the solid contribution from the mixed state.
-    // If cutoff is configured, treat lower-eta cells as solid for the fluid solve.
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Solver::Local::Riemann::State ReconstructFluidState(
-        const Solver::Local::Riemann::State& mixed,
-        const Solver::Local::Riemann::State& solid,
-        Set::Scalar eta_raw,
-        bool invert,
-        Set::Scalar small,
-        Set::Scalar cutoff)
+    int OutsideDirection(
+        int i, int j, int k,
+        int xlo, int xhi,
+        int ylo, int yhi,
+        int zlo, int zhi)
     {
-        const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
-        if (invert)
+        int dir = -1;
+        if (i < xlo || i > xhi) dir = 0;
+#if AMREX_SPACEDIM >= 2
+        if (j < ylo || j > yhi)
         {
-            const Set::Scalar eta_fluid = 1.0 - eta_raw;
-            if (eta_fluid <= eta_cutoff) return solid;
-            return (mixed - eta_raw * solid) / (eta_fluid + small);
+            if (dir >= 0) return -2;
+            dir = 1;
         }
+#endif
+#if AMREX_SPACEDIM == 3
+        if (k < zlo || k > zhi)
+        {
+            if (dir >= 0) return -2;
+            dir = 2;
+        }
+#else
+        (void)k; (void)zlo; (void)zhi;
+#endif
+        return dir;
+    }
 
-        if (eta_raw <= eta_cutoff) return solid;
-        return (mixed - (1.0 - eta_raw) * solid) / (eta_raw + small);
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    int OutsideDistance(
+        int i, int j, int k,
+        int xlo, int xhi,
+        int ylo, int yhi,
+        int zlo, int zhi,
+        int dir)
+    {
+        if (dir == 0) return i < xlo ? xlo - i : i - xhi;
+#if AMREX_SPACEDIM >= 2
+        if (dir == 1) return j < ylo ? ylo - j : j - yhi;
+#endif
+#if AMREX_SPACEDIM == 3
+        if (dir == 2) return k < zlo ? zlo - k : k - zhi;
+#else
+        (void)k; (void)zlo; (void)zhi;
+#endif
+        return 0;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    bool IsValidAxisGhostOrCornerWithin(
+        int i, int j, int k,
+        int xlo, int xhi,
+        int ylo, int yhi,
+        int zlo, int zhi,
+        int axis_depth,
+        int corner_depth)
+    {
+        int outside = 0;
+        int max_distance = 0;
+        if (i < xlo || i > xhi)
+        {
+            ++outside;
+            const int distance = i < xlo ? xlo - i : i - xhi;
+            if (distance > max_distance) max_distance = distance;
+        }
+#if AMREX_SPACEDIM >= 2
+        if (j < ylo || j > yhi)
+        {
+            ++outside;
+            const int distance = j < ylo ? ylo - j : j - yhi;
+            if (distance > max_distance) max_distance = distance;
+        }
+#endif
+#if AMREX_SPACEDIM == 3
+        if (k < zlo || k > zhi)
+        {
+            ++outside;
+            const int distance = k < zlo ? zlo - k : k - zhi;
+            if (distance > max_distance) max_distance = distance;
+        }
+#else
+        (void)k; (void)zlo; (void)zhi;
+#endif
+        if (outside == 0) return true;
+        if (outside == 1) return max_distance <= axis_depth;
+        return max_distance <= corner_depth;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    bool IsValidOrAxisGhostWithin(
+        int i, int j, int k,
+        int xlo, int xhi,
+        int ylo, int yhi,
+        int zlo, int zhi,
+        int max_depth)
+    {
+        const int dir = OutsideDirection(i, j, k, xlo, xhi, ylo, yhi, zlo, zhi);
+        if (dir == -2) return false;
+        if (dir < 0) return true;
+        return OutsideDistance(i, j, k, xlo, xhi, ylo, yhi, zlo, zhi, dir) <= max_depth;
     }
 
 }
@@ -185,6 +264,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                   Numeric::Advect::Centered,
                   Numeric::Advect::QUICK,
                   Numeric::Advect::WENO5>("advection",value.advect);
+
+        std::string flux_scheme_str;
+        pp.query_validate("flux_scheme", flux_scheme_str, {"riemann","advect"});
+        if (flux_scheme_str == "riemann") value.flux_scheme = FluxScheme::Riemann;
+        else if (flux_scheme_str == "advect") value.flux_scheme = FluxScheme::Advect;
 
         pp.forbid("scheme","use integration.type instead");
 
@@ -226,7 +310,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = value.advect.NGhost();
+        int nghost = value.flux_scheme == FluxScheme::Advect ? value.advect.NGhost() : 1;
 
         if (!value.managed)
         {
@@ -987,22 +1071,27 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
     ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
 
-    int nghost = advect.NGhost();
+    int nghost = flux_scheme == FluxScheme::Advect ? advect.NGhost() : 1;
+    int primitive_nghost = nghost < 2 ? nghost : 2;
+    int diffusion_nghost = 1;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
-    amrex::MultiFab rho_sum_mf(ba,dm,1,nghost);             // sum_k[rhoY_k]
-    amrex::MultiFab mixed_k_mf(ba,dm,1,nghost);             // mixture averaged thermal conductivity coefficient
-    amrex::MultiFab mixed_kT_mf(ba,dm,AMREX_SPACEDIM,nghost);  // mixture averaged thermal conductivity * temperature gradient
-    amrex::MultiFab mixed_mu_mf(ba,dm,1,nghost);            // mixture averaged dynamic viscosity
-    amrex::MultiFab mixed_H_mf(ba,dm,1,nghost);             // Perfect gas mixture enthalpy, H=cp_mix*T
-    amrex::MultiFab DKM_mf(ba,dm,NSPECIES,nghost);      // Diffusion coefficent for species k into mixture
-    amrex::MultiFab rhoHDYx_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dx
-    amrex::MultiFab rhoHDYy_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dy
-    amrex::MultiFab rhoDYx_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dx
-    amrex::MultiFab rhoDYy_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dy
+    amrex::MultiFab rho_fluid_mf(ba,dm,NSPECIES,nghost);    // fluid species densities
+    amrex::MultiFab M_fluid_mf(ba,dm,AMREX_SPACEDIM,nghost); // fluid momentum
+    amrex::MultiFab E_fluid_mf(ba,dm,1,nghost);              // fluid energy
+    amrex::MultiFab rho_sum_mf(ba,dm,1,primitive_nghost);             // sum_k[rhoY_k]
+    amrex::MultiFab mixed_k_mf(ba,dm,1,primitive_nghost);             // mixture averaged thermal conductivity coefficient
+    amrex::MultiFab mixed_kT_mf(ba,dm,AMREX_SPACEDIM,diffusion_nghost);  // mixture averaged thermal conductivity * temperature gradient
+    amrex::MultiFab mixed_mu_mf(ba,dm,1,primitive_nghost);            // mixture averaged dynamic viscosity
+    amrex::MultiFab mixed_H_mf(ba,dm,1,primitive_nghost);             // Perfect gas mixture enthalpy, H=cp_mix*T
+    amrex::MultiFab DKM_mf(ba,dm,NSPECIES,primitive_nghost);      // Diffusion coefficent for species k into mixture
+    amrex::MultiFab rhoHDYx_mf(ba,dm,NSPECIES,diffusion_nghost);  // species enthalpy diffusion, rho*H*D*dY/dx
+    amrex::MultiFab rhoHDYy_mf(ba,dm,NSPECIES,diffusion_nghost);  // species enthalpy diffusion, rho*H*D*dY/dy
+    amrex::MultiFab rhoDYx_mf(ba,dm,NSPECIES,diffusion_nghost);   // Fickian diffusion, rho*D*dY/dx
+    amrex::MultiFab rhoDYy_mf(ba,dm,NSPECIES,diffusion_nghost);   // Fickian diffusion, rho*D*dY/dy
     #if AMREX_SPACEDIM == 3
-    amrex::MultiFab rhoHDYz_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dz
-    amrex::MultiFab rhoDYz_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dz
+    amrex::MultiFab rhoHDYz_mf(ba,dm,NSPECIES,diffusion_nghost);  // species enthalpy diffusion, rho*H*D*dY/dz
+    amrex::MultiFab rhoDYz_mf(ba,dm,NSPECIES,diffusion_nghost);   // Fickian diffusion, rho*D*dY/dz
     #endif
 
     // Values only to be written if details=true
@@ -1076,6 +1165,10 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box valid_bx = mfi.validbox();
+        const auto valid_lo = amrex::lbound(valid_bx);
+        const auto valid_hi = amrex::ubound(valid_bx);
+        const int first_pass_ghost_depth = primitive_nghost;
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
@@ -1094,6 +1187,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar>       rho_fluid = rho_fluid_mf.array(mfi);
+        Set::Patch<Set::Scalar>       M_fluid   = M_fluid_mf.array(mfi);
+        Set::Patch<Set::Scalar>       E_fluid   = E_fluid_mf.array(mfi);
         Set::Patch<Set::Scalar>       DKM       = DKM_mf.array(mfi);
         Set::Patch<Set::Scalar>       rho_sum   = rho_sum_mf.array(mfi);
         Set::Patch<Set::Scalar>       mixed_k   = mixed_k_mf.array(mfi);
@@ -1121,18 +1217,29 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         // First ParallelFor loop to get initial values needed for gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            if (!IsValidAxisGhostOrCornerWithin(
+                    i, j, k,
+                    valid_lo.x, valid_hi.x,
+                    valid_lo.y, valid_hi.y,
+                    valid_lo.z, valid_hi.z,
+                    first_pass_ghost_depth,
+                    1))
+            {
+                return;
+            }
+
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
             const Set::Scalar eta_cutoff = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
-            // Reconstruct the gas state from the mixed conserved state before
-            // computing any primitive or transport quantity.
+            // Recover the gas state once before computing primitive or
+            // transport quantities; the flux branches reuse these fields.
             std::array<Set::Scalar, NSPECIES> rhoY_fluid;
             Set::Scalar Mx_fluid = 0.0;
             Set::Scalar My_fluid = 0.0;
             #if AMREX_SPACEDIM == 3
             Set::Scalar Mz_fluid = 0.0;
             #endif
-            Set::Scalar E_fluid = 0.0;
+            Set::Scalar Ef_fluid = 0.0;
             if (eta <= eta_cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
@@ -1141,7 +1248,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 #if AMREX_SPACEDIM == 3
                 Mz_fluid = M_solid(i,j,k,2);
                 #endif
-                E_fluid = E_solid(i,j,k);
+                Ef_fluid = E_solid(i,j,k);
             }
             else
             {
@@ -1154,18 +1261,29 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 #if AMREX_SPACEDIM == 3
                 Mz_fluid = (M(i,j,k,2) - M_solid(i,j,k,2)*(1.0 - eta))/(eta + small);
                 #endif
-                E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
+                Ef_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
             }
+
             ProjectSpeciesDensities(rhoY_fluid, i, j, k);
-            for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                scratch(i,j,k,n) = rhoY_fluid[n];
+                rho_fluid(i,j,k,n) = rhoY_fluid[n];
+            }
+            M_fluid(i,j,k,0) = Mx_fluid;
+            M_fluid(i,j,k,1) = My_fluid;
+            #if AMREX_SPACEDIM == 3
+            M_fluid(i,j,k,2) = Mz_fluid;
+            #endif
+            E_fluid(i,j,k) = Ef_fluid;
 
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
 
             gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             #if AMREX_SPACEDIM == 2
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
             #elif AMREX_SPACEDIM == 3
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
             #endif
             p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
 
@@ -1180,9 +1298,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 v(i,j,k,0) *= eta;
                 v(i,j,k,1) *= eta;
 
-                #if AMREX_SPACEDIM == 3
-                    v(i,j,k,2) *= eta;
-                #endif
+            #if AMREX_SPACEDIM == 3
+                v(i,j,k,2) *= eta;
+            #endif
             }
 
             rho_sum(i,j,k) = density_fluid;
@@ -1202,28 +1320,76 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         // Second ParallelFor loop to get first gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i,j,k,bx);
-            for (int n=0; n<NSPECIES; ++n)
+            if (!IsValidOrAxisGhostWithin(
+                    i, j, k,
+                    valid_lo.x, valid_hi.x,
+                    valid_lo.y, valid_hi.y,
+                    valid_lo.z, valid_hi.z,
+                    1))
             {
-                Set::Vector grad_Y = Numeric::Gradient(Y,i,j,k,n,DX,sten);
-                rhoHDYx(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Y(0);
-                rhoHDYy(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Y(1);
-                rhoDYx(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Y(0);
-                rhoDYy(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Y(1);
-                #if AMREX_SPACEDIM == 3
-                rhoHDYz(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Y(2);
-                rhoDYz(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Y(2);
-                #endif
+                return;
             }
-            Set::Vector gradT = Numeric::Gradient(T,i,j,k,0,DX,sten);
-            mixed_kT(i,j,k,0)       = mixed_k(i,j,k)*gradT(0);
-            mixed_kT(i,j,k,1)       = mixed_k(i,j,k)*gradT(1);
-            #if AMREX_SPACEDIM == 3
-            mixed_kT(i,j,k,2)       = mixed_k(i,j,k)*gradT(2);
-            #endif
+
+            const int outside_dir = OutsideDirection(
+                i, j, k,
+                valid_lo.x, valid_hi.x,
+                valid_lo.y, valid_hi.y,
+                valid_lo.z, valid_hi.z);
+            auto sten = Numeric::GetStencil(i,j,k,bx);
+
+            auto compute_x = [&]() AMREX_GPU_DEVICE
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    Set::Scalar grad_Yx = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(Y,i,j,k,n,DX,sten);
+                    rhoHDYx(i,j,k,n) = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Yx;
+                    rhoDYx(i,j,k,n)  = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Yx;
+                }
+                Set::Scalar grad_Tx = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(T,i,j,k,0,DX,sten);
+                mixed_kT(i,j,k,0) = mixed_k(i,j,k)*grad_Tx;
+            };
+
+#if AMREX_SPACEDIM >= 2
+            auto compute_y = [&]() AMREX_GPU_DEVICE
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    Set::Scalar grad_Yy = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(Y,i,j,k,n,DX,sten);
+                    rhoHDYy(i,j,k,n) = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Yy;
+                    rhoDYy(i,j,k,n)  = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Yy;
+                }
+                Set::Scalar grad_Ty = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(T,i,j,k,0,DX,sten);
+                mixed_kT(i,j,k,1) = mixed_k(i,j,k)*grad_Ty;
+            };
+#endif
+
+#if AMREX_SPACEDIM == 3
+            auto compute_z = [&]() AMREX_GPU_DEVICE
+            {
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    Set::Scalar grad_Yz = Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(Y,i,j,k,n,DX,sten);
+                    rhoHDYz(i,j,k,n) = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Yz;
+                    rhoDYz(i,j,k,n)  = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Yz;
+                }
+                Set::Scalar grad_Tz = Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(T,i,j,k,0,DX,sten);
+                mixed_kT(i,j,k,2) = mixed_k(i,j,k)*grad_Tz;
+            };
+#endif
+
+            if (outside_dir < 0 || outside_dir == 0) compute_x();
+#if AMREX_SPACEDIM >= 2
+            if (outside_dir < 0 || outside_dir == 1) compute_y();
+#endif
+#if AMREX_SPACEDIM == 3
+            if (outside_dir < 0 || outside_dir == 2) compute_z();
+#endif
         });
     }
 
+    density_bc->FillBoundary(rho_fluid_mf, 0, NSPECIES, time, 0);
+    momentum_bc->FillBoundary(M_fluid_mf, 0, AMREX_SPACEDIM, time, 0);
+    energy_bc->FillBoundary(E_fluid_mf, 0, 1, time, 0);
     rho_sum_mf.FillBoundary(true);
     mixed_kT_mf.FillBoundary(true);
     rhoHDYx_mf.FillBoundary(true);
@@ -1236,6 +1402,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     #endif
 
     const auto advect_op = advect;
+    // Advect returns -u.grad(phi); Hydro adds the conservative and pressure
+    // terms needed by the conserved-variable RHS below.
     const Numeric::Advect::Options advective_options{Numeric::Advect::Form::Advective};
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
@@ -1271,6 +1439,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<const Set::Scalar> pressure  = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> temp      = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> scratch   = scratch_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> rho_fluid = rho_fluid_mf.array(mfi);
+        Set::Patch<const Set::Scalar> M_fluid   = M_fluid_mf.array(mfi);
+        Set::Patch<const Set::Scalar> E_fluid   = E_fluid_mf.array(mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -1329,8 +1500,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
             #endif
             // The cell-centered eta flux scaling omits the advective
-            // F dot grad(eta) term. Add it for transported conserved quantities
-            // only; pressure remains handled by the Riemann flux.
+            // F dot grad(eta) term. Add it for transported conserved quantities.
             Set::Scalar eta_transport_weight = cutoff_enabled ? 1.0 - cutoff : 1.0;
             Set::Scalar eta_transport_rate = source_delta > 0.0 ? eta_transport_weight * u.dot(grad_eta) : 0.0;
 
@@ -1339,12 +1509,17 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Matrix hess_rho     = Numeric::Hessian(rho_sum,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho_sum(i,j,k);
 
-            Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX, sten);
-            Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX, sten);
-            #if AMREX_SPACEDIM == 3
-            Set::Vector grad_mixed_kTz  = Numeric::Gradient(mixed_kT,i,j,k,2,DX, sten);
-            #endif
-            // Gradients of rhoHDY and rhoDY are computed for individual species in for loops later
+            Set::Scalar div_mixed_kT =
+                Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(mixed_kT,i,j,k,0,DX,sten)
+#if AMREX_SPACEDIM >= 2
+                + Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(mixed_kT,i,j,k,1,DX,sten)
+#endif
+#if AMREX_SPACEDIM == 3
+                + Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(mixed_kT,i,j,k,2,DX,sten)
+#endif
+                ;
+            // Species diffusion divergences are computed direction-by-direction
+            // below so transverse ghost-line values are not read.
 
             if (prescribedflowmode == PrescribedFlowMode::Relative)
             {
@@ -1412,81 +1587,39 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
                         }
 
-            //Godunov flux
-            //states of total fields
-            const int X = 0, Y = 1;
+            Set::Scalar E_fluid_transport = E_fluid(i,j,k);
+
+            // Transport flux
+            Solver::Local::Riemann::FluxDivergence transport_flux;
+            if (flux_scheme == FluxScheme::Riemann)
+            {
+                const int X = 0, Y = 1;
 #if AMREX_SPACEDIM == 3
-            const int Z = 2;
+                const int Z = 2;
 #endif
 
-//            if (use_advect == 0) {
-                Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
-                Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X);
-                Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
-    
-                Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
-                Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
-                Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
+                Solver::Local::Riemann::State state_xlo_fluid(rho_fluid, M_fluid, E_fluid, i-1, j, k, X);
+                Solver::Local::Riemann::State state_x_fluid  (rho_fluid, M_fluid, E_fluid, i  , j, k, X);
+                Solver::Local::Riemann::State state_xhi_fluid(rho_fluid, M_fluid, E_fluid, i+1, j, k, X);
+
+                Solver::Local::Riemann::State state_ylo_fluid(rho_fluid, M_fluid, E_fluid, i, j-1, k, Y);
+                Solver::Local::Riemann::State state_y_fluid  (rho_fluid, M_fluid, E_fluid, i, j  , k, Y);
+                Solver::Local::Riemann::State state_yhi_fluid(rho_fluid, M_fluid, E_fluid, i, j+1, k, Y);
 #if AMREX_SPACEDIM == 3
-                Solver::Local::Riemann::State state_zlo(rho, M, E, i, j, k-1, Z);
-                Solver::Local::Riemann::State state_z  (rho, M, E, i, j, k  , Z);
-                Solver::Local::Riemann::State state_zhi(rho, M, E, i, j, k+1, Z);
+                Solver::Local::Riemann::State state_zlo_fluid(rho_fluid, M_fluid, E_fluid, i, j, k-1, Z);
+                Solver::Local::Riemann::State state_z_fluid  (rho_fluid, M_fluid, E_fluid, i, j, k  , Z);
+                Solver::Local::Riemann::State state_zhi_fluid(rho_fluid, M_fluid, E_fluid, i, j, k+1, Z);
 #endif
-    
-                //states of solid fields
-                Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X);
-                Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, i  , j, k, X);
-                Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, i+1, j, k, X);
-    
-                Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y);
-                Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y);
-                Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y);
-#if AMREX_SPACEDIM == 3
-                Solver::Local::Riemann::State state_zlo_solid(rho_solid, M_solid, E_solid, i, j, k-1, Z);
-                Solver::Local::Riemann::State state_z_solid  (rho_solid, M_solid, E_solid, i, j, k  , Z);
-                Solver::Local::Riemann::State state_zhi_solid(rho_solid, M_solid, E_solid, i, j, k+1, Z);
-    #endif
-    
-                Solver::Local::Riemann::State state_x_fluid =
-                    ReconstructFluidState(state_x, state_x_solid, eta_patch(i,j,k), invert, small, cutoff);
-                Solver::Local::Riemann::State state_y_fluid =
-                    ReconstructFluidState(state_y, state_y_solid, eta_patch(i,j,k), invert, small, cutoff);
-#if AMREX_SPACEDIM == 3
-                Solver::Local::Riemann::State state_z_fluid =
-                    ReconstructFluidState(state_z, state_z_solid, eta_patch(i,j,k), invert, small, cutoff);
-#endif
-    
-                Solver::Local::Riemann::State state_xlo_fluid =
-                    ReconstructFluidState(state_xlo, state_xlo_solid, eta_patch(i-1,j,k), invert, small, cutoff);
-                Solver::Local::Riemann::State state_xhi_fluid =
-                    ReconstructFluidState(state_xhi, state_xhi_solid, eta_patch(i+1,j,k), invert, small, cutoff);
-                Solver::Local::Riemann::State state_ylo_fluid =
-                    ReconstructFluidState(state_ylo, state_ylo_solid, eta_patch(i,j-1,k), invert, small, cutoff);
-                Solver::Local::Riemann::State state_yhi_fluid =
-                    ReconstructFluidState(state_yhi, state_yhi_solid, eta_patch(i,j+1,k), invert, small, cutoff);
-#if AMREX_SPACEDIM == 3
-                Solver::Local::Riemann::State state_zlo_fluid =
-                    ReconstructFluidState(state_zlo, state_zlo_solid, eta_patch(i,j,k-1), invert, small, cutoff);
-                Solver::Local::Riemann::State state_zhi_fluid =
-                    ReconstructFluidState(state_zhi, state_zhi_solid, eta_patch(i,j,k+1), invert, small, cutoff);
-#endif
-    
-                Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
-#if AMREX_SPACEDIM == 3
-                Solver::Local::Riemann::Flux flux_zlo, flux_zhi;
-#endif
-    
+
                 try
                 {
-                    flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
-                    flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
-    
-                    flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
-                    flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+                    transport_flux = riemannsolver->ComputeFluxDivergence(
+                        state_xlo_fluid, state_x_fluid, state_xhi_fluid,
+                        state_ylo_fluid, state_y_fluid, state_yhi_fluid,
 #if AMREX_SPACEDIM == 3
-                    flux_zlo = riemannsolver->Solve(state_zlo_fluid, state_z_fluid, gas, molef, i, j, k, 4, small) * eta;
-                    flux_zhi = riemannsolver->Solve(state_z_fluid, state_zhi_fluid, gas, molef, i, j, k, 5, small) * eta;
+                        state_zlo_fluid, state_z_fluid, state_zhi_fluid,
 #endif
+                        gas, molef, i, j, k, eta, DX, small);
                 }
                 catch(...)
                 {
@@ -1494,52 +1627,60 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     Util::ParallelMessage(INFO,"i=",i,"j=",j,"k=",k);
                     Util::Abort(INFO);
                 }
+            }
+            else if (flux_scheme == FluxScheme::Advect)
+            {
+                Set::Matrix grad_velocity = Numeric::Gradient(velocity, i, j, k, DX, sten);
+                Set::Scalar div_velocity = 0.0;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d) div_velocity += grad_velocity(d,d);
 
-//            }
-//            else
-//            {
-                std::array<Set::Scalar, NSPECIES> adv_mass;
+                Set::Vector grad_pressure = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+                Set::Scalar pressure_work =
+                    u.dot(grad_pressure) + pressure(i,j,k) * div_velocity;
+
                 for (int n=0; n<NSPECIES; ++n)
                 {
-                    adv_mass[n] = advect_op.Scalar(rho, velocity, i, j, k, n, DX, advective_options, sten);
+                    transport_flux.mass[n] = eta * (
+                        advect_op.Scalar(rho_fluid, velocity, i, j, k, n, DX, advective_options, sten) -
+                        rho_fluid(i,j,k,n) * div_velocity);
                 }
-                Set::Vector adv_mom = advect_op.Vector(M, velocity, i, j, k, 0, DX, advective_options, sten);
-                Set::Scalar adv_energy = advect_op.Scalar(E, velocity, i, j, k, 0, DX, advective_options, sten);
-//            }
+                transport_flux.momentum = eta * (
+                    advect_op.Vector(M_fluid, velocity, i, j, k, 0, DX, advective_options, sten) -
+                    rho_sum(i,j,k) * u * div_velocity -
+                    grad_pressure);
+                transport_flux.energy = eta * (
+                    advect_op.Scalar(E_fluid, velocity, i, j, k, 0, DX, advective_options, sten) -
+                    E_fluid_transport * div_velocity -
+                    pressure_work);
+            }
+            else
+            {
+                Util::Abort(INFO, "Unknown Hydro flux scheme");
+            }
 
             const int momentum_source_comp = NSPECIES;
             const int energy_source_comp = NSPECIES + AMREX_SPACEDIM;
-            Set::Scalar E_fluid_transport = E_solid(i,j,k);
-            if (eta > eta_cutoff)
-            {
-                E_fluid_transport = (E(i,j,k) - E_solid(i,j,k) * (1.0 - eta)) / (eta + small);
-            }
             std::array<Set::Scalar, NSPECIES> drhof_dt_hydro;
             for (int n=0; n<NSPECIES; ++n)
             {
                 Source(i,j, k, n) = mdot0[n];
                 drhof_dt_hydro[n] =
-//                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
-//                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
-//#if AMREX_SPACEDIM == 3
-//                    (flux_zlo.mass[n] - flux_zhi.mass[n]) / DX[2] +
-//#endif
-                    adv_mass[n] +
+                    transport_flux.mass[n] +
                     Source(i, j, k, n) -
                     scratch(i,j,k,n) * eta_transport_rate;
                 if (NSPECIES > 1)
                 {
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
-                    Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX,sten);
-                    Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX,sten);
-#if AMREX_SPACEDIM == 3
-                    Set::Vector grad_rhoDYz     = Numeric::Gradient(rhoDYz,i,j,k,n,DX,sten);
+                    Set::Scalar div_rhoDY =
+                        Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(rhoDYx,i,j,k,n,DX,sten)
+#if AMREX_SPACEDIM >= 2
+                        + Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(rhoDYy,i,j,k,n,DX,sten)
 #endif
-                    drhof_dt_hydro[n] += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]
 #if AMREX_SPACEDIM == 3
-                        + grad_rhoDYz[2]
+                        + Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(rhoDYz,i,j,k,n,DX,sten)
 #endif
-                    );
+                        ;
+                    drhof_dt_hydro[n] += eta * div_rhoDY;
                 }
             }
 
@@ -1602,12 +1743,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             }
 
             Set::Scalar dMxf_dt =
-//                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
-//                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-//#if AMREX_SPACEDIM == 3
-//                (flux_zlo.momentum_tangent - flux_zhi.momentum_tangent) / DX[2] +
-//#endif
-                adv_mom(0) +
+                transport_flux.momentum(0) +
                 div_tau(0) * eta +
                 g(0)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp) -
@@ -1623,12 +1759,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 ;
 
             Set::Scalar dMyf_dt =
-//                (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
-//                (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-//#if AMREX_SPACEDIM == 3
-//                (flux_zlo.momentum_tangent2 - flux_zhi.momentum_tangent2) / DX[2] +
-//#endif
-                adv_mom(1) +
+                transport_flux.momentum(1) +
                 div_tau(1) * eta +
                 g(1)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp+1) -
@@ -1645,10 +1776,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
 #if AMREX_SPACEDIM == 3
             Set::Scalar dMzf_dt =
-//                (flux_xlo.momentum_tangent2 - flux_xhi.momentum_tangent2) / DX[0] +
-//                (flux_ylo.momentum_tangent2 - flux_yhi.momentum_tangent2) / DX[1] +
-//                (flux_zlo.momentum_normal   - flux_zhi.momentum_normal  ) / DX[2] +
-                adv_mom(2) +
+                transport_flux.momentum(2) +
                 div_tau(2) * eta +
                 g(2)*rho_sum(i,j,k) +
                 Source(i, j, k, momentum_source_comp+2) -
@@ -1661,17 +1789,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 #endif
 
             Set::Scalar dEf_dt =
-//                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
-//                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-//#if AMREX_SPACEDIM == 3
-//                (flux_zlo.energy - flux_zhi.energy) / DX[2] +
-//#endif
-                adv_energy +
-                eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1]
-#if AMREX_SPACEDIM == 3
-                + grad_mixed_kTz[2]
-#endif
-                )) +
+                transport_flux.energy +
+                eta * (div_tau.dot(u) + div_mixed_kT) +
                 rho_sum(i,j,k)*g.dot(u) +
                 Source(i, j, k, energy_source_comp) +
                 eta * qdot -
@@ -1682,16 +1801,16 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 for (int n=0; n<NSPECIES; ++n)
                 {
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
-                    Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX,sten);
-                    Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX,sten);
-#if AMREX_SPACEDIM == 3
-                    Set::Vector grad_rhoHDYz     = Numeric::Gradient(rhoHDYz,i,j,k,n,DX,sten);
+                    Set::Scalar div_rhoHDY =
+                        Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(rhoHDYx,i,j,k,n,DX,sten)
+#if AMREX_SPACEDIM >= 2
+                        + Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(rhoHDYy,i,j,k,n,DX,sten)
 #endif
-                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]
 #if AMREX_SPACEDIM == 3
-                        + grad_rhoHDYz[2]
+                        + Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(rhoHDYz,i,j,k,n,DX,sten)
 #endif
-                    );
+                        ;
+                    dEf_dt += eta * div_rhoHDY;
                 }
             }
 
@@ -1718,25 +1837,13 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Util::ParallelMessage(INFO,"lev=",lev);
                 Util::ParallelMessage(INFO,"i=",i," j=",j);
                 //Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
-                //Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
-                //Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, eta, small
-                //Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
-                //Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
                 Util::ParallelMessage(INFO,"eta ",eta);
                 Util::ParallelMessage(INFO,"etadot ",etadot(i,j,k));
                 Util::ParallelMessage(INFO,"Source ",Source(i,j,k,0));
-                Util::ParallelMessage(INFO,"state_x ",state_x); // <<<<
-                Util::ParallelMessage(INFO,"state_y ",state_y);
-                Util::ParallelMessage(INFO,"state_x_solid ",state_x_solid); // <<<<
-                Util::ParallelMessage(INFO,"state_y_solid ",state_y_solid);
-                Util::ParallelMessage(INFO,"state_xhi ",state_xhi); // <<<<
-                Util::ParallelMessage(INFO,"state_yhi ",state_yhi);
-                Util::ParallelMessage(INFO,"state_xhi_solid ",state_xhi_solid);
-                Util::ParallelMessage(INFO,"state_yhi_solids ",state_yhi_solid);
-                Util::ParallelMessage(INFO,"state_xlo ",state_xlo);
-                Util::ParallelMessage(INFO,"state_ylo ",state_ylo);
-                Util::ParallelMessage(INFO,"state_xlo_solid ",state_xlo_solid);
-                Util::ParallelMessage(INFO,"state_ylo_solid ",state_ylo_solid);
+                Util::ParallelMessage(INFO,"transport mass[0] ",transport_flux.mass[0]);
+                Util::ParallelMessage(INFO,"transport Mx ",transport_flux.momentum(0));
+                Util::ParallelMessage(INFO,"transport My ",transport_flux.momentum(1));
+                Util::ParallelMessage(INFO,"transport E ",transport_flux.energy);
 
                 Util::ParallelMessage(INFO,"Mx_solid ",M_solid(i,j,k,0));
                 Util::ParallelMessage(INFO,"My_solid ",M_solid(i,j,k,1));
@@ -1747,11 +1854,11 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 Util::ParallelMessage(INFO,"dMy/dt ",dMyf_dt);
 
 
-                Util::Message(INFO,flux_xlo.momentum_tangent);
-                Util::Message(INFO,flux_xhi.momentum_tangent);
+                Util::Message(INFO,transport_flux.momentum(0));
+                Util::Message(INFO,transport_flux.momentum(1));
                 Util::Message(INFO,DX[0]);
-                Util::Message(INFO,flux_ylo.momentum_normal);
-                Util::Message(INFO,flux_yhi.momentum_normal);
+                Util::Message(INFO,transport_flux.energy);
+                Util::Message(INFO,transport_flux.mass[0]);
                 Util::Message(INFO,DX[1]);
                 Util::Message(INFO,div_tau);
                 Util::Message(INFO,Source(i, j, k, 2));
