@@ -272,7 +272,6 @@ void AlamoPrintResidualDiagMF(const char* label, int call, int amrlev, int mglev
 
 namespace Operator {
 
-// constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
 constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx, Operator<Grid::Cell>::dy, Operator<Grid::Cell>::dz);
 
 void Operator<Grid::Node>::Diagonal(bool recompute)
@@ -293,7 +292,6 @@ void Operator<Grid::Node>::Diagonal(bool recompute)
 void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag)
 {
     BL_PROFILE("Operator::Diagonal()");
-    //Util::Message(INFO);
 
     int ncomp = diag.nComp();
     int nghost = 0;
@@ -321,7 +319,6 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                 xfab.setVal<amrex::RunOn::Device>(0.0);
                 Axfab.setVal<amrex::RunOn::Device>(0.0);
 
-                //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++),
                     for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++),
                         for (int m3 = bx.loVect()[2]; m3 <= bx.hiVect()[2]; m3++))
@@ -331,17 +328,14 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                     if (m1 % sep == i / sep && m2 % sep == i % sep) xfab(m, n) = 1.0;
                     else xfab(m, n) = 0.0;
                 }
-                //BL_PROFILE_VAR_STOP(part1);
 
                 BL_PROFILE_VAR("Operator::Part2", part2);
                 Util::Message(INFO, "Calling fapply...", cntr++);
                 Fapply(amrlev, mglev, Ax, x);
                 BL_PROFILE_VAR_STOP(part2);
 
-                //BL_PROFILE_VAR("Operator::Part3", part3); 
                 Axfab.mult<amrex::RunOn::Device>(xfab, n, n, 1);
                 diagfab.plus<amrex::RunOn::Device>(Axfab, n, n, 1);
-                //BL_PROFILE_VAR_STOP(part3);
             }
         }
     }
@@ -365,8 +359,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
     if (!m_diagonal_computed) Util::Abort(INFO, "Operator::Diagonal() must be called before using Fsmooth");
 
-    // This is a JACOBI iteration, not Gauss-Seidel.
-    // So we need to do twice the number of iterations to get the same behavior as GS.
+    // Jacobi, not Gauss-Seidel: run twice to match GS behavior.
     for (int ctr = 0; ctr < 2; ctr++)
     {
         Fapply(amrlev, mglev, Ax, x); // find Ax
@@ -379,10 +372,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            // Conservative face-flux rows treat coarse/fine ghosts as
-            // prescribed interpolation data.  The legacy product-rule
-            // operator includes its first support-ghost layer in relaxation;
-            // preserve that established algebra for masked/psi solves.
+            // relax_ghost_rows: conservative rows treat C/F ghosts as prescribed interpolation data.
             Box bx = relax_ghost_rows ? mfi.grownnodaltilebox()
                                       : (mfi.nodaltilebox() & domain);
             
@@ -486,9 +476,7 @@ void Operator<Grid::Node>::define(const Vector<Geometry>& a_geom,
         }
     }
 
-    // We need to instantiate the m_lobc objects.
-    // WE DO NOT USE THEM - our BCs are implemented differently.
-    // But they need to be the right size or the code will segfault.
+    // m_lobc/m_hibc unused (BCs implemented differently) but must be sized to avoid segfault.
     m_lobc.resize(getNComp(), { {AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)} });
     m_hibc.resize(getNComp(), { {AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)} });
 }
@@ -555,8 +543,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
         for (int n = 0; n < crse.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
+            // (I,J,K) = coarse, (i,j,k) = fine
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
@@ -717,17 +704,8 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
         tmpfab.resize(tmpbx, fine.nComp());
-        // GPU FIX (root cause of the multi-box MLMG divergence): this per-box
-        // temporary lives only within one MFIter iteration, but AMReX's non-tiled
-        // GPU MFIter cycles through a pool of CUDA streams across iterations. Without
-        // an Elixir, tmpfab's device memory is freed at the end of this iteration and
-        // can be reused by a later iteration running on a *different* stream while the
-        // interpolation/plus kernels below are still in flight -> a cross-stream race
-        // that corrupts the interpolated correction (deterministically wrong on CPU's
-        // single stream = never; nondeterministically wrong on GPU). The garbage
-        // correction is then amplified by the BC-penalty diagonal into a 1e20 blow-up.
-        // The Elixir keeps tmpfab alive until its own stream has finished. (restriction
-        // writes its result directly, with no temp, which is why it is unaffected.)
+        // Elixir required: without it this per-box temp can be freed/reused by a different CUDA stream
+        // mid-flight, causing a nondeterministic cross-stream race (GPU multi-box MLMG divergence).
         amrex::Gpu::Elixir tmpfab_eli = tmpfab.elixir();
         tmpfab.setVal<amrex::RunOn::Device>(0.0);
         const amrex::FArrayBox& crsefab = (*cmf)[mfi];
@@ -737,8 +715,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
         for (int n = 0; n < crse.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
+            // (I,J,K) = coarse, (i,j,k) = fine
             ALAMO_OPERATOR_FOR(fine_bx, [=] ALAMO_OPERATOR_DEVICE (int i, int j, int k) {
 
                 int I = i / 2, J = j / 2, K = k / 2;
@@ -900,8 +877,6 @@ void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/
     const Geometry& geom = m_geom[amrlev][mglev];
 
     if (!skip_fillboundary) {
-        //phi.FillBoundary(geom.periodicity());
-        //phi.setMultiGhost(true);
         phi.FillBoundaryAndSync(geom.periodicity());
     }
 }
@@ -998,7 +973,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const int> const& nmask = nodemask.array(mfi);
-        //amrex::Array4<const int> const& cmask = cellmask.array(mfi);
 
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
@@ -1007,17 +981,11 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
+            // (I,J,K) = coarse, (i,j,k) = fine
             ALAMO_OPERATOR_FOR(bx, [=] ALAMO_OPERATOR_DEVICE (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
-                // A shared coarse/fine node remains governed by this level's
-                // coarse operator row.  Replacing it with a restricted fine
-                // residual makes the residual equation differ from the row
-                // used for coarse-grid correction and stalls the composite
-                // V-cycle.  Only nodes fully covered by the fine level are
-                // replaced here; the coarse norm masks those covered rows.
+                // Only nodes fully covered by the fine level get its residual; shared C/F nodes keep this level's row.
                 if (nmask(I, J, K) == fine_fine_node ||
                     (!retain_coarse_fine && nmask(I, J, K) == coarse_fine_node))
                 {

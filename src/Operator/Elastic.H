@@ -90,8 +90,6 @@ public:
     ///
     void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u, bool a_homogeneous=false);
 
-    //void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<SOLID> models, bool a_homogeneous=false);
-
     /// This function is depricated and should not be used. Use the other `SetBC` function.
     ///
     void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
@@ -146,13 +144,9 @@ public:
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
-    /// This is a multifab-type object containing objects of type
-    /// Model::Solid::Elastic::Isotropic::Isotropic
-    /// (or some other model type). T is the template argument.
-    /// The models contain elastic constants and contain methods for converting strain to stress
+    /// \brief Multifab of elastic constant models (e.g. Model::Solid::Elastic::Isotropic::Isotropic)
     amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
-    // This is a mask variable.
     amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
     Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
@@ -163,18 +157,7 @@ public:
     
     /// \fn averageDownCoeffsSameAmrLevel
     /// \brief Update coarse-level AMR coefficients with data from fine level
-    ///
-    /// This function is called before the solve, and it updates the Matrix4 coefficients
-    /// on coarse levels with averaged versions on the fine levels.
-    /// Typically, this is not necessary, since the coefficients are computed on each level
-    /// already. 
-    /// However, there are some cases where this messes up the multigrid solver.
-    /// (Phase field fracture is the primary example.)
-    /// 
-    /// This is disabled by default. In order to enable, call
-    ///    
-    ///     elasticoperator.SetAverageDownCoeffs(true);
-    ///
+    /// Disabled by default; enable via SetAverageDownCoeffs(true).
     void averageDownCoeffsSameAmrLevel (int amrlev);
 
     void FillBoundaryCoeff (MultiTab& sigma, const amrex::Periodicity& p);

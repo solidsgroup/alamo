@@ -367,10 +367,7 @@ void Flame::Initialize(int lev)
 
         for (int s = 0; s < pf.relax_steps; s++)
         {
-            // Use plain FillBoundary (not bc_eta) because bc_eta geometry is not yet defined
-            // at the time Initialize(lev) is called — bc_eta->define(geom[lev]) happens AFTER
-            // Initialize returns. Using bc_eta->FillBoundary here would apply the Dirichlet BC
-            // using a wrong/empty geometry, overwriting ALL valid cells with η=1.
+            // Plain FillBoundary: bc_eta->define(geom[lev]) hasn't run yet, so bc_eta->FillBoundary would use an empty geometry.
             eta_mf[lev]->FillBoundary(geom[lev].periodicity());
             std::swap(eta_old_mf[lev], eta_mf[lev]);
 
@@ -384,10 +381,7 @@ void Flame::Initialize(int lev)
                 {
                     Set::Scalar eta_val = eta(i, j, k);
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
-                    // Use symmetric double-well w_sym = eta^2*(1-eta)^2 for pre-relax.
-                    // The simulation's w(eta) has w(0)=0 != w(1)=1 (asymmetric), which would
-                    // drive the grain (eta=1) to be consumed by the gas (eta=0) during pre-relax.
-                    // w_sym has equal minima at eta=0 and eta=1, so neither phase is preferentially grown.
+                    // Symmetric double-well (equal minima at 0/1) for pre-relax; the sim's w(eta) is asymmetric and would bias pre-relax.
                     Set::Scalar dw_sym = 2.0 * eta_val * (1.0 - eta_val) * (1.0 - 2.0 * eta_val);
                     Set::Scalar df_deta = (pf.lambda / pf.eps) * dw_sym - pf.eps * pf.kappa * eta_lap;
                     etanew(i, j, k) = eta_val - L_relax * dt_relax * df_deta;
@@ -401,7 +395,6 @@ void Flame::Initialize(int lev)
     }
 
     ic_phi->Initialize(lev, phi_mf);
-    //ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
@@ -437,7 +430,6 @@ void Flame::Initialize(int lev)
         laser_mf[lev]->setVal(0.0);
         thermal.has_exceeded_Tcutoff[lev]->setVal(0.0);
     }
-    //if (variable_pressure) chamber.pressure = 1.0;
 }
 
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
@@ -452,11 +444,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         temp_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        // Build the (floored) psi weighting field used by the elastic solver:
-        //   psi = psi_floor + (1 - psi_floor) * eta
-        // With psi_floor=0 this is just eta (original behavior). A small floor keeps
-        // the masked operator non-singular in the gas region. eta's ghosts are valid
-        // (FillBoundary above), so copy with ghosts to keep psi consistent.
+        // psi = psi_floor + (1-psi_floor)*eta; the floor keeps the masked operator non-singular in the gas region.
         {
             const int ng = psi_mf[lev]->nGrow();
             amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, ng);
@@ -473,9 +461,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
 
-            // GPU: copy members into locals so the model-build kernels below
-            // capture by value instead of the host `this` pointer.
-            auto       elastic     = this->elastic;
+            auto       elastic     = this->elastic; // captured by value for GPU kernels below
             const bool homogenized = this->homogenized;
 
             if (elastic.on)
@@ -486,12 +472,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
                 {
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX.data());
-                    // The solver enforces div(sigma) = rhs, so rhs = -b_phys (ALAMO sign
-                    // convention). grad_eta points from gas (eta=0) into the solid (eta=1),
-                    // i.e. radially inward at a burning surface. A chamber pressure must
-                    // COMPRESS the grain, so the physical body force is b_phys = +traction*grad_eta
-                    // (inward) and therefore rhs = -traction*grad_eta. The previous sign put
-                    // the grain in tension (verified by the static patch test).
+                    // rhs = -b_phys (ALAMO sign convention); grad_eta points gas->solid, and pressure must compress the grain.
                     rhs(i, j, k) = -traction * grad_eta;
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -517,14 +498,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         model_casing.F0 *= (temp_avg - elastic.Telastic);
                         model_casing.F0 += Set::Matrix::Identity();
 
-                        // Three-material partition of unity (sums to 1):
-                        //   solid  = phi*eta       -- fuel present AND unburned (propellant)
-                        //   void   = phi*(1-eta)   -- fuel region, burned (combustion gas, very soft)
-                        //   casing = (1-phi)       -- outside the fuel disk (stiff confinement)
-                        // phi (static) masks the cylindrical chamber out of the square domain;
-                        // eta (live) splits propellant from gas inside it.
-                        // NOTE: this CellToNodeAverage(eta) over the grown box requires eta to carry
-                        // 3 ghost cells (like temp) so the read stays in bounds at grid edges.
+                        // Three-material partition of unity: solid=phi*eta, void=phi*(1-eta), casing=(1-phi). eta needs 3 ghost cells.
                         Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, 0);
                         Set::Scalar w_solid  = phi_avg * eta_avg;
                         Set::Scalar w_void   = phi_avg * (1. - eta_avg);
@@ -535,10 +509,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     }
                     else
                     {
-                        // Resolved AP/HTPB mesoscale model: blend the two per-phase
-                        // elastic models by the species field phi (rule of mixtures),
-                        // phi=1 -> AP, phi=0 -> HTPB. Each phase carries the same
-                        // thermoelastic eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
+                        // Rule-of-mixtures blend of AP/HTPB by phi (phi=1 -> AP, phi=0 -> HTPB).
                         model_type model_ap = elastic.model_ap;
                         model_ap.F0 -= Set::Matrix::Identity();
                         model_ap.F0 *= (temp_avg - elastic.Telastic);
@@ -556,10 +527,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    // Elasticity disabled: build the propellant model with no
-                    // eigenstrain (F0 = 0), mode-aware so the schema that was
-                    // actually parsed is honored (homogenized model_prop vs the
-                    // resolved model_ap/model_htpb blend). Not used for forcing.
+                    // Elasticity disabled: model with F0=0, honoring whichever schema (homogenized vs AP/HTPB) was parsed.
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     model_type m = homogenized
                                 ? elastic.model_prop
@@ -609,14 +577,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 
     if (thermal.on)
     {
-        // Chamber thermo diagnostics written to thermo.dat. The five min/max
-        // reductions over every level are accumulated into a single fused device
-        // pass (one ReduceData, one host sync) instead of separate per-level
-        // MultiFab::min/max calls that each launch a kernel and synchronize. Each
-        // rank reduces only its local boxes; the MPI all-reduce below then matches
-        // the global result MultiFab::min/max produced. The per-layer debug print
-        // has been removed. The 0.0/1.0 floors are preserved so the output stays
-        // bit-identical to the previous code (max/min are order-independent).
+        // Five min/max reductions fused into a single device pass (one ReduceData, one host sync).
         amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
                         amrex::ReduceOpMax, amrex::ReduceOpMin> reduce_op;
         amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar,
@@ -649,8 +610,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         thermo_L_max        = std::max(Set::Scalar(0.0), amrex::get<3>(hv));
         thermo_eta_min      = std::min(Set::Scalar(1.0), amrex::get<4>(hv));
 
-        // MultiFab::min/max all-reduce internally; replicate that so the value is
-        // correct under MPI (the CPU correctness baseline runs np8, GPU runs np1).
+        // Replicate MultiFab::min/max's internal all-reduce for correctness under MPI.
         amrex::ParallelDescriptor::ReduceRealMax(thermo_max_temp);
         amrex::ParallelDescriptor::ReduceRealMax(thermo_mdot_max);
         amrex::ParallelDescriptor::ReduceRealMax(thermo_heatflux_max);
@@ -677,9 +637,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
 
-    //
     // Multi-well chemical potential
-    //
     Numeric::Function::Polynomial<4> w( pf.w0,
                                         0.0,
                                         -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
@@ -689,10 +647,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     propellant.set_pressure(chamber.pressure);
 
-    // GPU: device lambdas may not capture the host `this` pointer. Copy the POD
-    // phase-field params, the propellant model, and the `small` floor into locals
-    // (shadowing the members), and pull the thermal scalars used inside kernels
-    // into named locals so the kernels below capture by value, not via `this`.
+    // Device lambdas can't capture `this`; copy needed members into locals.
     auto              propellant      = this->propellant;
     auto              pf              = this->pf;
     const Set::Scalar small           = this->small;
@@ -726,9 +681,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            //
-            // CALCULATE PHI-AVERAGED QUANTITIES
-            //
             Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
             Set::Scalar T = thermal_on ? temp(i,j,k) : NAN;
 
@@ -738,17 +690,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Scalar cp = propellant.get_cp(phi_avg);
 
-            //
-            // CALCULATE MOBILITY
-            //
             Set::Scalar L = propellant.get_L(  phi_avg, T);
             L_out(i, j, k) = L;
-            // L (mobility) is always used by the eta evolution, so validate it
-            // unconditionally. K/rho/cp are thermal quantities that are
-            // legitimately NAN for burn-rate-only propellant models (e.g.
-            // PowerLaw, whose get_K/get_rho/get_cp return NAN) and are only
-            // consumed inside the thermal_on block below -- validating them
-            // unconditionally spuriously aborts a thermal.on=0 run.
+            // L is always validated; K/rho/cp may legitimately be NAN for burn-rate-only models when thermal.on=0.
             if (std::isnan(L) || std::isinf(L))
             {
                 Util::SetDeviceError(advance_error_flag);
@@ -765,10 +709,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Util::SetDeviceError(advance_error_flag);
             }
 
-            //
-            // EVOLVE PHASE FIELD (ETA)
-            //
-
+            // Evolve phase field (eta)
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX.data());
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
 
@@ -804,19 +745,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             if (thermal_on)
             {
-                //
-                // Calculate thermal diffisivity and store for later gradient
-                //
-
                 alpha(i, j, k) = K / rho / cp;
                 if (std::isnan(alpha(i, j, k)) || std::isinf(alpha(i, j, k)))
                 {
                     Util::SetDeviceError(advance_error_flag);
                 }
-
-                //
-                // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
-                //
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal_hc*q0 + laser(i,j,k) ) / K;
@@ -840,9 +773,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         "non-finite value detected in Flame::Advance phase-field kernel at lev=", lev);
 
 
-    //
-    // THERMAL TRANSPORT
-    //
     if (thermal.on)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
@@ -908,9 +838,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     Set::Vector DX(geom[lev].CellSize());
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX(0) * DX(0), +DX(1) * DX(1), +DX(2) * DX(2)));
 
-    // GPU: pull refinement-criterion members into locals (shadowing the members)
-    // plus the thermal scalars used in kernels, so the tag kernels capture by
-    // value instead of the host `this` pointer.
+    // Device lambdas can't capture `this`; copy needed members into locals.
     const Set::Scalar m_refinement_criterion       = this->m_refinement_criterion;
     const Set::Scalar t_refinement_criterion       = this->t_refinement_criterion;
     const Set::Scalar t_refinement_restriction     = this->t_refinement_restriction;
@@ -1052,11 +980,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
 
-    // GPU: accumulating into chamber.* members directly inside a ParallelFor is a
-    // parallel race on the device. Use an AMReX sum-reduction over the box (works
-    // on CPU and GPU) and add the per-box partial sums to the members on the host.
-    // The previous variable_pressure / else branches performed identical
-    // accumulation, so they are collapsed here.
+    // Accumulating into chamber.* directly inside a ParallelFor would race on device; reduce, then add on host.
     amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
     amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
     using ReduceTuple = typename decltype(reduce_data)::Type;

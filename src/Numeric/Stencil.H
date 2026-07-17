@@ -68,10 +68,6 @@ template<class T, int x, int y, int z>
 struct Stencil
 {};
 
-//
-// FIRST order derivatives
-//
-
 template<class T>
 struct Stencil<T, 1, 0, 0>
 {
@@ -207,10 +203,6 @@ struct Stencil<T, 0, 0, 1>
     };
 };
 
-//
-// SECOND order derivatives
-//
-
 template<class T>
 struct Stencil<T, 2, 0, 0>
 {
@@ -328,10 +320,6 @@ struct Stencil<T, 0, 1, 1>
         return jfac * kfac * (f(i, j + jhi, k + khi, m) + f(i, j - jlo, k - klo, m) - f(i, j + jhi, k - klo, m) - f(i, j - jlo, k + khi, m)) / (dx[1] * dx[2]);
     };
 };
-
-//
-// FOURTH order derivatives
-//
 
 template<class T>
 struct Stencil<T, 4, 0, 0>
@@ -863,12 +851,7 @@ Gradient(   const amrex::Array4<const Set::Vector>& f,
 }
 
 /// \brief Displacement gradient at the midpoint of a positive coordinate face.
-///
-/// The derivative normal to the face is the centered face difference.  Each
-/// tangential derivative is the average of the centered nodal derivatives at
-/// the two face endpoints.  This is second-order at the face midpoint and,
-/// unlike a fully forward nodal gradient, gives the standard one-cell normal
-/// second difference after conservative flux differencing.
+/// Normal derivative is the centered face difference; tangential derivatives average the two endpoint nodal derivatives.
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE

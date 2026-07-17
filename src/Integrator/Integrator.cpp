@@ -269,11 +269,7 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
 }
 
 
-///
-/// RESETS ALL MULTIFABS AT A GIVEN LEVEL
-///
-/// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
-///
+/// \brief Resets all multifabs at a given level (overrides pure virtual - do not change)
 void
 Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
                         amrex::Real time,                    ///<[in] Simulation time
@@ -320,11 +316,7 @@ Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
     Regrid(lev, time);
 }
 
-//
-// DELETE EVERYTHING
-//
-// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
-//
+// Delete everything (overrides pure virtual - do not change)
 void
 Integrator::ClearLevel(int lev)
 {
@@ -339,36 +331,25 @@ Integrator::ClearLevel(int lev)
     }
 }
 
-//
-//
-//
-
-
-
-
 
 void
 Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
-    //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
     AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving, suffix);
 }
 void
 Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
-    //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
     AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, evolving, suffix);
 }
 void
 Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
-    //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
     AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving,suffix);
 }
 void
 Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
-    //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
     AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, evolving,suffix);
 }
 
@@ -713,11 +694,9 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         {
             amrex::BoxArray ngrids = grids[lev];
             ngrids.convert(amrex::IntVect::TheNodeVector());
-            //tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
         }
         else
         {
-            //tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
         }
         Util::Message(INFO,max_level);
         Util::Message(INFO,finest_level);
@@ -729,19 +708,14 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         amrex::VisMF::Read(tmpdata[lev],
             amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
 
-        // Modern fields are registered through BaseField rather than the
-        // legacy node/cell registries below.  Allocate only the centering being
-        // restarted so a following nodal restart does not erase cell state
-        // that was just restored (or vice versa).
+        // Allocate only the centering being restarted, so a following restart of the other centering doesn't erase it.
         std::vector<BaseField*>& basefields =
             a_nodal ? m_basefields : m_basefields_cell;
         for (BaseField* field : basefields)
             field->MakeNewLevelFromScratch(
                 lev, t_new[lev], grids[lev], dmap[lev]);
 
-        // Field<T>::CopyFrom iterates source and destination with the same
-        // MFIter.  Remap the VisMF data first because restart is allowed to use
-        // a different MPI distribution from the plot-writing run.
+        // Remap first: CopyFrom shares an MFIter across source/dest, but restart may use a different MPI distribution.
         amrex::MultiFab remapped(
             tmpdata[lev].boxArray(), dmap[lev], tmpdata[lev].nComp(), 0);
         remapped.ParallelCopy(tmpdata[lev], 0, 0, tmpdata[lev].nComp());
@@ -786,27 +760,13 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    // NOTE: a previous version had an extra match block here that
-                    // indexed node.name_array[i][j] with i = the restart-file fab
-                    // index (0..tmp_numfabs-1) used as the *fab* axis. name_array is
-                    // sized by node.number_of_fabs, so whenever the checkpoint holds
-                    // more fabs than this integrator registers (e.g. a nodal plotfile
-                    // that bundled phi with the Mechanics nodal outputs), name_array[i]
-                    // was out of bounds and the restart segfaulted. The inner k-loop
-                    // below already does the correct (fab j, comp k) name match and
-                    // copy, exactly mirroring the cell-fab path, so the buggy block was
-                    // removed.
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
                         if (tmp_name_array[i] == node.name_array[j][k])
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
-                            // VisMF::Read is free to distribute the restart data
-                            // differently from the freshly rebuilt destination
-                            // MultiFab.  A local-only MultiFab::Copy dereferences
-                            // non-local FABs when those maps differ (most visibly
-                            // on refined nodal levels in an MPI restart).
+                            // ParallelCopy required: VisMF's distribution can differ from the rebuilt destination MultiFab.
                             (*node.fab_array[j])[lev]->ParallelCopy(
                                 tmpdata[lev], i, k, 1, 0, 0,
                                 geom[lev].periodicity());
@@ -889,17 +849,6 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
         cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev], 0, 0, t, 0);
     }
 
-    //for (int n = 0 ; n < node.number_of_fabs; n++)
-    //{
-    //    bcnothing->define(geom[lev]);
-    //    for (amrex::MFIter mfi(*(*node.fab_array[n])[lev],true); mfi.isValid(); ++mfi)
-    //    {
-    //        amrex::BaseFab<Set::Scalar> &patch = (*(*node.fab_array[n])[lev])[mfi];
-    //        const amrex::Box& box = mfi.tilebox();
-    //        bcnothing->FillBoundary(patch,box,0,0,0,t);
-    //    }
-    //}
-
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
     {
         m_basefields_cell[n]->FillBoundary(lev, t);
@@ -940,12 +889,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
     if (max_plot_level >= 0) nlevels = std::min(nlevels, max_plot_level);
 
     int ccomponents = 0, ncomponents = 0, bfcomponents_cell = 0, bfcomponents = 0;
-    // Cell fields are averaged to nodes for the node plotfile, which requires at
-    // least one ghost cell. Zero-ghost cell fields are (correctly) skipped from
-    // the node data below, so they must also be skipped from the node name list
-    // and node component count -- track those separately. Otherwise the node
-    // names/components and the node data misalign, and the unwritten trailing
-    // components are emitted as uninitialized (garbage) memory.
+    // Zero-ghost cell fields can't be averaged to nodes, so they must be excluded from both node names and this count, or they misalign.
     int ccomponents_node = 0;
     amrex::Vector<std::string> cnames, nnames, bfnames_cell, bfnames, cnames_node;
     for (int i = 0; i < cell.number_of_fabs; i++)
@@ -1120,11 +1064,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                         if (initial) Util::Warning(INFO, cnames[i], " has no ghost cells and will not be included in nodal output");
                         continue;
                     }
-                    // The cell-to-node interpolation reads one ghost cell in
-                    // each direction.  Fill periodic ghosts in a plot-only
-                    // copy so nodal values at a periodic boundary do not use
-                    // stale evolution ghosts.  Preserve the source's physical
-                    // boundary ghosts by copying them before FillBoundary.
+                    // Fill periodic ghosts in a plot-only copy so nodal interpolation doesn't use stale evolution ghosts.
                     const amrex::MultiFab& source = *(*cell.fab_array[i])[ilev];
                     amrex::MultiFab plot_source(source.boxArray(), source.DistributionMap(),
                         source.nComp(), source.nGrowVect());
@@ -1341,13 +1281,7 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
             ))
     {
         std::ofstream outfile;
-        // Write a fresh file with a header column line when starting from
-        // scratch (step 0) OR when the thermo file does not yet exist / is empty.
-        // The latter covers a restart into a new plot directory, which begins at
-        // step>0: without this the header was never emitted and the resulting
-        // thermo.dat was headerless (its first data row got misread as column
-        // names). An append into an existing non-empty file (continuation in the
-        // same dir) still appends without a duplicate header.
+        // Also write a header on restart into a new/empty plot dir (step>0), or thermo.dat ends up headerless.
         bool need_header = (step == 0);
         if (!need_header)
         {

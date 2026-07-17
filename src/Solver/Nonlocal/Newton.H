@@ -178,13 +178,11 @@ public:
         Linear::Define(a_op);
         m_elastic = dynamic_cast<Operator::Elastic<T::sym> *>(linop);
         m_elastic->SetConservativeFaceFlux(m_conservative_face_flux);
-        //m_bc = &m_elastic->GetBC();
     }
     void Clear()
     {
         Linear::Clear();
         m_elastic = nullptr;
-        //m_bc = nullptr;
     }
 
 
@@ -325,10 +323,7 @@ public:
             domain.convert(amrex::IntVect::TheNodeVector());
             amrex::Box row_domain(linop->Geom(lev).growPeriodicDomain(1));
             row_domain.convert(amrex::IntVect::TheNodeVector());
-            // NB: this kernel captures DX (a Set::Vector copied into the device
-            // closure) and uses DX.data(); a raw Geom().CellSize() host pointer
-            // would be invalid on device. The old `dx` local is therefore gone.
-            Set::Vector DX(linop->Geom(lev).CellSize());
+            Set::Vector DX(linop->Geom(lev).CellSize()); // device-safe: captured by value, DX.data() valid on device
             const amrex::Dim3 hi = amrex::ubound(domain);
 #ifdef ALAMO_GPU
             Util::DeviceErrorFlag prepare_error;
@@ -336,9 +331,6 @@ public:
 #endif
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                // Trusted-parent mechanics evaluates its full two-ghost
-                // product-rule support.  The conservative Flame operator has
-                // one equation ghost and a second support-only ghost.
                 amrex::Box bx = conservative_solve
                     ? (mfi.grownnodaltilebox(-1, 1) & row_domain)
                     : (mfi.grownnodaltilebox() & domain);
@@ -374,9 +366,7 @@ public:
 
                     if (!conservative_solve)
                     {
-                        // Extra components are unused by the legacy masked
-                        // operator; initialize them deterministically without
-                        // reading beyond its outer support ghost.
+                        // Extra components unused by legacy masked operator; init deterministically without reading past support ghost.
                         for (int face = 0; face < AMREX_SPACEDIM; ++face)
                             ddw(i, j, k, face + 1) = ddw(i, j, k, 0);
                     }
@@ -420,10 +410,7 @@ public:
             domain.convert(amrex::IntVect::TheNodeVector());
             amrex::Box row_domain(linop->Geom(lev).growPeriodicDomain(1));
             row_domain.convert(amrex::IntVect::TheNodeVector());
-            // Device-safe cell size: DX is a Set::Vector copied into the device
-            // closure; DX.data() is valid on device. A raw Geom().CellSize()
-            // host pointer would fault when dereferenced in these kernels.
-            Set::Vector DX(linop->Geom(lev).CellSize());
+            Set::Vector DX(linop->Geom(lev).CellSize()); // device-safe cell size
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -551,7 +538,6 @@ public:
             ddw_mf[lev]->setVal(Set::Matrix4<AMREX_SPACEDIM, T::sym>::Zero());
 
             a_b_mf.Copy(lev, *rhs_mf[lev], 0, 2);
-            //amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
         Set::Scalar initial_resnorm = -1.0;
@@ -563,13 +549,7 @@ public:
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
             AbortIfNonFinite(rhs_mf, "Newton residual");
 
-            // The persistent MLMG runs linop.prepareForSolve() only on its
-            // first solve. SetModel (inside prepareForSolve above) updates
-            // only the mglev=0 coefficients, so on relinearization the coarse
-            // MG-level operators and the smoother/normalize diagonal must be
-            // re-derived; otherwise the V-cycle smooths the new fine-level
-            // operator against a stale hierarchy, which detonates at high
-            // modulus contrast (low psi_floor).
+            // Re-derive coarse MG coefficients on relinearization; a stale hierarchy can detonate at high modulus contrast.
             if (m_resync_coeffs && nriter > 0) m_elastic->SyncCoefficients();
 
             if (nriter == m_nriters) break;
@@ -584,11 +564,7 @@ public:
                 if (nriter == 0) initial_resnorm = resnorm0;
             }
 
-            // Each Newton system solves for a new correction.  Reusing the
-            // previous correction as MLMG's initial guess makes its reported
-            // resid/resid0 denominator unrelated to the current nonlinear
-            // RHS and can leave the new correction less accurate than tol_rel
-            // relative to that RHS.
+            // Zero the correction each iteration; reusing the prior one skews MLMG's resid/resid0 denominator.
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 dsol_mf[lev]->setVal(0.0);
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
@@ -602,9 +578,6 @@ public:
                 {
                     Set::Scalar tmpcornorm = dsol_mf[lev]->norm0(comp, 0);
                     if (tmpcornorm > cornorm) cornorm = tmpcornorm;
-
-                    //Set::Scalar tmpsolnorm = a_u_mf[lev]->norm0(comp,0);
-                    //if (tmpsolnorm > solnorm) solnorm = tmpsolnorm;
                 }
 
             }
@@ -705,13 +678,7 @@ public:
                 }
             }
 
-            // dsol_mf (and friends) are about to be either overwritten by the next
-            // Linear::solve() call or destroyed if this is the final iteration. The
-            // AddFrom/Saxpy above launched an async kernel that reads dsol_mf on
-            // whichever stream its MFIter box landed on; without a full-device sync
-            // here that read can still be in flight when the buffer is freed/reused
-            // on another stream, causing an intermittent CUDA 700 illegal access
-            // (same UAF family as the tmpfab.elixir() fix in Operator::interpolation).
+            // Sync before dsol_mf is overwritten/destroyed: an async kernel above may still be reading it (UAF).
             amrex::Gpu::streamSynchronizeAll();
 
             Set::Scalar relnorm;
@@ -815,8 +782,7 @@ public:
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
             AbortIfNonFinite(rhs_mf, "Newton residual");
 
-            // See the Set::Vector solve overload: re-derive coarse MG-level
-            // coefficients and the diagonal after relinearization.
+            // Re-derive coarse MG coefficients/diagonal after relinearization.
             if (m_resync_coeffs && nriter > 0) m_elastic->SyncCoefficients();
 
             if (nriter == m_nriters) break;
@@ -936,8 +902,7 @@ public:
 
         prepareForSolve(a_u_mf, a_b_mf, res_mf, dw_mf, ddw_mf, a_model_mf);
 
-        // Convert the independently evaluated level residuals into the same
-        // refluxed nodal composite residual that MLMG solves and norms.
+        // Reflux to match the composite residual MLMG solves and norms.
         for (int lev = a_u_mf.finest_level - 1; lev >= 0; --lev)
             m_elastic->Reflux(lev, *res_mf[lev], *res_mf[lev], *res_mf[lev],
                 *res_mf[lev + 1], *res_mf[lev + 1], *res_mf[lev + 1]);
@@ -1061,7 +1026,6 @@ public:
                     else if (C(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
                         sig = C(i, j, k).DW(gradu + Set::Matrix::Identity());
 
-                    // = C(i,j,k)(gradu,m_homogeneous);
 
                     AMREX_D_PICK(dw(i, j, k, 0) = sig(0, 0);
                     ,
@@ -1089,7 +1053,6 @@ public:
     bool m_nr_diagnostics = false;
     std::vector<int> m_invariant_periodic;
     Operator::Elastic<T::sym>* m_elastic = nullptr;
-    //BC::Operator::Elastic::Elastic *m_bc;
 
     Set::Field<Set::Scalar>* m_psi = nullptr;
     bool m_conservative_face_flux = false;
@@ -1119,10 +1082,7 @@ public:
                 const int source_index = domain.smallEnd(dir);
                 for (amrex::MFIter mfi(*field[lev], false); mfi.isValid(); ++mfi)
                 {
-                    // Project the complete FAB, including coarse/fine and
-                    // periodic ghosts.  Leaving those planes unprojected lets
-                    // machine-scale correction noise re-enter the residual
-                    // when its face gradients are formed.
+                    // Include all ghosts or machine-scale noise can re-enter the residual via face gradients.
                     const amrex::Box bx = mfi.grownnodaltilebox();
                     const amrex::Box valid = mfi.validbox();
                     if (valid.smallEnd(dir) != domain.smallEnd(dir) ||
@@ -1220,12 +1180,7 @@ public:
                 a_mf[lev]->nComp(), a_mf[lev]->nGrowVect());
         }
 
-        // MLMG replaces each coarse/fine-interface residual row by a
-        // full-weighted fine residual before measuring or correcting the
-        // composite system.  Apply that same replacement to the nonlinear
-        // residual used by Newton's line search.  A raw coarse interface row
-        // is not the equation MLMG solves and can otherwise reject the exact
-        // Newton direction even when the composite residual falls sharply.
+        // Reflux to match MLMG's C/F row replacement, or line search can reject a good Newton step.
         for (int lev = static_cast<int>(composite.size()) - 2; lev >= 0; --lev)
             m_elastic->Reflux(lev, *composite[lev], *composite[lev],
                 *composite[lev], *composite[lev + 1], *composite[lev + 1],
@@ -1344,11 +1299,7 @@ public:
             Util::Abort(INFO, "solver.nr_solid_psi must be finite and nonnegative");
     }
 
-    // These paramters control a standard Newton-Raphson solve.
-    //
-    // **Note**:
-    // This class inherits all of the linear solve paramters
-    // from its parent class, :ref:`Solver::Nonlocal::Linear`
+    // Also inherits linear solve parameters from Solver::Nonlocal::Linear.
     static void Parse(Newton<T>& value, amrex::ParmParse& pp)
     {
         Linear::Parse(value, pp);
