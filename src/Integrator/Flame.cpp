@@ -535,9 +535,22 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             {
                 deta_dt(i,j,k) = 0.0;
             }
-            
-            m0(i,j,k,0) = hydro.rho_ap*phi*deta_dt(i,j,k);
-            m0(i,j,k,1) = hydro.rho_htpb*(1-phi)*deta_dt(i,j,k);
+
+            // Interface normal regression speed. m0/u0 are diffuse-interface
+            // sources that Hydro::RHS localizes by multiplying by |grad(eta)|
+            // (source_delta = m0 * |grad(eta)|), so m0 must be a per-area mass
+            // flux [kg/m^2/s], not a per-volume rate. c = deta_dt/|grad(eta)|
+            // converts the order-parameter rate [1/s] into a normal interface
+            // speed [m/s]; rho_solid*c then has the correct mass-flux units.
+            Set::Scalar c;
+            if (grad_eta_mag(i,j,k) > small) {
+                c = deta_dt(i,j,k)/grad_eta_mag(i,j,k);
+            } else {
+                c = 0.0;
+            }
+
+            m0(i,j,k,0) = hydro.rho_ap*phi*c;
+            m0(i,j,k,1) = hydro.rho_htpb*(1-phi)*c;
             m0(i,j,k,2) = 0.0;
             m0(i,j,k,3) = 0.0;
             m0(i,j,k,4) = 0.0;
@@ -553,12 +566,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
                 density_solid_tot += solidrho(i,j,k,n);
             }
 
-            Set::Scalar c;
-            if (grad_eta_mag(i,j,k) > small) {
-                c = deta_dt(i,j,k)/grad_eta_mag(i,j,k);
-            } else {
-                c = 0.0;
-            }
             u0_mag = c*(density_solid_tot)*eta(i,j,k)/(density_gas_tot*eta_hydro);
 
             u0(i,j,k,0) = u0_mag*N(0);
