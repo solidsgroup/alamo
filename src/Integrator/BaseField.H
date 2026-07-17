@@ -34,6 +34,7 @@ public:
 
     virtual int NComp() = 0;
     virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
+    virtual void CopyFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) = 0;
     bool writeout = false;
     virtual std::string Name(int) = 0;
     virtual void setName(std::string a_name) = 0;
@@ -302,6 +303,10 @@ public:
     virtual void Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) override
     {
         m_field.Copy(a_lev,a_dst,a_dstcomp,a_nghost);
+    }
+    virtual void CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) override
+    {
+        m_field.CopyFrom(a_lev,a_src,a_srccomp,a_nghost);
     }
     virtual void setName(std::string a_name) override {
         m_field.name = a_name;

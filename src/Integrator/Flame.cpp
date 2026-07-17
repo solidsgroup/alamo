@@ -326,6 +326,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Keep the base psi_on flag false so TimeStepBegin does not reattach the
         // empty base field; attach Flame's eta-derived psi directly to the solver.
         value.psi_on = false;
+        value.solver.setConservativeFaceFlux(!value.elastic.use_psi);
         if (value.elastic.use_psi)
             value.solver.setPsi(value.psi_mf);
     }
@@ -445,13 +446,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        amrex::Box domain = this->geom[lev].Domain();
-        domain.convert(amrex::IntVect::TheNodeVector());
         Set::Vector DX(geom[lev].CellSize());
 
-        phi_mf[lev]->FillBoundary();
-        eta_mf[lev]->FillBoundary();
-        temp_mf[lev]->FillBoundary();
+        phi_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+        temp_mf[lev]->FillBoundary(geom[lev].periodicity());
 
         // Build the (floored) psi weighting field used by the elastic solver:
         //   psi = psi_floor + (1 - psi_floor) * eta
@@ -468,7 +467,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box smallbox = mfi.nodaltilebox();
-            amrex::Box bx = mfi.grownnodaltilebox() & domain;
+            amrex::Box bx = mfi.grownnodaltilebox();
             Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
@@ -576,7 +575,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 });
             }
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
 
     }
 }

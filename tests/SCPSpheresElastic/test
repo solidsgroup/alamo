@@ -1,13 +1,67 @@
 #!/usr/bin/env python3
+import math
+import re
 import sys
 sys.path.insert(0,"../../scripts")
 import testlib
 import glob
 
+import numpy as np
+import yt
+
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
 outdir = sys.argv[1]
 reference = sys.argv[2]
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+stdout = open("{}/stdout".format(outdir)).read()
+require(not re.search(r"\b(?:abort|nan|inf(?:inity)?)\b", stdout, re.IGNORECASE),
+        "solver output contains an abort or non-finite value")
+require("MLMG failed" not in stdout and "Failed to converge" not in stdout and
+        "Failing to converge" not in stdout,
+        "the solver reported non-convergence")
+
+solve_blocks = stdout.split("ELASTIC SOLVE:")[1:]
+require(solve_blocks, "no elastic solve block was reported")
+step_pattern = re.compile(
+    r"MLMG: Initial rhs\s*=\s*([^\s]+).*?"
+    r"NR iteration\s+\d+,\s+alpha\s*=\s*([^,\s]+),\s+"
+    r"relative norm\(ddisp\)\s*=\s*([^\s]+)",
+    re.DOTALL,
+)
+for solve_number, block in enumerate(solve_blocks, start=1):
+    steps = step_pattern.findall(block)
+    require(steps, f"elastic solve {solve_number} has no completed Newton iteration")
+    for rhs_text, alpha_text, update_text in steps:
+        rhs, alpha, update = map(float, (rhs_text, alpha_text, update_text))
+        require(all(map(math.isfinite, (rhs, alpha, update))),
+                "a Newton/MLMG iteration metric is non-finite")
+        require(0.0 < alpha <= 1.0, f"invalid line-search alpha {alpha:g}")
+        require(rhs == 0.0 or abs(update) > 0.0,
+                f"nonzero nonlinear RHS {rhs:g} accepted a zero Newton update")
+
+yt.set_log_level(50)
+ds = yt.load(path)
+ad = ds.all_data()
+fields = {name for field_type, name in ds.field_list if field_type == "boxlib"}
+for prefix in ("disp_", "stress_", "strain_", "rhs_", "res_"):
+    names = sorted(name for name in fields if name.startswith(prefix))
+    require(names, f"final plotfile has no {prefix} fields")
+    for name in names:
+        values = np.asarray(ad[("boxlib", name)])
+        require(np.isfinite(values).all(), f"{name} contains a non-finite value")
+
+disp_max = max(float(np.max(np.abs(np.asarray(ad[("boxlib", name)]))))
+               for name in fields if name.startswith("disp_"))
+stress_max = max(float(np.max(np.abs(np.asarray(ad[("boxlib", name)]))))
+                 for name in fields if name.startswith("stress_"))
+require(disp_max > 1.0e-12, "elastic displacement is trivially zero")
+require(stress_max > 0.0, "elastic stress is trivially zero")
 
 testlib.validate(path=path,
                  outdir=outdir,
@@ -20,8 +74,6 @@ testlib.validate(path=path,
                  generate_ref_data = False,
 )
 exit(0)
-
-
 
 
 

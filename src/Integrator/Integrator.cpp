@@ -729,6 +729,45 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         amrex::VisMF::Read(tmpdata[lev],
             amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
 
+        // Modern fields are registered through BaseField rather than the
+        // legacy node/cell registries below.  Allocate only the centering being
+        // restarted so a following nodal restart does not erase cell state
+        // that was just restored (or vice versa).
+        std::vector<BaseField*>& basefields =
+            a_nodal ? m_basefields : m_basefields_cell;
+        for (BaseField* field : basefields)
+            field->MakeNewLevelFromScratch(
+                lev, t_new[lev], grids[lev], dmap[lev]);
+
+        // Field<T>::CopyFrom iterates source and destination with the same
+        // MFIter.  Remap the VisMF data first because restart is allowed to use
+        // a different MPI distribution from the plot-writing run.
+        amrex::MultiFab remapped(
+            tmpdata[lev].boxArray(), dmap[lev], tmpdata[lev].nComp(), 0);
+        remapped.ParallelCopy(tmpdata[lev], 0, 0, tmpdata[lev].nComp());
+
+        std::vector<bool> basefield_match(tmp_numfabs, false);
+        for (BaseField* field : basefields)
+        {
+            const int ncomp = field->NComp();
+            for (int src = 0; src + ncomp <= tmp_numfabs; ++src)
+            {
+                bool names_match = true;
+                for (int comp = 0; comp < ncomp; ++comp)
+                    names_match = names_match &&
+                        tmp_name_array[src + comp] == field->Name(comp);
+                if (!names_match) continue;
+
+                Util::Message(INFO, "Initializing ", field->Name(0),
+                    " through ", field->Name(ncomp - 1),
+                    "; ncomp=", ncomp);
+                field->CopyFrom(lev, remapped, src, 0);
+                for (int comp = 0; comp < ncomp; ++comp)
+                    basefield_match[src + comp] = true;
+                break;
+            }
+        }
+
         if (a_nodal)
             for (int i = 0; i < node.number_of_fabs; i++)
             {
@@ -742,7 +781,7 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                 (*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev], dmap[lev], cell.ncomp_array[i], cell.nghost_array[i]));
         for (int i = 0; i < tmp_numfabs; i++)
         {
-            bool match = false;
+            bool match = basefield_match[i];
             if (a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
@@ -763,7 +802,14 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
-                            amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, total_nghost);
+                            // VisMF::Read is free to distribute the restart data
+                            // differently from the freshly rebuilt destination
+                            // MultiFab.  A local-only MultiFab::Copy dereferences
+                            // non-local FABs when those maps differ (most visibly
+                            // on refined nodal levels in an MPI restart).
+                            (*node.fab_array[j])[lev]->ParallelCopy(
+                                tmpdata[lev], i, k, 1, 0, 0,
+                                geom[lev].periodicity());
                         }
                     }
                     Util::RealFillBoundary(*((*node.fab_array[j])[lev]).get(), geom[lev]);
@@ -779,7 +825,9 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
-                            amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
+                            (*cell.fab_array[j])[lev]->ParallelCopy(
+                                tmpdata[lev], i, k, 1, 0, 0,
+                                geom[lev].periodicity());
                         }
                     }
                     Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
@@ -788,14 +836,8 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
         }
 
-        for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
-        {
-            m_basefields_cell[n]->MakeNewLevelFromScratch(lev, t_new[lev], grids[lev], dmap[lev]);
-        }
-        for (unsigned int n = 0; n < m_basefields.size(); n++)
-        {
-            m_basefields[n]->MakeNewLevelFromScratch(lev, t_new[lev], grids[lev], dmap[lev]);
-        }
+        for (BaseField* field : basefields)
+            field->FillBoundary(lev, t_new[lev]);
 
         
         for (int n = 0; n < cell.number_of_fabs; n++)
@@ -1078,7 +1120,19 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                         if (initial) Util::Warning(INFO, cnames[i], " has no ghost cells and will not be included in nodal output");
                         continue;
                     }
-                    Util::AverageCellcenterToNode(nplotmf[ilev], n, *(*cell.fab_array[i])[ilev], 0, cell.ncomp_array[i]);
+                    // The cell-to-node interpolation reads one ghost cell in
+                    // each direction.  Fill periodic ghosts in a plot-only
+                    // copy so nodal values at a periodic boundary do not use
+                    // stale evolution ghosts.  Preserve the source's physical
+                    // boundary ghosts by copying them before FillBoundary.
+                    const amrex::MultiFab& source = *(*cell.fab_array[i])[ilev];
+                    amrex::MultiFab plot_source(source.boxArray(), source.DistributionMap(),
+                        source.nComp(), source.nGrowVect());
+                    amrex::MultiFab::Copy(plot_source, source, 0, 0, source.nComp(),
+                        source.nGrowVect());
+                    plot_source.FillBoundary(Geom(ilev).periodicity());
+                    Util::AverageCellcenterToNode(nplotmf[ilev], n, plot_source, 0,
+                        cell.ncomp_array[i]);
                     n += cell.ncomp_array[i];
                 }
 

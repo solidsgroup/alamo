@@ -55,6 +55,8 @@ public:
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi);
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
     {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
+    void SetConservativeFaceFlux(bool a_enabled)
+    { m_conservative_face_flux = a_enabled; }
 
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
@@ -124,6 +126,14 @@ public:
 
     virtual int getNComp() const override {return AMREX_SPACEDIM;};
     virtual bool isCrossStencil () const { return false; }
+protected:
+    bool useQuadraticAmrInterpolation() const override
+    { return m_conservative_face_flux; }
+    bool retainCoarseFineResidualRow() const override
+    { return m_conservative_face_flux; }
+    bool relaxCoarseFineGhostRows() const override
+    { return !m_conservative_face_flux; }
+public:
     virtual void prepareForSolve () override
     {
         if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
@@ -146,6 +156,7 @@ public:
     amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
     Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
+    bool m_conservative_face_flux = false;
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);

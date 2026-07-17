@@ -8,3 +8,7 @@ date	task	model	tier	cost_usd	outcome
 2026-07-09	traction-multiplier	sonnet	2	~	done
 2026-07-09	fapply-kernel-surgery	fable-5+sonnet	3	~	done (3.2b local leg: commit 9470889b1 on fapply-322b; stack 192->48B, Fapply excl -4.4% A1000; chamber-gpu merge deferred, concurrent session rewriting Elastic.cpp)
 2026-07-10	fsmooth-launch-fusion	fable-5+sonnet	3	~	done (dc02baf17 on fapply-322b; 2-3x fewer smoother launches, gates green, wall flat locally)
+2026-07-13	elastic-void-robustness	GPT-5	3	n/a	blocked (focused finite-soft-void oracle passed; full GCC suite: 13 run and 17 numerical-check failures; recovery handoff created)
+2026-07-16	elastic-regression-recovery	GPT-5	3	n/a	blocked (paired operator restored and Newton/BC/halo fixes unit-tested; final 2-D/3-D sub-MPa chamber equilibrium oracle fails; full suites and CUDA/performance pending)
+2026-07-17	elastic-recovery-close	GPT-5	3	n/a	done (AMR-policy dispatch restored trusted-parent transfer; full GCC suite 145 run / 113 verified / 0 fail, output_2026-07-17_00.24.59_kermit; chamber 0.2 MPa to t=5.58s, MLMG coarse-cap diagnosis open; restart temp-fab restore open)
+2026-07-17	elastic-recovery-merge	fable-5+haiku	1	n/a	done (merged elastic-void-wip-20260713 into chamber-gpu; re-applied 3.2b MulCol/ddw-hoist + Fsmooth fusion in conflicts)

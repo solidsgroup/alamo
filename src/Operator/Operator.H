@@ -47,6 +47,12 @@ public :
             const LPInfo& a_info = LPInfo(),
             const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
     const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
+    /// Infinity norm over the active AMR composite grid.  Coarse nodes covered
+    /// by a finer level are excluded using the same nodal mask as MLMG.
+    Set::Scalar CompositeNormInf(int amrlev, const MultiFab& mf) const
+    {
+        return normInf(amrlev, mf, false);
+    }
 
     void Reflux(int crse_amrlev,
             MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
@@ -79,6 +85,13 @@ public:
 protected:
     virtual void Fapply (int amrlev, int mglev,MultiFab& out,const MultiFab& in) const override =0;
     virtual void averageDownCoeffs () = 0;
+    /// Select the C/F treatment appropriate to the discrete operator.  The
+    /// legacy nodal product-rule operator uses AMReX's linear interpolation
+    /// and restricted shared-node residual.  Conservative face-flux rows need
+    /// quadratic ghost interpolation and retain the coarse shared-node row.
+    virtual bool useQuadraticAmrInterpolation() const { return false; }
+    virtual bool retainCoarseFineResidualRow() const { return false; }
+    virtual bool relaxCoarseFineGhostRows() const { return true; }
     //
     // Virtual: you SHOULD override these functions
     //
@@ -98,6 +111,8 @@ public:
 public:
     virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
     virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
+    virtual void interpolationAmr (int famrlev, MultiFab& fine,
+        const MultiFab& crse, IntVect const& nghost) const override final;
     virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs, const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
     virtual void prepareForSolve () override;
     virtual bool isSingular (int amrlev) const final {return (amrlev == 0) ? m_is_bottom_singular : false; }

@@ -209,7 +209,7 @@ public:
             if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
 
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
-        if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
+        if (m_print_residual) solver.compResidual(res_mf, disp_mf, rhs_mf, model_mf);
         solver.Clear();
 
         // elastic_op is a local that is about to go out of scope and free its

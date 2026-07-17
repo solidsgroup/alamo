@@ -355,7 +355,8 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
     domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
-    int nghost = 2; //b.nGrow();
+    const bool relax_ghost_rows = relaxCoarseFineGhostRows();
+    int nghost = relax_ghost_rows ? 2 : 0;
 
 
     amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -378,7 +379,12 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.grownnodaltilebox();
+            // Conservative face-flux rows treat coarse/fine ghosts as
+            // prescribed interpolation data.  The legacy product-rule
+            // operator includes its first support-ghost layer in relaxation;
+            // preserve that established algebra for masked/psi solves.
+            Box bx = relax_ghost_rows ? mfi.grownnodaltilebox()
+                                      : (mfi.nodaltilebox() & domain);
             
             auto xfab = x.array(mfi);
             auto bfab = b.const_array(mfi);
@@ -389,19 +395,19 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
             amrex::ParallelFor(bx, ncomp, [=] AMREX_GPU_DEVICE(int i, int j, int k, int n)
             {
 
-                // Skip ghost cells outside problem domain
-                if (!domain.contains(i,j,k))
+                if (relax_ghost_rows && !domain.contains(i,j,k))
                 {
-                    //continue;
+                    // Physical ghosts are supplied by the boundary condition.
                 }
-                else if ( !bx.strictly_contains(i,j,k))
+                else if (relax_ghost_rows && !bx.strictly_contains(i,j,k))
                 {
                     xfab(i, j, k, n) = 0.0;
-                    //continue;
                 }
                 else
                 {
-                    xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                    xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n)
+                        + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n))
+                        / diagfab(i,j,k,n);
                 }
             });
         }
@@ -417,7 +423,8 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
     if (!m_diagonal_computed)
         Util::Abort(INFO, "Operator::Diagonal() must be called before using normalize");
 
-    a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),2);
+    a_x.divide(*m_diag[amrlev][mglev], 0, getNComp(),
+        relaxCoarseFineGhostRows() ? 2 : 0);
 
     a_x.setMultiGhost(true);
     a_x.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
@@ -808,6 +815,78 @@ void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_so
 
 }
 
+void Operator<Grid::Node>::interpolationAmr(int famrlev, MultiFab& fine,
+    const MultiFab& crse, IntVect const& nghost) const
+{
+    BL_PROFILE("Operator::interpolationAmr()");
+    if (!useQuadraticAmrInterpolation())
+    {
+        amrex::MLNodeLinOp::interpolationAmr(famrlev, fine, crse, nghost);
+        return;
+    }
+    Util::Assert(INFO, TEST(AMRRefRatio(famrlev - 1) == 2));
+    const int ncomp = getNComp();
+
+    for (MFIter mfi(fine, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        Box fbx = mfi.tilebox();
+        const Box valid = mfi.validbox();
+        fbx.grow(nghost);
+        const Dim3 vlo = amrex::lbound(valid), vhi = amrex::ubound(valid);
+        Array4<Real> const& ffab = fine.array(mfi);
+        Array4<Real const> const& cfab = crse.const_array(mfi);
+
+        ALAMO_OPERATOR_FOR(fbx, ncomp,
+            [=] ALAMO_OPERATOR_DEVICE(int i, int j, int k, int n)
+        {
+            int ci[3][3] = {};
+            Real cw[3][3] = {};
+            int nc[3] = {1, 1, 1};
+            cw[0][0] = cw[1][0] = cw[2][0] = 1.0;
+
+            const int fi[3] = {i, j, k};
+            const int flo[3] = {vlo.x, vlo.y, vlo.z};
+            const int fhi[3] = {vhi.x, vhi.y, vhi.z};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const int q = fi[d] >= 0 ? fi[d] / 2 : (fi[d] - 1) / 2;
+                if (fi[d] % 2 == 0)
+                {
+                    ci[d][0] = q;
+                }
+                else if (fi[d] < flo[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q;     cw[d][0] =  3.0 / 8.0;
+                    ci[d][1] = q + 1; cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 2; cw[d][2] = -1.0 / 8.0;
+                }
+                else if (fi[d] > fhi[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q - 1; cw[d][0] = -1.0 / 8.0;
+                    ci[d][1] = q;     cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 1; cw[d][2] =  3.0 / 8.0;
+                }
+                else
+                {
+                    nc[d] = 2;
+                    ci[d][0] = q;     cw[d][0] = 0.5;
+                    ci[d][1] = q + 1; cw[d][1] = 0.5;
+                }
+            }
+
+            Real value = 0.0;
+            for (int a = 0; a < nc[0]; ++a)
+                for (int b = 0; b < nc[1]; ++b)
+                    for (int c = 0; c < nc[2]; ++c)
+                        value += cw[0][a] * cw[1][b] * cw[2][c]
+                            * cfab(ci[0][a], ci[1][b], ci[2][c], n);
+            ffab(i, j, k, n) = value;
+        });
+    }
+}
+
 void Operator<Grid::Node>::realFillBoundary(MultiFab& phi, const Geometry& geom)
 {
     Util::RealFillBoundary(phi, geom);
@@ -909,6 +988,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // const int coarse_coarse_node = 0;
     const int coarse_fine_node = 1;
     const int fine_fine_node = 2;
+    const bool retain_coarse_fine = retainCoarseFineResidualRow();
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
@@ -932,7 +1012,14 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
             ALAMO_OPERATOR_FOR(bx, [=] ALAMO_OPERATOR_DEVICE (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
-                if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)
+                // A shared coarse/fine node remains governed by this level's
+                // coarse operator row.  Replacing it with a restricted fine
+                // residual makes the residual equation differ from the row
+                // used for coarse-grid correction and stalls the composite
+                // V-cycle.  Only nodes fully covered by the fine level are
+                // replaced here; the coarse norm masks those covered rows.
+                if (nmask(I, J, K) == fine_fine_node ||
+                    (!retain_coarse_fine && nmask(I, J, K) == coarse_fine_node))
                 {
                     if ((I == lo.x || I == hi.x) &&
                         (J == lo.y || J == hi.y) &&

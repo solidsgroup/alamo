@@ -1,0 +1,405 @@
+#!/usr/bin/env python3
+"""Property oracle for conservative finite-soft-void elastic solves."""
+
+import math
+import re
+import sys
+from pathlib import Path
+
+import numpy as np
+import yt
+
+
+yt.set_log_level(50)
+
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def metadata(path):
+    values = {}
+    for line in path.read_text().splitlines():
+        if " = " not in line:
+            continue
+        key, value = line.split(" = ", 1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def field_values(container, name):
+    return np.asarray(container[("boxlib", name)], dtype=float)
+
+
+def grid_field_values(grid, name):
+    values = np.asarray(grid[("boxlib", name)], dtype=float)
+    if values.ndim == 2:
+        values = values[:, :, np.newaxis]
+    require(values.ndim == 3, f"unexpected {name} grid shape {values.shape}")
+    return values
+
+
+def mpa_value(value):
+    match = re.fullmatch(r"([+\-0-9.eE]+)_MPa", value)
+    require(match, f"cannot parse MPa value {value!r}")
+    return float(match.group(1)) * 1.0e6
+
+
+def level_bounds(grids):
+    left = np.min([np.asarray(grid.LeftEdge, dtype=float) for grid in grids], axis=0)
+    right = np.max([np.asarray(grid.RightEdge, dtype=float) for grid in grids], axis=0)
+    return left, right
+
+
+def require_rectangular_union(grids, dimension, level):
+    """Prove chopped same-level boxes tile their physical bounding box."""
+    left, right = level_bounds(grids)
+    axes = tuple(range(dimension))
+    bounding_measure = float(np.prod((right - left)[list(axes)]))
+    grid_measure = sum(
+        float(np.prod((np.asarray(grid.RightEdge, dtype=float) -
+                       np.asarray(grid.LeftEdge, dtype=float))[list(axes)]))
+        for grid in grids
+    )
+    require(math.isclose(grid_measure, bounding_measure,
+                         rel_tol=2.0e-12, abs_tol=1.0e-16),
+            f"AMR level {level} fine-grid union is not rectangular")
+    return left, right
+
+
+def assemble_level_field(grids, name, level):
+    """Assemble a nodal level field independent of its grid decomposition."""
+    left, right = level_bounds(grids)
+    spacing = np.asarray(grids[0].dds, dtype=float)
+    shape = np.rint((right - left) / spacing).astype(int) + 1
+    require(np.all(shape > 0), f"AMR level {level} has an invalid extent")
+
+    total = np.zeros(tuple(shape), dtype=float)
+    count = np.zeros(tuple(shape), dtype=np.int32)
+    for grid in grids:
+        grid_spacing = np.asarray(grid.dds, dtype=float)
+        require(np.allclose(grid_spacing, spacing, rtol=2.0e-12, atol=0.0),
+                f"AMR level {level} has inconsistent grid spacing")
+        values = grid_field_values(grid, name)
+        start = np.rint(
+            (np.asarray(grid.LeftEdge, dtype=float) - left) / spacing
+        ).astype(int)
+        stop = start + np.asarray(values.shape)
+        require(np.all(start >= 0) and np.all(stop <= shape),
+                f"{name} grid lies outside the AMR level {level} union")
+        slices = tuple(slice(int(lo), int(hi)) for lo, hi in zip(start, stop))
+        total[slices] += values
+        count[slices] += 1
+
+    require(np.all(count > 0),
+            f"AMR level {level} {name} field has holes in its rectangular union")
+    return total / count
+
+
+require(len(sys.argv) == 2, "usage: test OUTPUT_DIRECTORY")
+outdir = Path(sys.argv[1])
+stdout = (outdir / "stdout").read_text()
+require("ELASTIC SOLVE:" in stdout, "the case did not enter an elastic solve")
+require(not re.search(r"\b(?:abort|nan|inf(?:inity)?)\b", stdout, re.IGNORECASE),
+        "solver output contains an abort or non-finite value")
+require("MLMG failed" not in stdout and "Failed to converge" not in stdout and
+        "Failing to converge" not in stdout,
+        "the linear solver reported non-convergence")
+
+linear = re.findall(
+    r"MLMG: Final Iter\.\s+\d+\s+resid, resid/(?:bnorm|resid0)\s+=\s+([^,\s]+),\s+([^,\s]+)",
+    stdout,
+)
+require(linear, "no final MLMG residual was reported")
+for _, relative in linear:
+    value = float(relative)
+    require(math.isfinite(value) and value <= 1.2e-5,
+            f"linear residual {value:g} exceeds the 1e-5 solve target")
+
+solve_blocks = stdout.split("ELASTIC SOLVE:")[1:]
+require(solve_blocks, "no elastic solve block was reported")
+metric_pattern = re.compile(
+    r"NR convergence metrics:\s*mode=([^,\s]+),\s*"
+    r"max_update=([^,\s]+),\s*accepted_max_update=([^,\s]+),\s*"
+    r"accepted_relative_update=([^,\s]+),\s*psi_update=([^,\s]+),\s*"
+    r"solid_update=([^,\s]+),\s*nonlinear_resid=([^,\s]+),\s*"
+    r"nonlinear_resid_rel=([^,\s]+),\s*converged=([01])"
+)
+iteration_pattern = re.compile(
+    r"NR iteration\s+\d+,\s*alpha\s*=\s*([^,\s]+),\s*"
+    r"relative norm\(ddisp\)\s*=\s*([^\s]+)"
+)
+for solve_number, block in enumerate(solve_blocks, start=1):
+    metrics = metric_pattern.findall(block)
+    iterations = iteration_pattern.findall(block)
+    require(metrics, f"elastic solve {solve_number} has no Newton convergence record")
+    require(len(metrics) == len(iterations),
+            f"elastic solve {solve_number} has mismatched iteration diagnostics")
+
+    previous_residual = None
+    for metric, iteration in zip(metrics, iterations):
+        mode, max_update, accepted_update, accepted_relative, psi_update, \
+            solid_update, nonlinear_residual, nonlinear_relative, converged = metric
+        alpha, reported_relative = iteration
+        values = list(map(float, (
+            max_update, accepted_update, accepted_relative, psi_update,
+            solid_update, nonlinear_residual, nonlinear_relative, alpha,
+            reported_relative,
+        )))
+        require(all(map(math.isfinite, values)),
+                f"elastic solve {solve_number} has a non-finite Newton metric")
+        max_update, accepted_update, accepted_relative, psi_update, \
+            solid_update, nonlinear_residual, nonlinear_relative, alpha, \
+            reported_relative = values
+        require(mode == "update", f"unexpected Newton convergence mode {mode}")
+        require(0.0 < alpha <= 1.0, f"invalid line-search alpha {alpha:g}")
+        require(math.isclose(accepted_update, alpha * max_update,
+                             rel_tol=2.0e-5, abs_tol=1.0e-14),
+                "accepted update is inconsistent with the line-search step")
+        require(math.isclose(reported_relative, max_update,
+                             rel_tol=2.0e-5, abs_tol=1.0e-14),
+                "reported update is inconsistent with the convergence metric")
+        if previous_residual is None:
+            require(nonlinear_relative <= 1.0001 + 1.0e-12,
+                    "the first accepted Newton step increased its residual")
+        else:
+            require(nonlinear_residual <= previous_residual * (1.0001 + 1.0e-12),
+                    "an accepted Newton step increased its residual")
+        previous_residual = nonlinear_residual
+
+    final_max_update = float(metrics[-1][1])
+    final_nonlinear_relative = float(metrics[-1][7])
+    require(metrics[-1][-1] == "1",
+            f"elastic solve {solve_number} did not report convergence")
+    require(final_max_update <= 2.0e-5,
+            f"elastic solve {solve_number} update {final_max_update:g} exceeds tolerance")
+    require(final_nonlinear_relative < 0.05,
+            f"elastic solve {solve_number} nonlinear equilibrium ratio "
+            f"{final_nonlinear_relative:g} is not below 0.05")
+meta = metadata(outdir / "metadata")
+require(meta.get("Status", "").strip().lower() == "complete",
+        "simulation status is not exactly Complete")
+dimension_text = meta.get("Dimension", "")
+require(re.fullmatch(r"[23]", dimension_text) is not None,
+        f"invalid metadata Dimension {dimension_text!r}")
+dimension = int(dimension_text)
+require(int(meta["Number_of_processors"]) >= 1,
+        "metadata reports no active MPI processes")
+use_psi = float(meta["elastic.use_psi"])
+psi_floor = float(meta["elastic.psi_floor"])
+require(use_psi == 0.0, "the physical regression must use the finite void model, not psi masking")
+require(psi_floor == 0.0, "the physical regression must not use a psi floor")
+require(meta.get("elastic.solver.nr_convergence") == "update",
+        "the regression must use the unscaled update convergence mode")
+require(float(meta.get("elastic.solver.line_search", "0")) == 1.0,
+        "the regression must exercise the line search")
+for key in ("model_void.kappa", "model_void.mu"):
+    require(math.isclose(mpa_value(meta[key]), 0.2e6,
+                         rel_tol=0.0, abs_tol=1.0e-8),
+            f"{key} is not the required 0.2 MPa")
+
+plots = sorted(outdir.glob("*node"))
+require(plots, "no nodal plotfile was written")
+ds = yt.load(str(plots[-1]))
+ad = ds.all_data()
+fields = {name for field_type, name in ds.field_list if field_type == "boxlib"}
+domain_dimensions = np.asarray(ds.domain_dimensions, dtype=int)
+require((dimension == 2 and domain_dimensions[2] == 1) or
+        (dimension == 3 and domain_dimensions[2] > 1),
+        "plotfile dimensionality disagrees with metadata Dimension")
+
+required_level = 2 if dimension == 2 else 1
+require(ds.index.max_level >= required_level,
+        f"expected AMR level {required_level}, found only {ds.index.max_level}")
+
+grids_by_level = {}
+for grid in ds.index.grids:
+    grids_by_level.setdefault(int(grid.Level), []).append(grid)
+for level in range(required_level + 1):
+    require(grids_by_level.get(level), f"AMR level {level} has no grids")
+    require_rectangular_union(grids_by_level[level], dimension, level)
+
+for prefix in ("disp_", "strain_", "stress_", "rhs_", "res_"):
+    names = sorted(name for name in fields if name.startswith(prefix))
+    require(names, f"plotfile has no {prefix} fields")
+    for name in names:
+        values = field_values(ad, name)
+        require(np.isfinite(values).all(), f"{name} contains a non-finite value")
+
+mu_name = "model_mu" if "model_mu" in fields else "_mu"
+kappa_name = "model_kappa" if "model_kappa" in fields else "_kappa"
+for name in ("psi", mu_name, kappa_name):
+    require(name in fields, f"plotfile is missing {name}")
+    require(np.isfinite(field_values(ad, name)).all(), f"{name} contains a non-finite value")
+
+in_plane_disp_max = max(
+    float(np.max(np.abs(field_values(ad, name))))
+    for name in ("disp_x", "disp_y")
+)
+in_plane_stress_max = max(
+    float(np.max(np.abs(field_values(ad, name))))
+    for name in ("stress_xx", "stress_xy", "stress_yx", "stress_yy")
+)
+require(in_plane_disp_max > 1.0e-12, "in-plane elastic displacement is trivially zero")
+require(in_plane_stress_max > 1.0, "in-plane elastic stress is trivially zero")
+
+psi = field_values(ad, "psi")
+psi_min = float(np.min(psi))
+psi_max = float(np.max(psi))
+require(psi_min < 0.3 and psi_max > 0.99,
+        "the diffuse rod/void/tube geometry was not realized")
+
+for level, grids in grids_by_level.items():
+    level_psi = np.concatenate([
+        grid_field_values(grid, "psi").ravel() for grid in grids
+    ])
+    require(float(np.min(level_psi)) < 0.3 and float(np.max(level_psi)) > 0.99,
+            f"AMR level {level} does not contain both soft and solid material")
+    require(np.any((level_psi > 0.05) & (level_psi < 0.95)),
+            f"AMR level {level} does not resolve the diffuse interface")
+
+# The explicit fine regions are rectangular but may be chopped into many
+# same-level boxes.  Only faces on the exterior of each rectangular union are
+# coarse/fine interfaces; faces shared by chopped boxes are deliberately
+# excluded.
+domain_lo = np.asarray(ds.domain_left_edge, dtype=float)
+domain_hi = np.asarray(ds.domain_right_edge, dtype=float)
+for level in range(1, required_level + 1):
+    grids = grids_by_level[level]
+    union_lo, union_hi = level_bounds(grids)
+    spacing = np.asarray(grids[0].dds, dtype=float)
+    for axis in range(2):
+        require(union_lo[axis] > domain_lo[axis] + 0.5 * spacing[axis] and
+                union_hi[axis] < domain_hi[axis] - 0.5 * spacing[axis],
+                f"AMR level {level} fine-grid union is not internal in "
+                f"{'xy'[axis]}")
+
+    cf_transition_count = 0
+    for grid in grids:
+        values = grid_field_values(grid, "psi")
+        left = np.asarray(grid.LeftEdge, dtype=float)
+        right = np.asarray(grid.RightEdge, dtype=float)
+        for axis in range(2):
+            edge_tolerance = 1.0e-8 * spacing[axis]
+            if math.isclose(left[axis], union_lo[axis],
+                            rel_tol=0.0, abs_tol=edge_tolerance):
+                face = np.take(values, 0, axis=axis)
+                cf_transition_count += int(np.count_nonzero(
+                    (face > 0.05) & (face < 0.95)
+                ))
+            if math.isclose(right[axis], union_hi[axis],
+                            rel_tol=0.0, abs_tol=edge_tolerance):
+                face = np.take(values, -1, axis=axis)
+                cf_transition_count += int(np.count_nonzero(
+                    (face > 0.05) & (face < 0.95)
+                ))
+    require(cf_transition_count > 0,
+            f"AMR level {level} outer coarse/fine boundary does not intersect "
+            "the diffuse material interface")
+
+for field_name, parameter in ((mu_name, "mu"), (kappa_name, "kappa")):
+    values = field_values(ad, field_name)
+    void_modulus = mpa_value(meta[f"model_void.{parameter}"])
+    propellant_modulus = mpa_value(meta[f"model_prop.{parameter}"])
+    casing_modulus = mpa_value(meta[f"model_casing.{parameter}"])
+    require(math.isclose(propellant_modulus, casing_modulus),
+            f"the {parameter} mixture oracle requires equal solid moduli")
+    expected = void_modulus + psi * (propellant_modulus - void_modulus)
+    require(np.allclose(values, expected, rtol=1.0e-10, atol=1.0e-6),
+            f"{field_name} does not realize the configured finite-void mixture")
+    realized_minimum = float(np.min(values))
+    require(0.0 < realized_minimum < 1.0e6,
+            f"realized {field_name} minimum {realized_minimum:g} Pa is not "
+            "positive and sub-MPa")
+    require(float(np.max(values) / realized_minimum) >= 5.0,
+            f"the plot does not contain a meaningful {parameter} contrast")
+    for level, grids in grids_by_level.items():
+        level_values = np.concatenate([
+            grid_field_values(grid, field_name).ravel() for grid in grids
+        ])
+        level_psi = np.concatenate([
+            grid_field_values(grid, "psi").ravel() for grid in grids
+        ])
+        level_expected = void_modulus + level_psi * (
+            propellant_modulus - void_modulus
+        )
+        require(np.allclose(level_values, level_expected,
+                            rtol=1.0e-10, atol=1.0e-6),
+                f"AMR level {level} has an inconsistent {field_name} mixture")
+        require(float(np.max(level_values) / np.min(level_values)) >= 5.0,
+                f"AMR level {level} lacks meaningful {parameter} heterogeneity")
+
+rhs_max = max(
+    float(np.max(np.abs(field_values(ad, name))))
+    for name in fields if name.startswith("rhs_")
+)
+residual_max = max(
+    float(np.max(np.abs(field_values(ad, name))))
+    for name in fields if name.startswith("res_")
+)
+require(rhs_max > 0.0, "plotted elastic RHS is zero")
+require(residual_max / rhs_max < 0.05,
+        f"plotted equilibrium ratio {residual_max / rhs_max:g} is not below 0.05")
+
+if dimension == 3:
+    required_3d_fields = {
+        "disp_x", "disp_y", "disp_z", "rhs_x", "rhs_y", "rhs_z",
+        "res_x", "res_y", "res_z",
+    }
+    require(required_3d_fields <= fields,
+            f"3-D plotfile is missing {sorted(required_3d_fields - fields)}")
+
+    z_invariant_fields = {"psi", mu_name, kappa_name}
+    z_invariant_fields.update(
+        name for name in ("eta", "phi", "temp") if name in fields
+    )
+    for name in fields:
+        if re.fullmatch(r"(?:disp|rhs|res)_[xy]", name):
+            z_invariant_fields.add(name)
+        if re.fullmatch(r"(?:strain|stress)_[xy][xy]", name):
+            z_invariant_fields.add(name)
+        if re.fullmatch(r"model_F0[xy][xy]", name):
+            z_invariant_fields.add(name)
+
+    for level, grids in grids_by_level.items():
+        for name in sorted(z_invariant_fields):
+            values = assemble_level_field(grids, name, level)
+            require(values.shape[2] > 1,
+                    f"AMR level {level} {name} has no z extent")
+            spread = float(np.max(np.ptp(values, axis=2)))
+            scale = float(np.max(np.abs(values)))
+            tolerance = 1.0e-12 + 1.0e-8 * scale
+            require(spread <= tolerance,
+                    f"AMR level {level} {name} varies in periodic z: "
+                    f"spread {spread:g} exceeds {tolerance:g}")
+
+    rhs_xy_max = max(
+        float(np.max(np.abs(field_values(ad, name))))
+        for name in ("rhs_x", "rhs_y")
+    )
+    rhs_z_max = float(np.max(np.abs(field_values(ad, "rhs_z"))))
+    require(rhs_z_max <= 1.0e-12 * max(rhs_xy_max, 1.0),
+            f"out-of-plane RHS {rhs_z_max:g} is not negligible relative to "
+            f"in-plane RHS {rhs_xy_max:g}")
+
+    disp_xy_max = max(
+        float(np.max(np.abs(field_values(ad, name))))
+        for name in ("disp_x", "disp_y")
+    )
+    disp_z_max = float(np.max(np.abs(field_values(ad, "disp_z"))))
+    require(disp_z_max <= 1.0e-14 + 1.0e-8 * disp_xy_max,
+            f"out-of-plane displacement {disp_z_max:g} is not negligible "
+            f"relative to in-plane displacement {disp_xy_max:g}")
+
+work = np.zeros_like(field_values(
+    ad, next(name for name in fields if name.startswith("stress_"))
+))
+for name in fields:
+    if not name.startswith("stress_"):
+        continue
+    strain_name = "strain_" + name[len("stress_"):]
+    if strain_name in fields:
+        work += 0.5 * field_values(ad, name) * field_values(ad, strain_name)
+require(np.isfinite(work).all() and float(np.max(np.abs(work))) > 0.0,
+        "stress-strain work witness is non-finite or zero")
