@@ -516,7 +516,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         {   
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 	    
-            Set::Scalar eta_hydro = 1 - eta(i,j,k);
             Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
             Set::Vector grad_eta_hydro = -1.0*grad_eta;
 	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
@@ -566,7 +565,11 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
                 density_solid_tot += solidrho(i,j,k,n);
             }
 
-            u0_mag = c*(density_solid_tot)*eta(i,j,k)/(density_gas_tot*eta_hydro);
+            // Physical gas ejection speed from mass conservation across the
+            // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
+            // (The previous eta/eta_hydro volume-fraction weighting diverged as
+            // the solid side was approached, eta_hydro -> 0.)
+            u0_mag = c*density_solid_tot/(density_gas_tot + small);
 
             u0(i,j,k,0) = u0_mag*N(0);
             u0(i,j,k,1) = u0_mag*N(1);
