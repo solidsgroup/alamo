@@ -577,11 +577,21 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // De-mix the pure-gas density from the mixed conserved density for
             // visualization: hydro_density is eta_hydro*rho_gas + (1-eta_hydro)*rho_solid
             // (Hydro::Mix, using Hydro's fluid=1 convention), so invert that blend.
-            // In cells that are effectively all solid (eta_hydro ~ 0) this is not
-            // well defined; report the solid density there instead of dividing by ~0.
+            // Below Hydro's own eta cutoff the reconstruction is ill-conditioned
+            // (dividing by a near-zero fluid fraction), so report the solid
+            // density there instead - matching the same eta_cutoff convention
+            // Hydro::RHS/RefreshDerivedPlotFields use for this same inversion.
             Set::Scalar eta_hydro_local = 1.0 - eta(i,j,k);
-            if (eta_hydro_local > small)
-                fluid_density(i,j,k) = (density_gas_tot - (1.0 - eta_hydro_local)*density_solid_tot) / eta_hydro_local;
+            Set::Scalar eta_cutoff_local = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
+            if (eta_hydro_local > eta_cutoff_local)
+            {
+                // Near eta_cutoff this inversion amplifies any mismatch between
+                // hydro_density and the true mixed state (e.g. at the special
+                // dt=0 init call, before Mix() has run) into large swings;
+                // clamp to non-negative since density is not physically negative.
+                fluid_density(i,j,k) = std::max(0.0,
+                    (density_gas_tot - (1.0 - eta_hydro_local)*density_solid_tot) / eta_hydro_local);
+            }
             else
                 fluid_density(i,j,k) = density_solid_tot;
 
