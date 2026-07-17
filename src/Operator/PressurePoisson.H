@@ -2,6 +2,7 @@
 #define OPERATOR_PRESSUREPOISSON_H
 
 #include <AMReX_Geometry.H>
+#include <AMReX_BCRec.H>
 #include <AMReX_MultiFab.H>
 
 #include "IO/ParmParse.H"
@@ -29,7 +30,7 @@ public:
     amrex::MultiFab& Coefficient(int lev) { return *coefficient[lev]; }
     const amrex::MultiFab& Solution(int lev) const { return *solution[lev]; }
 
-    void Solve(Set::Scalar time);
+    void Solve(Set::Scalar time, const amrex::BCRec& pressure_bc);
 
 private:
     int nlevels = 0;

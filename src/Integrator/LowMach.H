@@ -72,6 +72,7 @@ protected:
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
+    void UpdateRigidPenaltyForce(int lev);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
@@ -92,6 +93,8 @@ protected:
     Set::Field<Set::Scalar> component_density_old_mf;
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> rigid_eta_mf;
+    Set::Field<Set::Scalar> rigid_penalty_force_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -126,6 +129,8 @@ protected:
     int ngas_species = 0;
     int nspecies = 0;
     int deformable_solid_species = -1;
+    int rigid_solid_species = -1;
+    int phase_change_product_species = 0;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -134,6 +139,7 @@ protected:
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;
     Set::Scalar pressure_scale = 1.0;
+    Set::Scalar pressure_reference = NAN;
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
@@ -151,6 +157,9 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
+    Set::Scalar rigid_reference_density = 1.0;
+    Set::Scalar rigid_relaxation_time = 1.0;
+    Set::Vector rigid_velocity = Set::Vector::Zero();
 
     Numeric::Advect::Advect<Numeric::Advect::MUSCL,
                             Numeric::Advect::Upwind,

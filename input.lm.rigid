@@ -1,0 +1,112 @@
+# LowMach periodic flow around a fixed diffuse rigid obstacle
+# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.rigid
+
+plot_file = output.lm.rigid
+amr.plot_dt = 0.01
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = 5
+amr.max_level = 1
+amr.nsubsteps = 1
+amr.n_cell = 64 64
+amr.grid_eff = 0.7
+
+eta_refinement_criterion = 0.01
+
+timestep = 1.0e-3
+stop_time = 0.05
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.mechanics = fluid rigid_solid
+
+rigid.reference_density = 10.0_kg/m^3
+rigid.relaxation_time = 2.0e-4_s
+rigid.velocity = 0.0 0.0
+
+advection.type = weno5
+cfl = 0.25
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diagnostics.interval = 10
+diagnostics.extended_fields = 0
+
+component_density.ic.type = expression
+component_density.ic.expression.constant.rhog = 1.12254198039921
+component_density.ic.expression.constant.rhor = 10.0
+component_density.ic.expression.constant.x0 = 0.5
+component_density.ic.expression.constant.y0 = 0.5
+component_density.ic.expression.constant.R = 0.14
+component_density.ic.expression.constant.eps = 0.02
+component_density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+component_density.ic.expression.region1 = "rhor*(1.0-0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.1 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0

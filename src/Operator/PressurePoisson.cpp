@@ -70,7 +70,7 @@ PressurePoisson::SetLayout(
 }
 
 void
-PressurePoisson::Solve(Set::Scalar time)
+PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
 {
     BL_PROFILE("Operator::PressurePoisson::Solve");
 
@@ -123,10 +123,18 @@ PressurePoisson::Solve(Set::Scalar time)
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_hi;
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
     {
-        boundary_lo[d] = geometry[0].isPeriodic(d) ?
-            amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
-        boundary_hi[d] = geometry[0].isPeriodic(d) ?
-            amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Neumann;
+        if (geometry[0].isPeriodic(d))
+        {
+            boundary_lo[d] = amrex::LinOpBCType::Periodic;
+            boundary_hi[d] = amrex::LinOpBCType::Periodic;
+        }
+        else
+        {
+            boundary_lo[d] = BC::BCUtil::IsDirichlet(pressure_bc.lo(d)) ?
+                amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
+            boundary_hi[d] = BC::BCUtil::IsDirichlet(pressure_bc.hi(d)) ?
+                amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
+        }
     }
     poisson.setDomainBC(boundary_lo, boundary_hi);
     poisson.setScalars(0.0, -1.0);
