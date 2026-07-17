@@ -147,7 +147,7 @@ void Initialize (int argc, char* argv[])
 
     amrex::Initialize(argc, argv);
 
-    IO::ParmParse pp("amrex");
+    IO::ParmParse pp;
     pp.add("amrex.throw_exception",1);
     //amrex.throw_exception=1
 
