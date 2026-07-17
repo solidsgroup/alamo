@@ -34,20 +34,22 @@ std::string GetFileName()
     if (filename == "")
     {
         IO::ParmParse pp;
-        IO::ParmParse pp_amr("amr");
 
-        if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
+        if (pp.contains("amr.plot_file") && pp.contains("plot_file"))
             Util::Abort("plot_file specified in too many locations");
-        else if (pp_amr.contains("plot_file"))
+        else if (pp.contains("amr.plot_file"))
         {
             if (amrex::ParallelDescriptor::IOProcessor())
                 amrex::Warning("amr.plot_file will be depricated; use plot_file instead");
-            pp_amr.query("plot_file", filename);
+
+            // (Depricated) Output file path
+            pp.query("amr.plot_file", filename);
 
         }
         else if (pp.contains("plot_file"))
         {
-            pp_query("plot_file", filename); // Name of directory containing all output data
+            // Output file path
+            pp.query("plot_file", filename); // Name of directory containing all output data
         }
         IO::FileNameParse(filename);
         // else
@@ -145,8 +147,8 @@ void Initialize (int argc, char* argv[])
 
     amrex::Initialize(argc, argv);
 
-    IO::ParmParse pp_amrex("amrex");
-    pp_amrex.add("throw_exception",1);
+    IO::ParmParse pp("amrex");
+    pp.add("amrex.throw_exception",1);
     //amrex.throw_exception=1
 
     signal(SIGSEGV, Util::SignalHandler);
@@ -161,7 +163,6 @@ void Initialize (int argc, char* argv[])
         IO::WriteMetaData(filename);
     }
 
-    IO::ParmParse pp;
     std::string length, time, mass, temperature, current, amount, luminousintensity;
     // Set the system length unit
     pp.query_default("system.length",length,"m");

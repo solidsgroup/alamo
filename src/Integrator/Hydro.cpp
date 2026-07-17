@@ -196,6 +196,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
     else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
 
+    // Gravitational acceleration vector
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
 
     bool allow_unused;
