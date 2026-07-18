@@ -12,6 +12,9 @@
 #include "IC/Expression.H"
 #include "IC/IC.H"
 #include "Model/Gas/Gas.H"
+#include "Model/Mechanism/Mechanism.H"
+#include "Model/Mechanism/PhaseChange.H"
+#include "Model/Species/Registry.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -20,7 +23,6 @@
 #include "Numeric/Advect/QUICK.H"
 #include "Numeric/Advect/Upwind.H"
 #include "Numeric/Advect/WENO5.H"
-#include "Model/PhaseField/AllenCahn.H"
 #include "Numeric/ReferenceMap/Reconstruction.H"
 #include "Operator/PressurePoisson.H"
 
@@ -30,13 +32,6 @@ class LowMach : virtual public Integrator
 {
 public:
     static constexpr const char* name = "lowmach";
-
-    enum class Mechanics
-    {
-        Fluid,
-        DeformableSolid,
-        RigidSolid
-    };
 
     LowMach() {};
     LowMach(IO::ParmParse& pp);
@@ -72,7 +67,6 @@ protected:
                            const amrex::MultiFab& xi_mf,
                            bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
-    void UpdateRigidPenaltyForce(int lev);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
@@ -94,7 +88,6 @@ protected:
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
-    Set::Field<Set::Scalar> rigid_penalty_force_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -123,14 +116,14 @@ protected:
 
     Model::Gas::Gas gas;
     Model::Solid::Finite::NeoHookean finite_solid_model;
-    // Component fields store species partial densities; mechanics only selects
-    // how each component contributes to the momentum equation.
-    std::vector<Mechanics> species_mechanics;
+    Model::Species::Registry species;
+    using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
+    std::vector<Mechanism> mechanisms;
+    std::vector<Set::Scalar> reference_density;
     int ngas_species = 0;
     int nspecies = 0;
     int deformable_solid_species = -1;
-    int rigid_solid_species = -1;
-    int phase_change_product_species = 0;
+    std::vector<int> rigid_solid_species;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -157,7 +150,6 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
-    Set::Scalar rigid_reference_density = 1.0;
     Set::Scalar rigid_relaxation_time = 1.0;
     Set::Vector rigid_velocity = Set::Vector::Zero();
 
@@ -166,7 +158,6 @@ protected:
                             Numeric::Advect::Centered,
                             Numeric::Advect::QUICK,
                             Numeric::Advect::WENO5> advect;
-    Model::PhaseField::AllenCahn eta_phase_field;
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
     Operator::PressurePoisson pressure_poisson;
 };

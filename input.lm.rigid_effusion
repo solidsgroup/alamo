@@ -39,17 +39,26 @@ gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s 1.0e-3_Pa*s
 gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K
 gas.eos.type = cpg
 
-# Component order: particle vapor, ambient gas, rigid particle.
-species.mechanics = fluid fluid rigid_solid
-phase_change.product_species = 0
+# Component order remains significant for the corresponding gas property arrays.
+species.names = Al_vapor ambient_gas Al_solid
 
-rigid.reference_density = 100.0_kg/m^3
+Al_vapor.mechanics = fluid
+ambient_gas.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+Al_solid.reference_density = 100.0_kg/m^3
+
+mechanisms.names = Al_sublimation
+Al_sublimation.type = phase_change
+Al_sublimation.in = Al_solid
+Al_sublimation.out = Al_vapor
+Al_sublimation.phase_field.type = allencahn
+
 rigid.relaxation_time = 5.0e-5_s
 rigid.velocity = 0.0 0.0
 
-eta.phase_field.mobility = 20.0_1/Pa/s
-eta.phase_field.sigma = 0.02_J/m^2
-eta.phase_field.epsilon = 0.025_m
+Al_sublimation.phase_field.allencahn.mobility = 20.0_1/Pa/s
+Al_sublimation.phase_field.allencahn.sigma = 0.02_J/m^2
+Al_sublimation.phase_field.allencahn.epsilon = 0.025_m
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod

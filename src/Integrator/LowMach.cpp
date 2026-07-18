@@ -44,45 +44,32 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.ngas_species = value.gas.nspecies;
 
-    std::vector<std::string> mechanics;
-    pp.queryarr_required("species.mechanics", mechanics);
-    value.nspecies = mechanics.size();
-    value.species_mechanics.resize(value.nspecies);
+    value.species.Parse(pp);
+    value.nspecies = value.species.Size();
+    value.reference_density.assign(value.nspecies, NAN);
     for (int n = 0; n < value.nspecies; ++n)
     {
-        if (mechanics[n] == "fluid")
+        const Model::Species::Mechanics mechanics = value.species.GetMechanics(n);
+        if (mechanics == Model::Species::Mechanics::Fluid)
         {
-            value.species_mechanics[n] = Mechanics::Fluid;
             if (n >= value.ngas_species)
-                Util::Exception(INFO, "Fluid species ", n,
+                Util::Exception(INFO, "Fluid species ", value.species.Name(n),
                                 " has no corresponding entry in gas.mw");
         }
-        else if (mechanics[n] == "deformable_solid")
+        else if (mechanics == Model::Species::Mechanics::DeformableSolid)
         {
-            value.species_mechanics[n] = Mechanics::DeformableSolid;
             if (value.deformable_solid_species >= 0)
                 Util::Exception(INFO,
                                 "LowMach currently supports one deformable solid species");
             value.deformable_solid_species = n;
         }
-        else if (mechanics[n] == "rigid_solid")
-        {
-            value.species_mechanics[n] = Mechanics::RigidSolid;
-            if (value.rigid_solid_species >= 0)
-                Util::Exception(INFO,
-                                "LowMach currently supports one rigid solid species");
-            value.rigid_solid_species = n;
-        }
-        else
-        {
-            Util::Exception(INFO, mechanics[n],
-                            " is not a valid species.mechanics value");
-        }
+        else if (mechanics == Model::Species::Mechanics::RigidSolid)
+            value.rigid_solid_species.push_back(n);
     }
     if (value.nspecies < value.ngas_species)
-        Util::Exception(INFO, "species.mechanics must contain one fluid entry for every gas species");
+        Util::Exception(INFO, "species.names must contain one identifier for every gas species");
     for (int n = 0; n < value.ngas_species; ++n)
-        if (value.species_mechanics[n] != Mechanics::Fluid)
+        if (value.species.GetMechanics(n) != Model::Species::Mechanics::Fluid)
             Util::Exception(INFO, "The first ", value.ngas_species,
                             " species must be fluid species described by the gas model");
 
@@ -107,30 +94,42 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                           value.finite_solid_reference_density, Unit::Density());
         if (value.finite_solid_reference_density <= 0.0)
             Util::Exception(INFO, "solid.model.reference_density must be positive");
+        value.reference_density[value.deformable_solid_species] =
+            value.finite_solid_reference_density;
         pp.queryclass<Model::Solid::Finite::NeoHookean>("solid.model.finite.neohookean", value.finite_solid_model);
     }
-    if (value.rigid_solid_species >= 0)
+    if (!value.rigid_solid_species.empty())
     {
         if (!value.projection_enabled)
             Util::Exception(INFO, "Rigid solid mechanics requires projection.enabled=1");
-        pp.query_required("rigid.reference_density",
-                          value.rigid_reference_density, Unit::Density());
         pp.query_required("rigid.relaxation_time",
                           value.rigid_relaxation_time, Unit::Time());
         pp.queryarr_default("rigid.velocity", value.rigid_velocity, Set::Vector::Zero());
-        if (value.rigid_reference_density <= 0.0)
-            Util::Exception(INFO, "rigid.reference_density must be positive");
         if (value.rigid_relaxation_time <= 0.0)
             Util::Exception(INFO, "rigid.relaxation_time must be positive");
+        for (const int n : value.rigid_solid_species)
+        {
+            pp.query_required(value.species.Name(n) + ".reference_density",
+                              value.reference_density[n], Unit::Density());
+            if (value.reference_density[n] <= 0.0)
+                Util::Exception(INFO, value.species.Name(n),
+                                ".reference_density must be positive");
+        }
     }
-    if (value.deformable_solid_species >= 0 || value.rigid_solid_species >= 0)
+
+    std::vector<std::string> mechanism_names;
+    pp.queryarr_default("mechanisms.names", mechanism_names, {});
+    value.mechanisms.resize(mechanism_names.size());
+    for (int n = 0; n < static_cast<int>(mechanism_names.size()); ++n)
     {
-        pp.queryclass("eta.phase_field", value.eta_phase_field);
-        pp.query_default("phase_change.product_species",
-                         value.phase_change_product_species, 0);
-        if (value.phase_change_product_species < 0 ||
-            value.phase_change_product_species >= value.ngas_species)
-            Util::Exception(INFO, "phase_change.product_species must identify a fluid species");
+        const std::string& id = mechanism_names[n];
+        if (!Model::Species::Registry::IsIdentifier(id))
+            Util::Exception(INFO, id, " is not a valid mechanism identifier");
+        for (int m = 0; m < n; ++m)
+            if (id == mechanism_names[m])
+                Util::Exception(INFO, "Duplicate mechanism identifier ", id);
+        value.mechanisms[n].Parse(pp, id, value.species, value.reference_density,
+                                  value.gas.MW, value.gas.Rg);
     }
 
     pp.select<Numeric::Advect::MUSCL,
@@ -145,7 +144,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
-    if (value.deformable_solid_species >= 0 || value.rigid_solid_species >= 0)
+    if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
     pp.queryarr_default("g", value.g, Set::Vector::Zero());
 
@@ -166,25 +165,26 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, value.geom);
     }
 
+    std::vector<std::string> species_suffix(value.nspecies);
+    for (int n = 0; n < value.nspecies; ++n)
+        species_suffix[n] = "_" + value.species.Name(n);
+    std::vector<std::string> gas_species_suffix(
+        species_suffix.begin(), species_suffix.begin() + value.ngas_species);
+
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_mf,       value.temperature_bc,   1,              nghost, "temperature",       true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_old_mf,   value.temperature_bc,   1,              nghost, "temperature_old",   false, true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.nspecies, nghost, "component_density",     true,  true);
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.nspecies, nghost, "component_density_old", false, true);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.nspecies, nghost, "component_density",     true,  true, species_suffix);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.nspecies, nghost, "component_density_old", false, true, species_suffix);
     if (value.deformable_solid_species >= 0)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,     value.xi_bc, AMREX_SPACEDIM, nghost, "xi",     true,  true, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf, value.xi_bc, AMREX_SPACEDIM, nghost, "xi_old", false, true, {"x","y"});
     }
-    if (value.rigid_solid_species >= 0)
-    {
+    if (!value.rigid_solid_species.empty())
         value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 1, "rigid_eta", true, false);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_penalty_force_mf, &value.bc_nothing,
-                                                  AMREX_SPACEDIM, 1, "rigid_penalty_force", true, false,
-                                                  {"x","y"});
-    }
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
@@ -193,8 +193,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", true, false);
     if (value.diagnostics_extended_fields)
     {
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mass_fraction", true, false);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mole_fraction", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mass_fraction", true, false, gas_species_suffix);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mole_fraction", true, false, gas_species_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
@@ -314,7 +314,7 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
 {
     density_mf[lev]->setVal(0.0);
     const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
+    const bool rigid_solid = !rigid_solid_species.empty();
     if (deformable_solid)
         eta_mf[lev]->setVal(0.0);
     if (rigid_solid)
@@ -333,9 +333,6 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
         amrex::Array4<Set::Scalar> eta;
         if (deformable_solid)
             eta = eta_mf[lev]->array(mfi);
-        amrex::Array4<Set::Scalar> rigid_eta;
-        if (rigid_solid)
-            rigid_eta = rigid_eta_mf[lev]->array(mfi);
         amrex::Array4<Set::Scalar> mass_fraction;
         amrex::Array4<Set::Scalar> mole_fraction;
         if (diagnostics_extended_fields)
@@ -346,10 +343,8 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
         const int ngas = ngas_species;
         const int nsp = nspecies;
         const int solid = deformable_solid_species;
-        const int rigid = rigid_solid_species;
         const bool write_composition = diagnostics_extended_fields;
         const Set::Scalar solid_density = finite_solid_reference_density;
-        const Set::Scalar rigid_density = rigid_reference_density;
         const Set::Scalar composition_floor = small;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -366,8 +361,6 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
             rho(i,j,k) = total_partial_density;
             if (deformable_solid)
                 eta(i,j,k) = component_density(i,j,k,solid) / solid_density;
-            if (rigid_solid)
-                rigid_eta(i,j,k) = component_density(i,j,k,rigid) / rigid_density;
 
             if (write_composition)
             {
@@ -386,38 +379,17 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     if (deformable_solid)
         eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     if (rigid_solid)
+    {
+        for (const int n : rigid_solid_species)
+            amrex::MultiFab::Saxpy(*rigid_eta_mf[lev], 1.0 / reference_density[n],
+                                   component_density_mf, n, 0, 1, 1);
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
         mole_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
-}
-
-void
-LowMach::UpdateRigidPenaltyForce(int lev)
-{
-    rigid_penalty_force_mf[lev]->setVal(0.0);
-    const Set::Scalar inverse_relaxation_time = 1.0 / rigid_relaxation_time;
-    const Set::Vector target_velocity = rigid_velocity;
-
-    for (amrex::MFIter mfi(*rigid_penalty_force_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> eta = rigid_eta_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> force = rigid_penalty_force_mf.Patch(lev,mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            const Set::Scalar weight = Util::Clamp(eta(i,j,k), 0.0, 1.0);
-            for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                force(i,j,k,d) = -rho(i,j,k) * weight * inverse_relaxation_time *
-                                 (u(i,j,k,d) - target_velocity(d));
-        });
-    }
-    rigid_penalty_force_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -470,8 +442,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     if (!projection_enabled || !(dt > 0.0)) return;
 
     const int nlev = finest_level + 1;
-    const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
+    const bool rigid_solid = !rigid_solid_species.empty();
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                              static_cast<Set::Scalar>(geom[0].Domain().numPts());
@@ -525,25 +496,40 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar inverse_relaxation_time = rigid_solid ?
             1.0 / rigid_relaxation_time : 0.0;
 
+        rhs_mf.setVal(0.0);
+        for (const auto& configured_mechanism : mechanisms)
+        {
+            const auto mechanism = configured_mechanism;
+            const Set::Scalar p_reference = pressure_reference;
+            for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
+                Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+                amrex::Array4<const Set::Scalar> rigid_eta;
+                if (rigid_solid)
+                    rigid_eta = rigid_eta_mf[lev]->array(mfi);
+                Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    const Model::Mechanism::State state = {
+                        component_density, rigid_eta, T(i,j,k), p_reference};
+                    rhs(i,j,k) += mechanism.VolumeSource(state, i, j, k, DX);
+                });
+            }
+        }
+
         for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-            Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-            Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
             Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> eta;
-            if (deformable_solid)
-                eta = eta_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> rigid_eta;
             if (rigid_solid)
                 rigid_eta = rigid_eta_mf[lev]->array(mfi);
             Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
             Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
-            const auto allen_cahn = eta_phase_field;
-            const Set::Scalar solid_density = finite_solid_reference_density;
-            const Set::Scalar rigid_density = rigid_reference_density;
-            const Set::Scalar p_reference = pressure_reference;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -554,29 +540,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 const Set::Scalar weight = rigid_solid ?
                     Util::Clamp(rigid_eta(i,j,k), 0.0, 1.0) : 0.0;
                 const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
-                Set::Scalar volume_source = 0.0;
-                if (deformable_solid || rigid_solid)
-                {
-                    const Model::Gas::MoleFraction X =
-                        gas.MoleFractions(component_density, i, j, k);
-                    const Set::Scalar gas_density =
-                        p_reference / (gas.R(X, i, j, k) * T(i,j,k));
-                    if (deformable_solid)
-                    {
-                        const Set::Scalar source =
-                            solid_density * allen_cahn(eta, i, j, k, DX);
-                        volume_source += source *
-                            (1.0 / solid_density - 1.0 / gas_density);
-                    }
-                    if (rigid_solid)
-                    {
-                        const Set::Scalar source =
-                            rigid_density * allen_cahn(rigid_eta, i, j, k, DX);
-                        volume_source += source *
-                            (1.0 / rigid_density - 1.0 / gas_density);
-                    }
-                }
-                rhs(i,j,k) = (div_u - volume_source) * inv_dt;
+                rhs(i,j,k) = (div_u - rhs(i,j,k)) * inv_dt;
                 beta(i,j,k) = mobility / Util::Max(rho(i,j,k), rho_floor);
             });
         }
@@ -630,9 +594,6 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     for (int lev = nlev - 2; lev >= 0; --lev)
         amrex::average_down(*velocity_mf[lev + 1], *velocity_mf[lev],
                             geom[lev + 1], geom[lev], 0, AMREX_SPACEDIM, refRatio(lev));
-    if (rigid_solid)
-        for (int lev = 0; lev < nlev; ++lev)
-            UpdateRigidPenaltyForce(lev);
 }
 
 void
@@ -640,7 +601,6 @@ LowMach::Initialize(int lev)
 {
     BL_PROFILE("Integrator::LowMach::Initialize");
     const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
 
     velocity_mf[lev]->setVal(0.0, 0, velocity_mf[lev]->nComp(), velocity_mf[lev]->nGrow());
     velocity_old_mf[lev]->setVal(0.0, 0, velocity_old_mf[lev]->nComp(), velocity_old_mf[lev]->nGrow());
@@ -715,8 +675,6 @@ LowMach::Initialize(int lev)
             geom[lev], *eta_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
         UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
     }
-    if (rigid_solid)
-        UpdateRigidPenaltyForce(lev);
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
 }
 
@@ -732,7 +690,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
              const amrex::MultiFab* xi_mf)
 {
     const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
+    const bool rigid_solid = !rigid_solid_species.empty();
     if (deformable_solid && finite_solid_deviatoric_stress_divergence_sign != 0.0)
         UpdateSolidStress(lev, u_mf, *eta_mf[lev], *xi_mf);
 
@@ -788,39 +746,55 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
         });
     }
 
+    // Reuse the temperature RHS as temporary storage for the dilatation that
+    // the phase-change mechanisms prescribe for the projection.
+    T_rhs_mf.setVal(0.0);
+    component_density_rhs_mf.setVal(0.0);
+    for (const auto& configured_mechanism : mechanisms)
+    {
+        const auto mechanism = configured_mechanism;
+        const Set::Scalar p_reference = pressure_reference;
+        for (amrex::MFIter mfi(component_density_rhs_mf, false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
+            Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> rigid_eta;
+            if (rigid_solid)
+                rigid_eta = rigid_eta_mf[lev]->array(mfi);
+            Set::Patch<Set::Scalar> T_rhs = T_rhs_mf.array(mfi);
+            Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                const Model::Mechanism::State state = {
+                    component_density, rigid_eta, T(i,j,k), p_reference};
+                mechanism.Apply(component_density_rhs, state, i, j, k, DX);
+                T_rhs(i,j,k) += mechanism.VolumeSource(state, i, j, k, DX);
+            });
+        }
+    }
+
     for (amrex::MFIter mfi(T_mf, false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
-        amrex::Array4<const Set::Scalar> eta;
-        amrex::Array4<const Set::Scalar> rigid_eta;
         amrex::Array4<const Set::Scalar> xi;
         if (deformable_solid)
-        {
-            eta = eta_mf[lev]->array(mfi);
             xi = xi_mf->array(mfi);
-        }
-        if (rigid_solid)
-            rigid_eta = rigid_eta_mf[lev]->array(mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> T_rhs = T_rhs_mf.array(mfi);
         Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
         amrex::Array4<Set::Scalar> xi_rhs;
         if (deformable_solid)
             xi_rhs = xi_rhs_mf->array(mfi);
-        const int nsp = nspecies;
+        const int ngas = ngas_species;
         const int solid = deformable_solid_species;
-        const int rigid = rigid_solid_species;
-        const int phase_product = phase_change_product_species;
-        const Set::Scalar solid_density = finite_solid_reference_density;
-        const Set::Scalar rigid_density = rigid_reference_density;
-        const Set::Scalar p_reference = pressure_reference;
         const bool conductive = include_conduction;
         const bool advect_T = advect_temperature;
         const Set::Scalar rho_floor = density_floor;
-        const auto allen_cahn = eta_phase_field;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -833,18 +807,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             vel(2) = u(i,j,k,2);
 #endif
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
-
-            const Set::Scalar deformable_source = deformable_solid ?
-                solid_density * allen_cahn(eta, i, j, k, DX) : 0.0;
-            const Set::Scalar rigid_source = rigid_solid ?
-                rigid_density * allen_cahn(rigid_eta, i, j, k, DX) : 0.0;
-            const Set::Scalar solid_source = deformable_source + rigid_source;
-            const Set::Scalar gas_density =
-                p_reference / (gas.R(X, i, j, k) * T(i,j,k));
-            const Set::Scalar volume_source =
-                deformable_source * (1.0 / solid_density - 1.0 / gas_density) +
-                rigid_source * (1.0 / rigid_density - 1.0 / gas_density);
-
+            const Set::Scalar volume_source = T_rhs(i,j,k);
             T_rhs(i,j,k) = 0.0;
             if (advect_T)
             {
@@ -859,28 +822,30 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                     T_rhs(i,j,k) += kappa / (density * cp) * Numeric::Laplacian(T, i, j, k, 0, DX);
             }
 
-            // Retain the advective discretization used by the collocated
-            // projection, then add the prescribed dilation needed by the
-            // conservative partial-density equation.
-            for (int n = 0; n < nsp; ++n)
-                component_density_rhs(i,j,k,n) = rigid_solid && n == rigid ? 0.0 :
-                    advect(component_density, u, i, j, k, n, DX, advective_options, sten) -
-                    component_density(i,j,k,n) * volume_source;
-
-            if (deformable_solid)
-                component_density_rhs(i,j,k,solid) += deformable_source;
-            if (rigid_solid)
-                component_density_rhs(i,j,k,rigid) += rigid_source;
-            if (solid_source != 0.0)
+            for (int n = 0; n < ngas; ++n)
             {
-                // Solid mass becomes the configured fluid product species.
-                component_density_rhs(i,j,k,phase_product) -= solid_source;
+                const Set::Scalar mechanism_source = component_density_rhs(i,j,k,n);
+                // The projection imposes div(u)=volume_source, so this is the
+                // material form of partial-density conservation.
+                component_density_rhs(i,j,k,n) =
+                    advect(component_density, u, i, j, k, n, DX,
+                           advective_options, sten) + mechanism_source -
+                    component_density(i,j,k,n) * volume_source;
+            }
+            if (deformable_solid)
+            {
+                const Set::Scalar mechanism_source = component_density_rhs(i,j,k,solid);
+                component_density_rhs(i,j,k,solid) =
+                    advect(component_density, u, i, j, k, solid, DX,
+                           advective_options, sten) + mechanism_source -
+                    component_density(i,j,k,solid) * volume_source;
             }
             if (deformable_solid)
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
                     xi_rhs(i,j,k,d) = advect(xi, u, i, j, k, d, DX, advective_options, sten);
         });
     }
+
     u_rhs_mf.FillBoundary(geom[lev].periodicity());
 }
 
@@ -997,7 +962,6 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
     Set::Scalar elasticmax = 0.0;
     Set::Scalar phasefieldmax = 0.0;
     const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
     const bool explicit_solid_deviatoric_stress = deformable_solid &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -1005,9 +969,8 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         Set::Scalar dxmin = std::min(DX[0], DX[1]);
-        if (deformable_solid || rigid_solid)
-            phasefieldmax = std::max(
-                phasefieldmax, eta_phase_field.StabilityRate(dxmin));
+        for (const auto& mechanism : mechanisms)
+            phasefieldmax = std::max(phasefieldmax, mechanism.StabilityRate(dxmin));
 
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -1202,8 +1165,6 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
         UpdateComponentState(lev, *component_density_mf[lev]);
         if (deformable_solid_species >= 0)
             UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
-        if (rigid_solid_species >= 0)
-            UpdateRigidPenaltyForce(lev);
         UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
     }
 }
@@ -1214,7 +1175,7 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = std::sqrt(DX[0] * DX[0] + DX[1] * DX[1]);
     const bool deformable_solid = deformable_solid_species >= 0;
-    const bool rigid_solid = rigid_solid_species >= 0;
+    const bool rigid_solid = !rigid_solid_species.empty();
 
     for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
     {

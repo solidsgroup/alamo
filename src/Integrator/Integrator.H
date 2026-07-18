@@ -507,17 +507,17 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
 
     Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
     std::vector<std::string> names;
-    if (ncomp == 1)
-        names.push_back(name);
-    else
+    if (suffix.size() == 0)
     {
-        if (suffix.size() == 0)
-            for (int j = 0; j < ncomp; j++)
-                names.push_back(amrex::Concatenate(name,j+1,3));
+        if (ncomp == 1)
+            names.push_back(name);
         else
             for (int j = 0; j < ncomp; j++)
-                names.push_back(name + suffix[j]);
+                names.push_back(amrex::Concatenate(name,j+1,3));
     }
+    else
+        for (int j = 0; j < ncomp; j++)
+            names.push_back(name + suffix[j]);
     cell.name_array.push_back(names);
 }
 
@@ -547,17 +547,17 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
 
     Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
     std::vector<std::string> names;
-    if (ncomp == 1)
-        names.push_back(name);
-    else
+    if (suffix.size() == 0)
     {
-        if (suffix.size() == 0)
-            for (int j = 0; j < ncomp; j++)
-                names.push_back(amrex::Concatenate(name,j+1,3));
+        if (ncomp == 1)
+            names.push_back(name);
         else
             for (int j = 0; j < ncomp; j++)
-                names.push_back(name + suffix[j]);
+                names.push_back(amrex::Concatenate(name,j+1,3));
     }
+    else
+        for (int j = 0; j < ncomp; j++)
+            names.push_back(name + suffix[j]);
     node.name_array.push_back(names);
 }
 

@@ -5,14 +5,16 @@
 // .. math::
 //
 //    F[\eta] = \int_\Omega \left[\lambda\eta^2(1-\eta)^2
-//              + \frac{\kappa}{2}|\nabla\eta|^2\right]d\mathbf{x}.
+//              + \frac{\kappa}{2}|\nabla\eta|^2
+//              + \Delta f\eta^2(3-2\eta)\right]d\mathbf{x}.
 //
 // The resulting nonconservative source is
 //
 // .. math::
 //
 //    \dot{\eta} = -L\left[\lambda(2\eta-6\eta^2+4\eta^3)
-//                    - \kappa\Delta\eta\right].
+//                    - \kappa\Delta\eta
+//                    + 6\Delta f\eta(1-\eta)\right].
 //
 
 #ifndef MODEL_PHASEFIELD_ALLENCAHN_H
@@ -40,7 +42,8 @@ public:
         const bool configured =
             pp.contains("mobility") ||
             pp.contains("lambda") || pp.contains("kappa") ||
-            pp.contains("sigma") || pp.contains("epsilon");
+            pp.contains("sigma") || pp.contains("epsilon") ||
+            pp.contains("driving_force");
         if (!configured) return;
 
         pp.query_required("mobility", value.mobility,
@@ -73,31 +76,38 @@ public:
             Util::Exception(INFO, "mobility must be nonnegative");
         if (value.lambda < 0.0 || value.kappa < 0.0)
             Util::Exception(INFO, "Allen-Cahn energy coefficients must be nonnegative");
+
+        pp.query_default("driving_force", value.driving_force,
+                         "0.0", Unit::Pressure());
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar operator()(const amrex::Array4<const Set::Scalar>& eta,
+    Set::Scalar operator()(const amrex::Array4<const Set::Scalar>& field,
+                           const int component, const Set::Scalar scale,
                            const int i, const int j, const int k,
                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
-        const Set::Scalar value = eta(i,j,k);
+        const Set::Scalar value = scale * field(i,j,k,component);
         const Set::Scalar value2 = value * value;
         const Set::Scalar chemical_potential =
             lambda * (2.0 * value - 6.0 * value2 + 4.0 * value2 * value) -
-            kappa * Numeric::Laplacian(eta, i, j, k, 0, DX);
+            kappa * scale * Numeric::Laplacian(field, i, j, k, component, DX) +
+            6.0 * driving_force * value * (1.0 - value);
         return -mobility * chemical_potential;
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx) const
     {
         return mobility *
-            (2.0 * lambda + 4.0 * AMREX_SPACEDIM * kappa / (dx * dx));
+            (2.0 * lambda + 6.0 * Util::Abs(driving_force) +
+             4.0 * AMREX_SPACEDIM * kappa / (dx * dx));
     }
 
 private:
     Set::Scalar mobility = 0.0;
     Set::Scalar lambda = 0.0;
     Set::Scalar kappa = 0.0;
+    Set::Scalar driving_force = 0.0;
 };
 }
 }

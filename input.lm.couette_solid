@@ -39,7 +39,9 @@ gas.transport.mixture_averaged.type = constant
 gas.transport.mixture_averaged.mu = 1.0e-3_Pa*s
 gas.transport.mixture_averaged.k = 0.02_W/m/K
 gas.eos.type = cpg
-species.mechanics = fluid deformable_solid
+species.names = ambient_gas solid
+ambient_gas.mechanics = fluid
+solid.mechanics = deformable_solid
 
 advection.type=weno5
 
@@ -96,9 +98,15 @@ temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-eta.phase_field.mobility = 0.01_1/Pa/s
-eta.phase_field.sigma = 0.01_J/m^2
-eta.phase_field.epsilon = 0.015_m
+mechanisms.names = solid_phase_field
+solid_phase_field.type = phase_change
+solid_phase_field.in = solid
+solid_phase_field.out = ambient_gas
+solid_phase_field.interface_only = 0
+solid_phase_field.phase_field.type = allencahn
+solid_phase_field.phase_field.allencahn.mobility = 0.01_1/Pa/s
+solid_phase_field.phase_field.allencahn.sigma = 0.01_J/m^2
+solid_phase_field.phase_field.allencahn.epsilon = 0.015_m
 
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"
