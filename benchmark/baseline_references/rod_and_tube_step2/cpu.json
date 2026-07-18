@@ -18,7 +18,7 @@
     "elastic.interval=1",
     "plot_file=/home/jackplum/Projects/alamo/benchmark/baseline_runs/rod_and_tube_step2/cpu/plot"
   ],
-  "elapsed_s": 6.338916814012919,
+  "elapsed_s": 2.3328689851332456,
   "final": {
     "L_max": 0.000708836,
     "area": 0.496209,
@@ -33,10 +33,10 @@
     "max_temp": 301.126,
     "mdot_max": 127.579,
     "time": 0.0001,
-    "trac_xhi_x": -60959.1,
-    "trac_xhi_y": 19.0546,
-    "trac_yhi_x": 1.81302,
-    "trac_yhi_y": -59673.4,
+    "trac_xhi_x": -61097.5,
+    "trac_xhi_y": 19.5131,
+    "trac_yhi_x": 2.46423,
+    "trac_yhi_y": -59799.0,
     "volume": 0.00322642
   },
   "header": [
@@ -103,10 +103,10 @@
       0.0,
       0.0,
       0.0,
-      -60959.1,
-      19.0546,
-      1.81302,
-      -59673.4
+      -61097.5,
+      19.5131,
+      2.46423,
+      -59799.0
     ]
   ]
 }

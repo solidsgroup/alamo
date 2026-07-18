@@ -165,14 +165,25 @@ elastic.use_psi = 1
 elastic.zero_out_displacement = 1
 elastic.max_coarsening_level = 2
 
-# tol_rel=1e-5 is the achievable linear tolerance for this near-singular
-# floating-rod/soft-void problem: the masked high-contrast operator plateaus
-# at its conditioning noise floor (~2.5e-6 rel resid) and cannot reach the
-# 1e-8 default, but reaches 1e-5 in ~7 MG iterations. The resync A/B still
-# holds: with resync_coeffs=0 the stale coarse hierarchy detonates the
-# residual to ~1e22, far above any tolerance.
+# Tolerance calibration (2026-07-18, docs/agent_plans/20260718-rodtube-gate-
+# recalibration). The pre-recovery operator inflated the warm-start residual
+# (resid0 ~ 32x bnorm), so tol_rel=1e-5 -- targeted at max(bnorm, resid0) --
+# was accidentally a 32x looser bar and passed at 180/200 iters. The
+# void-recovery operator (7fbc18cc8 lineage) reports an honest resid0 == bnorm,
+# which makes the pure-relative bar unreachable: this near-singular seam
+# plateaus at an ABSOLUTE residual floor of ~4e3 regardless of iteration
+# budget (tol_abs<=3000 fails even at max_iter=1000; >=4000 converges).
+# tol_abs=5000 accepts the plateau; the Newton outer loop then compensates
+# (inexact Newton), ending ~100x MORE converged nonlinearly than the old
+# accepted state (nonlinear_resid 1.96e6 vs 2.17e8). Field evidence:
+# results/fcompare_step3.txt in the task folder.
+# CAUTION (long runs): tol_abs is dimensional and calibrated for the early
+# transient (bnorm ~1e7). Late-time load growth scales the residual floor
+# while 5000 stays fixed; long-form use may need rescaling.
+# The resync A/B still holds: with resync_coeffs=0 the stale coarse hierarchy
+# detonates the residual to ~1e22, far above any tolerance.
 elastic.tol_rel = 1e-5
-elastic.tol_abs = 1e-8
+elastic.tol_abs = 5000
 elastic.solver.max_iter = 200
 elastic.solver.pre_smooth = 4
 elastic.solver.post_smooth = 4
