@@ -12,3 +12,5 @@ date	task	model	tier	cost_usd	outcome
 2026-07-16	elastic-regression-recovery	GPT-5	3	n/a	blocked (paired operator restored and Newton/BC/halo fixes unit-tested; final 2-D/3-D sub-MPa chamber equilibrium oracle fails; full suites and CUDA/performance pending)
 2026-07-17	elastic-recovery-close	GPT-5	3	n/a	done (AMR-policy dispatch restored trusted-parent transfer; full GCC suite 145 run / 113 verified / 0 fail, output_2026-07-17_00.24.59_kermit; chamber 0.2 MPa to t=5.58s, MLMG coarse-cap diagnosis open; restart temp-fab restore open)
 2026-07-17	elastic-recovery-merge	fable-5+haiku	1	n/a	done (merged elastic-void-wip-20260713 into chamber-gpu; re-applied 3.2b MulCol/ddw-hoist + Fsmooth fusion in conflicts)
+2026-07-18	rodtube-gate-recalibration	fable-5	1	n/a	done (golden gate green; honest-resid0 root cause, tol_abs=5000 bracketed, cpu ref regen; verifier CONFIRMED)
+2026-07-18	matrix4-device-annotation	fable-5	2	n/a	done (2-line device annotation; CUDA builds restored, GPU suite 9/9, gate green)
