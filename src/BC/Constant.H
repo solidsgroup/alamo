@@ -79,7 +79,6 @@ public:
             amrex::Vector<amrex::Real> _bc_hi_2,
             amrex::Vector<amrex::Real> _bc_hi_3));
 
-    
     class ZeroNeumann;
     class ZeroDirichlet;
 
@@ -102,13 +101,8 @@ public:
     template<class T>
     const amrex::Array<amrex::Array<T, AMREX_SPACEDIM>, 2> GetBCTypes()
     {
-#if AMREX_SPACEDIM==2
-        return {{{{(T)m_bc_type[Face::XLO][0], (T)m_bc_type[Face::YLO][0]}},
-                 {{(T)m_bc_type[Face::XHI][0], (T)m_bc_type[Face::YHI][0]}}}};
-#else
-        return {{{{(T)m_bc_type[Face::XLO][0], (T)m_bc_type[Face::YLO][0], (T)m_bc_type[Face::ZLO][0]}},
-                 {{(T)m_bc_type[Face::XHI][0], (T)m_bc_type[Face::YHI][0], (T)m_bc_type[Face::ZHI][0]}}}};
-#endif
+        return { {{AMREX_D_DECL((T)m_bc_type[Face::XLO][0],(T)m_bc_type[Face::YLO][0],(T)m_bc_type[Face::ZLO][0])},
+                {AMREX_D_DECL((T)m_bc_type[Face::XLO][0],(T)m_bc_type[Face::YLO][0],(T)m_bc_type[Face::ZLO][0])}} };
     }
 
 
@@ -259,26 +253,18 @@ public:
 #endif
     }
 
-
-
 };
 
 class Constant::ZeroNeumann : public Constant
 {
 public:
-    static constexpr bool select_default_only = true;
-
     ZeroNeumann(int ncomp = 1, Unit unit = Unit::Less()) :
         Constant(ncomp, unit)
     {
         for (int d = 0; d < m_nfaces; d++)
         {
-            m_bc_type[d].clear();
-            for (int n = 0; n < ncomp; n++)
-            {
-                m_bc_type[d].push_back((int)amrex::LinOpBCType::Neumann);
-                m_bc_val[d].push_back (0.0);;
-            }
+            m_bc_type[d].resize(ncomp, (int)amrex::LinOpBCType::Neumann);
+            m_bc_val[d].resize(ncomp, 0.0);
         }
     }
 };
@@ -290,13 +276,11 @@ public:
         Constant(ncomp,unit)
     {
         for (int d = 0; d < m_nfaces; d++)
-            for (int n = 0; n < ncomp; n++)
-            {
-                m_bc_type[n][d] = (int)amrex::LinOpBCType::Dirichlet;
-                m_bc_val [n][d]  = 0.0;
-            }
+        {
+            m_bc_type[d].resize(ncomp, (int)amrex::LinOpBCType::Dirichlet);
+            m_bc_val[d].resize(ncomp, 0.0);
+        }
     }
 };
 }
-
 #endif

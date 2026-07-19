@@ -1102,26 +1102,16 @@ public:
     template<typename T>
     struct HasSelectName<T, std::void_t<decltype(T::name)>> : std::true_type {};
 
-
-    template<typename T, typename = void>
-    struct IsSelectDefaultOnly : std::false_type {};
-
-    template<typename T>
-    struct IsSelectDefaultOnly<T, std::void_t<decltype(T::select_default_only)>> : std::bool_constant<T::select_default_only> {};
-
     template<typename T, typename PTRTYPE, typename... Args>
     void construct_select_default(std::string name, PTRTYPE *& value, Args&&... args)
     {
-        if constexpr (IsSelectDefaultOnly<T>::value)
-        {
-            value = new T(std::forward<Args>(args)...);
-        }
-        else if constexpr (HasSelectName<T>::value)
+        if constexpr (HasSelectName<T>::value &&
+                    std::is_constructible_v<T, Args..., IO::ParmParse&, std::string>)
         {
             value = new T(std::forward<Args>(args)..., (*this),
-                          name + "." + std::string(T::name));
+                        name + "." + std::string(T::name));
         }
-        else
+        else if constexpr (std::is_constructible_v<T, Args...>)
         {
             value = new T(std::forward<Args>(args)...);
         }
@@ -1130,7 +1120,8 @@ public:
     template<typename T, typename PTRTYPE, typename... Args>
     bool try_select_named(std::string name, const std::string& type, PTRTYPE *& value, Args&&... args)
     {
-        if constexpr (HasSelectName<T>::value)
+        if constexpr (HasSelectName<T>::value &&
+                    std::is_constructible_v<T, Args..., IO::ParmParse&, std::string>)
         {
             if (type != std::string(T::name)) return false;
 
@@ -1138,19 +1129,6 @@ public:
             return true;
         }
         return false;
-    }
-
-    template<typename T, typename PTRTYPE, typename... Args>
-    bool try_select_named_no_default(std::string name, const std::string& type, PTRTYPE *& value, Args&&... args)
-    {
-        if constexpr (!HasSelectName<T>::value)
-        {
-            return false;
-        }
-        else
-        {
-            return try_select_named<T>(name, type, value, std::forward<Args>(args)...);
-        }
     }
 
     //
@@ -1171,10 +1149,8 @@ public:
 
         this->query_required(name + ".type", type);
 
-        bool matched = false;
-        if constexpr (!IsSelectDefaultOnly<FirstIC>::value)
-            matched = try_select_named_no_default<FirstIC>(name, type, ic_eta, std::forward<Args>(args)...);
-        matched = matched || (try_select_named_no_default<IC>(name, type, ic_eta, std::forward<Args>(args)...) || ...);
+        bool matched = try_select_named<FirstIC>(name, type, ic_eta, std::forward<Args>(args)...);
+        matched = matched || (try_select_named<IC>(name, type, ic_eta, std::forward<Args>(args)...) || ...);
 
         if (!matched)
             Util::ParmParseException(INFO,full(name), type," not a valid type for ",name);

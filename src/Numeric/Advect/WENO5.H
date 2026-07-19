@@ -42,6 +42,7 @@ public:
 
     static void Parse(WENO5& value, IO::ParmParse& pp)
     {
+        // small nonnegative value to prevent division by zero
         pp.query_default("eps", value.eps, 1.0e-12);
     }
 
@@ -63,11 +64,11 @@ public:
         Set::Scalar p2 = (2.0 * f0 + 5.0 * fp1 - fp2) / 6.0;
 
         Set::Scalar b0 = (13.0 / 12.0) * (fm2 - 2.0 * fm1 + f0) * (fm2 - 2.0 * fm1 + f0) +
-                         0.25 * (fm2 - 4.0 * fm1 + 3.0 * f0) * (fm2 - 4.0 * fm1 + 3.0 * f0);
+                            0.25 * (fm2 - 4.0 * fm1 + 3.0 * f0) * (fm2 - 4.0 * fm1 + 3.0 * f0);
         Set::Scalar b1 = (13.0 / 12.0) * (fm1 - 2.0 * f0 + fp1) * (fm1 - 2.0 * f0 + fp1) +
-                         0.25 * (fm1 - fp1) * (fm1 - fp1);
+                            0.25 * (fm1 - fp1) * (fm1 - fp1);
         Set::Scalar b2 = (13.0 / 12.0) * (f0 - 2.0 * fp1 + fp2) * (f0 - 2.0 * fp1 + fp2) +
-                         0.25 * (3.0 * f0 - 4.0 * fp1 + fp2) * (3.0 * f0 - 4.0 * fp1 + fp2);
+                            0.25 * (3.0 * f0 - 4.0 * fp1 + fp2) * (3.0 * f0 - 4.0 * fp1 + fp2);
 
         Set::Scalar a0 = 0.1 / ((eps + b0) * (eps + b0));
         Set::Scalar a1 = 0.6 / ((eps + b1) * (eps + b1));
@@ -77,22 +78,22 @@ public:
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar ReconstructRight(Set::Scalar fm1,
-                                 Set::Scalar f0,
-                                 Set::Scalar fp1,
-                                 Set::Scalar fp2,
-                                 Set::Scalar fp3) const
+    Set::Scalar ReconstructRight(   Set::Scalar fm1,
+                                    Set::Scalar f0,
+                                    Set::Scalar fp1,
+                                    Set::Scalar fp2,
+                                    Set::Scalar fp3) const
     {
         Set::Scalar p0 = (2.0 * fp3 - 7.0 * fp2 + 11.0 * fp1) / 6.0;
         Set::Scalar p1 = (-fp2 + 5.0 * fp1 + 2.0 * f0) / 6.0;
         Set::Scalar p2 = (2.0 * fp1 + 5.0 * f0 - fm1) / 6.0;
 
         Set::Scalar b0 = (13.0 / 12.0) * (fp3 - 2.0 * fp2 + fp1) * (fp3 - 2.0 * fp2 + fp1) +
-                         0.25 * (fp3 - 4.0 * fp2 + 3.0 * fp1) * (fp3 - 4.0 * fp2 + 3.0 * fp1);
+                            0.25 * (fp3 - 4.0 * fp2 + 3.0 * fp1) * (fp3 - 4.0 * fp2 + 3.0 * fp1);
         Set::Scalar b1 = (13.0 / 12.0) * (fp2 - 2.0 * fp1 + f0) * (fp2 - 2.0 * fp1 + f0) +
-                         0.25 * (fp2 - f0) * (fp2 - f0);
+                            0.25 * (fp2 - f0) * (fp2 - f0);
         Set::Scalar b2 = (13.0 / 12.0) * (fp1 - 2.0 * f0 + fm1) * (fp1 - 2.0 * f0 + fm1) +
-                         0.25 * (3.0 * fp1 - 4.0 * f0 + fm1) * (3.0 * fp1 - 4.0 * f0 + fm1);
+                            0.25 * (3.0 * fp1 - 4.0 * f0 + fm1) * (3.0 * fp1 - 4.0 * f0 + fm1);
 
         Set::Scalar a0 = 0.1 / ((eps + b0) * (eps + b0));
         Set::Scalar a1 = 0.6 / ((eps + b1) * (eps + b1));
@@ -103,13 +104,13 @@ public:
 
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar operator()(Phi const& phi,
-                           Velocity const& velocity,
-                           int i, int j, int k,
-                           int comp,
-                           const Set::Scalar* DX,
-                           Options options = {},
-                           std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar operator()( Phi const& phi,
+                            Velocity const& velocity,
+                            int i, int j, int k,
+                            int comp,
+                            const Set::Scalar* DX,
+                            Options options = {},
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         (void)stencil;
 
@@ -160,13 +161,13 @@ public:
 
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar Scalar(Phi const& phi,
-                       Velocity const& velocity,
-                       int i, int j, int k,
-                       int comp,
-                       const Set::Scalar* DX,
-                       Options options = {},
-                       std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar Scalar( Phi const& phi,
+                        Velocity const& velocity,
+                        int i, int j, int k,
+                        int comp,
+                        const Set::Scalar* DX,
+                        Options options = {},
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         return (*this)(phi, velocity, i, j, k, comp, DX, options, stencil);
     }

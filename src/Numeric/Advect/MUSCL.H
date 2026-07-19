@@ -47,23 +47,24 @@ public:
     static constexpr Set::HC phi_location = Set::HC::Cell;
     static constexpr Set::HC velocity_location = Set::HC::Cell;
 
-    Limiter::Limiter<Limiter::MC,
-                     Limiter::MinMod,
-                     Limiter::Superbee,
-                     Limiter::VanLeer,
-                     Limiter::VanAlbada,
-                     Limiter::Koren,
-                     Limiter::UMIST> limiter;
+    Limiter::Limiter<   Limiter::MC,
+                        Limiter::MinMod,
+                        Limiter::Superbee,
+                        Limiter::VanLeer,
+                        Limiter::VanAlbada,
+                        Limiter::Koren,
+                        Limiter::UMIST> limiter;
 
     static void Parse(MUSCL& value, IO::ParmParse& pp)
     {
-        pp.select<Limiter::MC,
-                  Limiter::MinMod,
-                  Limiter::Superbee,
-                  Limiter::VanLeer,
-                  Limiter::VanAlbada,
-                  Limiter::Koren,
-                  Limiter::UMIST>("limiter",value.limiter);
+        // flux limiter
+        pp.select<  Limiter::MC,
+                    Limiter::MinMod,
+                    Limiter::Superbee,
+                    Limiter::VanLeer,
+                    Limiter::VanAlbada,
+                    Limiter::Koren,
+                    Limiter::UMIST>("limiter",value.limiter);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -74,26 +75,26 @@ public:
 
     template<class Phi>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar Slope(Phi const& phi,
-                      int ilo, int jlo, int klo,
-                      int ic, int jc, int kc,
-                      int ihi, int jhi, int khi,
-                      int comp) const
+    Set::Scalar Slope(  Phi const& phi,
+                        int ilo, int jlo, int klo,
+                        int ic, int jc, int kc,
+                        int ihi, int jhi, int khi,
+                        int comp) const
     {
-        return limiter(phi(ilo,jlo,klo,comp),
-                       phi(ic,jc,kc,comp),
-                       phi(ihi,jhi,khi,comp));
+        return limiter( phi(ilo,jlo,klo,comp),
+                        phi(ic,jc,kc,comp),
+                        phi(ihi,jhi,khi,comp));
     }
 
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar operator()(Phi const& phi,
-                           Velocity const& velocity,
-                           int i, int j, int k,
-                           int comp,
-                           const Set::Scalar* DX,
-                           Options options = {},
-                           std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar operator()( Phi const& phi,
+                            Velocity const& velocity,
+                            int i, int j, int k,
+                            int comp,
+                            const Set::Scalar* DX,
+                            Options options = {},
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         (void)stencil;
 
@@ -169,13 +170,13 @@ public:
 
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar Scalar(Phi const& phi,
-                       Velocity const& velocity,
-                       int i, int j, int k,
-                       int comp,
-                       const Set::Scalar* DX,
-                       Options options = {},
-                       std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar Scalar( Phi const& phi,
+                        Velocity const& velocity,
+                        int i, int j, int k,
+                        int comp,
+                        const Set::Scalar* DX,
+                        Options options = {},
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         return (*this)(phi, velocity, i, j, k, comp, DX, options, stencil);
     }

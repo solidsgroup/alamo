@@ -311,13 +311,11 @@ protected:
                 //const Set::Scalar* DX = this->geom[lev].CellSize();
                 Set::Scalar dt_lev = dynamictimestep.dt_limit_min[lev];
 
-                if (dynamictimestep.verbose)
-                    Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
+                if (dynamictimestep.verbose) Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
 
                 for (int ilev = lev; ilev > 0; ilev--) dt_lev *= (Set::Scalar)(this->nsubsteps[ilev]);
 
-                if (dynamictimestep.verbose)
-                    Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
+                if (dynamictimestep.verbose) Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
 
                 new_timestep = std::min(new_timestep,dt_lev);
             }
@@ -507,17 +505,17 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
 
     Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
     std::vector<std::string> names;
-    if (suffix.size() == 0)
+    if (ncomp == 1)
+        names.push_back(name);
+    else
     {
-        if (ncomp == 1)
-            names.push_back(name);
-        else
+        if (suffix.size() == 0)
             for (int j = 0; j < ncomp; j++)
                 names.push_back(amrex::Concatenate(name,j+1,3));
+        else
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(name + suffix[j]);
     }
-    else
-        for (int j = 0; j < ncomp; j++)
-            names.push_back(name + suffix[j]);
     cell.name_array.push_back(names);
 }
 
@@ -547,17 +545,17 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
 
     Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
     std::vector<std::string> names;
-    if (suffix.size() == 0)
+    if (ncomp == 1)
+        names.push_back(name);
+    else
     {
-        if (ncomp == 1)
-            names.push_back(name);
-        else
+        if (suffix.size() == 0)
             for (int j = 0; j < ncomp; j++)
                 names.push_back(amrex::Concatenate(name,j+1,3));
+        else
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(name + suffix[j]);
     }
-    else
-        for (int j = 0; j < ncomp; j++)
-            names.push_back(name + suffix[j]);
     node.name_array.push_back(names);
 }
 

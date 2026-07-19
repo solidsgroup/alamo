@@ -101,13 +101,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.query_default("solid.model.eta_threshold", value.finite_solid_eta_threshold, 0.5);
         pp.query_default("solid.model.J_floor", value.finite_solid_J_floor, 1.0e-6);
         pp.query_default("solid.model.viscosity", value.finite_solid_viscosity,
-                         "0.0", Unit::Pressure() * Unit::Time());
+                        "0.0", Unit::Pressure() * Unit::Time());
         pp.query_default("solid.model.interface_viscosity", value.finite_solid_interface_viscosity,
-                         "0.0", Unit::Pressure() * Unit::Time());
+                        "0.0", Unit::Pressure() * Unit::Time());
         pp.query_default("solid.model.deviatoric_stress_divergence_sign",
-                         value.finite_solid_deviatoric_stress_divergence_sign, 0.0);
+                        value.finite_solid_deviatoric_stress_divergence_sign, 0.0);
         pp.query_required("solid.model.reference_density",
-                          value.finite_solid_reference_density, Unit::Density());
+                        value.finite_solid_reference_density, Unit::Density());
         if (value.finite_solid_reference_density <= 0.0)
             Util::Exception(INFO, "solid.model.reference_density must be positive");
         value.reference_density[value.deformable_solid_species] =
@@ -119,14 +119,14 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (!value.projection_enabled)
             Util::Exception(INFO, "Rigid solid mechanics requires projection.enabled=1");
         pp.query_required("rigid.relaxation_time",
-                          value.rigid_relaxation_time, Unit::Time());
+                        value.rigid_relaxation_time, Unit::Time());
         pp.queryarr_default("rigid.velocity", value.rigid_velocity, Set::Vector::Zero());
         if (value.rigid_relaxation_time <= 0.0)
             Util::Exception(INFO, "rigid.relaxation_time must be positive");
         for (const int n : value.rigid_solid_species)
         {
             pp.query_required(value.species_names[n] + ".reference_density",
-                              value.reference_density[n], Unit::Density());
+                            value.reference_density[n], Unit::Density());
             if (value.reference_density[n] <= 0.0)
                 Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
@@ -155,10 +155,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     }
 
     pp.select<Numeric::Advect::MUSCL,
-              Numeric::Advect::Upwind,
-              Numeric::Advect::Centered,
-              Numeric::Advect::QUICK,
-              Numeric::Advect::WENO5>("advection",value.advect);
+            Numeric::Advect::Upwind,
+            Numeric::Advect::Centered,
+            Numeric::Advect::QUICK,
+            Numeric::Advect::WENO5>("advection",value.advect);
     if (value.advect.PhiLocation() != Set::HC::Cell ||
         value.advect.VelocityLocation() != Set::HC::Cell)
         Util::Exception(INFO, "LowMach currently requires cell-centered phi and velocity advection data");
@@ -236,10 +236,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
 void
 LowMach::UpdateSolidStress(int lev,
-                           const amrex::MultiFab& u_mf,
-                           const amrex::MultiFab& eta_mf,
-                           const amrex::MultiFab& xi_mf,
-                           bool write_diagnostics)
+                            const amrex::MultiFab& u_mf,
+                            const amrex::MultiFab& eta_mf,
+                            const amrex::MultiFab& xi_mf,
+                            bool write_diagnostics)
 {
     BL_PROFILE("Integrator::LowMach::UpdateSolidStress");
 
@@ -312,11 +312,11 @@ LowMach::UpdateSolidStress(int lev,
             }
 
             Set::Matrix solid_sigma_dev = solid_sigma -
-                                          (solid_sigma.trace() / Set::Scalar(AMREX_SPACEDIM)) *
-                                              Set::Matrix::Identity();
+                                        (solid_sigma.trace() / Set::Scalar(AMREX_SPACEDIM)) *
+                                            Set::Matrix::Identity();
             Set::Matrix strain_rate_dev = grad_u + grad_u.transpose();
             strain_rate_dev -= (strain_rate_dev.trace() / Set::Scalar(AMREX_SPACEDIM)) *
-                               Set::Matrix::Identity();
+                                Set::Matrix::Identity();
             Set::Matrix interface_damping_stress =
                 solid_interface_viscosity * 4.0 * eta_val * (1.0 - eta_val) * strain_rate_dev;
             solid_deviatoric_stress(i,j,k) =
@@ -404,7 +404,7 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     {
         for (const int n : rigid_solid_species)
             amrex::MultiFab::Saxpy(*rigid_eta_mf[lev], 1.0 / reference_density[n],
-                                   component_density_mf, n, 0, 1, 1);
+                                    component_density_mf, n, 0, 1, 1);
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
     if (diagnostics_extended_fields)
@@ -467,7 +467,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const bool rigid_solid = !rigid_solid_species.empty();
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
-                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
+                            static_cast<Set::Scalar>(geom[0].Domain().numPts());
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
 
     for (int lev = 0; lev < nlev; ++lev)
@@ -495,7 +495,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                     const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
                     for (int d = 0; d < AMREX_SPACEDIM; ++d)
                         u(i,j,k,d) = mobility * u(i,j,k,d) +
-                                     (1.0 - mobility) * target_velocity(d);
+                                    (1.0 - mobility) * target_velocity(d);
                 });
             }
             velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
@@ -572,7 +572,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
     for (int lev = 0; lev < nlev; ++lev)
         amrex::MultiFab::Copy(*pressure_correction_mf[lev],
-                              pressure_poisson.Solution(lev), 0, 0, 1, 0);
+                            pressure_poisson.Solution(lev), 0, 0, 1, 0);
     for (int lev = 0; lev < nlev; ++lev)
     {
         amrex::MultiFab& u_mf = *velocity_mf[lev];
@@ -652,7 +652,7 @@ LowMach::Initialize(int lev)
     pressure_correction_mf[lev]->setVal(0.0);
     if (lev == 0 && !(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
-                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
+                            static_cast<Set::Scalar>(geom[0].Domain().numPts());
 
     velocity_bc->define(geom[lev]);
     temperature_bc->define(geom[lev]);
@@ -668,7 +668,7 @@ LowMach::Initialize(int lev)
     component_density_bc->FillBoundary(*component_density_mf[lev], 0, nspecies, 0.0, 0);
     component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
     amrex::MultiFab::Copy(*component_density_old_mf[lev], *component_density_mf[lev],
-                          0, 0, nspecies, component_density_mf[lev]->nGrow());
+                        0, 0, nspecies, component_density_mf[lev]->nGrow());
     UpdateComponentState(lev, *component_density_mf[lev]);
 
     if (deformable_solid)
@@ -702,14 +702,14 @@ LowMach::Initialize(int lev)
 
 void
 LowMach::RHS(int lev, Set::Scalar /*time*/,
-             amrex::MultiFab& u_rhs_mf,
-             amrex::MultiFab& T_rhs_mf,
-             amrex::MultiFab& component_density_rhs_mf,
-             amrex::MultiFab* xi_rhs_mf,
-             const amrex::MultiFab& u_mf,
-             const amrex::MultiFab& T_mf,
-             const amrex::MultiFab& component_density_mf,
-             const amrex::MultiFab* xi_mf)
+            amrex::MultiFab& u_rhs_mf,
+            amrex::MultiFab& T_rhs_mf,
+            amrex::MultiFab& component_density_rhs_mf,
+            amrex::MultiFab* xi_rhs_mf,
+            const amrex::MultiFab& u_mf,
+            const amrex::MultiFab& T_mf,
+            const amrex::MultiFab& component_density_mf,
+            const amrex::MultiFab* xi_mf)
 {
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
@@ -758,9 +758,9 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
             // this predictor; including the stored pressure here feeds the
             // projection solution back into the next time step.
             Set::Vector rhs_vec = adv_u
-                                  + gravity
-                                  + (mu / density) * lap_u
-                                  + (deviatoric_stress_divergence_sign / density) * div_sigma;
+                                + gravity
+                                + (mu / density) * lap_u
+                                + (deviatoric_stress_divergence_sign / density) * div_sigma;
 
             // Put the result into the multicomponent field
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -850,7 +850,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                 // material form of partial-density conservation.
                 component_density_rhs(i,j,k,n) =
                     advect(component_density, u, i, j, k, n, DX,
-                           advective_options, sten) + mechanism_source -
+                            advective_options, sten) + mechanism_source -
                     component_density(i,j,k,n) * volume_source;
             }
             if (deformable_solid)
@@ -858,7 +858,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
                 const Set::Scalar mechanism_source = component_density_rhs(i,j,k,solid);
                 component_density_rhs(i,j,k,solid) =
                     advect(component_density, u, i, j, k, solid, DX,
-                           advective_options, sten) + mechanism_source -
+                            advective_options, sten) + mechanism_source -
                     component_density(i,j,k,solid) * volume_source;
             }
             if (deformable_solid)
@@ -902,8 +902,8 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     amrex::TimeIntegrator timeintegrator(solution_new, time);
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab>& rhs_mf,
-                               amrex::Vector<amrex::MultiFab>& state_mf,
-                               const Set::Scalar rhs_time)
+                                amrex::Vector<amrex::MultiFab>& state_mf,
+                                const Set::Scalar rhs_time)
     {
         velocity_bc->FillBoundary(state_mf[0], 0, AMREX_SPACEDIM, rhs_time, 0);
         state_mf[0].FillBoundary(geom[lev].periodicity());
@@ -1116,9 +1116,9 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
             const amrex::Box& bx = mfi.validbox();
             Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
             amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum,
-                              amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+                            amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
             amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar,
-                              Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+                            Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
@@ -1159,16 +1159,16 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
     Set::Scalar divrms_interior = ncell_interior > 0.0 ? std::sqrt(div2_interior / ncell_interior) : 0.0;
     if (amrex::ParallelDescriptor::IOProcessor())
         amrex::Print() << "LowMach diagnostics step " << iter
-                       << " time " << time
-                       << " vmax " << vmax
-                       << " uxmin " << uxmin
-                       << " uxmax " << uxmax
-                       << " uymin " << uymin
-                       << " uymax " << uymax
-                       << " divmax " << divmax
-                       << " divrms " << divrms
-                       << " divmax_interior " << divmax_interior
-                       << " divrms_interior " << divrms_interior << "\n";
+                        << " time " << time
+                        << " vmax " << vmax
+                        << " uxmin " << uxmin
+                        << " uxmax " << uxmax
+                        << " uymin " << uymin
+                        << " uymax " << uymax
+                        << " divmax " << divmax
+                        << " divrms " << divrms
+                        << " divmax_interior " << divmax_interior
+                        << " divrms_interior " << divrms_interior << "\n";
 }
 
 void
@@ -1229,14 +1229,14 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                 Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX, sten);
                 const Set::Scalar eta_val = eta(i,j,k);
                 refine_eta = grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
-                             (eta_val > etacrit && eta_val < 1.0 - etacrit);
+                            (eta_val > etacrit && eta_val < 1.0 - etacrit);
             }
             if (rigid_solid)
             {
                 Set::Vector grad_eta = Numeric::Gradient(rigid_eta, i, j, k, 0, DX, sten);
                 const Set::Scalar eta_val = rigid_eta(i,j,k);
                 refine_eta = refine_eta || grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
-                             (eta_val > etacrit && eta_val < 1.0 - etacrit);
+                            (eta_val > etacrit && eta_val < 1.0 - etacrit);
             }
             if (grad_u.norm() * dr > vcrit ||
                 grad_p.lpNorm<2>() * dr > pcrit ||

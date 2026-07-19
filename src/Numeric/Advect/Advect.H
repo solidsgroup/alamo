@@ -40,13 +40,13 @@ private:
 public:
     template<int I = 0, class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar operator()(Phi const& phi,
-                           Velocity const& velocity,
-                           int i, int j, int k,
-                           int comp,
-                           const Set::Scalar* DX,
-                           Options options = {},
-                           std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar operator()( Phi const& phi,
+                            Velocity const& velocity,
+                            int i, int j, int k,
+                            int comp,
+                            const Set::Scalar* DX,
+                            Options options = {},
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -64,26 +64,26 @@ public:
 
     template<int I = 0, class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar Scalar(Phi const& phi,
-                       Velocity const& velocity,
-                       int i, int j, int k,
-                       int comp,
-                       const Set::Scalar* DX,
-                       Options options = {},
-                       std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Scalar Scalar( Phi const& phi,
+                        Velocity const& velocity,
+                        int i, int j, int k,
+                        int comp,
+                        const Set::Scalar* DX,
+                        Options options = {},
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         return this->template operator()<I>(phi, velocity, i, j, k, comp, DX, options, stencil);
     }
 
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Vector Vector(Phi const& phi,
-                       Velocity const& velocity,
-                       int i, int j, int k,
-                       int comp,
-                       const Set::Scalar* DX,
-                       Options options = {},
-                       std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+    Set::Vector Vector( Phi const& phi,
+                        Velocity const& velocity,
+                        int i, int j, int k,
+                        int comp,
+                        const Set::Scalar* DX,
+                        Options options = {},
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
     {
         Set::Vector ret = Set::Vector::Zero();
         for (int d = 0; d < AMREX_SPACEDIM; ++d)

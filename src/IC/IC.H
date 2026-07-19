@@ -42,9 +42,7 @@ public:
     {
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
         a_field[a_lev]->setVal(0.0);
-        amrex::Gpu::streamSynchronize();
         Add(a_lev,a_field,a_time);
-        amrex::Gpu::streamSynchronize();
     }
 
     // SFINAE solution: we initialize using "Zero" if it is a class type.
@@ -55,9 +53,7 @@ public:
     {
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
         a_field[a_lev]->setVal(T::Zero());
-        amrex::Gpu::streamSynchronize();
         Add(a_lev,a_field,a_time);
-        amrex::Gpu::streamSynchronize();
     }
 
     virtual void SetComp(int a_comp) final {comp = a_comp;}

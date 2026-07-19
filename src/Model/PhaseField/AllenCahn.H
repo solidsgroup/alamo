@@ -47,12 +47,12 @@ public:
         if (!configured) return;
 
         pp.query_required("mobility", value.mobility,
-                          1.0 / Unit::Pressure() / Unit::Time());
+                        1.0 / Unit::Pressure() / Unit::Time());
 
         std::pair<std::string, Set::Scalar> coefficients[2];
         pp.query_exactly<2>({"lambda", "kappa", "sigma", "epsilon"}, coefficients,
                             {Unit::Pressure(), Unit::Energy() / Unit::Length(),
-                             Unit::Energy() / Unit::Area(), Unit::Length()});
+                            Unit::Energy() / Unit::Area(), Unit::Length()});
 
         if (coefficients[0].first == "lambda" && coefficients[1].first == "kappa")
         {
@@ -78,14 +78,14 @@ public:
             Util::Exception(INFO, "Allen-Cahn energy coefficients must be nonnegative");
 
         pp.query_default("driving_force", value.driving_force,
-                         "0.0", Unit::Pressure());
+                        "0.0", Unit::Pressure());
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar operator()(const amrex::Array4<const Set::Scalar>& field,
-                           const int component, const Set::Scalar scale,
-                           const int i, const int j, const int k,
-                           const Set::Scalar DX[AMREX_SPACEDIM]) const
+                            const int component, const Set::Scalar scale,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         const Set::Scalar value = scale * field(i,j,k,component);
         const Set::Scalar value2 = value * value;
@@ -100,7 +100,7 @@ public:
     {
         return mobility *
             (2.0 * lambda + 6.0 * Util::Abs(driving_force) +
-             4.0 * AMREX_SPACEDIM * kappa / (dx * dx));
+            4.0 * AMREX_SPACEDIM * kappa / (dx * dx));
     }
 
 private:

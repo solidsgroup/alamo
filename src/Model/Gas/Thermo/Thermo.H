@@ -39,6 +39,7 @@ public:
         }
     }
 
+
     template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
     double enthalpy_mol(double T, const Composition& X, int i, int j, int k) const
@@ -55,6 +56,7 @@ public:
             return NAN;
         }
     }
+
     template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
     double entropy_mol(double T, const Composition& X, int i, int j, int k) const

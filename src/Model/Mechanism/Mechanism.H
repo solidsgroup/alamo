@@ -29,8 +29,8 @@ public:
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar VolumeSource(const State& state,
-                             const int i, const int j, const int k,
-                             const Set::Scalar DX[AMREX_SPACEDIM]) const
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -46,9 +46,9 @@ public:
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void Apply(const amrex::Array4<Set::Scalar>& component_density_rhs,
-               const State& state,
-               const int i, const int j, const int k,
-               const Set::Scalar DX[AMREX_SPACEDIM]) const
+                const State& state,
+                const int i, const int j, const int k,
+                const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         if constexpr (I < sizeof...(OBJ))
         {

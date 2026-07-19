@@ -78,13 +78,8 @@ public:
     template<class T>
     const amrex::Array<amrex::Array<T, AMREX_SPACEDIM>, 2> GetBCTypes()
     {
-#if AMREX_SPACEDIM==2
-        return {{{{(T)m_bc_type[Face::XLO][0], (T)m_bc_type[Face::YLO][0]}},
-                 {{(T)m_bc_type[Face::XHI][0], (T)m_bc_type[Face::YHI][0]}}}};
-#else
-        return {{{{(T)m_bc_type[Face::XLO][0], (T)m_bc_type[Face::YLO][0], (T)m_bc_type[Face::ZLO][0]}},
-                 {{(T)m_bc_type[Face::XHI][0], (T)m_bc_type[Face::YHI][0], (T)m_bc_type[Face::ZHI][0]}}}};
-#endif
+        return { {{AMREX_D_DECL((T)m_bc_type[Face::XLO][0],(T)m_bc_type[Face::YLO][0],(T)m_bc_type[Face::ZLO][0])},
+                {AMREX_D_DECL((T)m_bc_type[Face::XLO][0],(T)m_bc_type[Face::YLO][0],(T)m_bc_type[Face::ZLO][0])}} };
     }
 
 

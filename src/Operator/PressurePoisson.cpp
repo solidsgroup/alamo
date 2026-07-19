@@ -158,6 +158,6 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     solver.setVerbose(verbose);
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
-                 tolerance_relative, tolerance_absolute);
+                tolerance_relative, tolerance_absolute);
 }
 }

@@ -37,17 +37,15 @@ public:
     virtual void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar /*time*/) override
     {
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
-        const int ncomp = a_field[lev]->nComp();
-        const int nghost = a_field[lev]->nGrow();
-        if (m_value.size() == 1)
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            for (int m = 0; m < ncomp; ++m) a_field[lev]->setVal(m_value[0], m, 1, nghost);
+            const amrex::Box& bx = mfi.growntilebox();
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            for (int m = 0; m < a_field[lev]->nComp(); m++)
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                field(i,j,k,m) += m_value.size() == 1 ? m_value[0] : m_value[m];
+            });  
         }
-        else
-        {
-            for (int m = 0; m < ncomp; ++m) a_field[lev]->setVal(m_value[m], m, 1, nghost);
-        }
-        amrex::Gpu::streamSynchronize();
     }
 
     virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar /*time*/) override
@@ -55,7 +53,7 @@ public:
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == AMREX_SPACEDIM)));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.tilebox();
+            const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {

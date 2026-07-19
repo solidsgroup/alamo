@@ -3,6 +3,7 @@
 
 #include "AMReX_FillPatchUtil.H"
 
+#include "BC/Nothing.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
 #include "Numeric/Interpolator/NodeBilinear.H"
@@ -47,26 +48,12 @@ template<class T>
 class Field : public BaseField
 {
 public:
-    class EmptyBC : public BC::BC<T>
-    {
-    public:
-        void FillBoundary(amrex::BaseFab<T>&,
-                          const amrex::Box&,
-                          int, int, int,
-                          amrex::Real,
-                          BC::Orientation = BC::Orientation::All,
-                          const amrex::Mask* = nullptr) override
-        {}
-
-        amrex::BCRec GetBCRec() override { return amrex::BCRec(); }
-    };
-
     Field(Set::Field<T> & a_field, 
         const amrex::Vector<amrex::Geometry> &a_geom, 
         const amrex::Vector<amrex::IntVect> &a_refRatio,
         int a_ncomp, int a_nghost) : 
         m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
-        m_ncomp(a_ncomp), m_nghost(a_nghost), m_bc(&m_empty_bc)
+        m_ncomp(a_ncomp), m_nghost(a_nghost), m_bc(&m_nothing_bc)
     {} 
     
     void 
@@ -75,7 +62,7 @@ public:
                 amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
                 int icomp)
     {
-        EmptyBC physbc;
+        BC::NothingT<T> physbc;
         if (lev == 0)
         {
             amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>*> smf;
@@ -153,7 +140,7 @@ public:
         if (m_gridtype == Set::Hypercube::Node)
         {
             Util::Assert(INFO, TEST(m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType()));
-            EmptyBC physbc;
+            BC::NothingT<T> physbc;
             amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
             cmf.push_back(m_field[lev-1].get());
             amrex::Vector<amrex::Real> ctime;
@@ -297,7 +284,7 @@ private:
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;
-    EmptyBC m_empty_bc;
+    BC::NothingT<T> m_nothing_bc;
     BC::BC<T> *m_bc;
     
     Numeric::Interpolator::NodeBilinear<T> node_bilinear;
@@ -317,7 +304,7 @@ public:
         return m_field.Name(i);
     }
     virtual void setBC(void * a_bc) override {
-        m_bc = a_bc ? static_cast<BC::BC<T>*>(a_bc) : &m_empty_bc;
+        m_bc = a_bc ? static_cast<BC::BC<T>*>(a_bc) : &m_nothing_bc;
     }
     virtual void * getBC() override {
         return (void*)m_bc;

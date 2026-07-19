@@ -27,12 +27,12 @@ public:
     static constexpr int max_products = 16;
 
     static void Parse(PhaseChange& value, IO::ParmParse& pp,
-                      const std::vector<std::string>& species_names,
-                      const int ngas_species,
-                      const std::vector<int>& rigid_solid_species,
-                      const std::vector<Set::Scalar>& reference_density,
-                      const std::vector<double>& molecular_weight,
-                      const Set::Scalar universal_gas_constant)
+                    const std::vector<std::string>& species_names,
+                    const int ngas_species,
+                    const std::vector<int>& rigid_solid_species,
+                    const std::vector<Set::Scalar>& reference_density,
+                    const std::vector<double>& molecular_weight,
+                    const Set::Scalar universal_gas_constant)
     {
         std::string input;
         std::vector<std::string> outputs;
@@ -101,8 +101,8 @@ public:
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar VolumeSource(const State& state,
-                             const int i, const int j, const int k,
-                             const Set::Scalar DX[AMREX_SPACEDIM]) const
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         const Set::Scalar source = MassSource(state, i, j, k, DX);
         const Set::Scalar product_specific_volume =
@@ -112,9 +112,9 @@ public:
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void Apply(const amrex::Array4<Set::Scalar>& component_density_rhs,
-               const State& state,
-               const int i, const int j, const int k,
-               const Set::Scalar DX[AMREX_SPACEDIM]) const
+                const State& state,
+                const int i, const int j, const int k,
+                const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         const Set::Scalar source = MassSource(state, i, j, k, DX);
         component_density_rhs(i,j,k,input) += source;
@@ -130,8 +130,8 @@ public:
 private:
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar MassSource(const State& state,
-                           const int i, const int j, const int k,
-                           const Set::Scalar DX[AMREX_SPACEDIM]) const
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         Set::Scalar eta_dot = model(
             state.component_density, input, 1.0 / reference_density, i, j, k, DX);

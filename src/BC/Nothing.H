@@ -15,13 +15,14 @@
 
 namespace BC
 {
-class Nothing
-    : public BC<Set::Scalar>
+template<class T>
+class NothingT
+    : public BC<T>
 {
 
 public:
-    Nothing () {};
-    virtual void FillBoundary (amrex::BaseFab<Set::Scalar>&,
+    NothingT () {};
+    virtual void FillBoundary (amrex::BaseFab<T>&,
                     const amrex::Box &,
                     int, int, int,
                     amrex::Real,
@@ -30,5 +31,7 @@ public:
 
     virtual amrex::BCRec GetBCRec() override {return amrex::BCRec();}
 };
+
+using Nothing = NothingT<Set::Scalar>;
 }
 #endif

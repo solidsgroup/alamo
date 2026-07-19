@@ -129,10 +129,10 @@ Reconstruction::SmoothForStress(const amrex::Geometry& geom,
 
 void
 Reconstruction::operator()(const amrex::Geometry& geom,
-                           const amrex::MultiFab& eta_mf,
-                           amrex::MultiFab& xi_mf,
-                           BC::BC<Set::Scalar>& xi_bc,
-                           const Set::Scalar time) const
+                            const amrex::MultiFab& eta_mf,
+                            amrex::MultiFab& xi_mf,
+                            BC::BC<Set::Scalar>& xi_bc,
+                            const Set::Scalar time) const
 {
     const Set::Scalar core_eta =
         Util::Max(Util::Clamp(eta_core, 0.0, 1.0), 1.0e-12);

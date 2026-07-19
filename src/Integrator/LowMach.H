@@ -61,22 +61,22 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
     void UpdateSolidStress(int lev,
-                           const amrex::MultiFab& u_mf,
-                           const amrex::MultiFab& eta_mf,
-                           const amrex::MultiFab& xi_mf,
-                           bool write_diagnostics = false);
+                            const amrex::MultiFab& u_mf,
+                            const amrex::MultiFab& eta_mf,
+                            const amrex::MultiFab& xi_mf,
+                            bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time,
-             amrex::MultiFab& u_rhs_mf,
-             amrex::MultiFab& T_rhs_mf,
-             amrex::MultiFab& component_density_rhs_mf,
-             amrex::MultiFab* xi_rhs_mf,
-             const amrex::MultiFab& u_mf,
-             const amrex::MultiFab& T_mf,
-             const amrex::MultiFab& component_density_mf,
-             const amrex::MultiFab* xi_mf);
+            amrex::MultiFab& u_rhs_mf,
+            amrex::MultiFab& T_rhs_mf,
+            amrex::MultiFab& component_density_rhs_mf,
+            amrex::MultiFab* xi_rhs_mf,
+            const amrex::MultiFab& u_mf,
+            const amrex::MultiFab& T_mf,
+            const amrex::MultiFab& component_density_mf,
+            const amrex::MultiFab* xi_mf);
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> velocity_old_mf;

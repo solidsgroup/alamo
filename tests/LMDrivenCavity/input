@@ -21,6 +21,21 @@
 #@ args=amr.plot_int=1000
 #@ args=amr.regrid_int=50
 #@ args=diagnostics.interval=1000
+#@
+#@ [2d-dynamic]
+#@ exe=lowmach
+#@ dim=2
+#@ check=false
+#@ timeout=120
+#@ args=timestep=1.0e-5
+#@ args=stop_time=3.0e-4
+#@ args=amr.max_level=0
+#@ args=amr.regrid_int=-1
+#@ args=amr.max_grid_size=32
+#@ args=amr.plot_int=-1
+#@ args=dynamictimestep.on=1
+#@ args=dynamictimestep.min=1.0e-6
+#@ args=dynamictimestep.max=1.0e-4
 
 # LowMach Re=100 driven-cavity regression.
 # No eta or solid mechanics are involved in this case; AMR is driven only by

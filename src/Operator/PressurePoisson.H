@@ -22,9 +22,9 @@ public:
     static void Parse(PressurePoisson& value, IO::ParmParse& pp);
 
     void SetLayout(const amrex::Vector<amrex::Geometry>& geometry,
-                   const amrex::Vector<amrex::IntVect>& refinement_ratio,
-                   const Set::Field<Set::Scalar>& layout,
-                   int number_of_levels);
+                    const amrex::Vector<amrex::IntVect>& refinement_ratio,
+                    const Set::Field<Set::Scalar>& layout,
+                    int number_of_levels);
 
     amrex::MultiFab& RHS(int lev) { return *rhs[lev]; }
     amrex::MultiFab& Coefficient(int lev) { return *coefficient[lev]; }

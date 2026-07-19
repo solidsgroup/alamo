@@ -28,8 +28,8 @@ public:
                     Set::Scalar time) const;
 
     void SmoothForStress(const amrex::Geometry& geom,
-                         const amrex::MultiFab& eta,
-                         amrex::MultiFab& xi) const;
+                        const amrex::MultiFab& eta,
+                        amrex::MultiFab& xi) const;
 
     bool SmoothsStressMap() const
     {

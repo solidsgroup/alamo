@@ -20,12 +20,12 @@ class MoleFraction
 {
 public:
     MoleFraction(const amrex::Array4<const Set::Scalar>& a_partial_density,
-                 const double* a_molecular_weight,
-                 const int a_nspecies,
-                 const int i, const int j, const int k)
+                const double* a_molecular_weight,
+                const int a_nspecies,
+                const int i, const int j, const int k)
         : partial_density(a_partial_density),
-          molecular_weight(a_molecular_weight),
-          inverse_moles(0.0)
+        molecular_weight(a_molecular_weight),
+        inverse_moles(0.0)
     {
         for (int n = 0; n < a_nspecies; ++n)
             inverse_moles += partial_density(i,j,k,n) / molecular_weight[n];
@@ -106,7 +106,7 @@ public:
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
     MoleFraction MoleFractions(const amrex::Array4<const Set::Scalar>& partial_density,
-                               const int i, const int j, const int k) const
+                                const int i, const int j, const int k) const
     {
         return MoleFraction(partial_density, MW.data(), nspecies, i, j, k);
     }

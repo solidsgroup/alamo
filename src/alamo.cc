@@ -28,7 +28,6 @@
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
 #include "Integrator/PFC.H"
-#include "Integrator/LowMach.H"
 
 int main (int argc, char* argv[])
 {
@@ -38,7 +37,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc","lowmach"});
+                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
@@ -64,7 +63,6 @@ int main (int argc, char* argv[])
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
     else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
-    else if (program == "lowmach")              pp.select_only<Integrator::LowMach>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

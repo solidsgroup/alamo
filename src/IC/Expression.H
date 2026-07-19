@@ -215,8 +215,6 @@ private:
 class Expression::X : public Expression
 {
 public:
-    static constexpr bool select_default_only = true;
-
     X(amrex::Vector<amrex::Geometry>& _geom) : Expression(_geom) {}
 
     virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar /*a_time*/ = 0.0) override
@@ -236,26 +234,6 @@ public:
                 Set::Vector x = Set::Position(i, j, k, IC<Set::Scalar>::geom[lev], type);
                 for (int n = 0; n < ncomp; ++n)
                     field(i,j,k,n) = n < AMREX_SPACEDIM ? x(n) : 0.0;
-            });
-        }
-        a_field[lev]->FillBoundary();
-    }
-
-    virtual void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar /*a_time*/ = 0.0) override
-    {
-        Util::Assert(INFO, TEST(a_field[lev]->nComp() == 1));
-        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx;
-            amrex::IndexType type = a_field[lev]->ixType();
-            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
-            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
-            else Util::Abort(INFO, "Unknown index type");
-
-            Set::Patch<Set::Vector> field = a_field.Patch(lev,mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                field(i,j,k) = Set::Position(i, j, k, IC<Set::Vector>::geom[lev], type);
             });
         }
         a_field[lev]->FillBoundary();
