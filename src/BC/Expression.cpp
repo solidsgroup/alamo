@@ -24,8 +24,9 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
     for (int n = 0; n < a_in.nComp(); n++)
-    amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
+        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
         Set::Vector pos = Set::Position(i, j, k, m_geom, type);
         Set::Scalar x = 0.0, y=0.0, z=0.0, t=time;
         x = pos(0);
@@ -154,7 +155,17 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 #endif
 
 
-    });
+        });
+
+        // Initialize physical corner ghosts from the adjacent face ghosts.
+        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i < lo.x && j < lo.y) in(i,j,k,n) = 0.5 * (in(i+1,j,k,n) + in(i,j+1,k,n));
+            if (i < lo.x && j > hi.y) in(i,j,k,n) = 0.5 * (in(i+1,j,k,n) + in(i,j-1,k,n));
+            if (i > hi.x && j < lo.y) in(i,j,k,n) = 0.5 * (in(i-1,j,k,n) + in(i,j+1,k,n));
+            if (i > hi.x && j > hi.y) in(i,j,k,n) = 0.5 * (in(i-1,j,k,n) + in(i,j-1,k,n));
+        });
+    }
 }
 
 amrex::BCRec

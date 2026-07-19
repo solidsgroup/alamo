@@ -1112,13 +1112,18 @@ public:
     template<typename T, typename PTRTYPE, typename... Args>
     void construct_select_default(std::string name, PTRTYPE *& value, Args&&... args)
     {
-        if constexpr (std::is_constructible_v<T, Args...>)
+        if constexpr (IsSelectDefaultOnly<T>::value)
         {
             value = new T(std::forward<Args>(args)...);
         }
+        else if constexpr (HasSelectName<T>::value)
+        {
+            value = new T(std::forward<Args>(args)..., (*this),
+                          name + "." + std::string(T::name));
+        }
         else
         {
-            value = new T(std::forward<Args>(args)..., (*this), name + "." + std::string(T::name));
+            value = new T(std::forward<Args>(args)...);
         }
     }
 

@@ -5,6 +5,108 @@ from os.path import isfile, join
 from glob import glob
 
 
+_PP_CALL = re.compile(
+    r'\bpp(?P<separator>[._])(?P<method>[A-Za-z_]\w*)'
+    r'(?:\s*<\s*(?P<template>[^<>]+?)\s*>)?\s*\('
+)
+
+
+def _matching_parenthesis(text, opening):
+    """Return the closing parenthesis for a C++ call, or None if unbalanced."""
+    depth = 0
+    quote = None
+    escaped = False
+
+    for i in range(opening, len(text)):
+        char = text[i]
+
+        if quote:
+            if escaped:
+                escaped = False
+            elif char == '\\':
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+
+        if char in ['"', "'"]:
+            quote = char
+        elif char == '(':
+            depth += 1
+        elif char == ')':
+            depth -= 1
+            if depth == 0:
+                return i
+
+    return None
+
+
+def _split_cpp_arguments(arguments):
+    """Split C++ call arguments on commas outside (), [], {}, and strings."""
+    ret = []
+    start = 0
+    depths = {'(': 0, '[': 0, '{': 0}
+    closing = {')': '(', ']': '[', '}': '{'}
+    quote = None
+    escaped = False
+
+    for i, char in enumerate(arguments):
+        if quote:
+            if escaped:
+                escaped = False
+            elif char == '\\':
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+
+        if char in ['"', "'"]:
+            quote = char
+        elif char in depths:
+            depths[char] += 1
+        elif char in closing:
+            opener = closing[char]
+            depths[opener] = max(0, depths[opener] - 1)
+        elif char == ',' and not any(depths.values()):
+            ret.append(arguments[start:i].strip())
+            start = i + 1
+
+    ret.append(arguments[start:].strip())
+    return ret
+
+
+def _parse_pp_call(line, methods):
+    """Parse a complete pp call while allowing nested C++ argument expressions."""
+    for match in _PP_CALL.finditer(line):
+        if match.group('method') not in methods:
+            continue
+
+        opening = match.end() - 1
+        closing = _matching_parenthesis(line, opening)
+        if closing is None:
+            continue
+
+        trailing = re.fullmatch(
+            r'\s*;\s*(?://\s*(.*?))?\s*', line[closing + 1:], re.DOTALL
+        )
+        if not trailing:
+            continue
+
+        return {
+            'method': match.group('method'),
+            'template': match.group('template'),
+            'arguments': _split_cpp_arguments(line[opening + 1:closing]),
+            'doc': trailing.group(1) or '',
+        }
+
+    return None
+
+
+def _string_argument(argument):
+    match = re.fullmatch(r'\s*"([^"]+)"\s*', argument)
+    return match.group(1) if match else None
+
+
 def allclassnames(root = "../src/"):
     allclassnames = set()
     for dirname, subdirlist, filelist in os.walk(root):
@@ -99,9 +201,7 @@ def extract(basefilename):
             pp = r'pp[._]'
             stringmatch = r'\s*"([^"]+)"\s*'
             variablematch = r',\s*[\w.]+\s*'
-            unitmatch = r'(?:,\s*([^,()]+(?:\([^()]*\))?))?'
             docmatch = r'\s*;\s*(?:\/\/\s*(.*))?$'
-            defaultmatch = r',\s*([^,)\s][^,)]*)\s*'
             templatematch = r'\s*<([^>]+)>\s*'
             stringarraymatch = r',\s*\{(.*)\}\s*'
             nargs = r',*\s*([^)]*)'
@@ -113,13 +213,19 @@ def extract(basefilename):
 
 
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall(rf'{pp}(query(?:arr)?(?:_required)?(?:_file)?)\s*\({stringmatch}{variablematch}{unitmatch}\){docmatch}',line)
-            if match:
+            parsed = _parse_pp_call(line, {
+                "query", "queryarr", "query_required", "queryarr_required", "query_file"
+            })
+            if parsed and len(parsed["arguments"]) in [2, 3]:
+                name = _string_argument(parsed["arguments"][0])
+            else:
+                name = None
+            if name is not None:
                 query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["unit"] = match[0][2]
-                query["doc"] = match[0][3]
+                query["type"] = parsed["method"]
+                query["string"] = name
+                query["unit"] = parsed["arguments"][2] if len(parsed["arguments"]) == 3 else ""
+                query["doc"] = parsed["doc"]
                 query["file"] = filename
                 query["line"] = i+1
                 
@@ -133,14 +239,18 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall(rf'{pp}(query(?:arr)?_default)\s*\({stringmatch}{variablematch}{defaultmatch}{unitmatch}\){docmatch}',line)
-            if match:
+            parsed = _parse_pp_call(line, {"query_default", "queryarr_default"})
+            if parsed and len(parsed["arguments"]) in [3, 4]:
+                name = _string_argument(parsed["arguments"][0])
+            else:
+                name = None
+            if name is not None:
                 query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["default"] = match[0][2]
-                query["unit"] = match[0][3]
-                query["doc"] = match[0][4]
+                query["type"] = parsed["method"]
+                query["string"] = name
+                query["default"] = parsed["arguments"][2]
+                query["unit"] = parsed["arguments"][3] if len(parsed["arguments"]) == 4 else ""
+                query["doc"] = parsed["doc"]
                 query["file"] = filename
                 query["line"] = i+1
                 
@@ -174,14 +284,20 @@ def extract(basefilename):
                 rets.append(query)
                 continue
 
-            # Catch standard pp.query_validate
-            match = re.findall(rf'{pp}query_exactly\s*<\s*(\d+)\s*>\s*\(\s*\{{([^}}]*)\}}\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?',line)
-            if match:
+            # Catch pp.query_exactly, including nested unit expressions.
+            parsed = _parse_pp_call(line, {"query_exactly"})
+            if parsed and parsed["template"] and len(parsed["arguments"]) in [2, 3]:
+                number = re.fullmatch(r'\s*(\d+)\s*', parsed["template"])
+                possibles = re.fullmatch(r'\s*\{(.*)\}\s*', parsed["arguments"][0], re.DOTALL)
+            else:
+                number = None
+                possibles = None
+            if number and possibles:
                 query = dict()
                 query["type"] = "query_exactly"
-                query["number"] = match[0][0]
-                query["possibles"] = match[0][1]
-                query["doc"] = match[0][2]
+                query["number"] = number.group(1)
+                query["possibles"] = possibles.group(1)
+                query["doc"] = parsed["doc"]
                 query["file"] = filename
                 query["line"] = i+1
                 query["default"] = True
@@ -489,4 +605,3 @@ def scrape(root="../src/"):
                 data[classname]['mainfile'] = f'src/{dirname.replace(root,"")}/{basefilename}.cc'
 
     return data
-

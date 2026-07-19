@@ -1,3 +1,17 @@
+#@ [2d-psread-coverage]
+#@ dim=2
+#@ nprocs=1
+#@ check-file = reference/2d-psread-coverage.dat
+#@ args = timestep = 1e-8
+#@ args = stop_time = 1e-10
+#@ args = pf.eta.ic.type = psread
+#@ args = pf.eta.ic.psread.file.unit = m
+#@ args = pf.eta.ic.psread.file.name = tests/SCPSpheresElastic/2d.xyzr
+#@ args = pf.eta.ic.psread.eps = 2.0e-5_m
+#@ args = pf.eta.ic.psread.invert = 1
+#@ args = pf.eta.ic.psread.x0 = 1e-4 1e-4 0.0
+#@ args = pf.eta.ic.psread.mult = 1.1
+#@ args = allow_unused=True
 #@
 #@ [2d-serial-short]
 #@ dim=2
@@ -11,6 +25,7 @@
 #@ args = stop_time=0.02
 #@ check-file = reference/2d-parallel-long.dat
 #@
+
 
 alamo.program = flame
 plot_file = tests/SCPSpheresElastic/output
@@ -162,7 +177,6 @@ elastic.bc.constant.type.xloyhi = trac disp
 
 # No traction on free surface
 elastic.traction = 0.0
-
 
 
 
