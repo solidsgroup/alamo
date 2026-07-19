@@ -1,14 +1,27 @@
+//
+// :code:Model::Gas::Transport::Mixture_Averaged:code: computes mixture-averaged gas
+// transport properties.
+//
+// Species viscosity and conductivity may be specified as constants or computed from
+// Lennard-Jones data. Mixture viscosity and conductivity are assembled using Wilke-style
+// averaging, while diffusion coefficients are computed from either constant-property
+// self-diffusion proxies or Chapman-Enskog binary diffusion estimates.
+//
+
 #ifndef MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 #define MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 
 #include <vector>
+#include <array>
 #include <memory>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Transport/Transport.H"
 
-// Type: 0,1 determines if per species viscosity and thermal conductivity are 
-//           constant (type=0) or computed using kinetic theory (type=1)
+// Type: 0,1 determines if per species viscosity and thermal conductivity are
+//           constant (type=constant) or computed using kinetic theory (type=LJ)
 // Either way, mixture averaging is used to compute the mixture values
 //
 // For kinetic theory: Chapman-Enskog is used to compute viscosity
@@ -17,13 +30,13 @@
 
 // dynamic viscosity, mu, computed using Chapman-Enskog theory
 //
-//        5E20 sqrt(pi * m * kb * T)  
-//  mu = ---------------------------- 
-//              16 pi σ^2 Ω           
+//        5E20 sqrt(pi * m * kb * T)
+//  mu = ----------------------------
+//              16 pi σ^2 Ω
 //
 //            MW
 //  where m = -- (mass per particle), MW: molecular weight, NA: Avogadro's number, kb: Boltzman constant
-//            NA                                                                  
+//            NA
 //
 //  σ: Lennard-Jones collision diameter in Angstroms, Ω: collision integral
 
@@ -37,19 +50,20 @@ namespace Model {
 namespace Gas {
 namespace Transport {
 
-class Mixture_Averaged // public Transport
+class Mixture_Averaged
 {
 public:
     static constexpr const char* name = "mixture_averaged";
 
 private:
-    int nspecies;
-    double Rg;
-    std::vector<double> MW;
-    Thermo::Thermo<Thermo::CpConstant> thermo;
+    Set::Scalar Rg;
+    std::array<Set::Scalar, NSPECIES> MW;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
     std::string type;
-    std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
-    std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    std::array<Set::Scalar, NSPECIES> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
+    std::array<Set::Scalar, NSPECIES> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    Set::Scalar d_fact; // When type=constant, this is a correction factor such that self diffusion D_n = d_fact * mu_n/rho_mix
+    Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
     Mixture_Averaged()
@@ -58,9 +72,9 @@ public:
     }
 
     static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
-                        int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
+                        const std::array<Set::Scalar,NSPECIES> &a_MW,
+                        const Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> &a_thermo)
     {
-        value.nspecies = a_nspecies;
         value.MW = a_MW;
         value.thermo = a_thermo;
 
@@ -72,6 +86,8 @@ public:
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
             // Thermal conductivity if type=constant
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            // Diffusion correction factor if type=constant
+            pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
         }
         else if (value.type == "LJ")
         {
@@ -84,46 +100,51 @@ public:
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
-        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        // 1 atm reference pressure
+        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        // 1 angstrom reference length
+        pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
+        // 1 cm^2 reference area
+        pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
-        Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
-        Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.val1.size() == (size_t)NSPECIES));
+        Util::Assert(INFO, TEST(value.val2.size() == (size_t)NSPECIES));
     }
 
 private:
-    double collision_integral(double Tstar) const {
-        double S =  1.16145 * pow(Tstar, -0.14874) 
+    Set::Scalar collision_integral(Set::Scalar Tstar) const {
+        Set::Scalar S =  1.16145 * pow(Tstar, -0.14874)
                     + 0.52487 / exp(0.77320 * Tstar)
                     + 2.16178 / exp(2.43787 * Tstar);
         return S;
     }
-    double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+    Set::Scalar mu_enskog(Set::Scalar T, int i) const {
+        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]/L_1ang * val1[i]/L_1ang * collision_integral(T / val2[i]));
     }
-    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
+    Set::Scalar k_eucken(Set::Scalar T, int n) const
     {
-        double cp = thermo.cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Rg) / MW[n];
+        Set::Scalar cp = thermo.cp_mol_species(T, n);
+        return mu_enskog(T, n) * (cp + 1.25 * Rg) / MW[n];
     }
 
 public:
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+    Set::Scalar dynamic_viscosity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
-        double mu_mix = 0.0;
+        Set::Scalar mu_mix = 0.0;
         if ( type == "constant" )
         {
             // dynamic viscosity, mu, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
-                double mua = val1[a];
-                double MWa = MW[a];
-                double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
-                    double mub = val1[b];
-                    double MWb = MW[b];
-                    double ratio = pow(MWb / MWa, 0.25);
-                    double mu_ratio = sqrt(mua / mub);
-                    double term = sqrt(1.0 + MWa / MWb);
+            for (int a = 0; a < NSPECIES; ++a) {
+                Set::Scalar mua = val1[a];
+                Set::Scalar MWa = MW[a];
+                Set::Scalar phi = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    Set::Scalar mub = val1[b];
+                    Set::Scalar MWb = MW[b];
+                    Set::Scalar ratio = pow(MWb / MWa, 0.25);
+                    Set::Scalar mu_ratio = sqrt(mua / mub);
+                    Set::Scalar term = sqrt(1.0 + MWa / MWb);
                     phi += X(i,j,k,b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
                 mu_mix += X(i, j, k, a) * mua / phi;
@@ -132,16 +153,16 @@ public:
         else if ( type == "LJ" )
         {
             // dynamic viscosity, mu, computed by Chapman-Enskog per species
-            for (int a = 0; a < nspecies; ++a) {
-                double mua = mu_enskog(T, a);
-                double MWa = MW[a];
-                double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
-                    double mub = mu_enskog(T, b);
-                    double MWb = MW[b];
-                    double ratio = pow(MWb / MWa, 0.25);
-                    double mu_ratio = sqrt(mua / mub);
-                    double term = sqrt(1.0 + MWa / MWb);
+            for (int a = 0; a < NSPECIES; ++a) {
+                Set::Scalar mua = mu_enskog(T, a);
+                Set::Scalar MWa = MW[a];
+                Set::Scalar phi = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    Set::Scalar mub = mu_enskog(T, b);
+                    Set::Scalar MWb = MW[b];
+                    Set::Scalar ratio = pow(MWb / MWa, 0.25);
+                    Set::Scalar mu_ratio = sqrt(mua / mub);
+                    Set::Scalar term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
                 mu_mix += X(i, j, k, a) * mua / phi;
@@ -156,23 +177,23 @@ public:
         return mu_mix;
     }
 
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+    Set::Scalar thermal_conductivity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
-        double k_mix = 0.0;
+        Set::Scalar k_mix = 0.0;
         if ( type == "constant" )
         {
             // thermal conductivity coefficient, k, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
-                double mua = val1[a];
-                double MWa = MW[a];
-                double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
-                    double mub = val1[b];
-                    double MWb = MW[b];
-                    double ratio = pow(MWb / MWa, 0.25);
-                    double mu_ratio = sqrt(mua / mub);
-                    double term = sqrt(1.0 + MWa / MWb);
+            for (int a = 0; a < NSPECIES; ++a) {
+                Set::Scalar mua = val1[a];
+                Set::Scalar MWa = MW[a];
+                Set::Scalar phi = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    Set::Scalar mub = val1[b];
+                    Set::Scalar MWb = MW[b];
+                    Set::Scalar ratio = pow(MWb / MWa, 0.25);
+                    Set::Scalar mu_ratio = sqrt(mua / mub);
+                    Set::Scalar term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
                 k_mix += X(i, j, k, a) * val2[a] / phi;
@@ -181,19 +202,19 @@ public:
         else if ( type == "LJ" )
         {
             // thermal conductivity coefficient, k, computed by Eucken relation per species
-            for (int a = 0; a < nspecies; ++a) {
-                double mua = mu_enskog(T, a);
-                double MWa = MW[a];
-                double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
-                    double mub = mu_enskog(T, b);
-                    double MWb = MW[b];
-                    double ratio = pow(MWb / MWa, 0.25);
-                    double mu_ratio = sqrt(mua / mub);
-                    double term = sqrt(1.0 + MWa / MWb);
+            for (int a = 0; a < NSPECIES; ++a) {
+                Set::Scalar mua = mu_enskog(T, a);
+                Set::Scalar MWa = MW[a];
+                Set::Scalar phi = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    Set::Scalar mub = mu_enskog(T, b);
+                    Set::Scalar MWb = MW[b];
+                    Set::Scalar ratio = pow(MWb / MWa, 0.25);
+                    Set::Scalar mu_ratio = sqrt(mua / mub);
+                    Set::Scalar term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                k_mix += X(i, j, k, a) * k_eucken(T, X, i, j, k, a) / phi;
+                k_mix += X(i, j, k, a) * k_eucken(T, a) / phi;
             }
         }
         else
@@ -205,35 +226,63 @@ public:
     }
 
     void diffusion_coeffs(
-            Set::Patch<Set::Scalar>& DKM, double T, double P,
+            Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k)  const
     {
-        // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-        for (int a = 0; a < nspecies; ++a) {
-            double sumD = 0.0;
-            for (int b = 0; b < nspecies; ++b) {
-                if (a == b) continue;
+        if ( type == "constant" )
+        {
+            // Mixture diffusion coefficients based on simple harmonic mean, m^2/s
+            Set::Scalar rho_mix = 0.0;
+            for (int n=0; n<NSPECIES; ++n)
+                rho_mix += X(i,j,k,n) * MW[n];
+            rho_mix *= P/(Set::Constant::Rg*T);
 
-                double sigmaAB = 0.5 * (val1[a] + val1[b]);
-                double epsAB   = sqrt(val2[a] * val2[b]);
-                double Tstar   = T / epsAB;
+            // compute self-diffusion proxies D_n = mu_n/rho_mix
+            std::array<Set::Scalar, NSPECIES> D_self;
+            for (int n=0; n<NSPECIES; ++n)
+                D_self[n] = d_fact * val1[n] / rho_mix;
 
-                double omegaAB =
-                    1.06036 / pow(Tstar, 0.15610) +
-                    0.19300 / exp(0.47635 * Tstar) +
-                    1.03587 / exp(1.52996 * Tstar) +
-                    1.76474 / exp(3.89411 * Tstar);
-
-                double DAB = 
-                    0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
-                    ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB /= 1.0e4;
-
-                sumD += X(i, j, k, b) / DAB;
+            // compute mixture diffusion coefficients
+            for (int a=0; a<NSPECIES; ++a) {
+                Set::Scalar sumD = 0.0;
+                for (int b=0; b<NSPECIES; ++b) {
+                    if (a==b) continue;
+                    Set::Scalar D_ab = 2.0 * D_self[a] * D_self[b] / (D_self[a] + D_self[b]); // harmonic mean
+                    sumD += X(i,j,k,b) / D_ab;
+                }
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
             }
+        }
+        else if ( type == "LJ" )
+        {
+            // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
+            for (int a = 0; a < NSPECIES; ++a) {
+                Set::Scalar sumD = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    if (a == b) continue;
 
-            DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
-            if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+                    Set::Scalar sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms
+                    Set::Scalar epsAB   = sqrt(val2[a] * val2[b]);
+                    Set::Scalar Tstar   = T / epsAB;
+
+                    Set::Scalar omegaAB =
+                        1.06036 / pow(Tstar, 0.15610) +
+                        0.19300 / exp(0.47635 * Tstar) +
+                        1.03587 / exp(1.52996 * Tstar) +
+                        1.76474 / exp(3.89411 * Tstar);
+
+                    Set::Scalar DAB =
+                        0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
+                        ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
+                    DAB *= A_1cmsq; // convert cm^2/s to m^2/s
+
+                    sumD += X(i, j, k, b) / DAB;
+                }
+
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+            }
         }
     }
 

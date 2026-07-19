@@ -1,3 +1,12 @@
+//
+// This header defines the :code:Model::Gas::Transport::Transport:code: static dispatch
+// wrapper for gas transport models.
+//
+// The :code:Transport:code: class selects one transport model at input parsing time and
+// dispatches dynamic viscosity, thermal conductivity, and species diffusion coefficient
+// calculations without virtual calls.
+//
+
 #ifndef MODEL_GAS_TRANSPORT_H_
 #define MODEL_GAS_TRANSPORT_H_
 
@@ -22,9 +31,14 @@ public:
 
     Transport() {} ;
 
+    const char* model_name() const
+    {
+        return selected >= 0 ? names[selected] : "";
+    }
+
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar dynamic_viscosity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -40,7 +54,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    Set::Scalar thermal_conductivity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -55,7 +69,7 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
-    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, double T, double P,
+    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P,
                             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))

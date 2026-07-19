@@ -1,12 +1,28 @@
+//
+// This header defines the :code:Model::Gas::Gas:code: class, which provides the
+// gas-property interface used by the hydrodynamics and chemistry models.
+//
+// The :code:Gas:code: class owns species molecular weights and selected thermodynamic,
+// transport, and equation-of-state models. These submodels are selected from input
+// using static polymorphism, then exposed through a single interface for mixture
+// thermodynamic properties, transport coefficients, equation-of-state conversions, and
+// local mass- and mole-fraction updates.
+//
+
 #ifndef MODEL_GAS_H_
 #define MODEL_GAS_H_
 
+#include <array>
 #include <vector>
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/Rocfire.H"
+#include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/Transport/Rocfire.H"
 #include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -18,15 +34,14 @@ namespace Gas {
 class Gas {
 protected:
 public:
-    int nspecies;
-    double Rg;
-    std::vector<double> MW;      // Species molecular weights, kg/kmol
-    Thermo::Thermo<Thermo::CpConstant> thermo;
-    Transport::Transport<Transport::Mixture_Averaged> transport;
-    EOS::EOS<EOS::CPG> eos;
+    Set::Scalar Rg;
+    std::array<Set::Scalar, NSPECIES> MW;      // Species molecular weights, kg/kmol
+    Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
+    Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
+    EOS::EOS<EOS::CPG,EOS::TPG> eos;
 
 public:
-    Gas() 
+    Gas()
     {
         this->Rg = Set::Constant::Rg;
     }
@@ -39,40 +54,52 @@ public:
     {
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
-        value.nspecies = value.MW.size();
+        Util::Assert(INFO, TEST(value.MW.size() == NSPECIES), "Error: Runtime species count from input file (", value.MW.size(), ") doesn't match the compile-time NSPECIES (", NSPECIES, ")");
 
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant, Thermo::NASA7, Thermo::Rocfire>("thermo", value.thermo);
 
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged, Transport::Rocfire>("transport", value.transport, value.MW, value.thermo);
 
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos);
+        pp.select<EOS::CPG, EOS::TPG>("eos", value.eos);
     }
-    
+
 public:
     // Thermodynamic quantities
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar entropy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar cp_mol_species(Set::Scalar T, int n) const;
+    Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const;
+    Set::Scalar entropy_mol_species(Set::Scalar T, int n) const;
 
     // Transport quantities
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
+    Set::Scalar dynamic_viscosity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar thermal_conductivity(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
 
     // EOS
-    double ComputeT(
-            double density, double momentumx, double momentumy, double E, double Tguess,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
-    double ComputeT(
-            double pressure, double density,
+    #if AMREX_SPACEDIM == 2
+    Set::Scalar ComputeT(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol=1e-12) const;
+    Set::Scalar ComputeE(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
-    double ComputeE(    
-            double density, double momentumx, double momentumy, double T,
+    #elif AMREX_SPACEDIM == 3
+    Set::Scalar ComputeT(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol=1e-12) const;
+    Set::Scalar ComputeE(
+            Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    #endif
+    Set::Scalar ComputeT_from_primitives(
+            Set::Scalar pressure, Set::Scalar density,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    Set::Scalar ComputeP(Set::Scalar density, Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
 // Universal methods inherent to Gas
 public:
@@ -83,56 +110,115 @@ public:
             const int i, const int j, const int k)
     {
         // In place update for mass and mole fractions
-        // This needs to be called before any other functions if cell composition 
+        // This needs to be called before any other functions if cell composition
         // has changed, since they are dependent on mole fraction
-        double density = 0.0;
-        double moles = 0.0;
-        for (int n=0; n<nspecies; ++n) {
-            density += density_mf(i,j,k,n);
-            moles += density_mf(i,j,k,n) / MW[n];
+        Set::Scalar raw_density = 0.0;
+        Set::Scalar density_scale = 0.0;
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            Util::Assert(INFO, TEST(std::isfinite(MW[n]) && MW[n] > 0.0),
+                "Invalid molecular weight for species ", n, ": ", MW[n]);
+            raw_density += density_mf(i,j,k,n);
+            density_scale += std::fabs(density_mf(i,j,k,n));
         }
-        for (int n=0; n<nspecies; ++n) {
-            mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
-            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
+
+        const Set::Scalar density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+        Set::Scalar density = 0.0;
+        Set::Scalar moles = 0.0;
+        Set::Scalar rho_clipped[NSPECIES];
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            rho_clipped[n] = density_mf(i,j,k,n);
+            if (!std::isfinite(rho_clipped[n]))
+            {
+                Util::Abort(INFO, "Non-finite species density in ComputeLocalFractions at (",
+                    i, ",", j, ",", k, "), species ", n, ": ", rho_clipped[n]);
+            }
+            if (rho_clipped[n] < 0.0)
+            {
+                if (rho_clipped[n] < -density_tol)
+                {
+                    Util::Abort(INFO, "Negative species density in ComputeLocalFractions at (",
+                        i, ",", j, ",", k, "), species ", n, ": rhoY=", rho_clipped[n],
+                        ", raw density=", raw_density, ", tolerance=", density_tol);
+                }
+                rho_clipped[n] = 0.0;
+            }
+            density += rho_clipped[n];
+            moles += rho_clipped[n] / MW[n];
         }
+        if (!std::isfinite(density) || !std::isfinite(moles) || density <= 0.0 || moles <= 0.0)
+        {
+            Util::Abort(INFO, "Invalid mixture state in ComputeLocalFractions at (",
+                i, ",", j, ",", k, "): raw density=", raw_density,
+                ", clipped density=", density, ", clipped moles=", moles,
+                ", tolerance=", density_tol);
+        }
+        Set::Scalar mass_fraction_sum = 0.0;
+        Set::Scalar mole_fraction_sum = 0.0;
+        for (int n=0; n<NSPECIES; ++n) {
+            mass_fraction_mf(i,j,k,n) = rho_clipped[n] / density;
+            mole_fraction_mf(i,j,k,n) = rho_clipped[n] / MW[n] / moles;
+            mass_fraction_sum += mass_fraction_mf(i,j,k,n);
+            mole_fraction_sum += mole_fraction_mf(i,j,k,n);
+            //Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) >= -1e-12),
+                "Error: Mass fraction less than 0.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) <= 1.0 + 1e-12),
+                "Error: Mass fraction greater than 1.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mole_fraction_mf(i,j,k,n) >= -1e-12),
+                "Error: Mole fraction less than 0.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mole_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mole_fraction_mf(i,j,k,n) <= 1.0 + 1e-12),
+                "Error: Mole fraction greater than 1.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mole_fraction_mf(i,j,k,n));
+        }
+        Util::Assert(INFO, TEST(std::fabs(mass_fraction_sum - 1.0) <= 1e-12),
+            "Error: Mass fractions do not sum to 1.0 at (", i, ",", j, ",", k,
+            "): sum=", mass_fraction_sum);
+        Util::Assert(INFO, TEST(std::fabs(mole_fraction_sum - 1.0) <= 1e-12),
+            "Error: Mole fractions do not sum to 1.0 at (", i, ",", j, ",", k,
+            "): sum=", mole_fraction_sum);
     }
-    double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
-        double mw = 0.0;
-        for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
+        Set::Scalar mw = 0.0;
+        for (int n=0; n<NSPECIES; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
-    double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
+    Set::Scalar ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
-        double rho = 0.0;
-        for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
+        Set::Scalar rho = 0.0;
+        for (int n=0; n<NSPECIES; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
-    double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
+    Set::Scalar R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific gas constant, J/(kg-K)
         return Rg/GetMW(X, i, j, k);
     }
-    double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cp_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
         return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cv_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
         return cp_mol(T, X, i, j, k) - Rg;
     }
-    double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar cv_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
         return cv_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double gamma(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
+    Set::Scalar gamma(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
         // Specific heat ratio
         return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
     }
-    double enthalpy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar enthalpy_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific enthalpy, J/kg
         return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
-    double entropy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    Set::Scalar entropy_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific entropy, J/(kg-K)
         return entropy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }

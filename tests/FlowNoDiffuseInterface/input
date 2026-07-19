@@ -61,7 +61,7 @@ gas.thermo.cpconstant.Tref = 0.0_K
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 0.0_Pa*s
+gas.transport.mixture_averaged.mu = 1.0e-12_Pa*s
 gas.transport.mixture_averaged.k = 0.023_W/m/K
 
 gas.eos.type = cpg

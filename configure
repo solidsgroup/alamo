@@ -116,6 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
+parser.add_argument('--nspecies', dest='nspecies', default=1, type=int, help='Number of species [1]')
 parser.add_argument('--comp', default="clang++", help='Compiler. Options: [g++], clang++, icc (or a path to one of these executables)')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
@@ -145,6 +146,7 @@ parser.add_argument("--save", action="store_true", help="Save current configurat
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
 parser.add_argument('--hdf5', default=False, action='store_true', help='Compile with HDF5 support')
 parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
+parser.add_argument("--yaml", action="store_true", default=False, help="Build and link to yaml-cpp")
 parser.set_defaults(**defaults)
 
 
@@ -160,6 +162,8 @@ args=parser.parse_args()
 comp_basename = os.path.basename(args.comp)
 comp_basename = re.sub(r"-\d+(\.\d+)*$", "", comp_basename)
 
+if args.nspecies > 1:
+    args.yaml = True
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
@@ -221,6 +225,7 @@ if args.verbose:
 #
 postfix = ""
 postfix += str(args.dim)+"d"
+if args.nspecies > 1: postfix += f"-{args.nspecies}species"
 if args.debug: postfix += "-debug"
 if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
@@ -243,6 +248,13 @@ shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 #
 f.write("DIM = " + str(args.dim) + "\n")
 message("Dimension",str(args.dim))
+
+#
+# NSPECIES
+#
+f.write("NSPECIES = " + str(args.nspecies) + "\n")
+f.write("CXX_COMPILE_FLAGS += -DNSPECIES=" + str(args.nspecies) + "\n")
+message("NSpecies",str(args.nspecies))
 
 #
 # COMPILER
@@ -508,6 +520,60 @@ if args.hdf5:
     f.write("LIB += -lhdf5 \n")
     message("HDF5-Enabled",str(args.hdf5))
 
+#
+# YAML-CPP
+#
+if args.yaml:
+    yaml_dir = "ext/yaml-cpp/"
+    message("YAML-CPP-Directory",yaml_dir)
+
+    if not os.path.isdir("ext"):
+        subprocess.run(['mkdir', '-p', 'ext'])
+
+    # Clone if needed
+    if not os.path.isdir(yaml_dir):
+        shellmessage(
+            "YAML-CPP-Clone",
+            cmd=f"git clone https://github.com/jbeder/yaml-cpp.git {yaml_dir}",
+            message="Cloning yaml-cpp"
+        )
+
+    build_dir = f"{yaml_dir}/build"
+    include_dir = f"{yaml_dir}/include"
+
+    subprocess.run(['mkdir', '-p', build_dir])
+
+    # Compile sources manually (no cmake)
+    srcs = glob.glob(f"{yaml_dir}/src/**/*.cpp", recursive=True)
+
+    objects = []
+
+    for src in srcs:
+        obj = src.replace(".cpp", ".o")
+        objects.append(obj)
+
+        # Skip compilation if object file is newer than source file
+        if not os.path.exists(obj) or os.path.getmtime(src) > os.path.getmtime(obj):
+            shellmessage(
+                "YAML-CPP-CXX",
+                cmd=f"{args.comp} -std=c++17 -fPIC -I{include_dir} -c {src} -o {obj}"
+            )
+
+    # Archive into static library
+    lib_path = f"{build_dir}/libyaml-cpp.a"
+
+    # Only archive if the lib doesn't exist or any objects were updated
+    if not os.path.exists(lib_path) or any(os.path.getmtime(obj) > os.path.getmtime(lib_path) for obj in objects):
+        shellmessage(
+            "YAML-CPP-AR",
+            cmd=f"ar rcs {lib_path} " + " ".join(objects)
+        )
+
+    # expose to build system
+    f.write(f"YAML_CPP_DIR = {yaml_dir}\n")
+    f.write(f"YAML_CPP_LIB = {lib_path}\n")
+    f.write(f"CXX_COMPILE_FLAGS += -I{include_dir} -DALAMO_YAML\n")
+    f.write(f"LIB += {lib_path}\n")
 
 #
 # AUTO-DETECT LIBPNG VIA HOMEBREW ON MACOS
@@ -684,6 +750,9 @@ if comp_basename =='g++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    elif args.perf:
+        f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -Wl,--push-state,--no-as-needed -lprofiler -Wl,--pop-state\n")
     else:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
@@ -778,6 +847,7 @@ if not args.compile_commands:
 
     otherflags = []
     if args.fft: otherflags.append("-DALAMO_FFT")
+    otherflags.append(f" -DNSPECIES={args.nspecies}")
 
     if args.geteigen:
         otherflags.extend(["-isystem", "./ext/libeigen"])
@@ -794,6 +864,8 @@ if not args.compile_commands:
         otherflags.append(f"-I{args.amrex}/include")
     else:
         otherflags.append(f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include")
+
+    if args.yaml: otherflags += f" -I./ext/yaml-cpp/include -DALAMO_YAML"
 
     for pth in os.environ.get("CPLUS_INCLUDE_PATH", "").split(os.pathsep):
         if pth:

@@ -1,3 +1,13 @@
+//
+// This header defines the :code:Model::Gas::EOS::EOS:code: static dispatch wrapper
+// for gas equation-of-state models.
+//
+// The :code:EOS:code: class acts as the static equivalent of a polymorphic interface
+// for pressure, temperature, and energy conversions. It dispatches to the selected EOS
+// implementation without virtual calls, preserving GPU compatibility for per-cell gas
+// state reconstruction.
+//
+
 #ifndef MODEL_GAS_EOS_H_
 #define MODEL_GAS_EOS_H_
 
@@ -21,12 +31,17 @@ private:
     int selected = -1;
 
 public:
+    const char* model_name() const
+    {
+        return selected >= 0 ? names[selected] : "";
+    }
+
     // Temperature, K
     template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const
+    Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -42,18 +57,38 @@ public:
     }
 
     // Temperature, K
-    template<int I = 0>
+    template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeT(double pressure, double density, 
-                    double R) const
+    Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar rtol) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeT(pressure, density, R);
+                return std::get<I>(obj).ComputeT(gas,density,momentumx,momentumy,momentumz,E,Tguess,X,i,j,k,rtol);
             else
-                return ComputeT<I+1>(pressure, density, R);
+                return ComputeT<GAS, I+1>(gas,density,momentumx,momentumy,momentumz,E,Tguess,X,i,j,k,rtol);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    // Temperature, K
+    template<int I = 0>
+    AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
+    Set::Scalar ComputeT_from_primitives(Set::Scalar pressure, Set::Scalar density,
+                    Set::Scalar R) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).ComputeT_from_primitives(pressure, density, R);
+            else
+                return ComputeT_from_primitives<I+1>(pressure, density, R);
         }
         else {
             Util::Abort(INFO, selected);
@@ -66,7 +101,7 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeP(double density, double T, double R) const
+    Set::Scalar ComputeP(Set::Scalar density, Set::Scalar T, Set::Scalar R) const
     // Energy, J/m^3
     {
         if constexpr (I < sizeof...(OBJ))
@@ -82,18 +117,39 @@ public:
         }
     }
 
-    template<int I = 0>
+    // Energy, J
+    template<typename GAS, int I = 0>
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    double ComputeE(double density, double momentumx, double momentumy, double T, 
-                    double R, double gamma) const
+    Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ComputeE(density, momentumx, momentumy, T, R, gamma);
+                return std::get<I>(obj).ComputeE(gas, density, momentumx, momentumy, T, X, i, j, k);
             else
-                return ComputeE<I+1>(density, momentumx, momentumy, T, R, gamma);
+                return ComputeE<GAS, I+1>(gas, density, momentumx, momentumy, T, X, i, j, k);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    // Energy, J
+    template<typename GAS, int I = 0>
+    AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
+    Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).ComputeE(gas, density, momentumx, momentumy, momentumz, T, X, i, j, k);
+            else
+                return ComputeE<GAS, I+1>(gas, density, momentumx, momentumy, momentumz, T, X, i, j, k);
         }
         else {
             Util::Abort(INFO, selected);
@@ -101,6 +157,7 @@ public:
         }
     }
 }; // class EOS
+
 } // namespace EOS
 } // namespace Gas
 } // namespace Model
