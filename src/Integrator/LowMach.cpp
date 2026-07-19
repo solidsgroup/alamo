@@ -1,5 +1,7 @@
 #include "LowMach.H"
 
+#include <cctype>
+
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Numeric/Stencil.H"
@@ -44,34 +46,48 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.ngas_species = value.gas.nspecies;
 
-    value.species.Parse(pp);
-    value.nspecies = value.species.Size();
+    pp.queryarr_required("species.names", value.species_names);
+    value.nspecies = value.species_names.size();
+    if (value.nspecies < value.ngas_species)
+        Util::Exception(INFO, "species.names must contain one identifier for every gas species");
     value.reference_density.assign(value.nspecies, NAN);
     for (int n = 0; n < value.nspecies; ++n)
     {
-        const Model::Species::Mechanics mechanics = value.species.GetMechanics(n);
-        if (mechanics == Model::Species::Mechanics::Fluid)
+        const std::string& name = value.species_names[n];
+        if (name.empty() ||
+            !(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_'))
+            Util::Exception(INFO, name, " is not a valid species identifier");
+        for (const char c : name)
+            if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_'))
+                Util::Exception(INFO, name, " is not a valid species identifier");
+        for (int m = 0; m < n; ++m)
+            if (name == value.species_names[m])
+                Util::Exception(INFO, "Duplicate species identifier ", name);
+
+        std::string mechanics;
+        pp.query_required(name + ".mechanics", mechanics);
+        if (mechanics == "fluid")
         {
             if (n >= value.ngas_species)
-                Util::Exception(INFO, "Fluid species ", value.species.Name(n),
+                Util::Exception(INFO, "Fluid species ", name,
                                 " has no corresponding entry in gas.mw");
         }
-        else if (mechanics == Model::Species::Mechanics::DeformableSolid)
+        else if (mechanics == "deformable_solid")
         {
             if (value.deformable_solid_species >= 0)
                 Util::Exception(INFO,
                                 "LowMach currently supports one deformable solid species");
             value.deformable_solid_species = n;
         }
-        else if (mechanics == Model::Species::Mechanics::RigidSolid)
+        else if (mechanics == "rigid_solid")
             value.rigid_solid_species.push_back(n);
-    }
-    if (value.nspecies < value.ngas_species)
-        Util::Exception(INFO, "species.names must contain one identifier for every gas species");
-    for (int n = 0; n < value.ngas_species; ++n)
-        if (value.species.GetMechanics(n) != Model::Species::Mechanics::Fluid)
+        else
+            Util::Exception(INFO, mechanics,
+                            " is not a valid mechanics type for species ", name);
+        if (n < value.ngas_species && mechanics != "fluid")
             Util::Exception(INFO, "The first ", value.ngas_species,
                             " species must be fluid species described by the gas model");
+    }
 
     if (value.deformable_solid_species >= 0)
     {
@@ -109,10 +125,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             Util::Exception(INFO, "rigid.relaxation_time must be positive");
         for (const int n : value.rigid_solid_species)
         {
-            pp.query_required(value.species.Name(n) + ".reference_density",
+            pp.query_required(value.species_names[n] + ".reference_density",
                               value.reference_density[n], Unit::Density());
             if (value.reference_density[n] <= 0.0)
-                Util::Exception(INFO, value.species.Name(n),
+                Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
         }
     }
@@ -123,13 +139,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     for (int n = 0; n < static_cast<int>(mechanism_names.size()); ++n)
     {
         const std::string& id = mechanism_names[n];
-        if (!Model::Species::Registry::IsIdentifier(id))
+        if (id.empty() ||
+            !(std::isalpha(static_cast<unsigned char>(id[0])) || id[0] == '_'))
             Util::Exception(INFO, id, " is not a valid mechanism identifier");
+        for (const char c : id)
+            if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_'))
+                Util::Exception(INFO, id, " is not a valid mechanism identifier");
         for (int m = 0; m < n; ++m)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
-        value.mechanisms[n].Parse(pp, id, value.species, value.reference_density,
-                                  value.gas.MW, value.gas.Rg);
+        pp.select<Model::Mechanism::PhaseChange>(
+            id, value.mechanisms[n], value.species_names, value.ngas_species,
+            value.rigid_solid_species, value.reference_density, value.gas.MW,
+            value.gas.Rg);
     }
 
     pp.select<Numeric::Advect::MUSCL,
@@ -167,7 +189,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
     std::vector<std::string> species_suffix(value.nspecies);
     for (int n = 0; n < value.nspecies; ++n)
-        species_suffix[n] = "_" + value.species.Name(n);
+        species_suffix[n] = "_" + value.species_names[n];
     std::vector<std::string> gas_species_suffix(
         species_suffix.begin(), species_suffix.begin() + value.ngas_species);
 
@@ -750,9 +772,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/,
     // the phase-change mechanisms prescribe for the projection.
     T_rhs_mf.setVal(0.0);
     component_density_rhs_mf.setVal(0.0);
-    for (const auto& configured_mechanism : mechanisms)
+    for (const auto& mechanism : mechanisms)
     {
-        const auto mechanism = configured_mechanism;
         const Set::Scalar p_reference = pressure_reference;
         for (amrex::MFIter mfi(component_density_rhs_mf, false); mfi.isValid(); ++mfi)
         {

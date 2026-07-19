@@ -49,16 +49,16 @@ Al_solid.reference_density = 100.0_kg/m^3
 
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
-Al_sublimation.in = Al_solid
-Al_sublimation.out = Al_vapor
-Al_sublimation.phase_field.type = allencahn
+Al_sublimation.phase_change.in = Al_solid
+Al_sublimation.phase_change.out = Al_vapor
+Al_sublimation.phase_change.phase_field.type = allencahn
 
 rigid.relaxation_time = 5.0e-5_s
 rigid.velocity = 0.0 0.0
 
-Al_sublimation.phase_field.allencahn.mobility = 20.0_1/Pa/s
-Al_sublimation.phase_field.allencahn.sigma = 0.02_J/m^2
-Al_sublimation.phase_field.allencahn.epsilon = 0.025_m
+Al_sublimation.phase_change.phase_field.allencahn.mobility = 20.0_1/Pa/s
+Al_sublimation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
+Al_sublimation.phase_change.phase_field.allencahn.epsilon = 0.025_m
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod

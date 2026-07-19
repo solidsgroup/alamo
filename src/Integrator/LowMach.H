@@ -14,7 +14,6 @@
 #include "Model/Gas/Gas.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
-#include "Model/Species/Registry.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -116,9 +115,9 @@ protected:
 
     Model::Gas::Gas gas;
     Model::Solid::Finite::NeoHookean finite_solid_model;
-    Model::Species::Registry species;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;
+    std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
     int ngas_species = 0;
     int nspecies = 0;

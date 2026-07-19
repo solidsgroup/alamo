@@ -1,9 +1,7 @@
 #ifndef MODEL_MECHANISM_MECHANISM_H
 #define MODEL_MECHANISM_MECHANISM_H
 
-#include <string>
 #include <tuple>
-#include <utility>
 
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
@@ -28,24 +26,6 @@ template<typename... OBJ>
 class Mechanism
 {
 public:
-    template<typename... Args>
-    void Parse(IO::ParmParse& pp, const std::string& id, Args&&... args)
-    {
-        std::string type;
-        pp.query_required(id + ".type", type);
-        pp.pushPrefix(id);
-        try
-        {
-            ParseSelected(type, pp, std::forward<Args>(args)...);
-        }
-        catch (...)
-        {
-            pp.popPrefix();
-            throw;
-        }
-        pp.popPrefix();
-    }
-
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar VolumeSource(const State& state,
@@ -55,7 +35,7 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(objects).VolumeSource(
+                return std::get<I>(obj).VolumeSource(
                     state, i, j, k, DX);
             return VolumeSource<I + 1>(state, i, j, k, DX);
         }
@@ -74,7 +54,7 @@ public:
         {
             if (selected == I)
             {
-                std::get<I>(objects).Apply(component_density_rhs, state, i, j, k, DX);
+                std::get<I>(obj).Apply(component_density_rhs, state, i, j, k, DX);
                 return;
             }
             Apply<I + 1>(component_density_rhs, state, i, j, k, DX);
@@ -88,7 +68,7 @@ public:
     {
         if constexpr (I < sizeof...(OBJ))
         {
-            if (selected == I) return std::get<I>(objects).StabilityRate(dx);
+            if (selected == I) return std::get<I>(obj).StabilityRate(dx);
             return StabilityRate<I + 1>(dx);
         }
         Util::Abort(INFO, selected);
@@ -96,25 +76,8 @@ public:
     }
 
 private:
-    template<int I = 0, typename... Args>
-    void ParseSelected(const std::string& type, IO::ParmParse& pp, Args&&... args)
-    {
-        if constexpr (I < sizeof...(OBJ))
-        {
-            if (type == names[I])
-            {
-                selected = I;
-                auto& object = std::get<I>(objects);
-                object.Parse(object, pp, std::forward<Args>(args)...);
-                return;
-            }
-            ParseSelected<I + 1>(type, pp, std::forward<Args>(args)...);
-        }
-        else
-            Util::Exception(INFO, type, " is not a valid mechanism type");
-    }
-
-    std::tuple<OBJ...> objects;
+    friend IO::ParmParse;
+    std::tuple<OBJ...> obj;
     static constexpr const char* names[] = {OBJ::name...};
     int selected = -1;
 };

@@ -97,13 +97,13 @@ pressure.ic.constant.value = 100000.0
 # Allen-Cahn phase-field evolution
 mechanisms.names = solid_phase_field
 solid_phase_field.type = phase_change
-solid_phase_field.in = solid
-solid_phase_field.out = ambient_gas
-solid_phase_field.interface_only = 0
-solid_phase_field.phase_field.type = allencahn
-solid_phase_field.phase_field.allencahn.mobility = 0.01_1/Pa/s
-solid_phase_field.phase_field.allencahn.sigma = 0.01_J/m^2
-solid_phase_field.phase_field.allencahn.epsilon = 0.01_m
+solid_phase_field.phase_change.in = solid
+solid_phase_field.phase_change.out = ambient_gas
+solid_phase_field.phase_change.interface_only = 0
+solid_phase_field.phase_change.phase_field.type = allencahn
+solid_phase_field.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+solid_phase_field.phase_change.phase_field.allencahn.sigma = 0.01_J/m^2
+solid_phase_field.phase_change.phase_field.allencahn.epsilon = 0.01_m
 
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"

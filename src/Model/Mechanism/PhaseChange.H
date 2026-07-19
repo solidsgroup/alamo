@@ -14,7 +14,6 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Model/PhaseField/PhaseField.H"
-#include "Model/Species/Registry.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -28,7 +27,9 @@ public:
     static constexpr int max_products = 16;
 
     static void Parse(PhaseChange& value, IO::ParmParse& pp,
-                      const Species::Registry& species,
+                      const std::vector<std::string>& species_names,
+                      const int ngas_species,
+                      const std::vector<int>& rigid_solid_species,
                       const std::vector<Set::Scalar>& reference_density,
                       const std::vector<double>& molecular_weight,
                       const Set::Scalar universal_gas_constant)
@@ -39,11 +40,15 @@ public:
         pp.query_required("in", input);
         pp.queryarr_required("out", outputs);
 
-        value.input = species.Require(input, pp.full("in"));
-        if (species.GetMechanics(value.input) == Species::Mechanics::Fluid)
+        for (int n = 0; n < static_cast<int>(species_names.size()); ++n)
+            if (species_names[n] == input) value.input = n;
+        if (value.input < 0)
+            Util::Exception(INFO, "Unknown species identifier ", input,
+                            " in ", pp.full("in"));
+        if (value.input < ngas_species)
             Util::Exception(INFO, pp.full("in"), " must identify a condensed species");
-        value.input_is_rigid =
-            species.GetMechanics(value.input) == Species::Mechanics::RigidSolid;
+        for (const int n : rigid_solid_species)
+            if (value.input == n) value.input_is_rigid = true;
         value.reference_density = reference_density[value.input];
         if (!(value.reference_density > 0.0))
             Util::Exception(INFO, "No positive reference density is defined for ", input);
@@ -66,8 +71,13 @@ public:
         Set::Scalar sum = 0.0;
         for (int n = 0; n < value.nproducts; ++n)
         {
-            value.products[n] = species.Require(outputs[n], pp.full("out"));
-            if (species.GetMechanics(value.products[n]) != Species::Mechanics::Fluid ||
+            value.products[n] = -1;
+            for (int m = 0; m < static_cast<int>(species_names.size()); ++m)
+                if (species_names[m] == outputs[n]) value.products[n] = m;
+            if (value.products[n] < 0)
+                Util::Exception(INFO, "Unknown species identifier ", outputs[n],
+                                " in ", pp.full("out"));
+            if (value.products[n] >= ngas_species ||
                 value.products[n] >= static_cast<int>(molecular_weight.size()))
                 Util::Exception(INFO, outputs[n], " must identify a gas species");
             if (mass_fractions[n] < 0.0)
