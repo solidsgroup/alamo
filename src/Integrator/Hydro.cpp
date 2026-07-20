@@ -1402,9 +1402,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     #endif
 
     const auto advect_op = advect;
-    // Advect returns -u.grad(phi); Hydro adds the conservative and pressure
-    // terms needed by the conserved-variable RHS below.
-    const Numeric::Advect::Options advective_options{Numeric::Advect::Form::Advective};
+    const Numeric::Advect::Options conservative_options{Numeric::Advect::Form::Conservative};
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -1630,28 +1628,19 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             }
             else if (flux_scheme == FluxScheme::Advect)
             {
-                Set::Matrix grad_velocity = Numeric::Gradient(velocity, i, j, k, DX, sten);
-                Set::Scalar div_velocity = 0.0;
-                for (int d = 0; d < AMREX_SPACEDIM; ++d) div_velocity += grad_velocity(d,d);
-
-                Set::Vector grad_pressure = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
-                Set::Scalar pressure_work =
-                    u.dot(grad_pressure) + pressure(i,j,k) * div_velocity;
-
                 for (int n=0; n<NSPECIES; ++n)
                 {
-                    transport_flux.mass[n] = eta * (
-                        advect_op.Scalar(rho_fluid, velocity, i, j, k, n, DX, advective_options, sten) -
-                        rho_fluid(i,j,k,n) * div_velocity);
+                    transport_flux.mass[n] = eta * advect_op.Scalar(rho_fluid, velocity, i, j, k, n, DX, conservative_options, sten);
                 }
+
+                Set::Vector grad_pressure = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+                Set::Scalar flux_pressure = advect_op.Scalar(pressure, velocity, i, j, k, 0, DX, conservative_options, sten);
                 transport_flux.momentum = eta * (
-                    advect_op.Vector(M_fluid, velocity, i, j, k, 0, DX, advective_options, sten) -
-                    rho_sum(i,j,k) * u * div_velocity -
+                    advect_op.Vector(M_fluid, velocity, i, j, k, 0, DX, conservative_options, sten) -
                     grad_pressure);
                 transport_flux.energy = eta * (
-                    advect_op.Scalar(E_fluid, velocity, i, j, k, 0, DX, advective_options, sten) -
-                    E_fluid_transport * div_velocity -
-                    pressure_work);
+                    advect_op.Scalar(E_fluid, velocity, i, j, k, 0, DX, conservative_options, sten) +
+                    flux_pressure);
             }
             else
             {
