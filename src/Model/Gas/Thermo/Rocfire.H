@@ -15,9 +15,11 @@
 #ifndef MODEL_GAS_THERMO_ROCFIRE_H_
 #define MODEL_GAS_THERMO_ROCFIRE_H_
 
+#include <array>
 #include <vector>
 #include <memory>
 #include <cmath>
+#include <string>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/Thermo.H"
 
@@ -40,49 +42,72 @@ public:
 
     static void Parse(Rocfire & value, IO::ParmParse & pp)
     {
-        // molecular weight
-        pp.query_default("mw", value.mw, "26.0_g/mol", Unit::Mass()/Unit::Amount());
         // gravimetric specific heat
         pp.query_default("cp_mass", value.cp_mass, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
         // reference temperature
         pp.query_default("Tref", value.Tref, "300.0_K", Unit::Temperature());
 
-        Util::Assert(INFO, TEST(value.mw > 0.0), "gas.thermo.rocfire.mw must be positive.");
+        const std::string suffix = ".thermo.rocfire";
+        const std::string prefix = pp.getPrefix();
+        Util::Assert(INFO,
+            TEST(prefix.size() > suffix.size() &&
+                 prefix.compare(prefix.size() - suffix.size(), suffix.size(), suffix) == 0),
+            "Thermo::Rocfire expected parser prefix ending in ", suffix,
+            ", got ", prefix);
+        IO::ParmParse gas_pp(prefix.substr(0, prefix.size() - suffix.size()));
+        std::array<Set::Scalar, NSPECIES> MW;
+        gas_pp.queryarr_required("mw", MW, Unit::Mass()/Unit::Amount());
+
+        value.mw = MW[0];
+        const Set::Scalar mw_tol = 1.0e-12 * ((std::fabs(value.mw) > 1.0) ? std::fabs(value.mw) : 1.0);
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            Util::Assert(INFO, TEST(std::isfinite(MW[n]) && MW[n] > 0.0),
+                "Invalid molecular weight for species ", n, ": ", MW[n]);
+            if (std::fabs(MW[n] - value.mw) > mw_tol)
+            {
+                Util::ParmParseException(INFO, pp.getPrefix(),
+                    "thermo.type=rocfire requires all gas mw entries to be equal.");
+            }
+        }
+
+        Util::Assert(INFO, TEST(value.mw > 0.0), "gas mw entries must be positive.");
         Util::Assert(INFO, TEST(value.cp_mass > 0.0), "gas.thermo.rocfire.cp_mass must be positive.");
         Util::Assert(INFO, TEST(value.Tref >= 0.0), "gas.thermo.rocfire.Tref must be greater than or equal to zero.");
     }
 
 public:
-    Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    AMREX_FORCE_INLINE
+    Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
     {
-        Set::Scalar cp = 0.0;
-        for (int n = 0; n < NSPECIES; ++n)
-        {
-            cp += X(i,j,k,n) * cp_mol_species(0.0, n);
-        }
-        return cp;
+        return cp_mol_species(0.0, 0);
     }
-    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+
+    AMREX_FORCE_INLINE
+    Set::Scalar enthalpy_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
     {
-        Set::Scalar h = 0.0;
-        for (int n = 0; n < NSPECIES; ++n)
-        {
-            h += X(i,j,k,n) * enthalpy_mol_species(T, n);
-        }
-        return h;
+        return enthalpy_mol_species(T, 0);
     }
+
+    AMREX_FORCE_INLINE
     Set::Scalar entropy_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
     {
         return 0.0;
     }
+
+    AMREX_FORCE_INLINE
     Set::Scalar cp_mol_species(Set::Scalar /*T*/, int /*n*/) const
     {
         return cp_mass * mw;
     }
+
+    AMREX_FORCE_INLINE
     Set::Scalar enthalpy_mol_species(Set::Scalar T, int /*n*/) const
     {
         return cp_mass * mw * (T - Tref);
     }
+
+    AMREX_FORCE_INLINE
     Set::Scalar entropy_mol_species(Set::Scalar /*T*/, int /*n*/) const
     {
         return 0.0;
