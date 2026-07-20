@@ -70,8 +70,14 @@ public:
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar phi)
     {
-        return rho_ap * phi + rho_htpb * (1.0 - phi); 
+        return rho_ap * phi + rho_htpb * (1.0 - phi);
     }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_ap () const { return rho_ap; }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_htpb () const { return rho_htpb; }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)

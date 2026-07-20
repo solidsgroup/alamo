@@ -526,8 +526,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
             deta_dt(i,j,k) = (etaold(i,j,k) - eta(i,j,k))/(dt);
 
-            solidrho(i,j,k,0) = 1950.0*phi;
-            solidrho(i,j,k,1) = 920.0*(1-phi);
+            solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            solidrho(i,j,k,1) = hydro.rho_htpb*(1-phi);
             solidrho(i,j,k,2) = 0.0;
             solidrho(i,j,k,3) = 0.0;
             solidrho(i,j,k,4) = 0.0;
@@ -546,13 +546,18 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // speed [m/s]; rho_solid*c then has the correct mass-flux units.
             Set::Scalar c;
             if (grad_eta_mag(i,j,k) > small) {
-	        c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k)*std::pow(10,3));
+	        c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k));
             } else {
                 c = 0.0;
             }
 
-            m0(i,j,k,0) = hydro.rho_ap*phi*c;
-            m0(i,j,k,1) = hydro.rho_htpb*(1-phi)*c;
+            // Mass/momentum conservation across the regressing surface uses the
+            // real physical solid density (propellant.rho_ap/rho_htpb), not the
+            // numerically-tame hydro.rho_ap/rho_htpb used for solidrho's Riemann
+            // blend - the actual mass flux crossing the interface is set by the
+            // true material density, independent of the fictitious hydro EOS state.
+            m0(i,j,k,0) = propellant.get_rho_ap()*phi*c;
+            m0(i,j,k,1) = propellant.get_rho_htpb()*(1-phi)*c;
             m0(i,j,k,2) = 0.0;
             m0(i,j,k,3) = 0.0;
             m0(i,j,k,4) = 0.0;
@@ -568,26 +573,22 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
                 density_solid_tot += solidrho(i,j,k,n);
             }
 
-            // Keep the solid's fictitious EOS pressure equal to the local gas
-            // pressure so the solid/gas interface is a quiescent contact
-            // (equal p, zero velocity) instead of the ~100x pressure jump that
-            // results from leaving solid.energy at its placeholder IC. TPG's
-            // internal energy is referenced to 298.15 K, so with rho_solid >>
-            // rho_gas an unset/near-zero sensible energy pins T (and thus p)
-            // far above the gas pressure; solving for T_target such that
-            // p_solid = rho_solid*R*T_target = p(i,j,k) removes that jump.
-            gas.ComputeLocalFractions(solidrho, Yfrac, Xfrac, i, j, k);
-            Set::Scalar R_solid = gas.R(Xfrac, i, j, k);
-            Set::Scalar T_target = p(i,j,k) / (density_solid_tot * R_solid);
-            solidE(i,j,k) = gas.ComputeE(density_solid_tot,
-                                          solidM(i,j,k,0), solidM(i,j,k,1),
-                                          T_target, Xfrac, i, j, k);
+            // DEBUG: temporarily disabled to isolate whether solid-energy
+            // pressure-matching (vs. the density-scale change) is the source
+            // of the step-2 instability.
+            // gas.ComputeLocalFractions(solidrho, Yfrac, Xfrac, i, j, k);
+            // Set::Scalar R_solid = gas.R(Xfrac, i, j, k);
+            // Set::Scalar T_target = p(i,j,k) / (density_solid_tot * R_solid);
+            // solidE(i,j,k) = gas.ComputeE(density_solid_tot,
+            //                               solidM(i,j,k,0), solidM(i,j,k,1),
+            //                               T_target, Xfrac, i, j, k);
 
             // Physical gas ejection speed from mass conservation across the
             // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
             // (The previous eta/eta_hydro volume-fraction weighting diverged as
-            // the solid side was approached, eta_hydro -> 0.)
-            u0_mag = c*(hydro.rho_ap*phi + hydro.rho_htpb*(1-phi))/(density_gas_tot + small);
+            // the solid side was approached, eta_hydro -> 0.) Uses the real solid
+            // density to match m0, above.
+            u0_mag = c*(propellant.get_rho_ap()*phi + propellant.get_rho_htpb()*(1-phi))/(density_gas_tot + small);
 
             if (u0_mag < small)
             {
@@ -850,7 +851,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             //
             Set::Scalar L = propellant.get_L(phi_avg, T);
-	    L *= 1*std::pow(10,3);
             L_out(i,j,k) = L;
 
             // 
