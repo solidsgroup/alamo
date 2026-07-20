@@ -36,6 +36,7 @@ EXPECTED = {
     "GPU-025": "scaffolding",
     "GPU-030": "correctness",
 }
+VERIFIED = {"GPU-007", "GPU-016"}
 FIELDS = [
     "Status",
     "Class",
@@ -83,8 +84,11 @@ def main() -> int:
             errors.append(
                 f"{path.name}: top-level fields {top_fields!r}, expected frozen order"
             )
-        if values.get("Status") != "draft":
-            errors.append(f"{path.name}: Phase 2 Status must be draft")
+        expected_status = "verified" if pattern_id in VERIFIED else "draft"
+        if values.get("Status") != expected_status:
+            errors.append(
+                f"{path.name}: Status {values.get('Status')!r}, expected {expected_status!r}"
+            )
         if values.get("Class") != EXPECTED.get(pattern_id):
             errors.append(
                 f"{path.name}: Class {values.get('Class')!r}, expected {EXPECTED.get(pattern_id)!r}"
@@ -326,6 +330,38 @@ def main() -> int:
     for phrase in required_policy:
         if phrase not in index_lower:
             errors.append(f"INDEX.md: missing policy {phrase!r}")
+
+    gate_path = ROOT / "docs/gpu_manual/build/phase6/GATE_RUNS.csv"
+    if gate_path.exists():
+        with gate_path.open(newline="") as handle:
+            gate_reader = csv.DictReader(handle)
+            gate_rows = list(gate_reader)
+            expected_header = [
+                "run", "target", "patterns", "verdict", "gaps", "reference"
+            ]
+            if gate_reader.fieldnames != expected_header:
+                errors.append("GATE_RUNS.csv: invalid header")
+        for number, row in enumerate(gate_rows, 2):
+            if row["verdict"] not in {"pass", "fail"}:
+                errors.append(f"GATE_RUNS.csv:{number}: invalid verdict")
+            for pattern_id in row["patterns"].split(";"):
+                if pattern_id not in EXPECTED:
+                    errors.append(
+                        f"GATE_RUNS.csv:{number}: inactive pattern {pattern_id}"
+                    )
+        if len(gate_rows) < 2 or [row["verdict"] for row in gate_rows[-2:]] != [
+            "pass", "pass"
+        ]:
+            errors.append("GATE_RUNS.csv: gate lacks two consecutive final passes")
+        elif gate_rows[-2]["target"] == gate_rows[-1]["target"]:
+            errors.append("GATE_RUNS.csv: final passes must use different targets")
+        final_patterns = {
+            pattern_id
+            for row in gate_rows[-2:]
+            for pattern_id in row["patterns"].split(";")
+        }
+        if not VERIFIED <= final_patterns:
+            errors.append("GATE_RUNS.csv: verified patterns lack final-pass coverage")
 
     if errors:
         print("pattern validation failed:")

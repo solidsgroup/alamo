@@ -1,5 +1,5 @@
 # GPU-007: Copy cell sizes into a device-safe value
-Status: draft
+Status: verified
 Class: correctness
 Recognizer: regex: `(?:const )?(?:Set::Scalar|amrex::Real)\s*\*\s*DX\s*=\s*geom\[[^]]+\]\.CellSize\(\)`
 Applies: A launch captures the raw pointer returned by `Geometry::CellSize()`.
