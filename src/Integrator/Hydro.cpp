@@ -15,6 +15,7 @@
 #include "Solver/Local/Riemann/HLLC.H"
 #include "AMReX_TimeIntegrator.H"
 #include "AMReX_FabArrayUtility.H"
+#include <string>
 
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/Thermo/Thermo.H"
@@ -512,8 +513,8 @@ void Hydro::Mix(int lev)
             // Initially compute primitives (T,P,u) from given initial conditions
             // But from then on, compute them from mixed values to avoid zero T conditions
             // Except velocity - keep velocity from fluid values only
-            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
-            Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+            Set::Scalar density = gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
+
             T(i,j,k) = gas.ComputeT_from_primitives(p(i,j,k), density, X, i, j, k);
             #if AMREX_SPACEDIM == 2
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
@@ -543,12 +544,6 @@ void Hydro::Mix(int lev)
             E_old(i, j, k) = E(i, j, k);
             //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
 
-            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
-            //density = gas.ComputeD(rho, i, j, k);
-            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            //v(i,j,k,0) = M(i,j,k,0)/density;
-            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
         //Util::Abort(INFO);
     }
@@ -892,7 +887,6 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
     const Set::Scalar* DX = geom[lev].CellSize();
     const amrex::Box domain = geom[lev].Domain();
-
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -965,9 +959,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
             ProjectSpeciesDensities(rhoY_fluid, i, j, k);
             for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
 
-            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
-
-            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             #if AMREX_SPACEDIM == 2
             T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
             #elif AMREX_SPACEDIM == 3
@@ -1277,9 +1269,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             #endif
             E_fluid(i,j,k) = Ef_fluid;
 
-            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
-
-            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             #if AMREX_SPACEDIM == 2
             T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
             #elif AMREX_SPACEDIM == 3

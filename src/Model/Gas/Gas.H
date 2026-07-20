@@ -16,6 +16,7 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <string>
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Thermo/NASA7.H"
@@ -23,6 +24,7 @@
 #include "Model/Gas/Transport/Rocfire.H"
 #include "Model/Gas/EOS/CPG.H"
 #include "Model/Gas/EOS/TPG.H"
+#include "Model/Gas/EOS/Rocfire.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -38,12 +40,14 @@ public:
     std::array<Set::Scalar, NSPECIES> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo<Thermo::CpConstant,Thermo::Rocfire,Thermo::NASA7> thermo;
     Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
-    EOS::EOS<EOS::CPG,EOS::TPG> eos;
+    EOS::EOS<EOS::CPG,EOS::TPG,EOS::Rocfire> eos;
+    bool rocfire = false;
 
 public:
     Gas()
     {
         this->Rg = Set::Constant::Rg;
+        this->MW.fill(NAN);
     }
     Gas(IO::ParmParse& pp, std::string name) : Gas()
     {
@@ -55,6 +59,11 @@ public:
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         Util::Assert(INFO, TEST(value.MW.size() == NSPECIES), "Error: Runtime species count from input file (", value.MW.size(), ") doesn't match the compile-time NSPECIES (", NSPECIES, ")");
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            Util::Assert(INFO, TEST(std::isfinite(value.MW[n]) && value.MW[n] > 0.0),
+                "Invalid molecular weight for species ", n, ": ", value.MW[n]);
+        }
 
         // thermo model
         pp.select<Thermo::CpConstant, Thermo::NASA7, Thermo::Rocfire>("thermo", value.thermo);
@@ -63,7 +72,9 @@ public:
         pp.select<Transport::Mixture_Averaged, Transport::Rocfire>("transport", value.transport, value.MW, value.thermo);
 
         // eos model
-        pp.select<EOS::CPG, EOS::TPG>("eos", value.eos);
+        pp.select<EOS::CPG, EOS::TPG, EOS::Rocfire>("eos", value.eos);
+
+        value.rocfire = std::string(value.eos.model_name()) == "rocfire";
     }
 
 public:
@@ -103,7 +114,7 @@ public:
 
 // Universal methods inherent to Gas
 public:
-    void ComputeLocalFractions(
+    Set::Scalar ComputeLocalFractions(
             Set::Patch<const Set::Scalar>& density_mf,
             Set::Patch<Set::Scalar>& mass_fraction_mf,
             Set::Patch<Set::Scalar>& mole_fraction_mf,
@@ -112,6 +123,58 @@ public:
         // In place update for mass and mole fractions
         // This needs to be called before any other functions if cell composition
         // has changed, since they are dependent on mole fraction
+        if (rocfire)
+        {
+            Set::Scalar raw_density = 0.0;
+            Set::Scalar density_scale = 0.0;
+            Set::Scalar rho_clipped[NSPECIES];
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                const Set::Scalar rhoYn = density_mf(i,j,k,n);
+                if (!std::isfinite(rhoYn))
+                {
+                    Util::Abort(INFO, "Non-finite species density in Rocfire local fractions at (",
+                        i, ",", j, ",", k, "), species ", n, ": ", rhoYn);
+                }
+                raw_density += rhoYn;
+                density_scale += std::fabs(rhoYn);
+            }
+
+            const Set::Scalar density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
+            Set::Scalar density = 0.0;
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                Set::Scalar rhoYn = density_mf(i,j,k,n);
+                if (rhoYn < 0.0)
+                {
+                    if (rhoYn < -density_tol)
+                    {
+                        Util::Abort(INFO, "Negative species density in Rocfire local fractions at (",
+                            i, ",", j, ",", k, "), species ", n, ": rhoY=", rhoYn,
+                            ", raw density=", raw_density, ", tolerance=", density_tol);
+                    }
+                    rhoYn = 0.0;
+                }
+                rho_clipped[n] = rhoYn;
+                density += rhoYn;
+            }
+            if (!std::isfinite(density) || density <= 0.0)
+            {
+                Util::Abort(INFO, "Invalid Rocfire mixture state at (",
+                    i, ",", j, ",", k, "): raw density=", raw_density,
+                    ", clipped density=", density, ", tolerance=", density_tol);
+            }
+
+            const Set::Scalar inv_density = 1.0 / density;
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                const Set::Scalar fraction = rho_clipped[n] * inv_density;
+                mass_fraction_mf(i,j,k,n) = fraction;
+                mole_fraction_mf(i,j,k,n) = fraction;
+            }
+            return density;
+        }
+
         Set::Scalar raw_density = 0.0;
         Set::Scalar density_scale = 0.0;
         for (int n=0; n<NSPECIES; ++n)
@@ -181,9 +244,13 @@ public:
         Util::Assert(INFO, TEST(std::fabs(mole_fraction_sum - 1.0) <= 1e-12),
             "Error: Mole fractions do not sum to 1.0 at (", i, ",", j, ",", k,
             "): sum=", mole_fraction_sum);
+
+        return raw_density;
     }
+
     Set::Scalar GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
+        if (rocfire) return MW[0];
         Set::Scalar mw = 0.0;
         for (int n=0; n<NSPECIES; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
@@ -200,6 +267,7 @@ public:
     }
     Set::Scalar cp_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
+        if (rocfire) return cp_mol_species(T, 0) / MW[0];
         return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
     Set::Scalar cv_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
@@ -212,6 +280,11 @@ public:
     }
     Set::Scalar gamma(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
         // Specific heat ratio
+        if (rocfire)
+        {
+            const Set::Scalar cp_mol = cp_mol_species(T, 0);
+            return cp_mol / (cp_mol - Rg);
+        }
         return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
     }
     Set::Scalar enthalpy_mass(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {

@@ -161,12 +161,10 @@ system.amount = kmol
 hydro.gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
 
 hydro.gas.thermo.type = rocfire
-hydro.gas.thermo.rocfire.mw = 26.0_g/mol
 hydro.gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
 hydro.gas.thermo.rocfire.Tref = 273.15_K
 
 hydro.gas.transport.type = rocfire
-hydro.gas.transport.rocfire.mw = 26.0_g/mol
 hydro.gas.transport.rocfire.prandtl = 0.69
 hydro.gas.transport.rocfire.lewis = 1.0
 hydro.gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
@@ -175,7 +173,7 @@ hydro.gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
 ### elasticity ###
 elastic.type = disable
 
-hydro.gas.eos.type = cpg
+hydro.gas.eos.type = rocfire
 
 ### CHEMISTRY (ported from input.sandwich_rocfire) ###
 # hydro.chemistry.type = frozen
