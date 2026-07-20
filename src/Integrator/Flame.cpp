@@ -17,6 +17,14 @@
 #include "Model/Propellant/Homogenize.H"
 #include <cmath>
 
+#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Transport/Transport.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/EOS.H"
+#include "Model/Gas/EOS/CPG.H"
+
 
 namespace Integrator
 {
@@ -122,6 +130,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     value.RegisterNewFab(value.eta_grad_mag_mf, value.bc_eta, 1, 2, "eta_grad_mag", true);
     value.RegisterNewFab(value.deta_dt_mf, value.bc_eta, 1, 2, "deta_dt", true);
+    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 2, "L", true);
     value.RegisterNewFab(value.hydro_density_mf, value.bc_eta, 1, 2, "fluid.density", true);
     
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
@@ -236,7 +245,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
-    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
+    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead, IC::PointList>
         ("phi.ic",value.ic_phi,value.geom);
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
@@ -380,6 +389,7 @@ void Flame::Initialize(int lev)
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
 	deta_dt_mf[lev]->setVal(0.0);
+        L_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
@@ -491,12 +501,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0  = Hydro::u0_mf.Patch(lev,mfi);
-        // Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> hydro_density = Hydro::density_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidE    = Hydro::solid.energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Xfrac     = Hydro::mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Yfrac     = Hydro::mass_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
@@ -506,32 +519,158 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         {   
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 	    
-            Set::Scalar eta_hydro = 1 - eta(i,j,k)*eta(i,j,k);
-            Set::Scalar etaold_hydro = 1 - etaold(i,j,k)*etaold(i,j,k);
-            Set::Vector grad_eta_hydro = -2.0*grad_eta*eta(i,j,k);
+            Set::Scalar etaold_hydro = 1 - etaold(i,j,k);
+            Set::Vector grad_eta_hydro = -1.0*grad_eta;
 	        Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            Set::Scalar p = 2026500; // 20 atm
-            Set::Scalar R = 319.787;
-	    deta_dt(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/(dt);
-            solidrho(i,j,k,0) = p/R/830.0*phi;
-            solidrho(i,j,k,1) = p/R/889.0*(1-phi);
+            grad_eta_mag(i,j,k) = grad_eta_hydro.lpNorm<2>();
+            Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
+            deta_dt(i,j,k) = (etaold(i,j,k) - eta(i,j,k))/(dt);
+
+            solidrho(i,j,k,0) = hydro.rho_ap*phi;
+            solidrho(i,j,k,1) = hydro.rho_htpb*(1-phi);
             solidrho(i,j,k,2) = 0.0;
             solidrho(i,j,k,3) = 0.0;
             solidrho(i,j,k,4) = 0.0;
             solidrho(i,j,k,5) = 0.0;
 
-            m0(i,j,k,0) = 5.3235*phi;
-            m0(i,j,k,1) = 2.6404*(1-phi);
+            if (eta(i, j, k) < small)
+            {
+                deta_dt(i,j,k) = 0.0;
+            }
+
+            // Interface normal regression speed. m0/u0 are diffuse-interface
+            // sources that Hydro::RHS localizes by multiplying by |grad(eta)|
+            // (source_delta = m0 * |grad(eta)|), so m0 must be a per-area mass
+            // flux [kg/m^2/s], not a per-volume rate. c = deta_dt/|grad(eta)|
+            // converts the order-parameter rate [1/s] into a normal interface
+            // speed [m/s]; rho_solid*c then has the correct mass-flux units.
+            Set::Scalar c;
+            if (grad_eta_mag(i,j,k) > small) {
+	        c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k));
+            } else {
+                c = 0.0;
+            }
+
+            // Mass/momentum conservation across the regressing surface uses the
+            // real physical solid density (propellant.rho_ap/rho_htpb), not the
+            // numerically-tame hydro.rho_ap/rho_htpb used for solidrho's Riemann
+            // blend - the actual mass flux crossing the interface is set by the
+            // true material density, independent of the fictitious hydro EOS state.
+            m0(i,j,k,0) = propellant.get_rho_ap()*phi*c;
+            m0(i,j,k,1) = propellant.get_rho_htpb()*(1-phi)*c;
             m0(i,j,k,2) = 0.0;
             m0(i,j,k,3) = 0.0;
             m0(i,j,k,4) = 0.0;
             m0(i,j,k,5) = 0.0;
 
-            u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
-            u0(i,j,k,0) = 0.0;
+            Set::Scalar density_gas_tot = 0.0;
+            Set::Scalar density_solid_tot = 0.0;
+            Set::Scalar u0_mag;
 
-            solidM(i,j,k,0) = 0.0;
-            solidM(i,j,k,1) = 0.0;
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                density_gas_tot += hydro_density(i,j,k,n);
+                density_solid_tot += solidrho(i,j,k,n);
+            }
+
+            // DEBUG: temporarily disabled to isolate whether solid-energy
+            // pressure-matching (vs. the density-scale change) is the source
+            // of the step-2 instability.
+            // gas.ComputeLocalFractions(solidrho, Yfrac, Xfrac, i, j, k);
+            // Set::Scalar R_solid = gas.R(Xfrac, i, j, k);
+            // Set::Scalar T_target = p(i,j,k) / (density_solid_tot * R_solid);
+            // solidE(i,j,k) = gas.ComputeE(density_solid_tot,
+            //                               solidM(i,j,k,0), solidM(i,j,k,1),
+            //                               T_target, Xfrac, i, j, k);
+
+            // Physical gas ejection speed from mass conservation across the
+            // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
+            // (The previous eta/eta_hydro volume-fraction weighting diverged as
+            // the solid side was approached, eta_hydro -> 0.) Uses the real solid
+            // density to match m0, above.
+            u0_mag = c*(propellant.get_rho_ap()*phi + propellant.get_rho_htpb()*(1-phi))/(density_gas_tot + small);
+
+            if (u0_mag < small)
+            {
+	      u0_mag = 0.0;
+	    }
+
+            u0(i,j,k,0) = u0_mag*N(0);
+            u0(i,j,k,1) = u0_mag*N(1);
+
+            if (u0( i, j, k, 0) < small)
+                {
+		  u0(i,j,k,0) = 0.0;
+                }
+
+                if (u0(i, j, k, 1) < small)
+                {
+		  u0(i,j,k,1) = 0.0;
+                }
+		
+	    
+            // De-mix the pure-gas density from the mixed conserved density for
+            // visualization: hydro_density is eta_hydro*rho_gas + (1-eta_hydro)*rho_solid
+            // (Hydro::Mix, using Hydro's fluid=1 convention), so invert that blend.
+            // Below Hydro's own eta cutoff the reconstruction is ill-conditioned
+            // (dividing by a near-zero fluid fraction), so report the solid
+            // density there instead - matching the same eta_cutoff convention
+            // Hydro::RHS/RefreshDerivedPlotFields use for this same inversion.
+            Set::Scalar eta_hydro_local = 1.0 - eta(i,j,k);
+            Set::Scalar eta_cutoff_local = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
+            if (eta_hydro_local > eta_cutoff_local)
+            {
+                // Near eta_cutoff this inversion amplifies any mismatch between
+                // hydro_density and the true mixed state (e.g. at the special
+                // dt=0 init call, before Mix() has run) into large swings;
+                // clamp to non-negative since density is not physically negative.
+                fluid_density(i,j,k) = std::max(0.0,
+                    (density_gas_tot - (1.0 - eta_hydro_local)*density_solid_tot) / eta_hydro_local);
+            }
+            else
+                fluid_density(i,j,k) = density_solid_tot;
+
+            // Set::Scalar dm_dt_AP = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_ap*phi; // Change in mass of solid AP
+            // Set::Scalar dm_dt_HTPB = deta_dt(i,j,k)*DX[0]*DX[1]*hydro.rho_htpb*(1.0-phi); // Change in mass of solid HTPB
+            // m0(i,j,k,0) = dm_dt_AP/(DX[0]*DX[1]); // AP density source term
+            // m0(i,j,k,1) = dm_dt_HTPB/(DX[0]*DX[1]); // HTPB density source term
+
+            // Set::Scalar density_gas_tot = 0.0;
+            // Set::Scalar density_solid_tot = 0.0;
+            // Set::Scalar u0_mag;
+
+            // for (int n=0; n<NSPECIES; ++n)
+            // {
+            //     density_gas_tot += hydro_density(i,j,k,n);
+            //     density_solid_tot += solidrho(i,j,k,n);
+            // }
+            
+            // u0_mag = deta_dt(i,j,k)*density_solid_tot/density_gas_tot;
+            // u0(i,j,k,0) = u0_mag*N(0);
+            // u0(i,j,k,1) = u0_mag*N(1);
+
+            // Set::Scalar p = 2026500; // 20 atm
+            // Set::Scalar R = 319.787;
+	        // deta_dt(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/(dt);
+            // solidrho(i,j,k,0) = p/R/830.0*phi;
+            // solidrho(i,j,k,1) = p/R/889.0*(1-phi);
+            // solidrho(i,j,k,2) = 0.0;
+            // solidrho(i,j,k,3) = 0.0;
+            // solidrho(i,j,k,4) = 0.0;
+            // solidrho(i,j,k,5) = 0.0;
+
+            // m0(i,j,k,0) = 5.3235*phi;
+            // m0(i,j,k,1) = 2.6404*(1-phi);
+            // m0(i,j,k,2) = 0.0;
+            // m0(i,j,k,3) = 0.0;
+            // m0(i,j,k,4) = 0.0;
+            // m0(i,j,k,5) = 0.0;
+
+            // u0(i,j,k,1) = 5.3235 / (p/R/830.0)*phi + 2.6404/(p/R/889.0) * (1-phi);
+            // u0(i,j,k,0) = 0.0;
+
+            // solidM(i,j,k,0) = 0.0;
+            // solidM(i,j,k,1) = 0.0;
 
             // solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
             // solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
@@ -587,9 +726,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     // cells (matching standalone Hydro::Advance's eta_bc->FillBoundary calls).
     // eta_old_mf must be filled too since Hydro::RHS's Hessian stencil reads it
     // and it otherwise only inherits stale ghost data through the eta/eta_old swap.
-    bc_eta->define(geom[lev]);
-    bc_eta->FillBoundary(*eta_mf[lev], 0, 1, a_time, 0);
-    bc_eta->FillBoundary(*eta_old_mf[lev], 0, 1, a_time, 0);
+    //bc_eta->define(geom[lev]);
+    //bc_eta->FillBoundary(*eta_mf[lev], a_time, 0);
+    //bc_eta->FillBoundary(*eta_old_mf[lev] a_time, 0);
 
 }
 
@@ -682,13 +821,20 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // Diagnostic fields
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
+        {   
+
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
+
             //
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
@@ -703,9 +849,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //
             // CALCULATE MOBILITY
-            // 
-            Set::Scalar L = propellant.get_L(  phi_avg, T);
-	    
+            //
+            Set::Scalar L = propellant.get_L(phi_avg, T);
+            L_out(i,j,k) = L;
+
             // 
             // EVOLVE PHASE FIELD (ETA)
             // 
@@ -722,9 +869,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
             }
-            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta*1000; //artifically increase mobility to test regression with kinetics
+            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta; //artifically increase mobility to test regression with kinetics
             
             if (etanew(i, j, k) <= small) etanew(i, j, k) = 0.0;
+
+            deta_dt(i,j,k) = (eta(i,j,k) - etanew(i,j,k))/(dt);
 
             if (thermal.on)
             {

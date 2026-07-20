@@ -41,7 +41,7 @@ details = 1
 # restart = output.sandwich_rocfire_part2_new/32300cell
 
 ### MESHING ###
-# amr.plot_dt = 1e-6
+# amrm0.plot_dt = 1e-6
 amr.plot_int = 1
 amr.max_level = 4
 # amr.max_level = 0

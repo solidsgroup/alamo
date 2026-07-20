@@ -70,8 +70,14 @@ public:
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar phi)
     {
-        return rho_ap * phi + rho_htpb * (1.0 - phi); 
+        return rho_ap * phi + rho_htpb * (1.0 - phi);
     }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_ap () const { return rho_ap; }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_htpb () const { return rho_htpb; }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)
@@ -83,9 +89,9 @@ public:
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_ap) L = m_ap * Pbar * exp(-E_ap / (T+400)) * phi;
-        else L = m_ap * exp(-E_ap / (T+400)) * phi;
-        L += m_htpb * exp(-E_htpb / (T+400)) * (1.0 - phi);
+        if (mob_ap) L = m_ap * Pbar * exp(-E_ap / (T)) * phi;
+        else L = m_ap * exp(-E_ap / (T)) * phi;
+        L += m_htpb * exp(-E_htpb / (T)) * (1.0 - phi);
         if (T <= bound) L = 0.0; // artically increase the mobility, delete later
         return L;
     }
