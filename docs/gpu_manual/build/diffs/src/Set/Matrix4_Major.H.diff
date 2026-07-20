@@ -1,0 +1,372 @@
+diff --git a/src/Set/Matrix4_Major.H b/src/Set/Matrix4_Major.H
+index 69f0500e0..049de09a1 100644
+--- a/src/Set/Matrix4_Major.H
++++ b/src/Set/Matrix4_Major.H
+@@ -19,6 +19,40 @@ class Matrix4<2, Sym::Major>
+ public:
+     AMREX_GPU_HOST_DEVICE Matrix4(){};
+ 
++    #if AMREX_SPACEDIM == 2
++    AMREX_GPU_HOST_DEVICE
++    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
++    {
++        // TODO: very inefficient, need to optimize
++        for (int i = 0; i < 2; i++)
++        for (int j = 0; j < 2; j++)
++        for (int k = 0; k < 2; k++)
++        for (int l = 0; l < 2; l++)
++            (*this)(i,j,k,l) = in(i,j,k,l);
++    }
++    AMREX_GPU_HOST_DEVICE
++    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
++    {
++        // TODO: very inefficient, need to optimize
++        for (int i = 0; i < 2; i++)
++        for (int j = 0; j < 2; j++)
++        for (int k = 0; k < 2; k++)
++        for (int l = 0; l < 2; l++)
++            (*this)(i,j,k,l) = in(i,j,k,l);
++    }
++    AMREX_GPU_HOST_DEVICE
++    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
++    {
++        // TODO: very inefficient, need to optimize
++        for (int i = 0; i < 2; i++)
++        for (int j = 0; j < 2; j++)
++        for (int k = 0; k < 2; k++)
++        for (int l = 0; l < 2; l++)
++            (*this)(i,j,k,l) = in(i,j,k,l);
++    }
++    #endif
++    
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+     const Scalar &operator()(const int i, const int j, const int k, const int l) const
+     {
+@@ -35,9 +69,10 @@ public:
+         else if (uid==15 )            return data[9]; // [1111] 
+         else
+             Util::Abort(INFO, "Index out of range");
+-        return Set::Garbage;
++        return Set::Garbage();
+     }
+ 
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+     Scalar &operator()(const int i, const int j, const int k, const int l)
+     {
+@@ -54,40 +89,9 @@ public:
+         else if (uid==15 )            return data[9]; // [1111] 
+         else
+             Util::Abort(INFO, "Index out of range");
+-        return Set::Garbage;
++        return Set::Garbage();
+     }
+ 
+-
+-    #if AMREX_SPACEDIM == 2
+-    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
+-    {
+-        // TODO: very inefficient, need to optimize
+-        for (int i = 0; i < 2; i++)
+-        for (int j = 0; j < 2; j++)
+-        for (int k = 0; k < 2; k++)
+-        for (int l = 0; l < 2; l++)
+-            (*this)(i,j,k,l) = in(i,j,k,l);
+-    }
+-    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
+-    {
+-        // TODO: very inefficient, need to optimize
+-        for (int i = 0; i < 2; i++)
+-        for (int j = 0; j < 2; j++)
+-        for (int k = 0; k < 2; k++)
+-        for (int l = 0; l < 2; l++)
+-            (*this)(i,j,k,l) = in(i,j,k,l);
+-    }
+-    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+-    {
+-        // TODO: very inefficient, need to optimize
+-        for (int i = 0; i < 2; i++)
+-        for (int j = 0; j < 2; j++)
+-        for (int k = 0; k < 2; k++)
+-        for (int l = 0; l < 2; l++)
+-            (*this)(i,j,k,l) = in(i,j,k,l);
+-    }
+-    #endif
+-    
+     void Print(std::ostream &os)
+     {
+         os.precision(4);
+@@ -132,6 +136,7 @@ public:
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+     void operator/=(const Set::Scalar &alpha)        { for (int i = 0; i < 10; i++) data[i] /= alpha; }
+ 
++    AMREX_GPU_HOST_DEVICE
+     static Matrix4<2, Sym::Major> Increment()
+     {
+         Matrix4<2, Sym::Major> ret;
+@@ -148,18 +153,21 @@ public:
+         ret.Randomize();
+         return ret;
+     }
++    AMREX_GPU_HOST_DEVICE
+     static Matrix4<2, Sym::Major> Zero()
+     {
+         Matrix4<2, Sym::Major> ret;
+         for (int i = 0; i < 10; i++) ret.data[i] = 0.0;
+         return ret;
+     }
++    AMREX_GPU_HOST_DEVICE
+     Set::Scalar Norm()
+     {
+         Set::Scalar normsq = 0.0;
+         for (int i = 0; i < 10; i++) normsq += data[i]*data[i];
+         return std::sqrt(normsq);
+     }
++    AMREX_GPU_HOST_DEVICE
+     bool contains_nan() const
+     {
+         if (std::isnan(data[ 0])) return true;
+@@ -175,12 +183,14 @@ public:
+         return false;
+     }
+ 
+-    friend Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
+-    friend Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
+-    friend Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
+-    friend Matrix4<2, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<2, Sym::Major> &a);
+-    friend Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
+-    friend Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<2, Sym::Major> &a);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Vector operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix3 &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Vector MulColMajor(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b, const int col);
+ };
+ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+ Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b)
+@@ -242,6 +252,7 @@ public:
+     AMREX_GPU_HOST_DEVICE Matrix4(){};
+     
+     #if AMREX_SPACEDIM == 3
++    AMREX_GPU_HOST_DEVICE
+     Matrix4(const Matrix4<3,Sym::Isotropic> &in)
+     {
+         // TODO: very inefficient, need to optimize
+@@ -251,6 +262,7 @@ public:
+         for (int l = 0; l < 3; l++)
+             (*this)(i,j,k,l) = in(i,j,k,l);
+     }
++    AMREX_GPU_HOST_DEVICE
+     Matrix4(const Matrix4<3,Sym::Diagonal> &in)
+     {
+         // TODO: very inefficient, need to optimize
+@@ -260,6 +272,7 @@ public:
+         for (int l = 0; l < 3; l++)
+             (*this)(i,j,k,l) = in(i,j,k,l);
+     }
++    AMREX_GPU_HOST_DEVICE
+     Matrix4(const Matrix4<3,Sym::MajorMinor> &in)
+     {
+         // TODO: very inefficient, need to optimize
+@@ -271,6 +284,7 @@ public:
+     }
+     #endif
+ 
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+     Scalar &operator()(const int i, const int j, const int k, const int l)
+     {
+@@ -323,10 +337,11 @@ public:
+         else if (uid == 80)              return data[44]; // [2222]
+         else
+             Util::Abort(INFO, "Index out of range");
+-        return Set::Garbage;
++        return Set::Garbage();
+     }
+     
+ 
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+     const Scalar &operator()(const int i, const int j, const int k, const int l) const
+     {
+@@ -379,9 +394,10 @@ public:
+         else if (uid == 80)              return data[44]; // [2222]
+         else
+             Util::Abort(INFO, "Index out of range");
+-        return Set::Garbage;
++        return Set::Garbage();
+     }
+ 
++    AMREX_GPU_HOST_DEVICE
+     Set::Scalar Norm()
+     {
+         Set::Scalar retsq = 0;
+@@ -437,6 +453,7 @@ public:
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+     void operator/=(const Set::Scalar &alpha)        { for (int i = 0; i < 45; i++) data[i] /= alpha; }
+ 
++    AMREX_GPU_HOST_DEVICE
+     static Matrix4<3, Sym::Major> Increment()
+     {
+         Matrix4<3, Sym::Major> ret;
+@@ -453,18 +470,21 @@ public:
+         ret.Randomize();
+         return ret;
+     }
++    AMREX_GPU_HOST_DEVICE
+     static Matrix4<3, Sym::Major> Zero()
+     {
+         Matrix4<3, Sym::Major> ret;
+         for (int i = 0; i < 45; i++) ret.data[i] = 0.0;
+         return ret;
+     }
++    AMREX_GPU_HOST_DEVICE
+     Set::Scalar norm()
+     {
+         Set::Scalar normsq = 0.0;
+         for (int i = 0; i < 45; i++) normsq += data[i]*data[i];
+         return std::sqrt(normsq);
+     }
++    AMREX_GPU_HOST_DEVICE
+     bool contains_nan() const
+     {
+         for (int i = 0; i < 45; i++)
+@@ -472,12 +492,14 @@ public:
+         return false;
+     }
+ 
+-    friend Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
+-    friend Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
+-    friend Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
+-    friend Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
+-    friend Matrix4<3, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<3, Sym::Major> &a);
+-    friend Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<3, Sym::Major> &a);
++    friend AMREX_GPU_HOST_DEVICE Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Vector operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix3 &b);
++    friend AMREX_GPU_HOST_DEVICE Set::Vector MulColMajor(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b, const int col);
+ };
+ 
+ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+@@ -531,20 +553,103 @@ Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b)
+     return ret;
+ }
+ 
+-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
++// Hand-unrolled equivalent of the (i,J,k,L) accessor loop
++//     ret(i) += a(i,J,k,L) * b(k,L,J)   [loop order: J outer, k, L inner]
++// with the (i,J,k,L) -> data[] map taken directly from operator()(i,J,k,L)
++// above.  The accumulation order of each ret(i) is IDENTICAL to the original
++// loop (same terms, same left-to-right order), so this is bit-for-bit
++// equivalent to the previous implementation - not merely numerically close.
++AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+ Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Major> &a, const Set::Matrix3 &b)
+ {
+-    // TODO: improve efficiency of this method
+-    Set::Vector ret = Set::Vector::Zero();
+-    for (int i = 0; i < AMREX_SPACEDIM; i++)
++    Set::Vector ret;
++#if AMREX_SPACEDIM == 2
++    ret(0) = a.data[0]*b(0,0,0) + a.data[1]*b(0,1,0) + a.data[2]*b(1,0,0) + a.data[3]*b(1,1,0) + a.data[1]*b(0,0,1) + a.data[4]*b(0,1,1) + a.data[5]*b(1,0,1) + a.data[6]*b(1,1,1);
++    ret(1) = a.data[2]*b(0,0,0) + a.data[5]*b(0,1,0) + a.data[7]*b(1,0,0) + a.data[8]*b(1,1,0) + a.data[3]*b(0,0,1) + a.data[6]*b(0,1,1) + a.data[8]*b(1,0,1) + a.data[9]*b(1,1,1);
++#elif AMREX_SPACEDIM == 3
++    ret(0) = a.data[0]*b(0,0,0) + a.data[1]*b(0,1,0) + a.data[2]*b(0,2,0) + a.data[3]*b(1,0,0) + a.data[4]*b(1,1,0) + a.data[5]*b(1,2,0) + a.data[6]*b(2,0,0) + a.data[7]*b(2,1,0) + a.data[8]*b(2,2,0) + a.data[1]*b(0,0,1) + a.data[9]*b(0,1,1) + a.data[10]*b(0,2,1) + a.data[11]*b(1,0,1) + a.data[12]*b(1,1,1) + a.data[13]*b(1,2,1) + a.data[14]*b(2,0,1) + a.data[15]*b(2,1,1) + a.data[16]*b(2,2,1) + a.data[2]*b(0,0,2) + a.data[10]*b(0,1,2) + a.data[17]*b(0,2,2) + a.data[18]*b(1,0,2) + a.data[19]*b(1,1,2) + a.data[20]*b(1,2,2) + a.data[21]*b(2,0,2) + a.data[22]*b(2,1,2) + a.data[23]*b(2,2,2);
++    ret(1) = a.data[3]*b(0,0,0) + a.data[11]*b(0,1,0) + a.data[18]*b(0,2,0) + a.data[24]*b(1,0,0) + a.data[25]*b(1,1,0) + a.data[26]*b(1,2,0) + a.data[27]*b(2,0,0) + a.data[28]*b(2,1,0) + a.data[29]*b(2,2,0) + a.data[4]*b(0,0,1) + a.data[12]*b(0,1,1) + a.data[19]*b(0,2,1) + a.data[25]*b(1,0,1) + a.data[30]*b(1,1,1) + a.data[31]*b(1,2,1) + a.data[32]*b(2,0,1) + a.data[33]*b(2,1,1) + a.data[34]*b(2,2,1) + a.data[5]*b(0,0,2) + a.data[13]*b(0,1,2) + a.data[20]*b(0,2,2) + a.data[26]*b(1,0,2) + a.data[31]*b(1,1,2) + a.data[35]*b(1,2,2) + a.data[36]*b(2,0,2) + a.data[37]*b(2,1,2) + a.data[38]*b(2,2,2);
++    ret(2) = a.data[6]*b(0,0,0) + a.data[14]*b(0,1,0) + a.data[21]*b(0,2,0) + a.data[27]*b(1,0,0) + a.data[32]*b(1,1,0) + a.data[36]*b(1,2,0) + a.data[39]*b(2,0,0) + a.data[40]*b(2,1,0) + a.data[41]*b(2,2,0) + a.data[7]*b(0,0,1) + a.data[15]*b(0,1,1) + a.data[22]*b(0,2,1) + a.data[28]*b(1,0,1) + a.data[33]*b(1,1,1) + a.data[37]*b(1,2,1) + a.data[40]*b(2,0,1) + a.data[42]*b(2,1,1) + a.data[43]*b(2,2,1) + a.data[8]*b(0,0,2) + a.data[16]*b(0,1,2) + a.data[23]*b(0,2,2) + a.data[29]*b(1,0,2) + a.data[34]*b(1,1,2) + a.data[38]*b(1,2,2) + a.data[41]*b(2,0,2) + a.data[43]*b(2,1,2) + a.data[44]*b(2,2,2);
++#endif
++    return ret;
++}
++
++// Column-restricted Matrix4 * Set::Matrix.  MulCol(a, b, c) computes ONLY
++// column c of (a * b), i.e. the Set::Vector whose entry i equals (a*b)(i,c).
++// For Sym::Major each returned entry uses the EXACT summation of the
++// corresponding row of operator*(Matrix4, Set::Matrix) above, so it is
++// bit-for-bit equal to operator*(a,b).col(c) - it just skips computing the
++// unused columns.  For every other symmetry class it defers to that class's
++// own operator* and extracts the column, preserving its accumulation order.
++//
++// The Major fast paths are separate helpers (MulColMajor) reached only through
++// the `if constexpr` in the MulCol template below.  Keeping them out of the
++// MulCol overload set is deliberate: a non-template MulCol(Matrix4<D,Major>)
++// overload would otherwise be a viable candidate for a Matrix4<D,OtherSym>
++// argument via the implicit Sym-converting constructor, which forces
++// instantiation of a host-only conversion in device code.
++AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++Set::Vector MulColMajor(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b, const int col)
++{
++    Set::Vector ret;
++    switch (col)
+     {
+-        for (int J = 0; J < AMREX_SPACEDIM; J++)
+-            for (int k = 0; k < AMREX_SPACEDIM; k++)
+-                for (int L = 0; L < AMREX_SPACEDIM; L++)
+-                    ret(i) += a(i,J,k,L) * b(k,L,J);
+-    }    
++    case 0:
++        ret(0) = a.data[0]*b(0,0) + a.data[1]*b(0,1) + a.data[2]*b(1,0) + a.data[3]*b(1,1);
++        ret(1) = a.data[2]*b(0,0) + a.data[5]*b(0,1) + a.data[7]*b(1,0) + a.data[8]*b(1,1);
++        break;
++    case 1:
++        ret(0) = a.data[1]*b(0,0) + a.data[4]*b(0,1) + a.data[5]*b(1,0) + a.data[6]*b(1,1);
++        ret(1) = a.data[3]*b(0,0) + a.data[6]*b(0,1) + a.data[8]*b(1,0) + a.data[9]*b(1,1);
++        break;
++    default:
++        ret = (a * b).col(col);
++        break;
++    }
+     return ret;
+ }
+ 
+-} 
++AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++Set::Vector MulColMajor(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b, const int col)
++{
++    Set::Vector ret;
++    switch (col)
++    {
++    case 0:
++        ret(0) = a.data[ 0]*b(0,0) + a.data[ 1]*b(0,1) + a.data[ 2]*b(0,2) + a.data[ 3]*b(1,0) + a.data[ 4]*b(1,1) + a.data[ 5]*b(1,2) + a.data[ 6]*b(2,0) + a.data[ 7]*b(2,1) + a.data[ 8]*b(2,2);
++        ret(1) = a.data[ 3]*b(0,0) + a.data[11]*b(0,1) + a.data[18]*b(0,2) + a.data[24]*b(1,0) + a.data[25]*b(1,1) + a.data[26]*b(1,2) + a.data[27]*b(2,0) + a.data[28]*b(2,1) + a.data[29]*b(2,2);
++        ret(2) = a.data[ 6]*b(0,0) + a.data[14]*b(0,1) + a.data[21]*b(0,2) + a.data[27]*b(1,0) + a.data[32]*b(1,1) + a.data[36]*b(1,2) + a.data[39]*b(2,0) + a.data[40]*b(2,1) + a.data[41]*b(2,2);
++        break;
++    case 1:
++        ret(0) = a.data[ 1]*b(0,0) + a.data[ 9]*b(0,1) + a.data[10]*b(0,2) + a.data[11]*b(1,0) + a.data[12]*b(1,1) + a.data[13]*b(1,2) + a.data[14]*b(2,0) + a.data[15]*b(2,1) + a.data[16]*b(2,2);
++        ret(1) = a.data[ 4]*b(0,0) + a.data[12]*b(0,1) + a.data[19]*b(0,2) + a.data[25]*b(1,0) + a.data[30]*b(1,1) + a.data[31]*b(1,2) + a.data[32]*b(2,0) + a.data[33]*b(2,1) + a.data[34]*b(2,2);
++        ret(2) = a.data[ 7]*b(0,0) + a.data[15]*b(0,1) + a.data[22]*b(0,2) + a.data[28]*b(1,0) + a.data[33]*b(1,1) + a.data[37]*b(1,2) + a.data[40]*b(2,0) + a.data[42]*b(2,1) + a.data[43]*b(2,2);
++        break;
++    case 2:
++        ret(0) = a.data[ 2]*b(0,0) + a.data[10]*b(0,1) + a.data[17]*b(0,2) + a.data[18]*b(1,0) + a.data[19]*b(1,1) + a.data[20]*b(1,2) + a.data[21]*b(2,0) + a.data[22]*b(2,1) + a.data[23]*b(2,2);
++        ret(1) = a.data[ 5]*b(0,0) + a.data[13]*b(0,1) + a.data[20]*b(0,2) + a.data[26]*b(1,0) + a.data[31]*b(1,1) + a.data[35]*b(1,2) + a.data[36]*b(2,0) + a.data[37]*b(2,1) + a.data[38]*b(2,2);
++        ret(2) = a.data[ 8]*b(0,0) + a.data[16]*b(0,1) + a.data[23]*b(0,2) + a.data[29]*b(1,0) + a.data[34]*b(1,1) + a.data[38]*b(1,2) + a.data[41]*b(2,0) + a.data[43]*b(2,1) + a.data[44]*b(2,2);
++        break;
++    default:
++        ret = (a * b).col(col);
++        break;
++    }
++    return ret;
++}
++
++// Public entry point: single overload template so a call MulCol(Matrix4<D,S>,..)
++// binds by exact type with no Sym-converting-constructor candidates.  The Major
++// fast path is selected at compile time; all other Sym classes use their own
++// operator*.
++template <int D, int S>
++AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++Set::Vector MulCol(const Matrix4<D,S> &a, const Set::Matrix &b, const int col)
++{
++    if constexpr (S == Sym::Major)
++        return MulColMajor(a, b, col);
++    else
++        return (a * b).col(col);
++}
++
++}
+ #endif

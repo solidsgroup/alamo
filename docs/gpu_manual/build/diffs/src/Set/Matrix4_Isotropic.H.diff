@@ -1,0 +1,12 @@
+diff --git a/src/Set/Matrix4_Isotropic.H b/src/Set/Matrix4_Isotropic.H
+index 50397b954..3227b97c2 100644
+--- a/src/Set/Matrix4_Isotropic.H
++++ b/src/Set/Matrix4_Isotropic.H
+@@ -48,6 +48,7 @@ public:
+     ///
+     /// you will get a `lvalue required as left operand of assignment` compile error.
+     /// You should probably consider using a lower symmetry operator.
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+     Scalar operator () (const int i, const int j, const int k, const int l) const
+     {

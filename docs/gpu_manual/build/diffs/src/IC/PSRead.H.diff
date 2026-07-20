@@ -1,0 +1,39 @@
+diff --git a/src/IC/PSRead.H b/src/IC/PSRead.H
+index 0845e84c9..c568014d5 100644
+--- a/src/IC/PSRead.H
++++ b/src/IC/PSRead.H
+@@ -6,6 +6,7 @@
+ #ifndef IC_PSREAD_H_
+ #define IC_PSREAD_H_
+ 
++#include "AMReX_Loop.H"
+ #include "Set/Set.H"
+ #include "IC/IC.H"
+ #include "Util/Util.H"
+@@ -42,6 +43,8 @@ public:
+ 
+     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
+     {
++        ALAMO_GPU_UNSUPPORTED_HOST_LOOP("IC::PSRead");
++
+         Set::Vector size = Set::Size(geom[lev]);
+         int ncomp = a_phi[lev]->nComp();
+ 
+@@ -54,7 +57,7 @@ public:
+             else Util::Abort(INFO, "Unkonwn index type");
+ 
+             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
++            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+             {
+                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                 Set::Scalar min_grain_id = 0;
+@@ -128,7 +131,7 @@ public:
+ 
+         if (pp.contains("x0"))
+             pp_queryarr("x0",value.x0); // Coordinate offset
+-
++        
+         Unit unit = Unit::Length();
+         // Units of length in the file
+         pp.queryunit("file.unit",unit);

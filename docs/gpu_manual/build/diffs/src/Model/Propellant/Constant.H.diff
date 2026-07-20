@@ -1,0 +1,70 @@
+diff --git a/src/Model/Propellant/Constant.H b/src/Model/Propellant/Constant.H
+new file mode 100644
+index 000000000..f81dd2c4a
+--- /dev/null
++++ b/src/Model/Propellant/Constant.H
+@@ -0,0 +1,64 @@
++#ifndef MODEL_PROPELLANT_CONSTANT_H
++#define MODEL_PROPELLANT_CONSTANT_H
++
++#include "Propellant.H"
++
++namespace Model
++{
++namespace Propellant
++{
++class Constant
++{
++public:
++    static constexpr const char* name = "constant";
++
++    Constant() = default;
++    Constant(IO::ParmParse &pp, std::string name)
++    {
++        pp_queryclass(name,*this);
++    }
++
++
++    template<int I = 0>
++    AMREX_GPU_HOST
++    Set::Scalar get (std::string /*property*/)
++    {
++        Util::Abort(INFO);
++        return NAN;
++    }
++
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    void set_pressure(const Set::Scalar /*P*/)
++    {}
++
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_K (const Set::Scalar /*phi*/) const    {return this->K;}
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_rho (const Set::Scalar /*phi*/) const    {return this->rho;}
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_cp (const Set::Scalar /*phi*/) const    {return this->cp;}
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) const    {return this->qdot;}
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_L (Set::Scalar /*phi*/, Set::Scalar /*T*/) const    {return L;}
++
++    static void Parse(Constant& value, IO::ParmParse& pp)
++    {
++        Util::Message(INFO,pp.getPrefix());
++        pp_query_required("K", value.K);       // Thermal conductivity
++        pp_query_required("rho", value.rho);   // Density
++        pp_query_required("cp", value.cp);     // Specific heat capacity
++        pp_query_required("qdot", value.qdot); // Volumetric heat release rate
++        pp_query_required("L", value.L);       // Latent heat
++    }
++
++    Set::Scalar K = NAN;
++    Set::Scalar rho = NAN;
++    Set::Scalar cp = NAN;
++    Set::Scalar qdot = NAN;
++    Set::Scalar L = NAN;
++};
++}
++}
++
++#endif
