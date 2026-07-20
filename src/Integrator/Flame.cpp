@@ -501,12 +501,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0  = Hydro::u0_mf.Patch(lev,mfi);
-        // Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> hydro_density = Hydro::density_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidE    = Hydro::solid.energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Xfrac     = Hydro::mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Yfrac     = Hydro::mass_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
@@ -523,8 +526,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
             deta_dt(i,j,k) = (etaold(i,j,k) - eta(i,j,k))/(dt);
 
-            solidrho(i,j,k,0) = 10.0*phi;
-            solidrho(i,j,k,1) = 7.0*(1-phi);
+            solidrho(i,j,k,0) = 1950.0*phi;
+            solidrho(i,j,k,1) = 920.0*(1-phi);
             solidrho(i,j,k,2) = 0.0;
             solidrho(i,j,k,3) = 0.0;
             solidrho(i,j,k,4) = 0.0;
@@ -543,7 +546,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // speed [m/s]; rho_solid*c then has the correct mass-flux units.
             Set::Scalar c;
             if (grad_eta_mag(i,j,k) > small) {
-	      c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k)*std::pow(10,3));
+	        c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k)*std::pow(10,3));
             } else {
                 c = 0.0;
             }
@@ -564,6 +567,21 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
                 density_gas_tot += hydro_density(i,j,k,n);
                 density_solid_tot += solidrho(i,j,k,n);
             }
+
+            // Keep the solid's fictitious EOS pressure equal to the local gas
+            // pressure so the solid/gas interface is a quiescent contact
+            // (equal p, zero velocity) instead of the ~100x pressure jump that
+            // results from leaving solid.energy at its placeholder IC. TPG's
+            // internal energy is referenced to 298.15 K, so with rho_solid >>
+            // rho_gas an unset/near-zero sensible energy pins T (and thus p)
+            // far above the gas pressure; solving for T_target such that
+            // p_solid = rho_solid*R*T_target = p(i,j,k) removes that jump.
+            gas.ComputeLocalFractions(solidrho, Yfrac, Xfrac, i, j, k);
+            Set::Scalar R_solid = gas.R(Xfrac, i, j, k);
+            Set::Scalar T_target = p(i,j,k) / (density_solid_tot * R_solid);
+            solidE(i,j,k) = gas.ComputeE(density_solid_tot,
+                                          solidM(i,j,k,0), solidM(i,j,k,1),
+                                          T_target, Xfrac, i, j, k);
 
             // Physical gas ejection speed from mass conservation across the
             // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
