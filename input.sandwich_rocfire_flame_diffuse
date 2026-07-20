@@ -32,8 +32,9 @@ amr.cell.all = 1
 amr.abort_on_nan = False
 
 ### OUTPUT ###
-plot_file = output.sandwich_rocfire_flame_diffuse_movement_half
-amr.plot_dt = 1e-4
+plot_file = output.sandwich_rocfire_flame_diffuse_movement_half_rocfire
+#amr.plot_dt = 1e-4
+amr.plot_dt = 1e-5
 hydro.details = 1.0
 #amr.plot_int = 50
 
