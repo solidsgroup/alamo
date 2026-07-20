@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<Object name="VisIt">
+    <Field name="Version" type="string">3.4.2</Field>
+    <Object name="GUI">
+        <Object name="FileServerList">
+            <Field name="path" type="string">/Users/mungerct/research/alamo/output.sandwich_rocfire_flame_diffuse_movement</Field>
+            <Field name="filter" type="string">*</Field>
+            <Field name="useCurrentDir" type="bool">true</Field>
+            <Field name="automaticFileGrouping" type="bool">true</Field>
+            <Field name="smartFileGrouping" type="bool">true</Field>
+            <Field name="showDotFiles" type="bool">false</Field>
+            <Object name="recentpaths">
+                <Field name="localhost" type="stringVector">"/Users/mungerct" "/Users/mungerct/research" "/Users/mungerct/research/alamo" "/Users/mungerct/research/alamo/output.sandwich_rocfire_flame_diffuse_movement" "/Users/mungerct/research/alamo/output.sandwich_rocfire_test_cooked_mobility" </Field>
+            </Object>
+        </Object>
+        <Object name="AppearanceAttributes">
+            <Field name="useSystemDefault" type="bool">true</Field>
+            <Field name="background" type="string">#c0c0c0</Field>
+            <Field name="foreground" type="string">#000000</Field>
+            <Field name="fontName" type="string">Helvetica,12,-1,5,50,0,0,0,0,0</Field>
+            <Field name="style" type="string">macintosh</Field>
+            <Field name="orientation" type="int">0</Field>
+            <Field name="defaultForeground" type="string">#000000</Field>
+            <Field name="defaultBackground" type="string">#ececec</Field>
+            <Field name="defaultFontName" type="string">.AppleSystemUIFont,13,-1,5,400,0,0,0,0,0,0,0,0,0,0,1</Field>
+            <Field name="defaultStyle" type="string">Mac</Field>
+            <Field name="defaultOrientation" type="int">0</Field>
+        </Object>
+        <Object name="Annotation">
+            <Field name="x" type="int">308</Field>
+            <Field name="y" type="int">154</Field>
+            <Field name="width" type="int">577</Field>
+            <Field name="height" type="int">757</Field>
+            <Field name="visible" type="bool">false</Field>
+            <Field name="posted" type="bool">false</Field>
+            <Field name="activeTab" type="int">5</Field>
+        </Object>
+        <Field name="postWhenShown" type="bool">false</Field>
+        <Object name="File open">
+            <Field name="x" type="int">286</Field>
+            <Field name="y" type="int">187</Field>
+            <Field name="width" type="int">651</Field>
+            <Field name="height" type="int">500</Field>
+            <Field name="visible" type="bool">false</Field>
+        </Object>
+        <Object name="Information">
+            <Field name="x" type="int">0</Field>
+            <Field name="y" type="int">554</Field>
+            <Field name="width" type="int">500</Field>
+            <Field name="height" type="int">304</Field>
+            <Field name="visible" type="bool">false</Field>
+        </Object>
+        <Object name="MainWin">
+            <Field name="x" type="int">-452</Field>
+            <Field name="y" type="int">66</Field>
+            <Field name="width" type="int">397</Field>
+            <Field name="height" type="int">986</Field>
+            <Field name="SPLITTER_VALUES_V2" type="floatVector">0 0.9916268 0 </Field>
+        </Object>
+        <Object name="Contour plot attributes">
+            <Field name="x" type="int">181</Field>
+            <Field name="y" type="int">153</Field>
+            <Field name="width" type="int">473</Field>
+            <Field name="height" type="int">720</Field>
+            <Field name="visible" type="bool">false</Field>
+            <Field name="posted" type="bool">false</Field>
+        </Object>
+        <Object name="Pseudocolor plot attributes">
+            <Field name="x" type="int">-1628</Field>
+            <Field name="y" type="int">309</Field>
+            <Field name="width" type="int">509</Field>
+            <Field name="height" type="int">520</Field>
+            <Field name="visible" type="bool">false</Field>
+            <Field name="posted" type="bool">false</Field>
+        </Object>
+        <Object name="Isovolume operator attributes">
+            <Field name="x" type="int">-1606</Field>
+            <Field name="y" type="int">484</Field>
+            <Field name="width" type="int">466</Field>
+            <Field name="height" type="int">169</Field>
+            <Field name="visible" type="bool">false</Field>
+            <Field name="posted" type="bool">false</Field>
+        </Object>
+        <Field name="plotDatabases" type="stringVector">"localhost:/Users/mungerct/research/alamo/output.sandwich_rocfire_flame_diffuse_movement/celloutput.visit" </Field>
+        <Object name="TimeFormat">
+            <Field name="displayMode" type="string">Cycles</Field>
+            <Field name="precision" type="int">5</Field>
+        </Object>
+        <Field name="showSelectedFiles" type="bool">false</Field>
+        <Field name="allowFileSelectionChange" type="bool">true</Field>
+        <Field name="enableWarningMessagePopups" type="bool">true</Field>
+    </Object>
+</Object>

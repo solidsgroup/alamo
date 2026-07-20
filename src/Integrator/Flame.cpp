@@ -245,7 +245,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
-    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
+    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead, IC::PointList>
         ("phi.ic",value.ic_phi,value.geom);
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
@@ -523,8 +523,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector N = grad_eta_hydro / (grad_eta_mag(i,j,k) + small); // Example of finding the normal vector
             deta_dt(i,j,k) = (etaold(i,j,k) - eta(i,j,k))/(dt);
 
-            solidrho(i,j,k,0) = hydro.rho_ap*phi;
-            solidrho(i,j,k,1) = hydro.rho_htpb*(1-phi);
+            solidrho(i,j,k,0) = 10.0*phi;
+            solidrho(i,j,k,1) = 7.0*(1-phi);
             solidrho(i,j,k,2) = 0.0;
             solidrho(i,j,k,3) = 0.0;
             solidrho(i,j,k,4) = 0.0;
@@ -543,7 +543,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // speed [m/s]; rho_solid*c then has the correct mass-flux units.
             Set::Scalar c;
             if (grad_eta_mag(i,j,k) > small) {
-                c = deta_dt(i,j,k)/grad_eta_mag(i,j,k);
+	      c = deta_dt(i,j,k)/(grad_eta_mag(i,j,k)*std::pow(10,3));
             } else {
                 c = 0.0;
             }
@@ -569,11 +569,27 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
             // (The previous eta/eta_hydro volume-fraction weighting diverged as
             // the solid side was approached, eta_hydro -> 0.)
-            u0_mag = c*density_solid_tot/(density_gas_tot + small);
+            u0_mag = c*(hydro.rho_ap*phi + hydro.rho_htpb*(1-phi))/(density_gas_tot + small);
+
+            if (u0_mag < small)
+            {
+	      u0_mag = 0.0;
+	    }
 
             u0(i,j,k,0) = u0_mag*N(0);
             u0(i,j,k,1) = u0_mag*N(1);
 
+            if (u0( i, j, k, 0) < small)
+                {
+		  u0(i,j,k,0) = 0.0;
+                }
+
+                if (u0(i, j, k, 1) < small)
+                {
+		  u0(i,j,k,1) = 0.0;
+                }
+		
+	    
             // De-mix the pure-gas density from the mixed conserved density for
             // visualization: hydro_density is eta_hydro*rho_gas + (1-eta_hydro)*rho_solid
             // (Hydro::Mix, using Hydro's fluid=1 convention), so invert that blend.
@@ -691,9 +707,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     // cells (matching standalone Hydro::Advance's eta_bc->FillBoundary calls).
     // eta_old_mf must be filled too since Hydro::RHS's Hessian stencil reads it
     // and it otherwise only inherits stale ghost data through the eta/eta_old swap.
-    bc_eta->define(geom[lev]);
-    bc_eta->FillBoundary(*eta_mf[lev], 0, 1, a_time, 0);
-    bc_eta->FillBoundary(*eta_old_mf[lev], 0, 1, a_time, 0);
+    //bc_eta->define(geom[lev]);
+    //bc_eta->FillBoundary(*eta_mf[lev], a_time, 0);
+    //bc_eta->FillBoundary(*eta_old_mf[lev] a_time, 0);
 
 }
 
@@ -814,8 +830,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //
             // CALCULATE MOBILITY
-            // 
-            Set::Scalar L = propellant.get_L(  phi_avg, T);
+            //
+            Set::Scalar L = propellant.get_L(phi_avg, T);
+	    L *= 1*std::pow(10,3);
             L_out(i,j,k) = L;
 
             // 

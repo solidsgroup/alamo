@@ -21,12 +21,13 @@ amr.abort_on_nan = False
 
 ### OUTPUT ###
 plot_file = output.sandwich_rocfire_flame_diffuse_movement
-amr.plot_dt = 1e-3
+amr.plot_dt = 1e-5
 hydro.details = 1.0
-amr.plot_int = 1
+#amr.plot_int = 1
 
 ### TIME STEP ###
-timestep  = 2.0e-8_s
+timestep  = 1.5e-8_s
+#timestep = 5.0e-8_s
 #stop_time = 100.0e-8_s
 stop_time = 5.0e-2_s
 
@@ -39,7 +40,7 @@ geometry.prob_hi = 0.0003_m 0.0005_m 0.0 # [ m ]
 geometry.is_periodic = 1 0 0
 
 small = 1.0e-8
-pf.eps = 20.0_um
+pf.eps = 5.0_um
 pf.lambda = 0.001_J/m^2
 pf.kappa = 1.0_J/m^2
 pf.w1 = 1.0_1
@@ -73,6 +74,10 @@ pf.eta.bc.constant.val.zhi = 0.0
 # AP/HTPB grain composition: AP occupies the center strip in x
 # (-0.0002 < x < 0.0002), HTPB the two outer strips, matching
 # input.sandwich_rocfire's density-region masks.
+#phi.ic.type = pointlist
+#phi.ic.pointlist.eps = 15_um
+#phi.ic.pointlist.file.unit = m
+#phi.ic.pointlist.file.name = random_objs.xyzo
 phi.ic.type = laminate
 phi.ic.laminate.center = 0.0 0.0
 phi.ic.laminate.thickness = 0.0004_m
@@ -107,10 +112,11 @@ propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
 propellant.fullfeedback.phi.zeta =     20.0_um
 propellant.fullfeedback.Pref     =      1.0_MPa
+chamber.pressure = 15.0_MPa
 
 # Thermal transport parameters
 thermal.on = 1
-thermal.Tref = 300.0_K
+thermal.Tref = 0.0_K #  300.0_K
 thermal.Tcutoff = 0.0_K
 
 # Temperature field initial condition
@@ -137,9 +143,9 @@ thermal.hc = 1.0e7_W/m^2
 
 # Laser initial condition
 laser.ic.type = expression
-laser.ic.expression.constant.tswitch = 1_ms
-laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
-laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
+laser.ic.expression.constant.tswitch = 200_us
+laser.ic.expression.constant.qflux0 = 1.0e9_W/m^2
+laser.ic.expression.constant.qflux1 = 1.2.0e7_W/m^2
 laser.ic.expression.constant.eps = 20.0_um
 laser.ic.expression.constant.y0 = 0.0_um
 # laser.ic.expression.region0 = "0.0"
@@ -194,6 +200,7 @@ hydro.chemistry.rocfire.nsubsteps = 2
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
 hydro.cutoff = 0.01
+hydro.lagrange = 0.0
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
 # Under Flame, the propellant.fullfeedback model computes the interfacial
@@ -234,7 +241,7 @@ hydro.density.ic.expression.constant.T_HTPB = 889.0
 hydro.density.ic.expression.constant.T_final = 3000.0
 hydro.density.ic.expression.constant.R = 319.787
 hydro.density.ic.expression.constant.y_flame = 2.0e-5
-hydro.density.ic.expression.constant.eps_y = 2.0e-5
+hydro.density.ic.expression.constant.eps_y = 3.0e-5
 hydro.density.ic.expression.constant.beta = 7.974
 hydro.density.ic.expression.constant.gamma = 3.19
 hydro.density.ic.expression.region0 = "(1.0 - 0.5*(1.0 + erf((y-y_flame)/eps_y))) * P/R/T_AP * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
@@ -266,8 +273,8 @@ hydro.solid.density.ic.expression.constant.P = 2026500 # 20 atm
 hydro.solid.density.ic.expression.constant.R = 319.787
 hydro.solid.density.ic.expression.constant.T = 700.0
 hydro.solid.density.ic.expression.constant.T_final = 3000.0
-hydro.solid.density.ic.expression.region0 = "1920*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
-hydro.solid.density.ic.expression.region1 = "950*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.solid.density.ic.expression.region0 = "8.0*(0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5))"
+hydro.solid.density.ic.expression.region1 = "5.0*(0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
 hydro.solid.density.ic.expression.region2 = "0.0"
 hydro.solid.density.ic.expression.region3 = "0.0"
 hydro.solid.density.ic.expression.region4 = "0.0"
@@ -292,8 +299,8 @@ hydro.density.bc.expression.constant.P = 2026500
 hydro.density.bc.expression.constant.R = 319.787
 hydro.density.bc.expression.constant.T = 700.0
 hydro.density.bc.expression.constant.T_final = 3000.0
-hydro.density.bc.expression.type.xhi = periodic periodic periodic periodic periodic periodic
-hydro.density.bc.expression.type.xlo = periodic periodic periodic periodic periodic periodic
+hydro.density.bc.expression.type.xhi = periodic periodic periodic periodic periodic periodic # neumann neumann neumann neumann neumann neumann
+hydro.density.bc.expression.type.xlo = periodic periodic periodic periodic periodic periodic # neumann neumann neumann neumann neumann neumann
 hydro.density.bc.expression.type.yhi = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
 hydro.density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann
 hydro.density.bc.expression.val.xhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
@@ -302,8 +309,8 @@ hydro.density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "P/R/T_final
 hydro.density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
 
 hydro.momentum.bc.type = expression
-hydro.momentum.bc.expression.type.xhi = periodic periodic
-hydro.momentum.bc.expression.type.xlo = periodic periodic
+hydro.momentum.bc.expression.type.xhi = periodic periodic # neumann neumann
+hydro.momentum.bc.expression.type.xlo = periodic periodic # neumann neumann
 hydro.momentum.bc.expression.type.yhi = neumann dirichlet
 hydro.momentum.bc.expression.type.ylo = neumann neumann
 hydro.momentum.bc.expression.val.xhi = "0.0" "0.0"
