@@ -1,0 +1,26 @@
+pattern_id,candidate_name,class,hunk_count,example_file
+GPU-001,Annotate the full device call chain,correctness,126,src/Numeric/Stencil.H
+GPU-002,Replace runtime polymorphism with static value dispatch,correctness,17,src/Model/Gas/Gas.H
+GPU-003,Forward constructor arguments through static selection,correctness,5,src/IO/ParmParse.H
+GPU-004,Devirtualize boundary conditions inside kernels,correctness,9,src/BC/Operator/Elastic/Elastic.H
+GPU-005,Name and expose extended-lambda types,correctness,8,src/Integrator/Flame.H
+GPU-006,Hoist kernel captures out of host objects,correctness,16,src/IC/Expression.H
+GPU-007,Copy geometry into device-safe values,correctness,21,src/Operator/Elastic.cpp
+GPU-008,Stage host buffers and fence local device storage,correctness,9,src/Util/BMP.H
+GPU-009,Hold asynchronous FArrayBox temporaries with Elixir,correctness,3,src/Operator/Operator.cpp
+GPU-010,Quarantine host-only loops in GPU builds,scaffolding,19,src/IC/Laminate.H
+GPU-011,Select paired CPU and GPU loop implementations,correctness,4,src/Solver/Nonlocal/Newton.H
+GPU-012,Report kernel failures through device-safe flags,correctness,13,src/Integrator/Flame.cpp
+GPU-013,Move and fuse kernel reductions with ReduceOps,correctness,3,src/Integrator/Base/Mechanics.H
+GPU-015,Fuse component launches into one multidimensional kernel,performance,1,src/Operator/Operator.cpp
+GPU-016,Route spectral transforms through the GPU wrapper,correctness,10,src/Integrator/CahnHilliard.cpp
+GPU-017,Materialize chained matrix expressions before device use,correctness,1,src/Model/Solid/Finite/NeoHookean.H
+GPU-018,Hoist reused field and tensor loads,performance,3,src/Operator/Elastic.cpp
+GPU-019,Defer branch-only expensive work,performance,1,src/Operator/Elastic.cpp
+GPU-020,Specialize only the tensor contraction consumed,performance,2,src/Set/Matrix4_Major.H
+GPU-021,Use dimension-aware compile-time constants,correctness,4,src/Numeric/Stencil.H
+GPU-022,Replace host globals with device-safe sentinel access,correctness,8,src/Set/Base.H
+GPU-023,Initialize device-backed MultiFabs on device,correctness,3,src/Operator/Elastic.cpp
+GPU-024,Const-qualify captured model accessors,correctness,7,src/Model/Propellant/Propellant.H
+GPU-025,Declare and enforce the supported GPU closure,scaffolding,7,src/GPU/IntegratorPolicy.mk
+GPU-030,Initialize device-local aggregates before use,correctness,1,src/Util/PNG.H
