@@ -11,4 +11,4 @@ Transform:
 Constraints: Temporary incremental-porting scaffolding whose objective is to shrink the closure footprint, never grow it. Add a source only after a correctness pass; do not use closure exclusions to hide a required production path.
 Verify: `make -n ALAMO_GPU_INTEGRATOR=flame` then `make -j4`; expect only the declared Flame closure in the object list and a green GPU build; `make -n ALAMO_GPU_INTEGRATOR=bogus` must fail with the policy diagnostic.
 Failure modes: Closure growth reintroduces non-nvcc-clean code; over-pruning causes link errors or silently removes required physics. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 54a941433b7582578cb5d56db794b1d648fb03cc; `src/GPU/IntegratorPolicy.mk`, `src/alamo_gpu.cc`.
+Evidence: chamber-gpu commit 54a941433b7582578cb5d56db794b1d648fb03cc; `src/GPU/IntegratorPolicy.mk`, `src/alamo_gpu.cc`; `docs/gpu_safe_ic_bc_matrix.md`; `benchmark/GPU_BRANCH_GUIDE.md`.

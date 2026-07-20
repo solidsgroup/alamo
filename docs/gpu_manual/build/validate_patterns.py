@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 import csv
+from collections import Counter
 from pathlib import Path
 
 
@@ -204,6 +205,28 @@ def main() -> int:
 
     validate_ledger("ONE_OFFS.md", one_off_text, expected_one_offs)
     validate_ledger("FEATURES.md", feature_text, expected_features)
+
+    md_map_path = ROOT / "docs/gpu_manual/MD_MAP.csv"
+    if md_map_path.exists():
+        with md_map_path.open(newline="") as handle:
+            md_rows = list(csv.DictReader(handle))
+        if len(md_rows) != 155:
+            errors.append(f"MD_MAP.csv: expected 155 rows, found {len(md_rows)}")
+        allowed_dispositions = {
+            "mapped", "anti-pattern", "evidence-only", "stale-dropped", "unmined"
+        }
+        for number, row in enumerate(md_rows, 2):
+            if row["disposition"] not in allowed_dispositions:
+                errors.append(f"MD_MAP.csv:{number}: bad disposition {row['disposition']}")
+            for pattern_id in filter(None, row["pattern_ids"].split(";")):
+                if pattern_id not in EXPECTED:
+                    errors.append(f"MD_MAP.csv:{number}: inactive pattern {pattern_id}")
+        inventory_lines = (
+            ROOT / "docs/gpu_manual/build/MD_INVENTORY.txt"
+        ).read_text().splitlines()
+        inventory_paths = [line.split("\t", 2)[2] for line in inventory_lines[5:]]
+        if Counter(row["path"] for row in md_rows) != Counter(inventory_paths):
+            errors.append("MD_MAP.csv: path multiset does not match MD_INVENTORY.txt")
 
     if errors:
         print("pattern validation failed:")

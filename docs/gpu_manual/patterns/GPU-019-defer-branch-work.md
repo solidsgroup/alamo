@@ -11,4 +11,4 @@ Transform:
 Constraints: Apply only with profiling justification; preserve branch semantics, numerical ordering, and correctness/golden results. Do not defer values required by multiple branches without retaining equivalent initialization.
 Verify: `make -j4`; run elastic golden/regression checks plus profiler comparison; expect unchanged residuals/outputs and lower instruction or kernel time. Repeat in the configured 2-D and 3-D modes where applicable, and retain the command/output in the build log.
 Failure modes: Missing a branch assignment leaves undefined values; moving computation can change synchronization or constitutive ordering. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 332ecffdd93a83def543d0348d592f815950cc5f; `src/Operator/Elastic.cpp:173-264#5`.
+Evidence: chamber-gpu commit 332ecffdd93a83def543d0348d592f815950cc5f; `src/Operator/Elastic.cpp:173-264#5`; `docs/agent_plans/20260709-fapply-kernel-surgery/results/RESULT.md`.

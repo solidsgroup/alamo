@@ -9,6 +9,6 @@ Transform:
   After:
     Set an `Util::DeviceErrorFlag`/device integer in the kernel, synchronize, then call `Util::AbortIfDeviceError` on host.
 Constraints: Mandatory when recognizer matches. Keep flag writes race-safe and check every relevant kernel; do not suppress or clamp the bad value.
-Verify: `make -j4`; compare CPU/GPU outputs at identical timestep and dimensions; inject NaN and expect deterministic host diagnostic after the launch.
-Failure modes: Any mismatch or compile diagnostic is a failed conversion. nvcc host/device error, silent NaN propagation, or abort before asynchronous writes complete. Check and clear the flag at a defined host boundary so one stale error does not poison later steps. Validation must include the smallest representative input and a CPU reference; do not waive a failure as numerical noise.
-Evidence: commits 54a941433b7582578cb5d56db794b1d648fb03cc
+Verify: `DIM=2 CUDA_FP=strict bash benchmark/build_alamo_local_gpu.sh`; inject NaN in a non-last box and run a multi-box case; expect one deterministic host diagnostic after all streams synchronize.
+Failure modes: Any mismatch or diagnostic is a failed conversion. Host/device compile errors, silent NaN propagation, a false-negative from checking only the current MFIter stream, or a stale flag poisoning later steps all fail.
+Evidence: commit 54a941433b7582578cb5d56db794b1d648fb03cc; `docs/llm/changelog/2026-07-02-gpu-audit.md`; `docs/llm/BUG_PATTERNS.md`
