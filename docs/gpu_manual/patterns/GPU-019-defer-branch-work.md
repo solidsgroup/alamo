@@ -1,7 +1,7 @@
 # GPU-019: Defer branch-only expensive work
 Status: draft
 Class: performance
-Recognizer: regex: `if\s*\(.*boundary.*\).*DDW|if\s*\(.*conservative.*\)`
+Recognizer: regex: `Set::Matrix\s+sig\s*=\s*\(DDW\([^;]+;[\s\S]{0,250}\bif\s*\(\s*AMREX_D_TERM`
 Applies: Kernels computing expensive tensor/stencil quantities before a branch that may not consume them.
 Transform:
   Before:

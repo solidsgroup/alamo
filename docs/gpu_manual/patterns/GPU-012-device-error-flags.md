@@ -1,7 +1,7 @@
 # GPU-012: Report kernel errors through device flags
 Status: draft
 Class: correctness
-Recognizer: regex: `AMREX_GPU_DEVICE[\s\S]{0,800}(?:Util::Abort|Util::Message)\s*\(`
+Recognizer: regex: `AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,4000}?(?:Util::Abort|Util::Message)\s*\(`
 Applies: A device kernel detects non-finite data but attempts host abort/logging directly.
 Transform:
   Before:

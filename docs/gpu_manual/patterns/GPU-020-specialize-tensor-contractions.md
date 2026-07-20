@@ -1,7 +1,7 @@
 # GPU-020: Specialize only the consumed tensor contraction
 Status: draft
 Class: performance
-Recognizer: regex: `Matrix4.*operator\*|for\s*\(.*AMREX_SPACEDIM.*\).*operator\(.*\)`
+Recognizer: regex: `Set::Vector\s+operator\s*\*[^\{]*\{[\s\S]{0,400}for\s*\(\s*int\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*AMREX_SPACEDIM`
 Applies: Generic Matrix4×Matrix3 contractions whose full operator surface is used in a hot device kernel.
 Transform:
   Before:

@@ -1,7 +1,7 @@
 # GPU-005: Make captured parameter types visible to extended lambdas
 Status: draft
 Class: correctness
-Recognizer: regex: `AMREX_GPU_DEVICE\s*\([^)]*\).*this->`
+Recognizer: manual: An extended device lambda is defined in protected/private scope or captures a protected/private unnamed parameter type.
 Applies: An extended device lambda captures members through `this` or inaccessible protected/private parameter types.
 Transform:
   Before:

@@ -1,8 +1,8 @@
 # GPU-030: Initialize device-local aggregates before use
 Status: draft
 Class: correctness
-Recognizer: regex: `Set::Vector\s+ximg\s*;|[A-Za-z]+\s+[A-Za-z_]+\s*;\s*//.*device`
-Applies: Local vectors/aggregates populated conditionally inside a device-callable sampler or kernel.
+Recognizer: regex: `\bSet::Vector\s+ximg\s*;`
+Applies: Local vectors/aggregates populated conditionally inside a GPU-reachable device-callable sampler or active kernel execution path.
 Transform:
   Before:
     `Set::Vector ximg;` followed by partial component assignments.

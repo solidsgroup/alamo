@@ -59,6 +59,7 @@ def main() -> int:
     errors = []
     files = sorted(PATTERN_DIR.glob("*.md"))
     found = {}
+    recognizers = {}
     for path in files:
         match = re.match(r"((?:GPU|NUM)-\d{3})-.*\.md$", path.name)
         if not match:
@@ -89,6 +90,7 @@ def main() -> int:
                 f"{path.name}: Class {values.get('Class')!r}, expected {EXPECTED.get(pattern_id)!r}"
             )
         recognizer = values.get("Recognizer", "").lower()
+        recognizers[pattern_id] = values.get("Recognizer", "")
         if not recognizer.startswith(("regex:", "build-error:", "manual:")):
             errors.append(f"{path.name}: invalid Recognizer type")
         elif recognizer.startswith("regex:"):
@@ -152,6 +154,69 @@ def main() -> int:
         "NUM-001", "NUM-002", "NUM-003", "NUM-004",
     )):
         errors.append("reserved/renamed IDs must not have pattern files")
+
+    table_path = ROOT / "docs/gpu_manual/recognizers/table.csv"
+    with table_path.open(newline="") as handle:
+        table_reader = csv.DictReader(handle)
+        table_rows = list(table_reader)
+        if table_reader.fieldnames != ["pattern_id", "type", "expression", "notes"]:
+            errors.append("recognizers/table.csv: invalid header")
+    table_ids = [row["pattern_id"] for row in table_rows]
+    if table_ids != sorted(EXPECTED):
+        errors.append("recognizers/table.csv: IDs must exactly match active patterns in order")
+    for row in table_rows:
+        pattern_id = row["pattern_id"]
+        if pattern_id not in recognizers:
+            continue
+        kind, payload = recognizers[pattern_id].split(":", 1)
+        kind = kind.lower()
+        payload = payload.strip().strip("`")
+        if row["type"] != kind:
+            errors.append(f"recognizers/table.csv: {pattern_id} type differs from Tier 1")
+        if kind == "manual":
+            if row["expression"]:
+                errors.append(f"recognizers/table.csv: {pattern_id} manual row has expression")
+        elif row["expression"] != payload:
+            errors.append(f"recognizers/table.csv: {pattern_id} expression differs from Tier 1")
+        if not row["notes"]:
+            errors.append(f"recognizers/table.csv: {pattern_id} lacks notes")
+
+    regex_ids = {row["pattern_id"] for row in table_rows if row["type"] == "regex"}
+
+    def validate_coverage(path, require_all_regex):
+        with path.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            if reader.fieldnames != ["file", "pattern_id", "hits"]:
+                errors.append(f"{path.name}: invalid header")
+                return
+        seen_regex = set()
+        order = []
+        for number, row in enumerate(rows, 2):
+            pattern_id = row["pattern_id"]
+            if pattern_id not in regex_ids:
+                errors.append(f"{path.name}:{number}: non-regex or inactive ID {pattern_id}")
+            else:
+                seen_regex.add(pattern_id)
+            try:
+                if int(row["hits"]) <= 0:
+                    raise ValueError
+            except ValueError:
+                errors.append(f"{path.name}:{number}: hits must be a positive integer")
+            if Path(row["file"]).is_absolute() or Path(row["file"]).suffix not in {".H", ".cpp", ".cu", ".cc"}:
+                errors.append(f"{path.name}:{number}: invalid source path {row['file']}")
+            order.append((row["file"], pattern_id))
+        if order != sorted(order):
+            errors.append(f"{path.name}: rows are not deterministically sorted")
+        if require_all_regex and seen_regex != regex_ids:
+            errors.append(
+                f"{path.name}: missing BASE true positives for {', '.join(sorted(regex_ids - seen_regex))}"
+            )
+
+    validate_coverage(ROOT / "docs/gpu_manual/COVERAGE.csv", False)
+    base_coverage = ROOT / "docs/gpu_manual/build/phase4/BASE_COVERAGE.csv"
+    if base_coverage.exists():
+        validate_coverage(base_coverage, True)
 
     one_off_path = ROOT / "docs/gpu_manual/ONE_OFFS.md"
     one_off_text = one_off_path.read_text()
