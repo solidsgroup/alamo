@@ -293,6 +293,40 @@ def main() -> int:
         if Counter(row["path"] for row in md_rows) != Counter(inventory_paths):
             errors.append("MD_MAP.csv: path multiset does not match MD_INVENTORY.txt")
 
+    index_text = (ROOT / "docs/gpu_manual/INDEX.md").read_text()
+    index_words = len(re.findall(r"\b[\w'-]+\b", index_text))
+    if index_words * 1.3 > 1500:
+        errors.append(
+            f"INDEX.md: approximate token count {index_words * 1.3:.1f} exceeds 1500"
+        )
+    required_headings = (
+        "## Invariants", "## Triage", "### Correctness", "### Performance",
+        "### Scaffolding", "## Patterns", "## Numerical changes", "## One-offs",
+    )
+    for heading in required_headings:
+        if heading not in index_text:
+            errors.append(f"INDEX.md: missing {heading}")
+    try:
+        pattern_index = index_text.split("## Patterns", 1)[1].split(
+            "## Numerical changes", 1
+        )[0]
+    except IndexError:
+        pattern_index = ""
+    for pattern_id in sorted(EXPECTED):
+        if pattern_index.count(f"- {pattern_id}:") != 1:
+            errors.append(f"INDEX.md: expected one one-liner for {pattern_id}")
+    if re.search(r"\b(?:GPU-014|NUM-00[1-4])\b", pattern_index):
+        errors.append("INDEX.md: inactive or reserved pattern appears in one-liners")
+    index_lower = index_text.lower().replace("-", " ")
+    required_policy = (
+        "profiling justification", "shrink its footprint", "never grow",
+        "user approval", "do not import", "task level user opt in",
+        "never apply numerical behavior changes implicitly",
+    )
+    for phrase in required_policy:
+        if phrase not in index_lower:
+            errors.append(f"INDEX.md: missing policy {phrase!r}")
+
     if errors:
         print("pattern validation failed:")
         for error in errors:
