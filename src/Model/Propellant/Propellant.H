@@ -75,6 +75,32 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_ap ()
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).get_rho_ap();
+            else return get_rho_ap<I+1>();
+        }
+        else Util::Abort(INFO,selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_htpb ()
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).get_rho_htpb();
+            else return get_rho_htpb<I+1>();
+        }
+        else Util::Abort(INFO,selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)
     {
         if constexpr (I < sizeof...(OBJ))

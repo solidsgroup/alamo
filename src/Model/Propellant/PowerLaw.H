@@ -49,6 +49,10 @@ public:
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar /*phi*/) {return NAN;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_ap () const {return NAN;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar get_rho_htpb () const {return NAN;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar /*phi*/) {return NAN;}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) {return NAN;}

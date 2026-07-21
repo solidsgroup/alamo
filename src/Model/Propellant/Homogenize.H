@@ -48,8 +48,12 @@ public:
     Set::Scalar get_rho (const Set::Scalar phi)
     {
 
-        return (rho_ap * massfraction + rho_htpb * (1.0 - massfraction)) * phi + dispersion2 * (1. - phi); 
+        return (rho_ap * massfraction + rho_htpb * (1.0 - massfraction)) * phi + dispersion2 * (1. - phi);
     }
+
+    Set::Scalar get_rho_ap () const { return rho_ap; }
+
+    Set::Scalar get_rho_htpb () const { return rho_htpb; }
 
     Set::Scalar get_cp (const Set::Scalar phi)
     {
