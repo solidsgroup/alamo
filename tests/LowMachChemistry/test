@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+numpy = testlib.numpy
+yt = testlib.yt
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachChemistry requires initial and final plotfiles")
+
+initial = yt.load(plotfiles[0]).all_data()
+final = yt.load(plotfiles[-1]).all_data()
+if testlib.readHeader(plotfiles[-1])["amrlevels"] < 1:
+    raise RuntimeError("LowMachChemistry expected AMR level 1 to be present")
+species = ["H2", "H", "O", "O2", "OH", "H2O", "HO2", "H2O2", "AR", "N2"]
+fields = ["temperature", "pressure", "velocityx", "velocityy", "density"]
+fields += [f"component_density_{name}" for name in species]
+
+for field in fields:
+    if not numpy.all(numpy.isfinite(final[field])):
+        raise RuntimeError(f"{field} contains non-finite values")
+
+partial_density = [final[f"component_density_{name}"].to_ndarray() for name in species]
+if min(float(value.min()) for value in partial_density) < -1.0e-12:
+    raise RuntimeError("A gas partial density became negative")
+if numpy.max(numpy.abs(numpy.sum(partial_density, axis=0) - final["density"].to_ndarray())) > 1.0e-12:
+    raise RuntimeError("Mixture density does not equal the sum of partial densities")
+if float(final["component_density_H2O"].max()) <= 1.0e-12:
+    raise RuntimeError("Finite-rate chemistry did not produce H2O")
+if float(final["component_density_HO2"].max()) <= 1.0e-12:
+    raise RuntimeError("Finite-rate chemistry did not produce HO2")
+if float(numpy.max(numpy.abs(final["velocityx"]))) <= 1.0e-8:
+    raise RuntimeError("Thermochemical dilatation did not drive the projected velocity")
+if float(numpy.max(numpy.abs(final["pressure"] - initial["pressure"].mean()))) > 1.0:
+    raise RuntimeError("Pressure projection departed from the reference pressure")
+
+print("LowMach chemistry regression passed")

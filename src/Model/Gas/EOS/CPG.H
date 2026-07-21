@@ -19,19 +19,28 @@ public:
     static void Parse(CPG & /*value*/, IO::ParmParse & /*pp*/) {}
 
 public:
-    template<typename GAS>
+    template<typename GAS, class Composition>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double /*rtol=1e-12*/) const
+                    const Composition& X, int i, int j, int k, double /*rtol=1e-12*/) const
     {
         double P = (E - 0.5*(momentumx*momentumx + momentumy*momentumy)/density) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
         double T = P / density / gas.R(X, i, j, k);
         return T;
     }
 
+    template<typename GAS, class Composition>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    double ComputeT(double pressure, double density,
-                    double R) const
+    double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double T,
+                    const Composition& X, int i, int j, int k) const
+    {
+        return ComputeE(density, momentumx, momentumy, T,
+                        gas.R(X, i, j, k), gas.gamma(T, X, i, j, k));
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    double ComputeT_from_primitives(double pressure, double density,
+                                    double R) const
     {
         return pressure / density / R;
     }
@@ -60,4 +69,3 @@ public:
 } // namespace Model
 
 #endif
-

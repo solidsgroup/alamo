@@ -27,6 +27,15 @@ double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j
     // specific entropy, J/(kmol-K)
     return thermo.entropy_mol(T, X, i , j, k);
 }
+double Gas::cp_mol_species(double T, int n) const {
+    return thermo.cp_mol_species(T, n);
+}
+double Gas::enthalpy_mol_species(double T, int n) const {
+    return thermo.enthalpy_mol_species(T, n);
+}
+double Gas::entropy_mol_species(double T, int n) const {
+    return thermo.entropy_mol_species(T, n);
+}
 
 // Transport quantities
 double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
@@ -55,7 +64,7 @@ double Gas::ComputeT(
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
 {
     // Temperature, K
-    return eos.ComputeT(pressure, density, R(X,i,j,k));
+    return eos.ComputeT_from_primitives(pressure, density, R(X,i,j,k));
 }
 double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
 {
@@ -67,7 +76,7 @@ double Gas::ComputeE(
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
 {
     // Energy, J/m^3
-    return eos.ComputeE(density, momentumx, momentumy, T, R(X,i,j,k), gamma(T,X,i,j,k));
+    return eos.ComputeE(*this, density, momentumx, momentumy, T, X, i, j, k);
 }
 
 } // namespace Gas

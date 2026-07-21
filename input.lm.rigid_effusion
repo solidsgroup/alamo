@@ -74,18 +74,22 @@ projection.update_pressure = 1
 diagnostics.interval = 20
 diagnostics.extended_fields = 0
 
-component_density.ic.type = expression
-component_density.ic.expression.constant.rhog = 1.12254198039921
-component_density.ic.expression.constant.rhos = 100.0
-component_density.ic.expression.constant.x0 = 0.5
-component_density.ic.expression.constant.y0 = 0.5
-component_density.ic.expression.constant.R = 0.12
-component_density.ic.expression.constant.eps = 0.025
 # This is the equilibrium planar-interface profile for the sigma/epsilon
 # conversion used by Model::PhaseField::AllenCahn.
-component_density.ic.expression.region0 = "0.0"
-component_density.ic.expression.region1 = "rhog*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
-component_density.ic.expression.region2 = "rhos*(1.0-0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+ambient_gas.density.ic.type = expression
+ambient_gas.density.ic.expression.constant.rhog = 1.12254198039921
+ambient_gas.density.ic.expression.constant.x0 = 0.5
+ambient_gas.density.ic.expression.constant.y0 = 0.5
+ambient_gas.density.ic.expression.constant.R = 0.12
+ambient_gas.density.ic.expression.constant.eps = 0.025
+ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rhos = 100.0
+Al_solid.density.ic.expression.constant.x0 = 0.5
+Al_solid.density.ic.expression.constant.y0 = 0.5
+Al_solid.density.ic.expression.constant.R = 0.12
+Al_solid.density.ic.expression.constant.eps = 0.025
+Al_solid.density.ic.expression.region0 = "rhos*(1.0-0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 5.0 0.0

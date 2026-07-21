@@ -12,6 +12,10 @@
 #include "IC/Expression.H"
 #include "IC/IC.H"
 #include "Model/Gas/Gas.H"
+#include "Model/Chemistry/Chemistry.H"
+#include "Model/Chemistry/FiniteRate.H"
+#include "Model/Chemistry/Frozen.H"
+#include "Model/Chemistry/Rocfire.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Solid/Finite/NeoHookean.H"
@@ -46,7 +50,8 @@ public:
 
         delete velocity_ic;
         delete temperature_ic;
-        delete component_density_ic;
+        for (auto* ic : component_density_ic)
+            delete ic;
         delete pressure_ic;
         delete xi_ic;
     }
@@ -67,8 +72,18 @@ protected:
                             bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
+    void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
+                            amrex::MultiFab& component_density_mf, Set::Scalar dt);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
+    ComputeThermochemicalSource(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Patch<const Set::Scalar> temperature,
+        int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
+        bool include_reaction = true) const;
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
-    void RHS(int lev, Set::Scalar time,
+    void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
             amrex::MultiFab& T_rhs_mf,
             amrex::MultiFab& component_density_rhs_mf,
@@ -94,6 +109,7 @@ protected:
     Set::Field<Set::Scalar> momentum_mf;
     Set::Field<Set::Scalar> pressure_mf;
     Set::Field<Set::Scalar> pressure_correction_mf;
+    Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
@@ -109,11 +125,16 @@ protected:
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* temperature_ic = nullptr;
-    IC::IC<Set::Scalar>* component_density_ic = nullptr;
+    std::vector<IC::IC<Set::Scalar>*> component_density_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
 
     Model::Gas::Gas gas;
+    using Chemistry = Model::Chemistry::Chemistry<
+        Model::Chemistry::Frozen,
+        Model::Chemistry::FiniteRate,
+        Model::Chemistry::Rocfire>;
+    Chemistry chemistry;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;

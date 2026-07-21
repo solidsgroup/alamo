@@ -61,11 +61,65 @@ PressurePoisson::SetLayout(
     solution.Define(nlevels, grids, distribution_mapping, 1, 1);
     rhs.Define(nlevels, grids, distribution_mapping, 1, 0);
     coefficient.Define(nlevels, grids, distribution_mapping, 1, 1);
+    divergence.Define(nlevels, grids, distribution_mapping, 1, 0);
+    face_coefficient.resize(nlevels);
+    face_velocity.resize(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         solution[lev]->setVal(0.0);
         rhs[lev]->setVal(0.0);
         coefficient[lev]->setVal(0.0);
+        divergence[lev]->setVal(0.0);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            amrex::BoxArray face_grids = grids[lev];
+            face_grids.surroundingNodes(d);
+            face_coefficient[lev][d].define(
+                face_grids, distribution_mapping[lev], 1, 0);
+            face_velocity[lev][d].define(
+                face_grids, distribution_mapping[lev], 1, 0);
+        }
+    }
+}
+
+void
+PressurePoisson::PrepareRHS(
+    int lev, const amrex::MultiFab& velocity, Set::Scalar dt)
+{
+    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_velocity_const_ptr;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        face_velocity_const_ptr[d] = &face_velocity[lev][d];
+        const int di = d == 0;
+        const int dj = d == 1;
+        const int dk = d == 2;
+        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            const auto u = velocity.const_array(mfi);
+            const auto face = face_velocity[lev][d].array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                face(i,j,k) = 0.5 *
+                    (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
+            });
+        }
+    }
+    amrex::computeDivergence(
+        *divergence[lev], face_velocity_const_ptr, geometry[lev]);
+
+    const Set::Scalar inv_dt = 1.0 / dt;
+    for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        const auto source = rhs[lev]->const_array(mfi);
+        const auto div = divergence[lev]->const_array(mfi);
+        const auto projection_rhs = rhs[lev]->array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            projection_rhs(i,j,k) = (div(i,j,k) - source(i,j,k)) * inv_dt;
+        });
     }
 }
 
@@ -98,17 +152,12 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
         }
     }
 
-    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_coefficient(nlevels);
     amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> face_coefficient_ptr(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> face_ptr;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
-            amrex::BoxArray face_grids = grids[lev];
-            face_grids.surroundingNodes(d);
-            face_coefficient[lev][d].define(
-                face_grids, distribution_mapping[lev], 1, 0);
             face_ptr[d] = &face_coefficient[lev][d];
             face_coefficient_ptr[lev][d] = &face_coefficient[lev][d];
         }
@@ -159,5 +208,51 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
                 tolerance_relative, tolerance_absolute);
+}
+
+void
+PressurePoisson::ApplyCorrection(
+    int lev, amrex::MultiFab& velocity, Set::Scalar dt)
+{
+    const Set::Scalar* dx = geometry[lev].CellSize();
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        const int di = d == 0;
+        const int dj = d == 1;
+        const int dk = d == 2;
+        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            const auto phi = solution[lev]->const_array(mfi);
+            const auto beta = face_coefficient[lev][d].const_array(mfi);
+            const auto face = face_velocity[lev][d].array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                face(i,j,k) = -dt * beta(i,j,k) *
+                    (phi(i,j,k) - phi(i-di,j-dj,k-dk)) / dx[d];
+            });
+        }
+    }
+
+    for (amrex::MFIter mfi(velocity, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        const auto u = velocity.array(mfi);
+        amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM> correction;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            correction[d] = face_velocity[lev][d].const_array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const int di = d == 0;
+                const int dj = d == 1;
+                const int dk = d == 2;
+                u(i,j,k,d) += 0.5 *
+                    (correction[d](i,j,k) + correction[d](i+di,j+dj,k+dk));
+            }
+        });
+    }
 }
 }

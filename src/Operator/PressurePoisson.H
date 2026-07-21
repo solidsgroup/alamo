@@ -30,7 +30,9 @@ public:
     amrex::MultiFab& Coefficient(int lev) { return *coefficient[lev]; }
     const amrex::MultiFab& Solution(int lev) const { return *solution[lev]; }
 
+    void PrepareRHS(int lev, const amrex::MultiFab& velocity, Set::Scalar dt);
     void Solve(Set::Scalar time, const amrex::BCRec& pressure_bc);
+    void ApplyCorrection(int lev, amrex::MultiFab& velocity, Set::Scalar dt);
 
 private:
     int nlevels = 0;
@@ -45,6 +47,9 @@ private:
     Set::Field<Set::Scalar> solution;
     Set::Field<Set::Scalar> rhs;
     Set::Field<Set::Scalar> coefficient;
+    Set::Field<Set::Scalar> divergence;
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_coefficient;
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_velocity;
 };
 }
 

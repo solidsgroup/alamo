@@ -88,8 +88,8 @@ diagnostics.extended_fields = 1
 
 velocity_refinement_criterion = 5.0e-2
 
-component_density.ic.type = constant
-component_density.ic.constant.value = 1.12254198039921
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 1.12254198039921
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant

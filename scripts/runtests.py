@@ -395,6 +395,16 @@ def test(testdir):
                     if not args.fft and not args.fft_only: continue
                 config[desc].pop('fft')
 
+            if 'yaml' in config[desc].keys():
+                requires_yaml = config[desc]['yaml'] in {"yes","Yes","true","True","1"}
+                config[desc].pop('yaml')
+                make_config = ".make/Makefile.pre.conf"
+                yaml_enabled = False
+                if os.path.isfile(make_config):
+                    with open(make_config) as config_file:
+                        yaml_enabled = "-DALAMO_YAML" in config_file.read()
+                if requires_yaml and not yaml_enabled: continue
+
             # Specify performance flag
             if args.perf:
                 env["CPUPROFILE"] = "profile.prof"

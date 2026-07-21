@@ -145,6 +145,7 @@ parser.add_argument("--save", action="store_true", help="Save current configurat
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
 parser.add_argument('--hdf5', default=False, action='store_true', help='Compile with HDF5 support')
 parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
+parser.add_argument('--yaml', action='store_true', default=False, help='Build and link to yaml-cpp')
 parser.set_defaults(**defaults)
 
 
@@ -510,6 +511,51 @@ if args.hdf5:
 
 
 #
+# YAML-CPP
+#
+if args.yaml:
+    yaml_dir = "ext/yaml-cpp/"
+    message("YAML-CPP-Directory", yaml_dir)
+
+    if not os.path.isdir("ext"):
+        subprocess.run(['mkdir', '-p', 'ext'])
+
+    if not os.path.isdir(yaml_dir):
+        shellmessage(
+            "YAML-CPP-Clone",
+            cmd=f"git clone https://github.com/jbeder/yaml-cpp.git {yaml_dir}",
+            message="Cloning yaml-cpp"
+        )
+
+    build_dir = f"{yaml_dir}/build"
+    include_dir = f"{yaml_dir}/include"
+    subprocess.run(['mkdir', '-p', build_dir])
+
+    srcs = glob.glob(f"{yaml_dir}/src/**/*.cpp", recursive=True)
+    objects = []
+    for src in srcs:
+        obj = src.replace(".cpp", ".o")
+        objects.append(obj)
+        if not os.path.exists(obj) or os.path.getmtime(src) > os.path.getmtime(obj):
+            shellmessage(
+                "YAML-CPP-CXX",
+                cmd=f"{args.comp} -std=c++17 -fPIC -I{include_dir} -c {src} -o {obj}"
+            )
+
+    lib_path = f"{build_dir}/libyaml-cpp.a"
+    if not os.path.exists(lib_path) or any(
+            os.path.getmtime(obj) > os.path.getmtime(lib_path) for obj in objects):
+        shellmessage(
+            "YAML-CPP-AR",
+            cmd=f"ar rcs {lib_path} " + " ".join(objects)
+        )
+
+    f.write(f"YAML_CPP_DIR = {yaml_dir}\n")
+    f.write(f"YAML_CPP_LIB = {lib_path}\n")
+    f.write(f"CXX_COMPILE_FLAGS += -I{include_dir} -DALAMO_YAML\n")
+    f.write(f"LIB += {lib_path}\n")
+
+#
 # AUTO-DETECT LIBPNG VIA HOMEBREW ON MACOS
 #
 # Same rationale as eigen above: Homebrew's prefix is not in Apple Clang's
@@ -790,6 +836,9 @@ if not args.compile_commands:
     if args.hdf5 and args.hdf5_prefix:
         otherflags.extend(["-isystem", f"{args.hdf5_prefix}/include"])
 
+    if args.yaml:
+        otherflags.extend(["-I./ext/yaml-cpp/include", "-DALAMO_YAML"])
+
     if args.amrex:
         otherflags.append(f"-I{args.amrex}/include")
     else:
@@ -815,4 +864,3 @@ if not args.compile_commands:
 
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
-

@@ -1,153 +1,158 @@
-# AP/HTPB sandwich decomposition into distinct gas products in crossflow
+# AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
 # Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
 
 plot_file = output.lm.ap_htpb
-amr.plot_dt = 0.01
-amr.max_grid_size = 32
-amr.blocking_factor = 8
+amr.plot_dt = 1.0e-7_s
+amr.max_level = 3
+amr.n_cell = 16 16
+amr.max_grid_size = 16
+amr.blocking_factor = 4
 amr.regrid_int = 5
-amr.max_level = 2
-amr.nsubsteps = 1
-amr.n_cell = 128 64
 amr.grid_eff = 0.7
+amr.nsubsteps = 1
 
 eta_refinement_criterion = 0.01
+temperature_refinement_criterion = 20.0
 
-timestep = 2.0e-4
-stop_time = 0.1
+timestep = 2.5e-8_s
+stop_time = 1.0e-4_s
 dynamictimestep.on = 1
-dynamictimestep.min = 1.0e-8
-dynamictimestep.max = 5.0e-4
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 1.0e-6
 dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 2.0 1.0 0.0
-geometry.is_periodic = 0 0 0
+geometry.prob_lo = -0.0003_m -0.0001_m 0.0
+geometry.prob_hi =  0.0003_m  0.0005_m 0.0
+geometry.is_periodic = 1 0 0
 
+# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
+# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
 system.amount = kmol
-gas.mw = 80.0_g/mol 30.0_g/mol 28.0_g/mol
-gas.thermo.type = cpconstant
-gas.thermo.cpconstant.cp_moles = 40.0_J/mol/K 35.0_J/mol/K 29.1_J/mol/K
-gas.thermo.cpconstant.h0 = 0.0 0.0 0.0
-gas.thermo.cpconstant.s0 = 0.0 0.0 0.0
-gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K
-gas.transport.type = mixture_averaged
-gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 5.0e-3_Pa*s 5.0e-3_Pa*s 5.0e-3_Pa*s
-gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K 0.02_W/m/K
-gas.eos.type = cpg
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
 
-species.names = AP_gas HTPB_gas ambient_gas AP_solid HTPB_solid
-
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
 AP_gas.mechanics = fluid
 HTPB_gas.mechanics = fluid
-ambient_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
 AP_solid.mechanics = rigid_solid
 HTPB_solid.mechanics = rigid_solid
-
 AP_solid.reference_density = 1950.0_kg/m^3
-HTPB_solid.reference_density = 930.0_kg/m^3
+HTPB_solid.reference_density = 920.0_kg/m^3
 
-rigid.relaxation_time = 5.0e-5_s
-rigid.velocity = 0.0 0.0
+chemistry.type = rocfire
+chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.rocfire.pressure_reference = 1.0_bar
+chemistry.rocfire.integration = implicit
 
+# Each condensed species regresses into its corresponding gas species. These
+# constant multipliers reproduce the accelerated Flame rates at the nominal AP
+# and HTPB decomposition temperatures without evaluating solid kinetics at the
+# much hotter gas-flame temperature.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
-
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2.0
+AP_decomposition.phase_change.rate_multiplier = 256.0
+AP_decomposition.phase_change.activation_temperature = 0.0_K
+AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
-AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.05_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
-AP_decomposition.phase_change.phase_field.allencahn.epsilon = 0.025_m
-AP_decomposition.phase_change.phase_field.allencahn.driving_force = 1.0_Pa
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
+AP_decomposition.phase_change.phase_field.allencahn.epsilon = 20.0_um
+AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.in = HTPB_solid
 HTPB_pyrolysis.phase_change.out = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 1.5
+HTPB_pyrolysis.phase_change.rate_multiplier = 3.0
+HTPB_pyrolysis.phase_change.activation_temperature = 0.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
-HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.05_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 0.025_m
-HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 1.0_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
+HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 20.0_um
+HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
-advection.type = weno5
-cfl = 0.2
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.25
 include_viscosity = 1
-include_conduction = 0
-advect_temperature = 0
+include_conduction = 1
+advect_temperature = 1
 projection.enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
 projection.update_pressure = 1
 diagnostics.interval = 100
-diagnostics.extended_fields = 0
+diagnostics.extended_fields = 1
 
-component_density.ic.type = expression
-component_density.ic.expression.constant.rhog = 1.12254198039921
-component_density.ic.expression.constant.rhoap = 1950.0
-component_density.ic.expression.constant.rhohtpb = 930.0
-component_density.ic.expression.constant.y0 = 0.30
-component_density.ic.expression.constant.xlo = 0.20
-component_density.ic.expression.constant.xhi = 1.70
-component_density.ic.expression.constant.aplo = 0.65
-component_density.ic.expression.constant.aphi = 1.25
-component_density.ic.expression.constant.eps = 0.025
-component_density.ic.expression.constant.mixeps = 0.02
-component_density.ic.expression.region0 = "0.0"
-component_density.ic.expression.region1 = "0.0"
-component_density.ic.expression.region2 = "rhog*(1.0-(0.5*(1.0-tanh(2.0*(y-y0)/eps)))*(0.5*(tanh(2.0*(x-xlo)/eps)-tanh(2.0*(x-xhi)/eps))))"
-component_density.ic.expression.region3 = "rhoap*(0.5*(1.0-tanh(2.0*(y-y0)/eps)))*(0.5*(tanh(2.0*(x-xlo)/eps)-tanh(2.0*(x-xhi)/eps)))*(0.5*(tanh(2.0*(x-aplo)/mixeps)-tanh(2.0*(x-aphi)/mixeps)))"
-component_density.ic.expression.region4 = "rhohtpb*(0.5*(1.0-tanh(2.0*(y-y0)/eps)))*(0.5*(tanh(2.0*(x-xlo)/eps)-tanh(2.0*(x-xhi)/eps)))*(1.0-0.5*(tanh(2.0*(x-aplo)/mixeps)-tanh(2.0*(x-aphi)/mixeps)))"
+# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
+# the two outer strips. Partial densities encode both composition and volume.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*erf(y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*erf(y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+
+# The gas initially contains final products. AP and HTPB reactants enter only
+# through regression, avoiding a domain-wide homogeneous ignition transient.
+Final.density.ic.type = expression
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*2026500.0/(319.787*700.0))"
 
 velocity.ic.type = constant
-velocity.ic.constant.value = 5.0 0.0
+velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
-temperature.ic.constant.value = 300.0
+temperature.ic.constant.value = 700.0
 pressure.ic.type = constant
-pressure.ic.constant.value = 100000.0
+pressure.ic.constant.value = 2026500.0
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = dirichlet dirichlet dirichlet dirichlet dirichlet
-component_density.bc.constant.type.xhi = neumann neumann neumann neumann neumann
-component_density.bc.constant.type.ylo = neumann neumann neumann neumann neumann
-component_density.bc.constant.type.yhi = neumann neumann neumann neumann neumann
-component_density.bc.constant.val.xlo = 0.0 0.0 1.12254198039921 0.0 0.0
-component_density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
-component_density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = dirichlet
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 9.052900837119708 0.0 0.0
 
 velocity.bc.type = constant
-velocity.bc.constant.type.xlo = dirichlet dirichlet
-velocity.bc.constant.type.xhi = neumann neumann
-velocity.bc.constant.type.ylo = dirichlet dirichlet
-velocity.bc.constant.type.yhi = neumann neumann
-velocity.bc.constant.val.xlo = 5.0 0.0
-velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
 velocity.bc.constant.val.ylo = 0.0 0.0
-velocity.bc.constant.val.yhi = 0.0 0.0
 
 temperature.bc.type = constant
-temperature.bc.constant.type.xlo = neumann
-temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
 temperature.bc.constant.type.ylo = neumann
-temperature.bc.constant.type.yhi = neumann
-temperature.bc.constant.val.xlo = 0.0
-temperature.bc.constant.val.xhi = 0.0
-temperature.bc.constant.val.ylo = 0.0
-temperature.bc.constant.val.yhi = 0.0
+temperature.bc.constant.type.yhi = dirichlet
+temperature.bc.constant.val.yhi = 700.0
 
 pressure.bc.type = constant
-pressure.bc.constant.type.xlo = neumann
-pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
 pressure.bc.constant.type.ylo = neumann
-pressure.bc.constant.type.yhi = neumann
-pressure.bc.constant.val.xlo = 0.0
-pressure.bc.constant.val.xhi = 0.0
-pressure.bc.constant.val.ylo = 0.0
-pressure.bc.constant.val.yhi = 0.0
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 2026500.0

@@ -2,13 +2,16 @@
 // ``Model::Mechanism::PhaseChange`` couples a phase-field rate for one
 // condensed input species to mass-conserving production of one or more gas
 // species. Product mass fractions also determine the ideal-gas dilation sent
-// to the low-Mach projection.
+// to the low-Mach projection. An optional Arrhenius factor permits thermally
+// activated regression without coupling this generic mechanism to a specific
+// propellant model.
 //
 
 #ifndef MODEL_MECHANISM_PHASECHANGE_H
 #define MODEL_MECHANISM_PHASECHANGE_H
 
 #include <array>
+#include <cmath>
 #include <vector>
 
 #include "Model/Mechanism/Mechanism.H"
@@ -96,6 +99,12 @@ public:
         pp.query_default("rate_multiplier", value.rate_multiplier, 1.0);
         if (value.rate_multiplier < 0.0)
             Util::Exception(INFO, "rate_multiplier must be nonnegative");
+        pp.query_default("activation_temperature", value.activation_temperature,
+                        "0.0_K", Unit::Temperature());
+        pp.query_default("temperature_cutoff", value.temperature_cutoff,
+                        "0.0_K", Unit::Temperature());
+        if (value.activation_temperature < 0.0 || value.temperature_cutoff < 0.0)
+            Util::Exception(INFO, "phase-change temperatures must be nonnegative");
         pp.select<Model::PhaseField::AllenCahn>("phase_field", value.model);
     }
 
@@ -122,9 +131,13 @@ public:
             component_density_rhs(i,j,k,products[n]) -= mass_fractions[n] * source;
     }
 
-    Set::Scalar StabilityRate(const Set::Scalar dx) const
+    Set::Scalar StabilityRate(const Set::Scalar dx,
+                            const Set::Scalar temperature) const
     {
-        return rate_multiplier * model.StabilityRate(dx);
+        if (!(temperature > temperature_cutoff)) return 0.0;
+        const Set::Scalar temperature_factor = activation_temperature > 0.0 ?
+            std::exp(-activation_temperature / temperature) : 1.0;
+        return rate_multiplier * temperature_factor * model.StabilityRate(dx);
     }
 
 private:
@@ -133,8 +146,11 @@ private:
                             const int i, const int j, const int k,
                             const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
+        if (!(state.temperature > temperature_cutoff)) return 0.0;
+
         Set::Scalar eta_dot = model(
             state.component_density, input, 1.0 / reference_density, i, j, k, DX);
+        eta_dot = Util::Min(eta_dot, 0.0);
         if (interface_only)
         {
             const Set::Scalar eta = input_is_rigid ?
@@ -143,6 +159,8 @@ private:
                             0.0, 1.0);
             eta_dot *= 4.0 * eta * (1.0 - eta);
         }
+        if (activation_temperature > 0.0)
+            eta_dot *= std::exp(-activation_temperature / state.temperature);
         return rate_multiplier * reference_density * eta_dot;
     }
 
@@ -154,6 +172,8 @@ private:
     Set::Scalar reference_density = NAN;
     Set::Scalar product_gas_constant = 0.0;
     Set::Scalar rate_multiplier = 1.0;
+    Set::Scalar activation_temperature = 0.0;
+    Set::Scalar temperature_cutoff = 0.0;
     bool input_is_rigid = false;
     bool interface_only = true;
 };

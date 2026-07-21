@@ -1,0 +1,108 @@
+#@ [2d]
+#@ exe=lowmach
+#@ dim=2
+#@ nprocs=2
+#@ timeout=120
+#@ yaml=true
+
+#@ [2d-implicit]
+#@ exe=lowmach
+#@ dim=2
+#@ nprocs=2
+#@ timeout=120
+#@ yaml=true
+#@ args=chemistry.finite_rate.integration=implicit
+#@ args=timestep=1.0e-7
+
+plot_file = tests/LowMachChemistry/output
+amr.plot_int = 100
+amr.max_level = 1
+amr.max_grid_size = 8
+amr.blocking_factor = 1
+amr.regrid_int = 5
+amr.n_cell = 8 8
+
+timestep = 1.0e-8
+stop_time = 1.0e-6
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 0.01 0.01 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = tests/LowMachChemistry/h2o2.yaml
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
+gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
+gas.eos.type = tpg
+
+species.names = H2 H O O2 OH H2O HO2 H2O2 AR N2
+H2.mechanics = fluid
+H.mechanics = fluid
+O.mechanics = fluid
+O2.mechanics = fluid
+OH.mechanics = fluid
+H2O.mechanics = fluid
+HO2.mechanics = fluid
+H2O2.mechanics = fluid
+AR.mechanics = fluid
+N2.mechanics = fluid
+
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = tests/LowMachChemistry/h2o2.yaml
+chemistry.finite_rate.integration = explicit
+
+cfl = 0.25
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diagnostics.extended_fields = 1
+temperature_refinement_criterion = 1.0
+
+H2.density.ic.type = expression
+H2.density.ic.expression.region0 = "16.378785527602464/(1000.0 + 500.0*exp(-((x-0.005)*(x-0.005)+(y-0.005)*(y-0.005))/1.0e-6))"
+O2.density.ic.type = expression
+O2.density.ic.expression.region0 = "129.98223693259516/(1000.0 + 500.0*exp(-((x-0.005)*(x-0.005)+(y-0.005)*(y-0.005))/1.0e-6))"
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = expression
+temperature.ic.expression.region0 = "1000.0 + 500.0*exp(-((x-0.005)*(x-0.005)+(y-0.005)*(y-0.005))/1.0e-6)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 101325.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = neumann
+velocity.bc.constant.type.xhi = neumann
+velocity.bc.constant.type.ylo = neumann
+velocity.bc.constant.type.yhi = neumann
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = dirichlet
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = dirichlet
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.xlo = 101325.0
+pressure.bc.constant.val.xhi = 101325.0
+pressure.bc.constant.val.ylo = 101325.0
+pressure.bc.constant.val.yhi = 101325.0

@@ -64,8 +64,8 @@ solid.model.viscosity = 1.0e-3_Pa*s
 solid.model.finite.neohookean.mu = 1.0e1_Pa
 solid.model.finite.neohookean.kappa = 1.0e2_Pa
 
-component_density.ic.type = constant
-component_density.ic.constant.value = 0.0 1.0
+solid.density.ic.type = constant
+solid.density.ic.constant.value = 1.0
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.v0 = 2.0e-2

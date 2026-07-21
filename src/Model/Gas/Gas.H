@@ -5,8 +5,12 @@
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/Transport/Rocfire.H"
 #include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -52,9 +56,9 @@ public:
     int nspecies;
     double Rg;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
-    Thermo::Thermo<Thermo::CpConstant> thermo;
-    Transport::Transport<Transport::Mixture_Averaged> transport;
-    EOS::EOS<EOS::CPG> eos;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
+    Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
+    EOS::EOS<EOS::CPG,EOS::TPG> eos;
 
 public:
     Gas() 
@@ -73,13 +77,15 @@ public:
         value.nspecies = value.MW.size();
 
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire>(
+            "thermo", value.thermo, value.nspecies);
 
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged,Transport::Rocfire>(
+            "transport", value.transport, value.nspecies, value.MW, value.thermo);
 
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos);
+        pp.select<EOS::CPG,EOS::TPG>("eos", value.eos);
     }
     
 public:
@@ -87,6 +93,9 @@ public:
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    double cp_mol_species(double T, int n) const;
+    double enthalpy_mol_species(double T, int n) const;
+    double entropy_mol_species(double T, int n) const;
 
     // Transport quantities
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
@@ -120,6 +129,20 @@ public:
 
     template<class Composition>
     AMREX_FORCE_INLINE
+    double enthalpy_mol(double T, const Composition& X, int i, int j, int k) const
+    {
+        return thermo.enthalpy_mol(T, X, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
+    double entropy_mol(double T, const Composition& X, int i, int j, int k) const
+    {
+        return thermo.entropy_mol(T, X, i, j, k);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
     double dynamic_viscosity(double T, const Composition& X, int i, int j, int k) const
     {
         return transport.dynamic_viscosity(T, X, i, j, k);
@@ -134,11 +157,18 @@ public:
 
     template<class Composition>
     AMREX_FORCE_INLINE
+    double diffusion_coefficient(double T, double P, const Composition& X,
+                                int i, int j, int k, int species) const
+    {
+        return transport.diffusion_coefficient(T, P, X, i, j, k, species);
+    }
+
+    template<class Composition>
+    AMREX_FORCE_INLINE
     double ComputeE(double density, double momentumx, double momentumy, double T,
                     const Composition& X, int i, int j, int k) const
     {
-        return eos.ComputeE(density, momentumx, momentumy, T,
-                            R(X,i,j,k), gamma(T,X,i,j,k));
+        return eos.ComputeE(*this, density, momentumx, momentumy, T, X, i, j, k);
     }
 
 // Universal methods inherent to Gas
@@ -203,6 +233,10 @@ public:
     }
     double enthalpy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific enthalpy, J/kg
+        return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
+    }
+    template<class Composition>
+    double enthalpy_mass(double T, const Composition& X, int i, int j, int k) const {
         return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
     double entropy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {

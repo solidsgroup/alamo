@@ -2,9 +2,12 @@
 #define MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 
 #include <vector>
+#include <array>
 #include <memory>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Thermo/Rocfire.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
@@ -46,10 +49,12 @@ private:
     int nspecies;
     double Rg;
     std::vector<double> MW;
-    Thermo::Thermo<Thermo::CpConstant> thermo;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    Set::Scalar d_fact;
+    Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
     Mixture_Averaged()
@@ -58,7 +63,8 @@ public:
     }
 
     static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
-                        int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo<Thermo::CpConstant> a_thermo)                     
+                        int a_nspecies, std::vector<double> &a_MW,
+                        Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> a_thermo)
     {
         value.nspecies = a_nspecies;
         value.MW = a_MW;
@@ -72,6 +78,7 @@ public:
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
             // Thermal conductivity if type=constant
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
         }
         else if (value.type == "LJ")
         {
@@ -84,7 +91,9 @@ public:
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
-        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
+        pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
         Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
@@ -98,13 +107,12 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+        const double sigma = val1[i] / L_1ang;
+        return 2.669570e-6 * sqrt(MW[i] * T) / (sigma * sigma * collision_integral(T / val2[i]));
     }
-    template<class Composition>
-    double k_eucken(double T, const Composition& X, int i, int j, int k, int n) const
+    double k_eucken(double T, int n) const
     {
-        double cp = thermo.cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Rg) / MW[n];
+        return mu_enskog(T, n) * (thermo.cp_mol_species(T, n) + 1.25 * Rg) / MW[n];
     }
 
 public:
@@ -196,7 +204,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                k_mix += X(i, j, k, a) * k_eucken(T, X, i, j, k, a) / phi;
+                k_mix += X(i, j, k, a) * k_eucken(T, a) / phi;
             }
         }
         else
@@ -207,17 +215,36 @@ public:
         return k_mix;
     }
 
-    void diffusion_coeffs(
-            Set::Patch<Set::Scalar>& DKM, double T, double P,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k)  const
+    template<class Composition>
+    double diffusion_coefficient(double T, double P, const Composition& X,
+                                int i, int j, int k, int a) const
     {
-        // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-        for (int a = 0; a < nspecies; ++a) {
+        if (nspecies == 1) return 0.0;
+
+        if (type == "constant")
+        {
+            double mw_mix = 0.0;
+            for (int n = 0; n < nspecies; ++n)
+                mw_mix += X(i,j,k,n) * MW[n];
+            const double rho_mix = P * mw_mix / (Set::Constant::Rg * T);
+            const double D_self_a = d_fact * val1[a] / rho_mix;
+            double sumD = 0.0;
+            for (int b = 0; b < nspecies; ++b) {
+                if (a == b) continue;
+                const double D_self_b = d_fact * val1[b] / rho_mix;
+                const double D_ab = 2.0 * D_self_a * D_self_b /
+                                    (D_self_a + D_self_b);
+                sumD += X(i,j,k,b) / D_ab;
+            }
+            return sumD > 0.0 ? (1.0 - X(i,j,k,a)) / sumD : 0.0;
+        }
+        if (type == "LJ")
+        {
             double sumD = 0.0;
             for (int b = 0; b < nspecies; ++b) {
                 if (a == b) continue;
 
-                double sigmaAB = 0.5 * (val1[a] + val1[b]);
+                double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang;
                 double epsAB   = sqrt(val2[a] * val2[b]);
                 double Tstar   = T / epsAB;
 
@@ -229,15 +256,23 @@ public:
 
                 double DAB = 
                     0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
-                    ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB /= 1.0e4;
+                    ((P / P_1atm) * sigmaAB*sigmaAB * omegaAB);
+                DAB *= A_1cmsq;
 
                 sumD += X(i, j, k, b) / DAB;
             }
-
-            DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
-            if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+            return sumD > 0.0 ? (1.0 - X(i,j,k,a)) / sumD : 0.0;
         }
+        Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
+        return NAN;
+    }
+
+    template<class Composition>
+    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P,
+                        const Composition& X, int i, int j, int k) const
+    {
+        for (int a = 0; a < nspecies; ++a)
+            DKM(i,j,k,a) = diffusion_coefficient(T, P, X, i, j, k, a);
     }
 
 }; // class Mixture_Averaged

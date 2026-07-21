@@ -72,6 +72,21 @@ public:
         return s;
     }
 
+    double cp_mol_species(double /*T*/, int n) const
+    {
+        return cp_moles[n];
+    }
+
+    double enthalpy_mol_species(double T, int n) const
+    {
+        return cp_moles[n] * (T - Tref[n]) + h0[n];
+    }
+
+    double entropy_mol_species(double T, int n) const
+    {
+        return cp_moles[n] * log(T / Tref[n]) + s0[n];
+    }
+
 }; // class CpConstant
 
 } // namespace Thermo
