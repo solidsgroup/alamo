@@ -351,6 +351,16 @@ LowMach::UpdateSolidStress(int lev,
         deformation_gradient_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
+//
+// Set the following calculated variables:
+// - eta_mf         (if there ia a deformable solid present, calculated based on densities)
+// - rigid_eta_mf   (if there is a rigid solid present, calculated based on densities)
+// - density        (based on partial densities)
+//
+// If writing diagonistics, also calculate:
+// - mass_fraction_mf 
+// - mole_fraction_mf
+// 
 void
 LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf)
 {
@@ -434,6 +444,12 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     }
 }
 
+//
+// Calculate derived quantities (only if diagnostics_extended_fields is enabled)
+// - energy
+// - vorticity
+// - momentum
+// 
 void
 LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf)
 {
