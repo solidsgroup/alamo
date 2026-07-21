@@ -1038,7 +1038,6 @@ void Hydro::RefreshDerivedPlotFields(int lev)
             #if AMREX_SPACEDIM == 3
             Set::Scalar Mz_fluid = 0.0;
             #endif
-            Set::Scalar E_fluid = 0.0;
             if (eta <= eta_cutoff)
             {
                 for (int n=0; n<NSPECIES; ++n) rhoY_fluid[n] = rho_solid(i,j,k,n);
@@ -1047,7 +1046,6 @@ void Hydro::RefreshDerivedPlotFields(int lev)
                 #if AMREX_SPACEDIM == 3
                 Mz_fluid = M_solid(i,j,k,2);
                 #endif
-                E_fluid = E_solid(i,j,k);
             }
             else
             {
@@ -1060,37 +1058,42 @@ void Hydro::RefreshDerivedPlotFields(int lev)
                 #if AMREX_SPACEDIM == 3
                 Mz_fluid = (M(i,j,k,2) - M_solid(i,j,k,2)*(1.0 - eta))/(eta + small);
                 #endif
-                E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
             }
             ProjectSpeciesDensities(rhoY_fluid, i, j, k);
             for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
 
             Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
 
-            // Continuous temperature blend, only over eta in (eta_cutoff, 1] -
-            // see Hydro::RHS for why eta<=eta_cutoff instead takes the plain solid
-            // caloric value.
+            // Continuous (C1) temperature blend - see Hydro::RHS for the full
+            // rationale (a hard branch here made T's value continuous but not
+            // its slope at eta=eta_cutoff, which fed a growing numerical
+            // instability into AdvanceSolidEnergy's finite-difference Laplacian).
+            // T_gas_inversion uses its own eta_recon-floored reconstruction so
+            // the same single formula applies for every eta.
             Set::Scalar T_solid_caloric =
                 T_ref_energy + E_solid(i,j,k) / (rho_phys(i,j,k) * cp_solid(i,j,k) + small);
-            if (eta <= eta_cutoff)
+
+            const Set::Scalar eta_recon = eta > eta_cutoff ? eta : eta_cutoff;
+            Set::Scalar Mx_forT = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta_recon))/(eta_recon + small);
+            Set::Scalar My_forT = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta_recon))/(eta_recon + small);
+            #if AMREX_SPACEDIM == 3
+            Set::Scalar Mz_forT = (M(i,j,k,2) - M_solid(i,j,k,2)*(1.0 - eta_recon))/(eta_recon + small);
+            #endif
+            Set::Scalar Ef_forT = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta_recon))/(eta_recon + small);
+
+            Set::Scalar T_gas_inversion;
+            #if AMREX_SPACEDIM == 2
+            T_gas_inversion = gas.ComputeT(density_fluid, Mx_forT, My_forT, Ef_forT, T(i,j,k), X, i, j, k);
+            #elif AMREX_SPACEDIM == 3
+            T_gas_inversion = gas.ComputeT(density_fluid, Mx_forT, My_forT, Mz_forT, Ef_forT, T(i,j,k), X, i, j, k);
+            #endif
+            T(i,j,k) = eta*T_gas_inversion + (1.0-eta)*T_solid_caloric;
+
+            // Pressure keeps its previous eta<=eta_cutoff hard cutoff (separate
+            // design choice - see Hydro::RHS) rather than following T's smooth
+            // blend.
+            if (eta > eta_cutoff)
             {
-                T(i,j,k) = T_solid_caloric;
-            }
-            else
-            {
-                Set::Scalar T_gas_inversion;
-                #if AMREX_SPACEDIM == 2
-                T_gas_inversion = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
-                #elif AMREX_SPACEDIM == 3
-                T_gas_inversion = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, E_fluid, T(i,j,k), X, i, j, k);
-                #endif
-                T(i,j,k) = eta*T_gas_inversion + (1.0-eta)*T_solid_caloric;
-                // Pressure uses the unblended T_gas_inversion, not the blended T:
-                // density_fluid is the pure reconstructed gas density, so pairing it
-                // with the blended (partly solid-influenced) T would understate the
-                // real local gas pressure near the interface. The blended T above is
-                // reserved for conduction/kinetics; the flux-facing gas pressure
-                // stays self-consistent with the pure gas state, as before blending.
                 p(i,j,k) = gas.ComputeP(density_fluid, T_gas_inversion, X, i, j, k);
             }
             // else: leave p(i,j,k) as the already-prescribed local gas pressure
@@ -1412,48 +1415,60 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
 
-            // Continuous temperature blend across the diffuse interface, matching
-            // the same eta-weighted convention already used to mix M/rho/E (Mix()).
-            // A hard branch here (solid caloric relation vs. gas EOS inversion)
-            // creates a derivative discontinuity in T at eta=eta_cutoff that would
-            // make conduction's finite-difference gradient blow up.
+            // Continuous (C1) temperature blend across the diffuse interface,
+            // matching the same eta-weighted convention already used to mix
+            // M/rho/E (Mix()). T = eta*T_gas_inversion + (1-eta)*T_solid_caloric
+            // is evaluated with the SAME formula for every eta - no branch at
+            // eta_cutoff - so there is no derivative discontinuity for
+            // AdvanceSolidEnergy's finite-difference Laplacian to amplify (this
+            // was confirmed to be the source of a growing, sign-flipping
+            // instability at the interface: a hard branch here made T's value
+            // continuous but not its slope, since the >cutoff branch carried a
+            // (T_gas-T_solid) derivative term that vanished outright below cutoff).
             //
-            // The blend is only taken over eta in (eta_cutoff, 1]: below cutoff,
-            // Ef_fluid above is set directly to the real (large) E_solid rather than
-            // reconstructed via division (that reconstruction is only well-
-            // conditioned for eta > eta_cutoff - see the branch above). Feeding that
-            // huge E_solid into gas.ComputeT with the tame density_fluid produces a
-            // wildly nonphysical T (tens of thousands of K); weighting it by even a
-            // small eta still contaminates the blend. So for eta <= eta_cutoff, T is
-            // just the solid caloric value - matching ApplyCutoffToConserved, which
-            // already treats eta<=eta_cutoff as a hard "no gas" cutoff for the other
-            // conserved fields, not something to blend past.
+            // T_gas_inversion still needs a *bounded* reconstruction of the pure
+            // gas state as eta->0 (dividing by the raw eta blows up well before
+            // eta=0), so it uses its own eta_recon = max(eta, eta_cutoff)
+            // floor - independent of the rhoY_fluid/M_fluid/E_fluid reconstruction
+            // above, which stays branch-based because it also feeds v(i,j,k) and
+            // the species fractions (X/Y), where the solid-state values must be
+            // used exactly, not smoothed. Below cutoff this makes T_gas_inversion
+            // a fixed value (frozen at its eta=eta_cutoff estimate) rather than
+            // the wildly nonphysical number the raw division would give - its
+            // contribution to T is capped by eta itself (<=eta_cutoff there), so
+            // it is a small, bounded correction, not a source of blowup.
             Set::Scalar T_solid_caloric =
                 T_ref_energy + E_solid(i,j,k) / (rho_phys(i,j,k) * cp_solid(i,j,k) + small);
-            if (eta <= eta_cutoff)
+
+            const Set::Scalar eta_recon = eta > eta_cutoff ? eta : eta_cutoff;
+            Set::Scalar Mx_forT = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta_recon))/(eta_recon + small);
+            Set::Scalar My_forT = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta_recon))/(eta_recon + small);
+            #if AMREX_SPACEDIM == 3
+            Set::Scalar Mz_forT = (M(i,j,k,2) - M_solid(i,j,k,2)*(1.0 - eta_recon))/(eta_recon + small);
+            #endif
+            Set::Scalar Ef_forT = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta_recon))/(eta_recon + small);
+
+            Set::Scalar T_gas_inversion;
+            #if AMREX_SPACEDIM == 2
+            T_gas_inversion = gas.ComputeT(density_fluid, Mx_forT, My_forT, Ef_forT, T(i,j,k), X, i, j, k);
+            #elif AMREX_SPACEDIM == 3
+            T_gas_inversion = gas.ComputeT(density_fluid, Mx_forT, My_forT, Mz_forT, Ef_forT, T(i,j,k), X, i, j, k);
+            #endif
+            T(i,j,k) = eta*T_gas_inversion + (1.0-eta)*T_solid_caloric;
+
+            // Pressure keeps its previous eta<=eta_cutoff hard cutoff (a separate,
+            // deliberate design choice - see below) rather than following T's new
+            // smooth blend: deriving it from density_fluid (the tame solid.density)
+            // times a gas-side T would reintroduce the original t=0 pressure-spike
+            // bug. Only update p(i,j,k) above cutoff, using the unblended
+            // T_gas_inversion (not the blended T) paired with the pure
+            // reconstructed gas density - the blended T is reserved for
+            // conduction/kinetics only.
+            if (eta > eta_cutoff)
             {
-                T(i,j,k) = T_solid_caloric;
-            }
-            else
-            {
-                Set::Scalar T_gas_inversion;
-                #if AMREX_SPACEDIM == 2
-                T_gas_inversion = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
-                #elif AMREX_SPACEDIM == 3
-                T_gas_inversion = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
-                #endif
-                T(i,j,k) = eta*T_gas_inversion + (1.0-eta)*T_solid_caloric;
-                // Pressure uses the unblended T_gas_inversion, not the blended T:
-                // density_fluid is the pure reconstructed gas density, so pairing it
-                // with the blended (partly solid-influenced) T would understate the
-                // real local gas pressure near the interface. The blended T above is
-                // reserved for conduction/kinetics; the flux-facing gas pressure
-                // stays self-consistent with the pure gas state, as before blending.
                 p(i,j,k) = gas.ComputeP(density_fluid, T_gas_inversion, X, i, j, k);
             }
-            // else: leave p(i,j,k) as the already-prescribed local gas pressure -
-            // deriving it from density_fluid (the tame solid.density) times this
-            // real T would reintroduce the original t=0 pressure-spike bug.
+            // else: leave p(i,j,k) as already prescribed.
 
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;
