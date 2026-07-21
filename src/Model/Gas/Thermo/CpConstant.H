@@ -77,6 +77,11 @@ public:
         return cp_moles[n];
     }
 
+    double dcp_mol_species_dT(double /*T*/, int /*n*/) const
+    {
+        return 0.0;
+    }
+
     double enthalpy_mol_species(double T, int n) const
     {
         return cp_moles[n] * (T - Tref[n]) + h0[n];

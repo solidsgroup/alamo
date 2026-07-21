@@ -28,6 +28,7 @@ struct FiniteRate
 {
     static constexpr const char* name = "finite_rate";
     static constexpr bool reactive = true;
+    static constexpr bool has_jacobian = false;
     int nspecies = 1;
 
     enum class IntegrationType { EXPLICIT, SUBSTEP, IMPLICIT };
@@ -353,13 +354,6 @@ struct FiniteRate
 
     FiniteRate() = default;
 
-    bool Implicit() const { return integration == IntegrationType::IMPLICIT; }
-    int MaxIterations() const { return max_iter; }
-    std::pair<Set::Scalar,Set::Scalar> Tolerances() const
-    {
-        return {reltol,abstol};
-    }
-
 #ifdef ALAMO_YAML
     std::string yaml;
     int NR = 0;
@@ -611,6 +605,10 @@ struct FiniteRate
             return {wdot, 0.0};
         }
 
+        if (!(dt > 0.0))
+        {
+            return evaluate_source(P, T, rhoY_valid, gas);
+        }
         if (integration == IntegrationType::SUBSTEP)
         {
             return compute_substep(P, T, rhoY_valid, dt, gas);
@@ -663,21 +661,16 @@ struct FiniteRate
         pp.query_default("abstol", value.abstol, 1e-12);
 
         Util::Assert(INFO, TEST(value.nsubsteps > 0),
-            "chemistry.finite_rate.nsubsteps must be > 0.");
+            "chemistry.model.finite_rate.nsubsteps must be > 0.");
         Util::Assert(INFO, TEST(value.max_iter > 0),
-            "chemistry.finite_rate.max_iter must be > 0.");
+            "chemistry.model.finite_rate.max_iter must be > 0.");
         Util::Assert(INFO, TEST(value.reltol >= 0.0),
-            "chemistry.finite_rate.reltol must be >= 0.");
+            "chemistry.model.finite_rate.reltol must be >= 0.");
         Util::Assert(INFO, TEST(value.abstol >= 0.0),
-            "chemistry.finite_rate.abstol must be >= 0.");
+            "chemistry.model.finite_rate.abstol must be >= 0.");
         Util::Assert(INFO, TEST(value.reltol > 0.0 || value.abstol > 0.0),
-            "At least one of chemistry.finite_rate.reltol or chemistry.finite_rate.abstol must be > 0.");
-
-#ifdef AMREX_USE_GPU
-        Util::Assert(INFO, TEST(value.integration != IntegrationType::IMPLICIT),
-            "Finite-rate implicit integration currently uses a dense per-cell finite-difference Jacobian ",
-            "and is not supported on GPU builds. Use substep or explicit integration.");
-#endif
+            "At least one of chemistry.model.finite_rate.reltol or "
+            "chemistry.model.finite_rate.abstol must be > 0.");
 
 #ifdef ALAMO_YAML
         if (value.nspecies > 1)

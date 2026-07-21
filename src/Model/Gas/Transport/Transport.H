@@ -89,7 +89,7 @@ public:
 
     template<class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    void diffusion_coeffs(  Set::Patch<Set::Scalar>& DKM, Set::Scalar T, Set::Scalar P,
+    void diffusion_coeffs(  Set::Patch<Set::Scalar> DKM, Set::Scalar T, Set::Scalar P,
                             const Composition& X, int i, int j, int k) const
     {
         if constexpr (I < sizeof...(OBJ))

@@ -36,6 +36,7 @@ struct Rocfire
 {
     static constexpr const char* name = "rocfire";
     static constexpr bool reactive = true;
+    static constexpr bool has_jacobian = true;
     static constexpr int nreactions = 4;
     static constexpr int AP = 0;
     static constexpr int Binder = 1;
@@ -64,14 +65,6 @@ struct Rocfire
     Set::Scalar gamma = 3.19;
 
     Rocfire() = default;
-
-    bool Implicit() const { return integration == IntegrationType::IMPLICIT; }
-    int MaxIterations() const { return max_iter; }
-    std::pair<Set::Scalar,Set::Scalar> Tolerances() const
-    {
-        return {reltol,abstol};
-    }
-
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static Set::Scalar sum_species(const std::array<Set::Scalar, MAX_SPECIES>& values)
@@ -148,6 +141,134 @@ struct Rocfire
             + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
         return {wdot, qdot};
+    }
+
+    template<typename Gas>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    bool ComputeODEJacobian(
+        const Set::Scalar* state,
+        Set::Scalar* derivative,
+        Set::Scalar pressure,
+        Set::Scalar mixture_density,
+        Set::Scalar gas_density,
+        int ode_size,
+        int dependent_species,
+        Set::Scalar temperature_scale,
+        const Gas* gas) const
+    {
+        if (gas == nullptr || ode_size != 6 || nspecies != 6 ||
+            dependent_species < 0 || dependent_species >= nspecies ||
+            !(pressure > 0.0) || !(mixture_density > 0.0) ||
+            !(gas_density > 0.0) || !(temperature_scale > 0.0) ||
+            !(pressure_reference > 0.0) || !(gas->Rg > 0.0)) return false;
+
+        SpeciesArray Y{};
+        int independent_species[5]{};
+        Set::Scalar sum = 0.0;
+        for (int column = 0; column < nspecies - 1; ++column)
+        {
+            const int species = column < dependent_species ? column : column + 1;
+            independent_species[column] = species;
+            Y[species] = state[column];
+            if (!(Y[species] >= 0.0) || !std::isfinite(Y[species])) return false;
+            sum += Y[species];
+        }
+        Y[dependent_species] = 1.0 - sum;
+        if (!(Y[dependent_species] >= 0.0) ||
+            !std::isfinite(Y[dependent_species])) return false;
+
+        const Set::Scalar temperature = state[nspecies - 1] * temperature_scale;
+        if (!(temperature > 0.0) || !std::isfinite(temperature)) return false;
+
+        Set::Scalar inverse_mw = 0.0;
+        Set::Scalar cp = 0.0;
+        Set::Scalar cp_species[6]{};
+        Set::Scalar dcp_species_dT[6]{};
+        for (int n = 0; n < nspecies; ++n)
+        {
+            if (!(gas->MW[n] > 0.0)) return false;
+            cp_species[n] = gas->cp_mol_species(temperature, n) / gas->MW[n];
+            dcp_species_dT[n] =
+                gas->dcp_mol_species_dT(temperature, n) / gas->MW[n];
+            inverse_mw += Y[n] / gas->MW[n];
+            cp += Y[n] * cp_species[n];
+        }
+        if (!(inverse_mw > 0.0) || !(cp > 0.0)) return false;
+
+        std::array<Set::Scalar, nreactions> rate_constant{};
+        std::array<Set::Scalar, nreactions> progress{};
+        for (int r = 0; r < nreactions; ++r)
+            rate_constant[r] = A[r] *
+                std::pow(pressure / pressure_reference, pressure_exponent[r]) *
+                std::exp(-activation_energy[r] /
+                    (Set::Constant::Rg * temperature));
+
+        progress[0] = rate_constant[0] * Y[AP];
+        progress[1] = rate_constant[1] * Y[Binder];
+        progress[2] = rate_constant[2] * Y[AP] * Y[Binder];
+        progress[3] = rate_constant[3] * Y[Mono] * Y[Premixed];
+        const auto source = source_from_progress(progress);
+
+        const Set::Scalar inverse_density =
+            gas->Rg * inverse_mw * temperature / pressure;
+        const Set::Scalar temperature_prefactor =
+            gas_density / (mixture_density * temperature_scale);
+
+        for (int column = 0; column < nspecies; ++column)
+        {
+            SpeciesArray dY{};
+            Set::Scalar dtemperature = 0.0;
+            if (column < nspecies - 1)
+            {
+                dY[independent_species[column]] = 1.0;
+                dY[dependent_species] = -1.0;
+            }
+            else
+                dtemperature = temperature_scale;
+
+            std::array<Set::Scalar, nreactions> dprogress{};
+            const Set::Scalar temperature_factor = dtemperature /
+                (Set::Constant::Rg * temperature * temperature);
+            dprogress[0] = rate_constant[0] * dY[AP] +
+                progress[0] * activation_energy[0] * temperature_factor;
+            dprogress[1] = rate_constant[1] * dY[Binder] +
+                progress[1] * activation_energy[1] * temperature_factor;
+            dprogress[2] = rate_constant[2] *
+                (Y[Binder] * dY[AP] + Y[AP] * dY[Binder]) +
+                progress[2] * activation_energy[2] * temperature_factor;
+            dprogress[3] = rate_constant[3] *
+                (Y[Premixed] * dY[Mono] + Y[Mono] * dY[Premixed]) +
+                progress[3] * activation_energy[3] * temperature_factor;
+            const auto dsource = source_from_progress(dprogress);
+
+            Set::Scalar dinverse_mw = 0.0;
+            Set::Scalar dcp = 0.0;
+            for (int n = 0; n < nspecies; ++n)
+            {
+                dinverse_mw += dY[n] / gas->MW[n];
+                dcp += dY[n] * cp_species[n] +
+                    Y[n] * dcp_species_dT[n] * dtemperature;
+            }
+            const Set::Scalar dinverse_density = gas->Rg / pressure *
+                (temperature * dinverse_mw + inverse_mw * dtemperature);
+
+            for (int row = 0; row < nspecies - 1; ++row)
+            {
+                const int species = independent_species[row];
+                derivative[row * nspecies + column] =
+                    dinverse_density * source.first[species] +
+                    inverse_density * dsource.first[species];
+            }
+            derivative[(nspecies - 1) * nspecies + column] =
+                temperature_prefactor *
+                ((dinverse_density * source.second +
+                    inverse_density * dsource.second) / cp -
+                 inverse_density * source.second * dcp / (cp * cp));
+        }
+
+        for (int n = 0; n < nspecies * nspecies; ++n)
+            if (!std::isfinite(derivative[n])) return false;
+        return true;
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -317,23 +438,23 @@ struct Rocfire
         // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
         pp.query_default("gamma", value.gamma, 3.19);
 
-        Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.rocfire.A must have 4 entries.");
+        Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.model.rocfire.A must have 4 entries.");
         Util::Assert(INFO, TEST(pressure_exponent.size() == nreactions),
-            "chemistry.rocfire.pressure_exponent must have 4 entries.");
+            "chemistry.model.rocfire.pressure_exponent must have 4 entries.");
         Util::Assert(INFO, TEST(activation_energy.size() == nreactions),
-            "chemistry.rocfire.activation_energy must have 4 entries.");
-        Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.rocfire.qgas must have 4 entries.");
-        Util::Assert(INFO, TEST(qsolid.size() == 2), "chemistry.rocfire.qsolid must have 2 entries.");
+            "chemistry.model.rocfire.activation_energy must have 4 entries.");
+        Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.model.rocfire.qgas must have 4 entries.");
+        Util::Assert(INFO, TEST(qsolid.size() == 2), "chemistry.model.rocfire.qsolid must have 2 entries.");
         Util::Assert(INFO, TEST(value.pressure_reference > 0.0),
-            "chemistry.rocfire.pressure_reference must be positive.");
-        Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.rocfire.nsubsteps must be > 0.");
-        Util::Assert(INFO, TEST(value.max_iter > 0), "chemistry.rocfire.max_iter must be > 0.");
-        Util::Assert(INFO, TEST(value.reltol >= 0.0), "chemistry.rocfire.reltol must be nonnegative.");
-        Util::Assert(INFO, TEST(value.abstol >= 0.0), "chemistry.rocfire.abstol must be nonnegative.");
+            "chemistry.model.rocfire.pressure_reference must be positive.");
+        Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.model.rocfire.nsubsteps must be > 0.");
+        Util::Assert(INFO, TEST(value.max_iter > 0), "chemistry.model.rocfire.max_iter must be > 0.");
+        Util::Assert(INFO, TEST(value.reltol >= 0.0), "chemistry.model.rocfire.reltol must be nonnegative.");
+        Util::Assert(INFO, TEST(value.abstol >= 0.0), "chemistry.model.rocfire.abstol must be nonnegative.");
         Util::Assert(INFO, TEST(value.reltol > 0.0 || value.abstol > 0.0),
             "Rocfire implicit integration requires a positive tolerance.");
-        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.rocfire.beta must be > 0.");
-        Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.rocfire.gamma must be > 0.");
+        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.model.rocfire.beta must be > 0.");
+        Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.model.rocfire.gamma must be > 0.");
 
         std::copy(A.begin(), A.end(), value.A.begin());
         std::copy(pressure_exponent.begin(), pressure_exponent.end(), value.pressure_exponent.begin());

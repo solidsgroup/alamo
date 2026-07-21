@@ -55,14 +55,17 @@ HTPB_solid.mechanics = rigid_solid
 AP_solid.reference_density = 1950.0_kg/m^3
 HTPB_solid.reference_density = 920.0_kg/m^3
 
-chemistry.type = rocfire
-chemistry.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
-chemistry.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
-chemistry.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
-chemistry.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
-chemistry.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
-chemistry.rocfire.pressure_reference = 1.0_bar
-chemistry.rocfire.integration = implicit
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
 
 # Each condensed species regresses into its corresponding gas species. These
 # constant multipliers reproduce the accelerated Flame rates at the nominal AP

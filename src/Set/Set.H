@@ -85,7 +85,7 @@ public:
 
 
 template <typename T>
-using Patch = amrex::Array4<T> const&;
+using Patch = amrex::Array4<T>;
 
 
 template<>

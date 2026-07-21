@@ -107,6 +107,23 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE
+    Set::Scalar dcp_mol_species_dT(Set::Scalar T, int n) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).dcp_mol_species_dT(T,n);
+            else
+                return dcp_mol_species_dT<I+1>(T,n);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE
     Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         if constexpr (I < sizeof...(OBJ))

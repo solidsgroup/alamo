@@ -84,6 +84,10 @@ public:
     {
         return cp_mass * mw;
     }
+    Set::Scalar dcp_mol_species_dT(Set::Scalar /*T*/, int /*n*/) const
+    {
+        return 0.0;
+    }
     Set::Scalar enthalpy_mol_species(Set::Scalar T, int /*n*/) const
     {
         return cp_mass * mw * (T - Tref);

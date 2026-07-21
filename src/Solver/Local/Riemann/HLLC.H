@@ -31,7 +31,7 @@ public:
         // pp.query_default("cutoff", value.cutoff, 0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar> X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // get densities (and regularize)
         Set::Scalar rho_L = std::max(lo.rho, small);

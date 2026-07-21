@@ -203,6 +203,13 @@ public:
     {
         return cp_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
     }
+    Set::Scalar dcp_mol_species_dT(Set::Scalar T, int n) const
+    {
+        const int hilo = (T <= Tranges[n][1]) ? 0 : 1;
+        const std::array<Set::Scalar, 7>& a = coeffs[n][hilo];
+        return (a[1] + 2.0*a[2]*T + 3.0*a[3]*T*T +
+                4.0*a[4]*T*T*T) * Set::Constant::Rg;
+    }
     Set::Scalar enthalpy_mol_species(Set::Scalar T, int n) const
     {
         return h_RT(T, Tranges[n], coeffs[n]) * Set::Constant::Rg * T;

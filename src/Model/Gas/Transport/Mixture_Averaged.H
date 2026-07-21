@@ -268,7 +268,7 @@ public:
     }
 
     template<class Composition>
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P,
+    void diffusion_coeffs(Set::Patch<Set::Scalar> DKM, double T, double P,
                         const Composition& X, int i, int j, int k) const
     {
         for (int a = 0; a < nspecies; ++a)

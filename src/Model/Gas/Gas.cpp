@@ -15,20 +15,23 @@ namespace Gas {
 // Methods that need to be defined by inherited class
 
 // Thermodynamic quantities
-double Gas::cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::cp_mol(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
     // Specific heat (constant pressure), J/(kmol-K)
     return thermo.cp_mol(T, X, i , j, k);
 }
-double Gas::enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::enthalpy_mol(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
     // Specific enthalpy, J/kmol)
     return thermo.enthalpy_mol(T, X, i , j, k);
 }
-double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
     // specific entropy, J/(kmol-K)
     return thermo.entropy_mol(T, X, i , j, k);
 }
 double Gas::cp_mol_species(double T, int n) const {
     return thermo.cp_mol_species(T, n);
+}
+double Gas::dcp_mol_species_dT(double T, int n) const {
+    return thermo.dcp_mol_species_dT(T, n);
 }
 double Gas::enthalpy_mol_species(double T, int n) const {
     return thermo.enthalpy_mol_species(T, n);
@@ -38,15 +41,15 @@ double Gas::entropy_mol_species(double T, int n) const {
 }
 
 // Transport quantities
-double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
     // Dynamic viscosity, Pa-s
     return transport.dynamic_viscosity(T, X, i , j, k);
 }
-double Gas::thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::thermal_conductivity(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
     // Thermal conductivity coefficient, W/(m-K)
     return transport.thermal_conductivity(T, X, i , j, k);
 }
-void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k) {
+void Gas::diffusion_coeffs(Set::Patch<Set::Scalar> DKM, double T, double P, Set::Patch<const Set::Scalar> X, int i, int j, int k) {
     // Species diffusion coefficients, m^2/s
     return transport.diffusion_coeffs(DKM, T, P, X, i , j, k);
 }
@@ -54,26 +57,26 @@ void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set
 // EOS
 double Gas::ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const 
+        Set::Patch<const Set::Scalar> X, int i, int j, int k, double rtol) const
 {
     // Temperature, K
     return eos.ComputeT(*this, density, momentumx, momentumy, E, Tguess, X, i, j, k, rtol);
 }
 double Gas::ComputeT(
         double pressure, double density,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+        Set::Patch<const Set::Scalar> X, int i, int j, int k) const
 {
     // Temperature, K
     return eos.ComputeT_from_primitives(pressure, density, R(X,i,j,k));
 }
-double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const
 {
     // Pressure, Pa
     return eos.ComputeP(density, T, R(X,i,j,k));
 }
 double Gas::ComputeE(    
         double density, double momentumx, double momentumy, double T,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+        Set::Patch<const Set::Scalar> X, int i, int j, int k) const
 {
     // Energy, J/m^3
     return eos.ComputeE(*this, density, momentumx, momentumy, T, X, i, j, k);

@@ -19,15 +19,9 @@ struct Frozen
 {
     static constexpr const char* name = "frozen";
     static constexpr bool reactive = false;
+    static constexpr bool has_jacobian = false;
 
     Frozen() = default;
-
-    bool Implicit() const { return false; }
-    int MaxIterations() const { return 0; }
-    std::pair<Set::Scalar,Set::Scalar> Tolerances() const
-    {
-        return {0.0,0.0};
-    }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Source

@@ -11,7 +11,7 @@
 #@ nprocs=2
 #@ timeout=120
 #@ yaml=true
-#@ args=chemistry.finite_rate.integration=implicit
+#@ args=chemistry.solver.type=backward_euler
 #@ args=timestep=1.0e-7
 
 plot_file = tests/LowMachChemistry/output
@@ -52,9 +52,8 @@ H2O2.mechanics = fluid
 AR.mechanics = fluid
 N2.mechanics = fluid
 
-chemistry.type = finite_rate
-chemistry.finite_rate.yaml = tests/LowMachChemistry/h2o2.yaml
-chemistry.finite_rate.integration = explicit
+chemistry.model.type = finite_rate
+chemistry.model.finite_rate.yaml = tests/LowMachChemistry/h2o2.yaml
 
 cfl = 0.25
 include_viscosity = 0

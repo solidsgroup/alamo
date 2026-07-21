@@ -41,7 +41,7 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar> X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // Grab and label the input states
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
