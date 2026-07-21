@@ -1,10 +1,10 @@
-# AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
+# 3 MPa AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
 # Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
 
 plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-7_s
-amr.max_level = 3
-amr.n_cell = 16 16
+amr.plot_dt = 1.0e-5_s
+amr.max_level = 2
+amr.n_cell = 32 32
 amr.max_grid_size = 16
 amr.blocking_factor = 4
 amr.regrid_int = 5
@@ -14,8 +14,8 @@ amr.nsubsteps = 1
 eta_refinement_criterion = 0.01
 temperature_refinement_criterion = 20.0
 
-timestep = 2.5e-8_s
-stop_time = 1.0e-4_s
+timestep = 2.5e-7_s
+stop_time = 1.0_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 1.0e-6
@@ -67,15 +67,16 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. These
-# constant multipliers reproduce the accelerated Flame rates at the nominal AP
-# and HTPB decomposition temperatures without evaluating solid kinetics at the
-# much hotter gas-flame temperature.
+# Each condensed species regresses into its corresponding gas species. At
+# 3 MPa, the common multiplier targets about 4.5 mm/s for both surfaces based
+# on a 2 mm/s rate at 1 MPa and a sandwich pressure exponent of 0.74. Surface
+# Arrhenius activation remains disabled because this model has no separate
+# condensed-side surface temperature.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 256.0
+AP_decomposition.phase_change.rate_multiplier = 63.0
 AP_decomposition.phase_change.activation_temperature = 0.0_K
 AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
@@ -87,7 +88,7 @@ AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.in = HTPB_solid
 HTPB_pyrolysis.phase_change.out = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 3.0
+HTPB_pyrolysis.phase_change.rate_multiplier = 63.0
 HTPB_pyrolysis.phase_change.activation_temperature = 0.0_K
 HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
@@ -123,21 +124,21 @@ HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*erf(y/20.0e-6
 # The gas initially contains final products. AP and HTPB reactants enter only
 # through regression, avoiding a domain-wide homogeneous ignition transient.
 Final.density.ic.type = expression
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*2026500.0/(319.787*700.0))"
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*3000000.0/(319.787*700.0))"
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
 temperature.ic.constant.value = 700.0
 pressure.ic.type = constant
-pressure.ic.constant.value = 2026500.0
+pressure.ic.constant.value = 3000000.0
 
 component_density.bc.type = constant
 component_density.bc.constant.type.xlo = periodic
 component_density.bc.constant.type.xhi = periodic
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = dirichlet
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 9.052900837119708 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic
@@ -150,12 +151,11 @@ temperature.bc.type = constant
 temperature.bc.constant.type.xlo = periodic
 temperature.bc.constant.type.xhi = periodic
 temperature.bc.constant.type.ylo = neumann
-temperature.bc.constant.type.yhi = dirichlet
-temperature.bc.constant.val.yhi = 700.0
+temperature.bc.constant.type.yhi = neumann
 
 pressure.bc.type = constant
 pressure.bc.constant.type.xlo = periodic
 pressure.bc.constant.type.xhi = periodic
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
-pressure.bc.constant.val.yhi = 2026500.0
+pressure.bc.constant.val.yhi = 3000000.0
