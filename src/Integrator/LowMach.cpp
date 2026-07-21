@@ -984,29 +984,25 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     {
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::MultiFab& u_mf = *velocity_mf[lev];
-        amrex::MultiFab& T_mf = *temperature_mf[lev];
-        amrex::MultiFab& component_density_mf = *this->component_density_mf[lev];
-        amrex::MultiFab& rho_mf = *density_mf[lev];
-        amrex::MultiFab& rhs_mf = pressure_poisson.RHS(lev);
         amrex::MultiFab& beta_mf = pressure_poisson.Coefficient(lev);
         const Set::Scalar rho_floor = density_floor;
         const Set::Scalar inverse_relaxation_time = rigid_solid ?
             1.0 / rigid_relaxation_time : 0.0;
 
-        rhs_mf.setVal(0.0);
+        pressure_poisson.RHS(lev).setVal(0.0);
         for (const auto& configured_mechanism : mechanisms)
         {
             const auto mechanism = configured_mechanism;
             const Set::Scalar p_reference = pressure_reference;
-            for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            for (amrex::MFIter mfi(pressure_poisson.RHS(lev), amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-                Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
                 amrex::Array4<const Set::Scalar> rigid_eta;
                 if (rigid_solid)
                     rigid_eta = rigid_eta_mf[lev]->array(mfi);
-                Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
+                Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -1017,11 +1013,11 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             }
         }
 
-        for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(pressure_poisson.RHS(lev), amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
-            Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-            Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+            Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
             amrex::Array4<const Set::Scalar> chemistry_dilatation;
             if (implicit_chemistry)
                 chemistry_dilatation = chemistry_dilatation_mf.Patch(lev,mfi);
@@ -1031,7 +1027,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             amrex::Array4<const Set::Scalar> rigid_eta;
             if (rigid_solid)
                 rigid_eta = rigid_eta_mf[lev]->array(mfi);
-            Set::Patch<Set::Scalar> rhs = rhs_mf.array(mfi);
+            Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
             const Set::Scalar inverse_dt = 1.0 / dt;
@@ -1068,7 +1064,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         for (amrex::MFIter mfi(rhs_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
-            Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
+            Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
             amrex::Array4<const Set::Scalar> rigid_eta;
             if (rigid_solid)
                 rigid_eta = rigid_eta_mf[lev]->array(mfi);

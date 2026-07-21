@@ -1,86 +1,243 @@
 # LowMach Eulerian Solids Findings
 
-Last updated: 2026-07-15
+Last updated: 2026-07-21
 
-This file summarizes the current LowMach Eulerian-solid investigation. Unlike
-the previous version of this note, the reference-map, AMR, and phase-field
-changes described as active below are present in the current worktree. The main
-implementation is in `src/Integrator/LowMach.cpp` and `LowMach.H`; the tuned
-debug case is `input.lm.couette_solid`.
+This file is a technical handoff for the current `eulerian-solids` LowMach
+implementation. It describes code active in the present branch, results
+verified through 2026-07-20, and remaining modeling gaps. Older mapped-distance
+reinitialization, nodal-velocity, custom regridding, and implicit-elastic
+experiments are historical only and are identified as such below.
 
-## Current Status
+The principal files are:
 
-The solver evolves the solid phase field `eta` and reference map `xi`, computes
-`F = inverse(grad(xi))`, evaluates the finite-strain solid model, and couples the
-weighted deviatoric Cauchy stress into momentum.
+- `src/Integrator/LowMach.H` and `src/Integrator/LowMach.cpp`
+- `src/Operator/PressurePoisson.H` and `PressurePoisson.cpp`
+- `src/Numeric/ReferenceMap/Reconstruction.H` and `Reconstruction.cpp`
+- `src/Numeric/Advect/`
+- `src/Model/PhaseField/AllenCahn.H`
+- `src/Model/Mechanism/PhaseChange.H`
+- `src/Model/Chemistry/`
 
-Three related failure modes have been investigated:
+The most useful inputs are:
 
-1. The transported reference map degraded in the diffuse boundary. This first
-   appeared as boundary stress concentration, then visible `xi` distortion,
-   and eventually instability.
-2. Enabling AMR changed the solution because the interface crossed coarse/fine
-   transitions, the refinement mask lagged the rotating body, and projection
-   needed to be composite across levels.
-3. Conservative phase-profile compression generated directional lobes at the
-   original upper-right and lower-left corners. Suppressing that compression
-   protected the `eta=0.5` contour but left low-eta trails.
+- `tests/LMDrivenCavity/input`: pure-fluid AMR regression
+- `tests/LowMachChemistry/input`: finite-rate chemistry regression
+- `input.lm.couette_solid`: compact deformable-solid mechanics case
+- `input.lm`: larger deformable-solid driven-cavity case
+- `input.lm.rigid`: fixed rigid inclusion
+- `input.lm.rigid_effusion`: rigid-to-gas phase change in crossflow
+- `input.lm.ap_htpb`: AP/HTPB regression and gas combustion
 
-The current implementation addresses all three mechanisms. In the tested AMR
-case through `t=20`, the long corner lobes are gone, the effective phase width
-remains near its target, and the `eta>0.5` area changes by about one percent.
-Longer runs are still needed before treating this as a final model.
+## Executive Status
+
+LowMach now has one species representation for fluids and solids. Conserved
+partial densities are authoritative; `eta`, total density, mass fractions, and
+mole fractions are derived from them. Each named species has one mechanics
+classification:
+
+```text
+fluid | deformable_solid | rigid_solid
+```
+
+The current solver supports:
+
+- any number of gas species described by one gas model;
+- one deformable-solid species with one reference map and a Neo-Hookean model;
+- multiple rigid-solid species sharing one prescribed rigid velocity;
+- mass-conservative condensed-to-gas phase-change mechanisms;
+- frozen, finite-rate, or six-species Rocfire gas chemistry;
+- explicit or locally implicit chemistry;
+- a hierarchy-wide variable-coefficient pressure projection;
+- selectable collocated advection operators; and
+- AMR refinement based on velocity, pressure, temperature, or reconstructed
+  solid volume fraction.
+
+The pure-fluid and chemistry regressions pass in serial/MPI AMR configurations.
+The AP/HTPB MPI/AMR case reaches 100 microseconds without the former diffuse-
+interface temperature singularity or timestep collapse. Deformable-solid
+mechanics remain experimental: the reference-map treatment is substantially
+better than the original thresholded reconstruction, but long-time stability
+with explicit elastic feedback is not yet established.
+
+## Authoritative State And Species
+
+`component_density_mf` contains one Eulerian partial density for every named
+species. Species names are user-supplied identifiers, and each species has its
+own initial condition, for example:
+
+```ini
+species.names = AP_gas HTPB_gas AP_solid HTPB_solid
+
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.region0 = "..."
+```
+
+The first `gas.nspecies` entries must be fluid species and must match the gas
+property arrays. Later entries are condensed species. `UpdateComponentState`
+reconstructs
+
+```text
+rho             = sum_n rho_n
+eta_deformable  = rho_deformable / rho_ref_deformable
+eta_rigid       = sum_{n in rigid} rho_n / rho_ref_n.
+```
+
+Mass and mole fractions are derived only for gas species. They are diagnostics,
+not evolved state. `eta_mf` and `rigid_eta_mf` are likewise derived fields; no
+independent eta transport equation remains.
+
+This design is important for phase change. A mechanism transfers equal mass
+between named partial densities. The volume fraction changes because the
+source and product have different equations of state or reference densities,
+not because an independently evolved eta is adjusted afterward.
+
+Current restrictions:
+
+- only one deformable-solid species is allowed;
+- all rigid species use the same target velocity and relaxation time;
+- condensed species require a positive reference density; and
+- one velocity and one temperature field are shared by the mixture.
+
+## LowMach Evolution
+
+All primary evolved fields are cell centered. Velocity was experimentally
+migrated to nodes, but that path created widespread stencil, boundary, AMR, and
+projection inconsistencies and was reverted. The present method is collocated,
+not staggered.
+
+The explicit momentum predictor contains
+
+```text
+-u dot grad(u) + g + (mu/rho) laplacian(u)
++ sign/rho * div(sigma_solid_dev).
+```
+
+Pressure is not added to this predictor. It is applied once by the
+nonincremental pressure projection. This avoids feeding the stored pressure
+correction back into the following predictor.
+
+The Newtonian viscosity from the gas transport model is applied throughout the
+mixture, including the solid region. The deformable-solid model can add a
+second solid viscosity and an interface-localized deviatoric damping stress.
+
+Partial densities use conservative advection,
+
+```text
+partial_rho_dot = -div(partial_rho * u) + mechanisms + diffusion + chemistry,
+```
+
+while velocity, temperature, and the reference map use the advective form.
+SSPRK3 is used by the current principal inputs. Chemistry may additionally use
+Strang splitting around the transport update.
+
+## Advection Interface
+
+`Numeric::Advect::Advect` is a GPU-safe pseudo-polymorphic functor. LowMach
+selects an operator in `Parse` and invokes the same object for scalars and
+vectors. Each implementation exposes its required ghost width and the expected
+locations of phi and velocity. LowMach currently rejects anything other than
+collocated cell-centered data.
+
+Available implementations are:
+
+- `upwind`
+- `centered`
+- `quick`
+- `muscl`, with MC, minmod, superbee, van Leer, van Albada, Koren, and UMIST
+  limiters
+- `weno5`
+
+MUSCL and WENO5 reconstruct face states but obtain face velocities by averaging
+neighboring cell velocities. This is not exactly the same face flux retained by
+the pressure projection. That mismatch is one source of mixture-volume drift
+and is discussed below.
+
+## Deformable-Solid Mechanics
+
+The deformable species carries a cell-centered inverse reference map `xi`.
+Inside mechanically trusted material,
+
+```text
+grad_xi = grad(xi)
+F       = inverse(grad_xi)
+J       = det(F)
+sigma   = P(F) F^T / J.
+```
+
+The current constitutive model is `Model::Solid::Finite::NeoHookean`. Only the
+deviatoric part of its Cauchy stress is returned to the explicit momentum RHS.
+Volumetric elastic stress is not also applied explicitly; the projection
+enforces the mixture incompressibility constraint. This avoids double counting
+a pressure-like volumetric contribution.
+
+The mechanical weight is smooth above `solid.model.eta_threshold`:
+
+```text
+w_s(eta) = SmootherStep((eta - eta_threshold)/(1 - eta_threshold))
+           for eta > eta_threshold,
+w_s(eta) = 0 otherwise.
+```
+
+Stress is evaluated wherever `eta > reference_map.eta_extension`, then the
+deviatoric stress is multiplied by `w_s`. Interface damping is
+
+```text
+mu_interface * 4 eta (1-eta) * dev(grad(u) + grad(u)^T).
+```
+
+The retained tensor state is a typed `Set::Field<Set::Matrix>` named
+`solid_deviatoric_stress`. The divergence is computed with the matrix
+divergence stencil. Extended diagnostics retain `F`; the previous collection of
+raw Piola, duplicate Cauchy, weighted stress, and nodal stress fields was
+removed.
+
+Elastic feedback remains explicit. The dynamic timestep includes an elastic
+wave estimate and viscous restrictions, but there is no implicit elastic
+operator. The former `Operator/ElasticLowMach` and
+`ImplicitElasticVelocitySolve` were deliberately removed because their scalar
+linearization was not a general implicit discretization of the selected finite
+strain model.
 
 ## Reference-Map Reconstruction
 
-### Failure mechanism
+Directly advecting `xi` is not sufficient near a diffuse boundary. Cells enter
+and leave the mechanically active region, and AMR coarsening can replace fine
+material history with interpolated coarse data. Hard resets, identity snaps,
+and abrupt eta cutoffs produced large artificial `grad(xi)` and stress jumps.
 
-The old reconstruction divided the domain into discrete known and unknown
-regions using eta thresholds. A cell could therefore switch abruptly from
-transported material history to reconstructed data as the diffuse boundary
-moved. The resulting mismatch in `grad(xi)` was mechanically important even
-when the map looked visually reasonable.
-
-Raising `reference_map.eta_core` alone was not a fix. A test with a deeper
-truth region made the result worse because too much of the mechanically active
-shell stopped carrying advected deformation history.
-
-### Active graded algorithm
-
-Reconstruction and smoothing are now continuous functions of eta. For a core
-value `eta_core`, the reconstruction grade is
+The active reconstruction is isolated in
+`Numeric::ReferenceMap::Reconstruction`. For
+`reference_map.eta_core = eta_core`, define
 
 ```text
-g(eta) = 1 - SmootherStep(clamp(eta / eta_core, 0, 1)).
+g(eta) = 1 - SmootherStep(clamp(eta/eta_core, 0, 1)).
 ```
 
-The reconstruction and smoothing strengths are
+Reconstruction and smoothing strengths are
 
 ```text
 repair = reconstruction_alpha * g^reconstruction_power
 relax  = smoothing_alpha      * g^smoothing_power.
 ```
 
-This keeps the interior map unchanged, applies progressively stronger repair
-toward the exterior, and removes artificial switching surfaces.
+The interior approaches zero repair continuously. Exterior cells extrapolate
+from coordinate neighbors with larger eta. The nearest inward continuation is
+the fallback; deeper inward samples permit a linear continuation when the map
+is locally affine. Several sweeps propagate this information through the
+extension region. Smoothing uses the same eta grading and is confined to cells
+with nearby material support.
 
-Each reconstruction sweep:
+An optional second smoothing pass operates on a temporary copy used only for
+stress calculation. It smooths `xi-x`, rather than absolute coordinates, so an
+identity reference map remains identity. The transported map itself is not
+modified by this stress-only pass.
 
-- Uses only coordinate neighbors with larger eta, so information propagates
-  outward from the material interior.
-- Weights candidates by the eta increase toward the neighbor.
-- Uses the nearest inward value as the robust fallback.
-- Extends the inward slope when deeper samples are available.
-- Preserves an affine map across low-eta cells when consecutive inward slopes
-  have sufficiently low relative curvature.
-- Blends the reconstruction into the live map using the eta grade rather than
-  replacing it at a threshold.
-
-Smoothing is also eta graded. It is strongest in the exterior extension and
-goes continuously to zero at the protected core. Boundary conditions and
-periodic fills are refreshed between every sweep.
-
-The current Couette-solid settings are:
+The commonly used current settings are:
 
 ```ini
 reference_map.eta_core = 0.7
@@ -92,321 +249,305 @@ reference_map.affine_tolerance = 1.0e-7
 reference_map.smoothing_sweeps = 4
 reference_map.smoothing_alpha = 1.0
 reference_map.smoothing_power = 2.0
+reference_map.stress_smoothing_sweeps = 2
+reference_map.stress_smoothing_alpha = 0.05
 ```
 
-This construction is intended to support phase growth as well as advection:
-newly occupied low-eta cells receive an outward continuation of the existing
-reference map instead of an identity reset or an abrupt copied value.
+Reconstruction runs for RK stage states and again after the completed update.
+The repeated boundary fills inside this numerical processor are intentional;
+the old integrator-wide custom state fill/regrid machinery is not.
 
-## AMR Findings
+## Rigid Solids
 
-AMR changed more than resolution in this problem:
-
-- Coarse/fine interpolation and average-down alter transported `eta` and `xi`.
-- Regridding can place the diffuse layer directly on a patch transition.
-- Subcycling changes the number and timing of reconstruction and phase-source
-  updates by level.
-- A level-local projection does not enforce one composite divergence constraint
-  across coarse/fine interfaces.
-
-The projection now always constructs one hierarchy-wide solve across all active
-levels before velocity is averaged down. The same code handles a one-level
-hierarchy, so no separate AMR projection switch is needed.
-
-After recursive level advancement, subcycling, and state average-down complete,
-`TimeStepComplete` calls `ProjectVelocity` exactly once. That routine builds one
-`MLABecLaplacian` over levels `0..finest_level`, solves for the pressure
-correction on the full hierarchy, corrects velocity and pressure on every
-active level, and averages the corrected fine velocity back to covered coarse
-cells. With `finest_level = 0`, the same vectors and operator simply contain one
-level; a separate level-local implementation would duplicate the same
-variable-density projection without adding behavior.
-
-The former `projection.amr_enabled` input has been removed from parsing and all
-repository inputs. `projection.enabled = 1` now always means that this unified
-projection runs, independent of the number of active AMR levels. Existing
-external inputs should delete `projection.amr_enabled`; leaving it present will
-be reported as an unused input by the strict input parser.
-
-The original AMR phase trigger was also too narrow. With
-`eta_refinement_criterion = 0.1`, the `eta=0.1` contour sat at the edge of the
-fine patch. With `amr.regrid_int = 1000` and `dt = 0.004`, the grid was rebuilt
-only every four time units, allowing the rotating corners to outrun the fine
-halo. This produced stair-stepped outer contours and contributed to trailing
-material.
-
-The active AMR settings are:
-
-```ini
-amr.n_cell = 64 32
-amr.max_level = 2
-amr.nsubsteps = 2
-amr.regrid_int = 50
-eta_refinement_criterion = 0.01
-projection.enabled = 1
-```
-
-Lowering the eta criterion made the `eta=0.01` contour substantially smoother.
-Frequent regridding gave a smaller additional improvement by keeping the wider
-halo centered on the moving body. These changes do not, by themselves, remove
-phase trails; they remove AMR-induced stair-stepping and mesh lag.
-
-## Phase-Field Stabilization
-
-### Initial-condition correction
-
-The old box expression used
+Rigid solids use an implicit local Brinkman relaxation embedded in the
+projection rather than an explicit penalty-force field. For prescribed rigid
+velocity `U_r`, rigid volume fraction `eta_r`, and relaxation time `tau`,
 
 ```text
-max(abs(x-x0)-hx, abs(y-y0)-hy)
+m = 1 / (1 + dt * eta_r/tau)
+u_star = m*u + (1-m)*U_r.
 ```
 
-as though it were a signed distance. It is an L-infinity distance, so all
-diffuse contours inherit sharp corner-normal jumps. The active expression is
-the Euclidean signed distance to a rectangle. The `eta=0.5` geometry remains a
-sharp rectangle, while exterior diffuse contours are correctly rounded.
-
-### Mapped-distance conservative flux
-
-For the target profile
+The pressure coefficient is correspondingly
 
 ```text
-eta = 0.5 * (1 + tanh(d / epsilon)),
+beta = m/rho.
 ```
 
-the code recovers the distance coordinate
+Thus the projection accounts for the reduced velocity mobility inside the
+rigid phase. The former `rigid_penalty_force_mf` was removed. This is suitable
+for fixed or prescribed-motion diffuse solids, but it is not a six-degree-of-
+freedom rigid-body solver and does not calculate hydrodynamic force or torque.
+
+## Phase Field And Phase Change
+
+The old standalone eta reinitialization and mapped-distance counter-curvature
+implementation were removed. The only active phase-field model is the standard
+Allen-Cahn model in `Model/PhaseField/AllenCahn.H`, parameterized either by
+`lambda,kappa` or by `sigma,epsilon`.
+
+Allen-Cahn is used through a named `Model::Mechanism::PhaseChange`. A mechanism
+identifies one condensed input species and one or more gas output species. It
+computes an eta rate from the input partial density, converts it to a mass
+source, subtracts that mass from the condensed species, and distributes the
+same mass among the products. Product mass fractions must sum to one.
+
+The current phase-change implementation deliberately applies
 
 ```text
-d = 0.5 * epsilon * log(eta / (1 - eta)).
+eta_dot = min(eta_dot_AllenCahn, 0).
 ```
 
-Using `d` makes the conservative diffusion/compression balance exact for a
-resolved planar tanh profile. With `w = eta * (1-eta)`, the ungraded mapped flux
-has the form
+It therefore supports regression, decomposition, sublimation, or pyrolysis,
+but not condensation or phase growth. With the default `interface_only=1`, the
+rate is additionally weighted by `4 eta (1-eta)`. Optional temperature cutoff,
+Arrhenius activation, and a rate multiplier are available.
+
+Mass transfer is conservative even though Allen-Cahn is not conservative in
+eta. The mechanism also supplies the projection with the volume source
 
 ```text
-q = w * grad(d) * (1 - counter_curvature / |grad(d)|).
+mass_source * (1/rho_ref_condensed - R_product*T/p0).
 ```
 
-This was more reliable than applying the old eta-gradient flux directly, but
-full compression still distorted sharp corners because a corner has no unique
-normal.
+The deformable-solid demonstration inputs use `interface_only=0` and zero
+driving force mainly to maintain a regular profile while transferring any lost
+solid mass to the gas species. The AP/HTPB input uses large artificial rate
+multipliers so regression is observable over a short test. Those multipliers
+are testing parameters, not calibrated propellant kinetics.
 
-### Normal-coherence grading
+## Pressure Projection And AMR
 
-The code now measures agreement among mapped-distance normals in a neighborhood
-of each face. If `c` is the magnitude of their average, the compression grade is
+`LowMach::ProjectVelocity` now contains the physical construction of the
+projection source and mobility. AMReX setup and scratch storage are encapsulated
+in `Operator::PressurePoisson`.
+
+The operator:
+
+1. follows the current hierarchy layout;
+2. owns cell RHS, coefficient, solution, divergence, and face scratch fields;
+3. fills coarse/fine coefficient ghosts;
+4. averages the cell coefficient to faces;
+5. constructs one `MLABecLaplacian` over all active levels;
+6. computes the RHS from the divergence of averaged face velocity;
+7. solves with MLMG; and
+8. forms the correction from the same face coefficient and face pressure
+   gradient before averaging the correction back to cell velocity.
+
+Using the same face discretization for divergence, coefficient, and pressure
+correction removed an early one-cell interface velocity spike. Pure-fluid
+projection behavior is protected by `tests/LMDrivenCavity`.
+
+LowMach no longer owns custom state prolongation, average-down, regrid, or
+`FillStateBoundaries` logic. Primary state communication is left to the
+Integrator/AMReX framework. `PressurePoisson` still uses a local
+`FillPatchTwoLevels` for its private coefficient scratch field; that is solver
+scratch preparation, not an alternate state-management path.
+
+## Chemistry Port And LowMach Coupling
+
+The finite-rate and Rocfire kinetics were ported from
+`origin/flame-with-multicomponent` with limited model changes:
+
+- compile-time `NSPECIES` became runtime `ngas_species`, backed by a GPU-safe
+  `MAX_SPECIES=32` array;
+- the pseudo-polymorphic wrapper gained `Reactive`, `Implicit`, iteration, and
+  tolerance queries;
+- parsing now receives the active gas-species count;
+- finite-rate heat release uses species enthalpy instead of internal energy,
+  because LowMach advances a constant-pressure temperature/enthalpy equation;
+- `Equilibrium` chemistry was not ported; and
+- the Cantera YAML parser itself was retained unchanged.
+
+LowMach stores Eulerian partial densities, while the chemistry models expect
+intrinsic gas density. At fixed thermodynamic pressure `p0`, it reconstructs
 
 ```text
-C = clamp((c - coherence_threshold) / (1 - coherence_threshold), 0, 1)
-    ^ coherence_power.
+alpha_g = rho_g * R(Y) * T / p0
+rhoY_intrinsic = rhoY_eulerian / alpha_g.
 ```
 
-The face flux is
+Chemistry is evaluated on the intrinsic state, then species and heat sources
+are multiplied by `alpha_g` when returned to mixture-volume equations.
+
+For implicit chemistry, LowMach uses Strang splitting. Each half-step solves
+gas mass fractions and temperature together with a local backward-Euler/Newton
+solve at fixed `p0`. A cell first attempts the full half-step and halves its
+local chemistry step only after a failed positive Newton solve. This removes
+the chemical-kinetics restriction from the global flow timestep; transport,
+phase field, viscosity, diffusion, or advection can still limit it.
+
+## Diffuse-Interface Chemistry Failure And Fix
+
+The first AP/HTPB implicit runs developed a hot spot in partially solid cells.
+Temperature rose above 13,000 K near the AP/HTPB/eta interface, species
+diffusivity increased rapidly, and the explicit transport restriction drove the
+global timestep toward `1e-10 s`. The instability was not an acoustic CFL or a
+failure of the local chemistry Newton solve.
+
+The problem was thermodynamic weighting. A cell containing a small gas volume
+and a large condensed partial density received the intrinsic gas adiabatic
+temperature rise as though only the small gas mass contributed heat capacity.
+Chemistry dilatation was also initially treated as a full-cell source.
+
+The active coupling now uses
 
 ```text
-q = w * grad(d) * (D - C * counter_curvature / |grad(d)|)
-D = C + (1-C) * incoherent_diffusion.
+T_dot_reaction = alpha_g * qdot_intrinsic / (rho_mixture * cp_gas)
 ```
 
-Thus smooth interface sections retain the full balanced flux. Compression is
-removed continuously where neighboring normals disagree, while a bounded
-fraction of diffusion remains to prevent unresolved corner noise.
-
-### Exterior signed-distance relaxation
-
-Coherence grading fixes the material contour but, by itself, leaves low-eta
-material behind the two extensional corners. Restoring the conservative
-compression there only sharpened those trails into thin filaments.
-
-The active algorithm therefore adds a local signed-distance relaxation only for
-`eta < 0.5` and only where normal coherence is poor. Its source is proportional
-to
+and the implicit residual uses the equivalent expression
 
 ```text
-mobility * exterior_reinitialization * (1-C)
-* (2*w/epsilon) * smooth_sign(d) * (1-|grad(d)|).
+dt * rho_g * qdot_intrinsic
+-----------------------------------------
+rho_g_intrinsic * rho_mixture * cp_gas
 ```
 
-This drives the exterior profile toward `|grad(d)| = 1`. The source is zero at
-`eta=0.5`, so it does not directly move the material contour. It is deliberately
-not globally conservative: it removes low-eta trail mass. Restricting it to the
-exterior was important. A two-sided version expanded the enclosed area.
-
-The active phase settings are:
-
-```ini
-eta.phase_field.enabled = 1
-eta.phase_field.epsilon = 0.015
-eta.phase_field.mobility = 0.01_m/s
-eta.phase_field.counter_curvature = 1.0
-eta.phase_field.band = 1.0e-3
-eta.phase_field.mapped_distance = 1
-eta.phase_field.normal_coherence_threshold = 0.9
-eta.phase_field.normal_coherence_power = 2.0
-eta.phase_field.exterior_reinitialization = 1.0
-eta.phase_field.incoherent_diffusion = 0.25
-```
-
-## Parameter Screens And Rejected Variants
-
-The following conclusions came from matched runs of the Couette-solid case:
-
-- Standard conservative compression at mobility `0.05_m/s` recreated a corner
-  lobe by about `t=4`. Mobility `0.02_m/s` was also less clean than `0.01_m/s`.
-- Disabling all corner flux protected `eta=0.5` but left pointed low-eta tails.
-- Retaining all corner diffusion removed some tails but rounded the material
-  corners and broadened the interface.
-- `incoherent_diffusion = 0.25` was the best tested compromise. A value of
-  `0.5` broadened the effective epsilon more and developed outer oscillations.
-- Restoring conservative compression only in the exterior narrowed trails into
-  filaments rather than removing them. That experiment is not in the final code.
-- Two-sided local signed-distance relaxation reduced width error but increased
-  the `eta>0.5` area by about 1.7 to 2.2 percent at `t=10`.
-- Exterior-only relaxation avoided that expansion. Strength `0.5` retained
-  visible lobes at `t=20` and lost more enclosed area than strength `1.0`, so
-  the active strength is `1.0`.
-- Changing only the AMR eta threshold from `0.1` to `0.01` improved contour
-  smoothness and reduced AMR phase-mass drift slightly. Regridding every 50
-  steps gave a further smaller improvement.
-
-## Quantitative Results
-
-Metrics were evaluated on a level-2 covering grid. Effective epsilon was
-computed as
+The integrated implicit dilatation is
 
 ```text
-epsilon_eff = 2 * integral(eta*(1-eta)) / integral(|grad(eta)|).
+rho_g * (1/rho_g_intrinsic,new - 1/rho_g_intrinsic,old)
 ```
 
-The nominal epsilon is `0.015`. The reported width is
-`area(0.1 < eta < 0.9) / integral(|grad(eta)|)`.
+and explicit thermal and molar dilatation terms are multiplied by `alpha_g`.
+This prevents a tiny gas pocket in the diffuse solid boundary from receiving a
+full-cell reaction heat or expansion source.
 
-| Case | Time | Phase mass change | `eta>0.5` area change | Effective epsilon | 0.1-0.9 width |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Final exterior relaxation | 10 | -0.494% | +0.403% | 0.015389 | 0.033702 |
-| Final exterior relaxation | 20 | -2.307% | -1.048% | 0.015326 | 0.033531 |
-| Same AMR, exterior relaxation off | 10 | +0.513% | +0.645% | 0.015696 | 0.034102 |
-
-At `t=20`, the final run retained a compact `eta=0.1` contour and had no loop
-or lobe in the `eta=0.5` contour. The phase-mass loss is larger than the material
-area loss because the exterior relaxation intentionally removes diffuse trails.
-
-For comparison, a uniform-grid conservative run without exterior relaxation
-changed phase mass by approximately `1.3e-4` through `t=8`. This supports the
-conclusion that most earlier positive mass drift came from AMR transport and
-regridding rather than the conservative face flux.
-
-## Integrator Streamlining
-
-The LowMach hot path previously treated derived diagnostics as integration
-state. Every RK RHS and post-stage callback recomputed and ghost-filled
-momentum, total energy, vorticity, solid weight, deformation gradient,
-first-Piola stress, total Cauchy stress, and two nodal stress tensors. Most of
-those fields were never consumed by the evolution equations.
-
-The streamlined implementation now:
-
-- computes only density, mole fraction, and weighted cell solid stress in the
-  RHS;
-- keeps the required post-stage and post-projection reference-map passes;
-- removes the registered projection RHS scratch field and allocates it only
-  while the hierarchy projection is active;
-- uses one hierarchy-wide projection implementation for both single-level and
-  AMR runs; `projection.enabled` is now the only projection switch;
-- removes the two unused nodal stress fields, including the unnecessary nodal
-  restart field;
-- updates plot diagnostics through an integrator plot-preparation hook, so they
-  are current at initial, periodic, and final plot writes without being updated
-  on every timestep;
-- registers momentum, energy, vorticity, solid weight, `F`, first-Piola stress,
-  total Cauchy stress, and mole-fraction output only when
-  `diagnostics.extended_fields = 1`.
-
-The default registry is reduced from 23 cell fields plus 2 nodal fields to 15
-cell fields and no nodal fields. The compact plotfile retains velocity,
-temperature, mass fraction, `eta`, `xi`, density, pressure, pressure correction,
-and weighted solid deviatoric Cauchy stress. Set
-`diagnostics.extended_fields = 1` to recover the larger cell-diagnostic output
-set for focused analysis.
-
-On the 12-rank, 60-step AMR Couette-solid benchmark, wall time decreased from
-`6.14 s` to `5.47 s` without plot output. With the old and extended diagnostic
-plot sets enabled at step 60, wall time decreased from `6.28 s` to `5.58 s`.
-These short-run measurements indicate an approximately 11 percent speedup;
-startup and final I/O are included. A separate six-rank Couette run was active
-on the host during both measurements, so this is an indicative paired result,
-not a controlled performance benchmark.
-
-An AMReX plotfile comparison against the preserved pre-streamlining executable
-at step 60 found identical temperature, composition, and density. Maximum
-differences were approximately `3e-8` in `xi`, `1e-6` in `eta`, and `9e-8` in
-velocity, consistent with floating-point propagation through the parallel
-projection and stress kernels. A trial that removed RK post-stage or the second
-post-projection reference-map pass produced materially larger differences and
-was rejected.
-
-## Validation Performed
-
-- Clean 2D clang build passed.
-- 3D clang compilation passed; no full 3D solid run has been performed.
-- New mapped-distance and legacy `mapped_distance=0` paths passed one-step MPI
-  smoke tests.
-- The unified projection passed three-step MPI smoke tests with `max_level=0`
-  and `max_level=2`. Single-level velocity and divergence diagnostics matched
-  the preserved pre-unification executable through all three steps.
-- The selected AMR configuration was run through `t=20`.
-- The installed `bin/lowmach-2d-clang++` matches the selected tested build.
-- `git diff --check` passes.
-
-The selected `t=20` plotfile is under:
+Conservative scalar advection and the collocated projection still accumulate a
+small split volume error. In mixed-phase cases only, the projection therefore
+adds the standard one-step discrepancy correction
 
 ```text
-/tmp/alamo-phase-outer-local-reinit-100-amr-t20-cont-20260714/05000cell
+V = alpha_g + eta_deformable + eta_rigid
+S_discrepancy = (V-1) / (dt * max(V,0.1)).
 ```
+
+Scoping this correction to mixed-phase cases was necessary: applying it to a
+pure gas slightly changed the small transverse velocity in the driven-cavity
+regression without solving a relevant problem there.
+
+The present heat-capacity treatment is still approximate. Condensed material
+contributes `rho_condensed * cp_gas` because no condensed-species heat-capacity
+model exists yet. The volume and source weighting are structurally correct,
+but quantitatively accurate combustion/regression will require per-species
+condensed thermodynamics and phase-change enthalpy.
+
+## Verified Results
+
+The following results were checked on 2026-07-20 with the 2D clang build.
+
+| Case | Configuration | Result |
+| --- | --- | --- |
+| `LMDrivenCavity` | Re=100, AMR levels 0-1, serial | Run and reference-profile check passed |
+| `LMDrivenCavity` | Re=100, AMR levels 0-1, MPI 2 | Run and reference-profile check passed |
+| `LowMachChemistry` | 29-reaction H2/O2, explicit, MPI 2, AMR | Product, positivity, pressure, and AMR checks passed |
+| `LowMachChemistry` | Same case, implicit with 10x flow timestep | Product, positivity, pressure, and AMR checks passed |
+| `input.lm.ap_htpb` | MPI 2, AMR levels 0-3 | Reached 100.041 microseconds in 895 steps |
+
+Final AP/HTPB metrics were:
+
+```text
+flow timestep            84.76 ns
+maximum temperature      1687.95 K
+maximum speed            8.88 m/s
+mixture volume range     0.942 to 1.050
+eta_rigid at Tmax        5.5e-17
+minimum partial density  0.0
+```
+
+The maximum temperature moved out of the diffuse solid boundary and was in
+pure gas by 20 microseconds. At 20.028 microseconds, serial and two-rank fields
+agreed to at most approximately `2.3e-14` relative for velocity, temperature,
+eta, and the checked partial densities.
+
+The full pseudocolor result and timestep/volume history are in
+`reports/lowmach_stress/lowmach_report.html`. When its local server is active,
+the report is available at `http://127.0.0.1:8765/lowmach_report.html`.
+
+Useful regression commands are:
+
+```bash
+./scripts/runtests.py tests/LMDrivenCavity \
+  --sections 2d-amr 2d-amr-parallel --comp clang++ --no-clean --no-backspace
+
+./scripts/runtests.py tests/LowMachChemistry \
+  --sections 2d 2d-implicit --comp clang++ --no-clean --no-backspace
+```
+
+## Historical Findings Still Relevant
+
+- Do not reintroduce integrator-local state `FillPatch`, average-down, or
+  regridding implementations without first demonstrating a missing framework
+  operation. Several coarse/fine zeroing and asymmetric high-face failures came
+  from competing state-management paths.
+- Velocity is genuinely cell centered in the current branch. Treating nodal
+  velocity as cell centered caused high-side stencil omissions; trying to make
+  every downstream operator nodal produced a much larger inconsistent system.
+- A hierarchy-wide projection is required. Independent level solves produced
+  coarse/fine diffusion and vorticity errors.
+- Hard resetting or snapping `xi` creates artificial gradients. Reconstruction
+  must extend material history continuously into the diffuse exterior.
+- A sharp stress cutoff at `eta=0.5` creates a stress jump. Stress evaluation
+  and mechanical weighting are separate: evaluate on the reconstructed
+  extension, then apply a smooth mechanical weight.
+- Applying full elastic Cauchy stress divergence alongside the pressure
+  projection double counts the pressure-like volumetric response. The current
+  explicit feedback is deviatoric only.
+- Lower elastic wave speeds, Newtonian viscosity, interface viscosity, WENO5,
+  and stress-map smoothing can damp symptoms, but none repairs an inconsistent
+  reference map or thermodynamic interface source.
+- The removed mapped-distance/counter-curvature reinitialization could preserve
+  a contour only by adding nonconservative exterior cleanup and still produced
+  corner-specific behavior. The current branch intentionally uses the simpler
+  Allen-Cahn mechanism instead.
+- The removed implicit elastic solve was not a general solve for arbitrary
+  constitutive models. Do not count it as implicit mechanics if revisiting that
+  direction.
 
 ## Remaining Risks And Next Steps
 
-1. Run the selected configuration through at least `t=50` and preferably the
-   configured `stop_time = 100`. Track phase mass, `eta>0.5` area, effective
-   epsilon, and corner positions to determine whether the `t=20` area loss
-   saturates or continues.
-2. Re-evaluate reference-map and stress diagnostics with the stabilized phase
-   boundary. The phase fix removes a major source of boundary motion, but it
-   does not prove that long-time `xi` degradation is eliminated.
-3. Add plot fields for `det(grad(xi))`, `J = det(F)`, `|grad(xi)-I|`, raw solid
-   stress, weighted solid stress, normal coherence, and exterior phase source.
-4. Quantify AMR cost from `amr.regrid_int = 50`. A larger interval may be safe
-   if `amr.n_error_buf` is increased enough to keep the full diffuse layer on
-   the finest level.
-5. Run a true 3D corner test. The 3D path compiles, but its 27-cell coherence
-   neighborhood has not been validated dynamically.
-6. Keep `eta.phase_field.exterior_reinitialization` explicit in production
-   inputs. It is non-conservative by design and should not be enabled silently.
+1. Add condensed-species heat capacities and phase-change enthalpies. The
+   present use of gas `cp` for the entire mixture is only a stabilizing first
+   model.
+2. Use one projected face-velocity field for both scalar fluxes and the
+   projection. The current one-step volume discrepancy correction leaves about
+   five percent pointwise volume error in the 100-microsecond AP/HTPB case.
+3. Revalidate `input.lm.couette_solid` and `input.lm` for long times after the
+   species, projection, and chemistry refactors. The most recent exhaustive
+   validation focused on pure flow and rigid-phase combustion.
+4. Quantify conservation across AMR regrids for each partial density, not only
+   serial/MPI agreement at a fixed time.
+5. Add a focused deformable-solid regression that checks reference-map
+   deformation, stress, and mechanical response rather than relying on visual
+   Couette output.
+6. Add a rigid-effusion regression that checks condensed mass loss, gas product
+   gain, and the prescribed rigid velocity.
+7. Generalize beyond one deformable solid and one shared reference map if
+   multiple mobile condensed bodies or phases are required.
+8. Generalize phase change to permit positive eta rates for condensation or
+   growth while preserving bounds and mass conservation.
+9. Add calibrated AP and HTPB surface kinetics. The current rate multipliers
+   intentionally accelerate regression for testing.
+10. Revisit the explicit elastic timestep only after the spatial stress and
+    reference-map discretizations have dedicated regressions. Damping cannot
+    remove the elastic wave CFL in general.
+11. Run and validate the complete method in 3D. Compilation alone is not a
+    mechanics, chemistry, or AMR validation.
+12. Keep the LowMach hot path compact. Diagnostics and temporary checks should
+    not become permanent state unless the evolution equations consume them.
 
-## Historical Observations Still Relevant
+## Working Conventions
 
-- Lower solid wave speeds improve explicit stability but do not remove the
-  diffuse-boundary failure mechanism.
-- Newtonian viscosity, including in the solid, damps velocity and stress
-  artifacts but is not a reference-map repair.
-- WENO5 advection helped somewhat but did not eliminate boundary artifacts.
-- Raw and weighted stress outputs must remain separate. A previous raw
-  first-Piola field showed an artificial cutoff because stress was evaluated
-  only where the solid weight was active.
-- Hard resetting `xi` or displacement-like fields creates artificial gradients.
-  Reconstruction should remain graded and should propagate material history
-  outward rather than snapping to identity.
-- Remapping the mechanical weight so `eta>=0.5` was fully solid was tested and
-  broke the current behavior. Do not reapply it without isolated diagnostics.
-
-## Working Assumptions
-
-- `input.lm.couette_solid` remains the primary debug case.
-- Use the 2D clang build unless explicitly testing dimensional behavior.
-- Preserve the current graded reference-map algorithm while evaluating the
-  phase fix; changing both again would make regressions difficult to attribute.
-- Do not add custom AMR prolongation, average-down, or boundary-fill logic
-  without first demonstrating a gap in AMReX's existing machinery.
-- The target remains a diffuse-boundary Eulerian-solid method, not a sharp
-  level-set rewrite.
+- Partial densities are the definitive species state.
+- `eta` is reconstructed from condensed partial density; do not independently
+  advect or snap it.
+- Distinguish physical terms from numerical processing. Reference-map repair
+  belongs in `Numeric::ReferenceMap`; constitutive behavior belongs in
+  `Model::Solid`; phase kinetics belongs in `Model::PhaseField` and
+  `Model::Mechanism`; projection setup belongs in `Operator::PressurePoisson`.
+- Prefer the existing Integrator and AMReX hierarchy communication machinery.
+- Keep pure-fluid behavior covered by `LMDrivenCavity` while changing mixed
+  mechanics or chemistry.
+- Keep explicit and implicit chemistry covered by `LowMachChemistry`.
+- The target remains a diffuse-boundary LowMach method, not a level-set rewrite.
