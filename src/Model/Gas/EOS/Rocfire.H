@@ -23,8 +23,18 @@ class Rocfire
 public:
     static constexpr const char* name = "rocfire";
 
+private:
+    Set::Scalar Tref = 0.0;
+
 public:
-    static void Parse(Rocfire & /*value*/, IO::ParmParse & /*pp*/) {}
+    template<typename THERMO>
+    static void Parse(Rocfire & value, IO::ParmParse & pp, const THERMO & thermo)
+    {
+        value.Tref = thermo.reference_temperature_species(0);
+        Util::Assert(INFO, TEST(std::isfinite(value.Tref) && value.Tref >= 0.0),
+            "EOS::Rocfire received an invalid reference temperature from ",
+            pp.getPrefix(), ": ", value.Tref);
+    }
 
 public:
     template<typename GAS>
@@ -35,8 +45,8 @@ public:
             int i, int j, int k, Set::Scalar /*rtol=1e-12*/) const
     {
         const Set::Scalar kinetic = 0.5 * (momentumx*momentumx + momentumy*momentumy) / density;
-        const Set::Scalar P = (E - kinetic) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
-        return P / density / gas.R(X, i, j, k);
+        return (E - kinetic) * (gas.gamma(Tguess, X, i, j, k) - 1.0)
+            / density / gas.R(X, i, j, k) + Tref;
     }
 
     template<typename GAS>
@@ -48,8 +58,8 @@ public:
     {
         const Set::Scalar kinetic =
             0.5 * (momentumx*momentumx + momentumy*momentumy + momentumz*momentumz) / density;
-        const Set::Scalar P = (E - kinetic) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
-        return P / density / gas.R(X, i, j, k);
+        return (E - kinetic) * (gas.gamma(Tguess, X, i, j, k) - 1.0)
+            / density / gas.R(X, i, j, k) + Tref;
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -71,8 +81,9 @@ public:
             Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        const Set::Scalar P = density * gas.R(X, i, j, k) * T;
-        return P / (gas.gamma(T, X, i, j, k) - 1.0) +
+        const Set::Scalar sensible_energy = density * gas.R(X, i, j, k) * (T - Tref)
+            / (gas.gamma(T, X, i, j, k) - 1.0);
+        return sensible_energy +
             0.5 * (momentumx*momentumx + momentumy*momentumy) / density;
     }
 
@@ -83,8 +94,9 @@ public:
             Set::Scalar T, Set::Patch<const Set::Scalar>& X,
             int i, int j, int k) const
     {
-        const Set::Scalar P = density * gas.R(X, i, j, k) * T;
-        return P / (gas.gamma(T, X, i, j, k) - 1.0) +
+        const Set::Scalar sensible_energy = density * gas.R(X, i, j, k) * (T - Tref)
+            / (gas.gamma(T, X, i, j, k) - 1.0);
+        return sensible_energy +
             0.5 * (momentumx*momentumx + momentumy*momentumy + momentumz*momentumz) / density;
     }
 };

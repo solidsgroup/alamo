@@ -53,6 +53,11 @@ public:
     }
 
 public:
+    Set::Scalar reference_temperature_species(int n) const
+    {
+        return Tref[n];
+    }
+
     Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
         // Specific heat (constant pressure), J/(kmol-K)

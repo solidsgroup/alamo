@@ -72,7 +72,7 @@ public:
         pp.select<Transport::Mixture_Averaged, Transport::Rocfire>("transport", value.transport, value.MW, value.thermo);
 
         // eos model
-        pp.select<EOS::CPG, EOS::TPG, EOS::Rocfire>("eos", value.eos);
+        pp.select<EOS::CPG, EOS::TPG, EOS::Rocfire>("eos", value.eos, value.thermo);
 
         value.rocfire = std::string(value.eos.model_name()) == "rocfire";
     }

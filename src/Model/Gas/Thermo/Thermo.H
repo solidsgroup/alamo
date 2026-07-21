@@ -37,6 +37,30 @@ public:
         return selected >= 0 ? names[selected] : "";
     }
 
+    // Reference temperature for a species. Models without an explicit
+    // reference temperature retain the historical zero-reference convention.
+    template<int I = 0>
+    AMREX_FORCE_INLINE
+    Set::Scalar reference_temperature_species(int n) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+            {
+                if constexpr (requires { std::get<I>(obj).reference_temperature_species(n); })
+                    return std::get<I>(obj).reference_temperature_species(n);
+                else
+                    return 0.0;
+            }
+            else
+                return reference_temperature_species<I+1>(n);
+        }
+        else {
+            Util::Abort(INFO, selected);
+            return NAN;
+        }
+    }
+
     template<int I = 0>
     AMREX_FORCE_INLINE
     Set::Scalar cp_mol(Set::Scalar T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const

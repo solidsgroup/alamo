@@ -34,7 +34,8 @@ public:
     static constexpr const char* name = "tpg";
 
 public:
-    static void Parse(TPG & /*value*/, IO::ParmParse & /*pp*/) {}
+    template<typename THERMO>
+    static void Parse(TPG & /*value*/, IO::ParmParse & /*pp*/, const THERMO & /*thermo*/) {}
 
     template<typename GAS>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE

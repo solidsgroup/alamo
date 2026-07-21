@@ -12,6 +12,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Gas/EOS/EOS.H"
+#include <array>
 #include <memory>
 
 namespace Model {
@@ -24,8 +25,38 @@ class CPG
 public:
     static constexpr const char* name = "cpg";
 
+private:
+    std::array<Set::Scalar, NSPECIES> cv_tref_mol = {};
+
 public:
-    static void Parse(CPG & /*value*/, IO::ParmParse & /*pp*/) {}
+    template<typename THERMO>
+    static void Parse(CPG & value, IO::ParmParse & /*pp*/, const THERMO & thermo)
+    {
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            const Set::Scalar Tref = thermo.reference_temperature_species(n);
+            const Set::Scalar cv_mol =
+                thermo.cp_mol_species(Tref, n) - Set::Constant::Rg;
+            Util::Assert(INFO, TEST(std::isfinite(Tref) && Tref >= 0.0),
+                "EOS::CPG received an invalid reference temperature for species ",
+                n, ": ", Tref);
+            Util::Assert(INFO, TEST(std::isfinite(cv_mol) && cv_mol > 0.0),
+                "EOS::CPG requires positive finite cv for species ", n, ": ", cv_mol);
+            value.cv_tref_mol[n] = cv_mol * Tref;
+        }
+    }
+
+private:
+    template<typename GAS>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar reference_internal_energy_mass(const GAS &gas,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
+    {
+        Set::Scalar reference_energy_mol = 0.0;
+        for (int n=0; n<NSPECIES; ++n)
+            reference_energy_mol += X(i,j,k,n) * cv_tref_mol[n];
+        return reference_energy_mol / gas.GetMW(X, i, j, k);
+    }
 
 public:
     template<typename GAS>
@@ -33,9 +64,12 @@ public:
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar /*rtol=1e-12*/) const
     {
-        Set::Scalar P = (E - 0.5*(momentumx*momentumx + momentumy*momentumy)/density) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
-        Set::Scalar T = P / density / gas.R(X, i, j, k);
-        return T;
+        const Set::Scalar kinetic =
+            0.5*(momentumx*momentumx + momentumy*momentumy)/density;
+        const Set::Scalar internal_energy = (E - kinetic) / density
+            + reference_internal_energy_mass(gas, X, i, j, k);
+        return internal_energy * (gas.gamma(Tguess, X, i, j, k) - 1.0)
+            / gas.R(X, i, j, k);
     }
 
     template<typename GAS>
@@ -43,9 +77,12 @@ public:
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, Set::Scalar /*rtol=1e-12*/) const
     {
-        Set::Scalar P = (E - 0.5*(momentumx*momentumx + momentumy*momentumy + momentumz*momentumz)/density) * (gas.gamma(Tguess, X, i, j, k) - 1.0);
-        Set::Scalar T = P / density / gas.R(X, i, j, k);
-        return T;
+        const Set::Scalar kinetic =
+            0.5*(momentumx*momentumx + momentumy*momentumy + momentumz*momentumz)/density;
+        const Set::Scalar internal_energy = (E - kinetic) / density
+            + reference_internal_energy_mass(gas, X, i, j, k);
+        return internal_energy * (gas.gamma(Tguess, X, i, j, k) - 1.0)
+            / gas.R(X, i, j, k);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -77,7 +114,9 @@ public:
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        return ComputeE(density, momentumx, momentumy, T, gas.R(X, i, j, k), gas.gamma(T, X, i, j, k));
+        return ComputeE(density, momentumx, momentumy, T, gas.R(X, i, j, k),
+            gas.gamma(T, X, i, j, k))
+            - density * reference_internal_energy_mass(gas, X, i, j, k);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -95,7 +134,9 @@ public:
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const
     {
-        return ComputeE(density, momentumx, momentumy, momentumz, T, gas.R(X, i, j, k), gas.gamma(T, X, i, j, k));
+        return ComputeE(density, momentumx, momentumy, momentumz, T, gas.R(X, i, j, k),
+            gas.gamma(T, X, i, j, k))
+            - density * reference_internal_energy_mass(gas, X, i, j, k);
     }
 
 }; // class CPG

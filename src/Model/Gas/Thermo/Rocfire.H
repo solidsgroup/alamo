@@ -78,6 +78,12 @@ public:
 
 public:
     AMREX_FORCE_INLINE
+    Set::Scalar reference_temperature_species(int /*n*/) const
+    {
+        return Tref;
+    }
+
+    AMREX_FORCE_INLINE
     Set::Scalar cp_mol(Set::Scalar /*T*/, Set::Patch<const Set::Scalar>& /*X*/, int /*i*/, int /*j*/, int /*k*/) const
     {
         return cp_mol_species(0.0, 0);
