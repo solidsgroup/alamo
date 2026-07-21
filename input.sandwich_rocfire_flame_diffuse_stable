@@ -34,7 +34,7 @@ amr.abort_on_nan = False
 ### OUTPUT ###
 plot_file = output.sandwich_rocfire_flame_global_temp
 #amr.plot_dt = 1e-4
-amr.plot_dt = 1e-6
+amr.plot_dt = 1e-7
 hydro.details = 1.0
 #amr.plot_int = 50
 
@@ -239,7 +239,7 @@ hydro.chemistry.rocfire.pressure_reference = 1_bar
 # fully resolve it in testing; combined with disabling the laser above it
 # survived >2x longer (9000+ steps, no abort) without diverging, but wasn't
 # run to a natural stopping point - treat this as a mitigation, not a fix.
-hydro.chemistry.rocfire.nsubsteps = 20
+hydro.chemistry.rocfire.nsubsteps = 2
 
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
@@ -339,8 +339,8 @@ hydro.solid.momentum.ic.expression.region1 = "0.0"
 hydro.solid.energy.ic.type = expression
 hydro.solid.energy.ic.expression.constant.P = 2026500 # 20 atm
 hydro.solid.energy.ic.expression.constant.R = 319.787
-hydro.solid.energy.ic.expression.constant.T = 700.0
-hydro.solid.energy.ic.expression.constant.T_final = 3000.0
+hydro.solid.energy.ic.expression.constant.T = 300.0
+hydro.solid.energy.ic.expression.constant.T_final = 1000.0
 hydro.solid.energy.ic.expression.constant.T0 = 298.15
 hydro.solid.energy.ic.expression.constant.cv = 935.413
 hydro.solid.energy.ic.expression.region0 = "(P/R/830.0 * cv*(830.0-T0) + 0.5*5.3235^2/(P/R/830.0)) * (0.5 - 0.5*erf((abs(x)-0.0002)/1.0e-5)) + (P/R/889.0 * cv*(889.0-T0) + 0.5*2.6404^2/(P/R/889.0)) * (0.5 + 0.5*erf((abs(x)-0.0002)/1.0e-5))"
