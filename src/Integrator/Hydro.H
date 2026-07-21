@@ -96,6 +96,11 @@ protected:
 protected:
     void RefreshDerivedPlotFields(int lev);
     void ApplyCutoffToConserved(int lev, amrex::MultiFab& rho_mf, amrex::MultiFab& M_mf, amrex::MultiFab& E_mf, bool include_ghost = false, bool use_old_eta = false);
+    // Advances solid.energy_mf using its own domain-wide conduction physics,
+    // driven by the shared/unified temperature_mf (the previous step's value -
+    // this is Hydro's sole authority over solid.energy_mf; nothing else writes
+    // to it after the initial IC seeding in Flame::UpdateFluxes).
+    void AdvanceSolidEnergy(int lev, Set::Scalar time, Set::Scalar dt);
 
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf,
@@ -139,6 +144,9 @@ protected:
         // T = T_ref_energy + energy_mf/(rho_phys_mf*cp_mf) in the solid region.
         Set::Field<Set::Scalar> rho_phys_mf;
         Set::Field<Set::Scalar> cp_mf;
+        // Physical solid thermal conductivity (propellant.get_K(phi)), filled by
+        // Flame::UpdateFluxes every step - drives AdvanceSolidEnergy's conduction.
+        Set::Field<Set::Scalar> k_mf;
         IC::IC<Set::Scalar>* density_ic   = nullptr;
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;

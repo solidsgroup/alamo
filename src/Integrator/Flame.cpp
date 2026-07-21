@@ -523,6 +523,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidE    = Hydro::solid.energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidRhoPhys = Hydro::solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidCp   = Hydro::solid.cp_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidK    = Hydro::solid.k_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Xfrac     = Hydro::mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Yfrac     = Hydro::mass_fraction_mf.Patch(lev,mfi);
@@ -603,7 +604,18 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Scalar cp_solid = propellant.get_cp(phi);
             solidRhoPhys(i,j,k) = rho_solid_phys;
             solidCp(i,j,k) = cp_solid;
-            solidE(i,j,k) = rho_solid_phys * cp_solid * (temp(i,j,k) - T_ref_energy);
+            solidK(i,j,k) = propellant.get_K(phi);
+
+            // solid.energy_mf is seeded here ONLY at initialization (dt<=0, the
+            // Initialize() call). After that, Hydro::AdvanceSolidEnergy is the sole
+            // owner of its time evolution (domain-wide conduction driven by the
+            // shared temperature_mf) - overwriting it here every step, as before,
+            // would fight that update and reopen the Flame<->Hydro feedback loop
+            // that caused the earlier blowup.
+            if (dt <= 0.0)
+            {
+                solidE(i,j,k) = rho_solid_phys * cp_solid * (temp(i,j,k) - T_ref_energy);
+            }
 
             // Physical gas ejection speed from mass conservation across the
             // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
@@ -800,6 +812,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
     const Set::Scalar* DX = geom[lev].CellSize();
 
+    // When hydro is actually driving this step, the shared Hydro::temperature_mf
+    // (evolved by the global conduction operator) is the kinetics T source and
+    // Flame's own standalone thermal solver (temp_mf/temps_mf diffusion) is
+    // retired. Standalone thermal-only runs (hydro off, or before hydro.tstart)
+    // keep the legacy Flame-only path.
+    const bool hydro_active = hydro.on && time >= hydro.tstart;
+
     std::swap(eta_old_mf[lev], eta_mf[lev]);
 
     //
@@ -838,6 +857,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
         // Heat transfer fields
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp_hydro = Hydro::temperature_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
         // Diagnostic fields
@@ -849,10 +869,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
+        bool hydro_active_local = hydro_active;
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
+        {
 
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             grad_eta_mag(i,j,k) = grad_eta.lpNorm<2>();
@@ -861,7 +882,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
             Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-            Set::Scalar T = thermal.on ? temp(i,j,k) : NAN;
+            Set::Scalar T = !thermal.on ? NAN : (hydro_active_local ? temp_hydro(i,j,k) : temp(i,j,k));
 
             Set::Scalar K = propellant.get_K(phi_avg);
 
@@ -909,16 +930,22 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
                 //
             
-                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
+                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
 
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
                 //
+                // Only needed for Flame's own legacy solid diffusion loop below -
+                // once hydro is driving T, the FullFeedback surrogate feedback
+                // heat flux is superseded by real conduction into the solid
+                // (Hydro::AdvanceSolidEnergy), so this stand-in is skipped.
+                if (!hydro_active_local)
+                {
+                    Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
+                    heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+                }
 
-                Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
-                heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
-
-                if (temp(i,j,k) > Tcutoff)
+                if (T > Tcutoff)
                 {
                     exceeded_Tcutoff(i,j,k) = 1;
                 }
@@ -932,8 +959,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     //
     // THERMAL TRANSPORT
-    // 
-    if (thermal.on)
+    //
+    // Retired once hydro is driving the temperature field: Hydro::AdvanceSolidEnergy
+    // now owns the solid's conduction (informed by the shared, domain-wide
+    // temperature_mf), so Flame's private single-phase diffusion loop would be
+    // redundant - and reading its own temp_mf back into solid.energy every step
+    // is exactly the feedback loop that previously caused a blowup. Kept only for
+    // standalone thermal-only runs (no hydro coupling active yet).
+    if (thermal.on && !hydro_active)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
 
@@ -987,13 +1020,18 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
+    // Once hydro is driving the temperature, refinement criteria should follow
+    // the shared/unified field it evolves, not Flame's own retired temp_mf.
+    const bool hydro_active = hydro.on && time >= hydro.tstart;
+    Set::Field<Set::Scalar>& temp_field = hydro_active ? Hydro::temperature_mf : temp_mf;
+
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_field.Patch(lev,mfi);
 
         if (thermal.on) {
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1031,13 +1069,13 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     }
 
 
-    // Thermal criterion for refinement 
+    // Thermal criterion for refinement
     if (thermal.on) {
-        for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(*temp_field[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
-            Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> temp = temp_field.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
