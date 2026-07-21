@@ -524,6 +524,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidRhoPhys = Hydro::solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidCp   = Hydro::solid.cp_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidK    = Hydro::solid.k_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidLaser = Hydro::solid.laser_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> laser = laser_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Xfrac     = Hydro::mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Yfrac     = Hydro::mass_fraction_mf.Patch(lev,mfi);
@@ -605,6 +607,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             solidRhoPhys(i,j,k) = rho_solid_phys;
             solidCp(i,j,k) = cp_solid;
             solidK(i,j,k) = propellant.get_K(phi);
+            solidLaser(i,j,k) = laser(i,j,k);
 
             // solid.energy_mf is seeded here ONLY at initialization (dt<=0, the
             // Initialize() call). After that, Hydro::AdvanceSolidEnergy is the sole

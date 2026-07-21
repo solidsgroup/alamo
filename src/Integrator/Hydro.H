@@ -147,6 +147,10 @@ protected:
         // Physical solid thermal conductivity (propellant.get_K(phi)), filled by
         // Flame::UpdateFluxes every step - drives AdvanceSolidEnergy's conduction.
         Set::Field<Set::Scalar> k_mf;
+        // Laser heat flux (W/m^2), copied from Flame::laser_mf every step -
+        // AdvanceSolidEnergy localizes it to the interface via |grad(solid
+        // fraction)| the same way the retired Flame diffusion loop did.
+        Set::Field<Set::Scalar> laser_mf;
         IC::IC<Set::Scalar>* density_ic   = nullptr;
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;

@@ -355,6 +355,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.rho_phys_mf, value.neumann_bc_1, 1, nghost, "solid.rho_phys", true, false);
         value.RegisterNewFab(value.solid.cp_mf,       value.neumann_bc_1, 1, nghost, "solid.cp",       true, false);
         value.RegisterNewFab(value.solid.k_mf,        value.neumann_bc_1, 1, nghost, "solid.k",        true, false);
+        value.RegisterNewFab(value.solid.laser_mf,    value.neumann_bc_1, 1, nghost, "solid.laser",    true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+AMREX_SPACEDIM+1, 0, "Source", true, false);
 
@@ -744,6 +745,7 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
         Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> cp_solid  = solid.cp_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> alpha     = alpha_solid_mf.array(mfi);
+        Set::Patch<const Set::Scalar> laser     = solid.laser_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -769,6 +771,12 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
             dTsolid_dt += phi_s * alpha(i,j,k) * lap_T;
 
             Set::Scalar dEsolid_dt = rho_phys(i,j,k) * cp_solid(i,j,k) * dTsolid_dt;
+
+            // Laser flux (W/m^2) is localized to the regressing interface via
+            // |grad(solid fraction)| (1/m), giving a volumetric source (W/m^3) -
+            // same convention as the retired Flame loop's alpha*heatflux*grad_eta_mag.
+            dEsolid_dt += laser(i,j,k) * grad_phis.lpNorm<2>();
+
             E_solid(i,j,k) += dt * dEsolid_dt;
         });
     }
@@ -807,6 +815,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     neumann_bc_1->FillBoundary(*solid.rho_phys_mf[lev], 0, 1, time, 0);
     neumann_bc_1->FillBoundary(*solid.cp_mf[lev], 0, 1, time, 0);
     neumann_bc_1->FillBoundary(*solid.k_mf[lev], 0, 1, time, 0);
+    neumann_bc_1->FillBoundary(*solid.laser_mf[lev], 0, 1, time, 0);
 
     // Hydro is the sole owner of solid.energy_mf's time evolution: this reads the
     // still-previous-step temperature_mf (not yet touched this Advance call) so
@@ -1184,6 +1193,7 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     neumann_bc_1->FillBoundary(*solid.rho_phys_mf[lev], 0, 1, time, 0);
     neumann_bc_1->FillBoundary(*solid.cp_mf[lev], 0, 1, time, 0);
     neumann_bc_1->FillBoundary(*solid.k_mf[lev], 0, 1, time, 0);
+    neumann_bc_1->FillBoundary(*solid.laser_mf[lev], 0, 1, time, 0);
     ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
 
     // The solid caloric energy datum must match whichever gas EOS is active (see
