@@ -132,6 +132,13 @@ protected:
         Set::Field<Set::Scalar> density_mf;
         Set::Field<Set::Scalar> momentum_mf;
         Set::Field<Set::Scalar> energy_mf;
+        // Physical solid density/specific heat (e.g. from propellant.get_rho_ap/htpb(),
+        // get_cp(phi)), filled by a managed integrator (Flame::UpdateFluxes) every step.
+        // Distinct from density_mf, which is the tame Riemann-blend density scale -
+        // these drive the physically meaningful caloric temperature inversion
+        // T = T_ref_energy + energy_mf/(rho_phys_mf*cp_mf) in the solid region.
+        Set::Field<Set::Scalar> rho_phys_mf;
+        Set::Field<Set::Scalar> cp_mf;
         IC::IC<Set::Scalar>* density_ic   = nullptr;
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;

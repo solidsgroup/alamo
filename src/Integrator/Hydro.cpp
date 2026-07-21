@@ -352,6 +352,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, AMREX_SPACEDIM, nghost, "solid.momentum", true, false, vector_suffix);
         value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
+        value.RegisterNewFab(value.solid.rho_phys_mf, value.neumann_bc_1, 1, nghost, "solid.rho_phys", true, false);
+        value.RegisterNewFab(value.solid.cp_mf,       value.neumann_bc_1, 1, nghost, "solid.cp",       true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+AMREX_SPACEDIM+1, 0, "Source", true, false);
 
@@ -885,6 +887,11 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 {
     BL_PROFILE("Integrator::Hydro::RefreshDerivedPlotFields");
 
+    // See Hydro::RHS for why this datum must match the active gas EOS.
+    const Set::Scalar T_ref_energy =
+        (std::string(gas.eos.model_name()) == "tpg")
+            ? Model::Gas::EOS::sensible_reference_temperature : 0.0;
+
     const Set::Scalar* DX = geom[lev].CellSize();
     const amrex::Box domain = geom[lev].Domain();
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
@@ -899,6 +906,8 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> cp_solid  = solid.cp_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> v               = velocity_mf.Patch(lev,mfi);
@@ -960,12 +969,22 @@ void Hydro::RefreshDerivedPlotFields(int lev)
             for (int n=0; n<NSPECIES; ++n) scratch(i,j,k,n) = rhoY_fluid[n];
 
             Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
-            #if AMREX_SPACEDIM == 2
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
-            #elif AMREX_SPACEDIM == 3
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, E_fluid, T(i,j,k), X, i, j, k);
-            #endif
-            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+            if (eta <= eta_cutoff)
+            {
+                // Solid caloric inversion - see Hydro::RHS for details. Flux-facing
+                // p(i,j,k) is intentionally left as the already-prescribed local gas
+                // pressure rather than re-derived from this real T (see Hydro::RHS).
+                T(i,j,k) = T_ref_energy + E_fluid / (rho_phys(i,j,k) * cp_solid(i,j,k) + small);
+            }
+            else
+            {
+                #if AMREX_SPACEDIM == 2
+                T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+                #elif AMREX_SPACEDIM == 3
+                T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, E_fluid, T(i,j,k), X, i, j, k);
+                #endif
+                p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+            }
             v(i,j,k,0) = Mx_fluid / density_fluid;
             v(i,j,k,1) = My_fluid / density_fluid;
             #if AMREX_SPACEDIM == 3
@@ -1061,7 +1080,15 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     neumann_bc_N->FillBoundary(*solid.density_mf[lev], 0, NSPECIES, time, 0);
     neumann_bc_D->FillBoundary(*solid.momentum_mf[lev], 0, AMREX_SPACEDIM, time, 0);
     neumann_bc_1->FillBoundary(*solid.energy_mf[lev], 0, 1, time, 0);
+    neumann_bc_1->FillBoundary(*solid.rho_phys_mf[lev], 0, 1, time, 0);
+    neumann_bc_1->FillBoundary(*solid.cp_mf[lev], 0, 1, time, 0);
     ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
+
+    // The solid caloric energy datum must match whichever gas EOS is active (see
+    // Flame::UpdateFluxes for why); look it up once here rather than per cell.
+    const Set::Scalar T_ref_energy =
+        (std::string(gas.eos.model_name()) == "tpg")
+            ? Model::Gas::EOS::sensible_reference_temperature : 0.0;
 
     int nghost = flux_scheme == FluxScheme::Advect ? advect.NGhost() : 1;
     int primitive_nghost = nghost < 2 ? nghost : 2;
@@ -1170,6 +1197,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> cp_solid  = solid.cp_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 
@@ -1270,12 +1299,29 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             E_fluid(i,j,k) = Ef_fluid;
 
             Set::Scalar density_fluid = gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
-            #if AMREX_SPACEDIM == 2
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
-            #elif AMREX_SPACEDIM == 3
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
-            #endif
-            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+            if (eta <= eta_cutoff)
+            {
+                // Solid caloric inversion: uses the physical solid density/cp
+                // (propellant-derived), NOT density_fluid (the tame Riemann-blend
+                // solid.density used for the flux state below) - see
+                // Flame::UpdateFluxes for why the two densities differ.
+                T(i,j,k) = T_ref_energy + Ef_fluid / (rho_phys(i,j,k) * cp_solid(i,j,k) + small);
+                // Do NOT derive the flux-facing pressure from this real T via
+                // gas.ComputeP(density_fluid, T,...): density_fluid here is the tame
+                // solid.density, so real-T * tame-density no longer lands on the
+                // local gas pressure (that was the whole point of the original t=0
+                // pressure-spike fix). Leave p(i,j,k) as the already-prescribed local
+                // gas pressure instead of re-deriving it from the solid's EOS state.
+            }
+            else
+            {
+                #if AMREX_SPACEDIM == 2
+                T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
+                #elif AMREX_SPACEDIM == 3
+                T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, Mz_fluid, Ef_fluid, T(i,j,k), X, i, j, k);
+                #endif
+                p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+            }
 
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;

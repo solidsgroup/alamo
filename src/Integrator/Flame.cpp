@@ -340,6 +340,31 @@ void Flame::Initialize(int lev)
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
+    // thermal.on must be populated before Hydro::Initialize/UpdateFluxes runs below:
+    // UpdateFluxes now reads temp_mf to build the physically meaningful solid.energy
+    // (rho_phys*cp*(T-T_ref)), so temp_mf needs its IC value first, or solid.energy
+    // gets built from a stale/zero temperature.
+    if (thermal.on) {
+        if (thermal.ic_temp)
+        {
+            thermal.ic_temp->Initialize(lev,temp_mf);
+            thermal.ic_temp->Initialize(lev,temp_old_mf);
+            thermal.ic_temp->Initialize(lev,temps_mf);
+        }
+        else
+        {
+            temp_mf[lev]->setVal(thermal.Tref);
+            temp_old_mf[lev]->setVal(thermal.Tref);
+            temps_mf[lev]->setVal(thermal.Tref);
+        }
+        alpha_mf[lev]->setVal(0.0);
+        mdot_mf[lev]->setVal(0.0);
+        heatflux_mf[lev]->setVal(0.0);
+	deta_dt_mf[lev]->setVal(0.0);
+        L_mf[lev]->setVal(0.0);
+        ic_laser->Initialize(lev, laser_mf);
+    }
+
     if (hydro.on)
     {
         Hydro::Initialize(lev);
@@ -371,26 +396,6 @@ void Flame::Initialize(int lev)
 
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
-    }
-    if (thermal.on) {
-        if (thermal.ic_temp)
-        {
-            thermal.ic_temp->Initialize(lev,temp_mf);
-            thermal.ic_temp->Initialize(lev,temp_old_mf);
-            thermal.ic_temp->Initialize(lev,temps_mf);
-        }
-        else
-        {
-            temp_mf[lev]->setVal(thermal.Tref);
-            temp_old_mf[lev]->setVal(thermal.Tref);
-            temps_mf[lev]->setVal(thermal.Tref);
-        }
-        alpha_mf[lev]->setVal(0.0);
-        mdot_mf[lev]->setVal(0.0);
-        heatflux_mf[lev]->setVal(0.0);
-	deta_dt_mf[lev]->setVal(0.0);
-        L_mf[lev]->setVal(0.0);
-        ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
 }
@@ -494,6 +499,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     domain.convert(amrex::IntVect::TheNodeVector());
     const Set::Scalar* DX = geom[lev].CellSize();
 
+    // Solid caloric energy must share the gas EOS's internal-energy datum, or the
+    // mixed E = eta*E_fluid + (1-eta)*E_solid has a spurious jump at the interface.
+    // This datum differs by EOS model: CPG/Rocfire define E=0 at absolute zero, but
+    // TPG defines E=0 at its sensible_reference_temperature (298.15 K). Look up which
+    // EOS is actually selected at runtime rather than assuming one.
+    const Set::Scalar T_ref_energy =
+        (std::string(gas.eos.model_name()) == "tpg")
+            ? Model::Gas::EOS::sensible_reference_temperature : 0.0;
+
     for (MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
@@ -507,9 +521,12 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidE    = Hydro::solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidRhoPhys = Hydro::solid.rho_phys_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidCp   = Hydro::solid.cp_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Xfrac     = Hydro::mole_fraction_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Yfrac     = Hydro::mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> grad_eta_mag = eta_grad_mag_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> deta_dt = deta_dt_mf.Patch(lev,mfi);
@@ -573,15 +590,20 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
                 density_solid_tot += solidrho(i,j,k,n);
             }
 
-            // DEBUG: temporarily disabled to isolate whether solid-energy
-            // pressure-matching (vs. the density-scale change) is the source
-            // of the step-2 instability.
-            // gas.ComputeLocalFractions(solidrho, Yfrac, Xfrac, i, j, k);
-            // Set::Scalar R_solid = gas.R(Xfrac, i, j, k);
-            // Set::Scalar T_target = p(i,j,k) / (density_solid_tot * R_solid);
-            // solidE(i,j,k) = gas.ComputeE(density_solid_tot,
-            //                               solidM(i,j,k,0), solidM(i,j,k,1),
-            //                               T_target, Xfrac, i, j, k);
+            // Solid caloric energy: a real (incompressible) thermal mass, using the
+            // physical propellant densities/cp - NOT the tame hydro.rho_ap/rho_htpb
+            // used for solidrho's Riemann blend above - so the energy is physically
+            // meaningful and can drive global heat conduction (T comes from the
+            // shared temp field, updated by Hydro's conduction operator).
+            // T_ref_energy (computed once above from the active EOS) keeps this
+            // consistent with the gas energy datum - NOT thermal.Tref (that's the
+            // elastic zero-strain reference). T itself stays absolute Kelvin
+            // throughout; only the energy datum is offset.
+            Set::Scalar rho_solid_phys = propellant.get_rho_ap()*phi + propellant.get_rho_htpb()*(1.0-phi);
+            Set::Scalar cp_solid = propellant.get_cp(phi);
+            solidRhoPhys(i,j,k) = rho_solid_phys;
+            solidCp(i,j,k) = cp_solid;
+            solidE(i,j,k) = rho_solid_phys * cp_solid * (temp(i,j,k) - T_ref_energy);
 
             // Physical gas ejection speed from mass conservation across the
             // regressing surface: rho_solid*c = rho_gas*u0 => u0 = c*rho_solid/rho_gas.
