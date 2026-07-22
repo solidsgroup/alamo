@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import sys
+import glob
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+reference = None
+if len(sys.argv)>2:
+    reference = sys.argv[2]
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+print("Ouput directory:",path)
+print("Specified reference file",reference)
+
+# Compare the unified Hydro temperature field along a ray through the solid
+# (y<0) at the end of the run. The reference values are the analytical
+# Robin/convective-boundary solution (see generate_reference.py and
+# Readme.rst), not a snapshot of a previous simulation - this checks the
+# solver against a known solution rather than against its own history.
+testlib.validate(path=path,
+                 outdir=outdir,
+                 start=[2.0e-8,-5.0e-7,0],
+                 end=[2.0e-8,0.0,0],
+                 vars=["temperature"],
+                 # The diffuse interface (finite width eps) inherently departs
+                 # from the analytical solution's idealized infinitely-sharp
+                 # boundary within a few eps of y=0 (see Readme.rst) - this
+                 # tolerance accommodates that expected gap while still
+                 # failing hard on an actually broken conduction operator.
+                 tolerance=0.25,
+                 abs_tolerance=1E100,
+                 coord='y',
+                 generate_ref_data = False,
+                 reference=reference)
+exit(0)

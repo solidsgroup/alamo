@@ -1,0 +1,267 @@
+#@ [2d-serial]
+#@ dim = 2
+#@ check = true
+#@ check-file = reference/reference-2d.csv
+#@
+
+### Solid/gas thermal contact regression test ###
+#
+# A static (frozen, non-burning) flat interface at y=0 between cold solid
+# (y<0, T_i=300K) and hot gas (y>0, T_gas=1000K). This isolates
+# Hydro::AdvanceSolidEnergy - the operator that conducts heat across the
+# diffuse solid/gas interface - from everything else in the Flame/Hydro
+# coupling (no combustion, no interface motion, no chemistry). See
+# Readme.rst for the physics and the analytical solution this is checked
+# against; see generate_reference.py for how reference/reference-2d.csv
+# was produced.
+
+alamo.program = flame
+system.time = s
+
+allow_unused = True
+
+amr.max_level = 0
+amr.n_cell = 4 100 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.cell.all = 1
+amr.abort_on_nan = False
+
+plot_file = tests/SCPThermalContact/output
+amr.plot_int = 8000
+hydro.details = 0.0
+
+timestep  = 2.0e-12_s
+stop_time = 1.6e-8_s
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m -5.0e-7_m 0.0
+geometry.prob_hi = 4.0e-8_m 5.0e-7_m 0.0
+geometry.is_periodic = 1 0 0
+
+small = 1.0e-8
+pf.eps = 5.0e-8_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+
+# Diffuse interface at y=0 - solid (y<0) to gas (y>0). This eps (the
+# interface's diffuse width) sets the heat transfer coefficient h in the
+# analytical comparison - see Readme.rst.
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.eps = 5.0e-8
+pf.eta.ic.expression.constant.y0 = 0.0
+pf.eta.ic.expression.region0 = "1-(0.5 + 0.5*erf((y-y0)/eps))"
+
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = periodic
+pf.eta.bc.constant.type.xhi = periodic
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+# Pure AP everywhere - single, known solid material (alpha, k known exactly).
+phi.ic.type = constant
+phi.ic.constant.value = 1.0
+
+propellant.type = fullfeedback
+propellant.fullfeedback.m_ap      = 1.45e5_m/s
+propellant.fullfeedback.m_htpb    = 1.4e1_m/s
+propellant.fullfeedback.E_ap      = 11000.0_K
+propellant.fullfeedback.E_htpb    = 7500.0_K
+propellant.fullfeedback.rho_ap      =  1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb    =   920.0_kg/m^3
+propellant.fullfeedback.k_ap        =  0.4186_W/m/K
+propellant.fullfeedback.k_htpb      =  0.1300_W/m/K
+propellant.fullfeedback.cp_ap       = 1297.90_J/kg/K
+propellant.fullfeedback.cp_htpb     = 2418.29_J/kg/K
+propellant.fullfeedback.mlocal_ap   =  1000.0_kg/m^3/s
+propellant.fullfeedback.mlocal_comb =     0.0_kg/m^3/s
+propellant.fullfeedback.a1       =    1.114_1
+propellant.fullfeedback.a2       =    0.460_1
+propellant.fullfeedback.a3       =    2.797_1
+propellant.fullfeedback.b1       =    0.323_1
+propellant.fullfeedback.b2       =    0.420_1
+propellant.fullfeedback.b3       =   0.3225_1
+propellant.fullfeedback.c1       = -0.09906_1
+propellant.fullfeedback.phi.zeta =     20.0_um
+propellant.fullfeedback.Pref     =      1.0_MPa
+# Freeze phase-field kinetics entirely - eta/m0/u0 stay exactly at the IC
+# forever, so the interface never moves and no combustion mass/energy
+# source ever fires; this isolates AdvanceSolidEnergy's conduction alone.
+propellant.fullfeedback.bound    = 1.0e6_K
+chamber.pressure = 2.0_MPa
+
+thermal.on = 1
+thermal.Tref = 0.0_K
+thermal.Tcutoff = 0.0_K
+
+# Sharp step (not the diffuse eta profile above) - the analytical solution
+# being checked against assumes a solid that starts uniformly at T_i, with
+# the diffuse conduction physics (not the initial condition) responsible for
+# developing the profile near the interface.
+temp.ic.type = expression
+temp.ic.expression.constant.Ti = 300.0
+temp.ic.expression.constant.Tg = 1000.0
+temp.ic.expression.constant.eps = 1.0e-9
+temp.ic.expression.constant.y0 = 0.0
+temp.ic.expression.region0 = "Ti + (Tg-Ti)*0.5*(1+erf((y-y0)/eps))"
+
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = periodic
+thermal.temp.bc.constant.type.xhi = periodic
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = neumann
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0
+thermal.temp.bc.constant.val.zhi = 0.0
+thermal.hc = 1.0e7_W/m^2
+
+laser.ic.type = expression
+laser.ic.expression.constant.qflux0 = 0.0_W/m^2
+laser.ic.expression.region0 = "0.0"
+
+hydro.rho_ap = 10.0
+hydro.rho_htpb = 7.0
+
+hydro.solver.type = hllc
+hydro.on = 1
+hydro.tstart = 0.0
+
+# Simple constant-cp ideal gas (single active species) - gamma is known
+# exactly, so the sound speed (and hence a stable fixed dt) can be
+# calculated in advance instead of guessed from a temperature-dependent model.
+system.amount = kmol
+hydro.gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
+
+hydro.gas.thermo.type = cpconstant
+hydro.gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K 29.1_J/mol/K 29.1_J/mol/K 29.1_J/mol/K 29.1_J/mol/K 29.1_J/mol/K
+hydro.gas.thermo.cpconstant.h0 = 0.0 0.0 0.0 0.0 0.0 0.0
+hydro.gas.thermo.cpconstant.s0 = 0.0 0.0 0.0 0.0 0.0 0.0
+hydro.gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K 0.0_K
+
+hydro.gas.transport.type = mixture_averaged
+hydro.gas.transport.mixture_averaged.type = constant
+hydro.gas.transport.mixture_averaged.mu = 1740E-7_g/cm/s 1740E-7_g/cm/s 1740E-7_g/cm/s 1740E-7_g/cm/s 1740E-7_g/cm/s 1740E-7_g/cm/s
+hydro.gas.transport.mixture_averaged.k  = 554e-7_cal/cm/s/K 554e-7_cal/cm/s/K 554e-7_cal/cm/s/K 554e-7_cal/cm/s/K 554e-7_cal/cm/s/K 554e-7_cal/cm/s/K
+
+hydro.gas.eos.type = cpg
+
+elastic.type = disable
+
+# No reactions - pure conduction test.
+hydro.chemistry.type = frozen
+
+hydro.cfl   = 0.4
+hydro.cutoff = 0.01
+hydro.lagrange = 0.0
+
+hydro.m0.ic.type = expression
+hydro.m0.ic.expression.region0 = "0.0"
+hydro.m0.ic.expression.region1 = "0.0"
+hydro.m0.ic.expression.region2 = "0.0"
+hydro.m0.ic.expression.region3 = "0.0"
+hydro.m0.ic.expression.region4 = "0.0"
+hydro.m0.ic.expression.region5 = "0.0"
+
+hydro.u0.ic.type = expression
+hydro.u0.ic.expression.region0 = "0.0"
+hydro.u0.ic.expression.region1 = "0.0"
+
+hydro.q.ic.type = expression
+hydro.q.ic.expression.region0 = "0.0"
+hydro.q.ic.expression.region1 = "0.0"
+
+# Isobaric ideal-gas density profile matching temp.ic - keeps the initial
+# state pressure-consistent (no spurious t=0 acoustic transient) despite the
+# temperature jump. P is elevated (not a realistic propellant chamber
+# pressure) purely to inflate the gas's volumetric heat capacity (rho*cp) so
+# it behaves as a near-constant-temperature reservoir over the (short) test
+# duration - see Readme.rst. Raising pressure does not change the ideal-gas
+# sound speed c=sqrt(gamma*R*T), so this doesn't affect the CFL-limited
+# timestep above.
+hydro.density.ic.type = expression
+hydro.density.ic.expression.constant.P = 2.0265e9
+hydro.density.ic.expression.constant.R = 319.77
+hydro.density.ic.expression.constant.Ti = 300.0
+hydro.density.ic.expression.constant.Tg = 1000.0
+hydro.density.ic.expression.constant.eps = 1.0e-9
+hydro.density.ic.expression.constant.y0 = 0.0
+hydro.density.ic.expression.region0 = "P/(R*(Ti + (Tg-Ti)*0.5*(1+erf((y-y0)/eps))))"
+hydro.density.ic.expression.region1 = "0.0"
+hydro.density.ic.expression.region2 = "0.0"
+hydro.density.ic.expression.region3 = "0.0"
+hydro.density.ic.expression.region4 = "0.0"
+hydro.density.ic.expression.region5 = "0.0"
+
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.region0 = "2.0265e9"
+
+hydro.solid.density.ic.type = expression
+hydro.solid.density.ic.expression.region0 = "10.0"
+hydro.solid.density.ic.expression.region1 = "7.0"
+hydro.solid.density.ic.expression.region2 = "0.0"
+hydro.solid.density.ic.expression.region3 = "0.0"
+hydro.solid.density.ic.expression.region4 = "0.0"
+hydro.solid.density.ic.expression.region5 = "0.0"
+
+hydro.solid.momentum.ic.type = expression
+hydro.solid.momentum.ic.expression.region0 = "0.0"
+hydro.solid.momentum.ic.expression.region1 = "0.0"
+
+# Overwritten immediately at t=0 by Flame::UpdateFluxes from temp.ic - placeholder only.
+hydro.solid.energy.ic.type = expression
+hydro.solid.energy.ic.expression.region0 = "0.0"
+
+hydro.density.bc.type = expression
+hydro.density.bc.expression.type.xhi = periodic periodic periodic periodic periodic periodic
+hydro.density.bc.expression.type.xlo = periodic periodic periodic periodic periodic periodic
+hydro.density.bc.expression.type.yhi = neumann neumann neumann neumann neumann neumann
+hydro.density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann
+hydro.density.bc.expression.val.xhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+hydro.density.bc.expression.val.xlo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+hydro.density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+hydro.density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+
+hydro.momentum.bc.type = expression
+hydro.momentum.bc.expression.type.xhi = periodic periodic
+hydro.momentum.bc.expression.type.xlo = periodic periodic
+hydro.momentum.bc.expression.type.yhi = neumann neumann
+hydro.momentum.bc.expression.type.ylo = neumann neumann
+hydro.momentum.bc.expression.val.xhi = "0.0" "0.0"
+hydro.momentum.bc.expression.val.xlo = "0.0" "0.0"
+hydro.momentum.bc.expression.val.yhi = "0.0" "0.0"
+hydro.momentum.bc.expression.val.ylo = "0.0" "0.0"
+
+hydro.energy.bc.type = expression
+hydro.energy.bc.expression.type.xhi = periodic
+hydro.energy.bc.expression.type.xlo = periodic
+hydro.energy.bc.expression.type.yhi = neumann
+hydro.energy.bc.expression.type.ylo = neumann
+hydro.energy.bc.expression.val.xhi = "0.0"
+hydro.energy.bc.expression.val.xlo = "0.0"
+hydro.energy.bc.expression.val.yhi = "0.0"
+hydro.energy.bc.expression.val.ylo = "0.0"
+
+hydro.prescribedflowmode = absolute
+dynamictimestep.on = 0
