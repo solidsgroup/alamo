@@ -779,12 +779,20 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i, j, k, bx);
-
+            // Always use the central stencil here, even at the box's own
+            // edges: alpha_solid_mf/T_solid_mf ghost cells were just filled
+            // above (periodic wrap or same-level neighbor, whichever
+            // applies), so they're always valid - unlike Numeric::GetStencil's
+            // one-sided Lo/Hi fallback (meant for true, unfilled physical
+            // boundaries), which would otherwise silently downgrade to a
+            // lower-order derivative at the domain edge. For a periodic
+            // domain that one-sided fallback is actively wrong (ghost data
+            // is valid there too) and was confirmed to seed a growing
+            // error concentrated at the domain seam in testing.
             Set::Vector grad_raw    = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
-            Set::Vector grad_Tsolid = Numeric::Gradient(T_solid_p, i, j, k, 0, DX, sten);
-            Set::Scalar lap_Tsolid  = Numeric::Laplacian(T_solid_p, i, j, k, 0, DX, sten);
-            Set::Vector grad_alpha  = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
+            Set::Vector grad_Tsolid = Numeric::Gradient(T_solid_p, i, j, k, 0, DX);
+            Set::Scalar lap_Tsolid  = Numeric::Laplacian(T_solid_p, i, j, k, 0, DX);
+            Set::Vector grad_alpha  = Numeric::Gradient(alpha, i, j, k, 0, DX);
 
             // eta_patch is Flame's own phase field (1=solid,0=gas under invert);
             // when invert is set, eta_patch already *is* the solid fraction, so
