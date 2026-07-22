@@ -2,15 +2,16 @@
 # Run with: ./bin/lowmach-2d-clang++ input.lm.ap_monopropellant
 
 plot_file = output.lm.ap_monopropellant
-amr.plot_dt = 2.5e-4_s
-amr.max_level = 0
+amr.plot_dt = 2.0e-3_s
+amr.max_level = 1
 amr.n_cell = 4 128
 amr.max_grid_size = 128
 amr.blocking_factor = 4
 amr.nsubsteps = 1
+eta_refinement_criterion = 0.01
 
 timestep = 2.5e-7_s
-stop_time = 5.0e-3_s
+stop_time = 2.0e-2_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -21,8 +22,8 @@ integration.rk.type = 3
 # The narrow periodic direction makes the solution one-dimensional while
 # retaining an isotropic 3.125 micron mesh in the 2D executable. The 20 micron
 # interface remains resolved by approximately six cells.
-geometry.prob_lo = -6.25e-6_m -1.0e-4_m 0.0
-geometry.prob_hi =  6.25e-6_m  3.0e-4_m 0.0
+geometry.prob_lo = -1.25e-5_m -5.0e-4_m 0.0
+geometry.prob_hi =  1.25e-5_m  3.0e-4_m 0.0
 geometry.is_periodic = 1 0 0
 
 # Rocfire requires its six gas species in this order. Only the AP
@@ -65,15 +66,14 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# These are the phase-field calibration parameters. At 3 MPa the present
-# multiplier targets approximately 4.5 mm/s from the nominal 2 mm/s rate at
-# 1 MPa and pressure exponent 0.74 used by the sandwich test.
+# These phase-field parameters fit the 2--6 MPa pure-AP data in Figure 5a of
+# main.pdf. Pressure enters only through the coupled gas/interface temperature.
 mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 63.0
-AP_decomposition.phase_change.activation_temperature = 0.0_K
+AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s

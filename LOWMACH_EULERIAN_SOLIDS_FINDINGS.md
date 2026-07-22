@@ -526,52 +526,63 @@ through 1.5 MPa and 2.65, 3.8, 5.5, and 7.9 mm/s at 2, 3, 4.5, and 6 MPa. The
 paper uses a temperature-only Arrhenius mobility with a 11000 K activation
 temperature and no direct pressure factor.
 
-The effectively one-dimensional `input.lm.ap_monopropellant` case was run at
-1.5, 2, 3, and 6 MPa. With the current temperature-independent kinetics, the
-computed rates were 3.754, 3.776, 3.772, and 3.776 mm/s. The corresponding
-late `eta=0.5` temperatures were only 700.10, 700.26, 700.70, and 702.72 K.
-Normalizing the paper's 11000 K activation law to the 3 MPa rate changed the
-2--6 MPa prediction only from 3.77 to 3.88 mm/s. A second 4050 K candidate
-similarly gave 3.73 to 3.78 mm/s.
+The original calibration sweep predated the normal tensor thermal bridge. It
+therefore held the `eta=0.5` temperature near 700 K and incorrectly concluded
+that the pressure curve could not be obtained from temperature-only kinetics.
+With the full bridge and temperature-independent kinetics, the 5 ms interface
+temperature now rises from 714.5 K at 1.5 MPa to 838.8 K at 6 MPa, while the
+rate remains 3.778 mm/s at every pressure. This isolates a usable thermal
+pressure signal.
 
-Formally fitting an Arrhenius law to the center temperatures and experimental
-rates requires an activation temperature near 205000 K and a prefactor of
-order `1e129`. That fit is neither physical nor numerically usable: temperature
-in the gas-side diffuse tail reaches 725--901 K, so the fitted mobility would
-become enormous there and destroy the interface profile. A localized ignition
-pulse and temperature cutoffs of 701--702 K were also tested; both 2 and 6 MPa
-cases settled back to almost the same regression rate.
+The calibrated phase-change law is
 
-The present model therefore cannot be calibrated to the experimental pressure
-curve by changing phase-field parameters alone. The missing constraint is a
-pressure-dependent thermal feedback that produces a meaningful surface-
-temperature response. The paper supplies this through its mass-flux/pressure
-surface-heat-flux model; a fully coupled calculation must instead recover the
-same feedback from gas reaction, interface heat transfer, and phase-change
-enthalpy. Do not introduce pressure directly into the phase-change mobility to
-force this fit.
+```text
+rate_multiplier = 2450
+activation_temperature = 3145 K.
+```
 
-The apparently inverted gas-temperature trend has now been resolved. At 5 ms,
-the 2 MPa case has a maximum temperature of 1337.9 K approximately 114
-micrometers above its moving `eta=0.5` surface, while the 6 MPa case has a
-maximum of 1056.6 K approximately 74 micrometers above the surface. The
-pressure-dependent Rocfire rate moves the high-pressure reaction zone into the
-diffuse solid/gas mixture: 46.2% of the effective 6 MPa heat release occurs at
-`eta>0.01` and 7.6% at `eta>0.5`, compared with 7.3% and 1.5% at 2 MPa. The
-heat-release-weighted eta changes from 0.0195 to 0.1018. Consequently, more of
-the high-pressure reaction heats the mixed condensed/gas heat capacity: the
-heat-release-weighted condensed share of local heat capacity is 53.7% at 6 MPa
-and 22.3% at 2 MPa. The gas temperature peak is therefore lower and closer to
-the surface.
+Pressure still does not enter the mobility explicitly. It changes the Rocfire
+reaction structure, normal heat flux, interface temperature, and hence the
+Arrhenius factor. The multiplier is specific to the current Allen-Cahn
+normalization (`mobility=0.01 1/Pa/s`, `sigma=0.001 J/m2`, `epsilon=20 um`, and
+`driving_force=200 Pa`) and is not directly comparable to the paper's
+pre-exponential factor.
 
-The conductive heat flux into AP was reconstructed using the exact thermal
-coefficient used by the implicit solve,
-`k_mix = alpha_g*k_g + eta*k_AP`, followed by the same harmonic cell-to-face
-average. At the face crossing `eta=0.5`, `k_mix*dT/dy` is 0.00417 MW/m2 at 2
-MPa and 0.0641 MW/m2 at 6 MPa. Thus the high-pressure case has 15.4 times more
-interface heat feedback despite its lower maximum temperature. Near
-`eta=0.01`, the corresponding fluxes are 0.431 and 2.19 MW/m2. The effective
-Rocfire heat release integrated through the domain is 13.33 and 11.71 MW/m2.
+The final sweep uses an 800 micrometer column with one eta-tracked AMR level,
+giving isotropic 3.125 micrometer finest cells through the interface, and runs
+for 20 ms. The 10--20 ms average rates at 2, 3, 4, and 6 MPa are 2.425, 3.392,
+4.727, and 6.997 mm/s. Rates over the final two-millisecond interval are 2.530,
+3.853, 5.590, and 7.914 mm/s. The latter compare with approximate experimental
+values of 2.6, 3.7, 5.0, and 7.9 mm/s in Figure 5a. The corresponding final
+`eta=0.5` temperatures are 778.3, 878.1, 990.2, and 1119.6 K.
+
+The late full-tensor heat fluxes through the face crossing `eta=0.5` are 3.50,
+6.69, 10.87, and 14.61 MW/m2 at 2, 3, 4, and 6 MPa. These use the exact
+matrix-harmonic face coefficient supplied to the implicit operator. They are
+diffuse-interface fluxes and are not identical observables to a sharp gas-side
+surface flux.
+
+The 1.5 MPa extinction point is outside the paper's stated 2--6 MPa calibration
+range and is not reproduced by this continuously active law. Reproducing it
+requires an ignition/extinction construction; it should not be forced by
+adding pressure directly to the mobility.
+
+This is a 20 ms front-rate calibration, not yet an asymptotic steady-state fit.
+The 3 and 4 MPa fronts continue to accelerate after 20 ms. The NaNs formerly
+seen during extension runs came from mole-fraction normalization, not AMR patch
+motion. Species diffusion creates positive gas-density tails that eventually
+become subnormal in the condensed region. `Model::Gas::MoleFraction` previously
+stored the reciprocal of total molar density; that reciprocal overflowed, and
+zero species densities multiplied by infinity produced NaNs in `cp_mass` and
+then in the implicit thermal solve. Dividing each molar density directly by the
+total avoids the overflow. A strict 6 MPa extension now completes through 30 ms
+with all 30 plot fields finite; its 28--30 ms front rate is 8.017 mm/s, compared
+with 7.914 mm/s over 18--20 ms. The two-process implicit LowMach chemistry
+regression also passes. The plotfile diagnostic now advances field names by
+component count, so the former `velocityy` message is correctly identified as
+temperature. No NaN check or solver tolerance was relaxed. The transverse
+domain was widened so the AMR-refined periodic and normal spacings are both
+3.125 micrometers; the earlier anisotropic calibration layout is discarded.
 
 The Gross-Beckstead comparison requires more care than the raw values suggest.
 Their reported heat flux is calculated on a geometrically sharp propellant
@@ -587,13 +598,13 @@ two-dimensional gas solution and surface state are iterated to convergence.
 At 20 atm they report 12.45 MW/m2 for pure AP and 12.46 MW/m2 at the AP-particle
 centerline. Their smallest gas-side surface cell is 0.008 micrometers.
 
-By contrast, the values above are mixed-coefficient fluxes at the center of a
+By contrast, the values above are full-tensor fluxes at the center of a
 roughly 20-micrometer diffuse interface on a 3.125-micrometer mesh. They are not
 the same observable as the sharp gas-side Gross-Beckstead flux. Equation (15a)
 and Table 2 of our paper fit the Gross-Beckstead calculation as
 `q = 1e7*(0.46*p + 0.42) W/m2`, giving 13.4 MW/m2 at 2 MPa and 31.8 MW/m2 at 6
-MPa, but the apparent factors of 3200 and 500 relative to the current
-`eta=0.5` values cannot be interpreted as a validated heat-transfer deficit.
+MPa, but the remaining difference from the current `eta=0.5` values cannot be
+interpreted as a validated heat-transfer deficit.
 A like-for-like diagnostic must either extrapolate the pure-gas conductive
 flux to the representative surface or perform a conservative energy balance
 across a pillbox containing the diffuse layer and phase change. The latter must
@@ -609,34 +620,10 @@ down the gas-side temperature gradient toward the propellant. The relevant
 measure is the thermal Peclet number `Pe=u*L/alpha`, or equivalently the upstream
 thermal penetration length `L_th=alpha/u`.
 
-The final 3 MPa monopropellant output quantifies the issue in the present
-diffuse model. At the gas-side `eta=0.01` contour, `T=772.4 K`, `u_y=0.596 m/s`,
-`rho_g=12.03 kg/m3`, `k_g=0.0711 W/(m K)`, and
-`alpha_g=4.71e-6 m2/s`. Thus `alpha/u=7.9 micrometers`. The distance from
-`eta=0.5` to `eta=0.01` is 23.1 micrometers, giving `Pe=2.92`. The local mass
-flux `rho_g*u_y=7.16 kg/m2/s` is consistent with the approximately
-`rho_AP*r_b=7.35 kg/m2/s` supplied by regression, so the outward blowing is
-physical. Conduction can oppose it over several micrometers, but thermal
-feedback is strongly attenuated over the much wider diffuse tail. Gross and
-Beckstead's sharp-interface AP result rises from 773 K to about 1350 K within 8
-micrometers at 20 atm, a scale comparable to the calculated penetration length.
-
-This points to an interface-resolution/coupling problem rather than the wrong
-physical heat-transfer mechanism. A sharp or asymptotically consistent diffuse
-formulation must place the representative surface within the gas thermal
-preheat length and transmit the gas-side Fourier flux into the condensed energy
-balance without forcing it through a many-penetration-length mixed layer.
-
-The interface is not primarily a low-conductivity layer. At the sampled
-`eta=0.572` cell in the same final profile, `rho_AP=1115.5 kg/m3` and
-`rho_g=5.22 kg/m3`. The AP volumetric heat capacity is approximately
-`1.45e6 J/(m3 K)`, while the gas contributes only about `0.007e6 J/(m3 K)`.
-The mixed conductivity is approximately `0.24 W/(m K)`, which is greater than
-the gas conductivity, but the resulting diffusivity is only about
-`1.6e-7 m2/s`, roughly thirty times below the gas value. A localized
-conductivity boost can therefore transmit heat through the finite-width
-thermal mass, and it remains conservative when implemented inside
-`div(k*grad(T))`.
+The tensor bridge now transmits this heat through the finite-width mixed heat
+capacity without adding an explicit thermal CFL restriction. Its width and
+Peclet dependence must still be checked when transferring this fit to another
+interface thickness or resolution.
 
 Before using such a boost as the model, correct the temperature-advection
 closure. LowMach currently applies `-u*grad(T)` to the common temperature at

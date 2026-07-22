@@ -882,17 +882,18 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
+                const std::string& name = cnames[cnames_cnt];
+                cnames_cnt += cell.ncomp_array[i];
                 if ((*cell.fab_array[i])[ilev]->contains_nan())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, name, " contains nan (i=", i, ")");
+                    else              Util::Warning(INFO, name, " contains nan (i=", i, ")");
                 }
                 if ((*cell.fab_array[i])[ilev]->contains_inf())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, name, " contains inf (i=", i, ")");
+                    else              Util::Warning(INFO, name, " contains inf (i=", i, ")");
                 }
-                cnames_cnt++;
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
@@ -911,17 +912,18 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                 for (int i = 0; i < node.number_of_fabs; i++)
                 {
                     if (!node.writeout_array[i]) continue;
+                    const std::string& name = nnames[nnames_cnt];
+                    nnames_cnt += node.ncomp_array[i];
                     if ((*node.fab_array[i])[ilev]->contains_nan())
                     {
-                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
-                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                        if (abort_on_nan) Util::Abort(INFO, name, " contains nan (i=", i, ")");
+                        else              Util::Warning(INFO, name, " contains nan (i=", i, ")");
                     }
                     if ((*node.fab_array[i])[ilev]->contains_inf())
                     {
-                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
-                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                        if (abort_on_nan) Util::Abort(INFO, name, " contains inf (i=", i, ")");
+                        else              Util::Warning(INFO, name, " contains inf (i=", i, ")");
                     }
-                    nnames_cnt++;
                     amrex::average_node_to_cellcenter(cplotmf[ilev], n, *(*node.fab_array[i])[ilev], 0, node.ncomp_array[i], 0);
                     n += node.ncomp_array[i];
                 }

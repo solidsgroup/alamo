@@ -29,25 +29,24 @@ public:
                 const int i, const int j, const int k)
         : partial_density(a_partial_density),
         molecular_weight(a_molecular_weight),
-        inverse_moles(0.0)
+        moles(0.0)
     {
         for (int n = 0; n < a_nspecies; ++n)
-            inverse_moles += partial_density(i,j,k,n) / molecular_weight[n];
-        inverse_moles = inverse_moles > 0.0 ? 1.0 / inverse_moles : 0.0;
+            moles += partial_density(i,j,k,n) / molecular_weight[n];
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator()(const int i, const int j, const int k, const int n) const
     {
-        return inverse_moles > 0.0 ?
-            (partial_density(i,j,k,n) / molecular_weight[n]) * inverse_moles :
+        return moles > 0.0 ?
+            (partial_density(i,j,k,n) / molecular_weight[n]) / moles :
             (n == 0 ? 1.0 : 0.0);
     }
 
 private:
     amrex::Array4<const Set::Scalar> partial_density;
     const double* molecular_weight;
-    Set::Scalar inverse_moles;
+    Set::Scalar moles;
 };
 
 class Gas {
