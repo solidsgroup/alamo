@@ -45,6 +45,113 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Vector MomentumSource(const State& state,
+                            const Set::Vector& gas_velocity,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).MomentumSource(
+                    state, gas_velocity, i, j, k, DX);
+            return MomentumSource<I + 1>(
+                state, gas_velocity, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return Set::Vector::Zero();
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasMassSource(const State& state,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).GasMassSource(
+                    state, i, j, k, DX);
+            return GasMassSource<I + 1>(state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasSpeciesSource(const State& state, const int species,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).GasSpeciesSource(
+                    state, species, i, j, k, DX);
+            return GasSpeciesSource<I + 1>(
+                state, species, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasInjectionTemperature(
+                            const State& state, const int species,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).GasInjectionTemperature(
+                    state, species, i, j, k, DX);
+            return GasInjectionTemperature<I + 1>(
+                state, species, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Vector InterfaceVelocity(const State& state,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).InterfaceVelocity(
+                    state, i, j, k, DX);
+            return InterfaceVelocity<I + 1>(state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return Set::Vector::Zero();
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar RegressionSpeed(const State& state,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).RegressionSpeed(
+                    state, i, j, k, DX);
+            return RegressionSpeed<I + 1>(state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void Apply(const amrex::Array4<Set::Scalar>& component_density_rhs,
                 const State& state,
                 const int i, const int j, const int k,

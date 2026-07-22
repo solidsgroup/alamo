@@ -120,6 +120,60 @@ public:
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Vector MomentumSource(const State& /*state*/,
+                            const Set::Vector& /*gas_velocity*/,
+                            const int /*i*/, const int /*j*/, const int /*k*/,
+                            const Set::Scalar /*DX*/[AMREX_SPACEDIM]) const
+    {
+        return Set::Vector::Zero();
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasMassSource(const State& state,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        return -MassSource(state, i, j, k, DX);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasSpeciesSource(const State& state, const int species,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        const Set::Scalar gas_source = -MassSource(state, i, j, k, DX);
+        for (int n = 0; n < nproducts; ++n)
+            if (products[n] == species)
+                return mass_fractions[n] * gas_source;
+        return 0.0;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GasInjectionTemperature(
+                            const State& state, const int /*species*/,
+                            const int /*i*/, const int /*j*/, const int /*k*/,
+                            const Set::Scalar /*DX*/[AMREX_SPACEDIM]) const
+    {
+        return state.temperature;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Vector InterfaceVelocity(const State& /*state*/,
+                            const int /*i*/, const int /*j*/, const int /*k*/,
+                            const Set::Scalar /*DX*/[AMREX_SPACEDIM]) const
+    {
+        return Set::Vector::Zero();
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar RegressionSpeed(const State& /*state*/,
+                            const int /*i*/, const int /*j*/, const int /*k*/,
+                            const Set::Scalar /*DX*/[AMREX_SPACEDIM]) const
+    {
+        return 0.0;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void Apply(const amrex::Array4<Set::Scalar>& component_density_rhs,
                 const State& state,
                 const int i, const int j, const int k,

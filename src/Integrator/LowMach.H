@@ -1,6 +1,8 @@
 #ifndef INTEGRATOR_LOWMACH_H
 #define INTEGRATOR_LOWMACH_H
 
+#include <array>
+
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
 
@@ -16,6 +18,7 @@
 #include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Frozen.H"
 #include "Model/Chemistry/Rocfire.H"
+#include "Model/Mechanism/FlameRegression.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Solid/Finite/NeoHookean.H"
@@ -27,6 +30,7 @@
 #include "Numeric/Advect/Upwind.H"
 #include "Numeric/Advect/WENO5.H"
 #include "Numeric/ReferenceMap/Reconstruction.H"
+#include "Operator/ImplicitDiffusion.H"
 #include "Operator/PressurePoisson.H"
 
 namespace Integrator
@@ -74,14 +78,27 @@ protected:
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
+    void ApplyImplicitTransport(Set::Scalar time, Set::Scalar dt);
 
+    struct ThermalState
+    {
+        Set::Scalar heat_capacity = 0.0;
+        Set::Scalar gas_heat_capacity = 0.0;
+        Set::Scalar conductivity = 0.0;
+        Set::Scalar gas_volume_fraction = 0.0;
+    };
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    ThermalState ComputeThermalState(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k) const;
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(
         Set::Patch<const Set::Scalar> component_density,
+        Set::Patch<const Set::Scalar> rigid_eta,
         Set::Patch<const Set::Scalar> temperature,
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
-        bool include_reaction = true) const;
+        bool rigid_solid, bool include_reaction = true) const;
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
@@ -118,6 +135,10 @@ protected:
     Set::Field<Set::Scalar> diffusion_coeff_mf;
     Set::Field<Set::Scalar> wdot_mf;
     Set::Field<Set::Scalar> qdot_mf;
+    Set::Field<Set::Scalar> gas_volume_fraction_mf;
+    Set::Field<Set::Scalar> intrinsic_gas_density_mf;
+    Set::Field<Set::Scalar> regression_speed_mf;
+    Set::Field<Set::Scalar> ejection_velocity_mf;
     Set::Field<Set::Matrix> deformation_gradient_mf;
     Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
 
@@ -141,7 +162,9 @@ protected:
         Model::Chemistry::Rocfire>;
     Chemistry chemistry;
     Model::Solid::Finite::NeoHookean finite_solid_model;
-    using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
+    using Mechanism = Model::Mechanism::Mechanism<
+        Model::Mechanism::PhaseChange,
+        Model::Mechanism::FlameRegression>;
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
@@ -149,6 +172,11 @@ protected:
     int nspecies = 0;
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
+    int nthermal_rigid_species = 0;
+    std::array<int, Model::Chemistry::MAX_SPECIES> thermal_rigid_species{};
+    std::array<Set::Scalar, Model::Chemistry::MAX_SPECIES> rigid_specific_heat{};
+    std::array<Set::Scalar, Model::Chemistry::MAX_SPECIES>
+        rigid_conductivity_per_density{};
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -166,9 +194,15 @@ protected:
     bool diagnostics_extended_fields = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
+    bool projection_volume_constraint_correction = true;
     bool include_viscosity = true;
     bool include_conduction = true;
+    bool implicit_viscosity = false;
+    bool implicit_conduction = false;
+    bool implicit_species_diffusion = false;
     bool advect_temperature = true;
+    bool use_rigid_thermal_properties = false;
+    bool rigid_thermal_enabled = true;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
@@ -184,6 +218,9 @@ protected:
                             Numeric::Advect::QUICK,
                             Numeric::Advect::WENO5> advect;
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
+    Operator::ImplicitDiffusion implicit_velocity_diffusion;
+    Operator::ImplicitDiffusion implicit_temperature_diffusion;
+    Operator::ImplicitDiffusion implicit_species_diffusion_operator;
     Operator::PressurePoisson pressure_poisson;
 };
 }

@@ -68,7 +68,7 @@ public:
 
     using BC::FillBoundary;
 
-    amrex::BCRec GetBCRec() override;
+    amrex::BCRec GetBCRec(int component = 0) override;
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic() override;
     virtual amrex::Periodicity Periodicity() const override;
     virtual amrex::Periodicity Periodicity(const amrex::Box& b) override;
