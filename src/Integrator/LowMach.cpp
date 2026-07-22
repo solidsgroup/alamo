@@ -238,6 +238,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.viscosity_mf, &value.bc_nothing, 1, 1, "viscosity", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, 1, "thermal_conductivity_coeff", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_coeff_mf, &value.bc_nothing, value.ngas_species, 1, "diffusion_coeff", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.wdot_mf, &value.bc_nothing, value.ngas_species, 1, "wdot", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.qdot_mf, &value.bc_nothing, 1, 1, "qdot", true, false);
         if (value.deformable_solid_species >= 0)
             value.AddField<Set::Matrix,Set::HC::Cell>(value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
     }
@@ -431,6 +436,8 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
 // - energy
 // - vorticity
 // - momentum
+// - mixture transport properties
+// - instantaneous chemistry source terms
 // 
 void
 LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf)
@@ -442,6 +449,11 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
     momentum_mf[lev]->setVal(0.0);
     energy_mf[lev]->setVal(0.0);
     vorticity_mf[lev]->setVal(0.0);
+    viscosity_mf[lev]->setVal(0.0);
+    thermal_conductivity_coeff_mf[lev]->setVal(0.0);
+    diffusion_coeff_mf[lev]->setVal(0.0);
+    wdot_mf[lev]->setVal(0.0);
+    qdot_mf[lev]->setVal(0.0);
 
     for (amrex::MFIter mfi(u_mf, true); mfi.isValid(); ++mfi)
     {
@@ -454,8 +466,13 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
         Set::Patch<Set::Scalar> M = momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E = energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> mu = viscosity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> kappa = thermal_conductivity_coeff_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> diffusion = diffusion_coeff_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> wdot = wdot_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> qdot = qdot_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             const Set::Scalar density = rho(i,j,k);
@@ -466,12 +483,47 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
+
+            mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+            kappa(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+            for (int n = 0; n < ngas_species; ++n)
+                diffusion(i,j,k,n) = gas.diffusion_coefficient(
+                    T(i,j,k), pressure_reference, X, i, j, k, n);
+
+            Model::Chemistry::SpeciesArray rhoY{};
+            Set::Scalar gas_density = 0.0;
+            for (int n = 0; n < ngas_species; ++n)
+            {
+                rhoY[n] = Util::Max(component_density(i,j,k,n), 0.0);
+                gas_density += rhoY[n];
+            }
+            Set::Scalar gas_volume_fraction = 0.0;
+            if (gas_density > density_floor && T(i,j,k) > 0.0 && pressure_reference > 0.0)
+                gas_volume_fraction = Util::Clamp(
+                    gas_density * gas.R(X, i, j, k) * T(i,j,k) /
+                    pressure_reference, 0.0, 1.0);
+            if (gas_volume_fraction > 0.0)
+            {
+                for (int n = 0; n < ngas_species; ++n)
+                    rhoY[n] /= gas_volume_fraction;
+                const Model::Chemistry::Source reaction =
+                    chemistry.ComputeChemistrySources(
+                        pressure_reference, T(i,j,k), rhoY, 0.0, &gas);
+                for (int n = 0; n < ngas_species; ++n)
+                    wdot(i,j,k,n) = gas_volume_fraction * reaction.first[n];
+                qdot(i,j,k) = gas_volume_fraction * reaction.second;
+            }
         });
     }
 
     momentum_mf[lev]->FillBoundary(geom[lev].periodicity());
     energy_mf[lev]->FillBoundary(geom[lev].periodicity());
     vorticity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    viscosity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    thermal_conductivity_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
+    diffusion_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
+    wdot_mf[lev]->FillBoundary(geom[lev].periodicity());
+    qdot_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -571,7 +623,7 @@ LowMach::ComputeThermochemicalSource(
         species[n] = gas_volume_fraction * reaction.first[n];
 
     Set::Scalar enthalpy_diffusion = 0.0;
-    if (ngas_species > 1 && chemistry.Reactive())
+    if (ngas_species > 1)
     {
         auto gas_density_at = [=,this] AMREX_GPU_DEVICE(int ii, int jj, int kk)
         {
@@ -1307,7 +1359,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     nu = Util::Max(nu, kappa /
                         (Util::Max(rho(i,j,k), rho_floor) * cp));
                 }
-                if (chemistry.Reactive())
+                if (ngas > 1)
                     for (int n = 0; n < ngas; ++n)
                         nu = Util::Max(nu, gas.diffusion_coefficient(
                             T(i,j,k), p_reference, X, i, j, k, n));

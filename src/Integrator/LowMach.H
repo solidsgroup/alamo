@@ -113,6 +113,11 @@ protected:
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
+    Set::Field<Set::Scalar> viscosity_mf;
+    Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
+    Set::Field<Set::Scalar> diffusion_coeff_mf;
+    Set::Field<Set::Scalar> wdot_mf;
+    Set::Field<Set::Scalar> qdot_mf;
     Set::Field<Set::Matrix> deformation_gradient_mf;
     Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
 
