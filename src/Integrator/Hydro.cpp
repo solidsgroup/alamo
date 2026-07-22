@@ -1609,6 +1609,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        // Physical (not the tame Riemann-blend) solid density, needed below to
+        // recover the injected mass's specific internal energy from E_solid.
+        Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
 
@@ -1727,19 +1730,26 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
             std::vector<Set::Scalar> mdot0(NSPECIES);
             Set::Scalar mdot0_total = 0.0;
-            Set::Scalar rho_solid_sum = 0.0;
             for (int n=0; n<NSPECIES; ++n )
             {
                 mdot0[n] = m0(i,j,k,n)*source_delta;
                 mdot0_total += mdot0[n];
-                rho_solid_sum += rho_solid(i,j,k,n);
             }
 
             Set::Vector Pdot0 = mdot0_total * u0;
             Set::Scalar qdot0 = q0.dot(grad_eta) * source_scale;
-            if (rho_solid_sum > small)
+            // E_solid = rho_phys*cp*(T-T_ref) is built from the *physical* solid
+            // density (see Flame::UpdateFluxes / Hydro::AdvanceSolidEnergy), so its
+            // specific internal energy is E_solid/rho_phys - not E_solid summed over
+            // species and divided by the numerically-tame Riemann-blend density
+            // (solid.density_mf, hydro.rho_ap/htpb) used only for the fluid/solid
+            // conserved-state blend. Dividing by the tame density here over-injected
+            // internal energy by ~rho_phys/rho_tame (two orders of magnitude). This
+            // matches the same E_solid/(rho_phys*cp) convention used by the C1
+            // temperature blend above.
+            if (rho_phys(i,j,k) > small)
             {
-                qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum;
+                qdot0 += mdot0_total * E_solid(i,j,k) / rho_phys(i,j,k);
             }
             // The momentum source Pdot0 = mdot0_total*u0 injects mass moving at u0,
             // which raises the fluid's kinetic energy (M_rhs picks up Pdot0 via
