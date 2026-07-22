@@ -105,8 +105,23 @@ final :code:`temperature` field along a ray through the solid against it.
   analytical solution's idealized *infinitely sharp* boundary - this is an
   expected modeling gap, not a solver error, and is why the comparison
   tolerance in :code:`test` is looser than a typical bit-for-bit regression
-  check. Beyond roughly :code:`4*eps` into the solid the two agree to well
-  under 1K.
+  check (observed relative error is ~1.8% as of this writing). Beyond
+  roughly :code:`4*eps` into the solid the two agree to well under 1K.
+- This test is also what caught a real bug in the temperature reconstruction
+  used throughout :code:`Hydro.cpp` (not specific to :code:`AdvanceSolidEnergy`):
+  for any cell at or below :code:`hydro.cutoff`, :code:`ApplyCutoffToConserved`
+  overwrites the conserved energy to the pure-solid value, but a separate
+  "C1-continuous" temperature blend still tried to reconstruct a *gas* state
+  from that same now-solid-only energy - dividing energy built on the
+  *physical* solid density/cp scale by a reconstructed density on the *tame*
+  Riemann-blend scale (~195x smaller), producing spurious temperatures of
+  tens of thousands of Kelvin that were still visible after being weighted
+  by the small (but nonzero) true gas fraction in the final blend. Confirmed
+  via a mesh/eta refinement study to get *worse*, not better, with
+  refinement - a useful signal that it wasn't just discretization error.
+  Fixed by skipping the gas-state reconstruction entirely below
+  :code:`hydro.cutoff` (there is no real gas state left to reconstruct
+  there) and reporting the solid caloric temperature directly instead.
 - The domain and timestep are both deliberately tiny (nanometers, picoseconds)
   purely so the test runs in seconds; see the header comment in
   :code:`generate_reference.py` for how those relate to the physical

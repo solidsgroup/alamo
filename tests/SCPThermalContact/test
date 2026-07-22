@@ -28,7 +28,8 @@ testlib.validate(path=path,
                  # boundary within a few eps of y=0 (see Readme.rst) - this
                  # tolerance accommodates that expected gap while still
                  # failing hard on an actually broken conduction operator.
-                 tolerance=0.25,
+                 # (Observed relative error is ~0.018 as of this writing.)
+                 tolerance=0.05,
                  abs_tolerance=1E100,
                  coord='y',
                  generate_ref_data = False,
