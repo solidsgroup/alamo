@@ -102,6 +102,70 @@ public:
         return (a0 * p0 + a1 * p1 + a2 * p2) / asum;
     }
 
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    FaceStates ReconstructFace(Phi const& phi,
+                               int i, int j, int k,
+                               int direction,
+                               int comp) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+
+        return {
+            ReconstructLeft(
+                phi(i-2*di,j-2*dj,k-2*dk,comp),
+                phi(i-di,j-dj,k-dk,comp),
+                phi(i,j,k,comp),
+                phi(i+di,j+dj,k+dk,comp),
+                phi(i+2*di,j+2*dj,k+2*dk,comp)),
+            ReconstructRight(
+                phi(i-di,j-dj,k-dk,comp),
+                phi(i,j,k,comp),
+                phi(i+di,j+dj,k+dk,comp),
+                phi(i+2*di,j+2*dj,k+2*dk,comp),
+                phi(i+3*di,j+3*dj,k+3*dk,comp))
+        };
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar FaceValue(FaceStates const& state,
+                          Set::Scalar face_velocity) const
+    {
+        return face_velocity >= 0.0 ? state.left : state.right;
+    }
+
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar ReconstructTransportedFaceValue(
+        Phi const& phi,
+        int i, int j, int k,
+        int direction,
+        int comp,
+        Set::Scalar face_velocity) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+
+        if (face_velocity >= 0.0)
+        {
+            return ReconstructLeft(
+                phi(i-2*di,j-2*dj,k-2*dk,comp),
+                phi(i-di,j-dj,k-dk,comp),
+                phi(i,j,k,comp),
+                phi(i+di,j+dj,k+dk,comp),
+                phi(i+2*di,j+2*dj,k+2*dk,comp));
+        }
+        return ReconstructRight(
+            phi(i-di,j-dj,k-dk,comp),
+            phi(i,j,k,comp),
+            phi(i+di,j+dj,k+dk,comp),
+            phi(i+2*di,j+2*dj,k+2*dk,comp),
+            phi(i+3*di,j+3*dj,k+3*dk,comp));
+    }
+
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator()( Phi const& phi,

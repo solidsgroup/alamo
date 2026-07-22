@@ -1064,7 +1064,9 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     ApplyCutoffToConserved(lev, rho_mf, M_mf, E_mf, true, true);
 
     int nghost = flux_scheme == FluxScheme::Advect ? advect.NGhost() : 1;
-    int primitive_nghost = nghost < 2 ? nghost : 2;
+    // Primitive states participate in the same face reconstruction as the
+    // conserved fields, so they require the scheme's full stencil depth.
+    int primitive_nghost = nghost;
     int diffusion_nghost = 1;
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
@@ -1392,7 +1394,6 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     #endif
 
     const auto advect_op = advect;
-    const Numeric::Advect::Options conservative_options{Numeric::Advect::Form::Conservative};
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -1618,19 +1619,13 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             }
             else if (flux_scheme == FluxScheme::Advect)
             {
-                for (int n=0; n<NSPECIES; ++n)
-                {
-                    transport_flux.mass[n] = eta * advect_op.Scalar(rho_fluid, velocity, i, j, k, n, DX, conservative_options, sten);
-                }
-
-                Set::Vector grad_pressure = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
-                Set::Scalar flux_pressure = advect_op.Scalar(pressure, velocity, i, j, k, 0, DX, conservative_options, sten);
-                transport_flux.momentum = eta * (
-                    advect_op.Vector(M_fluid, velocity, i, j, k, 0, DX, conservative_options, sten) -
-                    grad_pressure);
-                transport_flux.energy = eta * (
-                    advect_op.Scalar(E_fluid, velocity, i, j, k, 0, DX, conservative_options, sten) +
-                    flux_pressure);
+                const auto advect_flux =
+                    advect_op.template ComputeCompressibleFluxDivergence<NSPECIES>(
+                        rho_fluid, M_fluid, E_fluid, rho_sum, velocity,
+                        pressure, temp, molef, gas, i, j, k, eta, DX, small);
+                transport_flux.mass = advect_flux.mass;
+                transport_flux.momentum = advect_flux.momentum;
+                transport_flux.energy = advect_flux.energy;
             }
             else
             {

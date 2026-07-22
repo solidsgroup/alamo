@@ -86,6 +86,74 @@ public:
                         phi(ihi,jhi,khi,comp));
     }
 
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    FaceStates ReconstructFace(Phi const& phi,
+                               int i, int j, int k,
+                               int direction,
+                               int comp) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+        const int ir = i + di;
+        const int jr = j + dj;
+        const int kr = k + dk;
+
+        const Set::Scalar left_value = phi(i,j,k,comp);
+        const Set::Scalar right_value = phi(ir,jr,kr,comp);
+        const Set::Scalar left_slope = Slope(
+            phi, i-di,j-dj,k-dk, i,j,k, ir,jr,kr, comp);
+        const Set::Scalar right_slope = Slope(
+            phi, i,j,k, ir,jr,kr, ir+di,jr+dj,kr+dk, comp);
+
+        return {
+            Util::Clamp(left_value + 0.5 * left_slope,
+                        left_value, right_value),
+            Util::Clamp(right_value - 0.5 * right_slope,
+                        left_value, right_value)
+        };
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar FaceValue(FaceStates const& state,
+                          Set::Scalar face_velocity) const
+    {
+        return face_velocity >= 0.0 ? state.left : state.right;
+    }
+
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar ReconstructTransportedFaceValue(
+        Phi const& phi,
+        int i, int j, int k,
+        int direction,
+        int comp,
+        Set::Scalar face_velocity) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+        const int ir = i + di;
+        const int jr = j + dj;
+        const int kr = k + dk;
+        const Set::Scalar left_value = phi(i,j,k,comp);
+        const Set::Scalar right_value = phi(ir,jr,kr,comp);
+
+        if (face_velocity >= 0.0)
+        {
+            const Set::Scalar left_slope = Slope(
+                phi, i-di,j-dj,k-dk, i,j,k, ir,jr,kr, comp);
+            return Util::Clamp(left_value + 0.5 * left_slope,
+                               left_value, right_value);
+        }
+
+        const Set::Scalar right_slope = Slope(
+            phi, i,j,k, ir,jr,kr, ir+di,jr+dj,kr+dk, comp);
+        return Util::Clamp(right_value - 0.5 * right_slope,
+                           left_value, right_value);
+    }
+
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator()( Phi const& phi,

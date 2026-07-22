@@ -44,6 +44,42 @@ public:
         return 1;
     }
 
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    FaceStates ReconstructFace(Phi const& phi,
+                               int i, int j, int k,
+                               int direction,
+                               int comp) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+        return {phi(i,j,k,comp), phi(i+di,j+dj,k+dk,comp)};
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar FaceValue(FaceStates const& state,
+                          Set::Scalar /*face_velocity*/) const
+    {
+        return 0.5 * (state.left + state.right);
+    }
+
+    template<class Phi>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar ReconstructTransportedFaceValue(
+        Phi const& phi,
+        int i, int j, int k,
+        int direction,
+        int comp,
+        Set::Scalar /*face_velocity*/) const
+    {
+        const int di = direction == 0 ? 1 : 0;
+        const int dj = direction == 1 ? 1 : 0;
+        const int dk = direction == 2 ? 1 : 0;
+        return 0.5 *
+            (phi(i,j,k,comp) + phi(i+di,j+dj,k+dk,comp));
+    }
+
     template<class Phi, class Velocity>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator()( Phi const& phi,
