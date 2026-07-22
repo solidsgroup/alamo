@@ -27,6 +27,7 @@
 #include "Numeric/Advect/Upwind.H"
 #include "Numeric/Advect/WENO5.H"
 #include "Numeric/ReferenceMap/Reconstruction.H"
+#include "Operator/Diffusion.H"
 #include "Operator/PressurePoisson.H"
 
 namespace Integrator
@@ -74,6 +75,7 @@ protected:
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
+    void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
@@ -110,6 +112,7 @@ protected:
     Set::Field<Set::Scalar> pressure_mf;
     Set::Field<Set::Scalar> pressure_correction_mf;
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
+    Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
@@ -140,6 +143,9 @@ protected:
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
+    Model::Chemistry::SpeciesArray condensed_specific_heat;
+    Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
+    Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
     int ngas_species = 0;
     int nspecies = 0;
     int deformable_solid_species = -1;
@@ -163,7 +169,13 @@ protected:
     bool projection_update_pressure = true;
     bool include_viscosity = true;
     bool include_conduction = true;
+    bool implicit_momentum_diffusion = false;
+    bool implicit_thermal_diffusion = false;
+    bool implicit_species_diffusion = false;
+    bool condensed_thermal_transport = false;
     bool advect_temperature = true;
+    Set::Scalar thermal_bridge_width = 0.0;
+    Set::Scalar thermal_bridge_peclet = 0.0;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
@@ -179,6 +191,7 @@ protected:
                             Numeric::Advect::QUICK,
                             Numeric::Advect::WENO5> advect;
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
+    Operator::Diffusion diffusion;
     Operator::PressurePoisson pressure_poisson;
 };
 }

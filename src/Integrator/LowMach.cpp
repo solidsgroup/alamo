@@ -42,8 +42,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.queryclass("projection", value.pressure_poisson);
     }
     pp.query_default("include_viscosity", value.include_viscosity, true);
+    pp.query_default("implicit_viscosity", value.implicit_momentum_diffusion, false);
     pp.query_default("include_conduction", value.include_conduction, true);
     pp.query_default("advect_temperature", value.advect_temperature, true);
+    if (value.implicit_momentum_diffusion && !value.include_viscosity)
+        Util::Exception(INFO,
+            "implicit_viscosity requires include_viscosity=1");
 
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.ngas_species = value.gas.nspecies;
@@ -57,6 +61,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Util::Exception(INFO, "species.names must contain one identifier for every gas species");
     value.component_density_ic.resize(value.nspecies, nullptr);
     value.reference_density.assign(value.nspecies, NAN);
+    value.condensed_specific_heat.fill(NAN);
+    value.condensed_thermal_conductivity.fill(NAN);
+    value.condensed_inverse_reference_density.fill(NAN);
+    if (value.nspecies > Model::Chemistry::MAX_SPECIES)
+        Util::Exception(INFO, "LowMach supports at most ",
+                        Model::Chemistry::MAX_SPECIES, " total species");
     for (int n = 0; n < value.nspecies; ++n)
     {
         const std::string& name = value.species_names[n];
@@ -94,6 +104,31 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             Util::Exception(INFO, "The first ", value.ngas_species,
                             " species must be fluid species described by the gas model");
 
+        if (mechanics != "fluid")
+        {
+            const bool has_specific_heat =
+                pp.contains(name + ".specific_heat");
+            const bool has_thermal_conductivity =
+                pp.contains(name + ".thermal_conductivity");
+            if (has_specific_heat != has_thermal_conductivity)
+                Util::Exception(INFO, name,
+                    " requires both specific_heat and thermal_conductivity");
+            if (has_specific_heat)
+            {
+                pp.query_required(name + ".specific_heat",
+                    value.condensed_specific_heat[n],
+                    Unit::SpecificHeatCapacity());
+                pp.query_required(name + ".thermal_conductivity",
+                    value.condensed_thermal_conductivity[n],
+                    Unit::ThermalConductivity());
+                if (!(value.condensed_specific_heat[n] > 0.0) ||
+                    !(value.condensed_thermal_conductivity[n] > 0.0))
+                    Util::Exception(INFO, name,
+                        " thermal properties must be positive");
+                value.condensed_thermal_transport = true;
+            }
+        }
+
         if (pp.contains(name + ".density.ic.type"))
             pp.select<IC::Constant,IC::Expression>(
                 name + ".density.ic", value.component_density_ic[n],
@@ -104,6 +139,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.queryclass("chemistry", value.chemistry);
     if (value.chemistry.Split() && !value.projection_enabled)
         Util::Exception(INFO, "Locally integrated LowMach chemistry requires projection.enabled=1");
+    value.implicit_thermal_diffusion = value.include_conduction;
+    value.implicit_species_diffusion = value.ngas_species > 1 &&
+        value.chemistry.Reactive() && value.gas.transport.CommonDiffusivity();
+    if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
+        value.implicit_species_diffusion)
+        pp.queryclass("diffusion", value.diffusion);
 
     if (value.deformable_solid_species >= 0)
     {
@@ -147,6 +188,41 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
         }
+    }
+
+    if (value.condensed_thermal_transport)
+    {
+        for (int n = value.ngas_species; n < value.nspecies; ++n)
+        {
+            if (!(value.condensed_specific_heat[n] > 0.0) ||
+                !(value.condensed_thermal_conductivity[n] > 0.0))
+                Util::Exception(INFO, value.species_names[n],
+                    " requires specific_heat and thermal_conductivity");
+            value.condensed_inverse_reference_density[n] =
+                1.0 / value.reference_density[n];
+        }
+    }
+
+    const bool has_thermal_bridge_width =
+        pp.contains("thermal_bridge.width");
+    const bool has_thermal_bridge_peclet =
+        pp.contains("thermal_bridge.peclet");
+    if (has_thermal_bridge_width != has_thermal_bridge_peclet)
+        Util::Exception(INFO,
+            "thermal_bridge requires both width and peclet");
+    if (has_thermal_bridge_width)
+    {
+        if (!value.condensed_thermal_transport || !value.include_conduction)
+            Util::Exception(INFO,
+                "thermal_bridge requires condensed thermal transport");
+        pp.query_required("thermal_bridge.width",
+            value.thermal_bridge_width, Unit::Length());
+        pp.query_required("thermal_bridge.peclet",
+            value.thermal_bridge_peclet);
+        if (!(value.thermal_bridge_width > 0.0) ||
+            !(value.thermal_bridge_peclet > 0.0))
+            Util::Exception(INFO,
+                "thermal_bridge width and peclet must be positive");
     }
 
     std::vector<std::string> mechanism_names;
@@ -229,6 +305,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (value.chemistry.Split())
         value.AddField<Set::Scalar,Set::HC::Cell>(value.chemistry_dilatation_mf,
             &value.bc_nothing, 1, 0, "chemistry_dilatation", false, false);
+    if (value.implicit_thermal_diffusion || value.implicit_species_diffusion)
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
+            &value.bc_nothing, 1, 0, "diffusion_dilatation", false, false);
     if (value.deformable_solid_species >= 0)
         value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", true, false);
     if (value.diagnostics_extended_fields)
@@ -376,6 +455,7 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     {
         amrex::Box bx = mfi.growntilebox(1);
         Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
+        Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> mass_fraction = mass_fraction_mf.Patch(lev,mfi);
@@ -399,11 +479,20 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
             if (diagnostics_extended_fields)
             {
                 const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
+                Set::Scalar gas_volume_fraction = 0.0;
+                if (gas_partial_density > density_floor && T(i,j,k) > 0.0 &&
+                    pressure_reference > 0.0)
+                    gas_volume_fraction = Util::Clamp(
+                        gas_partial_density * gas.R(X, i, j, k) * T(i,j,k) /
+                            pressure_reference,
+                        0.0, 1.0);
+                // Diagnostic fractions include phase occupancy; gas-model
+                // calculations continue to use the conditional composition X.
                 for (int n = 0; n < ngas_species; ++n)
                 {
-                    mass_fraction(i,j,k,n) = gas_partial_density > small ?
-                        component_density(i,j,k,n) / gas_partial_density : (n == 0 ? 1.0 : 0.0);
-                    mole_fraction(i,j,k,n) = X(i,j,k,n);
+                    mass_fraction(i,j,k,n) = total_partial_density > density_floor ?
+                        component_density(i,j,k,n) / total_partial_density : 0.0;
+                    mole_fraction(i,j,k,n) = gas_volume_fraction * X(i,j,k,n);
                 }
             }
         });
@@ -519,6 +608,346 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
     }
 }
 
+void
+LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
+{
+    BL_PROFILE("Integrator::LowMach::ApplyImplicitDiffusion");
+    if ((!implicit_momentum_diffusion && !implicit_thermal_diffusion &&
+        !implicit_species_diffusion) || !(dt > 0.0)) return;
+
+    const int nlev = finest_level + 1;
+    const bool thermochemical_diffusion =
+        implicit_thermal_diffusion || implicit_species_diffusion;
+    diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
+    diffusion.FillBoundary(temperature_mf, *temperature_bc, time, 1);
+    diffusion.FillBoundary(
+        component_density_mf, *component_density_bc, time, nspecies);
+    if (implicit_momentum_diffusion)
+        diffusion.FillBoundary(
+            velocity_mf, *velocity_bc, time, AMREX_SPACEDIM);
+    if (thermochemical_diffusion)
+    {
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            diffusion_dilatation_mf[lev]->setVal(0.0);
+
+            for (amrex::MFIter mfi(*diffusion_dilatation_mf[lev],
+                                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> volume_change =
+                    diffusion_dilatation_mf.Patch(lev,mfi);
+                const Set::Scalar p_reference = pressure_reference;
+                const int ngas = ngas_species;
+
+                amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar gas_density = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                        gas_density += component_density(i,j,k,n);
+                    const Model::Gas::MoleFraction X =
+                        gas.MoleFractions(component_density, i, j, k);
+                    volume_change(i,j,k) = -gas_density *
+                        gas.R(X, i, j, k) * T(i,j,k) / p_reference;
+                });
+            }
+        }
+    }
+
+    if (implicit_species_diffusion)
+    {
+        diffusion.SetLayout(
+            geom, refRatio(), component_density_mf, nlev, ngas_species);
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            amrex::MultiFab& state = diffusion.State(lev, ngas_species);
+            amrex::MultiFab& mass = diffusion.Mass(lev, ngas_species);
+            amrex::MultiFab& mobility = diffusion.Mobility(lev, ngas_species);
+            state.setVal(0.0);
+            mass.setVal(0.0);
+            mobility.setVal(0.0);
+
+            for (amrex::MFIter mfi(state, amrex::TilingIfNotGPU());
+                mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& grown_box = mfi.growntilebox(1);
+                const amrex::Box& valid_box = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> Y = state.array(mfi);
+                Set::Patch<Set::Scalar> a = mass.array(mfi);
+                Set::Patch<Set::Scalar> b = mobility.array(mfi);
+                const Set::Scalar p_reference = pressure_reference;
+                const Set::Scalar rho_floor = density_floor;
+                const int ngas = ngas_species;
+
+                amrex::ParallelFor(
+                    grown_box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar gas_density = 0.0;
+                        for (int n = 0; n < ngas; ++n)
+                            gas_density += component_density(i,j,k,n);
+                        for (int n = 0; n < ngas; ++n)
+                            Y(i,j,k,n) = gas_density > rho_floor ?
+                                component_density(i,j,k,n) / gas_density :
+                                (n == 0 ? 1.0 : 0.0);
+                    });
+                amrex::ParallelFor(
+                    valid_box, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar gas_density = 0.0;
+                        for (int n = 0; n < ngas; ++n)
+                            gas_density += component_density(i,j,k,n);
+                        const Model::Gas::MoleFraction X =
+                            gas.MoleFractions(component_density, i, j, k);
+                        a(i,j,k) = Util::Max(gas_density, rho_floor);
+                        b(i,j,k) = gas_density * gas.diffusion_coefficient(
+                            T(i,j,k), p_reference, X, i, j, k, 0);
+                    });
+            }
+        }
+
+        diffusion.Solve(
+            time, dt, component_density_bc->GetBCRec(), ngas_species);
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            const amrex::MultiFab& state = diffusion.State(lev, ngas_species);
+            for (amrex::MFIter mfi(*component_density_mf[lev],
+                                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> Y = state.array(mfi);
+                const int ngas = ngas_species;
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar gas_density = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                        gas_density += component_density(i,j,k,n);
+                    for (int n = 0; n < ngas; ++n)
+                        component_density(i,j,k,n) = gas_density * Y(i,j,k,n);
+                });
+            }
+        }
+        diffusion.Synchronize(component_density_mf, ngas_species);
+        diffusion.FillBoundary(
+            component_density_mf, *component_density_bc, time, nspecies);
+    }
+
+    if (implicit_thermal_diffusion)
+    {
+        diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
+        const auto solid_cp = condensed_specific_heat;
+        const auto solid_k = condensed_thermal_conductivity;
+        const auto inverse_reference_density =
+            condensed_inverse_reference_density;
+        const bool use_condensed_properties = condensed_thermal_transport;
+        const bool use_thermal_bridge = thermal_bridge_peclet > 0.0;
+        const int ngas = ngas_species;
+        const Set::Scalar p_reference = pressure_reference;
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            amrex::MultiFab& state = diffusion.State(lev, 1);
+            amrex::MultiFab& mass = diffusion.Mass(lev, 1);
+            amrex::MultiFab& mobility = diffusion.Mobility(lev, 1);
+            amrex::MultiFab& tensor_mobility =
+                diffusion.TensorMobility(lev, 1);
+            amrex::MultiFab::Copy(
+                state, *temperature_mf[lev], 0, 0, 1, state.nGrow());
+
+            for (amrex::MFIter mfi(mass, amrex::TilingIfNotGPU());
+                mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> velocity =
+                    velocity_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> a = mass.array(mfi);
+                Set::Patch<Set::Scalar> b = mobility.array(mfi);
+                Set::Patch<Set::Scalar> B = tensor_mobility.array(mfi);
+                const Set::Scalar rho_floor = density_floor;
+                const int number_of_species = nspecies;
+                const Set::Scalar bridge_width = thermal_bridge_width;
+                const Set::Scalar inverse_bridge_peclet =
+                    thermal_bridge_peclet > 0.0 ?
+                    1.0 / thermal_bridge_peclet : 0.0;
+                const auto DX = geom[lev].CellSizeArray();
+                const amrex::Box domain = geom[lev].Domain();
+
+                amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    const Model::Gas::MoleFraction X =
+                        gas.MoleFractions(component_density, i, j, k);
+                    const Set::Scalar cp =
+                        gas.cp_mass(T(i,j,k), X, i, j, k);
+                    const Set::Scalar conductivity =
+                        gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+                    if (use_condensed_properties)
+                    {
+                        // Partial densities carry volumetric heat capacity;
+                        // reconstructed volume fractions mix conductivities.
+                        Set::Scalar gas_density = 0.0;
+                        for (int n = 0; n < ngas; ++n)
+                            gas_density += Util::Max(
+                                component_density(i,j,k,n), 0.0);
+                        Set::Scalar heat_capacity = gas_density * cp;
+                        Set::Scalar mixture_conductivity = 0.0;
+                        if (gas_density > rho_floor && T(i,j,k) > 0.0 &&
+                            p_reference > 0.0)
+                            mixture_conductivity = Util::Clamp(
+                                gas_density * gas.R(X, i, j, k) * T(i,j,k) /
+                                    p_reference,
+                                0.0, 1.0) * conductivity;
+                        Set::Scalar condensed_volume_fraction = 0.0;
+                        for (int n = ngas; n < number_of_species; ++n)
+                        {
+                            const Set::Scalar partial_density = Util::Max(
+                                component_density(i,j,k,n), 0.0);
+                            const Set::Scalar volume_fraction = partial_density *
+                                inverse_reference_density[n];
+                            heat_capacity += partial_density * solid_cp[n];
+                            mixture_conductivity += volume_fraction * solid_k[n];
+                            condensed_volume_fraction += volume_fraction;
+                        }
+                        if (use_thermal_bridge)
+                        {
+                            const Set::Scalar eta = Util::Clamp(
+                                condensed_volume_fraction, 0.0, 1.0);
+                            Set::Vector normal = Set::Vector::Zero();
+                            const auto stencil =
+                                Numeric::GetStencil(i,j,k,domain);
+                            for (int n = ngas; n < number_of_species; ++n)
+                                normal += inverse_reference_density[n] *
+                                    Numeric::Gradient(component_density,
+                                        i, j, k, n, DX.data(), stencil);
+                            const Set::Scalar normal_norm = normal.norm();
+                            if (normal_norm > 0.0) normal /= normal_norm;
+                            const Set::Vector u(AMREX_D_DECL(
+                                velocity(i,j,k,0), velocity(i,j,k,1),
+                                velocity(i,j,k,2)));
+                            const Set::Scalar bridge_conductivity =
+                                4.0 * eta * (1.0 - eta) * heat_capacity *
+                                Util::Abs(u.dot(normal)) * bridge_width *
+                                inverse_bridge_peclet;
+                            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                                for (int e = 0; e < AMREX_SPACEDIM; ++e)
+                                    B(i,j,k,d * AMREX_SPACEDIM + e) =
+                                        bridge_conductivity *
+                                        normal(d) * normal(e);
+                        }
+                        b(i,j,k) = mixture_conductivity;
+                        a(i,j,k) = Util::Max(
+                            heat_capacity, rho_floor * cp);
+                        return;
+                    }
+
+                    Set::Scalar density = 0.0;
+                    for (int n = 0; n < number_of_species; ++n)
+                        density += component_density(i,j,k,n);
+                    a(i,j,k) = Util::Max(density, rho_floor) * cp;
+                    b(i,j,k) = conductivity;
+                });
+            }
+        }
+
+        diffusion.Solve(
+            time, dt, temperature_bc->GetBCRec(), 1, use_thermal_bridge);
+        for (int lev = 0; lev < nlev; ++lev)
+            amrex::MultiFab::Copy(*temperature_mf[lev], diffusion.State(lev, 1),
+                                    0, 0, 1, 0);
+        diffusion.Synchronize(temperature_mf, 1);
+        diffusion.FillBoundary(temperature_mf, *temperature_bc, time, 1);
+    }
+
+    if (implicit_momentum_diffusion)
+    {
+        diffusion.SetLayout(
+            geom, refRatio(), velocity_mf, nlev, AMREX_SPACEDIM);
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            amrex::MultiFab& state = diffusion.State(lev, AMREX_SPACEDIM);
+            amrex::MultiFab& mass = diffusion.Mass(lev, AMREX_SPACEDIM);
+            amrex::MultiFab& mobility =
+                diffusion.Mobility(lev, AMREX_SPACEDIM);
+            amrex::MultiFab::Copy(
+                state, *velocity_mf[lev], 0, 0, AMREX_SPACEDIM, state.nGrow());
+
+            for (amrex::MFIter mfi(mass, amrex::TilingIfNotGPU());
+                mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> a = mass.array(mfi);
+                Set::Patch<Set::Scalar> b = mobility.array(mfi);
+                const Set::Scalar rho_floor = density_floor;
+                const int number_of_species = nspecies;
+
+                amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar density = 0.0;
+                    for (int n = 0; n < number_of_species; ++n)
+                        density += component_density(i,j,k,n);
+                    const Model::Gas::MoleFraction X =
+                        gas.MoleFractions(component_density, i, j, k);
+                    a(i,j,k) = Util::Max(density, rho_floor);
+                    b(i,j,k) =
+                        gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+                });
+            }
+        }
+        diffusion.Solve(
+            time, dt, velocity_bc->GetBCRec(), AMREX_SPACEDIM);
+        for (int lev = 0; lev < nlev; ++lev)
+            amrex::MultiFab::Copy(*velocity_mf[lev],
+                diffusion.State(lev, AMREX_SPACEDIM), 0, 0,
+                AMREX_SPACEDIM, 0);
+        diffusion.Synchronize(velocity_mf, AMREX_SPACEDIM);
+        diffusion.FillBoundary(
+            velocity_mf, *velocity_bc, time, AMREX_SPACEDIM);
+    }
+
+    if (thermochemical_diffusion)
+    {
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            for (amrex::MFIter mfi(*diffusion_dilatation_mf[lev],
+                                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> volume_change =
+                    diffusion_dilatation_mf.Patch(lev,mfi);
+                const Set::Scalar p_reference = pressure_reference;
+                const int ngas = ngas_species;
+
+                amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar gas_density = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                        gas_density += component_density(i,j,k,n);
+                    const Model::Gas::MoleFraction X =
+                        gas.MoleFractions(component_density, i, j, k);
+                    volume_change(i,j,k) += gas_density *
+                        gas.R(X, i, j, k) * T(i,j,k) / p_reference;
+                });
+            }
+        }
+        diffusion.Synchronize(diffusion_dilatation_mf, 1);
+    }
+}
+
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
 LowMach::ComputeThermochemicalSource(
@@ -571,7 +1000,7 @@ LowMach::ComputeThermochemicalSource(
         species[n] = gas_volume_fraction * reaction.first[n];
 
     Set::Scalar enthalpy_diffusion = 0.0;
-    if (ngas_species > 1 && chemistry.Reactive())
+    if (ngas_species > 1 && chemistry.Reactive() && !implicit_species_diffusion)
     {
         auto gas_density_at = [=,this] AMREX_GPU_DEVICE(int ii, int jj, int kk)
         {
@@ -652,7 +1081,7 @@ LowMach::ComputeThermochemicalSource(
     }
 
     const Set::Scalar cp = gas.cp_mass(T(i,j,k), X, i, j, k);
-    if (include_conduction && cp > 0.0)
+    if (include_conduction && !implicit_thermal_diffusion && cp > 0.0)
     {
         const Set::Scalar kappa =
             gas.thermal_conductivity(T(i,j,k), X, i, j, k);
@@ -689,6 +1118,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const bool rigid_solid = !rigid_solid_species.empty();
     const bool mixed_phase = deformable_solid || rigid_solid;
     const bool split_chemistry = chemistry.Split();
+    const bool split_diffusion =
+        implicit_thermal_diffusion || implicit_species_diffusion;
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
@@ -765,6 +1196,9 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> chemistry_dilatation =
                 chemistry_dilatation_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> diffusion_dilatation;
+            if (split_diffusion)
+                diffusion_dilatation = diffusion_dilatation_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
@@ -780,6 +1214,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 rhs(i,j,k) += dilatation;
                 if (split_chemistry)
                     rhs(i,j,k) += chemistry_dilatation(i,j,k) / dt;
+                if (split_diffusion)
+                    rhs(i,j,k) += diffusion_dilatation(i,j,k) / dt;
 
                 if (mixed_phase)
                 {
@@ -988,11 +1424,12 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
+            const Model::Gas::MoleFraction X =
+                gas.MoleFractions(component_density, i, j, k);
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), density_floor);
-
-            Set::Scalar mu = include_viscosity ? gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
+            Set::Scalar mu = include_viscosity && !implicit_momentum_diffusion ?
+                gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
 
             Set::Vector div_sigma = Set::Vector::Zero();
             if (deformable_solid)
@@ -1000,8 +1437,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
             Set::Vector adv_u = advect.Vector(
                 u, u, i, j, k, 0, DX, {Numeric::Advect::Form::Advective}, sten);
-
-            Set::Vector lap_u = Numeric::VectorLaplacian(u, i, j, k, 0, DX);
+            Set::Vector lap_u =
+                Numeric::VectorLaplacian(u, i, j, k, 0, DX);
 
             // Pressure is applied once by the nonincremental projection after
             // this predictor; including the stored pressure here feeds the
@@ -1088,7 +1525,7 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 const Set::Scalar mechanism_source = component_density_rhs(i,j,k,n);
                 component_density_rhs(i,j,k,n) =
                     advect(component_density, u, i, j, k, n, DX,
-                           {Numeric::Advect::Form::Conservative}, sten) + mechanism_source + species[n];
+                            {Numeric::Advect::Form::Conservative}, sten) + mechanism_source + species[n];
             }
             if (deformable_solid)
             {
@@ -1275,8 +1712,12 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
             const Set::Scalar rho_floor = density_floor;
-            const bool viscous = include_viscosity;
-            const bool conductive = include_conduction;
+            const bool viscous =
+                include_viscosity && !implicit_momentum_diffusion;
+            const bool conductive =
+                include_conduction && !implicit_thermal_diffusion;
+            const bool species_diffusive =
+                chemistry.Reactive() && !implicit_species_diffusion;
             const bool elastic = explicit_solid_deviatoric_stress;
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
@@ -1307,7 +1748,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     nu = Util::Max(nu, kappa /
                         (Util::Max(rho(i,j,k), rho_floor) * cp));
                 }
-                if (chemistry.Reactive())
+                if (species_diffusive)
                     for (int n = 0; n < ngas; ++n)
                         nu = Util::Max(nu, gas.diffusion_coefficient(
                             T(i,j,k), p_reference, X, i, j, k, n));
@@ -1450,6 +1891,7 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
 void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
+    ApplyImplicitDiffusion(time + dt[0], dt[0]);
     ProjectVelocity(time + dt[0], dt[0]);
     PrintDiagnostics(time, iter);
 }

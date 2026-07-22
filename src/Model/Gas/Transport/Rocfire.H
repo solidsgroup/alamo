@@ -31,6 +31,7 @@ class Rocfire
 {
 public:
     static constexpr const char* name = "rocfire";
+    static constexpr bool common_diffusivity = true;
 
 private:
     int nspecies = 1;

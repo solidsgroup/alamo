@@ -1,8 +1,13 @@
-# 3 MPa AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
-# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
+# 3 MPa AP/HTPB sandwich with a chevron-shaped condensed/gas interface.
+# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_inclined
+#
+# The two long surface segments have slopes +/-1. On these segments the exact
+# bridge tensor k_b n*n has off-diagonal entries, while a coordinate-diagonal
+# diffusion operator reduces the bridge to (k_b/2) I and therefore conducts
+# tangentially as strongly as it conducts normally.
 
-plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-5_s
+plot_file = output.lm.ap_htpb_inclined
+amr.plot_dt = 2.5e-4_s
 amr.max_level = 2
 amr.n_cell = 32 32
 amr.max_grid_size = 16
@@ -15,7 +20,7 @@ eta_refinement_criterion = 0.01
 temperature_refinement_criterion = 100.0
 
 timestep = 2.5e-7_s
-stop_time = 1.0_s
+stop_time = 3.0e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -23,8 +28,8 @@ dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.0003_m -0.0001_m 0.0
-geometry.prob_hi =  0.0003_m  0.0005_m 0.0
+geometry.prob_lo = -0.0003_m -0.0002_m 0.0
+geometry.prob_hi =  0.0003_m  0.0004_m 0.0
 geometry.is_periodic = 1 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
@@ -71,11 +76,6 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. At
-# 3 MPa, the common multiplier targets about 4.5 mm/s for both surfaces based
-# on a 2 mm/s rate at 1 MPa and a sandwich pressure exponent of 0.74. Surface
-# Arrhenius activation remains disabled because this model has no separate
-# condensed-side surface temperature.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
@@ -111,8 +111,6 @@ include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
-# Match the Allen-Cahn width and hold the thermal Peclet number across the
-# diffuse layer small enough to approximate a transparent sharp interface.
 thermal_bridge.width = 20.0_um
 thermal_bridge.peclet = 0.01
 projection.enabled = 1
@@ -126,19 +124,17 @@ diffusion.verbose = 0
 diagnostics.interval = 100
 diagnostics.extended_fields = 1
 
-# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
-# the two outer strips. The vertical factor is the equilibrium profile for the
-# Allen-Cahn sigma/epsilon parameterization. Partial densities encode both
-# composition and volume.
+# The eta=0.5 surface is y=abs(x)-0.1 mm. AP is the central 0.4 mm strip and
+# HTPB occupies the two outer strips. Partial densities encode composition and
+# condensed volume fraction.
 AP_solid.density.ic.type = expression
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*(y-abs(x)+0.0001)/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
 HTPB_solid.density.ic.type = expression
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*(y-abs(x)+0.0001)/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
 
-# The gas initially contains final products. AP and HTPB reactants enter only
-# through regression, avoiding a domain-wide homogeneous ignition transient.
+# The gas initially contains final products above the chevron surface.
 Final.density.ic.type = expression
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*3000000.0/(319.787*700.0))"
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-abs(x)+0.0001)/20.0e-6))*3000000.0/(319.787*700.0))"
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0

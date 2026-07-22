@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <memory>
+#include <tuple>
 #include <cmath>
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
@@ -34,6 +35,22 @@ public:
     const char* model_name() const
     {
         return selected >= 0 ? names[selected] : "";
+    }
+
+    template<int I = 0>
+    bool CommonDiffusivity() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::tuple_element_t<I, std::tuple<OBJ...>>::common_diffusivity;
+            return CommonDiffusivity<I+1>();
+        }
+        else
+        {
+            Util::Abort(INFO, selected);
+            return false;
+        }
     }
 
     template<class Composition, int I = 0>

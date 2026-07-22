@@ -95,7 +95,6 @@ public:
         if (Util::Abs(sum - 1.0) > 1.0e-12)
             Util::Exception(INFO, pp.full("out.mass_fractions"), " must sum to one");
 
-        pp.query_default("interface_only", value.interface_only, true);
         pp.query_default("rate_multiplier", value.rate_multiplier, 1.0);
         if (value.rate_multiplier < 0.0)
             Util::Exception(INFO, "rate_multiplier must be nonnegative");
@@ -148,17 +147,23 @@ private:
     {
         if (!(state.temperature > temperature_cutoff)) return 0.0;
 
-        Set::Scalar eta_dot = model(
-            state.component_density, input, 1.0 / reference_density, i, j, k, DX);
-        eta_dot = Util::Min(eta_dot, 0.0);
-        if (interface_only)
+        Set::Scalar eta_dot = 0.0;
+        if (input_is_rigid)
         {
-            const Set::Scalar eta = input_is_rigid ?
-                Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0) :
-                Util::Clamp(state.component_density(i,j,k,input) / reference_density,
-                            0.0, 1.0);
-            eta_dot *= 4.0 * eta * (1.0 - eta);
+            const Set::Scalar eta = Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+            if (eta > 0.0)
+            {
+                const Set::Scalar input_eta = Util::Clamp(
+                    state.component_density(i,j,k,input) / reference_density,
+                    0.0, eta);
+                eta_dot = input_eta / eta *
+                    model(state.rigid_eta, 0, 1.0, i, j, k, DX);
+            }
         }
+        else
+            eta_dot = model(state.component_density, input,
+                            1.0 / reference_density, i, j, k, DX);
+        eta_dot = Util::Min(eta_dot, 0.0);
         if (activation_temperature > 0.0)
             eta_dot *= std::exp(-activation_temperature / state.temperature);
         return rate_multiplier * reference_density * eta_dot;
@@ -175,7 +180,6 @@ private:
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
     bool input_is_rigid = false;
-    bool interface_only = true;
 };
 }
 }

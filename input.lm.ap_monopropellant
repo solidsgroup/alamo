@@ -1,21 +1,16 @@
-# 3 MPa AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
-# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
+# Effectively one-dimensional AP monopropellant regression calibration case.
+# Run with: ./bin/lowmach-2d-clang++ input.lm.ap_monopropellant
 
-plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-5_s
-amr.max_level = 2
-amr.n_cell = 32 32
-amr.max_grid_size = 16
+plot_file = output.lm.ap_monopropellant
+amr.plot_dt = 2.5e-4_s
+amr.max_level = 0
+amr.n_cell = 4 128
+amr.max_grid_size = 128
 amr.blocking_factor = 4
-amr.regrid_int = 5
-amr.grid_eff = 0.7
 amr.nsubsteps = 1
 
-eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 100.0
-
 timestep = 2.5e-7_s
-stop_time = 1.0_s
+stop_time = 5.0e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -23,12 +18,15 @@ dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.0003_m -0.0001_m 0.0
-geometry.prob_hi =  0.0003_m  0.0005_m 0.0
+# The narrow periodic direction makes the solution one-dimensional while
+# retaining an isotropic 3.125 micron mesh in the 2D executable. The 20 micron
+# interface remains resolved by approximately six cells.
+geometry.prob_lo = -6.25e-6_m -1.0e-4_m 0.0
+geometry.prob_hi =  6.25e-6_m  3.0e-4_m 0.0
 geometry.is_periodic = 1 0 0
 
-# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
-# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
+# Rocfire requires its six gas species in this order. Only the AP
+# monopropellant path AP_gas -> Mono is active in this case.
 system.amount = kmol
 gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
 gas.thermo.type = rocfire
@@ -43,7 +41,7 @@ gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
 gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
 gas.eos.type = tpg
 
-species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid
 AP_gas.mechanics = fluid
 HTPB_gas.mechanics = fluid
 Mono.mechanics = fluid
@@ -51,13 +49,9 @@ Premixed.mechanics = fluid
 Primary.mechanics = fluid
 Final.mechanics = fluid
 AP_solid.mechanics = rigid_solid
-HTPB_solid.mechanics = rigid_solid
 AP_solid.reference_density = 1950.0_kg/m^3
-HTPB_solid.reference_density = 920.0_kg/m^3
 AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
-HTPB_solid.specific_heat = 2418.29_J/kg/K
-HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -71,12 +65,10 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. At
-# 3 MPa, the common multiplier targets about 4.5 mm/s for both surfaces based
-# on a 2 mm/s rate at 1 MPa and a sandwich pressure exponent of 0.74. Surface
-# Arrhenius activation remains disabled because this model has no separate
-# condensed-side surface temperature.
-mechanisms.names = AP_decomposition HTPB_pyrolysis
+# These are the phase-field calibration parameters. At 3 MPa the present
+# multiplier targets approximately 4.5 mm/s from the nominal 2 mm/s rate at
+# 1 MPa and pressure exponent 0.74 used by the sandwich test.
+mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
@@ -88,18 +80,6 @@ AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
 AP_decomposition.phase_change.phase_field.allencahn.epsilon = 20.0_um
 AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
-
-HTPB_pyrolysis.type = phase_change
-HTPB_pyrolysis.phase_change.in = HTPB_solid
-HTPB_pyrolysis.phase_change.out = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 63.0
-HTPB_pyrolysis.phase_change.activation_temperature = 0.0_K
-HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
-HTPB_pyrolysis.phase_change.phase_field.type = allencahn
-HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 20.0_um
-HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0
@@ -126,17 +106,13 @@ diffusion.verbose = 0
 diagnostics.interval = 100
 diagnostics.extended_fields = 1
 
-# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
-# the two outer strips. The vertical factor is the equilibrium profile for the
-# Allen-Cahn sigma/epsilon parameterization. Partial densities encode both
-# composition and volume.
+# The eta=0.5 AP surface starts at y=0 with the equilibrium profile implied
+# by the configured sigma/epsilon coefficients.
 AP_solid.density.ic.type = expression
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
-HTPB_solid.density.ic.type = expression
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6)))"
 
-# The gas initially contains final products. AP and HTPB reactants enter only
-# through regression, avoiding a domain-wide homogeneous ignition transient.
+# Fill the gas side with final products at 3 MPa and 700 K. Fresh AP gas is
+# introduced only by the moving condensed/gas interface.
 Final.density.ic.type = expression
 Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*3000000.0/(319.787*700.0))"
 
@@ -152,7 +128,7 @@ component_density.bc.constant.type.xlo = periodic
 component_density.bc.constant.type.xhi = periodic
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = dirichlet
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic
