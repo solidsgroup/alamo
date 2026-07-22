@@ -17,7 +17,7 @@ amr.max_level = 0
 # amr.n_cell = 256 256 0
 # Equivalent finest resolution of the old amr.n_cell=8 16 0 @ max_level=3
 # (8*2^3=64, 16*2^3=128), now the single (and only) level.
-amr.n_cell = 64 128 0
+amr.n_cell = 96 176 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
 # amr.regrid_int = 100
@@ -57,8 +57,8 @@ integration.rk.type = 3
 # Replaces the old full-width periodic domain (-0.0003 to 0.0003) with a
 # neumann (symmetry) condition at xlo instead of periodic wraparound - same
 # physics, half the cells in x.
-geometry.prob_lo = 0.0_m -0.0001_m 0.0 # [ m ]
-geometry.prob_hi = 0.0003_m 0.0005_m 0.0 # [ m ]
+geometry.prob_lo = -0.000075_m -0.000325_m 0.0 # [ m ]
+geometry.prob_hi = 0.000375_m 0.0005_m 0.0 # [ m ]
 geometry.is_periodic = 0 0 0
 
 small = 1.0e-8
