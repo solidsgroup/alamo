@@ -699,24 +699,46 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
     SetTimestep(new_timestep);
 }
 
-// Advances solid.energy_mf via its own domain-wide conduction, sourced from the
-// shared temperature_mf field. This is the sole update path for solid.energy_mf
-// after its initial IC seed - Flame no longer rewrites it, so there is no round
-// trip through Hydro's own T. Since temperature_mf here still holds the previous
-// step's value (this runs before this step's RK/RHS stages recompute it), the
-// scheme is a standard one-step-lagged explicit update, not an algebraic loop.
+// Advances solid.energy_mf via its own domain-wide conduction. This is the sole
+// update path for solid.energy_mf after its initial IC seed - Flame no longer
+// rewrites it, so there is no round trip through Hydro's own T. Since
+// temperature_mf here still holds the previous step's value (this runs before
+// this step's RK/RHS stages recompute it), the scheme is a standard
+// one-step-lagged explicit update, not an algebraic loop.
 //
-// Solves d/dt(T_solid) = div(phi_s * alpha_solid * grad(T)) via the same
-// product-rule expansion Flame's retired per-phase diffusion loop used, but with
-// phi_s = solid fraction and T = the single unified temperature field (so heat
-// genuinely conducts in from the gas side across the interface), then converts
-// the temperature rate to an energy rate via E_solid = rho_phys*cp*(T-T_ref).
+// Two physically distinct mechanisms, kept separate on purpose:
+//
+//  1. Bulk conduction WITHIN the solid: div(phi_s * alpha_solid * grad(T_solid)),
+//     diffusing the solid-only caloric temperature (T_solid = E_solid/(rho_phys*cp)
+//     + T_ref), never the shared/blended temperature_mf. Differentiating the
+//     blended field here was the bug found in practice: at the diffuse
+//     interface, grad(temperature_mf) inherits however steep the (separately
+//     unstable) reacting gas temperature happens to be, and even a tiny
+//     physical alpha multiplying an unbounded gradient produced a growing,
+//     runaway solid-energy drift that fed back into the fluid-side temperature
+//     reconstruction. T_solid is smooth and non-reactive, so its own gradient
+//     stays physically bounded regardless of what the gas is doing.
+//
+//  2. Interfacial exchange with the gas: a bounded Robin-type flux using the
+//     actual (un-blended) T_gas - T_solid difference, with the interface's own
+//     diffuse width - 1/|grad(phi_s)| - as the conduction length scale, i.e.
+//     q_interface = k_solid * |grad(phi_s)|^2 * (T_gas - T_solid). This is what
+//     lets heat genuinely conduct in from the gas side, but the coupling
+//     strength is set by the phase field's own (slowly-evolving) geometry, not
+//     by however steep the instantaneous reacting temperature field is.
 void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
     amrex::MultiFab alpha_solid_mf(ba, dm, 1, 1);
+    amrex::MultiFab T_solid_mf(ba, dm, 1, 1);
+
+    // T_solid's energy datum must match the active gas EOS - see Hydro::RHS for
+    // why (same reasoning: E_solid and the gas energy must share a zero point).
+    const Set::Scalar T_ref_energy =
+        (std::string(gas.eos.model_name()) == "tpg")
+            ? Model::Gas::EOS::sensible_reference_temperature : 0.0;
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
     {
@@ -724,17 +746,22 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
         Set::Patch<const Set::Scalar> rho_phys = solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> cp_solid = solid.cp_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> k_solid  = solid.k_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E_solid  = solid.energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       alpha    = alpha_solid_mf.array(mfi);
+        Set::Patch<Set::Scalar>       T_solid  = T_solid_mf.array(mfi);
         Set::Scalar small_local = small;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             alpha(i,j,k) = k_solid(i,j,k) / (rho_phys(i,j,k)*cp_solid(i,j,k) + small_local);
+            T_solid(i,j,k) = T_ref_energy + E_solid(i,j,k) / (rho_phys(i,j,k)*cp_solid(i,j,k) + small_local);
         });
     }
     alpha_solid_mf.FillBoundary(geom[lev].periodicity());
+    T_solid_mf.FillBoundary(geom[lev].periodicity());
 
     bool invert_local = invert;
+    Set::Scalar eta_cutoff_local = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
     {
@@ -744,7 +771,9 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
         Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> cp_solid  = solid.cp_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> k_solid   = solid.k_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> alpha     = alpha_solid_mf.array(mfi);
+        Set::Patch<const Set::Scalar> T_solid_p = T_solid_mf.array(mfi);
         Set::Patch<const Set::Scalar> laser     = solid.laser_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       E_solid   = solid.energy_mf.Patch(lev,mfi);
 
@@ -752,25 +781,37 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
         {
             auto sten = Numeric::GetStencil(i, j, k, bx);
 
-            Set::Vector grad_raw   = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
-            Set::Vector grad_T     = Numeric::Gradient(T, i, j, k, 0, DX);
-            Set::Scalar lap_T      = Numeric::Laplacian(T, i, j, k, 0, DX);
-            Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
+            Set::Vector grad_raw    = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
+            Set::Vector grad_Tsolid = Numeric::Gradient(T_solid_p, i, j, k, 0, DX, sten);
+            Set::Scalar lap_Tsolid  = Numeric::Laplacian(T_solid_p, i, j, k, 0, DX, sten);
+            Set::Vector grad_alpha  = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
 
             // eta_patch is Flame's own phase field (1=solid,0=gas under invert);
             // when invert is set, eta_patch already *is* the solid fraction, so
-            // its gradient needs no sign flip - see AdvanceSolidEnergy's header
-            // comment for the derivation.
+            // its gradient needs no sign flip.
             Set::Vector grad_phis = invert_local ? grad_raw : (-1.0*grad_raw);
             Set::Scalar eta_gas   = invert_local ? 1.0 - eta_patch(i,j,k) : eta_patch(i,j,k);
             Set::Scalar phi_s     = 1.0 - eta_gas;
 
-            Set::Scalar dTsolid_dt = 0.0;
-            dTsolid_dt += grad_phis.dot(grad_T * alpha(i,j,k));
-            dTsolid_dt += grad_alpha.dot(phi_s * grad_T);
-            dTsolid_dt += phi_s * alpha(i,j,k) * lap_T;
+            // (1) Bulk solid conduction - product-rule expansion of
+            // div(phi_s * alpha * grad(T_solid)); T_solid only, never the
+            // reactive blended field.
+            Set::Scalar dTsolid_dt =
+                grad_phis.dot(grad_Tsolid * alpha(i,j,k)) +
+                grad_alpha.dot(phi_s * grad_Tsolid) +
+                phi_s * alpha(i,j,k) * lap_Tsolid;
 
             Set::Scalar dEsolid_dt = rho_phys(i,j,k) * cp_solid(i,j,k) * dTsolid_dt;
+
+            // (2) Interfacial exchange with the gas - bounded Robin-type flux.
+            // T_gas is recovered by algebraically un-mixing the previous step's
+            // blended temperature_mf (T = eta_gas*T_gas + phi_s*T_solid), the
+            // same eta_recon floor RHS uses to keep the division bounded as
+            // eta_gas -> 0.
+            const Set::Scalar eta_recon = eta_gas > eta_cutoff_local ? eta_gas : eta_cutoff_local;
+            Set::Scalar T_gas_local = (T(i,j,k) - (1.0 - eta_recon) * T_solid_p(i,j,k)) / eta_recon;
+            Set::Scalar q_interface = k_solid(i,j,k) * grad_phis.squaredNorm() * (T_gas_local - T_solid_p(i,j,k));
+            dEsolid_dt += q_interface;
 
             // Laser flux (W/m^2) is localized to the regressing interface via
             // |grad(solid fraction)| (1/m), giving a volumetric source (W/m^3) -
