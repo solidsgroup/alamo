@@ -154,6 +154,15 @@ protected:
         IC::IC<Set::Scalar>* density_ic   = nullptr;
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
+        // Physical interfacial (contact) heat transfer coefficient [W/m^2/K]
+        // between the solid and gas, independent of the phase field's own
+        // diffuse width eps - see AdvanceSolidEnergy's interfacial exchange
+        // term. Weighting that term by |grad(phi_s)| (not its square) makes
+        // it a proper, eps-independent surface delta function: its integral
+        // across the interface is exactly 1 for any eps, so the sharp-
+        // interface (eps->0) limit is a genuine Robin condition set by this
+        // h alone, not one that silently strengthens as eps is refined.
+        Set::Scalar h_interface = NAN;
     } solid;
 
     Set::Field<Set::Scalar>* eta_mf;

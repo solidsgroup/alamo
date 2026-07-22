@@ -45,34 +45,49 @@ is recovered) via two physically distinct mechanisms:
 
    .. code-block::
 
-      q_interface = k_solid * |grad(phi_s)|^2 * (T_gas - T_solid)
+      q_interface = h_interface * |grad(phi_s)| * (T_gas - T_solid)
 
-   where :code:`phi_s` is the local solid fraction (from the phase field
-   :code:`eta`) and :code:`T_gas`/:code:`T_solid` are the *un-blended*
-   physical temperatures on each side, recovered algebraically from the
-   previous step's shared temperature field. :code:`|grad(phi_s)|` is
-   largest right at the interface and ~zero away from it, so this term is
-   localized to the diffuse interface layer, and its strength is set by the
-   interface's own (slowly-evolving) geometric width rather than by however
-   steep the instantaneous temperature difference happens to be - this is
-   what keeps heat transfer physically bounded even while the gas
-   temperature is doing something numerically difficult elsewhere (e.g.
-   stiff combustion chemistry).
+   where :code:`h_interface` (:code:`hydro.solid.h_interface`, [W/m^2/K]) is
+   a *physical* interfacial contact conductance, :code:`phi_s` is the local
+   solid fraction (from the phase field :code:`eta`), and
+   :code:`T_gas`/:code:`T_solid` are the *un-blended* physical temperatures
+   on each side, recovered algebraically from the previous step's shared
+   temperature field. :code:`|grad(phi_s)|` is largest right at the
+   interface and ~zero away from it, so this term is localized to the
+   diffuse interface layer.
+
+   :code:`|grad(phi_s)|` (first power, not squared) is what makes this
+   converge to a genuine sharp-interface condition as the phase field's
+   diffuse width :code:`eps` -> 0: for any monotonic profile running from 1
+   to 0, :code:`integral(|grad(phi_s)|) = 1` exactly, for *any* eps (this is
+   just the fundamental theorem of calculus) - so :code:`|grad(phi_s)|` is a
+   properly normalized surface delta function, and
+   :code:`integral(q_interface) -> h_interface*(T_gas(0)-T_solid(0))` as
+   eps->0, independent of eps. An earlier version of this term used
+   :code:`k_solid * |grad(phi_s)|^2` instead (i.e. an implicit
+   :code:`h = k_solid/(eps*sqrt(pi))`, tied to eps) - its integral diverges
+   as :code:`1/eps`, so refining eps silently strengthened the coupling
+   every time rather than converging to anything fixed. A mesh/eps
+   refinement study with that version showed the error growing (not
+   shrinking) with refinement - the tell that something was wrong, since
+   the discretization itself was fine (see the bulk-only sine-decay
+   companion check, which agrees with its analytical solution to <0.02K
+   throughout). With :code:`h_interface` fixed and eps/mesh refined
+   together, the same study now converges properly - see the git history on
+   this file for the before/after numbers.
 
 Away from the interface, only term (1) is active (bulk Fourier diffusion).
 Right at the interface, term (2) dominates and acts like a surface heat
-transfer coefficient :code:`h = k_solid * |grad(phi_s)|_max`. For the erf
-profile used for :code:`pf.eta.ic` here,
-:code:`|grad(phi_s)|_max = 1/(eps*sqrt(pi))`, where :code:`eps` is the
-interface's diffuse width - so :code:`h = k_solid/(eps*sqrt(pi))`.
+transfer coefficient equal to :code:`h_interface` directly - not derived
+from :code:`k_solid` or :code:`eps` at all.
 
 **Analytical solution**
 
 Together, these two mechanisms are exactly the classical problem of a
 semi-infinite solid, initially at a uniform temperature :code:`T_i`, whose
 surface exchanges heat by convection with an ambient fluid at :code:`T_g`
-via a heat transfer coefficient :code:`h` (Carslaw & Jaeger, *Conduction of
-Heat in Solids*, 2nd ed., section 2.8):
+via a heat transfer coefficient :code:`h` (= :code:`h_interface`)
+(Carslaw & Jaeger, *Conduction of Heat in Solids*, 2nd ed., section 2.8):
 
 .. code-block::
 

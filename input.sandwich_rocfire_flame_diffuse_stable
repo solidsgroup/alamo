@@ -244,6 +244,7 @@ hydro.chemistry.rocfire.nsubsteps = 2
 ### HYDRO PARAM ###
 hydro.cfl   = 0.4
 hydro.cutoff = 0.01
+hydro.solid.h_interface = 11808.0_W/m^2/K
 hydro.lagrange = 0.0
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###

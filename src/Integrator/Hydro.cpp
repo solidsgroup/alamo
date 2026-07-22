@@ -308,6 +308,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
         pp_query_default("details",value.details,false); // save detailed data (viscosity, heat conductivity, etc.)
+        // Physical solid/gas interfacial contact conductance [W/m^2/K] - see
+        // AdvanceSolidEnergy. Only used when managed (Flame-driven); required
+        // rather than defaulted so switching to this eps-independent
+        // formulation can't silently go unnoticed by existing inputs.
+        if (value.managed) pp_query_required("solid.h_interface", value.solid.h_interface, Unit::HeatTransferCoefficient());
     }
     // Register FabFields:
     {
@@ -720,12 +725,22 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 //     stays physically bounded regardless of what the gas is doing.
 //
 //  2. Interfacial exchange with the gas: a bounded Robin-type flux using the
-//     actual (un-blended) T_gas - T_solid difference, with the interface's own
-//     diffuse width - 1/|grad(phi_s)| - as the conduction length scale, i.e.
-//     q_interface = k_solid * |grad(phi_s)|^2 * (T_gas - T_solid). This is what
-//     lets heat genuinely conduct in from the gas side, but the coupling
-//     strength is set by the phase field's own (slowly-evolving) geometry, not
-//     by however steep the instantaneous reacting temperature field is.
+//     actual (un-blended) T_gas - T_solid difference,
+//     q_interface = h_interface * |grad(phi_s)| * (T_gas - T_solid), where
+//     h_interface (solid.h_interface) is a physical contact conductance
+//     [W/m^2/K], independent of the phase field's diffuse width eps. This is
+//     what lets heat genuinely conduct in from the gas side. |grad(phi_s)|
+//     (first power, not squared) is the standard phase-field surface delta
+//     function: its integral across the interface is exactly 1 for any eps
+//     (fundamental theorem of calculus, since phi_s runs from 1 to 0), so
+//     as eps->0 this term converges to a genuine sharp-interface Robin
+//     condition h_interface*(T_gas(0)-T_solid(0)) for a fixed h_interface.
+//     (An earlier version used |grad(phi_s)|^2 with k_solid, i.e. an
+//     eps-dependent effective h=k_solid/(eps*sqrt(pi)) - that term's areal
+//     integral diverges as eps->0, so refining eps silently strengthened
+//     the coupling every time rather than converging to a fixed answer;
+//     confirmed empirically via a mesh/eps refinement study that showed the
+//     error growing, not shrinking, with refinement.)
 void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -762,6 +777,7 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
 
     bool invert_local = invert;
     Set::Scalar eta_cutoff_local = (cutoff >= 0.0 && cutoff < 1.0) ? cutoff : small;
+    Set::Scalar h_interface_local = solid.h_interface;
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
     {
@@ -771,7 +787,6 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
         Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_phys  = solid.rho_phys_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> cp_solid  = solid.cp_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> k_solid   = solid.k_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> alpha     = alpha_solid_mf.array(mfi);
         Set::Patch<const Set::Scalar> T_solid_p = T_solid_mf.array(mfi);
         Set::Patch<const Set::Scalar> laser     = solid.laser_mf.Patch(lev,mfi);
@@ -818,7 +833,7 @@ void Hydro::AdvanceSolidEnergy(int lev, Set::Scalar /*time*/, Set::Scalar dt)
             // eta_gas -> 0.
             const Set::Scalar eta_recon = eta_gas > eta_cutoff_local ? eta_gas : eta_cutoff_local;
             Set::Scalar T_gas_local = (T(i,j,k) - (1.0 - eta_recon) * T_solid_p(i,j,k)) / eta_recon;
-            Set::Scalar q_interface = k_solid(i,j,k) * grad_phis.squaredNorm() * (T_gas_local - T_solid_p(i,j,k));
+            Set::Scalar q_interface = h_interface_local * grad_phis.lpNorm<2>() * (T_gas_local - T_solid_p(i,j,k));
             dEsolid_dt += q_interface;
 
             // Laser flux (W/m^2) is localized to the regressing interface via

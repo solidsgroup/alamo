@@ -171,6 +171,12 @@ hydro.chemistry.type = frozen
 hydro.cfl   = 0.4
 hydro.cutoff = 0.01
 hydro.lagrange = 0.0
+# Physical interfacial contact conductance, independent of eps (see
+# AdvanceSolidEnergy / generate_reference.py) - chosen to match k_ap/(eps*sqrt(pi))
+# at this input's eps=5e-8 purely for continuity with the original comparison;
+# it is NOT tied to eps and should be held fixed when eps is varied (e.g. in
+# a resolution/convergence study).
+hydro.solid.h_interface = 4723395.6_W/m^2/K
 
 hydro.m0.ic.type = expression
 hydro.m0.ic.expression.region0 = "0.0"

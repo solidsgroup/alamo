@@ -172,6 +172,7 @@ hydro.chemistry.type = frozen
 ### HYDRO PARAM ###
 hydro.cfl   = 0.2
 hydro.cutoff = 0.2
+hydro.solid.h_interface = 23617.0_W/m^2/K
 
 ### AP/HTPB SOURCE ASSUMPTIONS ###
 # This is the 20 atm diffuse-source analogue of the gas-injection case.
