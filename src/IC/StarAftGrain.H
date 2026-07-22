@@ -74,7 +74,7 @@ public:
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static Set::Scalar starSDF(
         Set::Scalar x, Set::Scalar y,
-        Set::Scalar R1, Set::Scalar R3, Set::Scalar R4,
+        Set::Scalar R1, Set::Scalar R3, [[maybe_unused]] Set::Scalar R4,
         int nfin, Set::Scalar half_angle)
     {
         // Device-safe Pi: Set::Constant::Pi is an extern host global and is
@@ -95,8 +95,17 @@ public:
         //   - Within the fin half-angle: port opens out to R3 (star tip)
         //   - Outside the fin: port is just the bore circle R1
         // We interpolate smoothly between R1 and R3 based on angular position.
+        //
+        // NOTE: previously this used (R3 - R4) as the taper target, which
+        // caused every fin tip to fall short of R3 by the full fillet radius
+        // R4 (rather than R4 only rounding the sharp corner locally near the
+        // tip). That undersized every star station's tip reach and, summed
+        // over the full star-region length, undersized the reconstructed
+        // full-motor Ab(t=0) by roughly 500 cm^2 relative to the analytic
+        // station-table prediction. The taper now reaches the documented
+        // target R3 exactly at the fin center (t=0).
         Set::Scalar t         = std::min(dtheta / half_angle, 1.0);
-        Set::Scalar R_port    = R1 + (R3 - R4 - R1) * (1.0 - t * t);
+        Set::Scalar R_port    = R1 + (R3 - R1) * (1.0 - t * t);
 
         // SDF: positive = propellant (outside port), negative = gas (inside port)
         return r - R_port;
@@ -242,18 +251,33 @@ public:
                 else
                     sdf_port = tubeSDF(x, y, R1);
 
-                // Also enforce the outer case boundary (propellant doesn't exist outside case)
-                Set::Scalar sdf_case = _R_case - std::sqrt(x * x + y * y);
-
-                // Take the minimum: inside propellant only if inside case AND outside port
-                Set::Scalar sdf = std::min(sdf_port, sdf_case);
-
-                // Smooth tanh transition
+                // Smooth tanh transition for the true port/propellant interface.
+                // NOTE: previously this blended sdf_port with a second SDF
+                // (sdf_case = R_case - r) via std::min(), which creates its
+                // OWN independent zero-crossing (and its own tanh transition)
+                // anywhere r >= R_case. Because the computational domain here
+                // is a square of side R_case, its far corner reaches
+                // r = sqrt(2)*R_case > R_case, so that corner region produced
+                // a second, entirely spurious "interface" running the full
+                // axial length of the motor -- confirmed visually in VisIt as
+                // a phantom outer arc concentric with the true port boundary,
+                // and numerically as ~6800 cm^2 of extra "burning surface"
+                // area in the reconstructed full-motor Ab(t=0).
                 Set::Scalar eta;
                 if (_eps > 0.0)
-                    eta = 0.5 * (1.0 + std::tanh(sdf / _eps));
+                    eta = 0.5 * (1.0 + std::tanh(sdf_port / _eps));
                 else
-                    eta = (sdf >= 0.0) ? 1.0 : 0.0;
+                    eta = (sdf_port >= 0.0) ? 1.0 : 0.0;
+
+                // Outside the case radius there is no physical material to
+                // represent -- that region only exists because the square
+                // computational box extends past the true quarter-disk
+                // domain in its far corner. Hard-mask it to solid/inert
+                // propellant (no tanh, no gradient) so it can never register
+                // as an interface, rather than letting a second SDF sign
+                // change create one.
+                Set::Scalar r_glob = std::sqrt(x * x + y * y);
+                if (r_glob >= _R_case) eta = 1.0;
 
                 phi(i, j, k, 0) = eta;
             });
