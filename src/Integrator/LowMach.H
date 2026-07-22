@@ -78,6 +78,12 @@ protected:
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+    ComputeThermalState(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k) const;
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(
         Set::Patch<const Set::Scalar> component_density,
@@ -116,6 +122,11 @@ protected:
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> vorticity_mf;
+    Set::Field<Set::Scalar> viscosity_mf;
+    Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
+    Set::Field<Set::Scalar> diffusion_coeff_mf;
+    Set::Field<Set::Scalar> wdot_mf;
+    Set::Field<Set::Scalar> qdot_mf;
     Set::Field<Set::Matrix> deformation_gradient_mf;
     Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
 

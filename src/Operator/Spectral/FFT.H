@@ -237,7 +237,9 @@ public:
             mapper = &amrex::node_bilinear_interp;
 
         physbc.define(fine_geom);
-        amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+        amrex::Vector<amrex::BCRec> bcs(ncomp);
+        for (int n = 0; n < ncomp; ++n)
+            bcs[n] = physbc.GetBCRec(scomp + n);
         amrex::InterpFromCoarseLevel(
             fine, time, coarse, scomp, dcomp, ncomp,
             crse_geom, fine_geom,

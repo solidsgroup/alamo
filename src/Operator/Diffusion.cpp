@@ -415,7 +415,18 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::BCRec& boundary_condition, int ncomp,
                 bool use_tensor_mobility)
 {
+    Solve(time, dt, amrex::Vector<amrex::BCRec>(ncomp, boundary_condition),
+        ncomp, use_tensor_mobility);
+}
+
+void
+Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
+                const amrex::Vector<amrex::BCRec>& boundary_conditions,
+                int ncomp, bool use_tensor_mobility)
+{
     BL_PROFILE("Operator::Diffusion::Solve");
+    Util::Assert(INFO,
+        TEST(static_cast<int>(boundary_conditions.size()) == ncomp));
     System& system = GetSystem(ncomp);
     BC::Constant::ZeroNeumann coefficient_bc(1);
     for (int lev = 0; lev < nlevels; ++lev)
@@ -563,21 +574,28 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         }
     }
 
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_lo;
-    amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_hi;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    amrex::Vector<amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM>>
+        boundary_lo(ncomp);
+    amrex::Vector<amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM>>
+        boundary_hi(ncomp);
+    for (int n = 0; n < ncomp; ++n)
     {
-        if (geometry[0].isPeriodic(d))
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
-            boundary_lo[d] = amrex::LinOpBCType::Periodic;
-            boundary_hi[d] = amrex::LinOpBCType::Periodic;
-        }
-        else
-        {
-            boundary_lo[d] = BC::BCUtil::IsDirichlet(boundary_condition.lo(d)) ?
-                amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
-            boundary_hi[d] = BC::BCUtil::IsDirichlet(boundary_condition.hi(d)) ?
-                amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
+            if (geometry[0].isPeriodic(d))
+            {
+                boundary_lo[n][d] = amrex::LinOpBCType::Periodic;
+                boundary_hi[n][d] = amrex::LinOpBCType::Periodic;
+            }
+            else
+            {
+                boundary_lo[n][d] =
+                    BC::BCUtil::IsDirichlet(boundary_conditions[n].lo(d)) ?
+                    amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
+                boundary_hi[n][d] =
+                    BC::BCUtil::IsDirichlet(boundary_conditions[n].hi(d)) ?
+                    amrex::LinOpBCType::Dirichlet : amrex::LinOpBCType::Neumann;
+            }
         }
     }
 
@@ -683,8 +701,9 @@ Diffusion::FillBoundary(Set::Field<Set::Scalar>& field,
             amrex::Vector<amrex::MultiFab*> fine{field[lev].get()};
             amrex::Vector<amrex::Real> coarse_time{time};
             amrex::Vector<amrex::Real> fine_time{time};
-            amrex::Vector<amrex::BCRec> bcs(
-                ncomp, boundary_condition.GetBCRec());
+            amrex::Vector<amrex::BCRec> bcs(ncomp);
+            for (int n = 0; n < ncomp; ++n)
+                bcs[n] = boundary_condition.GetBCRec(n);
             amrex::FillPatchTwoLevels(
                 *field[lev], time,
                 coarse, coarse_time, fine, fine_time,

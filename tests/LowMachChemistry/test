@@ -16,6 +16,43 @@ if len(plotfiles) < 2:
 
 initial = yt.load(plotfiles[0]).all_data()
 final = yt.load(plotfiles[-1]).all_data()
+if outdir.endswith("_2d-source"):
+    # Cantera 3.2 values for the multicomponent_master H2/O2 mechanism at
+    # T=1000 K, P=1 atm, X_H2=2/3, and X_O2=1/3.
+    expected_wdot = [
+        -4.025974566628345e-06,
+        2.0129872913589804e-06,
+        1.107058498505617e-16,
+        -6.390036392279833e-05,
+        0.0,
+        0.0,
+        6.591335119795699e-05,
+        0.0,
+        0.0,
+        0.0,
+    ]
+    for n, expected in enumerate(expected_wdot, start=1):
+        field = f"wdot{n:03d}"
+        numpy.testing.assert_allclose(
+            initial[field].to_ndarray(),
+            expected,
+            rtol=2.0e-8,
+            atol=2.0e-12,
+            err_msg=f"{field} differs from the hydro chemistry mechanism",
+        )
+    numpy.testing.assert_allclose(
+        initial["qdot"].to_ndarray(),
+        -461.905471792037,
+        rtol=2.0e-8,
+        atol=2.0e-8,
+        err_msg="qdot differs from the reference chemistry mechanism",
+    )
+    total_wdot = sum(initial[f"wdot{n:03d}"].to_ndarray() for n in range(1, 11))
+    if float(numpy.max(numpy.abs(total_wdot))) > 2.0e-12:
+        raise RuntimeError("Instantaneous chemistry source does not conserve mass")
+    print("LowMach chemistry source matches the H2/O2 reference mechanism")
+    sys.exit(0)
+
 if testlib.readHeader(plotfiles[-1])["amrlevels"] < 1:
     raise RuntimeError("LowMachChemistry expected AMR level 1 to be present")
 species = ["H2", "H", "O", "O2", "OH", "H2O", "HO2", "H2O2", "AR", "N2"]

@@ -141,7 +141,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Util::Exception(INFO, "Locally integrated LowMach chemistry requires projection.enabled=1");
     value.implicit_thermal_diffusion = value.include_conduction;
     value.implicit_species_diffusion = value.ngas_species > 1 &&
-        value.chemistry.Reactive() && value.gas.transport.CommonDiffusivity();
+        value.gas.transport.CommonDiffusivity();
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion)
         pp.queryclass("diffusion", value.diffusion);
@@ -317,6 +317,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.viscosity_mf, &value.bc_nothing, 1, 1, "viscosity", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, 1, "thermal_conductivity_coeff", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_coeff_mf, &value.bc_nothing, value.ngas_species, 1, "diffusion_coeff", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.wdot_mf, &value.bc_nothing, value.ngas_species, 1, "wdot", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.qdot_mf, &value.bc_nothing, 1, 1, "qdot", true, false);
         if (value.deformable_solid_species >= 0)
             value.AddField<Set::Matrix,Set::HC::Cell>(value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
     }
@@ -520,6 +525,8 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
 // - energy
 // - vorticity
 // - momentum
+// - mixture transport properties
+// - instantaneous chemistry source terms
 // 
 void
 LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf)
@@ -531,6 +538,11 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
     momentum_mf[lev]->setVal(0.0);
     energy_mf[lev]->setVal(0.0);
     vorticity_mf[lev]->setVal(0.0);
+    viscosity_mf[lev]->setVal(0.0);
+    thermal_conductivity_coeff_mf[lev]->setVal(0.0);
+    diffusion_coeff_mf[lev]->setVal(0.0);
+    wdot_mf[lev]->setVal(0.0);
+    qdot_mf[lev]->setVal(0.0);
 
     for (amrex::MFIter mfi(u_mf, true); mfi.isValid(); ++mfi)
     {
@@ -543,8 +555,13 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
         Set::Patch<Set::Scalar> M = momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E = energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> mu = viscosity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> kappa = thermal_conductivity_coeff_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> diffusion = diffusion_coeff_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> wdot = wdot_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> qdot = qdot_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
             const Set::Scalar density = rho(i,j,k);
@@ -555,12 +572,49 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
+
+            mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+            kappa(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+            for (int n = 0; n < ngas_species; ++n)
+                diffusion(i,j,k,n) = gas.diffusion_coefficient(
+                    T(i,j,k), pressure_reference, X, i, j, k, n);
+
+            Model::Chemistry::SpeciesArray rhoY{};
+            Set::Scalar gas_density = 0.0;
+            for (int n = 0; n < ngas_species; ++n)
+            {
+                rhoY[n] = Util::Max(component_density(i,j,k,n), 0.0);
+                gas_density += rhoY[n];
+            }
+            Set::Scalar gas_volume_fraction = 0.0;
+            if (gas_density > density_floor && T(i,j,k) > 0.0 &&
+                pressure_reference > 0.0)
+                gas_volume_fraction = Util::Clamp(
+                    gas_density * gas.R(X, i, j, k) * T(i,j,k) /
+                        pressure_reference, 0.0, 1.0);
+            if (gas_volume_fraction > 0.0)
+            {
+                for (int n = 0; n < ngas_species; ++n)
+                    rhoY[n] /= gas_volume_fraction;
+                const Model::Chemistry::Source reaction =
+                    chemistry.ComputeChemistrySources(
+                        pressure_reference, T(i,j,k), rhoY, 0.0, &gas);
+                for (int n = 0; n < ngas_species; ++n)
+                    wdot(i,j,k,n) =
+                        gas_volume_fraction * reaction.first[n];
+                qdot(i,j,k) = gas_volume_fraction * reaction.second;
+            }
         });
     }
 
     momentum_mf[lev]->FillBoundary(geom[lev].periodicity());
     energy_mf[lev]->FillBoundary(geom[lev].periodicity());
     vorticity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    viscosity_mf[lev]->FillBoundary(geom[lev].periodicity());
+    thermal_conductivity_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
+    diffusion_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
+    wdot_mf[lev]->FillBoundary(geom[lev].periodicity());
+    qdot_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
 
 void
@@ -580,17 +634,22 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
         {
             Model::Chemistry::SpeciesArray rhoY{};
             Set::Scalar gas_density = 0.0;
-            Set::Scalar mixture_density = 0.0;
             for (int n = 0; n < ngas_species; ++n)
             {
                 rhoY[n] = Util::Max(component_density(i,j,k,n), 0.0);
                 gas_density += rhoY[n];
             }
-            for (int n = 0; n < nspecies; ++n)
-                mixture_density += Util::Max(component_density(i,j,k,n), 0.0);
             if (!(gas_density > density_floor) || !(T(i,j,k) > 0.0)) return;
 
             Set::Scalar temperature = T(i,j,k);
+            auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
+                conductivity, cp] = ComputeThermalState(
+                    component_density, temperature, i, j, k);
+            (void)gas_volume_fraction;
+            (void)gas_heat_capacity;
+            (void)conductivity;
+            const Set::Scalar mixture_density = cp > 0.0 ?
+                heat_capacity / cp : gas_density;
 
             auto result = chemistry.Advance(
                 dt, pressure_reference, mixture_density, ngas_species,
@@ -606,6 +665,51 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
             integrated_dilatation(i,j,k) += result.volume_fraction_change;
         });
     }
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+LowMach::ComputeThermalState(
+    Set::Patch<const Set::Scalar> component_density,
+    Set::Scalar temperature, int i, int j, int k) const
+{
+    Set::Scalar density = 0.0;
+    Set::Scalar gas_density = 0.0;
+    for (int n = 0; n < nspecies; ++n)
+        density += Util::Max(component_density(i,j,k,n), 0.0);
+    for (int n = 0; n < ngas_species; ++n)
+        gas_density += Util::Max(component_density(i,j,k,n), 0.0);
+
+    const Model::Gas::MoleFraction X =
+        gas.MoleFractions(component_density, i, j, k);
+    const Set::Scalar cp = gas.cp_mass(temperature, X, i, j, k);
+    const Set::Scalar gas_conductivity =
+        gas.thermal_conductivity(temperature, X, i, j, k);
+    Set::Scalar gas_volume_fraction = 0.0;
+    if (gas_density > density_floor && temperature > 0.0 &&
+        pressure_reference > 0.0)
+        gas_volume_fraction = Util::Clamp(
+            gas_density * gas.R(X, i, j, k) * temperature /
+                pressure_reference, 0.0, 1.0);
+
+    if (!condensed_thermal_transport)
+        return {gas_volume_fraction, density * cp, density * cp,
+                gas_conductivity, cp};
+
+    const Set::Scalar gas_heat_capacity = gas_density * cp;
+    Set::Scalar heat_capacity = gas_heat_capacity;
+    Set::Scalar conductivity = gas_volume_fraction * gas_conductivity;
+    for (int n = ngas_species; n < nspecies; ++n)
+    {
+        const Set::Scalar partial_density =
+            Util::Max(component_density(i,j,k,n), 0.0);
+        heat_capacity += partial_density * condensed_specific_heat[n];
+        conductivity += partial_density *
+            condensed_inverse_reference_density[n] *
+            condensed_thermal_conductivity[n];
+    }
+    return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
+            conductivity, cp};
 }
 
 void
@@ -711,8 +815,11 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
             }
         }
 
+        amrex::Vector<amrex::BCRec> species_boundary_conditions(ngas_species);
+        for (int n = 0; n < ngas_species; ++n)
+            species_boundary_conditions[n] = component_density_bc->GetBCRec(n);
         diffusion.Solve(
-            time, dt, component_density_bc->GetBCRec(), ngas_species);
+            time, dt, species_boundary_conditions, ngas_species);
         for (int lev = 0; lev < nlev; ++lev)
         {
             const amrex::MultiFab& state = diffusion.State(lev, ngas_species);
@@ -743,14 +850,11 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
     if (implicit_thermal_diffusion)
     {
         diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
-        const auto solid_cp = condensed_specific_heat;
-        const auto solid_k = condensed_thermal_conductivity;
         const auto inverse_reference_density =
             condensed_inverse_reference_density;
         const bool use_condensed_properties = condensed_thermal_transport;
         const bool use_thermal_bridge = thermal_bridge_peclet > 0.0;
         const int ngas = ngas_species;
-        const Set::Scalar p_reference = pressure_reference;
         for (int lev = 0; lev < nlev; ++lev)
         {
             amrex::MultiFab& state = diffusion.State(lev, 1);
@@ -784,28 +888,13 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    const Model::Gas::MoleFraction X =
-                        gas.MoleFractions(component_density, i, j, k);
-                    const Set::Scalar cp =
-                        gas.cp_mass(T(i,j,k), X, i, j, k);
-                    const Set::Scalar conductivity =
-                        gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+                    auto [gas_volume_fraction, gas_heat_capacity,
+                        heat_capacity, conductivity, cp] = ComputeThermalState(
+                            component_density, T(i,j,k), i, j, k);
+                    (void)gas_volume_fraction;
+                    (void)gas_heat_capacity;
                     if (use_condensed_properties)
                     {
-                        // Partial densities carry volumetric heat capacity;
-                        // reconstructed volume fractions mix conductivities.
-                        Set::Scalar gas_density = 0.0;
-                        for (int n = 0; n < ngas; ++n)
-                            gas_density += Util::Max(
-                                component_density(i,j,k,n), 0.0);
-                        Set::Scalar heat_capacity = gas_density * cp;
-                        Set::Scalar mixture_conductivity = 0.0;
-                        if (gas_density > rho_floor && T(i,j,k) > 0.0 &&
-                            p_reference > 0.0)
-                            mixture_conductivity = Util::Clamp(
-                                gas_density * gas.R(X, i, j, k) * T(i,j,k) /
-                                    p_reference,
-                                0.0, 1.0) * conductivity;
                         Set::Scalar condensed_volume_fraction = 0.0;
                         for (int n = ngas; n < number_of_species; ++n)
                         {
@@ -813,8 +902,6 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                                 component_density(i,j,k,n), 0.0);
                             const Set::Scalar volume_fraction = partial_density *
                                 inverse_reference_density[n];
-                            heat_capacity += partial_density * solid_cp[n];
-                            mixture_conductivity += volume_fraction * solid_k[n];
                             condensed_volume_fraction += volume_fraction;
                         }
                         if (use_thermal_bridge)
@@ -843,16 +930,12 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                                         bridge_conductivity *
                                         normal(d) * normal(e);
                         }
-                        b(i,j,k) = mixture_conductivity;
+                        b(i,j,k) = conductivity;
                         a(i,j,k) = Util::Max(
                             heat_capacity, rho_floor * cp);
                         return;
                     }
-
-                    Set::Scalar density = 0.0;
-                    for (int n = 0; n < number_of_species; ++n)
-                        density += component_density(i,j,k,n);
-                    a(i,j,k) = Util::Max(density, rho_floor) * cp;
+                    a(i,j,k) = Util::Max(heat_capacity, rho_floor * cp);
                     b(i,j,k) = conductivity;
                 });
             }
@@ -905,8 +988,11 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                 });
             }
         }
+        amrex::Vector<amrex::BCRec> velocity_boundary_conditions(AMREX_SPACEDIM);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            velocity_boundary_conditions[d] = velocity_bc->GetBCRec(d);
         diffusion.Solve(
-            time, dt, velocity_bc->GetBCRec(), AMREX_SPACEDIM);
+            time, dt, velocity_boundary_conditions, AMREX_SPACEDIM);
         for (int lev = 0; lev < nlev; ++lev)
             amrex::MultiFab::Copy(*velocity_mf[lev],
                 diffusion.State(lev, AMREX_SPACEDIM), 0, 0,
@@ -962,13 +1048,9 @@ LowMach::ComputeThermochemicalSource(
     Set::Scalar dilatation = 0.0;
 
     Model::Chemistry::SpeciesArray rhoY{};
-    Set::Scalar density = 0.0;
     Set::Scalar gas_density = 0.0;
     Set::Scalar molar_density = 0.0;
 
-    // calculate total density
-    for (int n = 0; n < nspecies; ++n)
-        density += component_density(i,j,k,n);
     // calculate density (and molar density) of gas species only
     for (int n = 0; n < ngas_species; ++n)
     {
@@ -1000,7 +1082,7 @@ LowMach::ComputeThermochemicalSource(
         species[n] = gas_volume_fraction * reaction.first[n];
 
     Set::Scalar enthalpy_diffusion = 0.0;
-    if (ngas_species > 1 && chemistry.Reactive() && !implicit_species_diffusion)
+    if (ngas_species > 1 && !implicit_species_diffusion)
     {
         auto gas_density_at = [=,this] AMREX_GPU_DEVICE(int ii, int jj, int kk)
         {
@@ -1052,6 +1134,17 @@ LowMach::ComputeThermochemicalSource(
                 (mass_fraction_at(ia,ja,ka,n) + mass_fraction_at(ib,jb,kb,n));
             return raw_flux - face_fraction * total_flux;
         };
+        auto conservative_species_flux = [=] AMREX_GPU_DEVICE(
+            int ia, int ja, int ka, int ib, int jb, int kb,
+            int d, int n)
+        {
+            if (n < ngas_species - 1)
+                return species_flux(ia, ja, ka, ib, jb, kb, d, n);
+            Set::Scalar flux = 0.0;
+            for (int m = 0; m < ngas_species - 1; ++m)
+                flux -= species_flux(ia, ja, ka, ib, jb, kb, d, m);
+            return flux;
+        };
 
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
@@ -1060,9 +1153,9 @@ LowMach::ComputeThermochemicalSource(
             const int dk = d == 2;
             for (int n = 0; n < ngas_species; ++n)
             {
-                const Set::Scalar flux_hi = species_flux(
+                const Set::Scalar flux_hi = conservative_species_flux(
                     i, j, k, i+di, j+dj, k+dk, d, n);
-                const Set::Scalar flux_lo = species_flux(
+                const Set::Scalar flux_lo = conservative_species_flux(
                     i-di, j-dj, k-dk, i, j, k, d, n);
                 species[n] += (flux_hi - flux_lo) / DX[d];
 
@@ -1080,19 +1173,22 @@ LowMach::ComputeThermochemicalSource(
         }
     }
 
-    const Set::Scalar cp = gas.cp_mass(T(i,j,k), X, i, j, k);
-    if (include_conduction && !implicit_thermal_diffusion && cp > 0.0)
+    auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
+        conductivity, cp] = ComputeThermalState(
+            component_density, T(i,j,k), i, j, k);
+    (void)thermal_gas_volume_fraction;
+    (void)gas_heat_capacity;
+    (void)cp;
+    if (include_conduction && !implicit_thermal_diffusion &&
+        heat_capacity > 0.0)
     {
-        const Set::Scalar kappa =
-            gas.thermal_conductivity(T(i,j,k), X, i, j, k);
-        temperature += kappa /
-            (Util::Max(density, density_floor) * cp) *
+        temperature += conductivity / heat_capacity *
             Numeric::Laplacian(T, i, j, k, 0, DX);
     }
-    if (density > density_floor && cp > 0.0)
+    if (heat_capacity > 0.0)
         temperature +=
             (gas_volume_fraction * reaction.second + enthalpy_diffusion) /
-            (density * cp);
+            heat_capacity;
 
     if (T(i,j,k) > 0.0)
         dilatation += gas_volume_fraction * temperature / T(i,j,k);
@@ -1515,8 +1611,16 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             T_rhs(i,j,k) = 0.0;
             if (advect_T)
             {
+                auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
+                    conductivity, cp] = ComputeThermalState(
+                        component_density, T(i,j,k), i, j, k);
+                (void)gas_volume_fraction;
+                (void)conductivity;
+                (void)cp;
                 Set::Vector grad_T = Numeric::Gradient(T, i, j, k, 0, DX, sten);
-                T_rhs(i,j,k) -= vel.dot(grad_T);
+                if (heat_capacity > 0.0)
+                    T_rhs(i,j,k) -=
+                        gas_heat_capacity / heat_capacity * vel.dot(grad_T);
             }
             T_rhs(i,j,k) += temperature;
 
@@ -1717,7 +1821,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             const bool conductive =
                 include_conduction && !implicit_thermal_diffusion;
             const bool species_diffusive =
-                chemistry.Reactive() && !implicit_species_diffusion;
+                ngas_species > 1 && !implicit_species_diffusion;
             const bool elastic = explicit_solid_deviatoric_stress;
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;

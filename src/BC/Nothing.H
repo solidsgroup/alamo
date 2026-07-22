@@ -29,7 +29,8 @@ public:
                     Orientation /*face*/ = Orientation::All,
                     const amrex::Mask * /*mask*/ = nullptr) override {};
 
-    virtual amrex::BCRec GetBCRec() override {return amrex::BCRec();}
+    virtual amrex::BCRec GetBCRec(int /*component*/ = 0) override
+    { return amrex::BCRec(); }
 };
 
 using Nothing = NothingT<Set::Scalar>;

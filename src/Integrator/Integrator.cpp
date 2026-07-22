@@ -444,7 +444,9 @@ Integrator::FillPatch(int lev, amrex::Real time,
         else
             mapper = &amrex::cell_cons_interp;
 
-        amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
+        amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp());
+        for (int n = 0; n < destination_mf.nComp(); ++n)
+            bcs[n] = physbc.GetBCRec(n);
         amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
             0, icomp, destination_mf.nComp(), geom[lev - 1], geom[lev],
             physbc, 0,
@@ -482,7 +484,9 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
     else
         mapper = &amrex::cell_cons_interp;
 
-    amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+    amrex::Vector<amrex::BCRec> bcs(ncomp);
+    for (int n = 0; n < ncomp; ++n)
+        bcs[n] = physbc.GetBCRec(icomp + n);
     amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev - 1], geom[lev],
         physbc, 0,
         physbc, 0,

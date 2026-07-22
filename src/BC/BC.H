@@ -109,7 +109,7 @@ public:
     }
 
 
-    virtual amrex::BCRec GetBCRec() = 0;
+    virtual amrex::BCRec GetBCRec(int component = 0) = 0;
 
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic()
     {

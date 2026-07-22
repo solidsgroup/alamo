@@ -1,0 +1,104 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 240
+#@ check-file = reference/fickian-diffusion-analytic.csv
+
+plot_file = tests/LowMachFickianDiffusion/output
+amr.plot_dt = 0.05
+amr.max_level = 0
+amr.max_grid_size = 256
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.n_cell = 64 8
+
+timestep = 5.0e-6
+stop_time = 0.05
+
+geometry.prob_lo = 0.0 -0.3 0.0
+geometry.prob_hi = 1.0 0.3 0.0
+geometry.is_periodic = 0 1 0
+
+system.amount = kmol
+gas.mw = 32.0_g/mol 32.0_g/mol 32.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 32000.0_J/kmol/K 32000.0_J/kmol/K 32000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0 0.0 0.0
+gas.thermo.cpconstant.s0 = 0.0 0.0 0.0
+gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter = 3.5e-2_ang 3.5e-2_ang 3.5e-2_ang
+gas.transport.mixture_averaged.LJwelldepth = 100.0_K 100.0_K 100.0_K
+gas.eos.type = cpg
+
+species.names = left right inert
+left.mechanics = fluid
+right.mechanics = fluid
+inert.mechanics = fluid
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = upwind
+cfl = 10.0
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 0
+diagnostics.extended_fields = 1
+
+left.density.ic.type = expression
+left.density.ic.expression.constant.P = 101325.0
+left.density.ic.expression.constant.T = 300.0
+left.density.ic.expression.constant.R = 259.83
+left.density.ic.expression.constant.eps = 0.1
+left.density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-0.5)/eps))"
+
+right.density.ic.type = expression
+right.density.ic.expression.constant.P = 101325.0
+right.density.ic.expression.constant.T = 300.0
+right.density.ic.expression.constant.R = 259.83
+right.density.ic.expression.constant.eps = 0.1
+right.density.ic.expression.region0 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-0.5)/eps)))"
+
+inert.density.ic.type = constant
+inert.density.ic.constant.value = 0.0
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 101325.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = dirichlet dirichlet dirichlet
+component_density.bc.constant.type.xhi = dirichlet dirichlet dirichlet
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+component_density.bc.constant.val.xlo = 1.299887089 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 1.299887089 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = dirichlet
+temperature.bc.constant.type.xhi = dirichlet
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 300.0
+temperature.bc.constant.val.xhi = 300.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = dirichlet
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 101325.0
+pressure.bc.constant.val.xhi = 101325.0

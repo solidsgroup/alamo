@@ -17,6 +17,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Model/PhaseField/PhaseField.H"
+#include "Numeric/Stencil.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -104,6 +105,15 @@ public:
                         "0.0_K", Unit::Temperature());
         if (value.activation_temperature < 0.0 || value.temperature_cutoff < 0.0)
             Util::Exception(INFO, "phase-change temperatures must be nonnegative");
+        value.use_prescribed_speed = pp.contains("prescribed_speed");
+        if (value.use_prescribed_speed)
+        {
+            pp.query_required("prescribed_speed", value.prescribed_speed,
+                            Unit::Velocity());
+            if (value.prescribed_speed < 0.0)
+                Util::Exception(INFO,
+                    "phase-change prescribed_speed must be nonnegative");
+        }
         pp.select<Model::PhaseField::AllenCahn>("phase_field", value.model);
     }
 
@@ -134,6 +144,7 @@ public:
                             const Set::Scalar temperature) const
     {
         if (!(temperature > temperature_cutoff)) return 0.0;
+        if (use_prescribed_speed) return prescribed_speed / dx;
         const Set::Scalar temperature_factor = activation_temperature > 0.0 ?
             std::exp(-activation_temperature / temperature) : 1.0;
         return rate_multiplier * temperature_factor * model.StabilityRate(dx);
@@ -156,13 +167,25 @@ private:
                 const Set::Scalar input_eta = Util::Clamp(
                     state.component_density(i,j,k,input) / reference_density,
                     0.0, eta);
-                eta_dot = input_eta / eta *
-                    model(state.rigid_eta, 0, 1.0, i, j, k, DX);
+                if (use_prescribed_speed)
+                    eta_dot = -input_eta / eta * prescribed_speed *
+                        Numeric::Gradient(
+                            state.rigid_eta, i, j, k, 0, DX).norm();
+                else
+                    eta_dot = input_eta / eta *
+                        model(state.rigid_eta, 0, 1.0, i, j, k, DX);
             }
         }
         else
-            eta_dot = model(state.component_density, input,
-                            1.0 / reference_density, i, j, k, DX);
+        {
+            if (use_prescribed_speed)
+                eta_dot = -prescribed_speed / reference_density *
+                    Numeric::Gradient(
+                        state.component_density, i, j, k, input, DX).norm();
+            else
+                eta_dot = model(state.component_density, input,
+                                1.0 / reference_density, i, j, k, DX);
+        }
         eta_dot = Util::Min(eta_dot, 0.0);
         if (activation_temperature > 0.0)
             eta_dot *= std::exp(-activation_temperature / state.temperature);
@@ -179,7 +202,9 @@ private:
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
+    Set::Scalar prescribed_speed = 0.0;
     bool input_is_rigid = false;
+    bool use_prescribed_speed = false;
 };
 }
 }

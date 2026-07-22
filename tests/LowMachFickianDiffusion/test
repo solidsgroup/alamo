@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+reference = sys.argv[2]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachFickianDiffusion requires initial and final plotfiles")
+
+testlib.validate(
+    path=plotfiles[-1],
+    outdir=outdir,
+    start=[0, 0, 0],
+    end=[1, 0, 0],
+    vars=["mole_fraction_left"],
+    reference=reference,
+    tolerance=[0.05],
+    abs_tolerance=1.0e100,
+    tight_layout=False,
+)
+
+initial_ds = testlib.yt.load(plotfiles[0])
+final_ds = testlib.yt.load(plotfiles[-1])
+initial = initial_ds.all_data()
+final = final_ds.all_data()
+initial_mole_occupancy = sum(
+    initial[f"mole_fraction_{name}"].to_ndarray()
+    for name in ("left", "right", "inert")
+)
+for data, label in ((initial, "initial"), (final, "final")):
+    mole_fractions = [data[f"mole_fraction_{name}"].to_ndarray()
+                      for name in ("left", "right", "inert")]
+    mass_fractions = [data[f"mass_fraction_{name}"].to_ndarray()
+                      for name in ("left", "right", "inert")]
+    if not testlib.numpy.all(testlib.numpy.isfinite(mole_fractions)):
+        raise RuntimeError(f"{label} mole fractions contain non-finite values")
+    if not testlib.numpy.all(testlib.numpy.isfinite(mass_fractions)):
+        raise RuntimeError(f"{label} mass fractions contain non-finite values")
+    testlib.numpy.testing.assert_allclose(
+        testlib.numpy.sum(mass_fractions, axis=0), 1.0,
+        rtol=0.0, atol=2.0e-12)
+    testlib.numpy.testing.assert_allclose(
+        testlib.numpy.sum(mole_fractions, axis=0), initial_mole_occupancy,
+        rtol=0.0, atol=2.0e-12)
+
+print("LowMach Fickian diffusion regression passed")

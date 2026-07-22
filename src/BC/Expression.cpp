@@ -167,10 +167,10 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 }
 
 amrex::BCRec
-Expression::GetBCRec() 
+Expression::GetBCRec(int component)
 {
-    int bc_lo[BL_SPACEDIM] = {AMREX_D_DECL(m_bc_type[Face::XLO][0],m_bc_type[Face::YLO][0],m_bc_type[Face::XLO][0])};
-    int bc_hi[BL_SPACEDIM] = {AMREX_D_DECL(m_bc_type[Face::XHI][0],m_bc_type[Face::YHI][0],m_bc_type[Face::XHI][0])};
+    int bc_lo[BL_SPACEDIM] = {AMREX_D_DECL(m_bc_type[Face::XLO][component],m_bc_type[Face::YLO][component],m_bc_type[Face::ZLO][component])};
+    int bc_hi[BL_SPACEDIM] = {AMREX_D_DECL(m_bc_type[Face::XHI][component],m_bc_type[Face::YHI][component],m_bc_type[Face::ZHI][component])};
 
     return amrex::BCRec(bc_lo,bc_hi);
 }

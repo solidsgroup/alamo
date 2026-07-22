@@ -42,6 +42,9 @@ public:
     void Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::BCRec& boundary_condition, int ncomp,
                 bool tensor_mobility = false);
+    void Solve(Set::Scalar time, Set::Scalar dt,
+                const amrex::Vector<amrex::BCRec>& boundary_conditions,
+                int ncomp, bool tensor_mobility = false);
     void FillBoundary(Set::Field<Set::Scalar>& field,
                         BC::BC<Set::Scalar>& boundary_condition,
                         Set::Scalar time, int ncomp) const;

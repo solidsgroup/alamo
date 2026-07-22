@@ -93,7 +93,9 @@ public:
             ctime.push_back(time);
             ftime.push_back(time);
 
-            amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
+            amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp());
+            for (int n = 0; n < destination_mf.nComp(); ++n)
+                bcs[n] = physbc.GetBCRec(n);
 
             if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
             {
@@ -145,7 +147,9 @@ public:
             cmf.push_back(m_field[lev-1].get());
             amrex::Vector<amrex::Real> ctime;
             ctime.push_back(time);
-            amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+            amrex::Vector<amrex::BCRec> bcs(ncomp);
+            for (int n = 0; n < ncomp; ++n)
+                bcs[n] = physbc.GetBCRec(icomp + n);
             amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
                                         m_geom[lev-1], m_geom[lev],
                                         physbc, 0,
@@ -163,7 +167,9 @@ public:
             ctime.push_back(time);
             m_bc->define(m_geom[lev]);
             Numeric::Interpolator::CellBilinear<T> *mapper = new Numeric::Interpolator::CellBilinear<T>();
-            amrex::Vector<amrex::BCRec> bcs(ncomp, m_bc->GetBCRec());
+            amrex::Vector<amrex::BCRec> bcs(ncomp);
+            for (int n = 0; n < ncomp; ++n)
+                bcs[n] = m_bc->GetBCRec(icomp + n);
             amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
                                         m_geom[lev-1], m_geom[lev],
                                         *m_bc, 0,
