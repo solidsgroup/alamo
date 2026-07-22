@@ -1741,6 +1741,18 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             {
                 qdot0 += mdot0_total * E_solid(i,j,k) / rho_solid_sum;
             }
+            // The momentum source Pdot0 = mdot0_total*u0 injects mass moving at u0,
+            // which raises the fluid's kinetic energy (M_rhs picks up Pdot0 via
+            // Source(momentum_source_comp)). Without a matching kinetic-energy flux
+            // here, the energy budget at the interface is unbalanced by an amount
+            // that depends on the local flow velocity u (0.5*|u|^2 - u.u0), which
+            // flips sign across the diffuse interface and was found to drive a
+            // growing, sign-flipping internal-energy (temperature) oscillation
+            // there. Adding the kinetic energy of the injected stream itself here
+            // makes the net induced internal-energy source
+            // mdot0_total*(e_int + 0.5*|u-u0|^2) - a bounded, non-negative mixing
+            // dissipation instead of a sign-indefinite drain.
+            qdot0 += 0.5 * mdot0_total * u0.dot(u0);
 
             Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
