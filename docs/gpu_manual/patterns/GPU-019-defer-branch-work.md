@@ -1,14 +1,14 @@
 # GPU-019: Defer branch-only expensive work
-Status: draft
-Class: performance
-Recognizer: regex: `Set::Matrix\s+sig\s*=\s*\(DDW\([^;]+;[\s\S]{0,250}\bif\s*\(\s*AMREX_D_TERM`
-Applies: Kernels computing expensive tensor/stencil quantities before a branch that may not consume them.
+Transform status: draft
+Class: optimization
+Detection: Advisory regex in `recognizers/table.csv`; inspect branch predicate, consumers, and device control flow.
+Invariant: Device control flow must assign every consumed value and preserve synchronization; deferral is a measured hypothesis.
+Port contract: Supply branch/consumer map, preserved assignment proof, baseline profile, and correctness/tolerance evidence. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    Compute `ddw`, stress, or boundary tensors unconditionally, then test whether the row/face needs them.
-  After:
-    Test the cheap branch predicate first; construct expensive values only in the consuming branch.
-Constraints: Apply only with profiling justification; preserve branch semantics, numerical ordering, and correctness/golden results. Do not defer values required by multiple branches without retaining equivalent initialization.
-Verify: `make -j4`; run elastic golden/regression checks plus profiler comparison; expect unchanged residuals/outputs and lower instruction or kernel time. Repeat in the configured 2-D and 3-D modes where applicable, and retain the command/output in the build log.
-Failure modes: Missing a branch assignment leaves undefined values; moving computation can change synchronization or constitutive ordering. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 332ecffdd93a83def543d0348d592f815950cc5f; `src/Operator/Elastic.cpp:173-264#5`; `docs/agent_plans/20260709-fapply-kernel-surgery/results/RESULT.md`.
+  Before: Expensive tensor/stencil work is computed before a branch that may not consume it.
+  After: Evaluate the cheap predicate first and construct the value only in consuming branches.
+Corpus example: chamber-gpu Elastic branch surgery is evidence of one optimization instance, not an integrator procedure.
+Constraints: Preserve numerical ordering and all branch assignments; do not defer shared values without equivalent initialization.
+Verify: Use `PERFORMANCE.md` baseline/optimization gates and `VALIDATION.md` correctness categories; optimization follows baseline-efficiency pass.
+Failure modes: Undefined values, changed ordering, or no measured gain fail the hypothesis; inspect before widening it.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA control-flow semantics). Corpus: chamber-gpu commit `332ecffdd93a83def543d0348d592f815950cc5f`; cited Elastic/result paths.

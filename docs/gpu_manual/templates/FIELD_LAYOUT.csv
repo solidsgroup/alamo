@@ -1,0 +1,3 @@
+schema_version,port_id,field,storage,ncomp,component_order,ghost_region,kernel_consumers,access_pattern,residency,transfer_bytes_per_step,coalescing_locality_rationale,disposition,evidence,owner
+1,<port-id>,<field>,<MultiFab|Field|Array4|other>,<count>,<component-meaning-and-order>,<width>,<kernel-ids>,<read-write-index-pattern>,<host|device|managed>,<bytes>,<rationale>,<open|pass|fail|blocked|not-applicable>,<inspection-or-profile-path>,<owner>
+

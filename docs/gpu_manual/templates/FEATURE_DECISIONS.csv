@@ -1,0 +1,3 @@
+schema_version,port_id,id,kind,encountered_at,existing_behavior,proposed_behavior,decision,rationale,validation_impact,owner,evidence
+1,<port-id>,DEC-001,<FEATURE|NUM>,<ledger-row>,<preserved-baseline>,<proposal>,<accept|reject|defer>,<reason>,<oracle-or-tolerance-change>,<owner>,<path>
+

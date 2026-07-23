@@ -1,14 +1,14 @@
 # GPU-017: Materialize chained matrix expressions
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: regex: `\.inverse\(\)\.transpose\(\)|\.cross\(\)\.normalized\(\)`
-Applies: Eigen expression-template chains evaluated inside GPU device code.
+Detection: Advisory regex in `recognizers/table.csv`; inspect expression-template type, device reachability, and scalar semantics.
+Invariant: Device evaluation must preserve operation order, scalar type, and value lifetime; materialization is a device-compatibility tactic, not physics.
+Port contract: Supply affected expression sites, supported matrix type, CPU/golden oracle, and tolerance rationale. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    `Eigen::Matrix3d FinvT = F.inverse().transpose();`
-  After:
-    `Eigen::Matrix3d Finv = F.inverse();` then `Eigen::Matrix3d FinvT = Finv.transpose();`
-Constraints: Keep scope narrow. Mandatory when the recognizer matches. Preserve operation order and scalar type; do not replace a chain with a mathematically different expression.
-Verify: `make -j4`; run the 3-D elastic solve/regression; expect nvcc compilation and no CUDA launch failure or changed golden values. Repeat in the configured 2-D and 3-D modes where applicable, and retain the command/output in the build log.
-Failure modes: Leaving nested expressions can compile on CPU but fault on device (often CUDA error 719); changing evaluation order can alter constitutive results. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit a5c1b2ddfd63e09848d69980d83496654d490ceb; `src/Model/Solid/Finite/NeoHookean.H:36-90#2`; `docs/llm/BUG_PATTERNS.md`; `docs/agent_plans/20260718-matrix4-device-annotation/PLAN.md`.
+  Before: A chained expression such as `F.inverse().transpose()` is evaluated in device code.
+  After: Materialize each intermediate (`Finv`, then `FinvT`) before reuse.
+Corpus example: chamber-gpu NeoHookean edits are corpus evidence for one expression-template failure mode, not a universal constitutive recipe.
+Constraints: Apply only when compiler/runtime evidence identifies the chain; preserve mathematical order and do not change formulas.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `analytic-exact`, `golden-regression`, `restart-parity`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Nested device expressions may fail compilation or launch; altered order changes results. Diagnose the exact signature first.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA device-expression constraints). Corpus: chamber-gpu commit `a5c1b2ddfd63e09848d69980d83496654d490ceb`; NeoHookean and BUG_PATTERNS paths.

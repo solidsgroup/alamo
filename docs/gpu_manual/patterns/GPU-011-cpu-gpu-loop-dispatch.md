@@ -1,14 +1,12 @@
 # GPU-011: Dispatch loops explicitly between CPU and GPU
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: manual: A data-parallel host loop or backend-dependent loop lacks an explicit CPU/GPU dispatch boundary.
-Applies: A loop has separate CPU/GPU launch behavior or an unconditional host loop.
-Transform:
-  Before:
-    Host-only `for` loop or launch that cannot select the execution backend.
-  After:
-    Use AMReX launch-region/ParallelFor dispatch with a device-callable body and preserve a CPU-safe path.
-Constraints: Mandatory when the recognizer matches and the loop is data-parallel. Do not move reductions, I/O, or ordering-dependent logic without proving semantics; preserve a tested CPU path.
-Verify: `make -j4`; compare CPU/GPU outputs at identical timestep and dimensions; expected CPU and GPU runs complete with matching fields; GPU profiler shows kernel dispatch where applicable.
-Failure modes: Any mismatch or compile diagnostic is a failed conversion. race, divergent reduction, or CPU/GPU numerical mismatch. An apparently faster launch that changes ordering or omits the CPU branch is incorrect. Validation must include the smallest representative input and a CPU reference; do not waive a failure as numerical noise.
-Evidence: commits d522e1ac08729b306a215ad896d8a304983d55de
+Detection: Advisory manual inspection; see `recognizers/table.csv`; inspect backend and ordering semantics.
+Invariant: GPU-reachable work must execute in a backend compatible with its data, while the declared CPU path remains valid.
+Port contract: The port supplies backend conditions, launch geometry, reduction/ordering semantics, and CPU fallback behavior. Record backend decisions and evidence for later review.
+Transform: Use AMReX launch-region/ParallelFor dispatch with a device-callable body and an explicit CPU-safe path.
+Corpus example: Flame/chamber-gpu loop dispatch is evidence of one backend split, not a universal launch shape.
+Constraints: Do not move I/O, ordering-dependent work, or reductions without semantic proof. Record unresolved evidence explicitly.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Races, divergent reductions, omitted CPU branches, or CPU/GPU numerical mismatch. Unresolved cases remain blocked; never infer correctness from a clean scan.
+Evidence: Primary: `docs/gpu_manual/evidence/primary-sources.md` (AMReX ParallelFor/backend anchors). Corpus: commit d522e1ac08729b306a215ad896d8a304983d55de.

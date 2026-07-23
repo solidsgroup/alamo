@@ -1,5 +1,9 @@
 # Runtime correctness evidence
 
+Classification: chamber-gpu corpus evidence. These reproduced failures and
+commands justify patterns, but they are not a universal port oracle. A new port
+instantiates `../VALIDATION.md` with its own physics and tolerances.
+
 - `docs/llm/BUG_PATTERNS.md`: a local `FArrayBox` consumed across the MFIter stream pool can be reclaimed early; multi-box interpolation exposed silent corruption. This supports GPU-009 and requires multi-box verification.
 - `docs/llm/changelog/2026-07-02-gpu-audit.md`: reading a device error flag after synchronizing only the current stream produced silent false negatives. `streamSynchronizeAll()` at the host check/lifetime boundary supports GPU-008 and GPU-012.
 - `docs/llm/BUG_PATTERNS.md`: direct host-member accumulation failed with CUDA error 700 on an A100 while local HMM masked it. Device reduction followed by host assignment supports GPU-013.

@@ -1,5 +1,8 @@
 # One-off changes
 
+Classification: chamber-gpu corpus ledger. Entries are retained as evidence and
+must not be treated as a new port's closure or worklist.
+
 Policy: A port worker touching a file with a [NUM] entry must surface it to the user and never apply it silently. Every entry is file-specific GPU-port residue, not a reusable transform.
 
 - src/BC/Operator/Elastic/Expression.H:6-11 | Required GPU-port change to compile or execute BASE functionality on device. | commit fe3844f31579972b174664616e34a0d619c896e6 | file-specific BASE GPU-port residue with no repeatable transform

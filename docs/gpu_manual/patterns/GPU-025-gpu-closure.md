@@ -1,14 +1,14 @@
 # GPU-025: Declare and enforce the supported GPU closure
-Status: draft
+Transform status: draft
 Class: scaffolding
-Recognizer: manual: inspect GPU build policy and integrator source/object closure
-Applies: GPU builds that accidentally compile unsupported integrators or omit required device-safe sources.
+Detection: Advisory manual/build inspection in `recognizers/table.csv`; record selected integrator sources and object closure.
+Invariant: A GPU target must contain every source and device-safe call edge required by the selected execution path; exclusion cannot prove correctness.
+Port contract: Declare integrator scope, source/object closure, unsupported paths, closure record, and retirement trigger. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    General launcher/object closure includes every integrator and relies on accidental nvcc compatibility.
-  After:
-    Define a narrow supported closure in `IntegratorPolicy.mk`, select supported sources, and fail unsupported paths explicitly.
-Constraints: Temporary incremental-porting scaffolding whose objective is to shrink the closure footprint, never grow it. Add a source only after a correctness pass; do not use closure exclusions to hide a required production path.
-Verify: `make -n ALAMO_GPU_INTEGRATOR=flame` then `make -j4`; expect only the declared Flame closure in the object list and a green GPU build; `make -n ALAMO_GPU_INTEGRATOR=bogus` must fail with the policy diagnostic.
-Failure modes: Closure growth reintroduces non-nvcc-clean code; over-pruning causes link errors or silently removes required physics. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 54a941433b7582578cb5d56db794b1d648fb03cc; `src/GPU/IntegratorPolicy.mk`, `src/alamo_gpu.cc`; `docs/gpu_safe_ic_bc_matrix.md`; `benchmark/GPU_BRANCH_GUIDE.md`.
+  Before: A launcher compiles every integrator and relies on accidental compiler compatibility.
+  After: Select a narrow supported closure and fail unsupported paths explicitly.
+Corpus example: chamber-gpu Flame policy files evidence one closure instance, not the universal supported integrator.
+Constraints: Follow the scaffolding-lifecycle policy in `ARCHITECTURE_POLICIES.md`: shrink quarantine/closure, never grow it silently; add sources only after correctness evidence.
+Verify: Pass the `ONBOARDING.md` closure gate, then require `VALIDATION.md` `strict-build`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Over-broad closure reintroduces errors; over-pruning causes links or missing physics. Review diagnostics before changing scope.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA compilation/link rules). Corpus: chamber-gpu commit `54a941433b7582578cb5d56db794b1d648fb03cc`; policy/source and guide paths.

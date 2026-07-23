@@ -1,71 +1,98 @@
-# GPU Pattern Index
+# GPU Port Manual Index
 
-Load this file first. Use `COVERAGE.csv` to select candidate files, then load only the matched Tier 1 files. Manual and build-error recognizers still require inspection.
+Load this file first. `[I]` is invariant CUDA/AMReX semantics, `[P]` is a
+port-supplied contract or decision, and `[C]` is historical corpus evidence.
+Regex is advisory: compiler diagnostics and recorded inspection outrank scan
+results. Start a port with `ONBOARDING.md`; load only matching Tier 1 patterns
+and the contract/policy they reference.
+
+## Status
+
+- `[C]` Transform evidence: 2/26 file-verified (GPU-007, GPU-016), 24 draft,
+  0 transfer-verified, 0 cross-family. The repaired authoring targets do not
+  demonstrate transfer.
+- `[P]` Expanded onboarding and validation gate: `pending-pilot` until the next
+  authorized non-Flame port completes it.
+- `[P]` Port status is reported independently for scope, closure, inspection,
+  validation, GPU safety, GPU-native shape, baseline efficiency, and harvest;
+  see `STATUS.md`.
 
 ## Invariants
 
-- Apply every correctness pattern whose recognizer and Applies condition match; a clean regex scan does not waive manual or compiler-diagnostic gates.
-- Apply performance patterns only with profiling justification and preserve CPU/golden correctness.
-- Scaffolding is temporary incremental-porting machinery: shrink its footprint, never grow it. GPU-010 requires user approval when used to avoid a hard conversion.
-- Device closures contain only device-callable code and device-safe value state: no virtual dispatch, host pointer, host logging, I/O, allocation, or hidden `this` capture.
-- Preserve execution dimension, component ranges, reduction identities, ownership, synchronization, and the tested CPU path.
-- Treat `FEATURES.md` as an explicit do-not-import list. A FEATURE requires task-level user opt-in.
-- Surface every `[NUM]` ONEOFF or FEATURE to the user; never apply numerical behavior changes implicitly.
+- `[I]` A device-reachable call chain contains only device-callable code and
+  device-safe state; no hidden host pointer, virtual call, I/O, allocation, or
+  logging path. Grounding: `evidence/primary-sources.md`.
+- `[I]` Preserve ownership and asynchronous lifetime until every consuming
+  stream is complete; synchronize at the required boundary, not reflexively in
+  an inner loop. Grounding:
+  `evidence/primary-sources.md#asynchrony-ownership-and-synchronization`.
+- `[I]` Preserve dimensions, launch bounds, component ranges, reduction
+  operators, and identities. Grounding:
+  `evidence/primary-sources.md#amrex-launches-dimensions-reductions-and-explicit-execution`.
+- `[P]` Preserve the CPU path declared by the port's scope and validation
+  contract.
+- `[P]` Scope, closure, physics oracles, tolerances, and performance evidence
+  belong to the port. Flame commands and chamber-gpu diffs are not procedure.
+- `[P]` FEATURE/[NUM] choices require the owner workflow in
+  `ARCHITECTURE_POLICIES.md`; never import numerical behavior implicitly.
 
 ## Triage
 
 ### Correctness
 
-- nvcc host/device call diagnostic -> GPU-001; runtime model pointer or virtual BC call -> GPU-002, GPU-004; static parser drops context -> GPU-003.
-- Extended-lambda access failure -> GPU-005; kernel reaches member/host state -> GPU-006; raw `CellSize()` pointer -> GPU-007.
-- Async storage/lifetime fault -> GPU-008, GPU-009; backend loop lacks a safe split -> GPU-011.
-- Kernel logs/aborts or writes host aggregates -> GPU-012, GPU-013; direct host FFT path -> GPU-016.
-- Chained fixed-matrix temporary -> GPU-017; fixed-dimension assumption -> GPU-021; host sentinel -> GPU-022.
-- Implicit Fab execution mode -> GPU-023; non-const model getter -> GPU-024; uninitialized device local -> GPU-030.
+- Host/device call diagnostic -> GPU-001; GPU-reachable runtime model or BC
+  dispatch -> GPU-002, GPU-003, GPU-004.
+- Extended-lambda/capture fault -> GPU-005, GPU-006; geometry pointer -> GPU-007.
+- Storage lifetime or temporary Fab fault -> GPU-008, GPU-009; unsafe execution
+  boundary -> GPU-011, GPU-023.
+- Device logging/error or aggregate write -> GPU-012, GPU-013; direct FFT path
+  -> GPU-016.
+- Host-oriented iterative, branch-heavy, or container-backed numerical call
+  chain -> GPU-031; annotation alone does not close it.
+- Expression temporary, dimension, sentinel, accessor, or local initialization
+  -> GPU-017, GPU-021, GPU-022, GPU-024, GPU-030.
 
-### Performance
+### Scaffolding and optimization
 
-- Component loop launches one kernel per component -> GPU-015.
-- Repeated per-cell tensor/member load -> GPU-018; expensive value built before a selective branch -> GPU-019.
-- Generic hot tensor contraction computes more than the consumer needs -> GPU-020.
-
-### Scaffolding
-
-- Unconverted host/plugin loop blocks incremental progress -> GPU-010, with user approval for hard-conversion avoidance.
-- GPU target builds an unclosed integrator object graph -> GPU-025.
+- Temporary host quarantine or incomplete source closure -> GPU-010, GPU-025;
+  both require lifecycle/retirement records.
+- After `BASELINE_EFFICIENCY=pass`, profiled launch/load/branch/contraction
+  hypotheses -> GPU-015, GPU-018, GPU-019, GPU-020.
 
 ## Patterns
 
-- GPU-001: annotate the complete device-safe transitive call chain.
-- GPU-002: replace Gas-family runtime base pointers with concrete value dispatch.
-- GPU-003: forward constructor/context arguments through static selection recursion.
-- GPU-004: replace kernel virtual BC calls with static POD-state dispatch.
-- GPU-005: expose and name parameter types captured by extended lambdas.
-- GPU-006: hoist device-safe member values into by-value launch locals.
-- GPU-007: copy geometry cell sizes into a device-safe value.
-- GPU-008: stage host storage and fence asynchronous lifetime boundaries.
-- GPU-009: retain an Elixir while launches consume temporary Fab storage.
-- GPU-010: temporarily quarantine an approved host-only loop.
-- GPU-011: make CPU/GPU loop dispatch explicit.
-- GPU-012: report kernel failures through a device flag checked on host.
-- GPU-013: use ReduceOps for aggregate results; fuse only as a profiled variant.
-- GPU-015: fuse equivalent component launches into a component-aware launch.
-- GPU-016: route transforms through the GPU-capable FFT wrapper.
-- GPU-017: materialize chained fixed-size matrix expressions before reuse.
-- GPU-018: hoist immutable repeated tensor and member loads.
-- GPU-019: defer expensive work until its consuming branch is selected.
-- GPU-020: specialize only the tensor contraction result actually consumed.
-- GPU-021: guard constants and indices by configured dimension.
-- GPU-022: replace host-oriented sentinel storage with device-callable values.
-- GPU-023: run Fab initialization and algebra explicitly on device.
-- GPU-024: make read-only model accessors device-callable and `const`.
-- GPU-025: close the GPU build over the selected integrator source graph.
-- GPU-030: initialize device-local aggregates before conditional writes.
+- GPU-001 `[I]`: make the complete device-safe call chain callable.
+- GPU-002 `[P]`: replace GPU-reachable runtime model pointers with value dispatch.
+- GPU-003 `[P]`: forward port context through static selection.
+- GPU-004 `[P]`: move virtual boundary-condition dispatch outside kernels.
+- GPU-005 `[I]`: expose device-lambda parameter types safely.
+- GPU-006 `[I]`: hoist device-safe launch state; do not capture host `this`.
+- GPU-007 `[I]`: copy geometry values instead of capturing host pointers.
+- GPU-008 `[I]`: stage storage and fence its asynchronous lifetime boundary.
+- GPU-009 `[I]`: retain temporary Fab storage through consuming launches.
+- GPU-010 `[P]`: quarantine only named, owned, retiring host scaffolding.
+- GPU-011 `[I]`: make CPU/GPU loop execution explicit.
+- GPU-012 `[P]`: propagate device errors to one owned host observation boundary.
+- GPU-013 `[I]`: produce aggregate results with device reductions.
+- GPU-015 `[P]`: optionally fuse equivalent component launches after profiling.
+- GPU-016 `[P]`: route transforms through the selected GPU-capable wrapper.
+- GPU-017 `[I]`: materialize unsafe fixed-size expression intermediates.
+- GPU-018 `[P]`: optionally hoist repeated immutable loads after profiling.
+- GPU-019 `[P]`: optionally defer work to its consuming branch after profiling.
+- GPU-020 `[P]`: optionally specialize a consumed contraction after profiling.
+- GPU-021 `[I]`: guard constants and indices by configured dimension.
+- GPU-022 `[I]`: use device-callable sentinel values.
+- GPU-023 `[I]`: make Fab execution location explicit where AMReX requires it.
+- GPU-024 `[I]`: make read-only device-reached accessors callable and const.
+- GPU-025 `[P]`: declare and retire the selected integrator closure scaffold.
+- GPU-030 `[I]`: initialize device-local aggregates before conditional writes.
+- GPU-031 `[P]`: port a host-only numerical algorithm as an explicit sub-port.
 
-## Numerical changes
+## Contracts and evidence
 
-No NUM Tier 1 transform survives device-port classification. Numerical material is opt-in evidence or a `[NUM]` entry in `FEATURES.md`/`ONE_OFFS.md`.
-
-## One-offs
-
-See `ONE_OFFS.md`. Consult `FEATURES.md` separately as the upstream roadmap and do-not-import ledger.
+- `[P]` Correctness: `VALIDATION.md`; device workload shape:
+  `GPU_NATIVE_SHAPE.md`; baseline efficiency: `PERFORMANCE.md`; recognizers:
+  `RECOGNIZERS.md`; status/harvest: `STATUS.md`.
+- `[P]` Templates: `templates/`; known limits: `BLIND_SPOTS.md`.
+- `[C]` `FEATURES.md`, `ONE_OFFS.md`, `BUILD_LOG.md`, and `evidence/` retain the
+  chamber-gpu corpus as evidence, not a port plan.

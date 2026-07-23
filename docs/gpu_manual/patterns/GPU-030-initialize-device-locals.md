@@ -1,14 +1,14 @@
 # GPU-030: Initialize device-local aggregates before use
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: regex: `\bSet::Vector\s+ximg\s*;`
-Applies: Local vectors/aggregates populated conditionally inside a GPU-reachable device-callable sampler or active kernel execution path.
+Detection: Advisory regex in `recognizers/table.csv`; confirm conditional writes, active dimensions, and device reachability.
+Invariant: Every consumed device-local value must be initialized on every control-flow path; neutral initialization must preserve semantics.
+Port contract: Supply aggregate type, active components, control-flow proof, and validation tolerance rationale. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    `Set::Vector ximg;` followed by partial component assignments.
-  After:
-    `Set::Vector ximg = Set::Vector::Zero();` before conditional writes.
-Constraints: Keep scope narrow. Mandatory when recognizer matches. Initialize only to the mathematically neutral value and preserve all subsequent clamps/assignments. Initialize before every control-flow path; do not rely on a branch to assign every active dimension.
-Verify: `make -j4 && scripts/runtests.py --dim=2 --serial tests/PNG`; expect no uninitialized-value diagnostic and unchanged PNG field comparison.
-Failure modes: Uninitialized components yield nondeterministic device results, NaNs, or sanitizer failures; wrong zeroing changes boundary sampling. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da; `src/Util/PNG.H:168-174`.
+  Before: A local vector/aggregate is conditionally populated after declaration.
+  After: Initialize it to the mathematically neutral value before conditional writes.
+Corpus example: chamber-gpu PNG sampling changes are evidence of one uninitialized-local fix, not a PNG procedure.
+Constraints: Initialize before every path, preserve clamps/assignments, and do not zero values whose neutral element differs.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Uninitialized components cause nondeterminism, NaNs, or sanitizer failures; wrong neutral values alter boundary behavior.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA initialization/device execution). Corpus: chamber-gpu commit `f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da`; PNG path.

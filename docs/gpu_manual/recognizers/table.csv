@@ -1,26 +1,27 @@
-pattern_id,type,expression,notes
-GPU-001,build-error,calling a __host__ function from a __device__ function,nvcc diagnostic; inspect the reported call chain
-GPU-002,regex,(?:Thermo::Thermo|Transport::Transport|EOS::EOS)\s*\*\s*[A-Za-z_]\w*,Gas-family runtime base pointer
-GPU-003,regex,static_polymorphism_parser<[^>\n]*>\s*\(\s*value\s*\),parser call that drops context arguments
-GPU-004,regex,(?:\(\s*\*\s*m_bc\s*\)|m_bc\s*->\s*GetBC\s*\(\s*\))\s*\(,virtual BC invocation
-GPU-005,manual,,inspect extended-lambda access scope and captured nested types
-GPU-006,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,1200}?\b(?:this->|m_[A-Za-z_]\w*)\b",candidate; confirm member capture rather than a shadowed device-safe local
-GPU-007,regex,(?:const )?(?:Set::Scalar|amrex::Real)\s*\*\s*DX\s*=\s*geom\[[^]]+\]\.CellSize\(\),raw geometry cell-size pointer
-GPU-008,manual,,review staging and asynchronous lifetime boundaries
-GPU-009,manual,,review temporary Fab Elixir retention
-GPU-010,manual,,review host fallback boundaries
-GPU-011,manual,,review backend loop dispatch
-GPU-012,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,4000}?(?:Util::Abort|Util::Message)\s*\(",launch-bounded host error reporting in a device body
-GPU-013,regex,"AMREX_GPU_DEVICE[\s\S]{0,800}\b(?:trac_hi|disp_hi|massflux|mdot|volume)\b[^;\n]*(?:\+=|=)",device write to an aggregate
-GPU-015,regex,"for\s*\([^)]*\bn\s*<\s*ncomp[^)]*\)[\s\S]{0,160}ParallelFor\s*\([^,\n]+,\s*\[",component loop around launches
-GPU-016,regex,amrex::FFT::R2C|AMReX_FFT\.H,direct AMReX FFT dependency
-GPU-017,regex,\.inverse\(\)\.transpose\(\)|\.cross\(\)\.normalized\(\),chained fixed-size matrix expression
-GPU-018,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,6000}?\bDDW\s*\(\s*i\s*,\s*j\s*,\s*k\s*\)(?:(?!\}\s*\);)[\s\S]){0,6000}?\bDDW\s*\(\s*i\s*,\s*j\s*,\s*k\s*\)",repeated same-cell tensor load within one launch
-GPU-019,regex,"Set::Matrix\s+sig\s*=\s*\(DDW\([^;]+;[\s\S]{0,250}\bif\s*\(\s*AMREX_D_TERM",unconditional boundary-only stress construction
-GPU-020,regex,"Set::Vector\s+operator\s*\*[^\{]*\{[\s\S]{0,400}for\s*\(\s*int\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*AMREX_SPACEDIM",generic Matrix4 tensor loop
-GPU-021,manual,,review dimension-dependent factors and indices
-GPU-022,regex,return\s+Set::Garbage\b|static\s+.*Garbage\s*=|extern.*Garbage,host-oriented garbage sentinel
-GPU-023,regex,\b[A-Za-z_]\w*(?:\[[^]]+\])?\.(?:setVal|mult|plus)\s*\(,candidate; confirm a device-backed GPU-reachable Fab receiver
-GPU-024,manual,,review const model accessors used on device
-GPU-025,manual,,inspect GPU build and integrator closure
-GPU-030,regex,\bSet::Vector\s+ximg\s*;,uninitialized device local
+schema_version,pattern_id,type,candidate_expression,converted_expression,exclude_expression,confirmation,notes
+3,GPU-001,build-error,,,,inspect compiler call chain,nvcc diagnostic outranks lexical scan
+3,GPU-002,regex,"(?:std::(?:vector|unique_ptr|shared_ptr)\s*<[^;\n]+>\s*[A-Za-z_]\w*\s*(?:[;=,)])|(?:[A-Za-z_]\w*::)+[A-Za-z_]\w+\s*\*\s*[A-Za-z_]\w*\s*(?:[;=,)]))",,,confirm device reachability and host-container/polymorphism,high-recall state declaration
+3,GPU-003,regex,"\b(?:select|select_default|queryclass|parse|dispatch|static[_-]?polymorphism|visit)\w*\s*(?:<[^>\n]*>)?\s*\(","\b(?:select|dispatch|visit)\w*\s*<[^>\n]*>\s*\(",,confirm complete context forwarding,static-selection call site
+3,GPU-004,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,5000}?(?:\b[A-Za-z_]\w*\s*(?:->|\.)\s*[A-Za-z_]\w*(?:\s*\[[^]]+\])?\s*(?:(?:->|\.)\s*[A-Za-z_]\w*)?\s*\(|\b[A-Za-z_]\w*\s*\[[^]]+\]\s*(?:->|\.)\s*[A-Za-z_]\w*\s*\()",,,confirm indirect receiver and virtual reachability,device lambda member/indexed call
+3,GPU-005,manual,,,,inspect extended-lambda access scope and nested types,manual inspection
+3,GPU-006,manual,,,,inspect closure captures and call chain,manual inspection required
+3,GPU-007,regex,"(?:const\s+)?(?:Set::Scalar|amrex::Real)\s*\*\s*[A-Za-z_]\w*\s*=\s*geom\[[^]]+\]\.CellSize\(\)","(?:Set::Vector|amrex::GpuArray<[^>]+>)\s+[A-Za-z_]\w*\s*\(\s*geom\[[^]]+\]\.CellSize\(\)\)",,confirm device-safe geometry value,raw geometry cell-size pointer
+3,GPU-008,manual,,,,review staging and asynchronous lifetime boundaries,manual inspection
+3,GPU-009,manual,,,,review temporary Fab Elixir retention,manual inspection
+3,GPU-010,manual,,,,review host fallback boundary and approval,manual inspection
+3,GPU-011,manual,,,,review backend loop dispatch,manual inspection
+3,GPU-012,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,4000}?(?:Util::Abort|Util::Message)\s*\(","(?:device_error|error_flag)\s*\.",,confirm device flag and host check,device-side host reporting
+3,GPU-013,regex,"(?:\*\s*[A-Za-z_]\w*(?:\s*(?:->|\.)\s*[A-Za-z_]\w+)?\s*=|[A-Za-z_]\w*(?:\s*(?:->|\.)\s*[A-Za-z_]\w+)?\s*(?:\+=|-=|\*=|/=))",,,confirm external non-Array4 aggregate receiver identity and completion,device aggregate write candidate
+3,GPU-015,regex,"for\s*\([^)]*\bn\s*<\s*ncomp[^)]*\)[\s\S]{0,160}ParallelFor\s*\([^,\n]+,\s*\[","ParallelFor\s*\([^,]+,\s*ncomp\s*,",,confirm equivalent component launch,performance candidate
+3,GPU-016,regex,"amrex::FFT::R2C|AMReX_FFT\.H","AMReX::FFT|FFTWrapper|SpectralFFT",,confirm GPU-capable wrapper and API ownership,direct AMReX FFT dependency
+3,GPU-017,regex,"\.inverse\(\)\.transpose\(\)|\.cross\(\)\.normalized\(\)","(?:Matrix|Vector)\s+[A-Za-z_]\w*\s*=\s*[^;]*(?:inverse|cross)\(\)",,confirm materialized intermediate,expression-template chain
+3,GPU-018,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,6000}?(?P<callee>[A-Za-z_]\w*(?:->|\.)[A-Za-z_]\w*)\s*\((?P<args>[^()\n]*)\)(?:(?!\}\s*\);)[\s\S]){0,3000}?(?P=callee)\s*\((?P=args)\)",,,confirm same-launch immutable repeated load and profile,performance candidate
+3,GPU-019,regex,"AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,3000}?(?:Set::(?:Matrix|Vector)|auto|[A-Za-z_]\w+)\s+[A-Za-z_]\w*\s*=\s*[^;\n]*(?:\(|::)[^;\n]*;(?:(?!\}\s*\);)[\s\S]){0,500}?(?:\bif\s*\(|\bswitch\s*\()",,,confirm branch predicate and consumers,nontrivial value before branch
+3,GPU-020,regex,"Set::Vector\s+operator\s*\*[^\{]*\{[\s\S]{0,400}for\s*\(\s*int\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*AMREX_SPACEDIM",,,confirm consumer-specific contraction,performance candidate
+3,GPU-021,manual,,,,review dimension-dependent factors and indices,manual inspection
+3,GPU-022,regex,"(?:\b(?:static|extern)\s+[^;\n]+;|\breturn\s+(?:[A-Za-z_]\w*::)+[A-Za-z_]\w*\s*(?:\(|;))","(?:Set::(?:Scalar|Vector)|device_)[A-Za-z_]\w*",,confirm storage execution space and sentinel intent,host-global or qualified returned storage
+3,GPU-023,regex,"\b[A-Za-z_]\w*(?:\[[^]]+\])?(?:\.|->)(?:setVal|mult|plus)\s*\(","(?:\.|->)(?:setVal|mult|plus)\s*<\s*(?:amrex:)?RunOn::Device\s*>",,confirm receiver type and explicit execution,Fab initialization candidate
+3,GPU-024,manual,,,,review const model accessors used on device,manual inspection
+3,GPU-025,manual,,,,inspect GPU build and integrator closure,build closure inspection
+3,GPU-030,regex,"AMREX_GPU_DEVICE[\s\S]{0,4000}?\b(?:Set::(?:Vector|Matrix\d*)|amrex::(?:GpuArray|Array)|std::array)\s+[A-Za-z_]\w*\s*;",,,confirm CFG all-path initialization before use,uninitialized device aggregate
+3,GPU-031,manual,,,,inspect host-only numerical call chain and closure state,manual compiler/AST call-chain gate

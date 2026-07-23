@@ -1,14 +1,12 @@
 # GPU-005: Make captured parameter types visible to extended lambdas
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: manual: An extended device lambda is defined in protected/private scope or captures a protected/private unnamed parameter type.
-Applies: An extended device lambda captures members through `this` or inaccessible protected/private parameter types.
-Transform:
-  Before:
-    `[=] AMREX_GPU_DEVICE (...) { use this->pf; }`
-  After:
-    Expose/copy the parameter struct, capture it by value, and reference local fields inside the lambda.
-Constraints: Mandatory when recognizer matches. This is a temporary visibility/type fix, not permission to enlarge public API unnecessarily; retain encapsulation outside the launch site.
-Verify: `make -j4`; compare CPU/GPU outputs at identical timestep and dimensions; expected nvcc accepts the extended lambda and generated code has no inaccessible-type diagnostic.
-Failure modes: Any mismatch or compile diagnostic is a failed conversion. nvcc reports private/protected captured type, or lambda still dereferences host `this`. Validation must include the smallest representative input and a CPU reference; do not waive a failure as numerical noise. Include launch-region behavior, ownership, and dimensional assumptions in review; the transform is complete only when those remain explicit.
-Evidence: commits d522e1ac08729b306a215ad896d8a304983d55de, 4afea70999397683597dc2fd8dbf4ad004e86bb1
+Detection: Advisory manual inspection; see `recognizers/table.csv`; compiler access diagnostics are corroborating evidence.
+Invariant: Extended device lambdas require accessible, device-safe parameter and capture types.
+Port contract: The port supplies launch scope, parameter visibility, ownership, and encapsulation decisions. Record those decisions in the inspection artifacts for later review.
+Transform: Expose or copy a device-safe parameter aggregate before launch, capture it by value, and use local fields.
+Corpus example: Flame/chamber-gpu lambda visibility fixes are evidence of one compiler limitation, not an API mandate.
+Constraints: Do not broaden public API unnecessarily; never retain hidden host `this` or inaccessible state.
+Verify: Instantiate `VALIDATION.md`; require `strict-build` and `golden-regression` rows, and record diagnostics plus a written tolerance rationale.
+Failure modes: nvcc can reject private/protected captured types or runtime can dereference host state. Unresolved cases remain blocked; never infer correctness from a clean scan.
+Evidence: Primary: `docs/gpu_manual/evidence/primary-sources.md` (CUDA extended-lambda anchors). Corpus: commits d522e1ac08729b306a215ad896d8a304983d55de, 4afea70999397683597dc2fd8dbf4ad004e86bb1.

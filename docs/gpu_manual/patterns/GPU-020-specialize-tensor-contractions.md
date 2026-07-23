@@ -1,14 +1,14 @@
 # GPU-020: Specialize only the consumed tensor contraction
-Status: draft
-Class: performance
-Recognizer: regex: `Set::Vector\s+operator\s*\*[^\{]*\{[\s\S]{0,400}for\s*\(\s*int\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*AMREX_SPACEDIM`
-Applies: Generic Matrix4×Matrix3 contractions whose full operator surface is used in a hot device kernel.
+Transform status: draft
+Class: optimization
+Detection: Advisory regex in `recognizers/table.csv`; inspect hot-kernel reachability, consumed symmetry, and profile evidence.
+Invariant: Index mapping, accumulation order, and scalar semantics must be preserved; specialization is not a universal requirement.
+Port contract: Supply the consumed contraction shape, proof of symmetry assumptions, baseline/profile metrics, and tolerance rationale. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    Generic nested loops/operator dispatch for a contraction.
-  After:
-    A dedicated contraction for the consumed symmetry/layout, with explicit terms or a narrow helper.
-Constraints: Keep scope narrow. Apply only with profiling justification; preserve exact accumulation order and correctness/golden results. Do not specialize unused paths or silently change symmetry assumptions.
-Verify: `make -j4`; run elastic golden tests and compare register/instruction metrics; expect bitwise or accepted-tolerance agreement and a measured improvement. Repeat in the configured 2-D and 3-D modes where applicable, and retain the command/output in the build log.
-Failure modes: Wrong index mapping or accumulation order corrupts stress/flux; specialization can increase code size or registers without benefit. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 9470889b14f10a902dab6dd9573deefc09972e8d; `src/Set/Matrix4_Major.H:531-550`; `docs/agent_plans/20260709-fapply-kernel-surgery/results/RESULT.md`.
+  Before: A generic matrix contraction computes a broad operator surface in a hot device path.
+  After: Implement only the consumed contraction with explicit terms or a narrow helper.
+Corpus example: chamber-gpu Matrix4 edits are evidence of one specialization, not a general constitutive prescription.
+Constraints: This is a profiled hypothesis. Do not specialize unused paths or change symmetry assumptions; reject register/code-size regressions.
+Verify: Use `PERFORMANCE.md` baseline/optimization gates plus `VALIDATION.md` correctness categories; require baseline-efficiency pass first.
+Failure modes: Wrong indices or accumulation order corrupt results; specialization without measured gain is unsuccessful.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA arithmetic/device execution). Corpus: chamber-gpu commit `9470889b14f10a902dab6dd9573deefc09972e8d`; Matrix4/result paths.

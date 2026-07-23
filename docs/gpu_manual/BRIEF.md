@@ -1,212 +1,224 @@
-# Agent Brief: GPU Pattern Manual Builder
+# Agent Brief: GPU Port and Manual Maintainer v3
 
-Mission: mine the `chamber-gpu` branch of ALAMO (diffs + markdown failure/success library) and produce a token-efficient, three-tier pattern manual that a fresh LLM session can use to convert files on the `gpu` branch without access to `chamber-gpu`. This brief is the agent's complete instruction set. Runtime-agnostic (Claude Code, Codex CLI, or similar).
+Mission: use the three-tier GPU manual to start, validate, and harvest any ALAMO
+integrator port without access to `chamber-gpu`. The manual separates universal
+device semantics, port-supplied decisions and oracles, and historical corpus
+evidence. Every completed port must improve the manual.
 
----
+## 1. Authority and labels
 
-## 0. Kickoff prompt (paste into the agent session)
+Evidence authority, strongest first:
 
-```
-You are the manual-builder agent for the ALAMO repository. Read
-PATTERN_MANUAL_AGENT.md in full before acting. Execute Phases 0 through 6 in
-order; do not proceed past a phase until its exit criteria are met and
-reported. All writes go under docs/gpu_manual/ on a new branch named
-manual-build. The branches chamber-gpu, gpu, and the main branch are
-read-only. Begin with Phase 0 and report its inventory before continuing.
-```
+1. Executable results reproduced for the selected port and declared closure:
+   strict compiler, analytic/conservation/golden/restart/multi-box oracles,
+   sanitizer, and recorded timeline evidence.
+2. Primary CUDA and AMReX documentation for universal execution semantics.
+3. Executable results from other completed ports.
+4. `chamber-gpu` diffs and markdown, explicitly labeled corpus evidence.
+5. Inference, which may propose a finding but may not close one.
 
----
+Tier 0 uses `[I]` for invariant semantics, `[P]` for a port contract, and `[C]`
+for corpus evidence. Tier 1 keeps the same separation in `Invariant`, `Port
+contract`, and `Corpus example` fields. Scanner results are always advisory;
+compiler diagnostics and recorded inspection outrank regex hits.
 
-## 1. Ground rules
+## 2. Layout and token budget
 
-1. Evidence hierarchy, strongest first:
-   a. Code diffs on `chamber-gpu` (ground truth)
-   b. Build/runtime results the agent reproduces
-   c. The markdown library (explains why; may be stale)
-   d. Inference
-   Never write a pattern supported only by (d). Prose that contradicts a diff is stale: drop it and log the drop.
-2. Schemas in Section 3 are frozen. Do not restructure them. No narrative documents anywhere in the manual.
-3. Write boundary: `docs/gpu_manual/**` on branch `manual-build` only. Source branches read-only. Never run destructive git (`reset --hard`, `clean -fdx`, force push, branch deletion).
-4. Token budgets: `INDEX.md` <= 1500 tokens. Each pattern file 200-400 tokens. Evidence tier unbounded but never loaded by default.
-5. Every pattern claim carries evidence: commit hash and/or markdown path.
-6. Ask the user when: branch names differ from those assumed here, the markdown library location is ambiguous, or a stop condition in Section 6 fires.
-
----
-
-## 2. Deliverables and layout
-
-```
+```text
 docs/gpu_manual/
-  INDEX.md                     Tier 0: invariants, triage tree, pattern one-liners
-  patterns/GPU-NNN-<slug>.md   Tier 1: one file per pattern
-  evidence/<topic>.md          Tier 2: full narratives, benchmarks, links
-  recognizers/table.csv        pattern_id,type,expression,notes
-  recognizers/scan.py          recognizer runner (spec in Phase 4)
-  COVERAGE.csv                 file,pattern_id,hits  (scan of gpu branch)
-  ONE_OFFS.md                  meaningful changes that are not patterns
-  BUILD_LOG.md                 decisions, drops, conflicts
-  build/                       scratch: diffs, inventories, ledgers
+  INDEX.md                         Tier 0, <= 1500 approximate tokens
+  patterns/GPU-NNN-*.md           Tier 1, 200-400 approximate tokens each
+  evidence/*.md                   Tier 2, never loaded by default
+  VALIDATION.md                   reusable correctness contract
+  ONBOARDING.md                   ordered port protocol and gates
+  ARCHITECTURE_POLICIES.md        single homes for recurring decisions
+  GPU_NATIVE_SHAPE.md             mandatory layout/kernel/resource contract
+  PERFORMANCE.md                  baseline-efficiency contract
+  RECOGNIZERS.md                  advisory recognizer lifecycle
+  STATUS.md                       pattern, port, closed-book, harvest status
+  BLIND_SPOTS.md                  known limitations
+  templates/*                     schemas copied by a port
+  recognizers/table.csv           versioned candidate/converted rules
+  recognizers/scan.py             stateful site scanner
+  templates/COVERAGE.csv          per-port advisory status schema
+  FEATURES.md / ONE_OFFS.md       chamber-gpu corpus ledgers
+  BUILD_LOG.md                    append-only manual decisions
+  build/                           manual construction evidence
 ```
 
-`COVERAGE.csv` doubles as the port plan for the `gpu` branch: task list, effort estimate, parallelization boundaries.
+The three-tier layout and token budgets are unchanged. Contract and policy
+documents are loaded only when the corresponding Tier 0 or Tier 1 entry points
+to them.
 
----
+## 3. Frozen v3 schemas
 
-## 3. Frozen schemas
+### Tier 1 pattern
 
-### 3.1 Tier 1 pattern file (`patterns/GPU-NNN-<slug>.md`)
-
-```
+```text
 # GPU-NNN: <imperative name>
-Status: draft | verified
-Recognizer: <grep -E / regex for the bad shape; MANUAL if not greppable>
-Applies: <code shape, one line>
+Transform status: draft | file-verified | transfer-verified | cross-family
+Class: correctness | optimization | scaffolding
+Detection: <advisory regex, manual inspection, or compiler diagnostic>
+Invariant: <universal CUDA/AMReX semantic claim>
+Port contract: <decision, state, or proof this port must supply>
 Transform:
-  Before:
-    <minimal snippet>
-  After:
-    <minimal snippet>
-Constraints: <when NOT to apply>
-Verify: <build/test command + expected result>
-Failure modes: <compile/runtime signature if misapplied or if pattern absent>
-Evidence: <commit hash(es); markdown path(s)>
+  Before: <bad semantic shape>
+  After: <device-safe semantic shape>
+Corpus example: <clearly labeled chamber-gpu example; never procedure>
+Constraints: <when not to apply and preserved semantics>
+Verify: <VALIDATION.md or PERFORMANCE.md categories and observation>
+Failure modes: <compile/runtime/review signature>
+Evidence: Primary: <primary-sources anchor>; Corpus: <hash/path/result>
 ```
 
-Anti-patterns (documented dead ends with no surviving diff) use the same schema with `Transform: avoid` and the failed approach shown under `Before`.
+`file-verified` means the exercise used a target that authored or repaired the
+pattern. `transfer-verified` requires a frozen, unseen target; a repair makes
+that target part of the authoring corpus and a new target is required.
+`cross-family` additionally requires completed-port harvests from two distinct
+physics families. Recognizer state never upgrades transform status.
 
-### 3.2 Tier 0 (`INDEX.md`)
+### Recognizer table and coverage
 
-```
-# GPU Pattern Index
-## Invariants
-<rules with zero exceptions, one line each>
-## Triage
-<code symptom> -> GPU-NNN[, GPU-MMM]
-## Patterns
-GPU-001: <one line>
-...
-## One-offs
-See ONE_OFFS.md
+`recognizers/table.csv` schema v3:
+
+```text
+schema_version,pattern_id,type,candidate_expression,converted_expression,exclude_expression,confirmation,notes
 ```
 
-### 3.3 `ONE_OFFS.md` entry
+Each port writes its own coverage report using schema v3:
 
-```
-- <file>:<hunk range> | <what changed, one line> | commit <hash> | <why not a pattern>
-```
-
-### 3.4 Ledgers (in `build/`)
-
-```
-HUNK_MAP.csv:  hunk_id,file,classification   classification in {GPU-NNN, ONEOFF, NOISE}
-MD_MAP.csv:    path,disposition,pattern_ids  disposition in {mapped, anti-pattern, evidence-only, stale-dropped}
+```text
+schema_version,port_id,source_revision,site_id,file,line,pattern_id,state,evidence
 ```
 
-### 3.5 `BUILD_LOG.md` entry
+Allowed states are `candidate`, `converted`, `not-applicable`, and
+`false-positive`. `port_id` and `source_revision` are required; dispositions
+carry only within the same port and unchanged revision. A rerun recomputes candidate/converted sites
+and preserves reviewed dispositions. It never hides a candidate because the
+same file also contains a converted site. There is no operational root coverage
+snapshot. Schema changes increment the version and receive a `BUILD_LOG.md`
+entry.
 
-```
-<date> | <phase> | <decision> | <evidence> | <artifacts affected>
-```
+### Port artifacts
 
----
+- `SCOPE.md`: supported execution, physics/capability scope, FEATURE/[NUM]
+  decisions, owner approval.
+- `CLOSURE.csv`: compiler-first transitive source graph and scaffolding state.
+- `INSPECTION_LEDGER.csv`: per-file taxonomy questions and dispositions.
+- `VALIDATION.csv`: oracle category, exact command/reference/result, tolerance
+  rationale, evidence, owner.
+- `EFFICIENCY.md`: fixed baseline checklist plus trace reproduction.
+- `FIELD_LAYOUT.csv`, `KERNEL_GRAPH.csv`, and `SHAPE_PROFILE.md`: mandatory
+  workload-shape, transfer, call-chain, and compiler/profiler evidence.
+- `COVERAGE.csv`: revision-bound advisory findings for this port.
+- `FEATURE_DECISIONS.csv`: surfaced capability/numerical decisions.
+- `HARVEST.md`: misses, recognizer feedback, status evidence, mandatory manual
+  update, future work.
+- `PORT_STATUS.csv`: independent gate axes and closed-book outcomes used to
+  compare evidence across completed ports.
 
-## 4. Phase plan
+Templates under `templates/` are the schema definitions; filled instances live
+with the consuming port's evidence.
 
-### Phase 0: Recon (read-only)
+## 4. Port and maintenance phases
 
-1. Verify branch names. Assumed: `chamber-gpu`, `gpu`, and a main branch (`main` or `master` or `development`). If assumptions fail, stop and ask.
-2. `BASE=$(git merge-base <main> chamber-gpu)`
-3. `git diff --stat $BASE..chamber-gpu > docs/gpu_manual/build/DIFF_STAT.txt`
-4. One diff file per changed source file into `build/diffs/` (`git diff $BASE..chamber-gpu -- <path>`).
-5. Locate the markdown library. List every file with path and size into `build/MD_INVENTORY.txt`. If location ambiguous, ask.
+### Phase 0: Intake
 
-Exit: DIFF_STAT, diffs/, MD_INVENTORY exist. Report counts (files changed, hunks approx, md files) to user.
+Read INDEX, STATUS, ONBOARDING, and BLIND_SPOTS. Select a stable `port_id`, owner,
+entry point, and toolchain. Do not use `chamber-gpu` as procedure.
 
-### Phase 1: Scaffold
+Exit: scope artifact exists and contains no undecided FEATURE/[NUM] item.
 
-Create the Section 2 layout on branch `manual-build`. Empty scaffolds plus this brief copied to `docs/gpu_manual/BRIEF.md` for provenance.
+### Phase 1: Compiler-first closure
 
-Exit: layout committed.
+Derive the transitive closure from the entry point with strict device compiler
+diagnostics. Record every translation unit, header, template/runtime edge,
+exclusion, and scaffold. Inspection can add an edge; regex cannot remove one.
 
-### Phase 2: Diff mining
+Exit: the exact closure links in all supported dimensions and every diagnostic
+has a closure/worklist disposition.
 
-1. Split each per-file diff into hunks. `hunk_id = <file>:<old-start>-<old-end>`.
-2. Classify every hunk:
-   - Transformation class (candidate pattern): cluster similar hunks across files, assign `GPU-NNN`.
-   - `NOISE`: formatting, include reordering, comment-only.
-   - `ONEOFF`: meaningful but unique. Record per Section 3.3.
-3. Draft one Tier 1 file per cluster. Use the smallest clean hunk in the cluster for Before/After. `Status: draft`. Populate Evidence with commit hashes (`git log -L` or `git blame` on chamber-gpu as needed).
+### Phase 2: Inspection worklist
 
-Exit: `HUNK_MAP.csv` complete, zero unassigned hunks. Report cluster count and ONEOFF/NOISE counts.
+For every closure file, instantiate the fixed taxonomy in ONBOARDING: host
+loops, launches, receiver types, diagnostics, captures, lifetimes, reductions,
+dispatch, host-only numerical kernels, field layout, and kernel graph. Generate
+revision-bound scanner sites and merge them without treating them as proof.
 
-### Phase 3: Markdown mining
+Exit: bounded worklist exists; no required taxonomy or scan row is unexplained.
 
-1. For each md file: map content to existing pattern IDs. Extract into those patterns: Failure modes, Constraints, Verify commands. Append path to Evidence.
-2. Content matching no diff-derived pattern:
-   - Documented dead end -> anti-pattern file (Section 3.1 variant).
-   - Useful context, not actionable -> `evidence/<topic>.md`, linked from nearest pattern.
-   - Contradicts a diff -> stale. Drop, log in BUILD_LOG.
-3. Compress: no md prose is copied verbatim into Tier 1; rewrite to schema fields.
+### Phase 3: Oracle-gated conversion
 
-Exit: `MD_MAP.csv` complete, every md file dispositioned.
+Fill the validation contract before conversion. Apply only matching Tier 1
+patterns, preserve scope and existing numerical behavior, and gate each bounded
+change with the smallest relevant oracle. Surface architecture or numerical
+choices through the policy workflow.
 
-### Phase 4: Recognizers and coverage
+Exit: zero open correctness rows and every applicable validation category
+passes with a written tolerance rationale.
 
-1. Fill `recognizers/table.csv`. Prefer regex; `MANUAL` only where the shape is not greppable.
-2. Write `recognizers/scan.py`. Spec: Python 3 stdlib only; inputs `--root <dir> --table <csv> --out <csv>`; walks source files (verify extensions in repo, expect `.H .cpp .cu`); applies regex rows; emits `file,pattern_id,hits`. No comments beyond one usage line.
-3. True-positive check: scan the `chamber-gpu` pre-transform tree (`git worktree add build/base-scan $BASE`). Every regex recognizer must hit the code its pattern later transformed. Zero hits here = broken recognizer; fix before proceeding.
-4. Scan the target: `git worktree add build/gpu-scan gpu`, run scan, write `COVERAGE.csv`. Remove worktrees after (`git worktree remove`).
-5. Patterns with zero hits on `gpu`: keep, mark in BUILD_LOG as `n/a this port` unless recognizer is at fault.
+### Phase 4: GPU-native shape and baseline
 
-Exit: COVERAGE.csv committed, per-pattern hit counts reported.
+Fill `GPU_NATIVE_SHAPE.md` and run the physics-agnostic procedure in PERFORMANCE.
+A port may report a reasoned failure, but it is not GPU-native until layout,
+kernel graph, residency/transfers, numerical call-chain complexity, compiler
+resources, and all applicable baseline items pass. Optimization patterns remain
+optional, measured future work.
 
-### Phase 5: Tier 0 assembly (last, not first)
+Exit: `GPU_NATIVE_SHAPE=pass` and `BASELINE_EFFICIENCY=pass` with named-GPU
+compiler/timeline evidence, or honest `fail`/`blocked` statuses.
 
-1. Invariants: distill from patterns whose Constraints show no exceptions.
-2. Triage tree: build from Recognizer/Applies lines, symptom -> pattern IDs.
-3. One-liners for every pattern.
-4. Token check: approx tokens = words x 1.3. Trim until <= 1500.
+### Phase 5: Closed-book gate and harvest
 
-Exit: INDEX.md within budget, committed.
+Run the frozen unseen-target gate in STATUS on this port's material: a fresh session first
+produces scope/closure/inspection artifacts, then converts under its validation
+contract. Update only statuses actually exercised. Fill HARVEST, update blind
+spots, add executable evidence, and make at least one manual change.
 
-### Phase 6: Closed-book validation gate
+Exit: reviewed harvest exists, scanner candidates are zero for the completed
+port, and the manual contains the port's new evidence or correction.
 
-1. From COVERAGE.csv pick the smallest `gpu`-branch file with >= 2 distinct pattern hits.
-2. Fresh session receives only: INDEX.md, the hit pattern files, the target file. No repo access, no chamber-gpu.
-3. Session produces the converted file.
-4. Lead (with chamber-gpu access) reviews: correct transforms applied, constraints respected, nothing invented.
-5. Any gap: patch the responsible pattern, log in BUILD_LOG, rerun on a different file.
-6. Gate passes on two consecutive clean runs on different files. Flip validated patterns to `Status: verified`.
+## 5. Recognizer feedback loop
 
-Exit: gate passed, results logged.
-
----
-
-## 5. Model routing (optional, single-agent fallback is valid)
-
-- Cheap tier, batchable: Phase 0 inventories, Phase 2 hunk splitting, Phase 3 per-file md mapping.
-- Mid tier: Phase 2 clustering and pattern drafting, Phase 4 recognizer authoring.
-- Top tier: Phase 5 distillation, Phase 6 review judgment.
-
----
+After compiler and inspection closure, promote any missed recurring shape to a
+candidate recognizer rule. Link every scan hit to an inspection row; disposition
+unmatched hits as a new finding, `false-positive`, or `not-applicable` with
+evidence. Rerun until a completed port has zero `candidate` rows. Do not maintain
+formal precision/recall or a held-out corpus for this single-developer manual.
 
 ## 6. Stop conditions
 
-- Diff and markdown conflict -> prefer diff, log, continue.
-- Hunk unclassifiable after two attempts -> ONEOFF with note, continue.
-- More than 20 percent of non-NOISE hunks landing in ONEOFF -> stop, report; clustering is probably wrong.
-- Any write needed outside `docs/gpu_manual/`, or any destructive git -> stop, ask.
-- Markdown library or branch names not found as assumed -> stop, ask.
-
----
+- A compiler diagnostic or required inspection row is absent from the plan:
+  add it before continuing.
+- A scan is clean while manual/compiler rows remain open: the port is incomplete.
+- A physics/capability/numerical choice appears mid-port: preserve behavior and
+  run the FEATURE/[NUM] decision workflow.
+- Required hardware/toolchain evidence is unavailable: mark the affected gate
+  `blocked`, never pass.
+- Shape evidence is missing for layout, launch decomposition, transfer bytes,
+  numerical call chains, or compiler resources: fail GPU-native shape.
+- Baseline trace shows a hot host fallback, per-tile transfer/synchronization,
+  runtime kernel dispatch, or avoidable component launch multiplication: fail
+  baseline efficiency.
+- A performance change lacks a named-GPU before/after result or changes a
+  correctness oracle: keep it future work.
+- Completing a port would leave the manual unchanged: the harvest is incomplete.
 
 ## 7. Definition of done
 
-- [ ] Every diff hunk in HUNK_MAP.csv as GPU-NNN, ONEOFF, or NOISE
-- [ ] Every md file dispositioned in MD_MAP.csv
-- [ ] Every regex recognizer passes the true-positive check on the BASE tree
-- [ ] COVERAGE.csv generated from the `gpu` branch
-- [ ] Zero-hit patterns dispositioned in BUILD_LOG
-- [ ] INDEX.md <= 1500 tokens; every pattern file 200-400 tokens
-- [ ] Every pattern has populated Evidence
-- [ ] Closed-book gate: two consecutive passes; validated patterns marked verified
+- A reader can distinguish invariant, port contract, and corpus evidence at the
+  point of use.
+- A new port can start from scope, compiler-first closure, inspection,
+  validation, shape, efficiency, decision, coverage, and harvest templates
+  without chamber-gpu.
+- Correctness Verify fields reference the validation contract; optimization
+  fields are gated behind a passing baseline.
+- Scanner output is versioned, stateful, advisory, and fully dispositioned for
+  every completed port.
+- Architecture policies have one home, an owner decision, and a worked example.
+- Status is per pattern and per port axis; no partial gate becomes a global pass.
+- Every completed port produces a harvest and changes the manual.
+
+The next authorized non-Flame port is the pilot for the contracts and expanded
+closed-book gate. Until it finishes, pilot-dependent acceptance remains
+`pending-pilot` rather than inferred from Flame or file-only exercises.

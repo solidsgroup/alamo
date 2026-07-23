@@ -1,14 +1,12 @@
 # GPU-001: Make the complete device call chain callable
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: build-error: `calling a __host__ function from a __device__ function`
-Applies: A GPU kernel reaches a helper or model method that lacks a host/device annotation.
-Transform:
-  Before:
-    `AMREX_FORCE_INLINE Set::Scalar operator()(...)` is reached from an `AMREX_GPU_DEVICE` lambda.
-  After:
-    Add `AMREX_GPU_HOST_DEVICE` to that helper and every device-safe transitive callee; keep host-only operations outside the chain.
-Constraints: Mandatory when the recognizer matches. Annotate the full transitive value path, including inline helpers and operators. Do not annotate routines that perform I/O, allocation, virtual dispatch, or other host-only work; split those paths instead and keep their host boundary explicit.
-Verify: `make -j4`; compare CPU/GPU outputs at identical timestep and dimensions; expected nvcc compiles the target and no host/device call diagnostic remains.
-Failure modes: Any mismatch or compile diagnostic is a failed conversion. nvcc reports the quoted diagnostic with the inserted function name, or runtime fails after a host-only call executes on device. A partial annotation can compile one translation unit while failing in a deeper template instantiation. Validation must include the smallest representative input and a CPU reference; do not waive a failure as numerical noise.
-Evidence: commits f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da, 3d382a5655c715c7483a15d53c3f8e5c908330af, 4afea70999397683597dc2fd8dbf4ad004e86bb1
+Detection: Advisory build-error; see `recognizers/table.csv`; confirm the complete nvcc-reported call chain manually.
+Invariant: Device code may call only host/device-callable functions and device-safe transitive callees.
+Port contract: The port supplies the selected closure, call-chain inventory, and host-only boundary decisions. Record them for later review and reuse.
+Transform: Add `AMREX_GPU_HOST_DEVICE` through every device-safe inline/helper path; split I/O, allocation, virtual, and other host-only work at an explicit boundary.
+Corpus example: Flame/chamber-gpu annotation diffs are evidence of one exercised chain, not a universal procedure.
+Constraints: Do not annotate routines with host-only effects; preserve semantics and host paths.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows, plus the port's written tolerance rationale.
+Failure modes: Host/device diagnostics can remain in deeper template instantiations; host-only calls may fault at runtime or alter results. Unresolved cases remain blocked; never infer correctness from a clean scan.
+Evidence: Primary: `docs/gpu_manual/evidence/primary-sources.md` (CUDA/AMReX callability anchors). Corpus: commits f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da, 3d382a5655c715c7483a15d53c3f8e5c908330af, 4afea70999397683597dc2fd8dbf4ad004e86bb1.

@@ -1,14 +1,14 @@
 # GPU-022: Replace host globals with device-safe sentinel access
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: regex: `return\s+Set::Garbage\b|static\s+.*Garbage\s*=|extern.*Garbage`
-Applies: Device-callable math paths returning a host-only global sentinel.
+Detection: Advisory regex in `recognizers/table.csv`; confirm host-global reachability from device code and sentinel intent.
+Invariant: Device code cannot dereference host-only storage; diagnostic sentinel behavior must remain observable and side-effect free.
+Port contract: Supply sentinel ownership, host/device storage strategy, call-chain evidence, and oracle tolerance rationale. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    `return Set::Garbage;` from a function reachable by a GPU kernel.
-  After:
-    Use a host/device `Garbage()` accessor backed by device and host storage selected at compile time.
-Constraints: Keep scope narrow. Mandatory when recognizer matches. Sentinel remains diagnostic only; preserve call-site behavior and avoid dereferencing host storage in device code.
-Verify: `./configure --dim=2 --debug && make -j4 && scripts/runtests.py --dim=2 --serial tests/Unit`; repeat with `--dim=3`; expect no device-link/illegal-address error and unchanged matrix checks.
-Failure modes: Host global capture fails nvcc/device linking or faults at runtime; changing sentinel initialization masks invalid-state diagnostics. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da; `src/Set/Base.H:114-120`, `src/Set/Matrix4_Major.H`, `src/Set/Matrix4_MajorMinor.H`.
+  Before: A device-reachable function returns a host-only global sentinel.
+  After: Use a host/device accessor backed by storage valid for the active execution space.
+Corpus example: chamber-gpu Set/Matrix changes are evidence of one sentinel migration, not a universal value choice.
+Constraints: Preserve diagnostic semantics; do not mask invalid states or dereference host storage in device code.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Device linking or illegal-address errors, or changed sentinel initialization, indicate failure; inspect the execution space.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA host/device memory rules). Corpus: chamber-gpu commit `f296eae5d31d39d2bf0bbfefdfddc5ea8142b0da`; Set/Matrix paths.

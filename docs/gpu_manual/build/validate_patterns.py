@@ -1,376 +1,306 @@
 #!/usr/bin/env python3
-import re
-import subprocess
-import sys
+"""Structural oracle for the generalized GPU manual."""
+
 import csv
-from collections import Counter
+import re
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
-PATTERN_DIR = ROOT / "docs/gpu_manual/patterns"
-EXPECTED = {
-    "GPU-001": "correctness",
-    "GPU-002": "correctness",
-    "GPU-003": "correctness",
-    "GPU-004": "correctness",
-    "GPU-005": "correctness",
-    "GPU-006": "correctness",
-    "GPU-007": "correctness",
-    "GPU-008": "correctness",
-    "GPU-009": "correctness",
-    "GPU-010": "scaffolding",
-    "GPU-011": "correctness",
-    "GPU-012": "correctness",
-    "GPU-013": "correctness",
-    "GPU-015": "performance",
+MANUAL = ROOT / "docs/gpu_manual"
+PATTERNS = MANUAL / "patterns"
+EXPECTED_CLASSES = {
+    **{f"GPU-{number:03d}": "correctness" for number in range(1, 14)},
+    "GPU-015": "optimization",
     "GPU-016": "correctness",
     "GPU-017": "correctness",
-    "GPU-018": "performance",
-    "GPU-019": "performance",
-    "GPU-020": "performance",
+    "GPU-018": "optimization",
+    "GPU-019": "optimization",
+    "GPU-020": "optimization",
     "GPU-021": "correctness",
     "GPU-022": "correctness",
     "GPU-023": "correctness",
     "GPU-024": "correctness",
     "GPU-025": "scaffolding",
     "GPU-030": "correctness",
+    "GPU-031": "correctness",
 }
-VERIFIED = {"GPU-007", "GPU-016"}
+EXPECTED_CLASSES["GPU-010"] = "scaffolding"
 FIELDS = [
-    "Status",
+    "Transform status",
     "Class",
-    "Recognizer",
-    "Applies",
+    "Detection",
+    "Invariant",
+    "Port contract",
     "Transform",
+    "Corpus example",
     "Constraints",
     "Verify",
     "Failure modes",
     "Evidence",
 ]
+TABLE_FIELDS = [
+    "schema_version", "pattern_id", "type", "candidate_expression",
+    "converted_expression", "exclude_expression", "confirmation", "notes",
+]
+COVERAGE_FIELDS = [
+    "schema_version", "port_id", "source_revision", "site_id", "file",
+    "line", "pattern_id", "state", "evidence",
+]
+STATUSES = {"draft", "file-verified", "transfer-verified", "cross-family"}
+SITE_STATES = {"candidate", "converted", "not-applicable", "false-positive"}
+IDENTIFIER_FITTED_CANDIDATES = {
+    "trac_hi", "disp_hi", "massflux", "mdot", "volume", "DDW", "ximg",
+    "m_bc", "GetBC", "static_polymorphism_parser", "Set::Garbage",
+}
 
 
-def git_ok(*args: str) -> bool:
-    return subprocess.run(
-        ["git", *args], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    ).returncode == 0
+def top_fields(text):
+    names = []
+    values = {}
+    for line in text.splitlines()[1:]:
+        match = re.match(r"^([A-Za-z][A-Za-z ]*):(?:\s*(.*))?$", line)
+        if match:
+            names.append(match.group(1))
+            values[match.group(1)] = (match.group(2) or "").strip()
+    return names, values
 
 
-def main() -> int:
+def require_text(errors, path, snippets):
+    text = path.read_text()
+    for snippet in snippets:
+        if snippet not in text:
+            errors.append(f"{path.relative_to(ROOT)}: missing {snippet!r}")
+
+
+def validate_csv_header(errors, relative, expected):
+    path = ROOT / relative
+    with path.open(newline="") as handle:
+        reader = csv.reader(handle)
+        header = next(reader, [])
+    if header != expected:
+        errors.append(f"{relative}: header {header!r}, expected {expected!r}")
+
+
+def main():
     errors = []
-    files = sorted(PATTERN_DIR.glob("*.md"))
     found = {}
-    recognizers = {}
-    for path in files:
-        match = re.match(r"((?:GPU|NUM)-\d{3})-.*\.md$", path.name)
+    forbidden_verify = re.compile(
+        r"(?:Flame|PFC|CahnHilliard|HeatConduction|Elastic|benchmark/|make\s)",
+        re.IGNORECASE,
+    )
+
+    for path in sorted(PATTERNS.glob("GPU-*.md")):
+        match = re.match(r"(GPU-\d{3})-.*\.md$", path.name)
         if not match:
-            errors.append(f"{path.name}: invalid filename")
+            errors.append(f"{path.name}: invalid pattern filename")
             continue
         pattern_id = match.group(1)
-        found[pattern_id] = path
         text = path.read_text()
-        lines = text.splitlines()
-        if not lines or not lines[0].startswith(f"# {pattern_id}: "):
-            errors.append(f"{path.name}: H1 does not match filename ID")
+        names, values = top_fields(text)
+        found[pattern_id] = values
 
-        top_fields = []
-        values = {}
-        for line in lines[1:]:
-            field = re.match(r"^([A-Za-z][A-Za-z ]*):(?:\s*(.*))?$", line)
-            if field:
-                top_fields.append(field.group(1))
-                values[field.group(1)] = field.group(2) or ""
-        if top_fields != FIELDS:
-            errors.append(
-                f"{path.name}: top-level fields {top_fields!r}, expected frozen order"
-            )
-        expected_status = "verified" if pattern_id in VERIFIED else "draft"
-        if values.get("Status") != expected_status:
-            errors.append(
-                f"{path.name}: Status {values.get('Status')!r}, expected {expected_status!r}"
-            )
-        if values.get("Class") != EXPECTED.get(pattern_id):
-            errors.append(
-                f"{path.name}: Class {values.get('Class')!r}, expected {EXPECTED.get(pattern_id)!r}"
-            )
-        recognizer = values.get("Recognizer", "").lower()
-        recognizers[pattern_id] = values.get("Recognizer", "")
-        if not recognizer.startswith(("regex:", "build-error:", "manual:")):
-            errors.append(f"{path.name}: invalid Recognizer type")
-        elif recognizer.startswith("regex:"):
-            expression = values["Recognizer"][len("regex:"):].strip().strip("`")
-            try:
-                re.compile(expression)
-            except re.error as error:
-                errors.append(f"{path.name}: invalid Python regex: {error}")
-        if not lines or not lines[-1].startswith("Evidence:"):
-            errors.append(f"{path.name}: Evidence must be the final line")
-
-        words = len(re.findall(r"\b[\w'-]+\b", text))
-        tokens = words * 1.3
-        if not 200 <= tokens <= 400:
-            errors.append(
-                f"{path.name}: approximate token count {tokens:.1f} ({words} words) outside 200-400"
-            )
-
+        if not text.startswith(f"# {pattern_id}: "):
+            errors.append(f"{path.name}: heading does not match ID")
+        if names != FIELDS:
+            errors.append(f"{path.name}: top-level fields {names!r}, expected {FIELDS!r}")
+        expected_status = "file-verified" if pattern_id in {"GPU-007", "GPU-016"} else "draft"
+        if values.get("Transform status") != expected_status:
+            errors.append(f"{path.name}: status must be {expected_status}")
+        if values.get("Transform status") not in STATUSES:
+            errors.append(f"{path.name}: invalid status")
+        if values.get("Class") != EXPECTED_CLASSES.get(pattern_id):
+            errors.append(f"{path.name}: wrong class {values.get('Class')!r}")
+        for field in ("Detection", "Invariant", "Port contract", "Corpus example", "Constraints", "Verify", "Failure modes", "Evidence"):
+            if not values.get(field):
+                errors.append(f"{path.name}: empty {field}")
+        if "advisory" not in values.get("Detection", "").lower():
+            errors.append(f"{path.name}: Detection must say advisory")
+        if not re.search(r"corpus|chamber-gpu", values.get("Corpus example", ""), re.I):
+            errors.append(f"{path.name}: Corpus example is not explicitly labeled")
+        verify = values.get("Verify", "")
+        if forbidden_verify.search(verify):
+            errors.append(f"{path.name}: port-specific command/physics in Verify")
+        if values.get("Class") == "correctness":
+            if "VALIDATION.md" not in verify or "tolerance rationale" not in verify:
+                errors.append(f"{path.name}: correctness Verify must use validation contract and tolerance rationale")
+            if not any(category in verify for category in (
+                "strict-build", "analytic-exact", "conservation",
+                "golden-regression", "restart-parity", "multi-box", "sanitizer",
+            )):
+                errors.append(f"{path.name}: correctness Verify lacks a contract category")
+        if values.get("Class") == "optimization":
+            if "PERFORMANCE.md" not in verify or "baseline" not in verify.lower():
+                errors.append(f"{path.name}: optimization must follow the baseline contract")
+        if pattern_id in {"GPU-010", "GPU-012", "GPU-025"}:
+            if "ARCHITECTURE_POLICIES.md" not in text:
+                errors.append(f"{path.name}: missing single policy-home reference")
         evidence = values.get("Evidence", "")
-        hashes = re.findall(r"\b[0-9a-f]{40}\b", evidence)
-        if not hashes:
-            errors.append(f"{path.name}: Evidence has no full commit hash")
-        for commit in hashes:
-            if not git_ok("cat-file", "-e", f"{commit}^{{commit}}"):
-                errors.append(f"{path.name}: missing evidence commit {commit}")
-            elif not git_ok("merge-base", "--is-ancestor", commit, "chamber-gpu"):
-                errors.append(f"{path.name}: evidence {commit} is not on chamber-gpu")
+        if "Primary:" not in evidence or "primary-sources.md" not in evidence:
+            errors.append(f"{path.name}: missing primary evidence")
+        if "Corpus:" not in evidence or not re.search(r"\b[0-9a-f]{40}\b", evidence):
+            errors.append(f"{path.name}: missing full-hash corpus evidence")
+        if not text.rstrip().splitlines()[-1].startswith("Evidence:"):
+            errors.append(f"{path.name}: Evidence must be final")
+        tokens = len(re.findall(r"\b[\w'-]+\b", text)) * 1.3
+        if not 200 <= tokens <= 400:
+            errors.append(f"{path.name}: approximate tokens {tokens:.1f} outside 200-400")
 
-        constraint = values.get("Constraints", "").lower().replace("-", " ")
-        if pattern_id.startswith("GPU-") and values.get("Class") == "correctness":
-            if "mandatory" not in constraint or "recognizer" not in constraint:
-                errors.append(
-                    f"{path.name}: GPU correctness constraint must make matched recognizers mandatory"
-                )
-        if values.get("Class") == "performance":
-            if "profiling justification" not in constraint:
-                errors.append(f"{path.name}: performance requires profiling justification")
-            if not any(word in constraint for word in ("golden", "correctness")):
-                errors.append(f"{path.name}: performance must preserve golden correctness")
-        if pattern_id in {"GPU-010", "GPU-025"}:
-            required = ("temporary", "incremental port", "shrink", "never grow")
-            for phrase in required:
-                if phrase not in constraint:
-                    errors.append(f"{path.name}: scaffolding constraint lacks {phrase!r}")
-        if pattern_id == "GPU-010" and "user approval" not in constraint:
-            errors.append(f"{path.name}: hard-conversion quarantine requires user approval")
-        if pattern_id == "GPU-001":
-            if not recognizer.startswith("build-error:"):
-                errors.append(f"{path.name}: GPU-001 must use build-error recognizer")
-            if "calling a __host__ function from a __device__ function" not in values.get("Recognizer", ""):
-                errors.append(f"{path.name}: GPU-001 lacks stable nvcc diagnostic fragment")
+    if set(found) != set(EXPECTED_CLASSES):
+        errors.append("pattern inventory does not match the active 26 IDs")
 
-    missing = sorted(set(EXPECTED) - set(found))
-    extra = sorted(set(found) - set(EXPECTED))
-    if missing:
-        errors.append(f"missing patterns: {', '.join(missing)}")
-    if extra:
-        errors.append(f"unexpected patterns: {', '.join(extra)}")
-    if any(pattern_id in found for pattern_id in (
-        "GPU-014", "GPU-026", "GPU-027", "GPU-028", "GPU-029",
-        "NUM-001", "NUM-002", "NUM-003", "NUM-004",
-    )):
-        errors.append("reserved/renamed IDs must not have pattern files")
-
-    table_path = ROOT / "docs/gpu_manual/recognizers/table.csv"
+    table_path = MANUAL / "recognizers/table.csv"
     with table_path.open(newline="") as handle:
-        table_reader = csv.DictReader(handle)
-        table_rows = list(table_reader)
-        if table_reader.fieldnames != ["pattern_id", "type", "expression", "notes"]:
-            errors.append("recognizers/table.csv: invalid header")
-    table_ids = [row["pattern_id"] for row in table_rows]
-    if table_ids != sorted(EXPECTED):
-        errors.append("recognizers/table.csv: IDs must exactly match active patterns in order")
+        reader = csv.DictReader(handle)
+        table_rows = list(reader)
+        if reader.fieldnames != TABLE_FIELDS:
+            errors.append("recognizers/table.csv: invalid v3 header")
+    if [row.get("pattern_id") for row in table_rows] != sorted(EXPECTED_CLASSES):
+        errors.append("recognizers/table.csv: IDs must be sorted and complete")
+    table_types = {}
     for row in table_rows:
-        pattern_id = row["pattern_id"]
-        if pattern_id not in recognizers:
-            continue
-        kind, payload = recognizers[pattern_id].split(":", 1)
-        kind = kind.lower()
-        payload = payload.strip().strip("`")
-        if row["type"] != kind:
-            errors.append(f"recognizers/table.csv: {pattern_id} type differs from Tier 1")
-        if kind == "manual":
-            if row["expression"]:
-                errors.append(f"recognizers/table.csv: {pattern_id} manual row has expression")
-        elif row["expression"] != payload:
-            errors.append(f"recognizers/table.csv: {pattern_id} expression differs from Tier 1")
-        if not row["notes"]:
-            errors.append(f"recognizers/table.csv: {pattern_id} lacks notes")
+        pattern_id = row.get("pattern_id", "")
+        table_types[pattern_id] = row.get("type")
+        if row.get("schema_version") != "3":
+            errors.append(f"{pattern_id}: recognizer schema_version must be 3")
+        if row.get("type") not in {"regex", "manual", "build-error"}:
+            errors.append(f"{pattern_id}: invalid recognizer type")
+        if not row.get("confirmation") or not row.get("notes"):
+            errors.append(f"{pattern_id}: recognizer lacks confirmation/notes")
+        expression_fields = ("candidate_expression", "converted_expression", "exclude_expression")
+        if row.get("type") == "regex" and not row.get("candidate_expression"):
+            errors.append(f"{pattern_id}: regex lacks candidate expression")
+        candidate = row.get("candidate_expression", "")
+        for literal in IDENTIFIER_FITTED_CANDIDATES:
+            if literal in candidate:
+                errors.append(f"{pattern_id}: identifier-fitted candidate contains {literal!r}")
+        if row.get("type") != "regex" and any(row.get(field) for field in expression_fields):
+            errors.append(f"{pattern_id}: manual/build-error row has lexical expression")
+        for field in expression_fields:
+            if row.get(field):
+                try:
+                    re.compile(row[field], re.MULTILINE)
+                except re.error as error:
+                    errors.append(f"{pattern_id}: invalid {field}: {error}")
 
-    regex_ids = {row["pattern_id"] for row in table_rows if row["type"] == "regex"}
+    if (MANUAL / "COVERAGE.csv").exists():
+        errors.append("COVERAGE.csv: static root coverage must not exist")
 
-    def validate_coverage(path, require_all_regex):
-        with path.open(newline="") as handle:
-            reader = csv.DictReader(handle)
-            rows = list(reader)
-            if reader.fieldnames != ["file", "pattern_id", "hits"]:
-                errors.append(f"{path.name}: invalid header")
-                return
-        seen_regex = set()
-        order = []
-        for number, row in enumerate(rows, 2):
-            pattern_id = row["pattern_id"]
-            if pattern_id not in regex_ids:
-                errors.append(f"{path.name}:{number}: non-regex or inactive ID {pattern_id}")
-            else:
-                seen_regex.add(pattern_id)
-            try:
-                if int(row["hits"]) <= 0:
-                    raise ValueError
-            except ValueError:
-                errors.append(f"{path.name}:{number}: hits must be a positive integer")
-            if Path(row["file"]).is_absolute() or Path(row["file"]).suffix not in {".H", ".cpp", ".cu", ".cc"}:
-                errors.append(f"{path.name}:{number}: invalid source path {row['file']}")
-            order.append((row["file"], pattern_id))
-        if order != sorted(order):
-            errors.append(f"{path.name}: rows are not deterministically sorted")
-        if require_all_regex and seen_regex != regex_ids:
-            errors.append(
-                f"{path.name}: missing BASE true positives for {', '.join(sorted(regex_ids - seen_regex))}"
-            )
+    required_artifacts = [
+        "BRIEF.md", "INDEX.md", "VALIDATION.md", "ONBOARDING.md",
+        "ARCHITECTURE_POLICIES.md", "GPU_NATIVE_SHAPE.md", "PERFORMANCE.md", "RECOGNIZERS.md",
+        "STATUS.md", "BLIND_SPOTS.md", "evidence/primary-sources.md",
+        "evidence/GPU-002-value-dispatch-example.md",
+        "evidence/host-only-numerical-kernels.md",
+        "recognizers/scan.py", "templates/SCOPE.md", "templates/CLOSURE.csv",
+        "templates/INSPECTION_LEDGER.csv", "templates/VALIDATION.csv",
+        "templates/EFFICIENCY.md", "templates/FEATURE_DECISIONS.csv",
+        "templates/HARVEST.md", "templates/PORT_STATUS.csv",
+        "templates/COVERAGE.csv", "templates/FIELD_LAYOUT.csv",
+        "templates/KERNEL_GRAPH.csv", "templates/SHAPE_PROFILE.md",
+    ]
+    for relative in required_artifacts:
+        if not (MANUAL / relative).is_file():
+            errors.append(f"missing artifact: {relative}")
 
-    validate_coverage(ROOT / "docs/gpu_manual/COVERAGE.csv", False)
-    base_coverage = ROOT / "docs/gpu_manual/build/phase4/BASE_COVERAGE.csv"
-    if base_coverage.exists():
-        validate_coverage(base_coverage, True)
+    validate_csv_header(errors, "docs/gpu_manual/templates/CLOSURE.csv", [
+        "schema_version", "port_id", "node", "kind", "required_by",
+        "discovery", "evidence", "status", "owner", "retirement_trigger",
+    ])
+    validate_csv_header(errors, "docs/gpu_manual/templates/INSPECTION_LEDGER.csv", [
+        "schema_version", "port_id", "file", "anchor_line", "taxonomy",
+        "question", "source", "pattern_id", "disposition", "evidence", "owner",
+    ])
+    require_text(errors, MANUAL / "templates/INSPECTION_LEDGER.csv", [
+        "numerical-kernel", "field-layout", "kernel-graph",
+    ])
+    validate_csv_header(errors, "docs/gpu_manual/templates/VALIDATION.csv", [
+        "schema_version", "port_id", "id", "category", "applicability",
+        "oracle", "command", "reference", "result", "tolerance_rationale",
+        "evidence", "owner",
+    ])
+    validate_csv_header(errors, "docs/gpu_manual/templates/PORT_STATUS.csv", [
+        "schema_version", "port_id", "physics_family", "scope", "closure",
+        "inspection", "closed_book_onboarding", "closed_book_transform",
+        "validation", "gpu_safety", "gpu_native_shape", "baseline_efficiency", "harvest",
+        "optimization", "evidence",
+    ])
+    validate_csv_header(errors, "docs/gpu_manual/templates/COVERAGE.csv", COVERAGE_FIELDS)
+    validate_csv_header(errors, "docs/gpu_manual/templates/FIELD_LAYOUT.csv", [
+        "schema_version", "port_id", "field", "storage", "ncomp",
+        "component_order", "ghost_region", "kernel_consumers", "access_pattern",
+        "residency", "transfer_bytes_per_step", "coalescing_locality_rationale",
+        "disposition", "evidence", "owner",
+    ])
+    validate_csv_header(errors, "docs/gpu_manual/templates/KERNEL_GRAPH.csv", [
+        "schema_version", "port_id", "kernel", "phase", "inputs", "outputs",
+        "iteration_space", "mfiter_granularity", "launches_per_step",
+        "components_per_launch", "dependencies", "synchronization",
+        "host_device_bytes", "branch_iteration_notes", "dispatch_state",
+        "reduction_atomic", "allocation_lifetime", "disposition", "evidence", "owner",
+    ])
 
-    one_off_path = ROOT / "docs/gpu_manual/ONE_OFFS.md"
-    one_off_text = one_off_path.read_text()
-    if "[NUM] entry must surface it to the user and never apply it silently" not in one_off_text:
-        errors.append("ONE_OFFS.md: missing [NUM] user-surfacing policy")
-    feature_path = ROOT / "docs/gpu_manual/FEATURES.md"
-    feature_text = feature_path.read_text()
-    if "explicit do-not-import list" not in feature_text or "never apply a FEATURE without task-level user opt-in" not in feature_text:
-        errors.append("FEATURES.md: missing do-not-import/task-level opt-in policy")
-    with (ROOT / "docs/gpu_manual/build/HUNK_MAP.csv").open(newline="") as handle:
-        hunk_rows = list(csv.DictReader(handle))
-    expected_one_offs = {
-        row["hunk_id"]: row["num_tag"] for row in hunk_rows
-        if row["classification"] == "ONEOFF"
-    }
-    expected_features = {
-        row["hunk_id"]: row["num_tag"] for row in hunk_rows
-        if row["classification"] == "FEATURE"
-    }
-    entry_pattern = re.compile(
-        r"^- (?P<id>\S+)(?P<num> \[NUM\])? \| .+ \| commit (?P<commit>[0-9a-f]{40}) \| .+$"
-    )
+    index = (MANUAL / "INDEX.md").read_text()
+    if len(re.findall(r"\b[\w'-]+\b", index)) * 1.3 > 1500:
+        errors.append("INDEX.md: exceeds approximate 1500-token budget")
+    for marker in ("`[I]`", "`[P]`", "`[C]`"):
+        if marker not in index:
+            errors.append(f"INDEX.md: missing legend marker {marker}")
+    pattern_section = index.split("## Patterns", 1)[-1].split("## Contracts", 1)[0]
+    for pattern_id in sorted(EXPECTED_CLASSES):
+        if pattern_section.count(f"- {pattern_id} ") != 1:
+            errors.append(f"INDEX.md: missing/duplicate one-liner for {pattern_id}")
 
-    def validate_ledger(name, text, expected):
-        found = {}
-        for number, line in enumerate(text.splitlines(), 1):
-            if not line.startswith("- "):
-                continue
-            match = entry_pattern.match(line)
-            if not match:
-                errors.append(f"{name}:{number}: malformed entry or non-full commit hash")
-                continue
-            hunk_id = match.group("id")
-            if hunk_id in found:
-                errors.append(f"{name}:{number}: duplicate {hunk_id}")
-            found[hunk_id] = "yes" if match.group("num") else "no"
-            commit = match.group("commit")
-            if not git_ok("cat-file", "-e", f"{commit}^{{commit}}"):
-                errors.append(f"{name}:{number}: missing commit {commit}")
-            elif not git_ok("merge-base", "--is-ancestor", commit, "chamber-gpu"):
-                errors.append(f"{name}:{number}: commit {commit} is not on chamber-gpu")
-        missing = sorted(set(expected) - set(found))
-        extra = sorted(set(found) - set(expected))
-        if missing:
-            errors.append(f"{name}: missing ledger IDs: {', '.join(missing)}")
-        if extra:
-            errors.append(f"{name}: extra ledger IDs: {', '.join(extra)}")
-        for hunk_id in sorted(set(expected) & set(found)):
-            if expected[hunk_id] != found[hunk_id]:
-                errors.append(f"{name}: [NUM] tag mismatch for {hunk_id}")
-
-    validate_ledger("ONE_OFFS.md", one_off_text, expected_one_offs)
-    validate_ledger("FEATURES.md", feature_text, expected_features)
-
-    md_map_path = ROOT / "docs/gpu_manual/MD_MAP.csv"
-    if md_map_path.exists():
-        with md_map_path.open(newline="") as handle:
-            md_rows = list(csv.DictReader(handle))
-        if len(md_rows) != 155:
-            errors.append(f"MD_MAP.csv: expected 155 rows, found {len(md_rows)}")
-        allowed_dispositions = {
-            "mapped", "anti-pattern", "evidence-only", "stale-dropped", "unmined"
-        }
-        for number, row in enumerate(md_rows, 2):
-            if row["disposition"] not in allowed_dispositions:
-                errors.append(f"MD_MAP.csv:{number}: bad disposition {row['disposition']}")
-            for pattern_id in filter(None, row["pattern_ids"].split(";")):
-                if pattern_id not in EXPECTED:
-                    errors.append(f"MD_MAP.csv:{number}: inactive pattern {pattern_id}")
-        inventory_lines = (
-            ROOT / "docs/gpu_manual/build/MD_INVENTORY.txt"
-        ).read_text().splitlines()
-        inventory_paths = [line.split("\t", 2)[2] for line in inventory_lines[5:]]
-        if Counter(row["path"] for row in md_rows) != Counter(inventory_paths):
-            errors.append("MD_MAP.csv: path multiset does not match MD_INVENTORY.txt")
-
-    index_text = (ROOT / "docs/gpu_manual/INDEX.md").read_text()
-    index_words = len(re.findall(r"\b[\w'-]+\b", index_text))
-    if index_words * 1.3 > 1500:
-        errors.append(
-            f"INDEX.md: approximate token count {index_words * 1.3:.1f} exceeds 1500"
-        )
-    required_headings = (
-        "## Invariants", "## Triage", "### Correctness", "### Performance",
-        "### Scaffolding", "## Patterns", "## Numerical changes", "## One-offs",
-    )
-    for heading in required_headings:
-        if heading not in index_text:
-            errors.append(f"INDEX.md: missing {heading}")
-    try:
-        pattern_index = index_text.split("## Patterns", 1)[1].split(
-            "## Numerical changes", 1
-        )[0]
-    except IndexError:
-        pattern_index = ""
-    for pattern_id in sorted(EXPECTED):
-        if pattern_index.count(f"- {pattern_id}:") != 1:
-            errors.append(f"INDEX.md: expected one one-liner for {pattern_id}")
-    if re.search(r"\b(?:GPU-014|NUM-00[1-4])\b", pattern_index):
-        errors.append("INDEX.md: inactive or reserved pattern appears in one-liners")
-    index_lower = index_text.lower().replace("-", " ")
-    required_policy = (
-        "profiling justification", "shrink its footprint", "never grow",
-        "user approval", "do not import", "task level user opt in",
-        "never apply numerical behavior changes implicitly",
-    )
-    for phrase in required_policy:
-        if phrase not in index_lower:
-            errors.append(f"INDEX.md: missing policy {phrase!r}")
-
-    gate_path = ROOT / "docs/gpu_manual/build/phase6/GATE_RUNS.csv"
-    if gate_path.exists():
-        with gate_path.open(newline="") as handle:
-            gate_reader = csv.DictReader(handle)
-            gate_rows = list(gate_reader)
-            expected_header = [
-                "run", "target", "patterns", "verdict", "gaps", "reference"
-            ]
-            if gate_reader.fieldnames != expected_header:
-                errors.append("GATE_RUNS.csv: invalid header")
-        for number, row in enumerate(gate_rows, 2):
-            if row["verdict"] not in {"pass", "fail"}:
-                errors.append(f"GATE_RUNS.csv:{number}: invalid verdict")
-            for pattern_id in row["patterns"].split(";"):
-                if pattern_id not in EXPECTED:
-                    errors.append(
-                        f"GATE_RUNS.csv:{number}: inactive pattern {pattern_id}"
-                    )
-        if len(gate_rows) < 2 or [row["verdict"] for row in gate_rows[-2:]] != [
-            "pass", "pass"
-        ]:
-            errors.append("GATE_RUNS.csv: gate lacks two consecutive final passes")
-        elif gate_rows[-2]["target"] == gate_rows[-1]["target"]:
-            errors.append("GATE_RUNS.csv: final passes must use different targets")
-        final_patterns = {
-            pattern_id
-            for row in gate_rows[-2:]
-            for pattern_id in row["patterns"].split(";")
-        }
-        if not VERIFIED <= final_patterns:
-            errors.append("GATE_RUNS.csv: verified patterns lack final-pass coverage")
+    require_text(errors, MANUAL / "VALIDATION.md", [
+        "analytic-exact", "conservation", "golden-regression", "restart-parity",
+        "multi-box", "sanitizer", "Tolerance rationale", "pending-pilot",
+    ])
+    require_text(errors, MANUAL / "ONBOARDING.md", [
+        "compiler-first", "host-loop", "launch", "receiver-type", "diagnostic",
+        "capture", "lifetime", "reduction", "dispatch", "numerical-kernel",
+        "field-layout", "kernel-graph", "zero `open`", "--port-id",
+        "--source-revision",
+    ])
+    require_text(errors, MANUAL / "ARCHITECTURE_POLICIES.md", [
+        "## Device-side error propagation", "## Scaffolding lifecycle",
+        "## FEATURE and [NUM] surfacing", "Owner decision:", "Worked example:",
+    ])
+    require_text(errors, MANUAL / "PERFORMANCE.md", [
+        "No hot host loop", "no per-cell or per-tile host", "per-tile device-wide",
+        "runtime virtual/plugin", "once per component", "dominate the steady-state",
+        "GPU_NATIVE_SHAPE=pass", "Field layout", "registers/spills",
+    ])
+    require_text(errors, MANUAL / "GPU_NATIVE_SHAPE.md", [
+        "Field layout and component ordering", "Kernel graph and iteration granularity",
+        "Residency and transfer accounting", "Numerical call-chain complexity",
+        "registers per thread", "Shared memory, atomics, and allocation",
+        "GPU_NATIVE_SHAPE=pass",
+    ])
+    require_text(errors, MANUAL / "STATUS.md", [
+        "file-verified", "transfer-verified", "cross-family", "completed-port",
+        "Frozen unseen-target gate",
+        "Harvest obligation", "A port with no harvested\nmanual change is incomplete",
+    ])
+    require_text(errors, MANUAL / "RECOGNIZERS.md", [
+        "Compiler diagnostics and the\nrecorded inspection ledger outrank regex",
+        "zero `candidate` rows", "--previous", "--port-id", "--source-revision",
+    ])
+    phase6_counts = (MANUAL / "build/phase6/COUNTS.txt").read_text()
+    if re.search(r"^GATE=pass$", phase6_counts, re.MULTILINE):
+        errors.append("phase6/COUNTS.txt: unqualified global GATE=pass")
 
     if errors:
-        print("pattern validation failed:")
+        print("manual validation failed:", file=sys.stderr)
         for error in errors:
-            print(f"- {error}")
+            print(f"- {error}", file=sys.stderr)
         return 1
-    print(f"validated {len(files)} Tier 1 patterns")
+    print(f"VALIDATED_PATTERNS={len(found)}")
+    print("FILE_VERIFIED=2/26; TRANSFER_VERIFIED=0/26; CROSS_FAMILY=0/26")
+    print("RECOGNIZER_ORACLE=advisory-lifecycle; formal precision/recall out-of-scope")
+    print("PILOT=required")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

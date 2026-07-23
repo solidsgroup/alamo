@@ -1,5 +1,10 @@
 # Chamber-gpu features
 
+Classification: chamber-gpu corpus ledger. Entries are examples and provenance,
+not universal port scope or procedure. New ports use
+`templates/FEATURE_DECISIONS.csv` and the policy in
+`ARCHITECTURE_POLICIES.md`.
+
 Policy: This is both an upstream-merge roadmap and an explicit do-not-import list. A port worker using chamber-gpu as reference must never apply a FEATURE without task-level user opt-in. [NUM] entries additionally require explicit numerical-behavior opt-in.
 
 - src/IC/PointList.H:0-0 | Adds PointList initial-condition capability. | commit 4eb786d7f820d8ecb67a84ec74364f3de77dd488 | independent chamber-gpu capability; explicit task-level opt-in required

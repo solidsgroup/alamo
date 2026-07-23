@@ -1,14 +1,14 @@
 # GPU-024: Const-qualify captured model accessors
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: manual: A named model accessor such as `get_K`, `get_rho`, `get_cp`, `get_qdot`, or `get_L` is invoked through a const object in device code but lacks a trailing `const`.
-Applies: Model methods called through const objects captured by device lambdas.
+Detection: Advisory manual rule in `recognizers/table.csv`; inspect const receiver, device reachability, and accessor mutation.
+Invariant: A device-reachable accessor must be device-callable and touch only device-safe state; declared read-only semantics must be preserved.
+Port contract: Supply accessor call sites, mutability proof, device annotations, supported dimensions, and tolerance rationale. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    A device-reachable accessor lacks trailing `const` or mutates implicit host state.
-  After:
-    Declare the accessor `AMREX_GPU_HOST_DEVICE ... const` and keep its implementation read-only.
-Constraints: Keep scope narrow. Mandatory when recognizer matches. Do not add const by casting away mutation or change model semantics; stage mutable state separately.
-Verify: `make -j4 && scripts/runtests.py --dim=3 --serial tests/GPU/F1_smoke_flame_only`; expect nvcc const-capture compilation and unchanged Flame source-term checks.
-Failure modes: Missing const causes device compile errors or forces unsafe `this` capture; fake constness can race shared model data. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 587853d79432c0394928edb457683961ef5f08da; `src/Model/Propellant/Propellant.H:49-108`, `src/Util/PNG.H:155-161#2`.
+  Before: A device-reachable accessor lacks trailing `const` or performs hidden mutation.
+  After: Mark the read-only accessor host/device callable and `const`; stage mutable state separately.
+Corpus example: chamber-gpu Propellant/PNG edits are evidence of one accessor cleanup, not a Flame-specific recipe.
+Constraints: Do not cast away mutation or alter model semantics; split genuinely mutable behavior from the device path.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: Compile errors, unsafe captures, or races from fake constness indicate failure; inspect the full call chain.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA callable/member rules). Corpus: chamber-gpu commit `587853d79432c0394928edb457683961ef5f08da`; cited Propellant/PNG paths.

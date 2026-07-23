@@ -1,14 +1,12 @@
 # GPU-006: Hoist kernel captures into device-safe locals
-Status: draft
+Transform status: draft
 Class: correctness
-Recognizer: regex: `AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,1200}?\b(?:this->|m_[A-Za-z_]\w*)\b`
-Applies: A kernel body reads integrator members through `this` or host-owned pointers.
-Transform:
-  Before:
-    `ParallelFor(..., [=] AMREX_GPU_DEVICE { use this->thermal.hc; })`
-  After:
-    Copy scalar/aggregate values before launch (`const auto thermal_hc = thermal.hc;`) and capture those locals by value.
-Constraints: Mandatory when a recognizer hit is confirmed as actual member/host capture; deliberately shadowed device-safe locals are not defects. Capture only trivially copyable/device-safe state; never capture allocators, polymorphic objects, or host references.
-Verify: `DIM=2 CUDA_FP=strict bash benchmark/build_alamo_local_gpu.sh && benchmark/golden_compare_flame.sh input 1`; expect CUDA compilation and finite output matching the CPU golden case.
-Failure modes: Any mismatch or diagnostic is a failed conversion. nvcc can reject `this`/inaccessible captured types; a real GPU can fault on host pointers even when HMM masks the defect locally. Validate the smallest representative input and a CPU reference; review capture ownership and dimensional assumptions explicitly.
-Evidence: commit d522e1ac08729b306a215ad896d8a304983d55de; `docs/gpu_device_capture_conventions.md`; `docs/llm/BUG_PATTERNS.md`
+Detection: Advisory regex; see `recognizers/table.csv`; confirm member/host capture rather than a shadowed local.
+Invariant: Device closures capture only device-safe values; hidden `this` and host pointers are not device state.
+Port contract: The port supplies capture inventory, ownership/lifetime proof, and explicit host/device boundaries. Record each capture disposition for later review and reuse.
+Transform: Copy scalar or device-safe aggregates before launch and capture locals by value.
+Corpus example: Flame/chamber-gpu member-hoisting diffs are evidence of one closure, not a port recipe.
+Constraints: Exclude intentional device-safe locals; never capture allocators, polymorphic objects, or host references.
+Verify: Instantiate `VALIDATION.md`; require `strict-build`, `golden-regression`, `multi-box`, and `sanitizer` rows with a written tolerance rationale.
+Failure modes: nvcc access errors, host-pointer faults masked by HMM, or changed results from wrong ownership/dimension. Unresolved cases remain blocked; never infer correctness from a clean scan.
+Evidence: Primary: `docs/gpu_manual/evidence/primary-sources.md` (CUDA capture and AMReX launch-region anchors). Corpus: commit d522e1ac08729b306a215ad896d8a304983d55de; `docs/gpu_device_capture_conventions.md`; `docs/llm/BUG_PATTERNS.md`.

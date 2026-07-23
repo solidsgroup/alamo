@@ -1,14 +1,14 @@
 # GPU-018: Hoist reused field and tensor loads
-Status: draft
-Class: performance
-Recognizer: regex: `AMREX_GPU_DEVICE\s*\([^)]*\)\s*\{(?:(?!\}\s*\);)[\s\S]){0,6000}?\bDDW\s*\(\s*i\s*,\s*j\s*,\s*k\s*\)(?:(?!\}\s*\);)[\s\S]){0,6000}?\bDDW\s*\(\s*i\s*,\s*j\s*,\s*k\s*\)`
-Applies: Device kernels repeatedly loading the same model/tensor or member state for one cell.
+Transform status: draft
+Class: optimization
+Detection: Advisory regex in `recognizers/table.csv`; inspect same-launch repetition, immutability, bounds, and device reachability.
+Invariant: A load may be reused only while its value and memory validity remain unchanged; hoisting is not universally required.
+Port contract: Supply repeated-load sites, proof of immutability/bounds, baseline profile, and correctness/tolerance evidence. Record assumptions and dispositions in the port ledger.
 Transform:
-  Before:
-    Repeated `DDW(i,j,k)`, `m_psi_set`, or member reads in several branches.
-  After:
-    Load once into a local (`auto ddw = DDW(i,j,k); auto psi = m_psi_set;`) and reuse it.
-Constraints: Apply only with profiling justification; preserve evaluation order, lifetime, and correctness/golden results. Hoist immutable values only; do not cache data whose value changes during the kernel.
-Verify: `make -j4`; run elastic correctness/golden tests and a profiler comparison; expect identical checksums/residuals and reduced loads or kernel time. Repeat in the configured 2-D and 3-D modes where applicable, and retain the command/output in the build log.
-Failure modes: Hoisting a mutable or out-of-bounds value produces stale physics or illegal access; unproven changes may increase registers and reduce performance. Review the failing signature before changing the pattern; do not broaden its scope to silence an unrelated failure.
-Evidence: chamber-gpu commit 9470889b14f10a902dab6dd9573deefc09972e8d; `src/Operator/Elastic.cpp:173-264#5`, `317-347#2`; `docs/agent_plans/20260709-fapply-kernel-surgery/results/RESULT.md`.
+  Before: A kernel repeatedly loads the same tensor/member for one cell.
+  After: Load once into a device-local value and reuse it.
+Corpus example: chamber-gpu Elastic edits show one `DDW` hoisting instance as evidence, not procedure.
+Constraints: This is a profiled hypothesis. Do not hoist mutable or potentially out-of-bounds values; account for register pressure.
+Verify: Use `PERFORMANCE.md` baseline and optimization gates plus `VALIDATION.md` correctness categories; optimization requires a passing baseline-efficiency result.
+Failure modes: Stale values, illegal access, increased registers, or unchanged time indicate a failed hypothesis.
+Evidence: Primary: `evidence/primary-sources.md` (CUDA memory/device execution). Corpus: chamber-gpu commit `9470889b14f10a902dab6dd9573deefc09972e8d`; cited Elastic/result paths.
