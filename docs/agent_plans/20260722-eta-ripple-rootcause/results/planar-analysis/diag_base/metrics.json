@@ -1,0 +1,57 @@
+{
+  "case_dir": "docs/agent_plans/20260722-eta-ripple-rootcause/results/planar/diag_p4316386.252462386_n128_w0.00113800_s0",
+  "orientation": "diag",
+  "traction_representation": "node-colocated arithmetic average of adjacent native face columns",
+  "level": 0,
+  "dx_m": [
+    0.0003125,
+    0.0003125
+  ],
+  "duplicate_node_max_spread": 0.0,
+  "pressure_fit": {
+    "pressure_pa": 4316386.252462387,
+    "fit_rows": 11179,
+    "pressure_flux_identity_linf_per_m": 3.979039320256561e-13,
+    "rhs_fit_linf_pa_per_m": 4.76837158203125e-07,
+    "rhs_fit_rms_pa_per_m": 5.947226638295017e-08,
+    "rhs_fit_relative_linf": 3.600374852081559e-16,
+    "rhs_linf_pa_per_m": 1324409756.7436383
+  },
+  "raw_vs_eta_fit": {
+    "intercept_pa": 2364330.6797525026,
+    "slope_pa": -2655257.7920536473,
+    "expected_slope_pa": -4316386.252462387,
+    "relative_slope_error": 0.3848424036336203
+  },
+  "corrected_constant": {
+    "median_pa": 3961791.8079905314,
+    "rms_about_median_pa": 840599.3335268744,
+    "linf_about_median_pa": 2794138.5586222257,
+    "range_pa": 3150073.902559606
+  },
+  "interface_metrics": [
+    {
+      "coordinate_lo_m": -0.017014756922301304,
+      "coordinate_hi_m": -0.011269514325160601,
+      "eta_min": 0.006616370733955156,
+      "eta_max": 0.9933836292660447,
+      "raw": {
+        "samples": 27,
+        "fit_degree": 3,
+        "nyquist_projection_pa": 2106.920416734193,
+        "detrended_rms_pa": 118506.43849166665,
+        "detrended_linf_pa": 176114.27268234178,
+        "second_difference_linf_pa": 67964.97294508945
+      },
+      "pressure_corrected": {
+        "samples": 27,
+        "fit_degree": 3,
+        "nyquist_projection_pa": 2106.9204167341813,
+        "detrended_rms_pa": 2131.999209793914,
+        "detrended_linf_pa": 3038.2827715068124,
+        "second_difference_linf_pa": 10258.95459694229
+      }
+    }
+  ],
+  "profile_residual_linf_pa_per_m": 0.0002580647521316446
+}

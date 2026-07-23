@@ -1,0 +1,179 @@
+{
+  "plotdir": "/home/jackplum/Projects/alamo/output_ideal_rod_and_tube_free_circular_t1/05000node",
+  "header_sha256": "f51b06b7c7e27ce6e9139a308b098a19650bad5606e3c2215fb8343849bc88c2",
+  "time": 0.9999999999999225,
+  "finest_level": 2,
+  "dx": [
+    [
+      0.0013703125,
+      0.0013703125
+    ],
+    [
+      0.00068515625,
+      0.00068515625
+    ],
+    [
+      0.000342578125,
+      0.000342578125
+    ]
+  ],
+  "selected_axis_levels": {
+    "bottom": 2,
+    "right": 1
+  },
+  "level_hashes": {
+    "0": {
+      "covered": "85eea23a3bc05659cedf6f34e7ab1f0f22eab7533f1ac82092727b9f1b08631a",
+      "duplicate_spread": 0.0
+    },
+    "1": {
+      "covered": "3767274171f332b1daa3b4fc950ece72658399caf78eb506a199cb422a9eacf2",
+      "duplicate_spread": 0.0
+    },
+    "2": {
+      "covered": "3349d0941ba797038ffb6ba040152312762c1eee03217ec3ea30e75464a0cb71",
+      "duplicate_spread": 2.7939677238464355e-09
+    }
+  },
+  "state_hashes": {
+    "L0:phi": "494876929bd5c1eb4a0be9edb538fbbed601a608fb726e88de8eb8985729e0a8",
+    "L0:eta": "39c4eb1e491bfd1e27a18502db40936840d36678bfcb24894dedaf9a1fd8bbbf",
+    "L0:temp": "7c5975d5c7e077dd60042f247b6a7f03ecf2f018607fe76a9533407b909ed507",
+    "L0:model_mu": "376af5590679b0afb85b9b93abfa9304b72320db46d926e62b7a5de3a9e4dc2f",
+    "L0:model_kappa": "81667561721e57418f65bfe3d4e97afc99879f3ad7ef098d7ed13122ffb40c3a",
+    "L0:model_F0xx": "9c7bd6e278a744e750d351d9e333235292458eddb09177edb6c838cca4d6092b",
+    "L0:model_F0xy": "ee20192e3f3fb2328725fabedbc7ca72744b67d7a447e62073cf7d9f1bec0e8b",
+    "L0:model_F0yx": "ee20192e3f3fb2328725fabedbc7ca72744b67d7a447e62073cf7d9f1bec0e8b",
+    "L0:model_F0yy": "9c7bd6e278a744e750d351d9e333235292458eddb09177edb6c838cca4d6092b",
+    "L0:rhs_x": "8dbf997abc64b137c9071d7c48f177ef89a32ac3754359a2ee0053fd0ba021ea",
+    "L0:rhs_y": "e4411cc943bf43e07a30e42c74d4f73cbb02a0769c4afc11f1118f729ee2bb41",
+    "L1:phi": "003fdaef83c65c7474456d973d456eca68107b9b8ad94f7f0180bf067cd58a63",
+    "L1:eta": "aae76dc4849bc5570456cbafcad0dd0e7724e0ea54ac674cdaa73ec75e8e1eee",
+    "L1:temp": "f3246b9c80a7337f5c21560075969393fbf460813e6b154ec2d24c8edefbac51",
+    "L1:model_mu": "b990dd623a6829504d78558c8e571c557afea5c829ee1cd29902a1cdec0d355e",
+    "L1:model_kappa": "63570d97b64c7ff9debecd56baa7ecc1621dbb584219019ef7cb266e38cbcfd0",
+    "L1:model_F0xx": "b3154d1ef1c3f967936f1f4658a69b10d3ac4e061ab9b68c3d6bd49b6fa97184",
+    "L1:model_F0xy": "c5ab999b641cffcb1c71689db1f364459e4383ee3112005b1db6bb1aff01f810",
+    "L1:model_F0yx": "c5ab999b641cffcb1c71689db1f364459e4383ee3112005b1db6bb1aff01f810",
+    "L1:model_F0yy": "b3154d1ef1c3f967936f1f4658a69b10d3ac4e061ab9b68c3d6bd49b6fa97184",
+    "L1:rhs_x": "d4d2376957414da96919f7134e40c5ec838d6103ce57141fa4d7d33568b26a0c",
+    "L1:rhs_y": "cbd637e0029ecc85b06e47955643e9320cbea7de7969e9d832e0bf6ceb8df26d",
+    "L2:phi": "6a3bb28bda26b85e64db506996ffa15a6422f99bb09085ebeb7a677af6bddc69",
+    "L2:eta": "121dff2d85f30e2bfe6b7c1f41c83bf8b0eeb3f89025d3fdf6d8a235b08a9d7a",
+    "L2:temp": "1be69cd344a0b472dfe6d7441e3e483175c6b77b6e66de865506a2f2091ac476",
+    "L2:model_mu": "670461755ce63c598054e8b5f36e9ecaff88d999e6abadbf718f0c07035d66ac",
+    "L2:model_kappa": "77c3a44cba7f06b7a1a55e61ad2819a60d92fed6cc3cb54db517e941c7ef4540",
+    "L2:model_F0xx": "c34f0c6bdb117a27c53b88d01859151ec5761730f4c45587bccdc20a674fbc39",
+    "L2:model_F0xy": "826aa8fd461f7aef681efc03cb160e55f8cda7dd8eb6ffa54e078907884f5cf5",
+    "L2:model_F0yx": "826aa8fd461f7aef681efc03cb160e55f8cda7dd8eb6ffa54e078907884f5cf5",
+    "L2:model_F0yy": "c34f0c6bdb117a27c53b88d01859151ec5761730f4c45587bccdc20a674fbc39",
+    "L2:rhs_x": "f6b9f3b401fd9e6672ef884c3fdd74a97631e6fbf776f87113962b5ede98dae6",
+    "L2:rhs_y": "de8dd89da5e4e62ce5c055c72c78ae0b74b6488b903f032c8a67294a123b7c56"
+  },
+  "mechanics_hashes": {
+    "L0:disp_x": "a599c5c1c8f8e9dfa08bda10cb34ce65d4e512951898512394a3bc85eb6e932d",
+    "L0:disp_y": "88a56959e7d5fdeabd1d53bfa0ac3f29821168dd0d5d5d28dcd2b3c08697428b",
+    "L0:stress_xx": "73b1688854f5607751c73567176adaf6cf8daae587ccef3b899ac81958e96a63",
+    "L0:stress_xy": "a548a751b9f98b44a61e77f2bc3de01e43892d47644a372cac043acf9daaf49e",
+    "L0:stress_yx": "999dc45a33dabff0216d67fbc1caf2bc9453ab32eda1a57fccfc87661c529103",
+    "L0:stress_yy": "62e40b10121fc1fb4c15627eaec10b781facd99240ca38e39ab99dbcb1182499",
+    "L1:disp_x": "7a5a70a5637298e62dcec43e59eb55f6567c2dee040d3fa483397aba83516738",
+    "L1:disp_y": "24d9af3b07a7baf78199205cdbc7ca4f0830599760d18c3f507e91fe07517c56",
+    "L1:stress_xx": "50844954670d2e119d5a5ffdedd8aea562b53d3e3a63c8175e478c9c1960561a",
+    "L1:stress_xy": "a879604a6e506f2a1cd05a85228cf43b10383b784896a201b8c5afdb47ca7706",
+    "L1:stress_yx": "19f18b3bc04ce42e063842321a78d146fe137d5a6de36c5592aca5e3e1a8b0af",
+    "L1:stress_yy": "4e38172ccbc3d4561156f7554016a41ab129725af1339c8b500ef4dd7cd7a943",
+    "L2:disp_x": "dde680d4b8224e86e258cf2e27b0507389824df96d2980bcbc6eb1dbf74a56c5",
+    "L2:disp_y": "a474db4755ab2c12aa2421a32c974e79f5d37511763441afd2e1c55a57caadca",
+    "L2:stress_xx": "3d942812d9195c5f52e844f1e0adb2b6632238e37a8283fb610fadad591485a0",
+    "L2:stress_xy": "6943abc9092ee4364583f3ef49eed7146f4338c07e5dc8a3f97cb19958c20193",
+    "L2:stress_yx": "f3af7e85b7ea101bc062df87e60a068fca35d8783cba0230d20a3f064f9810f2",
+    "L2:stress_yy": "4bda5db31eab02da3eafa556f2d3e581e1d86a8dcb3f2fdd639262aa16312853"
+  },
+  "axis": {
+    "bottom": {
+      "level": 2,
+      "saved": {
+        "samples": 20,
+        "nyquist_amplitude_pa": 121.57230644862668,
+        "detrended_rms_pa": 7088.272760072596,
+        "detrended_linf_pa": 14392.585410411935,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0834177734375
+      },
+      "face_average": {
+        "samples": 20,
+        "nyquist_amplitude_pa": 121.57230645147473,
+        "detrended_rms_pa": 7088.272759982673,
+        "detrended_linf_pa": 14392.585410299245,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0834177734375
+      },
+      "native_face": {
+        "samples": 20,
+        "nyquist_amplitude_pa": 49.21454133817033,
+        "detrended_rms_pa": 7647.046757102242,
+        "detrended_linf_pa": 15970.316507961135,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0834177734375
+      },
+      "saved_vs_face_average_linf_pa": 1.7909333109855652e-06,
+      "face_average_vs_native_linf_pa": 60208.05499256775,
+      "phi_face_min": 0.11112898284313724,
+      "phi_face_max": 0.8908394607843138,
+      "eta_face_min": 1.0,
+      "eta_face_max": 1.0,
+      "eta_face_delta_max": 0.0
+    },
+    "right": {
+      "level": 1,
+      "saved": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 282.460881834615,
+        "detrended_rms_pa": 2012.5682077769222,
+        "detrended_linf_pa": 4667.093257269356,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "face_average": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 282.46088172228934,
+        "detrended_rms_pa": 2012.5682076637283,
+        "detrended_linf_pa": 4667.093256692402,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "native_face": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 90.24134316642954,
+        "detrended_rms_pa": 1789.0074965397462,
+        "detrended_linf_pa": 3700.2030965755694,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "saved_vs_face_average_linf_pa": 1.932494342327118e-06,
+      "face_average_vs_native_linf_pa": 144850.81951214746,
+      "phi_face_min": 0.1282628676470575,
+      "phi_face_max": 0.8901041666666674,
+      "eta_face_min": 1.0,
+      "eta_face_max": 1.0,
+      "eta_face_delta_max": 0.0
+    }
+  },
+  "finest_phi_band": {
+    "samples": 324,
+    "saved_vs_face_average_prr_linf_pa": 8232.459922404028,
+    "saved_vs_face_average_prr_rms_pa": 817.4413651935109,
+    "face_residual_linf_pa_per_m": 642991132.1410948,
+    "face_residual_l2_pa_per_m": 126272116.26514767,
+    "eta_min": 1.0,
+    "eta_max": 1.0,
+    "eta_neighbor_delta_max": 0.0
+  }
+}

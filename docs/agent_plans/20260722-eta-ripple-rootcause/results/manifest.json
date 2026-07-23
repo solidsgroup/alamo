@@ -1,0 +1,611 @@
+{
+  "task": "eta-ripple-rootcause",
+  "repository_head": "2e6a8f8f54",
+  "repository_was_dirty": true,
+  "experimental_executable": {
+    "path": "bin/alamo-2d-g++",
+    "sha256_at_run_time": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+    "temporary_frozen_restart_hook": "reverted after evidence capture"
+  },
+  "post_revert_executable": {
+    "path": "bin/alamo-2d-g++",
+    "sha256": "8da1736288b40cd8635469fdf9cc56a1d80f7591e6f4ddd64a8dfd4772cb7a2e"
+  },
+  "cases": [
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-diag_p4316386.252462386_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-diag_p4316386.252462386_n128_w0.00113800_s0.25",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 128 0.00113800 0.25",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.25
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-diag_p4316386.252462386_n128_w0.00113800_s0.5",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 128 0.00113800 0.5",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.5
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-diag_p4316386.252462386_n128_w0.00113800_s0.75",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 128 0.00113800 0.75",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.75
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.00015625,
+        0.00015625
+      ],
+      "node_header_sha256": "22f867c7e206bc1cdd710ae0c80dd4e94469162cb9dde6c1d8230a77d72653d3",
+      "cell_header_sha256": "8cd06b7bb490b2f0bad6fa3ca234474dedfb8c5f719aad15759878f77067d401",
+      "name": "planar-diag_p4316386.252462386_n256_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 256 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 16.00282604165515,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.000625,
+        0.000625
+      ],
+      "node_header_sha256": "3d825503e110e95fa2bde0759dbe502eca2581eef4681af6077d093df8f0dfce",
+      "cell_header_sha256": "7dab6292940d0472fda8f3fbdc1dbd5db340db0d58f052894b6aa9d66f33318d",
+      "name": "planar-diag_p4316386.252462386_n64_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-diag",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh diag 4316386.252462386 64 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 4.000706510413788,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p0_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 0 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 0.0,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p2158193.126231193_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 2158193.126231193 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 2158193.126231193,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p431638.6252462386_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 431638.6252462386 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 431638.6252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p4316386.252462386_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p4316386.252462386_n128_w0.00113800_s0.25",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 128 0.00113800 0.25",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.25
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p4316386.252462386_n128_w0.00113800_s0.5",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 128 0.00113800 0.5",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.5
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p4316386.252462386_n128_w0.00113800_s0.75",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 128 0.00113800 0.75",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.75
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.00015625,
+        0.00015625
+      ],
+      "node_header_sha256": "22f867c7e206bc1cdd710ae0c80dd4e94469162cb9dde6c1d8230a77d72653d3",
+      "cell_header_sha256": "8cd06b7bb490b2f0bad6fa3ca234474dedfb8c5f719aad15759878f77067d401",
+      "name": "planar-x_p4316386.252462386_n256_w0.00056900_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 256 0.00056900 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.000569,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.00015625,
+        0.00015625
+      ],
+      "node_header_sha256": "22f867c7e206bc1cdd710ae0c80dd4e94469162cb9dde6c1d8230a77d72653d3",
+      "cell_header_sha256": "8cd06b7bb490b2f0bad6fa3ca234474dedfb8c5f719aad15759878f77067d401",
+      "name": "planar-x_p4316386.252462386_n256_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 256 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 16.00282604165515,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.000625,
+        0.000625
+      ],
+      "node_header_sha256": "3d825503e110e95fa2bde0759dbe502eca2581eef4681af6077d093df8f0dfce",
+      "cell_header_sha256": "7dab6292940d0472fda8f3fbdc1dbd5db340db0d58f052894b6aa9d66f33318d",
+      "name": "planar-x_p4316386.252462386_n64_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 64 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 4.000706510413788,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.000625,
+        0.000625
+      ],
+      "node_header_sha256": "3d825503e110e95fa2bde0759dbe502eca2581eef4681af6077d093df8f0dfce",
+      "cell_header_sha256": "7dab6292940d0472fda8f3fbdc1dbd5db340db0d58f052894b6aa9d66f33318d",
+      "name": "planar-x_p4316386.252462386_n64_w0.00227600_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 4316386.252462386 64 0.00227600 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.002276,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-x_p8632772.504924772_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-x",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh x 8632772.504924772 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 8632772.504924772,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-y_p4316386.252462386_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "planar-y",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh y 4316386.252462386 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-y_p4316386.252462386_n128_w0.00113800_s0.25",
+      "status": "complete",
+      "geometry": "planar-y",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh y 4316386.252462386 128 0.00113800 0.25",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.25
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-y_p4316386.252462386_n128_w0.00113800_s0.5",
+      "status": "complete",
+      "geometry": "planar-y",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh y 4316386.252462386 128 0.00113800 0.5",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.5
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "planar-y_p4316386.252462386_n128_w0.00113800_s0.75",
+      "status": "complete",
+      "geometry": "planar-y",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_planar.sh y 4316386.252462386 128 0.00113800 0.75",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.75
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.0003125,
+        0.0003125
+      ],
+      "node_header_sha256": "40aa91e1f8fb88bc689bd20024ebd2ecc852fea90d27a18f6afa495ce9c58725",
+      "cell_header_sha256": "5228cac0d5a62a9471aba2f988170c09ae3863e31c647283b373327e5e442f58",
+      "name": "radial-p4316386.252462386_n128_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "quarter-circle-signed-distance",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_radial.sh 4316386.252462386 128 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.00015625,
+        0.00015625
+      ],
+      "node_header_sha256": "22f867c7e206bc1cdd710ae0c80dd4e94469162cb9dde6c1d8230a77d72653d3",
+      "cell_header_sha256": "8cd06b7bb490b2f0bad6fa3ca234474dedfb8c5f719aad15759878f77067d401",
+      "name": "radial-p4316386.252462386_n256_w0.00056900_s0",
+      "status": "complete",
+      "geometry": "quarter-circle-signed-distance",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_radial.sh 4316386.252462386 256 0.00056900 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.000569,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.00015625,
+        0.00015625
+      ],
+      "node_header_sha256": "22f867c7e206bc1cdd710ae0c80dd4e94469162cb9dde6c1d8230a77d72653d3",
+      "cell_header_sha256": "8cd06b7bb490b2f0bad6fa3ca234474dedfb8c5f719aad15759878f77067d401",
+      "name": "radial-p4316386.252462386_n256_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "quarter-circle-signed-distance",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_radial.sh 4316386.252462386 256 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 16.00282604165515,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.000625,
+        0.000625
+      ],
+      "node_header_sha256": "3d825503e110e95fa2bde0759dbe502eca2581eef4681af6077d093df8f0dfce",
+      "cell_header_sha256": "7dab6292940d0472fda8f3fbdc1dbd5db340db0d58f052894b6aa9d66f33318d",
+      "name": "radial-p4316386.252462386_n64_w0.00113800_s0",
+      "status": "complete",
+      "geometry": "quarter-circle-signed-distance",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_radial.sh 4316386.252462386 64 0.00113800 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.001138,
+      "eta_10_90_width_cells": 4.000706510413788,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "levels": 1,
+      "dx_m": [
+        0.000625,
+        0.000625
+      ],
+      "node_header_sha256": "3d825503e110e95fa2bde0759dbe502eca2581eef4681af6077d093df8f0dfce",
+      "cell_header_sha256": "7dab6292940d0472fda8f3fbdc1dbd5db340db0d58f052894b6aa9d66f33318d",
+      "name": "radial-p4316386.252462386_n64_w0.00227600_s0",
+      "status": "complete",
+      "geometry": "quarter-circle-signed-distance",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_radial.sh 4316386.252462386 64 0.00227600 0",
+      "input_sha256": "9b308256886b6821961bb15d24c737a72b0c1cead79ac6d5ea09d823298ff8b3",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "pressure_pa": 4316386.252462386,
+      "eta_width_parameter_m": 0.002276,
+      "eta_10_90_width_cells": 8.001413020827576,
+      "normal_shift_cells": 0.0
+    },
+    {
+      "name": "frozen-final-a",
+      "status": "complete",
+      "geometry": "frozen-production-double-circle",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_frozen_baseline.sh frozen-final-a",
+      "input_sha256": "8a34baca5a55507e489639e8a707c0ca3a988cec1f9d69efb9301babd3c3c34d",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "levels": 3,
+      "dx_m": [
+        0.000342578125,
+        0.000342578125
+      ],
+      "eta_10_90_width_cells": 8.0,
+      "pressure_pa": 4316386.252462386,
+      "node_header_sha256": "4c1121d93f940cc459fbce0645ec357e4d27401b47eb341f76fa19f317356972",
+      "cell_header_sha256": "43d7685cc7008519ec95df0bcdba72ab6e9a69a7f3eab38ad9873a9d3a24ac62",
+      "repeatability": "bitwise-identical fields and logs"
+    },
+    {
+      "name": "frozen-final-b",
+      "status": "complete",
+      "geometry": "frozen-production-double-circle",
+      "command": "bash docs/agent_plans/20260722-eta-ripple-rootcause/run_frozen_baseline.sh frozen-final-b",
+      "input_sha256": "8a34baca5a55507e489639e8a707c0ca3a988cec1f9d69efb9301babd3c3c34d",
+      "executable_sha256": "ea8bd70daf511fab48d2bc1dbcc60359a0d0d30a3f60b7f080a7f5206be10708",
+      "mpi_ranks": 1,
+      "levels": 3,
+      "dx_m": [
+        0.000342578125,
+        0.000342578125
+      ],
+      "eta_10_90_width_cells": 8.0,
+      "pressure_pa": 4316386.252462386,
+      "node_header_sha256": "4c1121d93f940cc459fbce0645ec357e4d27401b47eb341f76fa19f317356972",
+      "cell_header_sha256": "43d7685cc7008519ec95df0bcdba72ab6e9a69a7f3eab38ad9873a9d3a24ac62",
+      "repeatability": "bitwise-identical fields and logs"
+    }
+  ],
+  "invalid_attempts": [
+    {
+      "name": "early-frozen-restart-attempts",
+      "location": "results/runs",
+      "reason": "retained as failed diagnostics; not evidence cases"
+    },
+    {
+      "name": "planar-input-unit-syntax-attempt",
+      "location": "results/planar/x_p4316386.252462386_n128_w0.001138_s0",
+      "reason": "temperature syntax rejected before a valid solve"
+    },
+    {
+      "name": "radial-expression-whitespace-attempt",
+      "location": "results/radial/invalid_expression_p4316386.252462386_n64_w0.00113800_s0",
+      "reason": "CLI expression tokenized as constant eta=0.5"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+schema_version: 1
+
+defaults:
+  overrides:
+    - elastic.solver.verbose=5
+    - elastic.print_model=0
+    - amr.plot_int=1
+    - amr.thermo.plot_int=1
+    - amr.thermo.int=1
+    - stop_time=1e99_s
+    - elastic.interval=1
+
+cases:
+  - id: centre_bore_3d_128_a2_converged
+    input: input_3d_centre_bore_128_a2
+    dim: 3
+    max_step: 2
+    # run_a100_ab.sbatch invokes the exact-binary runner, whose execution
+    # environment tag is deliberately named "local" even inside an existing
+    # Slurm allocation. Keep nova as provenance eligibility and local so that
+    # the exact runner selects this case.
+    hardware: [local, nova]
+    np:
+      cpu: 8
+      gpu: 1
+    overrides:
+      - amr.max_grid_size=64
+      - amrex.the_arena_is_managed=1
+      - elastic.solver.nriters=2
+      - elastic.solver.pre_smooth=2
+      - elastic.solver.post_smooth=2

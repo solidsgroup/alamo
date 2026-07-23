@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "srun",
+    "--mpi=pmix",
+    "-n",
+    "1",
+    "--gpus-per-task=1",
+    "/work/brunnels/jackplum/alamo-fapply-20260722/bin/alamo_gpu-3d-profile-cuda80-g++",
+    "input_3d_centre_bore_128_a2",
+    "max_step=2",
+    "elastic.solver.verbose=5",
+    "elastic.print_model=0",
+    "amr.plot_int=1",
+    "amr.thermo.plot_int=1",
+    "amr.thermo.int=1",
+    "stop_time=1e99_s",
+    "elastic.interval=1",
+    "amr.max_grid_size=64",
+    "amrex.the_arena_is_managed=1",
+    "elastic.solver.nriters=2",
+    "plot_file=/work/brunnels/jackplum/alamo-fapply-20260722/nova-results-11751561/validation_4x4/centre_bore_3d_128_a2_converged/_plot"
+  ],
+  "overrides": [
+    "elastic.solver.verbose=5",
+    "elastic.print_model=0",
+    "amr.plot_int=1",
+    "amr.thermo.plot_int=1",
+    "amr.thermo.int=1",
+    "stop_time=1e99_s",
+    "elastic.interval=1",
+    "amr.max_grid_size=64",
+    "amrex.the_arena_is_managed=1",
+    "elastic.solver.nriters=2"
+  ]
+}

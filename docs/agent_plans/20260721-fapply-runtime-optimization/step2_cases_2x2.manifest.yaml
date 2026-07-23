@@ -1,0 +1,29 @@
+# Task-local Step 2 manifest. This preserves the canonical converged 3D case
+# and adds only the explicitly approved command-line smoothing overrides.
+schema_version: 1
+
+defaults:
+  overrides:
+    - elastic.solver.verbose=5
+    - elastic.print_model=0
+    - amr.plot_int=1
+    - amr.thermo.plot_int=1
+    - amr.thermo.int=1
+    - stop_time=1e99_s
+    - elastic.interval=1
+
+cases:
+  - id: centre_bore_3d_128_a2_converged
+    input: input_3d_centre_bore_128_a2
+    dim: 3
+    max_step: 2
+    hardware: [local]
+    np:
+      cpu: 8
+      gpu: 1
+    overrides:
+      - amr.max_grid_size=64
+      - amrex.the_arena_is_managed=1
+      - elastic.solver.nriters=2
+      - elastic.solver.pre_smooth=2
+      - elastic.solver.post_smooth=2

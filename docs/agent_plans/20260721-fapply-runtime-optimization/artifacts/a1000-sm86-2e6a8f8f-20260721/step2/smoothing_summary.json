@@ -1,0 +1,402 @@
+{
+  "2d_conservative": {
+    "2x2": {
+      "fapply_calls": [
+        8904,
+        8904,
+        8904,
+        8904,
+        8904
+      ],
+      "fapply_inclusive_wall_seconds": {
+        "mad": 0.0026000000000000467,
+        "median": 0.3496,
+        "values": [
+          0.347,
+          0.3556,
+          0.3496,
+          0.3524,
+          0.3484
+        ]
+      },
+      "matched_gain_pct": {
+        "fapply_calls": 24.59349593495935,
+        "fapply_inclusive_wall": 24.492440604751618,
+        "mlmg_solve": 23.962304108428636,
+        "unprofiled_external_wall": 12.790697674418603
+      },
+      "mlmg_one_iter_calls": [
+        86,
+        86,
+        86,
+        86,
+        86
+      ],
+      "mlmg_one_iter_inclusive_wall_seconds": {
+        "mad": 0.006699999999999928,
+        "median": 0.7022,
+        "values": [
+          0.6909,
+          0.74,
+          0.7022,
+          0.7089,
+          0.6971
+        ]
+      },
+      "mlmg_solve_calls": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "mlmg_solve_inclusive_wall_seconds": {
+        "mad": 0.007300000000000084,
+        "median": 0.7181,
+        "values": [
+          0.7074,
+          0.7559,
+          0.7181,
+          0.7254,
+          0.7127
+        ]
+      },
+      "mlmg_vcycle_calls": [
+        516,
+        516,
+        516,
+        516,
+        516
+      ],
+      "mlmg_vcycle_inclusive_wall_seconds": {
+        "mad": 0.005599999999999938,
+        "median": 0.5354,
+        "values": [
+          0.525,
+          0.5618,
+          0.5354,
+          0.5391,
+          0.5298
+        ]
+      },
+      "profiled_external_wall_seconds": {
+        "mad": 0.010000000000000009,
+        "median": 1.52,
+        "values": [
+          1.51,
+          1.68,
+          1.52,
+          1.53,
+          1.52
+        ]
+      },
+      "unprofiled_external_wall_seconds": {
+        "mad": 0.0,
+        "median": 1.5,
+        "values": [
+          1.5,
+          1.49,
+          1.48,
+          1.5,
+          1.5
+        ]
+      }
+    },
+    "drift_4x4": {
+      "fapply_calls": [
+        11808,
+        11808,
+        11808,
+        11808,
+        11808
+      ],
+      "fapply_inclusive_wall_seconds": {
+        "mad": 0.0020000000000000018,
+        "median": 0.463,
+        "values": [
+          0.4582,
+          0.462,
+          0.463,
+          0.465,
+          0.4654
+        ]
+      },
+      "mlmg_one_iter_calls": [
+        82,
+        82,
+        82,
+        82,
+        82
+      ],
+      "mlmg_one_iter_inclusive_wall_seconds": {
+        "mad": 0.0043999999999999595,
+        "median": 0.9264,
+        "values": [
+          0.9188,
+          0.925,
+          0.9264,
+          0.932,
+          0.9308
+        ]
+      },
+      "mlmg_solve_calls": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "mlmg_solve_inclusive_wall_seconds": {
+        "mad": 0.0040000000000000036,
+        "median": 0.9444,
+        "values": [
+          0.9369,
+          0.9426,
+          0.9444,
+          0.9504,
+          0.9484
+        ]
+      },
+      "mlmg_vcycle_calls": [
+        492,
+        492,
+        492,
+        492,
+        492
+      ],
+      "mlmg_vcycle_inclusive_wall_seconds": {
+        "mad": 0.0045000000000000595,
+        "median": 0.7647,
+        "values": [
+          0.7602,
+          0.7636,
+          0.7647,
+          0.7723,
+          0.7697
+        ]
+      },
+      "profiled_external_wall_seconds": {
+        "mad": 0.0,
+        "median": 1.75,
+        "values": [
+          1.75,
+          1.74,
+          1.74,
+          1.75,
+          1.75
+        ]
+      },
+      "unprofiled_external_wall_seconds": {
+        "mad": 0.010000000000000009,
+        "median": 1.72,
+        "values": [
+          1.9,
+          1.72,
+          1.71,
+          1.71,
+          1.73
+        ]
+      }
+    }
+  },
+  "3d_psi": {
+    "2x2": {
+      "fapply_calls": [
+        12660,
+        12660,
+        12660,
+        12660,
+        12660
+      ],
+      "fapply_inclusive_wall_seconds": {
+        "mad": 1.0999999999999943,
+        "median": 161.6,
+        "values": [
+          174.2,
+          161.6,
+          160.5,
+          161.0,
+          164.0
+        ]
+      },
+      "matched_gain_pct": {
+        "fapply_calls": 18.201201783291335,
+        "fapply_inclusive_wall": 23.73761208117037,
+        "mlmg_solve": 23.427331887201735,
+        "unprofiled_external_wall": 21.04788966664356
+      },
+      "mlmg_one_iter_calls": [
+        57,
+        57,
+        57,
+        57,
+        57
+      ],
+      "mlmg_one_iter_inclusive_wall_seconds": {
+        "mad": 1.0999999999999943,
+        "median": 161.2,
+        "values": [
+          174.2,
+          161.2,
+          160.1,
+          160.4,
+          163.6
+        ]
+      },
+      "mlmg_solve_calls": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "mlmg_solve_inclusive_wall_seconds": {
+        "mad": 1.4000000000000057,
+        "median": 176.5,
+        "values": [
+          190.6,
+          176.5,
+          175.1,
+          175.6,
+          179.1
+        ]
+      },
+      "mlmg_vcycle_calls": [
+        399,
+        399,
+        399,
+        399,
+        399
+      ],
+      "mlmg_vcycle_inclusive_wall_seconds": {
+        "mad": 1.0,
+        "median": 131.9,
+        "values": [
+          142.7,
+          131.9,
+          130.9,
+          131.1,
+          134.0
+        ]
+      },
+      "profiled_external_wall_seconds": {
+        "mad": 2.1299999999999955,
+        "median": 210.51,
+        "values": [
+          226.15,
+          210.51,
+          208.38,
+          208.61,
+          212.95
+        ]
+      },
+      "unprofiled_external_wall_seconds": {
+        "mad": 2.0200000000000102,
+        "median": 227.84,
+        "values": [
+          225.82,
+          229.02,
+          227.84,
+          223.59,
+          230.94
+        ]
+      }
+    },
+    "drift_4x4": {
+      "fapply_calls": [
+        15477,
+        15477,
+        15477,
+        15477,
+        15477
+      ],
+      "fapply_inclusive_wall_seconds": {
+        "mad": 3.5,
+        "median": 211.9,
+        "values": [
+          228.5,
+          211.9,
+          211.1,
+          208.4,
+          222.1
+        ]
+      },
+      "mlmg_one_iter_calls": [
+        44,
+        44,
+        44,
+        44,
+        44
+      ],
+      "mlmg_one_iter_inclusive_wall_seconds": {
+        "mad": 3.799999999999983,
+        "median": 217.7,
+        "values": [
+          235.9,
+          217.7,
+          216.8,
+          213.9,
+          228.9
+        ]
+      },
+      "mlmg_solve_calls": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "mlmg_solve_inclusive_wall_seconds": {
+        "mad": 4.099999999999994,
+        "median": 230.5,
+        "values": [
+          249.9,
+          230.5,
+          229.7,
+          226.4,
+          242.3
+        ]
+      },
+      "mlmg_vcycle_calls": [
+        308,
+        308,
+        308,
+        308,
+        308
+      ],
+      "mlmg_vcycle_inclusive_wall_seconds": {
+        "mad": 3.4000000000000057,
+        "median": 195.1,
+        "values": [
+          211.4,
+          195.1,
+          194.3,
+          191.7,
+          205.1
+        ]
+      },
+      "profiled_external_wall_seconds": {
+        "mad": 5.050000000000011,
+        "median": 263.12,
+        "values": [
+          286.24,
+          263.12,
+          262.69,
+          258.07,
+          277.65
+        ]
+      },
+      "unprofiled_external_wall_seconds": {
+        "mad": 0.14999999999997726,
+        "median": 288.58,
+        "values": [
+          290.23,
+          288.43,
+          278.01,
+          288.58,
+          288.72
+        ]
+      }
+    }
+  }
+}

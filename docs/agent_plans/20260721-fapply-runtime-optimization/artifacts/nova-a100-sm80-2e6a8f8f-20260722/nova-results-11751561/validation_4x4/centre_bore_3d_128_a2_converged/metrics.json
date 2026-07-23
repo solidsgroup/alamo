@@ -1,0 +1,521 @@
+{
+  "bottom_solver_iters": {
+    "class": "solver_health",
+    "value": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      6,
+      5,
+      5,
+      5,
+      6,
+      5,
+      6,
+      5,
+      5,
+      5,
+      6,
+      5,
+      6,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      6,
+      6,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "burn_area": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        0.0192007
+      ],
+      [
+        0.0001,
+        0.0192004
+      ]
+    ]
+  },
+  "chamber_pressure": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        101325.0
+      ],
+      [
+        0.0001,
+        79910.0
+      ]
+    ]
+  },
+  "chamber_volume": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        0.000253631
+      ],
+      [
+        0.0001,
+        0.000253631
+      ]
+    ]
+  },
+  "corner_displacement": {
+    "class": "engineering_trajectory",
+    "value": {
+      "disp_xhi_x": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0001,
+          0.0
+        ]
+      ],
+      "disp_xhi_y": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0001,
+          0.0
+        ]
+      ],
+      "disp_yhi_x": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0001,
+          0.0
+        ]
+      ],
+      "disp_yhi_y": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0001,
+          0.0
+        ]
+      ]
+    }
+  },
+  "disp_field_l2": {
+    "class": "correctness",
+    "value": {
+      "x": 1.4314775697976406e-07,
+      "y": 1.4314775697841532e-07,
+      "z": 2.8644277429346734e-08
+    }
+  },
+  "disp_field_linf": {
+    "class": "correctness",
+    "value": {
+      "x": 1.7688424067493276e-05,
+      "y": 1.768842406722647e-05,
+      "z": 4.0895430028307076e-06
+    }
+  },
+  "elastic_energy": {
+    "class": "engineering_trajectory",
+    "endpoint_only": true,
+    "value": -45.480025938371014
+  },
+  "elastic_residual_at_convergence": {
+    "class": "correctness",
+    "value": 4.459071293e-09
+  },
+  "eta_field_l2": {
+    "class": "correctness",
+    "value": 0.049602900063596536
+  },
+  "eta_field_linf": {
+    "class": "correctness",
+    "value": 1.0
+  },
+  "interface_extent": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        0.0001,
+        0.0001
+      ]
+    ]
+  },
+  "max_principal_stress": {
+    "class": "engineering_trajectory",
+    "endpoint_only": true,
+    "value": 142815.87831213477
+  },
+  "max_temp": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0001,
+        301.128
+      ]
+    ]
+  },
+  "max_von_mises_stress": {
+    "class": "engineering_trajectory",
+    "endpoint_only": true,
+    "value": 168655.27455423385
+  },
+  "mdot_max": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0001,
+        57.3392
+      ]
+    ]
+  },
+  "mean_von_mises_stress": {
+    "class": "engineering_trajectory",
+    "endpoint_only": true,
+    "value": 23578.327643555695
+  },
+  "mlmg_vcycles_per_solve": {
+    "class": "solver_health",
+    "value": 24
+  },
+  "newton_final_relnorm": {
+    "class": "solver_health",
+    "value": 2.72291e-06
+  },
+  "newton_iters_per_solve": {
+    "class": "solver_health",
+    "value": 2
+  },
+  "phi_field_l2": {
+    "class": "correctness",
+    "value": 0.04144340153489359
+  },
+  "residual_monotonic": {
+    "class": "solver_health",
+    "value": false
+  },
+  "strain_field_l2": {
+    "class": "correctness",
+    "value": {
+      "xx": 0.052618098346020804,
+      "xy": 6.734968602079705e-06,
+      "xz": 7.2405501823223914e-06,
+      "yx": 6.734968601960754e-06,
+      "yy": 0.052618098346020756,
+      "yz": 7.240550182284033e-06,
+      "zx": 1.2037707235864905e-06,
+      "zy": 1.2037707236232886e-06,
+      "zz": 0.05261817347531338
+    }
+  },
+  "stress_field_l2": {
+    "class": "correctness",
+    "value": {
+      "xx": 962.9993411774116,
+      "xy": 567.8807771978537,
+      "xz": 228.28186140830738,
+      "yx": 567.8807771978574,
+      "yy": 962.9993412072964,
+      "yz": 228.28186141548068,
+      "zx": 228.29600542530346,
+      "zy": 228.29600543247494,
+      "zz": 449.3228281623657
+    }
+  },
+  "stress_field_linf": {
+    "class": "correctness",
+    "value": {
+      "xx": 65801.13827141775,
+      "xy": 40288.01684796943,
+      "xz": 92476.41040679223,
+      "yx": 40288.01684796975,
+      "yy": 65801.13827160465,
+      "yz": 92476.41040735501,
+      "zx": 92406.33380388847,
+      "zy": 92406.33380444974,
+      "zz": 75917.77901987924
+    }
+  },
+  "temp_field_l2": {
+    "class": "correctness",
+    "value": 15.78761590252226
+  },
+  "total_mdot": {
+    "class": "engineering_trajectory",
+    "value": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0001,
+        0.00530806
+      ]
+    ]
+  }
+}

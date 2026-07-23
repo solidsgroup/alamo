@@ -1,0 +1,79 @@
+{
+  "frozen_field": {
+    "level": 2,
+    "dx_m": 0.000342578125,
+    "samples": 14845,
+    "duplicate_node_max_spread": 0.0,
+    "saved_vs_reconstructed_linf_pa": 406465.11190744955,
+    "saved_vs_reconstructed_interface_linf_pa": 406465.11190744955,
+    "saved_vs_reconstructed_interior_linf_pa": 1.9317492842674255e-05,
+    "saved_vs_reconstructed_interface_interior_linf_pa": 1.9317492842674255e-05,
+    "nodal_vs_reconstructed_interface_linf_pa": 425095.42901101615,
+    "face_equilibrium_residual_linf_pa_per_m": 1736082273.4193966,
+    "face_equilibrium_residual_l2_pa_per_m": 42753674.7041544,
+    "face_equilibrium_interior_linf_pa_per_m": 2362456.730191827,
+    "face_equilibrium_interior_l2_pa_per_m": 343049.0698948618,
+    "rhs_linf_pa_per_m": 1813936533.786732,
+    "equilibrium_linf_relative_to_rhs_linf": 0.9570799424802319,
+    "axis_layers": {
+      "0": {
+        "bottom_reconstructed_xx_roughness_pa": 5141.305897495709,
+        "bottom_raw_xface_xx_roughness_pa": 5899.528893586248,
+        "right_reconstructed_yy_roughness_pa": 5156.745905145537,
+        "right_raw_yface_yy_roughness_pa": 5910.6303872647695
+      },
+      "1": {
+        "bottom_reconstructed_xx_roughness_pa": 1918.0486275949515,
+        "bottom_raw_xface_xx_roughness_pa": 2154.947425347287,
+        "right_reconstructed_yy_roughness_pa": 1918.3559820940718,
+        "right_raw_yface_yy_roughness_pa": 2163.8992516952567
+      },
+      "2": {
+        "bottom_reconstructed_xx_roughness_pa": 1483.2673401287757,
+        "bottom_raw_xface_xx_roughness_pa": 1751.7680596578866,
+        "right_reconstructed_yy_roughness_pa": 1495.6179853314534,
+        "right_raw_yface_yy_roughness_pa": 1758.0872169751674
+      },
+      "3": {
+        "bottom_reconstructed_xx_roughness_pa": 1445.8456633323804,
+        "bottom_raw_xface_xx_roughness_pa": 1674.420323769562,
+        "right_reconstructed_yy_roughness_pa": 1457.4026781311259,
+        "right_raw_yface_yy_roughness_pa": 1679.4001417229883
+      },
+      "4": {
+        "bottom_reconstructed_xx_roughness_pa": 1450.2972822971642,
+        "bottom_raw_xface_xx_roughness_pa": 1646.8084203656763,
+        "right_reconstructed_yy_roughness_pa": 1460.9915392524563,
+        "right_raw_yface_yy_roughness_pa": 1650.3925969176926
+      }
+    },
+    "phi_transpose_rms": 2.830200075373873e-15,
+    "stress_xx_yy_transpose_rms_pa": 32219.074615396992
+  },
+  "manufactured": {
+    "affine_reconstructed_component_std_pa": [
+      8.237361907958984e-05,
+      0.0,
+      0.0,
+      8.049407387220205e-05
+    ],
+    "affine_reconstructed_linf_from_mean_pa": 8.237361907958984e-05,
+    "radial_diffuse_xx_yy_transpose_linf_pa": 4.70280647277832e-05,
+    "radial_diffuse_xx_yy_transpose_rms_pa": 7.256313606877843e-06,
+    "radial_diffuse_reconstructed_nonsymmetry_linf_pa": 20242.89956015302
+  },
+  "output_toggle": {
+    "00000node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00050node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00100node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    }
+  }
+}

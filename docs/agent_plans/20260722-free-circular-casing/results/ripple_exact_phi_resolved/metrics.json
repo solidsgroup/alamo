@@ -1,0 +1,75 @@
+{
+  "frozen_field": {
+    "level": 2,
+    "dx_m": 0.000342578125,
+    "samples": 16647,
+    "duplicate_node_max_spread": 0.0,
+    "saved_vs_reconstructed_linf_pa": 441153.27813126566,
+    "saved_vs_reconstructed_interface_linf_pa": 441153.27813126566,
+    "nodal_vs_reconstructed_interface_linf_pa": 460984.662129201,
+    "face_equilibrium_residual_linf_pa_per_m": 1880164852.983876,
+    "face_equilibrium_residual_l2_pa_per_m": 47031782.580339216,
+    "rhs_linf_pa_per_m": 1878449123.1046617,
+    "equilibrium_linf_relative_to_rhs_linf": 1.0009133757513637,
+    "axis_layers": {
+      "0": {
+        "bottom_reconstructed_xx_roughness_pa": 5556.450333244167,
+        "bottom_raw_xface_xx_roughness_pa": 6349.519087810069,
+        "right_reconstructed_yy_roughness_pa": 5556.423486172222,
+        "right_raw_yface_yy_roughness_pa": 6340.106353775598
+      },
+      "1": {
+        "bottom_reconstructed_xx_roughness_pa": 2051.7202930427156,
+        "bottom_raw_xface_xx_roughness_pa": 2339.8359853010625,
+        "right_reconstructed_yy_roughness_pa": 2043.6175391906872,
+        "right_raw_yface_yy_roughness_pa": 2343.2378528146073
+      },
+      "2": {
+        "bottom_reconstructed_xx_roughness_pa": 1637.2236689114943,
+        "bottom_raw_xface_xx_roughness_pa": 1898.7078706878237,
+        "right_reconstructed_yy_roughness_pa": 1648.1408905754797,
+        "right_raw_yface_yy_roughness_pa": 1900.1279253424145
+      },
+      "3": {
+        "bottom_reconstructed_xx_roughness_pa": 1594.7596619962715,
+        "bottom_raw_xface_xx_roughness_pa": 1810.766363472212,
+        "right_reconstructed_yy_roughness_pa": 1604.7749283793382,
+        "right_raw_yface_yy_roughness_pa": 1810.6669886205345
+      },
+      "4": {
+        "bottom_reconstructed_xx_roughness_pa": 1597.1334287016653,
+        "bottom_raw_xface_xx_roughness_pa": 1775.5800730907358,
+        "right_reconstructed_yy_roughness_pa": 1605.9985249727033,
+        "right_raw_yface_yy_roughness_pa": 1773.671859194059
+      }
+    },
+    "phi_transpose_rms": 2.7673324326389096e-15,
+    "stress_xx_yy_transpose_rms_pa": 26578.990750110777
+  },
+  "manufactured": {
+    "affine_reconstructed_component_std_pa": [
+      8.237361907958984e-05,
+      0.0,
+      0.0,
+      8.049407387220205e-05
+    ],
+    "affine_reconstructed_linf_from_mean_pa": 8.237361907958984e-05,
+    "radial_diffuse_xx_yy_transpose_linf_pa": 4.70280647277832e-05,
+    "radial_diffuse_xx_yy_transpose_rms_pa": 7.256313606877843e-06,
+    "radial_diffuse_reconstructed_nonsymmetry_linf_pa": 20242.89956015302
+  },
+  "output_toggle": {
+    "00000node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00050node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00100node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    }
+  }
+}

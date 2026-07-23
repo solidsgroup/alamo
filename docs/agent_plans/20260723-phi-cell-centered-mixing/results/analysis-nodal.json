@@ -1,0 +1,179 @@
+{
+  "plotdir": "/home/jackplum/Projects/alamo/docs/agent_plans/20260723-phi-cell-centered-mixing/results/runs/nodal-short/00101node",
+  "header_sha256": "38462fef81d27b4de5405207343ffaab1d024254a825ed43cafd167a55df35ce",
+  "time": 0.02019999999999999,
+  "finest_level": 2,
+  "dx": [
+    [
+      0.0013703125,
+      0.0013703125
+    ],
+    [
+      0.00068515625,
+      0.00068515625
+    ],
+    [
+      0.000342578125,
+      0.000342578125
+    ]
+  ],
+  "selected_axis_levels": {
+    "bottom": 2,
+    "right": 1
+  },
+  "level_hashes": {
+    "0": {
+      "covered": "85eea23a3bc05659cedf6f34e7ab1f0f22eab7533f1ac82092727b9f1b08631a",
+      "duplicate_spread": 0.0
+    },
+    "1": {
+      "covered": "7ca7faf658197912b405814aae6b6d3a2a5ddd334b213e5d4eb6aa2944a716d1",
+      "duplicate_spread": 0.0
+    },
+    "2": {
+      "covered": "d1a934a6dacb282ac7054f2eceac93694fbb1f8e2ff949ba243ffdb6add47ee6",
+      "duplicate_spread": 0.0
+    }
+  },
+  "state_hashes": {
+    "L0:phi": "494876929bd5c1eb4a0be9edb538fbbed601a608fb726e88de8eb8985729e0a8",
+    "L0:eta": "bcf0a5297e7e0669832f58f24fd23085d13592b8474c13d97d58fd33b150f39a",
+    "L0:temp": "53dd5c372d1b1947dd8bc6d2a5f3f86f604640f79e06f26d22ab314772379484",
+    "L0:model_mu": "689696d08a8fbb5d5047aaa091e33eff93285776174287a3fc03cf3f80d21775",
+    "L0:model_kappa": "4b8875a709f7e58e147e49e93a6fd8be1aad7207b698d6ac20519115017ce844",
+    "L0:model_F0xx": "932000760aa9a54cc72ec0791cefd42a77a23c3a746b5628822e71b2772ebe3e",
+    "L0:model_F0xy": "ee20192e3f3fb2328725fabedbc7ca72744b67d7a447e62073cf7d9f1bec0e8b",
+    "L0:model_F0yx": "ee20192e3f3fb2328725fabedbc7ca72744b67d7a447e62073cf7d9f1bec0e8b",
+    "L0:model_F0yy": "932000760aa9a54cc72ec0791cefd42a77a23c3a746b5628822e71b2772ebe3e",
+    "L0:rhs_x": "7a9fb57b15dad9d4aaff3ab37d919b79ac15d849639240e00631d8b364cdc7a4",
+    "L0:rhs_y": "5c306bcb170cf26ae0a61b76e6cbe886201695127b4712af87ae07509c9e0aad",
+    "L1:phi": "7e0b0771450e977e9c6104bf801e0bdbbcdd2fa219bce7fa33202b416418eaeb",
+    "L1:eta": "9d73ac3389680a679dbafac050df967d2f60c1d45ae5919dde1002faca433f2a",
+    "L1:temp": "4d76decd7f05ef3a8071d548e5e64429ae2444facb74ce0226d3aa784eaf2615",
+    "L1:model_mu": "e333ef404a63b9c5d6d3a62dce178fe00f04347ec24ac7663d1f45da802f253d",
+    "L1:model_kappa": "85ff4ca05911d96347065dce65e8b9ce3b9a158a2fb3470f4b99b22e95c34ed5",
+    "L1:model_F0xx": "e9c4eb21451cf9fc3eaf8bbddad0468808b8365b7e0d5ff9e63d05b1178c63a8",
+    "L1:model_F0xy": "0caf846fbd7b90e620ad450377f06508561777a8377360b4eb3670bb9b920d66",
+    "L1:model_F0yx": "0caf846fbd7b90e620ad450377f06508561777a8377360b4eb3670bb9b920d66",
+    "L1:model_F0yy": "e9c4eb21451cf9fc3eaf8bbddad0468808b8365b7e0d5ff9e63d05b1178c63a8",
+    "L1:rhs_x": "14a47d0b67d66eff76871991bd21d13b12e2ac3e80c1396204a39271587d601f",
+    "L1:rhs_y": "e2be733374e2536f3440867a7bbb9fc0b6d27e91f55f7926613c6d76b1449df9",
+    "L2:phi": "d9f59414c8f0c059adeed796781e95d2eaca8a4174c8a28cd814aea1b7b162a5",
+    "L2:eta": "27942ead77b05c72d043eea8a8ef437d6a52839c536e6e9a6c08045d45a40ed1",
+    "L2:temp": "94ef9a1a505a9a179b2ec5503b51e04a64aa438f3e19f3f67d88e2573034ef7a",
+    "L2:model_mu": "6cd2d0ca1e6b79cfad51ff7319eff5fdd4c78000d4af2530a05f64b5eb5ffc3f",
+    "L2:model_kappa": "aec3921b52ab2065ed6848833f372b68288134723aec183693fa6c2986d11eb0",
+    "L2:model_F0xx": "c9bed6baebae49d838e959a42e3938ccbd37fb2e88a105e79116c2dd173a8483",
+    "L2:model_F0xy": "f815642d3b6450afcc7db4fe90997d18143236aeba603633b7c61cc2fac57335",
+    "L2:model_F0yx": "f815642d3b6450afcc7db4fe90997d18143236aeba603633b7c61cc2fac57335",
+    "L2:model_F0yy": "c9bed6baebae49d838e959a42e3938ccbd37fb2e88a105e79116c2dd173a8483",
+    "L2:rhs_x": "6476d517311b6a28e7dc52a689a1e8f8e38346658db218b5bf6ef80a22c4171a",
+    "L2:rhs_y": "4f83b377412d8dd00f7876b0a4434e92b62a0ecddbaadb58cca26f3f1851a993"
+  },
+  "mechanics_hashes": {
+    "L0:disp_x": "58340a20a6100ab0774b1dee90c00acd40b7153fb7952f68553d8fe404601856",
+    "L0:disp_y": "a365f9d7fc513f0a89bd39fb1c60e2f2e6fdd0f9e2297ae8b48559584e8c9bcb",
+    "L0:stress_xx": "26ecd6b10df31ef66ba4ba0f00f718c9ac323a1df3895bd6d1b1e47f7f771412",
+    "L0:stress_xy": "9aa99231f370db92164d5fb2774e0d197634ec287995a60aa1f0946212291f55",
+    "L0:stress_yx": "3ca43cadf6749df9a30cc12b717ee77b51c0c325d76f70f697bff021d68fb5be",
+    "L0:stress_yy": "3fad2e1a22ff64fad14520999fdd56c4bd7047bc0651389cd14e1e64af9aadd8",
+    "L1:disp_x": "3e61471ece639fbeea4ff87a5a8516bfa2b5e74e1729de14c6cf20120786901b",
+    "L1:disp_y": "83222e53c5d17d4d867b8df594642be7a556e06c15772ad5c893d178a50e0d51",
+    "L1:stress_xx": "1fd0a17fe4a23034a167e7ca267ddcc40135cb9cbeb6321b30ecd45e10aaffa9",
+    "L1:stress_xy": "0a2ad7aa404b7bcffb0c049e02034ab3ccefe8e5fc12b939e365052e5d499ad6",
+    "L1:stress_yx": "13a8baecd0345a3d1bd7970937e57c32b28c8b2388a4ec6a2bc49c3152575e78",
+    "L1:stress_yy": "ead3cc15f754bb64366b76ef44bd5fef4ecacb239692c14c707ba1080544f1aa",
+    "L2:disp_x": "2ea6b8c01c2f1b0467745ae96e2a864e53f87ad740e463b0fcef08689f904edd",
+    "L2:disp_y": "3fecd923bc6c37c515722464c1b6c38acc7ae9b0b22744bf1fc9f085fc544743",
+    "L2:stress_xx": "cad7c4884b2b0bf6f775e16eb3f5f248f318059fad47c26ffe88e285309d86a2",
+    "L2:stress_xy": "126c3b7a481ef9d2d4a4ae5c97dcac396e06efec8a4ae44877852ad56eae8460",
+    "L2:stress_yx": "1fca4e147ae87f76cdf4ff804393ead3b9c68ea78a928153009e555d6bbc63c4",
+    "L2:stress_yy": "c158474e79d37247b0a6285d5a98ca2ce34b6a773708f40862c340eeb3cff01d"
+  },
+  "axis": {
+    "bottom": {
+      "level": 2,
+      "saved": {
+        "samples": 14,
+        "nyquist_amplitude_pa": 624.9818620196529,
+        "detrended_rms_pa": 1350.2595084418808,
+        "detrended_linf_pa": 3014.613517725258,
+        "monotone_overshoot_pa": 3279.2699486840283,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0813623046875
+      },
+      "face_average": {
+        "samples": 14,
+        "nyquist_amplitude_pa": 7.1938557110403165,
+        "detrended_rms_pa": 97.26106036504544,
+        "detrended_linf_pa": 157.98753199959174,
+        "monotone_overshoot_pa": 4232.863548156805,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0813623046875
+      },
+      "native_face": {
+        "samples": 14,
+        "nyquist_amplitude_pa": 22.49085622867349,
+        "detrended_rms_pa": 87.32528403173066,
+        "detrended_linf_pa": 159.30026096990332,
+        "monotone_overshoot_pa": 4296.074703313643,
+        "coordinate_min_m": 0.0769087890625,
+        "coordinate_max_m": 0.0813623046875
+      },
+      "saved_vs_face_average_linf_pa": 7971.04668396723,
+      "face_average_vs_native_linf_pa": 2947.621366761159,
+      "phi_face_min": 0.2935891544117647,
+      "phi_face_max": 0.8908394607843138,
+      "eta_face_min": 1.0,
+      "eta_face_max": 1.0,
+      "eta_face_delta_max": 0.0
+    },
+    "right": {
+      "level": 1,
+      "saved": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 4165.171219272136,
+        "detrended_rms_pa": 14573.698102016466,
+        "detrended_linf_pa": 34205.15375069203,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "face_average": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 21.050343915991093,
+        "detrended_rms_pa": 296.46638146503676,
+        "detrended_linf_pa": 620.4195105945691,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "native_face": {
+        "samples": 10,
+        "nyquist_amplitude_pa": 32.63949614978219,
+        "detrended_rms_pa": 346.6548239820227,
+        "detrended_linf_pa": 623.2275458181975,
+        "monotone_overshoot_pa": 0.0,
+        "coordinate_min_m": 0.078450390625,
+        "coordinate_max_m": 0.08461679687500001
+      },
+      "saved_vs_face_average_linf_pa": 121762.00769062806,
+      "face_average_vs_native_linf_pa": 1735.37649153464,
+      "phi_face_min": 0.1282628676470575,
+      "phi_face_max": 0.8901041666666674,
+      "eta_face_min": 1.0,
+      "eta_face_max": 1.0,
+      "eta_face_delta_max": 0.0
+    }
+  },
+  "finest_phi_band": {
+    "samples": 98,
+    "saved_vs_face_average_prr_linf_pa": 7971.04668396723,
+    "saved_vs_face_average_prr_rms_pa": 1245.8957356036713,
+    "face_residual_linf_pa_per_m": 7309751.102051446,
+    "face_residual_l2_pa_per_m": 1485388.8516471684,
+    "eta_min": 1.0,
+    "eta_max": 1.0,
+    "eta_neighbor_delta_max": 0.0
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "node_plot": "docs/agent_plans/20260722-eta-ripple-rootcause/results/radial/p4316386.252462386_n128_w0.00113800_s0/00001node",
+  "cell_plot": "docs/agent_plans/20260722-eta-ripple-rootcause/results/radial/p4316386.252462386_n128_w0.00113800_s0/00001cell",
+  "node_plot_sha256": "c244ae2f3ef43bfe45937bd0dd3d7d98cbcd8a8f9bf93facff65c5bac95c57d8",
+  "cell_plot_sha256": "cbc3a2622bb286277e8700a1e52c5cc956ac51d7951fd05a833d057016df7411",
+  "level": 0,
+  "dx_m": [
+    0.0003125,
+    0.0003125
+  ],
+  "duplicate_node_max_spread": 0.0,
+  "pressure_fit": {
+    "pressure_pa": 4316386.252462385,
+    "fit_rows": 12746,
+    "pressure_flux_identity_linf_per_m": 5.329070518200751e-13,
+    "rhs_fit_linf_pa_per_m": 4.76837158203125e-07,
+    "rhs_fit_rms_pa_per_m": 5.806856438459032e-08,
+    "rhs_fit_relative_linf": 2.5305192988900183e-16,
+    "rhs_linf_pa_per_m": 1884345076.5709782
+  },
+  "locked_metric": {
+    "transition_eta_interval": [
+      0.1,
+      0.9
+    ],
+    "half_window_cells": 8,
+    "fit_degree": 3,
+    "nyquist_definition": "abs(dot(cubic_residual, (-1)^index))/N"
+  },
+  "profiles": {
+    "bottom_x": {
+      "interfaces": [
+        {
+          "coordinate_lo_m": 0.01640625,
+          "coordinate_hi_m": 0.02359375,
+          "eta_min": 0.0018064249656062903,
+          "eta_max": 0.9981975680301935,
+          "raw": {
+            "samples": 24,
+            "fit_degree": 3,
+            "nyquist_projection_pa": 16689.330329019536,
+            "detrended_rms_pa": 189070.23235279293,
+            "detrended_linf_pa": 303188.4141955429,
+            "second_difference_linf_pa": 124417.33582375059
+          },
+          "pressure_corrected": {
+            "samples": 24,
+            "fit_degree": 3,
+            "nyquist_projection_pa": 85.61816867993912,
+            "detrended_rms_pa": 9825.119777945805,
+            "detrended_linf_pa": 16313.370568207465,
+            "second_difference_linf_pa": 5548.904674507678
+          }
+        }
+      ]
+    },
+    "right_y": {
+      "interfaces": [
+        {
+          "coordinate_lo_m": 0.01640625,
+          "coordinate_hi_m": 0.02359375,
+          "eta_min": 0.0018064249656062903,
+          "eta_max": 0.9981975680301935,
+          "raw": {
+            "samples": 24,
+            "fit_degree": 3,
+            "nyquist_projection_pa": 16689.330329022745,
+            "detrended_rms_pa": 189070.23235279636,
+            "detrended_linf_pa": 303188.4141955384,
+            "second_difference_linf_pa": 124417.33582373941
+          },
+          "pressure_corrected": {
+            "samples": 24,
+            "fit_degree": 3,
+            "nyquist_projection_pa": 85.6181686767183,
+            "detrended_rms_pa": 9825.119777947859,
+            "detrended_linf_pa": 16313.370568210725,
+            "second_difference_linf_pa": 5548.904674507678
+          }
+        }
+      ]
+    }
+  }
+}

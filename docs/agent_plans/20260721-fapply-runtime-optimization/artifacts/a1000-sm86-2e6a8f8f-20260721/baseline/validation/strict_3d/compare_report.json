@@ -1,0 +1,617 @@
+{
+  "candidate": "/home/jackplum/Projects/alamo/docs/agent_plans/20260721-fapply-runtime-optimization/artifacts/a1000-sm86-2e6a8f8f-20260721/baseline/validation/strict_3d",
+  "cases": {
+    "centre_bore_3d_128_a2_converged": {
+      "correctness": [
+        {
+          "A": 0.049602900063596536,
+          "B": 0.049602900063596536,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "eta_field_l2",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.0,
+          "B": 1.0,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "eta_field_linf",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 0.04144340153489359,
+          "B": 0.04144340153489359,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "phi_field_l2",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 15.78761590252226,
+          "B": 15.78761590252226,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "temp_field_l2",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.4314775697647125e-07,
+          "B": 1.4314775697647125e-07,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_l2.x",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.4314775697466204e-07,
+          "B": 1.4314775697466204e-07,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_l2.y",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 2.8644277427424125e-08,
+          "B": 2.8644277427424125e-08,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_l2.z",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.7688424066763863e-05,
+          "B": 1.7688424066763863e-05,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_linf.x",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.7688424067226075e-05,
+          "B": 1.7688424067226075e-05,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_linf.y",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 4.089543002637926e-06,
+          "B": 4.089543002637926e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "disp_field_linf.z",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 962.9993411200132,
+          "B": 962.9993411200132,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.xx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 567.8807771448619,
+          "B": 567.8807771448619,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.xy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 228.28186140330388,
+          "B": 228.28186140330388,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.xz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 567.880777144859,
+          "B": 567.880777144859,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.yx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 962.9993409650734,
+          "B": 962.9993409650734,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.yy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 228.2818613727024,
+          "B": 228.2818613727024,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.yz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 228.2960054202991,
+          "B": 228.2960054202991,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.zx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 228.29600538969638,
+          "B": 228.29600538969638,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.zy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 449.32282805640335,
+          "B": 449.32282805640335,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_l2.zz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 65801.13827156626,
+          "B": 65801.13827156626,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.xx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 40288.01684535797,
+          "B": 40288.01684535797,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.xy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 92476.41040950242,
+          "B": 92476.41040950242,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.xz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 40288.01684535876,
+          "B": 40288.01684535876,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.yx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 65801.13827083091,
+          "B": 65801.13827083091,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.yy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 92476.41040718247,
+          "B": 92476.41040718247,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.yz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 92406.33380659016,
+          "B": 92406.33380659016,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.zx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 92406.3338042772,
+          "B": 92406.3338042772,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.zy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 75917.77902517523,
+          "B": 75917.77902517523,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "stress_field_linf.zz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 0.052618098346020784,
+          "B": 0.052618098346020784,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.xx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 6.73496860185137e-06,
+          "B": 6.73496860185137e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.xy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 7.2405501822445135e-06,
+          "B": 7.2405501822445135e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.xz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 6.734968601949146e-06,
+          "B": 6.734968601949146e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.yx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 0.052618098346020735,
+          "B": 0.052618098346020735,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.yy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 7.240550182216545e-06,
+          "B": 7.240550182216545e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.yz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.2037707235851693e-06,
+          "B": 1.2037707235851693e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.zx",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 1.2037707235644708e-06,
+          "B": 1.2037707235644708e-06,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.zy",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 0.05261817347531337,
+          "B": 0.05261817347531337,
+          "abs_tol": null,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "strain_field_l2.zz",
+          "rel_tol": 1e-06,
+          "status": "PASS"
+        },
+        {
+          "A": 4.459070411e-09,
+          "B": 4.459070411e-09,
+          "abs_tol": 1e-08,
+          "class": "correctness",
+          "delta_abs": 0.0,
+          "delta_rel": 0.0,
+          "name": "elastic_residual_at_convergence",
+          "rel_tol": null,
+          "status": "PASS"
+        }
+      ],
+      "correctness_fail": false,
+      "engineering_fail": false,
+      "engineering_trajectory": [
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "chamber_pressure",
+          "phase_lag_samples": 0,
+          "phase_lag_tol_intervals": 1,
+          "rel_tol": 0.02,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "chamber_volume",
+          "rel_tol": 0.02,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "burn_area",
+          "rel_tol": 0.02,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "total_mdot",
+          "phase_lag_samples": 0,
+          "phase_lag_tol_intervals": 1,
+          "rel_tol": 0.02,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "mdot_max",
+          "rel_tol": 0.03,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "max_temp",
+          "rel_tol": 0.02,
+          "status": "PASS"
+        },
+        {
+          "abs_tol": 0.02,
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "interface_extent",
+          "rel_tol": null,
+          "status": "PASS"
+        },
+        {
+          "class": "engineering_trajectory",
+          "endpoint_only": false,
+          "max_rel_dev": 0.0,
+          "name": "corner_displacement",
+          "rel_tol": 0.03,
+          "status": "PASS"
+        },
+        {
+          "A": 168655.27455562496,
+          "B": 168655.27455562496,
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": true,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "max_von_mises_stress",
+          "rel_tol": 0.05,
+          "status": "PASS"
+        },
+        {
+          "A": 23578.32763955283,
+          "B": 23578.32763955283,
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": true,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "mean_von_mises_stress",
+          "rel_tol": 0.05,
+          "status": "PASS"
+        },
+        {
+          "A": 142815.87831414002,
+          "B": 142815.87831414002,
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": true,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "max_principal_stress",
+          "rel_tol": 0.05,
+          "status": "PASS"
+        },
+        {
+          "A": -45.480025926132654,
+          "B": -45.480025926132654,
+          "abs_tol": null,
+          "class": "engineering_trajectory",
+          "endpoint_only": true,
+          "max_abs_dev": 0.0,
+          "max_rel_dev": 0.0,
+          "name": "elastic_energy",
+          "rel_tol": 0.03,
+          "status": "PASS"
+        }
+      ],
+      "gate_verdict": "PASS",
+      "solver_health": [
+        {
+          "A": 2,
+          "B": 2,
+          "class": "solver_health",
+          "delta": 0,
+          "name": "newton_iters_per_solve",
+          "status": "INFO"
+        },
+        {
+          "A": 2.72291e-06,
+          "B": 2.72291e-06,
+          "class": "solver_health",
+          "delta": 0.0,
+          "name": "newton_final_relnorm",
+          "status": "INFO"
+        },
+        {
+          "A": 24,
+          "B": 24,
+          "class": "solver_health",
+          "delta": 0,
+          "name": "mlmg_vcycles_per_solve",
+          "status": "INFO"
+        },
+        {
+          "A": {
+            "max": 6,
+            "mean": 5.09469696969697,
+            "n": 264
+          },
+          "B": {
+            "max": 6,
+            "mean": 5.09469696969697,
+            "n": 264
+          },
+          "class": "solver_health",
+          "delta_mean": 0.0,
+          "name": "bottom_solver_iters",
+          "status": "INFO"
+        },
+        {
+          "A": false,
+          "B": false,
+          "class": "solver_health",
+          "delta": 0,
+          "name": "residual_monotonic",
+          "status": "INFO"
+        }
+      ],
+      "verdict": "PASS"
+    }
+  },
+  "cases_skipped_no_match": [],
+  "overall_gate_verdict": "PASS",
+  "overall_verdict": "PASS",
+  "reference": "/home/jackplum/Projects/alamo/docs/agent_plans/20260721-fapply-runtime-optimization/artifacts/a1000-sm86-2e6a8f8f-20260721/baseline/validation/strict_3d"
+}

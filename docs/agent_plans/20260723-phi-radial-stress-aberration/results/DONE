@@ -1,0 +1,5 @@
+2026-07-23
+
+The paired post-regrid and native-face tests are complete. Neither proposed
+solution met the visual-aberration selection threshold, so no production
+source change was retained. See RESULT.md.

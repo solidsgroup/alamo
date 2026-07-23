@@ -1,0 +1,75 @@
+{
+  "frozen_field": {
+    "level": 2,
+    "dx_m": 0.000342578125,
+    "samples": 16005,
+    "duplicate_node_max_spread": 0.0,
+    "saved_vs_reconstructed_linf_pa": 2.6549241738393903e-05,
+    "saved_vs_reconstructed_interface_linf_pa": 2.1903484594076872e-05,
+    "nodal_vs_reconstructed_interface_linf_pa": 14876.062406757243,
+    "face_equilibrium_residual_linf_pa_per_m": 41798684.558821455,
+    "face_equilibrium_residual_l2_pa_per_m": 1185709.1143289267,
+    "rhs_linf_pa_per_m": 41932741.96794095,
+    "equilibrium_linf_relative_to_rhs_linf": 0.9968030373682221,
+    "axis_layers": {
+      "0": {
+        "bottom_reconstructed_xx_roughness_pa": 318.3994821903834,
+        "bottom_raw_xface_xx_roughness_pa": 389.63016493583564,
+        "right_reconstructed_yy_roughness_pa": NaN,
+        "right_raw_yface_yy_roughness_pa": NaN
+      },
+      "1": {
+        "bottom_reconstructed_xx_roughness_pa": 292.6512461024977,
+        "bottom_raw_xface_xx_roughness_pa": 362.131753742251,
+        "right_reconstructed_yy_roughness_pa": NaN,
+        "right_raw_yface_yy_roughness_pa": NaN
+      },
+      "2": {
+        "bottom_reconstructed_xx_roughness_pa": 381.74151516026905,
+        "bottom_raw_xface_xx_roughness_pa": 551.7739141607817,
+        "right_reconstructed_yy_roughness_pa": NaN,
+        "right_raw_yface_yy_roughness_pa": NaN
+      },
+      "3": {
+        "bottom_reconstructed_xx_roughness_pa": 972.3195378157034,
+        "bottom_raw_xface_xx_roughness_pa": 1584.731034176315,
+        "right_reconstructed_yy_roughness_pa": NaN,
+        "right_raw_yface_yy_roughness_pa": NaN
+      },
+      "4": {
+        "bottom_reconstructed_xx_roughness_pa": 1043.621605039014,
+        "bottom_raw_xface_xx_roughness_pa": 1660.7838402750494,
+        "right_reconstructed_yy_roughness_pa": NaN,
+        "right_raw_yface_yy_roughness_pa": NaN
+      }
+    },
+    "phi_transpose_rms": 0.01461555697653585,
+    "stress_xx_yy_transpose_rms_pa": 19916.439350790635
+  },
+  "manufactured": {
+    "affine_reconstructed_component_std_pa": [
+      8.237361907958984e-05,
+      0.0,
+      0.0,
+      8.049407387220205e-05
+    ],
+    "affine_reconstructed_linf_from_mean_pa": 8.237361907958984e-05,
+    "radial_diffuse_xx_yy_transpose_linf_pa": 4.70280647277832e-05,
+    "radial_diffuse_xx_yy_transpose_rms_pa": 7.256313606877843e-06,
+    "radial_diffuse_reconstructed_nonsymmetry_linf_pa": 20242.89956015302
+  },
+  "output_toggle": {
+    "00000node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00050node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    },
+    "00100node": {
+      "max_common_field_abs_difference": 0.0,
+      "nonzero_fields": {}
+    }
+  }
+}
