@@ -51,6 +51,19 @@ lands.
    (strain_zx/zy 2.06e-6 rel = ~5e-9 abs on near-zero shear, adjudicated
    noise). Includes Fsmooth 4D launch fusion (MLMG-inclusive -10.6%).
 
+4. **GPU manual v3 — hostile transferability repair.**
+   Active plan: `docs/agent_plans/20260721-gpu-manual-hostile-review/PLAN.md`.
+   Separate invariant semantics, port contracts, and corpus examples; add
+   reusable scope/closure/inspection/validation/efficiency/harvest templates,
+   single-home architecture policies, a stateful advisory scanner, and
+   cross-family status. The hostile pass adds revision-bound per-port coverage,
+   shape rather than identifier recognizers, a generalized value-dispatch
+   contract, host-only numerical-kernel work, and mandatory layout/kernel/
+   transfer/resource evidence before baseline efficiency. Current evidence is
+   only 2/26 file-verified transforms, with zero transfer-verified; the first
+   non-Flame contract instantiation remains an authorized pilot.
+   This is docs/scripts-only and authorizes no source or numerical changes.
+
 ## Backlog (post next-3)
 
 - **3.I — Fuse Newton convergence norms.** `Solver/Nonlocal/Newton.H` calls

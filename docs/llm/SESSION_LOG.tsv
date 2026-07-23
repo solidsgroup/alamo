@@ -15,6 +15,8 @@ date	task	model	tier	cost_usd	outcome
 2026-07-18	rodtube-gate-recalibration	fable-5	1	n/a	done (golden gate green; honest-resid0 root cause, tol_abs=5000 bracketed, cpu ref regen; verifier CONFIRMED)
 2026-07-18	matrix4-device-annotation	fable-5	2	n/a	done (2-line device annotation; CUDA builds restored, GPU suite 9/9, gate green)
 2026-07-19	ideal-cross-section-sweep	fable	0	bg-session	5/5 PASS t=6.5s Al-casing ideal recipe, ~7h15m np=8
+2026-07-21	gpu-manual-generalization	GPT-5+3-grunts	0	n/a	partial (docs/tooling complete; non-Flame port pilot and hardware gates pending)
+2026-07-21	gpu-manual-hostile-review	GPT-5+2-grunts+reviewer	0	n/a	done (live blockers 1-5 repaired; 26 patterns, 10 scanner tests, exact Hydro/Fracture audit sites, reviewer clean; port/hardware pilot remains open)
 2026-07-22	rod-tube-resolution-phi-study	GPT-5	1	n/a	done (96/l2 and 128/l1 np=4 runs complete; nodal/face mismatch persists; epsilon-width phi worsens max mismatch 0.211->0.942 MPa)
 2026-07-22	fapply-runtime-step2-smoothing	GPT-5	3	n/a	checkpoint (2/2 passes 2D/3D correctness and contract; solve -24.0%/-23.4%, external -12.8%/-21.0%; human keep/reject pending)
 2026-07-22	fapply-runtime-step3-specialization	GPT-5	2	n/a	rejected (correctness/stability pass; 2D external -2.01% below threshold, 3D external +1.52% regression; isolated source reverted, 2/2 retained)

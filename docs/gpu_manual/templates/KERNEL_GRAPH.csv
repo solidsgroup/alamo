@@ -1,0 +1,3 @@
+schema_version,port_id,kernel,phase,inputs,outputs,iteration_space,mfiter_granularity,launches_per_step,components_per_launch,dependencies,synchronization,host_device_bytes,branch_iteration_notes,dispatch_state,reduction_atomic,allocation_lifetime,disposition,evidence,owner
+1,<port-id>,<stable-kernel-id>,<timestep-phase>,<field-ids>,<field-ids>,<box-tile-level>,<MFIter-policy>,<count>,<count>,<producer-ids>,<edge-or-none>,<bytes>,<bounds-divergence-early-exit>,<static|runtime|host-only>,<operator-identity-contention>,<arena-frequency-lifetime>,<open|pass|fail|blocked|not-applicable>,<trace-or-inspection-path>,<owner>
+

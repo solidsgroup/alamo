@@ -1,0 +1,6 @@
+run,target,patterns,verdict,gaps,reference
+1,src/Integrator/PFC.cpp,GPU-007;GPU-016,fail,GPU-016 omitted MakeSpectralFab and wrapper ParallelFor contracts; invented getSpectralDataLayout and retained duplicate inverse scaling,chamber-gpu:src/Integrator/PFC.cpp
+2,src/Integrator/CahnHilliard.cpp,GPU-007;GPU-016,fail,GPU-016 did not distinguish hierarchy-aware Forward/Backward from flat per-level overloads; correctly withheld AMR scheduling FEATURE,chamber-gpu:src/Integrator/CahnHilliard.cpp
+3,src/Integrator/HeatConduction.H,GPU-007;GPU-016,fail,GPU-016 overload rule did not make an explicit single-level assertion decisive; worker selected hierarchy overload and added AMR behavior; GPU-007 passed,chamber-gpu:src/Integrator/HeatConduction.H
+4,src/Integrator/PFC.cpp,GPU-007;GPU-016,pass,none; flat wrapper API and omega2/scaling ownership match supporting diff; no FEATURE or numerical additions,chamber-gpu:src/Integrator/PFC.cpp
+5,src/Integrator/HeatConduction.H,GPU-007;GPU-016,pass,none; explicit single-level flat wrapper contract and device-safe DX preserve source behavior; no FEATURE or numerical additions,chamber-gpu:src/Integrator/HeatConduction.H

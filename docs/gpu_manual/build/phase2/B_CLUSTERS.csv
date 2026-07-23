@@ -1,0 +1,35 @@
+candidate_key,candidate_name,hunk_count,example_file,transform_summary
+BC_DEVICE_CAPTURE,Hoist BC state/scalars before the device lambda,1,src/BC/Constant.cpp,Hoist BC state/scalars before the device lambda
+BC_DEVICE_STATE,Copy BC state into device arrays,3,src/BC/Operator/Elastic/Constant.H,Copy BC state into device arrays
+BC_HOST_DEVICE_ANNOTATION,Annotate BC utility predicates for host/device,3,src/BC/BC.H,Annotate BC utility predicates for host/device
+BC_LOOP_DISPATCH,Select GPU ParallelFor versus CPU loop,1,src/BC/Operator/Elastic/Constant.H,Select GPU ParallelFor versus CPU loop
+BC_STATIC_DISPATCH,Use device-safe periodic/type accessors,6,src/BC/Operator/Elastic/Constant.H,Use device-safe periodic/type accessors
+BMP_DEVICE_STAGING,Stage BMP host data for device,4,src/Util/BMP.H,Stage BMP host data for device
+DEVICE_CAPTURE_HOIST,Capture image geometry/state before kernel,6,src/IC/BMP.H,Capture image geometry/state before kernel
+DEVICE_ERROR_API,Provide device error flag API,2,src/Util/Util.H,Provide device error flag API
+DEVICE_ERROR_FLAG,Set/check invalid device values,4,src/Operator/Elastic.cpp,Set/check invalid device values
+DEVICE_SAFE_VECTOR,Copy cell size into device-safe vector,13,src/Operator/Elastic.cpp,Copy cell size into device-safe vector
+DIAGNOSTIC_INSTRUMENTATION,Emit opt-in interpolation diagnostics,1,src/Operator/Operator.cpp,Emit opt-in interpolation diagnostics
+ELASTIC_API_CONTROLS,Expose conservative face-flux control,4,src/Operator/Elastic.H,Expose conservative face-flux control
+ELASTIC_COMPONENT_INTERPOLATION,Generalize restriction/interpolation across components,5,src/Operator/Elastic.cpp,Generalize restriction/interpolation across components
+ELASTIC_COMPONENT_LAYOUT,Generalize elastic coefficient component layout,4,src/Operator/Elastic.cpp,Generalize elastic coefficient component layout
+ELASTIC_CONSERVATIVE_FLUX,Dispatch BC and conservative face flux,1,src/Operator/Elastic.cpp,Dispatch BC and conservative face flux
+ELASTIC_KERNEL_DISPATCH,Select GPU/CPU elastic kernel and BC dispatch,2,src/Operator/Elastic.cpp,Select GPU/CPU elastic kernel and BC dispatch
+ELIXIR_LIFETIME,Keep per-box interpolation temporary alive,1,src/Operator/Operator.cpp,Keep per-box interpolation temporary alive
+GPU_DEVICE_LAUNCH,Run MultiFab initialization on device,3,src/Operator/Elastic.cpp,Run MultiFab initialization on device
+HOST_DEVICE_DIAGNOSTIC_API,Make Abort host/device-safe,11,src/Util/Util.H,Make Abort host/device-safe
+HOST_LOOP_FALLBACK,Use CPU LoopConcurrentOnCpu fallback,8,src/BC/Operator/Elastic/Expression.H,Use CPU LoopConcurrentOnCpu fallback
+HOST_LOOP_GUARD,Guard unsupported host-only BC path,11,src/BC/Operator/Elastic/Expression.H,Guard unsupported host-only BC path
+IC_DEVICE_CAPTURE,Capture scalar IC values before kernel,3,src/IC/Constant.H,Capture scalar IC values before kernel
+MATRIX4_UNROLL,Hand-unroll tensor contraction for device,1,src/Set/Matrix4_Major.H,Hand-unroll tensor contraction for device
+NEWTON_CONSERVATIVE_SOLVE,Propagate conservative face-flux policy,4,src/Solver/Nonlocal/Newton.H,Propagate conservative face-flux policy
+NEWTON_DAMPED_STEP,Backtrack and accept damped Newton update,1,src/Solver/Nonlocal/Newton.H,Backtrack and accept damped Newton update
+NEWTON_LOOP_DISPATCH,Select GPU/CPU Newton loop,2,src/Solver/Nonlocal/Newton.H,Select GPU/CPU Newton loop
+NEWTON_STATIC_BC,Capture static BC payload for Newton,1,src/Solver/Nonlocal/Newton.H,Capture static BC payload for Newton
+OPERATOR_GHOST_POLICY,Respect coarse/fine ghost-row policy,6,src/Operator/Operator.cpp,Respect coarse/fine ghost-row policy
+OPERATOR_GHOST_SANITIZE,Optionally zero coarse correction ghosts before interpolation,1,src/Operator/Operator.cpp,Optionally zero coarse correction ghosts before interpolation
+OPERATOR_INTERPOLATION,Implement component-aware AMR interpolation,3,src/Operator/Operator.cpp,Implement component-aware AMR interpolation
+PNG_DEVICE_API,Make PNG sampler host/device callable,3,src/Util/PNG.H,Make PNG sampler host/device callable
+SET_DEVICE_GARBAGE,Provide host/device Garbage reference,6,src/Set/Base.H,Provide host/device Garbage reference
+SET_FIELD_DEVICE_COPY,Copy field data with device-safe iteration,1,src/Set/Set.H,Copy field data with device-safe iteration
+SET_HOST_DEVICE_ANNOTATION,Annotate Set base operations host/device,34,src/Set/Base.H,Annotate Set base operations host/device

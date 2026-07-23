@@ -1,0 +1,12 @@
+diff --git a/src/Set/Matrix4_Diagonal.H b/src/Set/Matrix4_Diagonal.H
+index 7dbd4ec08..22c88f1c6 100644
+--- a/src/Set/Matrix4_Diagonal.H
++++ b/src/Set/Matrix4_Diagonal.H
+@@ -34,6 +34,7 @@ public:
+ 
+     AMREX_GPU_HOST_DEVICE Matrix4() = default;
+     //AMREX_GPU_HOST_DEVICE Matrix4(Set::Matrix a_A): A(a_A) {};
++    AMREX_GPU_HOST_DEVICE
+     AMREX_FORCE_INLINE
+         Scalar operator () (const int i, const int j, const int k, const int l) const
+     {

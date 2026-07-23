@@ -1,0 +1,3 @@
+schema_version,port_id,id,category,applicability,oracle,command,reference,result,tolerance_rationale,evidence,owner
+1,<port-id>,VAL-001,<strict-build|analytic-exact|conservation|golden-regression|restart-parity|multi-box|sanitizer>,<required|not-applicable>,<observable-and-pass-condition>,<exact-command>,<reference-source>,<not-run|blocked|fail|pass|not-applicable>,<units-norm-abs-rel-scale-build-mesh-reason>,<result-path>,<owner>
+

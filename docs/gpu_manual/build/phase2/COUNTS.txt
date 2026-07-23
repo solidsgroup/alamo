@@ -1,0 +1,11 @@
+contextual_parents=432
+ledger_rows=470
+candidate_parents=266
+oneoff_parents=24
+feature_parents=103
+noise_parents=39
+oneoff_denominator=290
+oneoff_percent=8.276
+clusters=25
+retired_patterns=4
+single_evidence_patterns=GPU-015,GPU-017,GPU-019,GPU-030

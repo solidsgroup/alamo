@@ -1,0 +1,83 @@
+diff --git a/src/Model/Propellant/FullFeedback.H b/src/Model/Propellant/FullFeedback.H
+index 85463b570..07affeac3 100644
+--- a/src/Model/Propellant/FullFeedback.H
++++ b/src/Model/Propellant/FullFeedback.H
+@@ -30,7 +30,15 @@ public:
+         pp_queryclass(name,*this);
+     }
+ 
+-    void set_pressure(const Set::Scalar a_P) 
++    template<int I = 0>
++    AMREX_GPU_HOST
++    Set::Scalar get (std::string /*property*/)
++    {
++        Util::Abort(INFO);
++        return NAN;
++    }
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    void set_pressure(const Set::Scalar a_P)
+     {
+         this->Pbar = a_P/Pref;
+         
+@@ -47,41 +55,49 @@ public:
+         return;
+     }
+     
+-    AMREX_FORCE_INLINE
+-    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
+-    {
++    // NOTE: device-callable; kept free of host-only Util::* helpers so it can
++    // run inside GPU kernels. Callers should flag non-finite outputs and abort
++    // after the kernel on the host.
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) const    {
+         Set::Scalar qflux = k1 * phi +
+             k2 * (1.0 - phi) +
+             (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
+         Set::Scalar mlocal = (mlocal_ap) * phi + (mlocal_htpb) * (1.0 - phi) + mlocal_comb * phi * (1.0 - phi);
+         Set::Scalar mdota = fabs(mdot);
+-        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
++        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal + 1.e-20));
+ 
+         return mbase * qflux;
+     }
+ 
++    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
++    Set::Scalar get_qflux(const Set::Scalar phi) const    {
++
++        Set::Scalar qflux = k1 * phi +
++            k2 * (1.0 - phi) +
++            (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
++
++        return qflux;
++    }
++
+ 
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+-    Set::Scalar get_K (const Set::Scalar phi)
+-    {
++    Set::Scalar get_K (const Set::Scalar phi) const    {
+         return k_ap * phi + k_htpb * (1.0 - phi);
+     }
+ 
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+-    Set::Scalar get_rho (const Set::Scalar phi)
+-    {
++    Set::Scalar get_rho (const Set::Scalar phi) const    {
+         return rho_ap * phi + rho_htpb * (1.0 - phi); 
+     }
+ 
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+-    Set::Scalar get_cp (const Set::Scalar phi)
+-    {
++    Set::Scalar get_cp (const Set::Scalar phi) const    {
+         return cp_ap * phi + cp_htpb * (1.0 - phi);
+     }
+ 
+     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+-    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
+-    {
++    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) const    {
+         Set::Scalar L = NAN;
+         if (mob_ap) L = m_ap * Pbar * exp(-E_ap / T) * phi;
+         else L = m_ap * exp(-E_ap / T) * phi;
