@@ -126,26 +126,23 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         // Instead of using AMR, prescribe an explicit, user-defined
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
-        pp.query_default("explicitmesh.on", value.explicitmesh.on, 0); // Use explicit mesh instead of AMR
-        if (value.explicitmesh.on)
-        {
+        pp.query_if("explicitmesh.on", [&] () {
+            value.explicitmesh.on = true;
             for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
             {
                 std::string strlo = "explicitmesh.lo" + std::to_string(ilev + 1);
                 std::string strhi = "explicitmesh.hi" + std::to_string(ilev + 1);
 
-                Util::Assert(INFO, TEST(pp.contains(strlo.c_str())));
-                Util::Assert(INFO, TEST(pp.contains(strhi.c_str())));
-
                 amrex::Vector<int> lodata, hidata;
-                pp.queryarr(strlo.c_str(), lodata);
-                pp.queryarr(strhi.c_str(), hidata);
+                pp.queryarr_required(strlo.c_str(), lodata);
+                pp.queryarr_required(strhi.c_str(), hidata);
+                if (IO::ParmParse::InTraversalMode()) continue;
                 amrex::IntVect lo(AMREX_D_DECL(lodata[0], lodata[1], lodata[2]));
                 amrex::IntVect hi(AMREX_D_DECL(hidata[0], hidata[1], hidata[2]));
 
                 value.explicitmesh.box.push_back(amrex::Box(lo, hi));
             }
-        }
+        }); // Use explicit mesh instead of AMR
     }
 
 
@@ -178,8 +175,11 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
     value.t_old.resize(nlevs_max, -1.e100);
     value.SetTimestep(value.timestep);
 
-    value.plot_file = Util::GetFileName();
-    IO::WriteMetaData(value.plot_file, IO::Status::Running, 0);
+    if (!IO::ParmParse::InTraversalMode())
+    {
+        value.plot_file = Util::GetFileName();
+        IO::WriteMetaData(value.plot_file, IO::Status::Running, 0);
+    }
 }
 
 // Destructor
@@ -193,7 +193,8 @@ Integrator::~Integrator()
     }
 
     // Close out the metadata file and mark completed.
-    IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (!IO::ParmParse::InTraversalMode())
+        IO::WriteMetaData(plot_file, IO::Status::Complete);
 
     // De-initialize all of the base fields and clear the arrays.
     for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
@@ -499,6 +500,8 @@ Integrator::ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ng
 void
 Integrator::InitData()
 {
+    if (IO::ParmParse::InTraversalMode()) return;
+
     BL_PROFILE("Integrator::InitData");
 
     if (restart_file_cell == "" && restart_file_node == "")
@@ -1085,6 +1088,8 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
 void
 Integrator::Evolve()
 {
+    if (IO::ParmParse::InTraversalMode()) return;
+
     BL_PROFILE("Integrator::Evolve");
     amrex::Real cur_time = t_new[0];
     int last_plot_file_step = 0;

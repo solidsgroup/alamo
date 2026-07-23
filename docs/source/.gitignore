@@ -4,3 +4,5 @@ Tests.rst
 InputsSearch.rst
 Builder.html
 InputIndex_*
+_static/input-builders/
+_static/input-schemas/

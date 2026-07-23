@@ -187,26 +187,25 @@ public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
-        pp_query_file("filename",filename); // BMP filename.
-        value.bmp.Define(filename);
+        pp.query_file("filename",filename); // BMP filename.
 
         std::string fit;
         // How to position image in space
-        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
+        pp.query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
         else if (fit=="coord")
         {
             value.fit = Fit::Coord;
-            pp_queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
-            pp_queryarr("coord.hi",value.coord_hi); // Location of upper-right corner in the domain
+            pp.queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
+            pp.queryarr("coord.hi",value.coord_hi); // Location of upper-right corner in the domain
         }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
         std::string channel;
         // Color channel to use
-        pp_query_validate("channel",channel,{"r","g","b","R","G","B"}); 
+        pp.query_validate("channel",channel,{"r","g","b","R","G","B"}); 
         if      (channel=="r" || channel=="R") value.channel = Channel::R;
         else if (channel=="g" || channel=="G") value.channel = Channel::G;
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
@@ -214,10 +213,14 @@ public:
 
         value.min = (Set::Scalar) value.bmp.min()[value.channel];
         value.max = (Set::Scalar) value.bmp.max()[value.channel];
-        pp_query_default("min",value.min,0.0); // Scaling value - minimum
-        pp_query_default("max",value.max,255.0); // Scaling value - maximum
+        pp.query_default("min",value.min,0.0); // Scaling value - minimum
+        pp.query_default("max",value.max,255.0); // Scaling value - maximum
 
         value.scaling_factor = value.unit.normalized_value();
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        value.bmp.Define(filename);
 }    
 };
 }

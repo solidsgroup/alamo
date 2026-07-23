@@ -63,7 +63,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             // Initial condition for psi field
-            pp.select<IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,value.geom);
+            pp.select<IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
 
             value.bc_psi = new BC::Constant(1, pp, "psi.bc");
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);

@@ -95,6 +95,9 @@ private:
 public:
     static void Parse(Ellipse & value, IO::ParmParse & pp)
     {
+        // this Parser is going to require a lot of work to bring into compliance, so skip for now.
+        if (IO::ParmParse::InTraversalMode()) return;
+
         amrex::Vector<Set::Scalar> x0;
         if(!(pp.contains("number_of_inclusions")))
         {
