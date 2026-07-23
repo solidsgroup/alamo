@@ -133,6 +133,10 @@ int main (int argc, char* argv[])
             Test::Solver::Nonlocal::LineSearchResidualAcceptance());
         subfailed += Util::Test::SubMessage("Newton termination decision",
             Test::Solver::Nonlocal::NewtonTerminationDecision());
+        subfailed += Util::Test::SubMessage("conservative nodal stress reconstruction",
+            Test::Solver::Nonlocal::ConservativeNodalStressReconstruction());
+        subfailed += Util::Test::SubMessage("symmetry nodal stress reconstruction",
+            Test::Solver::Nonlocal::SymmetryNodalStressReconstruction());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

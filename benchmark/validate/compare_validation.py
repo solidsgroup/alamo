@@ -77,6 +77,32 @@ def discover_cases(bundle_dir: Path) -> list[str]:
     )
 
 
+def check_manifest_compatibility(reference: Path, candidate: Path) -> None:
+    """Reject A/B bundles whose execution/oracle identity is not comparable."""
+    rp, cp = reference / "manifest.json", candidate / "manifest.json"
+    if not rp.is_file() or not cp.is_file():
+        raise SystemExit(f"manifest.json required in both bundles: {rp}, {cp}")
+    a, b = json.loads(rp.read_text()), json.loads(cp.read_text())
+    required = ("host", "device", "profile", "gpu_name", "gpu_uuid", "driver_version", "cuda_compute_cap", "build_flags", "oracle_scripts")
+    for key in required:
+        if a.get(key) in (None, "") or b.get(key) in (None, ""):
+            raise SystemExit(f"manifest identity field missing/null: {key}")
+    mismatches = []
+    for key in required:
+        if a.get(key) != b.get(key):
+            mismatches.append(key)
+    # Per-case inputs and overrides are part of the command identity.
+    def case_identity(m):
+        return [(c.get("id"), c.get("input"), c.get("input_sha256"), c.get("overrides"), c.get("overrides_sha256"),
+                 c.get("command_shape"), c.get("max_step"), c.get("np")) for c in m.get("cases", [])]
+    if case_identity(a) != case_identity(b):
+        mismatches.append("case_inputs_overrides")
+    if a.get("command_shape") != b.get("command_shape"):
+        mismatches.append("command_shape")
+    if mismatches:
+        raise SystemExit("incompatible validation manifests: " + ", ".join(mismatches))
+
+
 # ---------------------------------------------------------------------------
 # Per-class comparison
 # ---------------------------------------------------------------------------
@@ -385,7 +411,9 @@ def render_markdown(report: dict[str, Any], reference: Path, candidate: Path) ->
 
 
 def run_compare(budget_path: Path, reference: Path, candidate: Path,
-                 cases: list[str] | None) -> dict[str, Any]:
+                 cases: list[str] | None, require_compatible_manifest: bool = False) -> dict[str, Any]:
+    if require_compatible_manifest:
+        check_manifest_compatibility(reference, candidate)
     budget = load_budget(budget_path)
     ref_cases = set(discover_cases(reference))
     cand_cases = set(discover_cases(candidate))
@@ -485,10 +513,32 @@ def selftest() -> int:
         good_report = run_compare(budget_path, reference, good, None)
         bad_report = run_compare(budget_path, reference, bad, None)
 
+        # Manifest preflight: one valid pair passes; each identity mismatch is rejected.
+        base_manifest = {"host": "host", "device": "a1000_sm86_strict", "profile": "gpu_strict",
+                         "gpu_name": "A1000", "gpu_uuid": "GPU-1", "driver_version": "1",
+                         "cuda_compute_cap": "8.6", "build_flags": "flags",
+                         "oracle_scripts": {"extract": "abc"}, "command_shape": {"launcher": ["mpiexec"], "profile": "gpu_strict"},
+                         "cases": [{"id": "case1", "input": "input", "input_sha256": "i", "overrides_sha256": "o", "max_step": 1, "np": 1}]}
+        (reference / "manifest.json").write_text(json.dumps(base_manifest))
+        (good / "manifest.json").write_text(json.dumps(base_manifest))
+        check_manifest_compatibility(reference, good)
+        ok = True
+        for key, value in (("device", "other"), ("profile", "gpu_fast"),
+                           ("oracle_scripts", {"extract": "different"}),
+                           ("cases", [{"id": "case1", "input": "other", "input_sha256": "i", "overrides_sha256": "o", "max_step": 1, "np": 1}])):
+            altered = dict(base_manifest)
+            altered[key] = value
+            (bad / "manifest.json").write_text(json.dumps(altered))
+            try:
+                check_manifest_compatibility(reference, bad)
+                print(f"FAIL: manifest mismatch {key} was accepted", file=sys.stderr)
+                ok = False
+            except SystemExit:
+                pass
+
         def _row(report: dict[str, Any], name: str) -> dict[str, Any]:
             return next(r for r in report["cases"]["case1"]["correctness"] if r["name"] == name)
 
-        ok = True
         if good_report["overall_verdict"] != "PASS":
             print(f"FAIL: expected good bundle to PASS, got {good_report['overall_verdict']}", file=sys.stderr)
             ok = False
@@ -534,6 +584,8 @@ def main() -> int:
     parser.add_argument("--case", action="append", default=[], help="restrict to specific case id(s)")
     parser.add_argument("--gate", action="store_true",
                          help="exit non-zero on any ENGINEERING regression too, not just CORRECTNESS")
+    parser.add_argument("--require-compatible-manifest", action="store_true",
+                        help="reject bundles with different device/profile/input/oracle identity")
     parser.add_argument("--out-md", type=Path, default=None)
     parser.add_argument("--out-json", type=Path, default=None)
     parser.add_argument("--quiet", action="store_true")
@@ -547,7 +599,8 @@ def main() -> int:
     if args.reference is None or args.candidate is None:
         parser.error("reference and candidate bundle directories are required (unless --selftest)")
 
-    report = run_compare(args.budget, args.reference, args.candidate, args.case or None)
+    report = run_compare(args.budget, args.reference, args.candidate, args.case or None,
+                         args.require_compatible_manifest)
 
     md = render_markdown(report, args.reference, args.candidate)
     out_md = args.out_md or (args.candidate / "compare_report.md")

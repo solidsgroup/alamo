@@ -12,7 +12,9 @@ auto-detecting script") for why the entry points themselves are not merged.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -38,7 +40,7 @@ def sh(cmd: list[str]) -> str:
 
 def git_sha() -> str:
     try:
-        return sh(["git", "rev-parse", "--short", "HEAD"])
+        return sh(["git", "rev-parse", "HEAD"])
     except subprocess.SubprocessError:
         return "nogit"
 
@@ -61,6 +63,23 @@ def nvidia_smi_field(query: str) -> str:
 def cuda_arch() -> str:
     cc = nvidia_smi_field("compute_cap")
     return cc.replace(".", "").replace(" ", "")
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def scoped_source_hash() -> str:
+    paths = ["src/Operator/Elastic.cpp", "src/Operator/Elastic.H", "src/Set/Matrix4_Major.H"]
+    try:
+        out = subprocess.check_output(["git", "diff", "HEAD", "--binary", "--", *paths], cwd=ROOT)
+    except (subprocess.SubprocessError, OSError):
+        return "unavailable"
+    return hashlib.sha256(out).hexdigest()
 
 
 def find_binary(pattern: str) -> Path | None:
@@ -106,10 +125,12 @@ def run_case(case: dict[str, Any], profile: str, binary: Path, case_dir: Path, n
         *case["overrides"],
         f"plot_file={plot_dir}",
     ]
+    (case_dir / "command.json").write_text(json.dumps({"argv": cmd, "overrides": case["overrides"]}, indent=2), encoding="utf-8")
     with log_path.open("w", encoding="utf-8") as log:
         log.write(f"# command: {' '.join(cmd)}\n")
         log.flush()
         completed = subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, text=True)
+    case["_executed_argv"] = cmd
 
     if completed.returncode != 0:
         print(f"ERROR: {case['id']}/{profile} failed (exit {completed.returncode}); see {log_path}",
@@ -159,6 +180,7 @@ def write_manifest(bundle_dir: Path, profile: str, dev_tag: str, host: str,
         "gpu_name": nvidia_smi_field("name") or None,
         "cuda_compute_cap": nvidia_smi_field("compute_cap") or None,
         "driver_version": nvidia_smi_field("driver_version") or None,
+        "gpu_uuid": nvidia_smi_field("uuid") or None,
         "cases": cases_run,
     }
     if extra:
@@ -174,7 +196,9 @@ def run_all(*, profiles: list[str], cases: list[dict[str, Any]], arch: str, host
             runs_dir: Path, budget_path: Path, device_tag_fn: Callable[[str, str], str],
             launch_builder: LaunchBuilder, label: str, manifest_extra: dict[str, Any] | None = None,
             binary_finder: Callable[[str, int, str], Path | None] = binary_for_profile,
-            np_resolver: Callable[[dict[str, Any], str], int] = default_np_resolver) -> int:
+            np_resolver: Callable[[dict[str, Any], str], int] = default_np_resolver,
+            exact_binary: Path | None = None, exact_bundle_dir: Path | None = None,
+            manifest_path: Path = DEFAULT_MANIFEST) -> int:
     """Shared per-profile/per-case loop. Returns process exit code (0 ok, 1 any failure).
 
     `binary_finder`/`np_resolver` default to the local-machine conventions
@@ -190,21 +214,28 @@ def run_all(*, profiles: list[str], cases: list[dict[str, Any]], arch: str, host
     any_failure = False
     for profile in profiles:
         dev_tag = device_tag_fn(profile, arch)
-        bundle_dir = runs_dir / f"{timestamp}_{sha}_{host}_{dev_tag}"
+        bundle_dir = exact_bundle_dir if exact_bundle_dir is not None else runs_dir / f"{timestamp}_{sha}_{host}_{dev_tag}"
+        if not bundle_dir.is_absolute():
+            raise ValueError(f"bundle directory must be absolute: {bundle_dir}")
+        if exact_bundle_dir is not None and bundle_dir.exists():
+            raise FileExistsError(f"refusing to reuse existing bundle directory: {bundle_dir}")
         bundle_dir.mkdir(parents=True, exist_ok=True)
         print(f"\n--- profile={profile} -> {bundle_dir} ---")
 
         cases_run = []
         for case in cases:
-            binary = binary_finder(profile, case["dim"], arch)
+            binary = exact_binary if exact_binary is not None else binary_finder(profile, case["dim"], arch)
             if binary is None:
                 print(f"WARNING: no binary for profile={profile} dim={case['dim']}d, "
                       f"skipping case {case['id']}", file=sys.stderr)
                 any_failure = True
                 continue
+            binary = binary.resolve()
+            if not binary.is_file() or not os.access(binary, os.X_OK):
+                raise FileNotFoundError(f"binary is not executable: {binary}")
             np = np_resolver(case, profile)
             case_dir = bundle_dir / case["id"]
-            print(f"  case={case['id']} bin={binary.relative_to(ROOT)} np={np}")
+            print(f"  case={case['id']} bin={binary} np={np}")
             ok = run_case(case, profile, binary, case_dir, np, launch_builder)
             if not ok:
                 any_failure = True
@@ -213,9 +244,31 @@ def run_all(*, profiles: list[str], cases: list[dict[str, Any]], arch: str, host
             cases_run.append({
                 "id": case["id"], "input": case["input"], "dim": case["dim"],
                 "max_step": case["max_step"], "np": np,
+                "input_sha256": sha256_file(ROOT / case["input"]) if (ROOT / case["input"]).is_file() else None,
+                "overrides": case["overrides"],
+                "overrides_sha256": hashlib.sha256("\n".join(case["overrides"]).encode()).hexdigest(),
+                "command_shape": ["<launcher>", "<binary>", case["input"], f"max_step={case['max_step']}", *case["overrides"], "plot_file=<output>"],
+                "executed_argv": case.get("_executed_argv"),
             })
 
-        write_manifest(bundle_dir, profile, dev_tag, host, cases_run, manifest_extra)
+        exemplar = exact_binary.resolve() if exact_binary is not None else (binary if cases_run else None)
+        identity = {
+            "binary_path": str(exemplar) if exemplar else None,
+            "binary_sha256": sha256_file(exemplar) if exemplar else None,
+            "git_head": git_sha(),
+            "scoped_source_diff_sha256": scoped_source_hash(),
+            "build_command": os.environ.get("BUILD_COMMAND"),
+            "build_flags": os.environ.get("BUILD_FLAGS"),
+            "command_shape": {"launcher": launch_builder(profile, 1), "profile": profile},
+            "oracle_scripts": {
+                str(p.relative_to(ROOT)): sha256_file(p) for p in (
+                    manifest_path, budget_path, VALIDATE_DIR / "extract_metrics.py",
+                    VALIDATE_DIR / "compare_validation.py", VALIDATE_DIR / "validation_common.py",
+                    VALIDATE_DIR / "run_validation_local.py", ROOT / "tests/ElasticSoftVoid/test") if p.exists()
+            },
+        }
+        identity.update(manifest_extra or {})
+        write_manifest(bundle_dir, profile, dev_tag, host, cases_run, identity)
         print(f"  wrote bundle {bundle_dir}")
 
     print(f"\ndone. bundles under {runs_dir}/{timestamp}_{sha}_{host}_*")

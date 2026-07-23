@@ -17,7 +17,19 @@ lands.
 
 ## Next 3 tasks
 
-1. **3.2 / v3 task 3.F — Launch-bounds sweep on `Fapply`/`Diagonal`.**
+1. **3.3 — FApply runtime follow-on. DONE 2026-07-22.**
+   Retain configuration-only 2/2 pre/post smoothing: on A1000 it reduced
+   external wall by 12.8%/21.0% and MLMG solve by 24.0%/23.4% in the frozen
+   2D-conservative/3D-psi two-step cases. Step 3 conservative specialization
+   and Step 4 sequential Cgrad were measured and reverted; psi caching failed
+   the memory gate; the target case already has one FApply launch per call, so
+   multi-box launch fusion was not justified. Fresh review is clear. Evidence:
+   `docs/agent_plans/20260721-fapply-runtime-optimization/results/RESULT.md`.
+   NOVA/A100 confirmed the retained configuration: external wall -16.56%, MLMG
+   solve -22.54%, and FApply -23.30%, with physics gate PASS. No source change
+   is retained; the claim remains limited to the frozen two-step horizon.
+
+2. **3.2 / v3 task 3.F — Launch-bounds sweep on `Fapply`/`Diagonal`.**
    Sweep `__launch_bounds__(256, {1,2,3,4})` on the elastic kernels on A100:
    wall/step + ncu achieved-occupancy + budget gate per point. Rationale:
    occupancy stayed flat (~12%) through both 3.1 and 3.2b — still 1 block/SM.
@@ -30,7 +42,7 @@ lands.
    at min_blocks>=2 (128-reg cap vs 254 live). REMAINING: A100 wall/ncu sweep
    (4 arms) + verdict + merge.
 
-2. **3.2b / v3 task 3.D — Fapply/Diagonal kernel surgery. DONE 2026-07-13.**
+3. **3.2b / v3 task 3.D — Fapply/Diagonal kernel surgery. DONE 2026-07-13.**
    Merged to chamber-gpu (cc520b4f8) after A100 judgment PASS
    (docs/agent_plans/20260713-fapply-322b-a100/): Fapply exclusive wall
    -14.5% (299.0->255.7 s), MLMG::solve -10.6%, Fapply/launch -22-23%,

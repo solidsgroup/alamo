@@ -1,8 +1,23 @@
+# =====================================================================
+# Cross-section sweep 2026-07-07  --  geometry: rod_and_tube (QUARTER)
+# =====================================================================
+# rod_and_tube is run as a QUARTER-symmetry domain: the full annulus has a
+# disconnected inner rod that is fully floating under all-disp confinement,
+# which detonates the masked high-contrast MLMG solve. The quarter domain
+# anchors the rod on the two centerline symmetry planes (xhi, ylo) via the
+# proven rod_and_tube_quarter BCs (elastic disp/trac, pf/thermal neumann),
+# stabilizing the solve at the sweep moduli (void 4.5/3.0) WITHOUT changing
+# psi_floor or the solver recipe. dx is identical to the other four decks
+# (0.0877/32 = 0.1754/64). Throat area is 1/4 (At=2.125e-4) so chamber
+# pressure matches the full-domain runs; volume/area/mass_flux are 1/4-scale.
+# =====================================================================
+
 alamo.program = flame
-plot_file = output_star_testing_void_stiffness
-amr.plot_dt = 0.01
-#amr.plot_int = 1
-amr.max_level = 3
+plot_file = output_phi_cell_centered_copy
+
+# ---- AMR / domain (top-left quarter of the full 0.1754 m square) -----
+amr.plot_dt = 1.0
+amr.max_level = 2
 amr.nsubsteps = 2
 amr.blocking_factor = 8
 amr.base_regrid_int = 10
@@ -10,169 +25,188 @@ amr.grid_eff = 0.7
 amr.node.all = 1
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 15.0_K
-#amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.2
-amr.n_cell = 64 64 64
+amr.n_cell = 64 64 64   
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
-geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
-geometry.prob_hi = 0.1754_m 0.1754_m 0.1754_m # [m]
+
+geometry.prob_lo = 0.0_m 0.0877_m 0.0_m
+geometry.prob_hi = 0.0877_m 0.1754_m 0.0877_m
 geometry.is_periodic = 0 0 0
 
 system.length = m
 system.time = s
 
-# Timestep and duration
-timestep = 1.0e-4_s
-stop_time = 6.5_s
+# ---- Time -----------------------------------------------------------
+timestep = 2.0e-4_s
+stop_time = 1.0_s   
 
-# Phase field parameters
-pf.eps = 5.0e-5_m
+# ---- Phase field (eta = burn state; phi = fuel-presence mask) --------
+pf.eps = 1.25e-4_m
 pf.lambda = 0.001_J/m^2
-pf.eta.ic.type = bmp
-pf.eta.ic.bmp.filename = star.bmp
-pf.eta.ic.bmp.fit = stretch
-pf.eta.ic.bmp.channel = g
-phi.ic.type = bmp
-phi.ic.bmp.filename = base_circle0.bmp
-phi.ic.bmp.fit = stretch
-phi.ic.bmp.channel = g
 pf.kappa = 1.0_J/m^2
-pf.relax_steps = 0 # Allen-Cahn pre-relax: disabled (BMP IC gives correct interface width at fine level)
+pf.relax_steps = 0
 pf.w1 = 1.0_1
 pf.w12 = 2.0_1
 pf.w0 = 0.0_1
 small = 1E-4
 
-# Eta boundary condition
+# eta = rod_and_tube (double_circle) grain; fit=coord maps the FULL bmp to
+# the full-domain coordinates, so this quarter samples the top-left quadrant.
+pf.eta.ic.type = bmp
+pf.eta.ic.bmp.filename = blur5_rod_and_tube.bmp
+pf.eta.ic.bmp.fit = coord
+pf.eta.ic.bmp.coord.lo = 0.0 0.0
+pf.eta.ic.bmp.coord.hi = 0.1754 0.1754
+pf.eta.ic.bmp.channel = g
+pf.eta.ic.bmp.min = 0
+pf.eta.ic.bmp.max = 255
+
+phi.ic.type = bmp
+phi.ic.bmp.filename = base_circle0.bmp
+phi.ic.bmp.fit = coord
+phi.ic.bmp.coord.lo = 0.0 0.0
+phi.ic.bmp.coord.hi = 0.1754 0.1754
+phi.ic.bmp.channel = g
+phi.ic.bmp.min = 0
+phi.ic.bmp.max = 255
+
+# eta BCs: outer edges (xlo, yhi) solid dirichlet; symmetry planes
+# (xhi=vertical centerline, ylo=horizontal centerline) neumann.
 pf.eta.bc.type = constant
 pf.eta.bc.constant.type.xlo = dirichlet
-pf.eta.bc.constant.type.xhi = dirichlet
-pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
 pf.eta.bc.constant.type.yhi = dirichlet
 pf.eta.bc.constant.val.xlo = 1.0
-pf.eta.bc.constant.val.xhi = 1.0
-pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 1.0
 
+# ---- Propellant (homogenized) ---------------------------------------
 propellant.type = homogenize
-
-propellant.homogenize.dispersion1 = 0.025_W/m/K # k_gas (air-like); alpha_gas=0.025/1200=2e-5 m²/s satisfies thermal CFL on all levels
-propellant.homogenize.dispersion2 = 1.2_kg/m^3   # rho_gas (air-like density)
-propellant.homogenize.dispersion3 = 1000_J/kg/K  # cp_gas (air-like heat capacity)
-
-# h1=0: removes pressure-dependent heat flux (stable by construction with n=0.373<1)
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
 propellant.homogenize.h1 = 1.5e6_W/m^2
 propellant.homogenize.h2 = 8.0e6_W/m^2
-
-propellant.homogenize.P_reference = 1_MPa
-
-propellant.homogenize.rho_prop = 1745.0_kg/m^3 # density
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
 propellant.homogenize.k_prop = 1.5_W/m/K
-propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
 propellant.homogenize.m_prop = 8000_cm/s
-propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s # [???] kg/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
 propellant.homogenize.E_prop = 3500.0_K
-propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
+propellant.homogenize.mob_prop = true
 propellant.homogenize.pressure_exponent = 0.372531
 propellant.homogenize.bound = 0_K
 propellant.homogenize.bound_width = 50_K
 
+# ---- Thermal (symmetry neumann on xhi, ylo; dirichlet 300 outer) -----
 thermal.on = 1
-thermal.Tref = 300 #[K]
-thermal.Tfluid = 300 #[K] (matches grain IC to prevent cold-start thermal spike)
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.hc = 1.0
 thermal.temp.bc.type = constant
 thermal.temp.bc.constant.type.xlo = dirichlet
-thermal.temp.bc.constant.type.xhi = dirichlet
-thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
 thermal.temp.bc.constant.type.yhi = dirichlet
-
 thermal.temp.bc.constant.val.xlo = 300_K
-thermal.temp.bc.constant.val.xhi = 300_K
-thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
 thermal.temp.bc.constant.val.yhi = 300_K
 
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
 
-# Temperature initial conditions
-temp.ic.type="constant"
-temp.ic.constant.value=300_K #[K]
-
-# Laser source term
+# Ignition laser (first 25 ms)
 laser.ic.type = expression
 laser.ic.expression.region0 = "(t < 0.025) * (150000000)"
-thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
-
-
-
-# Pressure
+# ---- Chamber pressure (ballistic) -----------------------------------
+# At scaled to 1/4 of the full 8.5e-4 to match quarter burn area -> the
+# chamber pressure trace matches the full-domain runs.
 variable_pressure = 1
-chamber.pressure = 0.101325_MPa # Initial pressure
-chamber.ballistic.At = 8.5e-4_m^2
-chamber.ballistic.T0 = 3200_K # [?] K
-chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
+chamber.pressure = 0.101325_MPa
+chamber.ballistic.At = 2.25e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
 chamber.ballistic.gamma = 1.25
 chamber.ballistic.pressure = 4.0e6_Pa
 
-# Thermoelasticity
-elastic.on = 0
-
-# Warm-start: keep the previous step's displacement as the initial guess (0 = warm,
-# 1 = cold-start from zero). Warm-start gives small Newton corrections as the grain
-# burns back, which keeps the solve robust on evolving complex geometry.
-elastic.zero_out_displacement = 0
-
-elastic.type = disable
-elastic.interval = 50
+# ---- Thermoelasticity (SWEEP recipe; only the BCs are quarter) -------
+elastic.on = 1
+elastic.type = static
+elastic.interval = 100
 elastic.tstart = 0.5e-4
 elastic.phirefinement = 100
+elastic.elastic_ref_threshold = 0.01
 elastic.print_model = 1
-# Conditioning of the masked elastic operator on thin/complex grain features:
-# psi_floor keeps the gas-region operator non-singular (gas stress is ignored).
-elastic.use_psi = 1
-elastic.psi_floor = 0.05
-# Tolerance-based MLMG (replaces fixed_iter) with extra smoothing for the
-# high-contrast, spatially-varying stiffness field.
+
+elastic.use_psi = 0
+elastic.psi_floor = 0.01
+elastic.zero_out_displacement = 1
+elastic.max_coarsening_level = 2
+elastic.tol_rel = 2e-5
+elastic.tol_abs = 1e-8
+
 elastic.solver.max_iter = 1000
 elastic.solver.pre_smooth = 4
 elastic.solver.post_smooth = 4
 elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1e-5
-elastic.solver.verbose = 4
+elastic.solver.line_search = 1
+elastic.solver.resync_coeffs = 1
+elastic.solver.bottom_solver = smoother
+elastic.solver.nr_convergence = update
+elastic.solver.nr_diagnostics = 1
+elastic.solver.verbose = 1
 
+elastic.plot_disp = 1
+elastic.plot_psi = 1
+elastic.plot_strain = 1
+elastic.plot_stress = 1
+elastic.plot_rhs = 1
 
 elastic.traction = 1.0_MPa
-# Set the interface traction dynamically from the evolving chamber pressure
-# (elastic.traction above is then ignored)
 elastic.traction_from_chamber = 1
 
-
+# ---- Elastic material models (SWEEP moduli, unchanged) --------------
 model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
 model_prop.kappa = 162_MPa
 model_prop.mu = 113.6_MPa
 
 model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-model_void.kappa = 20_MPa
-model_void.mu = 20_MPa
+model_void.kappa = 0.5_MPa   
+model_void.mu = 0.5_MPa   
 
-# Stiff casing: fills the phi=0 region outside the fuel disk to provide
-# cylindrical confinement (and a rigid skeleton that conditions the operator).
 model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
-model_casing.kappa = 5_GPa
-model_casing.mu = 2_GPa
+model_casing.kappa = 70_GPa   
+model_casing.mu = 26_GPa   
 
+# ---- Elastic BCs (rod_and_tube_quarter recipe) ----------------------
+# Outer casing edges (xlo, yhi) fully clamped; symmetry planes carry the
+# mixed disp/trac condition (normal fixed, tangential traction-free).
 elastic.bc.type = constant
-
-elastic.bc.type = constant
-
-elastic.bc.constant.type.xhi = disp disp
 elastic.bc.constant.type.xlo = disp disp
-elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.xhi = disp trac
+elastic.bc.constant.type.ylo = trac disp
 elastic.bc.constant.type.yhi = disp disp
-elastic.bc.constant.type.xloyhi = disp disp
 elastic.bc.constant.type.xloylo = disp disp
-elastic.bc.constant.type.xhiyhi = disp disp
+elastic.bc.constant.type.xloyhi = disp disp
 elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xhiyhi = disp disp
 
-
-
+# ---- Cell-centered phi experiment -----------------------------------
+# Match eta's centering path for elastic model mixing.
+phi.cell_centered_mixing = 1
+phi.bc.type = constant
+phi.bc.constant.type.xlo = dirichlet
+phi.bc.constant.type.xhi = neumann
+phi.bc.constant.type.ylo = neumann
+phi.bc.constant.type.yhi = dirichlet
+phi.bc.constant.val.xlo = 0.0
+phi.bc.constant.val.xhi = 0.0
+phi.bc.constant.val.ylo = 0.0
+phi.bc.constant.val.yhi = 0.0

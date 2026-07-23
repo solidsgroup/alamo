@@ -22,6 +22,17 @@ BUILD_JOBS="${BUILD_JOBS:-$(nproc 2>/dev/null || echo 8)}"
 INPUT="${INPUT:-input_nova_centre_bore}"
 SMOKE="${SMOKE:-1}"
 MAX_STEP="${MAX_STEP:-1}"
+OUTPUT_BINARY="${OUTPUT_BINARY:-}"
+SOURCE_BINARY="${SOURCE_BINARY:-}"
+if [ -z "${SOURCE_BINARY}" ]; then echo "SOURCE_BINARY is required" >&2; exit 1; fi
+BUILD_MARKER=""
+for p in "${SOURCE_BINARY}" "${OUTPUT_BINARY}"; do
+  if [ -n "${p}" ]; then case "${p}" in /*) ;; *) echo "binary paths must be absolute" >&2; exit 1;; esac; fi
+done
+if [ -n "${OUTPUT_BINARY}" ] && [ -e "${OUTPUT_BINARY}" ]; then echo "OUTPUT_BINARY already exists" >&2; exit 1; fi
+if [ -n "${SOURCE_BINARY}" ]; then BUILD_MARKER="$(mktemp)"; fi
+PRE_BUILD_STAT="$(stat -c '%s:%Y:%i' "${SOURCE_BINARY}" 2>/dev/null || true)"
+trap 'rm -f "${BUILD_MARKER}"' EXIT
 
 if ! command -v nvidia-smi >/dev/null 2>&1; then
   echo "nvidia-smi not found; pass ARCH explicitly, e.g. ARCH=86 $0" >&2
@@ -50,13 +61,35 @@ echo "nvcc:  $(command -v nvcc || echo '<not found>')"
 ./configure "${CONFIG_FLAGS[@]}"
 make -j"${BUILD_JOBS}"
 
-GPU_BIN="$(ls -t bin/alamo_gpu-${DIM}d*cuda${ARCH}*-${COMP} 2>/dev/null | head -1 || true)"
-if [ -z "${GPU_BIN}" ]; then
-  echo "Build finished, but no matching bin/alamo_gpu-${DIM}d*cuda${ARCH}*-${COMP} was found." >&2
+if [ -z "${SOURCE_BINARY}" ]; then
+  echo "Set SOURCE_BINARY to the exact executable emitted by this build; refusing wildcard/latest selection." >&2
   exit 1
+fi
+GPU_BIN="${SOURCE_BINARY}"
+case "${GPU_BIN}" in /*) ;; *) echo "SOURCE_BINARY must be absolute" >&2; exit 1;; esac
+if [ ! -x "${GPU_BIN}" ]; then
+  echo "SOURCE_BINARY is not an executable: ${GPU_BIN}" >&2
+  exit 1
+fi
+POST_BUILD_STAT="$(stat -c '%s:%Y:%i' "${GPU_BIN}" 2>/dev/null || true)"
+if [ -n "${BUILD_MARKER}" ] && { [ ! "${GPU_BIN}" -nt "${BUILD_MARKER}" ] || [ "${PRE_BUILD_STAT}" = "${POST_BUILD_STAT}" ]; }; then
+  echo "SOURCE_BINARY was not emitted/relinked by this invocation" >&2; exit 1
+fi
+
+if [ -n "${OUTPUT_BINARY}" ]; then
+  case "${OUTPUT_BINARY}" in /*) ;; *) echo "OUTPUT_BINARY must be absolute" >&2; exit 1;; esac
+  if [ -e "${OUTPUT_BINARY}" ]; then
+    echo "OUTPUT_BINARY already exists; refusing overwrite" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "${OUTPUT_BINARY}")"
+  cp --reflink=auto "${GPU_BIN}" "${OUTPUT_BINARY}"
+  chmod +x "${OUTPUT_BINARY}"
+  GPU_BIN="${OUTPUT_BINARY}"
 fi
 
 echo "binary: ${GPU_BIN}"
+echo "binary_sha256: $(sha256sum "${GPU_BIN}" | awk '{print $1}')"
 
 if [ "${SMOKE}" = "1" ]; then
   OUT="output_local_cuda_smoke_sm${ARCH}"

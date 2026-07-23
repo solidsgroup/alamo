@@ -118,6 +118,179 @@ FaceStress(const amrex::Array4<const T>& model,
         FaceKinematicVariable(model, u, i, j, k, face, dx));
 }
 
+/// Reconstruct a nodal stress tensor from the conservative face tractions.
+/// Each tensor column is the average of the matching low/high face-traction
+/// columns, so its divergence uses the same directional fluxes as the solve.
+template <typename T, typename U>
+[[nodiscard]]
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Set::Matrix
+NodalStressFromFaces(const amrex::Array4<const T>& model,
+                     const U& u,
+                     const int i, const int j, const int k,
+                     const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix ret = Set::Matrix::Zero();
+    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+    {
+        const int im = i - (face == 0);
+        const int jm = j - (face == 1);
+        const int km = k - (face == 2);
+        const Set::Matrix hi = FaceStress(model, u, i, j, k, face, dx);
+        const Set::Matrix lo = FaceStress(model, u, im, jm, km, face, dx);
+        ret.col(face) = 0.5 * (lo.col(face) + hi.col(face));
+    }
+    return ret;
+}
+
+/// Even extension of a material model through explicitly selected symmetry
+/// planes. Material parameters do not change sign under reflection.
+template <typename T>
+struct SymmetryModelExtension
+{
+    amrex::Array4<const T> model;
+    amrex::Dim3 lo, hi;
+    amrex::GpuArray<int, AMREX_SPACEDIM> symmetry_lo;
+    amrex::GpuArray<int, AMREX_SPACEDIM> symmetry_hi;
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    T operator()(int i, int j, int k) const
+    {
+        AMREX_D_TERM(
+            if (symmetry_lo[0] && i < lo.x) i = 2 * lo.x - i;
+            if (symmetry_hi[0] && i > hi.x) i = 2 * hi.x - i;,
+            if (symmetry_lo[1] && j < lo.y) j = 2 * lo.y - j;
+            if (symmetry_hi[1] && j > hi.y) j = 2 * hi.y - j;,
+            if (symmetry_lo[2] && k < lo.z) k = 2 * lo.z - k;
+            if (symmetry_hi[2] && k > hi.z) k = 2 * hi.z - k;);
+        return model(i, j, k);
+    }
+};
+
+/// Symmetry extension of displacement: the component normal to each reflected
+/// plane is odd, while tangential components are even.
+struct SymmetryDisplacementExtension
+{
+    amrex::Array4<const Set::Vector> displacement;
+    amrex::Dim3 lo, hi;
+    amrex::GpuArray<int, AMREX_SPACEDIM> symmetry_lo;
+    amrex::GpuArray<int, AMREX_SPACEDIM> symmetry_hi;
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    Set::Vector operator()(int i, int j, int k) const
+    {
+        amrex::GpuArray<int, AMREX_SPACEDIM> reflected{};
+        AMREX_D_TERM(
+            if (symmetry_lo[0] && i < lo.x) { i = 2 * lo.x - i; reflected[0] = 1; }
+            if (symmetry_hi[0] && i > hi.x) { i = 2 * hi.x - i; reflected[0] = 1; },
+            if (symmetry_lo[1] && j < lo.y) { j = 2 * lo.y - j; reflected[1] = 1; }
+            if (symmetry_hi[1] && j > hi.y) { j = 2 * hi.y - j; reflected[1] = 1; },
+            if (symmetry_lo[2] && k < lo.z) { k = 2 * lo.z - k; reflected[2] = 1; }
+            if (symmetry_hi[2] && k > hi.z) { k = 2 * hi.z - k; reflected[2] = 1; });
+        Set::Vector ret = displacement(i, j, k);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            if (reflected[d]) ret(d) = -ret(d);
+        return ret;
+    }
+};
+
+[[nodiscard]]
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Set::Matrix
+SymmetryFaceGradient(const SymmetryDisplacementExtension& displacement,
+                     const int i, const int j, const int k, const int face,
+                     const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix ret = Set::Matrix::Zero();
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
+    ret.col(face) =
+        (displacement(ip, jp, kp) - displacement(i, j, k)) / dx[face];
+#if AMREX_SPACEDIM > 1
+    if (face != 0)
+        ret.col(0) = (displacement(i + 1, j, k) - displacement(i - 1, j, k)
+                    + displacement(ip + 1, jp, kp) - displacement(ip - 1, jp, kp))
+                   / (4.0 * dx[0]);
+    if (face != 1)
+        ret.col(1) = (displacement(i, j + 1, k) - displacement(i, j - 1, k)
+                    + displacement(ip, jp + 1, kp) - displacement(ip, jp - 1, kp))
+                   / (4.0 * dx[1]);
+#endif
+#if AMREX_SPACEDIM > 2
+    if (face != 2)
+        ret.col(2) = (displacement(i, j, k + 1) - displacement(i, j, k - 1)
+                    + displacement(ip, jp, kp + 1) - displacement(ip, jp, kp - 1))
+                   / (4.0 * dx[2]);
+#endif
+    return ret;
+}
+
+template <typename T>
+[[nodiscard]]
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Set::Matrix
+SymmetryFaceStress(const SymmetryModelExtension<T>& model,
+                   const SymmetryDisplacementExtension& displacement,
+                   const int i, const int j, const int k, const int face,
+                   const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
+    const T face_model = 0.5 * (model(i, j, k) + model(ip, jp, kp));
+    const Set::Matrix gradu =
+        SymmetryFaceGradient(displacement, i, j, k, face, dx);
+    if (face_model.kinvar == Model::Solid::KinematicVariable::gradu)
+        return face_model.DW(gradu);
+    if (face_model.kinvar == Model::Solid::KinematicVariable::epsilon)
+        return face_model.DW(0.5 * (gradu + gradu.transpose()));
+    if (face_model.kinvar == Model::Solid::KinematicVariable::F)
+        return face_model.DW(gradu + Set::Matrix::Identity());
+    return Set::Matrix::Zero();
+}
+
+/// Reconstruct stress on a physical symmetry plane by reflecting model and
+/// displacement, then applying the identical centered face reconstruction
+/// used in the domain interior.
+template <typename T>
+[[nodiscard]]
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Set::Matrix
+NodalStressFromSymmetryFaces(
+    const amrex::Array4<const T>& model,
+    const amrex::Array4<const Set::Vector>& displacement,
+    const int i, const int j, const int k,
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    const amrex::Dim3 lo, const amrex::Dim3 hi,
+    const amrex::GpuArray<int, AMREX_SPACEDIM>& symmetry_lo,
+    const amrex::GpuArray<int, AMREX_SPACEDIM>& symmetry_hi)
+{
+    const SymmetryModelExtension<T> extended_model{
+        model, lo, hi, symmetry_lo, symmetry_hi};
+    const SymmetryDisplacementExtension extended_displacement{
+        displacement, lo, hi, symmetry_lo, symmetry_hi};
+    Set::Matrix ret = Set::Matrix::Zero();
+    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+    {
+        const int im = i - (face == 0);
+        const int jm = j - (face == 1);
+        const int km = k - (face == 2);
+        const Set::Matrix hi_stress = SymmetryFaceStress(
+            extended_model, extended_displacement, i, j, k, face, dx);
+        const Set::Matrix lo_stress = SymmetryFaceStress(
+            extended_model, extended_displacement, im, jm, km, face, dx);
+        ret.col(face) = 0.5 * (lo_stress.col(face) + hi_stress.col(face));
+    }
+    return ret;
+}
+
 template <typename T, typename U>
 [[nodiscard]]
 AMREX_GPU_HOST_DEVICE
@@ -197,6 +370,11 @@ public:
     {
         m_conservative_face_flux = a_enabled;
         if (m_elastic) m_elastic->SetConservativeFaceFlux(a_enabled);
+    }
+
+    [[nodiscard]] bool usesConservativeFaceFlux() const
+    {
+        return m_conservative_face_flux && m_psi == nullptr;
     }
 
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,

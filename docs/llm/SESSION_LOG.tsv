@@ -14,3 +14,13 @@ date	task	model	tier	cost_usd	outcome
 2026-07-17	elastic-recovery-merge	fable-5+haiku	1	n/a	done (merged elastic-void-wip-20260713 into chamber-gpu; re-applied 3.2b MulCol/ddw-hoist + Fsmooth fusion in conflicts)
 2026-07-18	rodtube-gate-recalibration	fable-5	1	n/a	done (golden gate green; honest-resid0 root cause, tol_abs=5000 bracketed, cpu ref regen; verifier CONFIRMED)
 2026-07-18	matrix4-device-annotation	fable-5	2	n/a	done (2-line device annotation; CUDA builds restored, GPU suite 9/9, gate green)
+2026-07-19	ideal-cross-section-sweep	fable	0	bg-session	5/5 PASS t=6.5s Al-casing ideal recipe, ~7h15m np=8
+2026-07-22	rod-tube-resolution-phi-study	GPT-5	1	n/a	done (96/l2 and 128/l1 np=4 runs complete; nodal/face mismatch persists; epsilon-width phi worsens max mismatch 0.211->0.942 MPa)
+2026-07-22	fapply-runtime-step2-smoothing	GPT-5	3	n/a	checkpoint (2/2 passes 2D/3D correctness and contract; solve -24.0%/-23.4%, external -12.8%/-21.0%; human keep/reject pending)
+2026-07-22	fapply-runtime-step3-specialization	GPT-5	2	n/a	rejected (correctness/stability pass; 2D external -2.01% below threshold, 3D external +1.52% regression; isolated source reverted, 2/2 retained)
+2026-07-22	fapply-runtime-step4-cgrad	GPT-5	2	n/a	rejected (REG 254->250 and stack 440->288, but 3D external -0.98%, MLMG solve -0.52%, FApply -0.58%; source reverted)
+2026-07-22	fapply-runtime-local-finalist	GPT-5	3	n/a	local finalist (retain 2/2 only; Step3/4 reverted, psi cache memory-gated, multi-box fusion no launch multiplicity, fresh review clear; NOVA pending)
+2026-07-22	face-consistent-output-stress	GPT-5	2	n/a	done (output-only adjacent-face reconstruction; paired solution fields exactly unchanged; phi mismatch 0.211->0.0207 MPa; full np=4 run reached t=1s)
+2026-07-22	fapply-runtime-a100-closeout	GPT-5	3	n/a	done (retain 2/2 only; A100 wall -16.56%, solve -22.54%, FApply -23.30%; two-step physics gate and fresh review PASS; source experiments reverted)
+2026-07-22	eta-ripple-rootcause	GPT-5	3	n/a	done (H0 affirmed: raw stress balances -p grad eta; corrected planar traction roundoff, radial Nyquist converges order 2.10/2.27; temporary restart hook reverted)
+2026-07-23	phi-radial-stress-aberration	GPT-5	3	n/a	done (post-regrid solve changes native Nyquist <=0.0227%; native and saved profiles monotone with zero overshoot; visible 1.4-1.8 MPa band is a smooth phi/material transition; no source change)

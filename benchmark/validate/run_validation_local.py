@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -55,9 +56,28 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=vc.DEFAULT_MANIFEST)
     parser.add_argument("--budget", type=Path, default=vc.DEFAULT_BUDGET)
     parser.add_argument("--runs-dir", type=Path, default=vc.DEFAULT_RUNS_DIR)
+    parser.add_argument("--binary", type=Path, help="exact absolute executable (required for campaign evidence)")
+    parser.add_argument("--bundle-dir", type=Path, help="exact absolute new bundle directory")
+    parser.add_argument("--build-command")
+    parser.add_argument("--build-flags")
     args = parser.parse_args()
 
+    if args.binary is not None:
+        if not args.binary.is_absolute() or not args.binary.is_file() or not os.access(args.binary, os.X_OK):
+            parser.error("--binary must be an existing absolute executable")
+    if args.bundle_dir is not None:
+        if not args.bundle_dir.is_absolute():
+            parser.error("--bundle-dir must be absolute")
+        if args.bundle_dir.exists():
+            parser.error(f"--bundle-dir already exists: {args.bundle_dir}")
+
     profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
+    if (args.binary is None) != (args.bundle_dir is None):
+        parser.error("--binary and --bundle-dir must be supplied together")
+    if args.binary is not None and (len(profiles) != 1 or args.case is None):
+        parser.error("exact mode requires exactly one profile and --case")
+    if args.binary is not None and (not args.build_command or not args.build_flags):
+        parser.error("exact mode requires --build-command and --build-flags")
     bad = [p for p in profiles if p not in vc.PROFILES]
     if bad:
         parser.error(f"unknown profile(s): {bad}; choose from {vc.PROFILES}")
@@ -71,6 +91,9 @@ def main() -> int:
         profiles=profiles, cases=cases, arch=vc.cuda_arch(), host=vc.hostname(),
         runs_dir=args.runs_dir, budget_path=args.budget, device_tag_fn=device_tag,
         launch_builder=mpiexec_launch, label="local validation",
+        exact_binary=args.binary, exact_bundle_dir=args.bundle_dir,
+        manifest_extra={"build_command": args.build_command, "build_flags": args.build_flags},
+        manifest_path=args.manifest,
     )
 
 

@@ -71,10 +71,23 @@ public:
         pp_query_default("plot_psi", value.plot_psi, true); // Include :math:`\psi` field in output
         pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
         pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
+        AMREX_D_TERM(
+            pp_query_default("output_stress_symmetry.xlo", value.m_output_stress_symmetry_lo[0], 0);
+            pp_query_default("output_stress_symmetry.xhi", value.m_output_stress_symmetry_hi[0], 0);,
+            pp_query_default("output_stress_symmetry.ylo", value.m_output_stress_symmetry_lo[1], 0);
+            pp_query_default("output_stress_symmetry.yhi", value.m_output_stress_symmetry_hi[1], 0);,
+            pp_query_default("output_stress_symmetry.zlo", value.m_output_stress_symmetry_lo[2], 0);
+            pp_query_default("output_stress_symmetry.zhi", value.m_output_stress_symmetry_hi[2], 0););
 
         value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
         value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
-        value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
+        // Keep the constitutive nodal stress as the internal mechanics field.
+        // Conservative solves write a separately derived face-consistent field,
+        // preventing plot semantics from feeding back into material advancement
+        // or integrated-traction diagnostics.
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, false, "stress", value.m_time_evolving);
+        if (value.plot_stress)
+            value.RegisterGeneralFab(value.output_stress_mf, 1, 0, true, "stress", false);
         value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_strain, "strain", value.m_time_evolving);
 
         if (value.m_type == Type::Static)
@@ -157,6 +170,7 @@ public:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
+        if (plot_stress) output_stress_mf[lev]->setVal(Set::Matrix::Zero());
         //disp_old_mf[lev]->setVal(Set::Vector::Zero());
 
         if (m_type == Type::Dynamic)
@@ -224,10 +238,15 @@ public:
         // broader elastic_op lifetime boundary rather than one buffer.
         amrex::Gpu::streamSynchronizeAll();
 
+        const bool use_face_consistent_output = solver.usesConservativeFaceFlux();
+        const auto output_stress_symmetry_lo = m_output_stress_symmetry_lo;
+        const auto output_stress_symmetry_hi = m_output_stress_symmetry_hi;
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
+            const amrex::Dim3 lo = amrex::lbound(domain);
+            const amrex::Dim3 hi = amrex::ubound(domain);
 
             // Device-safe cell size: DX is a Set::Vector copied into the device
             // closure; DX.data() is valid on device (a raw Geom().CellSize()
@@ -260,11 +279,63 @@ public:
                         strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
                     }
                 });
+
+                if (plot_stress)
+                {
+                    const amrex::Box plot_bx = mfi.nodaltilebox() & domain;
+                    amrex::Array4<const MODEL> const& plot_model = model_mf[lev]->const_array(mfi);
+                    amrex::Array4<const Set::Matrix> const& nodal_stress = stress_mf[lev]->const_array(mfi);
+                    amrex::Array4<Set::Matrix> const& output_stress = output_stress_mf[lev]->array(mfi);
+
+                    amrex::ParallelFor(plot_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        const bool on_boundary = AMREX_D_TERM(
+                            i == lo.x || i == hi.x,
+                            || j == lo.y || j == hi.y,
+                            || k == lo.z || k == hi.z);
+                        const bool on_symmetry = AMREX_D_TERM(
+                            (i == lo.x && output_stress_symmetry_lo[0])
+                                || (i == hi.x && output_stress_symmetry_hi[0]),
+                            || (j == lo.y && output_stress_symmetry_lo[1])
+                                || (j == hi.y && output_stress_symmetry_hi[1]),
+                            || (k == lo.z && output_stress_symmetry_lo[2])
+                                || (k == hi.z && output_stress_symmetry_hi[2]));
+                        const bool on_non_symmetry_boundary = AMREX_D_TERM(
+                            (i == lo.x && !output_stress_symmetry_lo[0])
+                                || (i == hi.x && !output_stress_symmetry_hi[0]),
+                            || (j == lo.y && !output_stress_symmetry_lo[1])
+                                || (j == hi.y && !output_stress_symmetry_hi[1]),
+                            || (k == lo.z && !output_stress_symmetry_lo[2])
+                                || (k == hi.z && !output_stress_symmetry_hi[2]));
+                        if (use_face_consistent_output
+                            && (!on_boundary || (on_symmetry && !on_non_symmetry_boundary)))
+                        {
+                            output_stress(i, j, k) = on_symmetry
+                                ? Solver::Nonlocal::Detail::NodalStressFromSymmetryFaces(
+                                    plot_model, disp, i, j, k, DX.data(), lo, hi,
+                                    output_stress_symmetry_lo, output_stress_symmetry_hi)
+                                : Solver::Nonlocal::Detail::NodalStressFromFaces(
+                                    plot_model, disp, i, j, k, DX.data());
+                        }
+                        else
+                        {
+                            // The conservative operator applies its BC directly
+                            // on physical-boundary rows, where the centered face
+                            // tangential stencil is not defined outside the domain.
+                            output_stress(i, j, k) = nodal_stress(i, j, k);
+                        }
+                    });
+                }
             }
             stress_mf[lev]->setMultiGhost(true);
             stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
             strain_mf[lev]->setMultiGhost(true);
             strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            if (plot_stress)
+            {
+                output_stress_mf[lev]->setMultiGhost(true);
+                output_stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            }
         }
     }
 
@@ -410,6 +481,22 @@ public:
 
         model_mf[lev]->setMultiGhost(true);
         model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+
+        if (m_type == Type::Dynamic && plot_stress)
+        {
+            for (amrex::MFIter mfi(*stress_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box bx = mfi.nodaltilebox() & domain;
+                amrex::Array4<const Set::Matrix> const& stress = stress_mf[lev]->const_array(mfi);
+                amrex::Array4<Set::Matrix> const& output_stress = output_stress_mf[lev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    output_stress(i, j, k) = stress(i, j, k);
+                });
+            }
+            output_stress_mf[lev]->setMultiGhost(true);
+            output_stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        }
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
@@ -585,7 +672,10 @@ protected:
     Set::Field<Set::Vector> rhs_mf;
     Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
+    Set::Field<Set::Matrix> output_stress_mf;
     Set::Field<Set::Matrix> strain_mf;
+    amrex::GpuArray<int, AMREX_SPACEDIM> m_output_stress_symmetry_lo{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> m_output_stress_symmetry_hi{};
 
     // Only use these if using the "dynamics" option
     Set::Field<Set::Vector> disp_old_mf;
@@ -615,7 +705,6 @@ protected:
     int m_max_coarsening_level = -1;
 
     bool m_zero_out_displacement = false;
-
     bool plot_disp = true;
     bool plot_stress = true;
     bool plot_strain = true;

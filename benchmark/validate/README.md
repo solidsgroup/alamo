@@ -84,3 +84,19 @@ Build on the existing harness — do not fork it: `benchmark/golden_compare_flam
 `benchmark/compare_thermo.py`, `benchmark/baseline_suite.py`. The new parts are
 hardware auto-detect, the elastic/stress observables the current thermo-only
 compare lacks, the trajectory comparison, and this bundle schema.
+
+For campaign evidence, pass an exact executable and a new absolute bundle path;
+the local runner rejects missing/relative binaries and refuses to reuse bundles:
+
+```bash
+python3 benchmark/validate/run_validation_local.py --profiles gpu_strict \
+  --case canonical_2d_elastic --binary /abs/path/alamo_gpu \
+  --bundle-dir /abs/path/new_bundle \
+  --build-command 'bash benchmark/build_alamo_local_gpu.sh' \
+  --build-flags 'DIM=2 CUDA_FP=strict ARCH=86'
+```
+
+`compare_validation.py --require-compatible-manifest` verifies device/profile,
+case input and override hashes, command shape, and oracle-script identity before
+comparing metrics. Binary/source identity may differ intentionally between A/B
+arms; timestamp and output paths are not comparison keys.
