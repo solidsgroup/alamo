@@ -177,6 +177,8 @@ protected:
     std::array<Set::Scalar, Model::Chemistry::MAX_SPECIES> rigid_specific_heat{};
     std::array<Set::Scalar, Model::Chemistry::MAX_SPECIES>
         rigid_conductivity_per_density{};
+    std::array<Set::Scalar, Model::Chemistry::MAX_SPECIES>
+        rigid_inverse_reference_density{};
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;

@@ -14,11 +14,14 @@ amr.regrid_int = -1
 amr.nsubsteps = 1
 
 # Backward-Euler viscosity, species diffusion, and heat conduction remove the
-# explicit parabolic limits. The 10 ns step resolves the initial reaction-driven
-# expansion pulse while advection remains explicit.
-timestep = 1.0e-6_s
+# gas transport limits. Start from the source Flame case's 2 ns step, then let
+# the explicit advection and unburned-surface regression limits increase it.
+timestep = 2.0e-9_s
 stop_time = 5.0e-1_s
-dynamictimestep.on = 0
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 1.0e-6
+dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
@@ -73,9 +76,10 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Evolve one common rigid-solid eta at a prescribed calibration speed. This
-# isolates the gas production, transport, and chemistry from the unresolved
-# temperature-dependent solid regression model.
+# Evolve one common rigid-solid eta with Flame's temperature-dependent AP/HTPB
+# Arrhenius mobility and multi-well phase-field chemical potential. Gas heat
+# conducts into the solid and raises the local surface temperature that drives
+# regression; no laser or prescribed burn rate is used.
 # Lost AP_solid and HTPB_solid mass is transferred one-for-one to the matching
 # gas species. The paired sources have zero net mass. The outward momentum
 # source uses Flame's u0 = c*rho_s/rho_g jump condition, while gas expansion is
@@ -84,7 +88,6 @@ mechanisms.names = propellant_regression
 propellant_regression.type = flame_regression
 propellant_regression.flame_regression.in = AP_solid HTPB_solid
 propellant_regression.flame_regression.out = AP_gas HTPB_gas
-propellant_regression.flame_regression.prescribed_speed = 0.7_cm/s
 # Match the AP and HTPB gas states used by the source Rocfire case. The phase
 # transition mixes this sensible enthalpy conservatively into the gas field.
 propellant_regression.flame_regression.ejection_temperature = 830.0_K 889.0_K
@@ -103,9 +106,9 @@ propellant_regression.flame_regression.phase_field.w12 = 2.0
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0
-# Temporarily make the solid thermally inert while retaining gas conduction and
-# reaction heating. Set this to 1 to restore the AP/HTPB properties above.
-rigid.thermal.enabled = 0
+# Use the material-specific AP/HTPB conductivity and heat capacity above so
+# gas-side reaction heat can conduct through and heat the regressing surface.
+rigid.thermal.enabled = 1
 
 advection.type = muscl
 advection.muscl.limiter.type = koren
@@ -139,25 +142,26 @@ HTPB_solid.density.ic.type = expression
 HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*erf(y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
 
 # The rigid volume contains no gas. The complementary gas volume reproduces
-# the source Flame case's original diffuse initialization: 830 K AP and 889 K
-# HTPB streams transition to 2500 K Final products across a 30 um layer
-# centered 20 um above the surface. Regression supplies additional
-# material-specific reactant gas.
+# the source Flame case's original diffuse species initialization. The shared
+# temperature is 830 K over AP and 889 K over HTPB at the surface. The solid
+# remains preheated through the diffuse interface, then transitions smoothly
+# around 50 um below the surface to 300 K in the bulk. The gas reaches the
+# 2500 K product state across the reaction layer centered 15 um above the
+# surface. Regression supplies additional material-specific reactant gas.
 # LowMach has one shared temperature field, but its heat capacity,
 # conductivity, and advective weight are evaluated from the local gas/solid
-# composition. The solid starts uniformly at 300 K. All gas partial densities
-# use the shared local temperature so solid volume plus ideal-gas volume is
-# one. The source case's complementary 10 um AP/HTPB laminate transition is
-# retained; finite-rate diffusion and chemistry evolve it without a thermal
-# ignition layer or premixed-product pocket.
+# composition. All gas partial densities use the shared local temperature so
+# solid volume plus ideal-gas volume is one. The source case's complementary
+# 10 um AP/HTPB laminate transition is retained; finite-rate diffusion and
+# chemistry evolve it without a premixed-product pocket.
 AP_gas.density.ic.type = expression
-AP_gas.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))*2026500.0/(319.787*(300.0*(0.5-0.5*erf(y/20.0e-6))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2500.0))))"
+AP_gas.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))*2026500.0/(319.787*((0.5-0.5*erf(y/20.0e-6))*(300.0+((830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))-300.0)*(0.5+0.5*erf((y+50.0e-6)/20.0e-6)))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-15.0e-6)/5.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-15.0e-6)/5.0e-6))*2500.0))))"
 HTPB_gas.density.ic.type = expression
-HTPB_gas.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6))*2026500.0/(319.787*(300.0*(0.5-0.5*erf(y/20.0e-6))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2500.0))))"
+HTPB_gas.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6))*2026500.0/(319.787*((0.5-0.5*erf(y/20.0e-6))*(300.0+((830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))-300.0)*(0.5+0.5*erf((y+50.0e-6)/20.0e-6)))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-15.0e-6)/5.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-15.0e-6)/5.0e-6))*2500.0))))"
 Final.density.ic.type = expression
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2026500.0/(319.787*(300.0*(0.5-0.5*erf(y/20.0e-6))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2500.0))))"
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*erf(y/20.0e-6))*(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2026500.0/(319.787*((0.5-0.5*erf(y/20.0e-6))*(300.0+((830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))-300.0)*(0.5+0.5*erf((y+50.0e-6)/20.0e-6)))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-15.0e-6)/5.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-15.0e-6)/5.0e-6))*2500.0))))"
 temperature.ic.type = expression
-temperature.ic.expression.region0 = "300.0*(0.5-0.5*erf(y/20.0e-6))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-20.0e-6)/30.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-20.0e-6)/30.0e-6))*2500.0)"
+temperature.ic.expression.region0 = "(0.5-0.5*erf(y/20.0e-6))*(300.0+((830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))-300.0)*(0.5+0.5*erf((y+50.0e-6)/20.0e-6)))+(0.5+0.5*erf(y/20.0e-6))*((0.5-0.5*erf((y-15.0e-6)/5.0e-6))*(830.0*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6))+889.0*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))+(0.5+0.5*erf((y-15.0e-6)/5.0e-6))*2500.0)"
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 pressure.ic.type = constant

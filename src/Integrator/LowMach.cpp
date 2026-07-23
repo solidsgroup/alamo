@@ -207,6 +207,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 !(value.rigid_specific_heat[material] > 0.0))
                 Util::Exception(INFO, "Rigid thermal properties must be positive");
             value.thermal_rigid_species[material] = n;
+            value.rigid_inverse_reference_density[material] =
+                1.0 / value.reference_density[n];
             value.rigid_conductivity_per_density[material] /=
                 value.reference_density[n];
         }
@@ -707,14 +709,32 @@ LowMach::ComputeThermalState(
             state.gas_heat_capacity / state.gas_volume_fraction : 0.0;
         return state;
     }
+    Set::Scalar solid_volume_fraction = 0.0;
+    Set::Scalar solid_heat_capacity = 0.0;
+    Set::Scalar solid_conductivity = 0.0;
     for (int material = 0; material < nthermal_rigid_species; ++material)
     {
         const int species = thermal_rigid_species[material];
         const Set::Scalar partial_density =
             Util::Max(component_density(i,j,k,species), 0.0);
-        state.heat_capacity += partial_density * rigid_specific_heat[material];
-        state.conductivity +=
+        solid_volume_fraction +=
+            partial_density * rigid_inverse_reference_density[material];
+        solid_heat_capacity +=
+            partial_density * rigid_specific_heat[material];
+        solid_conductivity +=
             partial_density * rigid_conductivity_per_density[material];
+    }
+
+    // Chemistry and species diffusion use eta=0.5 as the gas/solid boundary.
+    // Apply the same partition to thermal storage so the diffuse solid tail
+    // cannot dilute gas-phase heat release. Conductivity remains nonzero on
+    // both sides, and the transport operator couples the two regions using a
+    // harmonic face coefficient.
+    if (solid_volume_fraction > 0.5)
+    {
+        state.gas_heat_capacity = 0.0;
+        state.heat_capacity = solid_heat_capacity;
+        state.conductivity = solid_conductivity;
     }
     return state;
 }
@@ -1978,6 +1998,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
     Set::Scalar elasticmax = 0.0;
     Set::Scalar phasefieldmax = 0.0;
     const bool deformable_solid = deformable_solid_species >= 0;
+    const bool rigid_solid = !rigid_solid_species.empty();
     const bool explicit_solid_deviatoric_stress = deformable_solid &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -1985,7 +2006,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         Set::Scalar dxmin = std::min(DX[0], DX[1]);
-        Set::Scalar temperaturemax = 0.0;
+        Set::Scalar phase_temperaturemax = 0.0;
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
@@ -2009,6 +2030,9 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             Set::Patch<const Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rigid_eta;
+            if (rigid_solid)
+                rigid_eta = rigid_eta_mf.Patch(lev,mfi);
             const Set::Scalar rho_floor = density_floor;
             const bool viscous = include_viscosity && !implicit_viscosity;
             const bool conductive = include_conduction && !implicit_conduction;
@@ -2056,16 +2080,25 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     elastic_rate = wave_speed / dxmin;
                     nu = Util::Max(nu, (solid_viscosity + solid_interface_viscosity) / density);
                 }
-                return {nu / (dxmin * dxmin), elastic_rate, T(i,j,k)};
+                // Flame clips healing, so the active regression front lies on
+                // the unburned half of the diffuse interface. Hot product gas
+                // must not set the explicit phase-field stability limit.
+                const Set::Scalar phase_temperature = !rigid_solid ||
+                    (rigid_eta(i,j,k) >= 0.5 && rigid_eta(i,j,k) < 1.0) ?
+                    T(i,j,k) : 0.0;
+                return {nu / (dxmin * dxmin), elastic_rate,
+                        phase_temperature};
             });
             ReduceTuple hv = reduce_data.value();
             viscmax = std::max(viscmax, amrex::get<0>(hv));
             elasticmax = std::max(elasticmax, amrex::get<1>(hv));
-            temperaturemax = std::max(temperaturemax, amrex::get<2>(hv));
+            phase_temperaturemax = std::max(
+                phase_temperaturemax, amrex::get<2>(hv));
         }
         for (const auto& mechanism : mechanisms)
             phasefieldmax = std::max(
-                phasefieldmax, mechanism.StabilityRate(dxmin, temperaturemax));
+                phasefieldmax,
+                mechanism.StabilityRate(dxmin, phase_temperaturemax));
     }
     amrex::ParallelDescriptor::ReduceRealMax(advmax);
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);
