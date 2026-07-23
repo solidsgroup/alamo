@@ -17,15 +17,19 @@ trap 'rm -f "$VIOLATIONS_FILE"' EXIT
 # Inline allowlist: exact "file:line" -> reason. Every entry must cite the
 # BUG_PATTERNS.md section it corresponds to.
 declare -A ALLOWLIST=(
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:449"]="dormant landmine: bare 'volume' accumulator inside AMREX_GPU_DEVICE lambda, implicit this-> capture. Inert only because this integrator is not in the GPU-supported closure. Must move to ReduceOps (like Base::Mechanics::Integrate) before GPU-enabling. See docs/llm/BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:459"]="same as :449 (bare 'area' accumulator). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:463"]="same as :449 (bare 'gbenergy' accumulator). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:465"]="same as :449 (bare 'realgbenergy' accumulator). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:466"]="same as :449 (bare 'regenergy' assignment). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:473"]="same as :449 (bare 'gbenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:476"]="same as :449 (bare 'realgbenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:481"]="same as :449 (bare 'regenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
-  ["src/Integrator/PhaseFieldMicrostructure.cpp:483"]="same as :449 (bare 'gbenergy' accumulator, 3D branch). BUG_PATTERNS.md #2 Site B."
+  # NOTE: these keys are line numbers and therefore shift whenever
+  # PhaseFieldMicrostructure.cpp is edited above the Integrate() lambda. They were
+  # re-anchored -4 after the codex/gpu-pf-structural-speedups merge. Same nine
+  # sites, same variables, same branches -- no new finding.
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:445"]="dormant landmine: bare 'volume' accumulator inside AMREX_GPU_DEVICE lambda, implicit this-> capture. Inert only because this integrator is not in the GPU-supported closure. Must move to ReduceOps (like Base::Mechanics::Integrate) before GPU-enabling. See docs/llm/BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:455"]="same as :445 (bare 'area' accumulator). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:459"]="same as :445 (bare 'gbenergy' accumulator). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:461"]="same as :445 (bare 'realgbenergy' accumulator). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:462"]="same as :445 (bare 'regenergy' assignment). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:469"]="same as :445 (bare 'gbenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:472"]="same as :445 (bare 'realgbenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:477"]="same as :445 (bare 'regenergy' accumulator, anisotropic branch). BUG_PATTERNS.md #2 Site B."
+  ["src/Integrator/PhaseFieldMicrostructure.cpp:479"]="same as :445 (bare 'gbenergy' accumulator, 3D branch). BUG_PATTERNS.md #2 Site B."
 )
 
 report() {

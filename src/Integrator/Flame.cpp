@@ -136,7 +136,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // unconditionally. It was previously created only inside the thermal.on
     // block, which left it null and segfaulted Advance (L_out write) when
     // thermal.on=0. nghost=0 so the BC is only nominal; reuse bc_eta.
-    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field, false);
+    value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>("pf.eta.ic",value.ic_eta,value.geom);
@@ -168,10 +168,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false, false);
     value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
 
-    value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.thermal.on && value.plot_field, false);
-    value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.thermal.on && value.plot_field, false);
-    value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.thermal.on && value.plot_field, false);
-    value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.thermal.on && value.plot_field, false);
+    value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.thermal.on && value.plot_field);
+    value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.thermal.on && value.plot_field);
     value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", false, false);
 
     if (value.thermal.on) {
