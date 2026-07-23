@@ -82,3 +82,7 @@ benchmark/_gate_logs/
 # local dev toolchain / caches, machine-specific, never portable
 .local/
 __pycache__/
+
+# local GPU A/B profiling artifacts
+benchmark/local_ab_*/
+benchmark/local_amr_shape_*/
