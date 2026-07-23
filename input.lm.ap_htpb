@@ -12,7 +12,7 @@ amr.grid_eff = 0.7
 amr.nsubsteps = 1
 
 eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 100.0
+temperature_refinement_criterion = 500.0
 
 timestep = 2.5e-7_s
 stop_time = 1.0_s
@@ -71,17 +71,17 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. At
-# 3 MPa, the common multiplier targets about 4.5 mm/s for both surfaces based
-# on a 2 mm/s rate at 1 MPa and a sandwich pressure exponent of 0.74. Surface
-# Arrhenius activation remains disabled because this model has no separate
-# condensed-side surface temperature.
+# Each condensed species regresses into its corresponding gas species. AP uses
+# the temperature-dependent parameters calibrated in the pure-AP case. HTPB
+# uses the established 14 m/s exp(-7500 K/T) pyrolysis law. For the configured
+# Allen-Cahn parameters, the unscaled planar speed is 1.5*L*df*epsilon =
+# 6.0e-5 m/s, giving the multiplier below.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 63.0
-AP_decomposition.phase_change.activation_temperature = 0.0_K
+AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
@@ -92,8 +92,8 @@ AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.in = HTPB_solid
 HTPB_pyrolysis.phase_change.out = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 63.0
-HTPB_pyrolysis.phase_change.activation_temperature = 0.0_K
+HTPB_pyrolysis.phase_change.rate_multiplier = 2.333333333333333e5
+HTPB_pyrolysis.phase_change.activation_temperature = 7500.0_K
 HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s

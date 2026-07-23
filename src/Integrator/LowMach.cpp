@@ -5,6 +5,7 @@
 #include "AMReX_SPACE.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Model/Chemistry/Chemistry.H"
+#include "Model/PhaseField/PhaseField.H"
 #include "Numeric/Advect/Advect.H"
 #include "Numeric/Stencil.H"
 
@@ -190,16 +191,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
     }
 
-    if (value.condensed_thermal_transport)
+    for (int n = value.ngas_species; n < value.nspecies; ++n)
     {
-        for (int n = value.ngas_species; n < value.nspecies; ++n)
+        if (!(value.reference_density[n] > 0.0))
+            Util::Exception(INFO, value.species_names[n],
+                " requires a positive reference density");
+        value.condensed_inverse_reference_density[n] =
+            1.0 / value.reference_density[n];
+        if (value.condensed_thermal_transport)
         {
             if (!(value.condensed_specific_heat[n] > 0.0) ||
                 !(value.condensed_thermal_conductivity[n] > 0.0))
                 Util::Exception(INFO, value.species_names[n],
                     " requires specific_heat and thermal_conductivity");
-            value.condensed_inverse_reference_density[n] =
-                1.0 / value.reference_density[n];
         }
     }
 
@@ -491,6 +495,13 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
                         gas_partial_density * gas.R(X, i, j, k) * T(i,j,k) /
                             pressure_reference,
                         0.0, 1.0);
+                Set::Scalar condensed_volume_fraction = 0.0;
+                for (int n = ngas_species; n < nspecies; ++n)
+                    condensed_volume_fraction += Util::Max(
+                        component_density(i,j,k,n), 0.0) *
+                        condensed_inverse_reference_density[n];
+                gas_volume_fraction = Util::Min(gas_volume_fraction,
+                    1.0 - Model::PhaseField::H(condensed_volume_fraction));
                 // Diagnostic fractions include phase occupancy; gas-model
                 // calculations continue to use the conditional composition X.
                 for (int n = 0; n < ngas_species; ++n)
@@ -574,7 +585,14 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
 
             mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-            kappa(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+            auto [thermal_gas_volume_fraction, gas_heat_capacity,
+                heat_capacity, conductivity, cp] = ComputeThermalState(
+                    component_density, T(i,j,k), i, j, k);
+            (void)thermal_gas_volume_fraction;
+            (void)gas_heat_capacity;
+            (void)heat_capacity;
+            (void)cp;
+            kappa(i,j,k) = conductivity;
             for (int n = 0; n < ngas_species; ++n)
                 diffusion(i,j,k,n) = gas.diffusion_coefficient(
                     T(i,j,k), pressure_reference, X, i, j, k, n);
@@ -592,10 +610,20 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
                 gas_volume_fraction = Util::Clamp(
                     gas_density * gas.R(X, i, j, k) * T(i,j,k) /
                         pressure_reference, 0.0, 1.0);
-            if (gas_volume_fraction > 0.0)
+            const Set::Scalar intrinsic_gas_volume_fraction =
+                gas_volume_fraction;
+            Set::Scalar condensed_volume_fraction = 0.0;
+            for (int n = ngas_species; n < nspecies; ++n)
+                condensed_volume_fraction += Util::Max(
+                    component_density(i,j,k,n), 0.0) *
+                    condensed_inverse_reference_density[n];
+            gas_volume_fraction = Util::Min(gas_volume_fraction,
+                1.0 - Model::PhaseField::H(condensed_volume_fraction));
+            if (gas_volume_fraction > 0.0 &&
+                intrinsic_gas_volume_fraction > 0.0)
             {
                 for (int n = 0; n < ngas_species; ++n)
-                    rhoY[n] /= gas_volume_fraction;
+                    rhoY[n] /= intrinsic_gas_volume_fraction;
                 const Model::Chemistry::Source reaction =
                     chemistry.ComputeChemistrySources(
                         pressure_reference, T(i,j,k), rhoY, 0.0, &gas);
@@ -641,18 +669,37 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
             }
             if (!(gas_density > density_floor) || !(T(i,j,k) > 0.0)) return;
 
+            const Model::Gas::MoleFraction X =
+                gas.MoleFractions(component_density, i, j, k);
+            const Set::Scalar raw_gas_volume_fraction = Util::Clamp(
+                gas_density * gas.R(X, i, j, k) * T(i,j,k) /
+                    pressure_reference, 0.0, 1.0);
+            Set::Scalar condensed_volume_fraction = 0.0;
+            for (int n = ngas_species; n < nspecies; ++n)
+                condensed_volume_fraction += Util::Max(
+                    component_density(i,j,k,n), 0.0) *
+                    condensed_inverse_reference_density[n];
+            const Set::Scalar gas_accessibility =
+                1.0 - Model::PhaseField::H(condensed_volume_fraction);
+            const Set::Scalar chemistry_weight =
+                raw_gas_volume_fraction > 0.0 ? Util::Min(
+                    1.0, gas_accessibility /
+                        raw_gas_volume_fraction) : 0.0;
+            if (!(chemistry_weight > 0.0)) return;
+
             Set::Scalar temperature = T(i,j,k);
-            auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
+            auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
                 conductivity, cp] = ComputeThermalState(
                     component_density, temperature, i, j, k);
-            (void)gas_volume_fraction;
+            (void)thermal_gas_volume_fraction;
             (void)gas_heat_capacity;
             (void)conductivity;
             const Set::Scalar mixture_density = cp > 0.0 ?
                 heat_capacity / cp : gas_density;
 
             auto result = chemistry.Advance(
-                dt, pressure_reference, mixture_density, ngas_species,
+                dt * chemistry_weight, pressure_reference, mixture_density,
+                ngas_species,
                 rhoY, temperature, &gas);
             if (!result.converged)
                 Util::Abort(INFO, "Local chemistry integration failed at ",
@@ -696,15 +743,34 @@ LowMach::ComputeThermalState(
         return {gas_volume_fraction, density * cp, density * cp,
                 gas_conductivity, cp};
 
-    const Set::Scalar gas_heat_capacity = gas_density * cp;
+    Set::Scalar condensed_volume_fraction = 0.0;
+    for (int n = ngas_species; n < nspecies; ++n)
+        condensed_volume_fraction += Util::Max(
+            component_density(i,j,k,n), 0.0) *
+            condensed_inverse_reference_density[n];
+    const Set::Scalar solid_fraction =
+        Model::PhaseField::H(condensed_volume_fraction);
+    gas_volume_fraction = 1.0 - solid_fraction;
+
+    Set::Scalar intrinsic_gas_density = 0.0;
+    const Set::Scalar gas_constant = gas.R(X, i, j, k);
+    if (gas_density > density_floor && temperature > 0.0 &&
+        pressure_reference > 0.0 && gas_constant > 0.0)
+        intrinsic_gas_density =
+            pressure_reference / (gas_constant * temperature);
+    const Set::Scalar gas_heat_capacity =
+        gas_volume_fraction * intrinsic_gas_density * cp;
     Set::Scalar heat_capacity = gas_heat_capacity;
     Set::Scalar conductivity = gas_volume_fraction * gas_conductivity;
+    const Set::Scalar solid_scale = condensed_volume_fraction > 0.0 ?
+        solid_fraction / condensed_volume_fraction : 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
     {
         const Set::Scalar partial_density =
             Util::Max(component_density(i,j,k,n), 0.0);
-        heat_capacity += partial_density * condensed_specific_heat[n];
-        conductivity += partial_density *
+        heat_capacity += solid_scale * partial_density *
+            condensed_specific_heat[n];
+        conductivity += solid_scale * partial_density *
             condensed_inverse_reference_density[n] *
             condensed_thermal_conductivity[n];
     }
@@ -808,9 +874,25 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             gas_density += component_density(i,j,k,n);
                         const Model::Gas::MoleFraction X =
                             gas.MoleFractions(component_density, i, j, k);
+                        const Set::Scalar gas_volume_fraction = Util::Clamp(
+                            gas_density * gas.R(X, i, j, k) * T(i,j,k) /
+                                p_reference, 0.0, 1.0);
+                        Set::Scalar condensed_volume_fraction = 0.0;
+                        for (int n = ngas; n < nspecies; ++n)
+                            condensed_volume_fraction += Util::Max(
+                                component_density(i,j,k,n), 0.0) *
+                                condensed_inverse_reference_density[n];
+                        const Set::Scalar gas_accessibility =
+                            1.0 - Model::PhaseField::H(
+                                condensed_volume_fraction);
+                        const Set::Scalar diffusion_weight =
+                            gas_volume_fraction > 0.0 ? Util::Min(
+                                1.0, gas_accessibility /
+                                    gas_volume_fraction) : 0.0;
                         a(i,j,k) = Util::Max(gas_density, rho_floor);
-                        b(i,j,k) = gas_density * gas.diffusion_coefficient(
-                            T(i,j,k), p_reference, X, i, j, k, 0);
+                        b(i,j,k) = diffusion_weight * gas_density *
+                            gas.diffusion_coefficient(
+                                T(i,j,k), p_reference, X, i, j, k, 0);
                     });
             }
         }
@@ -906,8 +988,10 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                         }
                         if (use_thermal_bridge)
                         {
-                            const Set::Scalar eta = Util::Clamp(
-                                condensed_volume_fraction, 0.0, 1.0);
+                            const Set::Scalar eta = Model::PhaseField::H(
+                                condensed_volume_fraction);
+                            const Set::Scalar bridge_weight =
+                                4.0 * eta * (1.0 - eta);
                             Set::Vector normal = Set::Vector::Zero();
                             const auto stencil =
                                 Numeric::GetStencil(i,j,k,domain);
@@ -921,7 +1005,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                                 velocity(i,j,k,0), velocity(i,j,k,1),
                                 velocity(i,j,k,2)));
                             const Set::Scalar bridge_conductivity =
-                                4.0 * eta * (1.0 - eta) * heat_capacity *
+                                bridge_weight * heat_capacity *
                                 Util::Abs(u.dot(normal)) * bridge_width *
                                 inverse_bridge_peclet;
                             for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -1066,6 +1150,17 @@ LowMach::ComputeThermochemicalSource(
         gas_volume_fraction = Util::Clamp(
             gas_density * gas.R(X, i, j, k) * T(i,j,k) / pressure_reference,
             0.0, 1.0);
+    Set::Scalar condensed_volume_fraction = 0.0;
+    for (int n = ngas_species; n < nspecies; ++n)
+        condensed_volume_fraction += Util::Max(
+            component_density(i,j,k,n), 0.0) *
+            condensed_inverse_reference_density[n];
+    const Set::Scalar gas_accessibility =
+        1.0 - Model::PhaseField::H(condensed_volume_fraction);
+    const Set::Scalar reacting_volume_fraction =
+        Util::Min(gas_volume_fraction, gas_accessibility);
+    const Set::Scalar chemistry_weight = gas_volume_fraction > 0.0 ?
+        reacting_volume_fraction / gas_volume_fraction : 0.0;
 
     // Calculate relative density with respect to the gas volume fraction
     Model::Chemistry::SpeciesArray intrinsic_rhoY{};
@@ -1074,12 +1169,13 @@ LowMach::ComputeThermochemicalSource(
             intrinsic_rhoY[n] = rhoY[n] / gas_volume_fraction;
 
     Model::Chemistry::Source reaction{};
-    if (include_reaction && gas_volume_fraction > 0.0)
+    if (include_reaction && reacting_volume_fraction > 0.0)
         reaction = chemistry.ComputeChemistrySources(
-            pressure_reference, T(i,j,k), intrinsic_rhoY, dt, &gas);
+            pressure_reference, T(i,j,k), intrinsic_rhoY,
+            dt * chemistry_weight, &gas);
 
     for (int n = 0; n < ngas_species; ++n)
-        species[n] = gas_volume_fraction * reaction.first[n];
+        species[n] = reacting_volume_fraction * reaction.first[n];
 
     Set::Scalar enthalpy_diffusion = 0.0;
     if (ngas_species > 1 && !implicit_species_diffusion)
@@ -1099,34 +1195,58 @@ LowMach::ComputeThermochemicalSource(
                 component_density(ii,jj,kk,n) / value :
                 (n == 0 ? 1.0 : 0.0);
         };
+        auto transport_coefficient_at = [=,this] AMREX_GPU_DEVICE(
+            int ii, int jj, int kk, int n)
+        {
+            const Set::Scalar local_gas_density =
+                gas_density_at(ii,jj,kk);
+            const Model::Gas::MoleFraction local_X =
+                gas.MoleFractions(component_density, ii, jj, kk);
+            const Set::Scalar local_gas_volume_fraction = Util::Clamp(
+                local_gas_density * gas.R(local_X, ii, jj, kk) *
+                    T(ii,jj,kk) / pressure_reference, 0.0, 1.0);
+            Set::Scalar local_condensed_volume_fraction = 0.0;
+            for (int m = ngas_species; m < nspecies; ++m)
+                local_condensed_volume_fraction += Util::Max(
+                    component_density(ii,jj,kk,m), 0.0) *
+                    condensed_inverse_reference_density[m];
+            const Set::Scalar local_accessibility =
+                1.0 - Model::PhaseField::H(
+                    local_condensed_volume_fraction);
+            const Set::Scalar weight = local_gas_volume_fraction > 0.0 ?
+                Util::Min(1.0, local_accessibility /
+                    local_gas_volume_fraction) : 0.0;
+            return weight * local_gas_density *
+                gas.diffusion_coefficient(T(ii,jj,kk), pressure_reference,
+                    local_X, ii, jj, kk, n);
+        };
+        const bool has_condensed_species = nspecies > ngas_species;
+        auto face_coefficient = [=] AMREX_GPU_DEVICE(
+            Set::Scalar a, Set::Scalar b)
+        {
+            if (!has_condensed_species) return 0.5 * (a + b);
+            return a > 0.0 && b > 0.0 ? 2.0 * a * b / (a + b) : 0.0;
+        };
         auto species_flux = [=,this] AMREX_GPU_DEVICE(
             int ia, int ja, int ka, int ib, int jb, int kb,
             int d, int n)
         {
-            const Model::Gas::MoleFraction Xa =
-                gas.MoleFractions(component_density, ia, ja, ka);
-            const Model::Gas::MoleFraction Xb =
-                gas.MoleFractions(component_density, ib, jb, kb);
-            const Set::Scalar rhoDa = gas_density_at(ia,ja,ka) *
-                gas.diffusion_coefficient(
-                    T(ia,ja,ka), pressure_reference, Xa, ia, ja, ka, n);
-            const Set::Scalar rhoDb = gas_density_at(ib,jb,kb) *
-                gas.diffusion_coefficient(
-                    T(ib,jb,kb), pressure_reference, Xb, ib, jb, kb, n);
-            const Set::Scalar raw_flux = 0.5 * (rhoDa + rhoDb) *
+            const Set::Scalar rhoDa =
+                transport_coefficient_at(ia,ja,ka,n);
+            const Set::Scalar rhoDb =
+                transport_coefficient_at(ib,jb,kb,n);
+            const Set::Scalar raw_flux = face_coefficient(rhoDa, rhoDb) *
                 (mass_fraction_at(ib,jb,kb,n) - mass_fraction_at(ia,ja,ka,n)) /
                 DX[d];
 
             Set::Scalar total_flux = 0.0;
             for (int m = 0; m < ngas_species; ++m)
             {
-                const Set::Scalar rhoDma = gas_density_at(ia,ja,ka) *
-                    gas.diffusion_coefficient(
-                        T(ia,ja,ka), pressure_reference, Xa, ia, ja, ka, m);
-                const Set::Scalar rhoDmb = gas_density_at(ib,jb,kb) *
-                    gas.diffusion_coefficient(
-                        T(ib,jb,kb), pressure_reference, Xb, ib, jb, kb, m);
-                total_flux += 0.5 * (rhoDma + rhoDmb) *
+                const Set::Scalar rhoDma =
+                    transport_coefficient_at(ia,ja,ka,m);
+                const Set::Scalar rhoDmb =
+                    transport_coefficient_at(ib,jb,kb,m);
+                total_flux += face_coefficient(rhoDma, rhoDmb) *
                     (mass_fraction_at(ib,jb,kb,m) -
                     mass_fraction_at(ia,ja,ka,m)) / DX[d];
             }
@@ -1187,7 +1307,7 @@ LowMach::ComputeThermochemicalSource(
     }
     if (heat_capacity > 0.0)
         temperature +=
-            (gas_volume_fraction * reaction.second + enthalpy_diffusion) /
+            (reacting_volume_fraction * reaction.second + enthalpy_diffusion) /
             heat_capacity;
 
     if (T(i,j,k) > 0.0)
@@ -1242,7 +1362,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    const Set::Scalar weight = Util::Clamp(eta(i,j,k), 0.0, 1.0);
+                    const Set::Scalar weight =
+                        Model::PhaseField::H(eta(i,j,k));
                     const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
                     for (int d = 0; d < AMREX_SPACEDIM; ++d)
                         u(i,j,k,d) = mobility * u(i,j,k,d) +
@@ -1343,7 +1464,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 const Set::Scalar weight = rigid_solid ?
-                    Util::Clamp(rigid_eta(i,j,k), 0.0, 1.0) : 0.0;
+                    Model::PhaseField::H(rigid_eta(i,j,k)) : 0.0;
                 const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
                 beta(i,j,k) = mobility / Util::Max(rho(i,j,k), rho_floor);
             });

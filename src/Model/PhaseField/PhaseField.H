@@ -12,6 +12,16 @@ namespace Model
 {
 namespace PhaseField
 {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar H(Set::Scalar eta)
+{
+    // For eta=(1-tanh(2s/ell))/2, these bounds confine the
+    // constitutive transition to |s|<ell/2.
+    constexpr Set::Scalar eta_lo = 0.11920292202211755;
+    constexpr Set::Scalar eta_hi = 1.0 - eta_lo;
+    return Util::SmootherStep((eta - eta_lo) / (eta_hi - eta_lo));
+}
+
 template<typename... OBJ>
 class PhaseField
 {
