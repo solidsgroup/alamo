@@ -207,28 +207,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
     }
 
-    const bool has_thermal_bridge_width =
-        pp.contains("thermal_bridge.width");
-    const bool has_thermal_bridge_peclet =
-        pp.contains("thermal_bridge.peclet");
-    if (has_thermal_bridge_width != has_thermal_bridge_peclet)
-        Util::Exception(INFO,
-            "thermal_bridge requires both width and peclet");
-    if (has_thermal_bridge_width)
-    {
-        if (!value.condensed_thermal_transport || !value.include_conduction)
-            Util::Exception(INFO,
-                "thermal_bridge requires condensed thermal transport");
-        pp.query_required("thermal_bridge.width",
-            value.thermal_bridge_width, Unit::Length());
-        pp.query_required("thermal_bridge.peclet",
-            value.thermal_bridge_peclet);
-        if (!(value.thermal_bridge_width > 0.0) ||
-            !(value.thermal_bridge_peclet > 0.0))
-            Util::Exception(INFO,
-                "thermal_bridge width and peclet must be positive");
-    }
-
     std::vector<std::string> mechanism_names;
     pp.queryarr_default("mechanisms.names", mechanism_names, {});
     value.mechanisms.resize(mechanism_names.size());
@@ -932,18 +910,11 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
     if (implicit_thermal_diffusion)
     {
         diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
-        const auto inverse_reference_density =
-            condensed_inverse_reference_density;
-        const bool use_condensed_properties = condensed_thermal_transport;
-        const bool use_thermal_bridge = thermal_bridge_peclet > 0.0;
-        const int ngas = ngas_species;
         for (int lev = 0; lev < nlev; ++lev)
         {
             amrex::MultiFab& state = diffusion.State(lev, 1);
             amrex::MultiFab& mass = diffusion.Mass(lev, 1);
             amrex::MultiFab& mobility = diffusion.Mobility(lev, 1);
-            amrex::MultiFab& tensor_mobility =
-                diffusion.TensorMobility(lev, 1);
             amrex::MultiFab::Copy(
                 state, *temperature_mf[lev], 0, 0, 1, state.nGrow());
 
@@ -954,19 +925,9 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> component_density =
                     component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> velocity =
-                    velocity_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> a = mass.array(mfi);
                 Set::Patch<Set::Scalar> b = mobility.array(mfi);
-                Set::Patch<Set::Scalar> B = tensor_mobility.array(mfi);
                 const Set::Scalar rho_floor = density_floor;
-                const int number_of_species = nspecies;
-                const Set::Scalar bridge_width = thermal_bridge_width;
-                const Set::Scalar inverse_bridge_peclet =
-                    thermal_bridge_peclet > 0.0 ?
-                    1.0 / thermal_bridge_peclet : 0.0;
-                const auto DX = geom[lev].CellSizeArray();
-                const amrex::Box domain = geom[lev].Domain();
 
                 amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -975,58 +936,13 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             component_density, T(i,j,k), i, j, k);
                     (void)gas_volume_fraction;
                     (void)gas_heat_capacity;
-                    if (use_condensed_properties)
-                    {
-                        Set::Scalar condensed_volume_fraction = 0.0;
-                        for (int n = ngas; n < number_of_species; ++n)
-                        {
-                            const Set::Scalar partial_density = Util::Max(
-                                component_density(i,j,k,n), 0.0);
-                            const Set::Scalar volume_fraction = partial_density *
-                                inverse_reference_density[n];
-                            condensed_volume_fraction += volume_fraction;
-                        }
-                        if (use_thermal_bridge)
-                        {
-                            const Set::Scalar eta = Model::PhaseField::H(
-                                condensed_volume_fraction);
-                            const Set::Scalar bridge_weight =
-                                4.0 * eta * (1.0 - eta);
-                            Set::Vector normal = Set::Vector::Zero();
-                            const auto stencil =
-                                Numeric::GetStencil(i,j,k,domain);
-                            for (int n = ngas; n < number_of_species; ++n)
-                                normal += inverse_reference_density[n] *
-                                    Numeric::Gradient(component_density,
-                                        i, j, k, n, DX.data(), stencil);
-                            const Set::Scalar normal_norm = normal.norm();
-                            if (normal_norm > 0.0) normal /= normal_norm;
-                            const Set::Vector u(AMREX_D_DECL(
-                                velocity(i,j,k,0), velocity(i,j,k,1),
-                                velocity(i,j,k,2)));
-                            const Set::Scalar bridge_conductivity =
-                                bridge_weight * heat_capacity *
-                                Util::Abs(u.dot(normal)) * bridge_width *
-                                inverse_bridge_peclet;
-                            for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                                for (int e = 0; e < AMREX_SPACEDIM; ++e)
-                                    B(i,j,k,d * AMREX_SPACEDIM + e) =
-                                        bridge_conductivity *
-                                        normal(d) * normal(e);
-                        }
-                        b(i,j,k) = conductivity;
-                        a(i,j,k) = Util::Max(
-                            heat_capacity, rho_floor * cp);
-                        return;
-                    }
                     a(i,j,k) = Util::Max(heat_capacity, rho_floor * cp);
                     b(i,j,k) = conductivity;
                 });
             }
         }
 
-        diffusion.Solve(
-            time, dt, temperature_bc->GetBCRec(), 1, use_thermal_bridge);
+        diffusion.Solve(time, dt, temperature_bc->GetBCRec(), 1);
         for (int lev = 0; lev < nlev; ++lev)
             amrex::MultiFab::Copy(*temperature_mf[lev], diffusion.State(lev, 1),
                                     0, 0, 1, 0);

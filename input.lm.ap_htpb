@@ -14,12 +14,13 @@ amr.nsubsteps = 1
 eta_refinement_criterion = 0.01
 temperature_refinement_criterion = 500.0
 
-timestep = 2.5e-7_s
-stop_time = 1.0_s
+timestep = 2.5e-6_s
+stop_time = 10_ms
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
 dynamictimestep.verbose = 0
+
 integration.type = RungeKutta
 integration.rk.type = 3
 
@@ -71,11 +72,12 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. AP uses
-# the temperature-dependent parameters calibrated in the pure-AP case. HTPB
-# uses the established 14 m/s exp(-7500 K/T) pyrolysis law. For the configured
+# Each condensed species regresses into its corresponding gas species. These
+# coefficients predate removal of the artificial tensor thermal bridge and are
+# retained provisionally for transport testing; burn-rate calibration against
+# the physical scalar conduction model remains necessary. For the configured
 # Allen-Cahn parameters, the unscaled planar speed is 1.5*L*df*epsilon =
-# 6.0e-5 m/s, giving the multiplier below.
+# 6.0e-5 m/s.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
@@ -86,7 +88,7 @@ AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-AP_decomposition.phase_change.phase_field.allencahn.epsilon = 20.0_um
+AP_decomposition.phase_change.phase_field.allencahn.epsilon = 80.0_um
 AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 HTPB_pyrolysis.type = phase_change
@@ -98,7 +100,7 @@ HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 20.0_um
+HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 80.0_um
 HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 rigid.relaxation_time = 1.0e-8_s
@@ -111,10 +113,6 @@ include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
-# Match the Allen-Cahn width and hold the thermal Peclet number across the
-# diffuse layer small enough to approximate a transparent sharp interface.
-thermal_bridge.width = 20.0_um
-thermal_bridge.peclet = 0.01
 projection.enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
@@ -123,8 +121,8 @@ projection.update_pressure = 1
 diffusion.tol_rel = 1.0e-11
 diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0
-diagnostics.interval = 100
-diagnostics.extended_fields = 1
+#diagnostics.interval = 100
+diagnostics.extended_fields = 0
 
 # The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
 # the two outer strips. The vertical factor is the equilibrium profile for the

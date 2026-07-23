@@ -367,11 +367,7 @@ Diffusion::SetLayout(
                         number_of_components, 0);
     system.mass.Define(nlevels, grids, distribution_mapping, 1, 0);
     system.mobility.Define(nlevels, grids, distribution_mapping, 1, 1);
-    system.tensor_mobility.Define(
-        nlevels, grids, distribution_mapping,
-        AMREX_SPACEDIM * AMREX_SPACEDIM, 1);
     system.face_mobility.resize(nlevels);
-    system.face_tensor_mobility.resize(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -380,8 +376,6 @@ Diffusion::SetLayout(
             face_grids.surroundingNodes(d);
             system.face_mobility[lev][d].define(
                 face_grids, distribution_mapping[lev], 1, 0);
-            system.face_tensor_mobility[lev][d].define(
-                face_grids, distribution_mapping[lev], AMREX_SPACEDIM, 0);
         }
     }
 }
@@ -407,7 +401,24 @@ Diffusion::Mobility(int lev, int ncomp)
 amrex::MultiFab&
 Diffusion::TensorMobility(int lev, int ncomp)
 {
-    return *GetSystem(ncomp).tensor_mobility[lev];
+    System& system = GetSystem(ncomp);
+    if (system.tensor_mobility.size() == 0)
+    {
+        system.tensor_mobility.Define(
+            nlevels, grids, distribution_mapping,
+            AMREX_SPACEDIM * AMREX_SPACEDIM, 1);
+        system.face_tensor_mobility.resize(nlevels);
+        for (int level = 0; level < nlevels; ++level)
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                amrex::BoxArray face_grids = grids[level];
+                face_grids.surroundingNodes(d);
+                system.face_tensor_mobility[level][d].define(
+                    face_grids, distribution_mapping[level],
+                    AMREX_SPACEDIM, 0);
+            }
+    }
+    return *system.tensor_mobility[lev];
 }
 
 void
@@ -428,6 +439,8 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     Util::Assert(INFO,
         TEST(static_cast<int>(boundary_conditions.size()) == ncomp));
     System& system = GetSystem(ncomp);
+    if (use_tensor_mobility)
+        Util::Assert(INFO, TEST(system.tensor_mobility.size() > 0));
     BC::Constant::ZeroNeumann coefficient_bc(1);
     for (int lev = 0; lev < nlevels; ++lev)
     {

@@ -66,8 +66,8 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# These phase-field parameters fit the 2--6 MPa pure-AP data in Figure 5a of
-# main.pdf. Pressure enters only through the coupled gas/interface temperature.
+# These provisional coefficients were fit with the removed tensor thermal
+# bridge. Recalibration against physical scalar conduction remains necessary.
 mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
@@ -91,10 +91,6 @@ include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
-# Match the Allen-Cahn width and hold the thermal Peclet number across the
-# diffuse layer small enough to approximate a transparent sharp interface.
-thermal_bridge.width = 20.0_um
-thermal_bridge.peclet = 0.01
 projection.enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12

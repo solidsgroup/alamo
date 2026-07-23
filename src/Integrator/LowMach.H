@@ -185,8 +185,6 @@ protected:
     bool implicit_species_diffusion = false;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
-    Set::Scalar thermal_bridge_width = 0.0;
-    Set::Scalar thermal_bridge_peclet = 0.0;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;

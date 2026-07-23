@@ -500,24 +500,16 @@ diffusivities are `1.65e-7` and `5.84e-8 m^2/s`. The former gas-property
 closure gave `2.64e-8` and `5.60e-8 m^2/s`, underdiffusing AP by about 6.3
 times and reversing the AP/HTPB ordering.
 
-At 3 milliseconds in the updated AP/HTPB output, temperature on the `eta=0.5`
-contour is about 700.7 K over AP and 701.6 K over HTPB. Heating is visible
-farther into the gas-side tail: on `eta=0.01`, the corresponding temperatures
-are about 784.7 K and 789.9 K. An isolated conduction probe, with chemistry,
-regression, and temperature advection disabled, heated the initially cold
-`eta=0.9` solid to 713.9 K over AP and 716.0 K over HTPB in 3 milliseconds.
-This verifies that the configured solid coefficients are active. The modest
-surface heating in the coupled case is now attributable to missing interfacial
-heat feedback rather than to gas properties or an eta cutoff.
+In the physical scalar-conduction run at 6 ms, cells with raw condensed volume
+fraction between 0.45 and 0.55 span approximately 996--1445 K. The configured
+solid coefficients are therefore active and the gas flame supplies substantial
+conductive feedback without an artificial bridge.
 
-The two configured phase-change mechanisms are also exactly equivalent:
-mobility, surface energy, interface width, driving force, rate multiplier, and
-temperature cutoff are identical, while activation temperature is zero. Their
-volume regression rates must therefore be identical regardless of the
-temperature field. Unlike the Flame `FullFeedback` model, LowMach currently
-has no AP/HTPB-specific Arrhenius prefactors or activation temperatures and no
-interfacial heat-feedback or phase-change enthalpy source. Grooving is not
-expected from the checked-in input until these material couplings are added.
+The checked-in AP and HTPB mechanisms now have distinct Arrhenius parameters.
+They remain provisional because the AP fit used the removed tensor bridge.
+LowMach still has no phase-change latent-enthalpy source, so quantitative
+grooving and burn-rate claims require the conservative enthalpy work described
+below.
 
 ### AP monopropellant pressure calibration
 
@@ -526,15 +518,13 @@ through 1.5 MPa and 2.65, 3.8, 5.5, and 7.9 mm/s at 2, 3, 4.5, and 6 MPa. The
 paper uses a temperature-only Arrhenius mobility with a 11000 K activation
 temperature and no direct pressure factor.
 
-The original calibration sweep predated the normal tensor thermal bridge. It
-therefore held the `eta=0.5` temperature near 700 K and incorrectly concluded
-that the pressure curve could not be obtained from temperature-only kinetics.
-With the full bridge and temperature-independent kinetics, the 5 ms interface
-temperature now rises from 714.5 K at 1.5 MPa to 838.8 K at 6 MPa, while the
-rate remains 3.778 mm/s at every pressure. This isolates a usable thermal
-pressure signal.
+A previous calibration sweep used the normal tensor thermal bridge and appeared
+to recover a useful pressure-dependent interface temperature. The curved
+AP/HTPB run later showed that the bridge does not preserve temperature bounds,
+so that calibration is no longer accepted. The phase-change coefficients must
+be recalibrated against the physical scalar conduction model.
 
-The calibrated phase-change law is
+The provisional phase-change law retained in the inputs is
 
 ```text
 rate_multiplier = 2450
@@ -548,7 +538,8 @@ normalization (`mobility=0.01 1/Pa/s`, `sigma=0.001 J/m2`, `epsilon=20 um`, and
 `driving_force=200 Pa`) and is not directly comparable to the paper's
 pre-exponential factor.
 
-The final sweep uses an 800 micrometer column with one eta-tracked AMR level,
+The historical bridge-based sweep used an 800 micrometer column with one
+eta-tracked AMR level,
 giving isotropic 3.125 micrometer finest cells through the interface, and runs
 for 20 ms. The 10--20 ms average rates at 2, 3, 4, and 6 MPa are 2.425, 3.392,
 4.727, and 6.997 mm/s. Rates over the final two-millisecond interval are 2.530,
@@ -556,18 +547,18 @@ for 20 ms. The 10--20 ms average rates at 2, 3, 4, and 6 MPa are 2.425, 3.392,
 values of 2.6, 3.7, 5.0, and 7.9 mm/s in Figure 5a. The corresponding final
 `eta=0.5` temperatures are 778.3, 878.1, 990.2, and 1119.6 K.
 
-The late full-tensor heat fluxes through the face crossing `eta=0.5` are 3.50,
-6.69, 10.87, and 14.61 MW/m2 at 2, 3, 4, and 6 MPa. These use the exact
-matrix-harmonic face coefficient supplied to the implicit operator. They are
-diffuse-interface fluxes and are not identical observables to a sharp gas-side
-surface flux.
+The former full-tensor heat-flux values are bridge-dependent and are not valid
+physical calibration observables. A replacement comparison must use the
+physical scalar conductive flux and a conservative energy balance across the
+diffuse layer.
 
 The 1.5 MPa extinction point is outside the paper's stated 2--6 MPa calibration
 range and is not reproduced by this continuously active law. Reproducing it
 requires an ignition/extinction construction; it should not be forced by
 adding pressure directly to the mobility.
 
-This is a 20 ms front-rate calibration, not yet an asymptotic steady-state fit.
+That historical sweep was a 20 ms front-rate fit, not an asymptotic steady-state
+fit, and must not be treated as validation of the current scalar model.
 The 3 and 4 MPa fronts continue to accelerate after 20 ms. The NaNs formerly
 seen during extension runs came from mole-fraction normalization, not AMR patch
 motion. Species diffusion creates positive gas-density tails that eventually
@@ -598,7 +589,7 @@ two-dimensional gas solution and surface state are iterated to convergence.
 At 20 atm they report 12.45 MW/m2 for pure AP and 12.46 MW/m2 at the AP-particle
 centerline. Their smallest gas-side surface cell is 0.008 micrometers.
 
-By contrast, the values above are full-tensor fluxes at the center of a
+By contrast, the former bridge values were full-tensor fluxes at the center of a
 roughly 20-micrometer diffuse interface on a 3.125-micrometer mesh. They are not
 the same observable as the sharp gas-side Gross-Beckstead flux. Equation (15a)
 and Table 2 of our paper fit the Gross-Beckstead calculation as
@@ -620,125 +611,60 @@ down the gas-side temperature gradient toward the propellant. The relevant
 measure is the thermal Peclet number `Pe=u*L/alpha`, or equivalently the upstream
 thermal penetration length `L_th=alpha/u`.
 
-The tensor bridge now transmits this heat through the finite-width mixed heat
-capacity without adding an explicit thermal CFL restriction. Its width and
-Peclet dependence must still be checked when transferring this fit to another
-interface thickness or resolution.
-
-Before using such a boost as the model, correct the temperature-advection
-closure. LowMach currently applies `-u*grad(T)` to the common temperature at
-every mixture point. For a stationary rigid solid and moving gas under local
-thermal equilibrium, the corresponding energy equation is instead
+The common-temperature advection closure transports only the gas heat capacity
+at the gas velocity. For a stationary rigid solid and moving gas under local
+thermal equilibrium, the equation is
 
 ```text
 C_mix * dT/dt + rho_g*cp_g*u_g*grad(T) = div(k_mix*grad(T)) + Q.
 ```
 
-At the sampled midpoint, `rho_g*cp_g/C_mix` is approximately 0.005. The current
-equation therefore transports the condensed thermal inertia at the gas
-velocity and can remove heat from the interface much too strongly. This is a
-more fundamental inconsistency than the conductivity interpolation.
+At the previously sampled midpoint,
+`rho_g*cp_g/C_mix` was approximately 0.005, making this weighting essential.
+The current implementation applies this ratio to the advective temperature
+term.
 
-After that correction, a useful diagnostic is
-`k_eff=k_mix+k_bridge*4*eta*(1-eta)`. The preferable production form is a
-normal-only tensor bridge,
-`K=k_mix*I+k_bridge*4*eta*(1-eta)*n*n`, so heat crosses the diffuse layer
-without smoothing tangential AP/HTPB temperature structure. Any bridge must be
-tested over multiple phase-field widths and calibrated to remove width
-dependence. Directly overwriting or extrapolating the physical temperature is
-not conservative and should not be used as the energy update.
+### Tensor thermal bridge failure and removal
 
-The bridge amplitude should explicitly reference the configured phase-field
-width `ell`; using `grad(eta)` directly for its magnitude is unnecessarily
-noisy and becomes singular where the phase is uniform. The gradient is useful
-for constructing the interface normal. The width scaling depends on the
-constraint imposed on the artificial layer:
+The `Pe=0.01` tensor bridge passed planar tests but failed on the curved HTPB
+edges in `output.lm.ap_htpb`. At 4.9703 ms the solution still had
+`Tmin=700.01 K`. It then fell to 594.8 K at 4.9796 ms and 44.85 K at
+4.9898 ms. The two cold cells were symmetric, near
+`x=+/-0.255 mm, y=-0.013 mm`, inside the diffuse HTPB interface where its
+normal is oblique to the grid. The chemistry model is exothermic, so this was a
+numerical undershoot rather than chemical cooling. The local chemistry solve
+failed shortly afterward.
 
-```text
-fixed crossing time tau:       k_bridge ~ C_int * ell^2 / tau
-fixed interface Peclet Pe:     k_bridge ~ C_int * U * ell / Pe
-fixed contact resistance R:    k_bridge ~ ell / R.
-```
+The bridge conductivity there was hundreds of W/(m K), compared with physical
+conductivities of order 0.1 W/(m K). Although the continuum tensor was positive
+definite, its strong off-diagonal cross derivatives did not give a
+maximum-principle-preserving discrete operator. Positive definiteness alone was
+therefore insufficient at anisotropy ratios of thousands.
 
-Consequently, there is no unique gradient-based correction until the desired
-sharp-interface limit is stated. For the present goal, a small prescribed
-interface Peclet number is the closest expression of making the diffuse layer
-transparent to heat while gas blows away from the surface. The enhancement
-then decreases linearly with width as the sharp-interface limit is approached.
+A fresh run with the bridge disabled completed through 6 ms. It retained
+`Tmin=700.04 K`, reached `Tmax=2941 K`, and had temperatures of approximately
+996--1445 K in cells with raw condensed volume fraction between 0.45 and 0.55.
+This demonstrates that the physical scalar mixture conductivity transfers
+substantial heat without an artificial interface boost.
 
-The positive coefficient is handled by the backward-Euler MLMG diffusion solve
-and adds no explicit diffusion CFL restriction. The initial scalar bridge
-confirmed that normal heat transfer could be restored, but it also held the
-entire AP/HTPB interface at nearly one temperature. Supplying both
-`thermal_bridge.width` and `thermal_bridge.peclet` now gives the full tensor
+LowMach no longer parses or applies `thermal_bridge`, and the AP inputs no
+longer configure it. The implicit temperature equation now always uses
 
 ```text
-K = k_mix*I
-  + 4*eta*(1-eta)*C_mix*|u dot n|*width*(n tensor n)/peclet,
-n = grad(eta)/|grad(eta)|.
+C_mix * (T_new-T_old)/dt = div(k_mix * grad(T_new)) + sources,
+k_mix = alpha_g*k_g + sum_s(alpha_s*k_s).
 ```
 
-The physical mixture conductivity remains isotropic. Only the artificial
-bridge is projected onto the reconstructed condensed-interface normal. The
-feature is inactive unless both inputs are present, and parsing rejects
-incomplete, nonpositive, or non-condensed configurations.
-`input.lm.ap_monopropellant` and `input.lm.ap_htpb` use `width=20 um`, matching
-their Allen-Cahn epsilon, and `peclet=0.01`.
+Its harmonic face conductivity produces conservative two-point fluxes and
+preserves temperature bounds for positive heat capacity and conductivity. The
+generic tensor capability remains in `Operator::Diffusion`, but it is no longer
+part of diffuse-interface thermal transport.
 
-`Operator::Diffusion` now accepts either scalar or full tensor cell mobility.
-The total tensor is transferred to each face using the matrix harmonic mean
-`2*(K_lo^-1+K_hi^-1)^-1`. This preserves positive definiteness and reduces to
-the former scalar harmonic average for grid-aligned isotropic coefficients.
-The diagonal face block is supplied to `MLABecLaplacian`; the extended operator
-adds every off-diagonal face flux to `Fapply`, uses the full residual in a
-weighted-Jacobi smoother, and returns the same full tensor flux through
-`FFlux`. Consequently, composite-AMR reflux and residual evaluation use the
-same conservative discretization. Every face-tensor row is also coarsened
-through the multigrid and AMR hierarchy.
-
-Strong directional ratios use eight pre/post smoothing sweeps, and aligned
-cases can use AMReX semicoarsening. The requested `1e-11` relative tolerance is
-unchanged, and failed solves are not accepted. `Kxy`, `Kxz`, and `Kyz` are now
-represented rather than projected out.
-
-A planar AP sweep through bridge Peclet numbers off, 1, 0.1, and 0.01 produced
-late `eta=0.5` temperatures of 700.70, 701.46, 709.58, and 768.10 K. At
-`Pe=0.01`, the reconstructed center flux is 5.57 MW/m2, compared with 0.012
-MW/m2 unbridged. Every case completed to 5 ms and retained the same 22.12 um
-`eta=0.9--0.1` width. The temperature-independent phase-change settings also
-left the fitted regression rate unchanged at 3.772 mm/s, as expected.
-
-The final directional planar AP case completed to 5.0016 ms in 2349 steps with
-a 2.197 us final timestep. Its final temperature differs from the former scalar
-bridge by at most 0.009 K, which is the expected equivalence for a planar
-grid-aligned normal.
-
-The final matrix-harmonic tensor rerun gives `T(eta=0.5)=768.098 K` at 5 ms,
-matching the established 768.10 K planar value. Its transverse spread is below
-`1e-9 K`.
-
-The final directional AP/HTPB case completed to 3.0007 ms on two MPI ranks and
-AMR levels 0--2 in 1395 steps, with a 2.138 us final timestep. Every composite
-solve converged through repeated regrids. On the interpolated `eta=0.5`
-surface, the scalar bridge produced 763.67--765.74 K with a 0.64 K standard
-deviation. The directional bridge produced 718.98--825.00 K with a 29.65 K
-standard deviation while retaining a similar mean temperature. The AP/HTPB
-mean surface-temperature separation increased from 1.37 K to 24.02 K. Thus the
-normal transfer remains active without artificially equilibrating the complete
-interface laterally.
-
-`input.lm.ap_htpb_inclined` provides the off-diagonal regression geometry. Its
-two long interfaces have slopes `+/-1`, so the former diagonal projection
-reduced the artificial bridge to `(k_bridge/2)*I`. At 3 ms that approximation
-gave an `eta=0.5` range of 735.19--740.45 K and only 0.07 K AP/HTPB mean
-separation. The full tensor MPI-2, AMR 0--2 run completed to 3.0006 ms in 2762
-steps with strict convergence. It gives 712.16--835.93 K and 29.05 K AP/HTPB
-mean separation. Both versions move the interface by the same 14.8 micrometers,
-isolating the change to tangential thermal transport.
-
-LMDrivenCavity serial/MPI AMR and LowMachChemistry explicit/implicit
-regressions all pass after this change. The unresolved shared-temperature
-advection closure is unchanged by the bridge implementation.
+The next thermodynamic improvement should be conservative mixture enthalpy,
+including sensible and latent enthalpy carried by phase change, followed by
+interface-width convergence. Artificially increasing conductivity or directly
+overwriting/extrapolating temperature should not be used to compensate for a
+missing energy term.
 
 Radiation cannot supply the missing pure-AP heat feedback. A deliberately
 generous blackbody bound,
@@ -799,7 +725,8 @@ pressure response.
 
 ## Verified Results
 
-The following results were checked on 2026-07-22 with the 2D clang build.
+The following results include the 2026-07-22 regressions and the scalar thermal
+investigation on 2026-07-23 with the 2D clang build.
 
 | Case | Configuration | Result |
 | --- | --- | --- |
@@ -807,15 +734,15 @@ The following results were checked on 2026-07-22 with the 2D clang build.
 | `LMDrivenCavity` | Re=100, AMR levels 0-1, MPI 2 | Run and reference-profile check passed |
 | `LowMachChemistry` | 29-reaction H2/O2, explicit, MPI 2, AMR | Product, positivity, pressure, and AMR checks passed |
 | `LowMachChemistry` | Same case, implicit with 10x flow timestep | Product, positivity, pressure, and AMR checks passed |
-| `input.lm.ap_htpb` | MPI 2, AMR levels 0-2 | Reached 501.653 microseconds in 223 steps |
+| `input.lm.ap_htpb` | Physical scalar conduction, MPI 8, AMR levels 0-2 | Reached 6.0006 ms in 7154 steps |
 
-Final AP/HTPB metrics were:
+Near-6-ms AP/HTPB metrics were:
 
 ```text
-flow timestep            1.99 microseconds (advective limit)
-maximum temperature      2262.96 K
-maximum speed            1.42 m/s
-minimum partial density  -3.0e-16 (roundoff)
+flow timestep            0.604 microseconds (advective limit)
+temperature range        700.04--2941.12 K
+maximum speed            4.66 m/s
+pressure range           2.999--5.381 MPa
 ```
 
 At 20.176 microseconds, serial and two-rank fields agreed to at most
@@ -888,12 +815,11 @@ Useful regression commands are:
 
 ## Remaining Risks And Next Steps
 
-1. Correct common-temperature advection to transport gas enthalpy at the gas
-   velocity rather than transporting the complete condensed thermal inertia at
-   that velocity.
-2. Verify full-tensor thermal convergence as the phase-field width is reduced
-   on smooth curved interfaces.
-3. Add phase-change enthalpy and interfacial heat feedback. Condensed heat
+1. Evolve conservative mixture enthalpy rather than temperature so changing
+   phase fractions carry sensible energy consistently.
+2. Verify scalar thermal convergence as the phase-field width is reduced on
+   planar and smooth curved interfaces.
+3. Add phase-change latent enthalpy and interfacial heat feedback. Condensed heat
    capacities and conductivities are now species properties, but phase change
    still transfers mass without a corresponding thermal source.
 4. Use one projected face-velocity field for both scalar fluxes and the
@@ -913,9 +839,8 @@ Useful regression commands are:
    multiple mobile condensed bodies or phases are required.
 10. Generalize phase change to permit positive eta rates for condensation or
    growth while preserving bounds and mass conservation.
-11. Add calibrated AP and HTPB Arrhenius surface kinetics. The current identical
-   rate multipliers intentionally accelerate regression for transport testing
-   and cannot produce grooving.
+11. Recalibrate the distinct AP and HTPB Arrhenius surface kinetics with scalar
+   conduction after the conservative enthalpy equation is in place.
 12. Revisit the explicit elastic timestep only after the spatial stress and
     reference-map discretizations have dedicated regressions. Damping cannot
     remove the elastic wave CFL in general.

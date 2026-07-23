@@ -1,10 +1,9 @@
 # 3 MPa AP/HTPB sandwich with a chevron-shaped condensed/gas interface.
 # Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_inclined
 #
-# The two long surface segments have slopes +/-1. On these segments the exact
-# bridge tensor k_b n*n has off-diagonal entries, while a coordinate-diagonal
-# diffusion operator reduces the bridge to (k_b/2) I and therefore conducts
-# tangentially as strongly as it conducts normally.
+# The two long surface segments have slopes +/-1. This geometry exercises
+# orientation sensitivity and temperature-bound preservation in the physical
+# scalar diffuse-interface conduction model.
 
 plot_file = output.lm.ap_htpb_inclined
 amr.plot_dt = 2.5e-4_s
@@ -111,8 +110,6 @@ include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
-thermal_bridge.width = 20.0_um
-thermal_bridge.peclet = 0.01
 projection.enabled = 1
 projection.tol_rel = 1.0e-11
 projection.tol_abs = 1.0e-12
