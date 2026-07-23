@@ -1502,6 +1502,56 @@ public:
         return 0;
     }
 
+    template <typename T>
+    int
+    queryarr_enumerate(std::string a_name, std::vector<std::vector<T>> &value, int number = 1,
+                       const std::source_location &location = std::source_location::current())
+    {
+        RecordInputAndContinue(a_name, location);
+        value.clear();
+
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            for (int n = 0; n < number; n++)
+            {
+                std::vector<T> tmp;
+                this->queryarr_required(name, tmp);
+                value.push_back(std::move(tmp));
+            }
+            return 0;
+        }
+
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
+        }
+
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            std::vector<T> tmp;
+            this->queryarr_required(name, tmp);
+            value.push_back(std::move(tmp));
+            name = a_name + std::to_string(cntr+1);
+        }
+
+        return 0;
+    }
+
 
 
     int AnyUnusedInputs(bool inscopeonly = true, bool verbose = false)

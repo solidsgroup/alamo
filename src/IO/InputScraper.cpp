@@ -310,7 +310,7 @@ InputScraper::KindForDirective(const std::string &directive)
     if (directive == "query_switch" || directive == "query_if") return "switch";
     if (directive == "select" || directive == "select_default") return "switch";
     if (directive == "select_enumerate") return "sequence";
-    if (directive == "query_enumerate" || directive == "queryclass_enumerate") return "sequence";
+    if (directive == "query_enumerate" || directive == "queryarr_enumerate" || directive == "queryclass_enumerate") return "sequence";
     if (directive == "queryclass") return "scope";
     return "parameter";
 }

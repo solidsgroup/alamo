@@ -471,6 +471,56 @@
       background: #f7faff;
     }
 
+    .boolean-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 6px 9px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .boolean-indicator {
+      position: relative;
+      width: 30px;
+      height: 16px;
+      border-radius: 999px;
+      background: #a9b0aa;
+      transition: background 120ms ease;
+    }
+
+    .boolean-indicator::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      transition: transform 120ms ease;
+    }
+
+    .boolean-toggle.enabled {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .boolean-toggle.enabled .boolean-indicator {
+      background: var(--accent);
+    }
+
+    .boolean-toggle.enabled .boolean-indicator::after {
+      transform: translateX(14px);
+    }
+
     .switch-options { align-items: stretch; gap: 0; }
 
     .switch-option {
@@ -1045,6 +1095,20 @@
               'aria-pressed="' + (selected ? "true" : "false") + '">' + esc(option) + '</button>'
           );
         }).join("");
+        if (node.directive === "query_if") {
+          const offValue = (flowOptions || optionValues(node))[0];
+          const onValue = (flowOptions || optionValues(node))[1];
+          const enabled = String(current) === String(onValue);
+          return (
+            '<div class="field-row configured" data-node-path="' + esc(node._path) + '">' +
+              renderInputName(node) +
+              '<div class="field-control"><button type="button" class="boolean-toggle' + (enabled ? " enabled" : "") + '" ' +
+                'data-switch-id="' + node._id + '" data-switch-value="' + esc(enabled ? offValue : onValue) + '" ' +
+                'role="switch" aria-checked="' + (enabled ? "true" : "false") + '">' +
+                '<span>' + (enabled ? "On" : "Off") + '</span><span class="boolean-indicator" aria-hidden="true"></span></button></div>' +
+            '</div>'
+          );
+        }
         return (
           '<div class="field-row switch-row configured" data-node-path="' + esc(node._path) + '">' +
             renderInputName(node) +

@@ -26,6 +26,7 @@ INPUT_METHODS = {
     "queryarr_default",
     "queryclass",
     "query_enumerate",
+    "queryarr_enumerate",
     "queryclass_enumerate",
     "query_customname",
     "query_exactly",

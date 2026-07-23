@@ -127,19 +127,18 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
         pp.query_if("explicitmesh.on", [&] () {
+            std::vector<std::vector<int>> los, his;
+
+            pp.queryarr_enumerate("explicitmesh.lo",los,value.maxLevel());
+            pp.queryarr_enumerate("explicitmesh.hi",his,value.maxLevel());
+
+            if (IO::ParmParse::InTraversalMode()) return;
+
             value.explicitmesh.on = true;
             for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
             {
-                std::string strlo = "explicitmesh.lo" + std::to_string(ilev + 1);
-                std::string strhi = "explicitmesh.hi" + std::to_string(ilev + 1);
-
-                amrex::Vector<int> lodata, hidata;
-                pp.queryarr_required(strlo.c_str(), lodata);
-                pp.queryarr_required(strhi.c_str(), hidata);
-                if (IO::ParmParse::InTraversalMode()) continue;
-                amrex::IntVect lo(AMREX_D_DECL(lodata[0], lodata[1], lodata[2]));
-                amrex::IntVect hi(AMREX_D_DECL(hidata[0], hidata[1], hidata[2]));
-
+                amrex::IntVect lo(AMREX_D_DECL(los[ilev][0], los[ilev][1], los[ilev][2]));
+                amrex::IntVect hi(AMREX_D_DECL(his[ilev][0], his[ilev][1], his[ilev][2]));
                 value.explicitmesh.box.push_back(amrex::Box(lo, hi));
             }
         }); // Use explicit mesh instead of AMR
