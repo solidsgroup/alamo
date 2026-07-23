@@ -298,14 +298,25 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
                 if (!m_uniform)
                 {
-                    MATRIX4
-                        AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
-                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten)),
-                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten)));
-                    // MulCol(a,b,c) is bit-identical to (a*b).col(c), computed directly.
-                    f += (AMREX_D_TERM(Set::MulCol(Cgrad1, gradu, 0),
-                        +Set::MulCol(Cgrad2, gradu, 1),
-                        +Set::MulCol(Cgrad3, gradu, 2))) * (psi_avg);
+                    // Accumulate grad(C):grad(u) one spatial direction at a time so
+                    // that only a single Matrix4 derivative temp is live at any
+                    // moment. Naming three temps (Cgrad1/2/3 = 135 live doubles in
+                    // 3D) whose scope spanned the whole expression was the dominant
+                    // Fapply register-spill source (255 regs/thread -> ~12.5%
+                    // occupancy, PHASE_A_FINDINGS.md sec.4).
+                    //
+                    // MulCol(a,b,c) is bit-identical to (a*b).col(c), computed
+                    // directly, and the summation order is unchanged, so f stays
+                    // bit-identical to both prior forms.
+                    Set::Vector graddc = Set::Vector::Zero();
+                    graddc += Set::MulCol(Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX.data(), sten), gradu, 0);
+#if AMREX_SPACEDIM > 1
+                    graddc += Set::MulCol(Numeric::Stencil<MATRIX4, 0, 1, 0>::D(DDW, i, j, k, 0, DX.data(), sten), gradu, 1);
+#endif
+#if AMREX_SPACEDIM > 2
+                    graddc += Set::MulCol(Numeric::Stencil<MATRIX4, 0, 0, 1>::D(DDW, i, j, k, 0, DX.data(), sten), gradu, 2);
+#endif
+                    f += graddc * psi_avg;
                 }
                 if (m_psi_set)
                 {
