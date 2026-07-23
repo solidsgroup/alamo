@@ -59,6 +59,7 @@ public:
 
 protected:
     void Initialize(int lev) override;
+    void Regrid(int lev, Set::Scalar time) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int iter) override;
     void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
@@ -174,8 +175,10 @@ protected:
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
+    Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
+    bool reinitialize_condensed_composition = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
     bool include_viscosity = true;

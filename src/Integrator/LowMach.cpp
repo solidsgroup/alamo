@@ -242,6 +242,28 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
     if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
+    pp.query_default("amr.reinitialize_condensed_composition",
+                    value.reinitialize_condensed_composition, false);
+    if (value.reinitialize_condensed_composition)
+    {
+        pp.query_default("amr.reinitialize_condensed_composition_eta_min",
+                        value.reinitialize_condensed_composition_eta_min, 0.99);
+        if (value.reinitialize_condensed_composition_eta_min < 0.0 ||
+            value.reinitialize_condensed_composition_eta_min > 1.0)
+            Util::Exception(INFO,
+                "amr.reinitialize_condensed_composition_eta_min must lie in [0,1]");
+        if (value.deformable_solid_species >= 0 ||
+            static_cast<int>(value.rigid_solid_species.size()) !=
+                value.nspecies - value.ngas_species)
+            Util::Exception(INFO,
+                "amr.reinitialize_condensed_composition currently requires "
+                "all condensed species to use rigid_solid mechanics");
+        for (int n = value.ngas_species; n < value.nspecies; ++n)
+            if (value.component_density_ic[n] == nullptr)
+                Util::Exception(INFO,
+                    "amr.reinitialize_condensed_composition requires a density IC for ",
+                    value.species_names[n]);
+    }
     pp.queryarr_default("g", value.g, Set::Vector::Zero());
 
     int nghost = value.advect.NGhost();
@@ -1518,6 +1540,74 @@ LowMach::Initialize(int lev)
         UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
     }
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
+}
+
+void
+LowMach::Regrid(int lev, Set::Scalar time)
+{
+    if (!reinitialize_condensed_composition || lev == 0 ||
+        ngas_species >= nspecies)
+        return;
+
+    const int ncondensed = nspecies - ngas_species;
+    amrex::MultiFab initial_density(
+        component_density_mf[lev]->boxArray(),
+        component_density_mf[lev]->DistributionMap(),
+        ncondensed, 0);
+    initial_density.setVal(0.0);
+
+    Set::Field<Set::Scalar> species_density(component_density_mf.size());
+    for (int n = ngas_species; n < nspecies; ++n)
+    {
+        if (component_density_ic[n] == nullptr) continue;
+        species_density[lev] = std::make_unique<amrex::MultiFab>(
+            initial_density, amrex::MakeType::make_alias,
+            n - ngas_species, 1);
+        component_density_ic[n]->Initialize(lev, species_density, 0.0);
+    }
+
+    const auto inverse_reference_density = condensed_inverse_reference_density;
+    const int first_condensed = ngas_species;
+    const int total_species = nspecies;
+    const Set::Scalar eta_min =
+        time == 0.0 ? 0.0 : reinitialize_condensed_composition_eta_min;
+    for (amrex::MFIter mfi(*component_density_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> density = component_density_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> density_ic = initial_density.array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta = 0.0;
+            Set::Scalar eta_ic = 0.0;
+            for (int n = first_condensed; n < total_species; ++n)
+            {
+                const Set::Scalar inverse_rho_ref =
+                    inverse_reference_density[n];
+                eta += Util::Max(density(i,j,k,n), 0.0) * inverse_rho_ref;
+                eta_ic += Util::Max(
+                    density_ic(i,j,k,n - first_condensed), 0.0) *
+                    inverse_rho_ref;
+            }
+
+            if (eta > 0.0 && eta >= eta_min && eta_ic > 0.0)
+            {
+                // Restore the IC composition without moving the evolved
+                // condensed/gas interface represented by the total eta.
+                const Set::Scalar scale = eta / eta_ic;
+                for (int n = first_condensed; n < total_species; ++n)
+                    density(i,j,k,n) =
+                        scale * density_ic(i,j,k,n - first_condensed);
+            }
+        });
+    }
+
+    component_density_bc->define(geom[lev]);
+    component_density_bc->FillBoundary(
+        *component_density_mf[lev], 0, nspecies, time, 0);
+    component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+    UpdateComponentState(lev, *component_density_mf[lev]);
 }
 
 void
