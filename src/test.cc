@@ -183,6 +183,23 @@ int main (int argc, char* argv[])
             std::abs(explicit_state[0] - 0.5) > 1.0e-14;
         subfailed += Util::Test::SubMessage("Forward Euler", explicit_failed);
 
+        IO::ParmParse ode_pp;
+        ode_pp.add("ode_parse_test.type", "forward_euler");
+        ode_pp.add("ode_parse_test.forward_euler.nsubsteps", 2);
+        ODESolver parsed_solver;
+        ode_pp.select<
+            Solver::Local::ODE::ForwardEuler,
+            Solver::Local::ODE::BackwardEuler>(
+                "ode_parse_test", parsed_solver);
+        Set::Scalar parsed_substep_state[1] = {1.0};
+        const auto parsed_substep_result = parsed_solver.Advance<1>(
+            parsed_substep_state, 1, 0.5, rhs, jacobian, false);
+        const int parsed_substep_failed =
+            !parsed_substep_result.converged ||
+            std::abs(parsed_substep_state[0] - 0.609375) > 1.0e-14;
+        subfailed += Util::Test::SubMessage(
+            "Parsed ODE substeps", parsed_substep_failed);
+
         solver.Select<Solver::Local::ODE::BackwardEuler>();
         solver.Get<Solver::Local::ODE::BackwardEuler>().Configure(
             20, 1.0e-12, 1.0e-14);
@@ -203,6 +220,20 @@ int main (int argc, char* argv[])
             std::abs(analytic_state[0] - exact) > 1.0e-11;
         subfailed += Util::Test::SubMessage(
             "Backward Euler analytic Jacobian", analytic_failed);
+
+        solver.Get<Solver::Local::ODE::BackwardEuler>().nsubsteps = 2;
+        Set::Scalar implicit_substep_state[1] = {1.0};
+        const auto implicit_substep_result = solver.Advance<1>(
+            implicit_substep_state, 1, 0.5, rhs, jacobian, true);
+        const Set::Scalar first_substep = 2.0 * (std::sqrt(2.0) - 1.0);
+        const Set::Scalar implicit_substep_exact =
+            2.0 * (std::sqrt(1.0 + first_substep) - 1.0);
+        const int implicit_substep_failed =
+            !implicit_substep_result.converged ||
+            std::abs(implicit_substep_state[0] - implicit_substep_exact) >
+                1.0e-11;
+        subfailed += Util::Test::SubMessage(
+            "Backward Euler substeps", implicit_substep_failed);
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

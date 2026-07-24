@@ -19,6 +19,8 @@ struct ForwardEuler
     static constexpr bool requires_jacobian = false;
     static constexpr bool supports_jacobian = false;
 
+    int nsubsteps = 1;
+
     template<int MAX_SIZE, typename RHS, typename Jacobian>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Solver::Local::ODE::Advance::Result
@@ -52,9 +54,12 @@ struct ForwardEuler
         return result;
     }
 
-    static void Parse(ForwardEuler& /*value*/, IO::ParmParse& pp)
+    static void Parse(ForwardEuler& value, IO::ParmParse& pp)
     {
         Util::Message(INFO, pp.getPrefix());
+        pp.query_default("nsubsteps", value.nsubsteps, 1);
+        Util::Assert(INFO, TEST(value.nsubsteps > 0),
+            "Forward Euler nsubsteps must be positive.");
     }
 };
 

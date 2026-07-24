@@ -20,6 +20,7 @@ struct BackwardEuler
     static constexpr bool requires_jacobian = false;
     static constexpr bool supports_jacobian = true;
 
+    int nsubsteps = 1;
     int max_iterations = 100;
     Set::Scalar relative_tolerance = 1.0e-8;
     Set::Scalar absolute_tolerance = 1.0e-12;
@@ -211,9 +212,12 @@ struct BackwardEuler
     static void Parse(BackwardEuler& value, IO::ParmParse& pp)
     {
         Util::Message(INFO, pp.getPrefix());
+        pp.query_default("nsubsteps", value.nsubsteps, 1);
         pp.query_default("max_iter", value.max_iterations, 100);
         pp.query_default("reltol", value.relative_tolerance, 1.0e-8);
         pp.query_default("abstol", value.absolute_tolerance, 1.0e-12);
+        Util::Assert(INFO, TEST(value.nsubsteps > 0),
+            "Backward Euler nsubsteps must be positive.");
         Util::Assert(INFO, TEST(value.max_iterations > 0),
             "Backward Euler max_iter must be positive.");
         Util::Assert(INFO,

@@ -128,8 +128,32 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).template Advance<MAX_SIZE>(
-                    state, size, dt, rhs, jacobian, has_jacobian);
+            {
+                Solver::Local::ODE::Advance::Result result;
+                const int nsubsteps = std::get<I>(obj).nsubsteps;
+                if (nsubsteps <= 0 || size <= 0 || size > MAX_SIZE ||
+                    !(dt > 0.0)) return result;
+
+                Set::Scalar substep_state[MAX_SIZE]{};
+                for (int n = 0; n < size; ++n) substep_state[n] = state[n];
+
+                const Set::Scalar substep_dt = dt / nsubsteps;
+                for (int substep = 0; substep < nsubsteps; ++substep)
+                {
+                    const auto substep_result =
+                        std::get<I>(obj).template Advance<MAX_SIZE>(
+                            substep_state, size, substep_dt, rhs, jacobian,
+                            has_jacobian);
+                    if (!substep_result.converged) return substep_result;
+                    if (substep == 0 ||
+                        substep_result.residual_norm > result.residual_norm)
+                        result.residual_norm = substep_result.residual_norm;
+                }
+
+                for (int n = 0; n < size; ++n) state[n] = substep_state[n];
+                result.converged = true;
+                return result;
+            }
             return Advance<MAX_SIZE, RHS, Jacobian, I + 1>(
                 state, size, dt, rhs, jacobian, has_jacobian);
         }
