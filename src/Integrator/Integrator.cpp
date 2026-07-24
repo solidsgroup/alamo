@@ -94,56 +94,49 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
             for (int lev = 1; lev <= value.maxLevel(); ++lev)
                 value.nsubsteps[lev] = value.MaxRefRatio(lev - 1);
     }
-    {
-        // activate dynamic CFL-based timestep
-        pp.query_default("dynamictimestep.on",value.dynamictimestep.on,false);
-        if (value.dynamictimestep.on)
+
+    // activate dynamic CFL-based timestep
+    pp.query_if("dynamictimestep.on", [&](){
+        value.dynamictimestep.on = true;
+        // how much information to print
+        pp.query_validate("dynamictimestep.verbose",value.dynamictimestep.verbose,{0,1});
+        // number of previous timesteps for rolling average
+        pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
+        // dynamic teimstep CFL condition
+        pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
+        // minimum timestep size allowed shen stepping dynamically
+        pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
+        // maximum timestep size allowed shen stepping dynamically
+        pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
+
+    });
+
+    // Information on how to generate thermodynamic
+    // data (to show up in thermo.dat)
+    pp.query_default("amr.thermo.int", value.thermo.interval, 1);               // Integration interval (1)
+    pp.query_default("amr.thermo.plot_int", value.thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
+    pp.query_default("amr.thermo.plot_dt", value.thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+
+
+    // Instead of using AMR, prescribe an explicit, user-defined
+    // set of grids to work on. This is pretty much always used
+    // for testing purposes only.
+    pp.query_if("explicitmesh.on", [&] () {
+        std::vector<std::vector<int>> los, his;
+
+        pp.queryarr_enumerate("explicitmesh.lo",los,value.maxLevel());
+        pp.queryarr_enumerate("explicitmesh.hi",his,value.maxLevel());
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        value.explicitmesh.on = true;
+        for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
         {
-            // how much information to print
-            pp.query_validate("dynamictimestep.verbose",value.dynamictimestep.verbose,{0,1});
-            // number of previous timesteps for rolling average
-            pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
-            // dynamic teimstep CFL condition
-            pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
-            // minimum timestep size allowed shen stepping dynamically
-            pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
-            // maximum timestep size allowed shen stepping dynamically
-            pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
-
-            Util::AssertException(INFO,TEST(value.dynamictimestep.max >= value.dynamictimestep.min));
+            amrex::IntVect lo(AMREX_D_DECL(los[ilev][0], los[ilev][1], los[ilev][2]));
+            amrex::IntVect hi(AMREX_D_DECL(his[ilev][0], his[ilev][1], his[ilev][2]));
+            value.explicitmesh.box.push_back(amrex::Box(lo, hi));
         }
-    }
-    {
-        // Information on how to generate thermodynamic
-        // data (to show up in thermo.dat)
-        value.thermo.interval = 1;                                       // Default: integrate every time.
-        pp.query_default("amr.thermo.int", value.thermo.interval, 1);               // Integration interval (1)
-        pp.query_default("amr.thermo.plot_int", value.thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp.query_default("amr.thermo.plot_dt", value.thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
-    }
-
-    {
-        // Instead of using AMR, prescribe an explicit, user-defined
-        // set of grids to work on. This is pretty much always used
-        // for testing purposes only.
-        pp.query_if("explicitmesh.on", [&] () {
-            std::vector<std::vector<int>> los, his;
-
-            pp.queryarr_enumerate("explicitmesh.lo",los,value.maxLevel());
-            pp.queryarr_enumerate("explicitmesh.hi",his,value.maxLevel());
-
-            if (IO::ParmParse::InTraversalMode()) return;
-
-            value.explicitmesh.on = true;
-            for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
-            {
-                amrex::IntVect lo(AMREX_D_DECL(los[ilev][0], los[ilev][1], los[ilev][2]));
-                amrex::IntVect hi(AMREX_D_DECL(his[ilev][0], his[ilev][1], his[ilev][2]));
-                value.explicitmesh.box.push_back(amrex::Box(lo, hi));
-            }
-        }); // Use explicit mesh instead of AMR
-    }
-
+    }); 
 
     {
         //
@@ -158,12 +151,14 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         std::string str;
         // Type of time integration to use (see amrex::TimeIntegrator for more details)
         pp.query_validate("integration.type", str, {"ForwardEuler","RungeKutta"});
-        if (str == "RungeKutta")
-        {
-            int type;
-            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
-            pp.query_validate("integration.rk.type", type, {1,2,3,4});
-        }
+        pp.query_switch("integration.type", {
+                {"ForwardEuler", [&]() {}},
+                {"RungeKutta", [&]() {
+                    // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
+                    int type;
+                    pp.query_validate("integration.rk.type", type, {1,2,3,4});
+                }}
+            });
     }
 
     int nlevs_max = value.maxLevel() + 1;

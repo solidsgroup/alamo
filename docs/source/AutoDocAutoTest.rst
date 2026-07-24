@@ -15,10 +15,9 @@ The purpose of the custom autodoc and autotest systems is to:
 Autodoc system
 ==============
 
-The autodoc system parses the source files stored in :code:`./src/` to generate the content of the
-Inputs portion of this documentation.
-There are two ways to create compliant documentation: via parser comments, and via header file 
-comments.
+The input autodoc system traverses the :code:`IO::ParmParse` calls compiled into each executable
+and emits a structured schema. Source comments are then attached to the schema using the source
+locations recorded during traversal.
 
 Parser comments
 ---------------
@@ -47,41 +46,20 @@ or immediately preceeding the query line:
     // Shear modulus
     pp.query("shear",mu);
 
-Note that the parser object must be called :code:`pp` for the autodoc system to locate the query.
-As long as the convention is followed, the content of the comments will be automatically scraped
-and included in the Inputs section of the documentation. 
-(For instance: :ref:`Model::Solid::Linear::Isotropic`)
-
-
-Header comments
----------------
-
-General comments to document a class, or collection of methods, goes at the top of the associated 
-header file.
-Use standard C++ comments (:code:`//`).
-These comments will get scraped by the autodoc system, and will be formatted along with the rest
-of the inputs.
-
-For example, consider the documentation for the linear isotropic material model class.
-The following leading comment is formatted at :ref:`Model::Solid::Linear::Isotropic`
-
-.. literalinclude:: ../../src/Model/Solid/Linear/Isotropic.H
-    :language: cpp
-    :lines: 1-50
-
-
-ReStructuredText
-----------------
-
-All comments are formatted using 
-`restructuredtext <https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html>`_
-markup.
-You can make use of this is if you like, but it is not required for good documentation.
+The comment is displayed with the corresponding input in the generated builder. Conditional
+branches and enumerated classes are represented by the traversal schema rather than inferred
+from source text.
 
 Documentation generation
 ------------------------
 
-To generate this documentation, complete with the scraped markup, run
+To build the executable-specific schemas and input builders, run
+
+.. code:: bash
+
+    make docs-input-builders
+
+Then build the Sphinx documentation with
 
 .. code:: bash
 
@@ -193,5 +171,4 @@ You can store reference data inside the test directory; e.g.
 
 as long as the data files are reasonably small in size and, of course, are text-based.
 For example tests, see the existing tests in the repository.
-
 

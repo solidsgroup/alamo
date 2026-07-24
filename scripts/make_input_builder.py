@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from html import escape
+import re
+from html import escape, unescape
 from pathlib import Path
 
 
@@ -33,6 +34,23 @@ def parse_args() -> argparse.Namespace:
         default="Alamo Input Builder",
         help="Title shown in the generated page.",
     )
+    parser.add_argument(
+        "--current-builder",
+        default="",
+        help="Executable name represented by this builder.",
+    )
+    parser.add_argument(
+        "--builder",
+        action="append",
+        default=[],
+        help="Executable name available in the builder selector. May be repeated.",
+    )
+    parser.add_argument(
+        "--doxygen-dir",
+        type=Path,
+        default=Path("docs/build/html/doxygen"),
+        help="Doxygen HTML directory used to resolve source-file links.",
+    )
     return parser.parse_args()
 
 
@@ -41,12 +59,51 @@ def make_script_safe_json(data: object) -> str:
     return text.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
 
 
-def render_html(schema: object, schema_path: Path, title: str) -> str:
+def builder_options(builders: list[str], current_builder: str) -> str:
+    return "\n".join(
+        "<option value=\"{href}\"{selected}>{name}</option>".format(
+            href=escape(f"{builder}.html", quote=True),
+            selected=" selected" if builder == current_builder else "",
+            name=escape(builder),
+        )
+        for builder in builders
+    )
+
+
+def normalized_source_file(value: str) -> str:
+    value = value.replace("\\", "/")
+    while value.startswith("./"):
+        value = value[2:]
+    return value
+
+
+def load_doxygen_sources(doxygen_dir: Path) -> dict[str, str]:
+    sources: dict[str, str] = {}
+    title_pattern = re.compile(r"<title>Alamo: (.+) Source File</title>")
+    for page in doxygen_dir.glob("*source.html"):
+        contents = page.read_text(encoding="utf-8", errors="replace")
+        match = title_pattern.search(contents)
+        if match:
+            source_file = normalized_source_file(unescape(match.group(1)))
+            sources[source_file] = page.name
+    return sources
+
+
+def render_html(
+    schema: object,
+    schema_path: Path,
+    title: str,
+    builders: list[str],
+    current_builder: str,
+    doxygen_sources: dict[str, str],
+) -> str:
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     return (
         html.replace("__TITLE__", escape(title))
         .replace("__SCHEMA_SOURCE__", escape(str(schema_path)))
         .replace("__SCHEMA_JSON__", make_script_safe_json(schema))
+        .replace("__DOXYGEN_SOURCES_JSON__", make_script_safe_json(doxygen_sources))
+        .replace("__BUILDER_OPTIONS__", builder_options(builders, current_builder))
     )
 
 
@@ -56,7 +113,14 @@ def main() -> None:
         schema = json.load(schema_file)
 
     args.output.write_text(
-        render_html(schema, args.schema, args.title),
+        render_html(
+            schema,
+            args.schema,
+            args.title,
+            args.builder,
+            args.current_builder,
+            load_doxygen_sources(args.doxygen_dir),
+        ),
         encoding="utf-8",
     )
     print(f"Wrote {args.output}")

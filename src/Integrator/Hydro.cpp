@@ -191,10 +191,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     std::cout << value.nspecies << "\n";
 
     // Determine whether flow is prescribed in normal coordinates or global coordinates
-    pp.query_switch("prescribedflowmode",
-                    pp.forward_args(
-                        "absolute", [&]() {value.prescribedflowmode = PrescribedFlowMode::Absolute;},
-                        "relative", [&]() {value.prescribedflowmode = PrescribedFlowMode::Relative;}));
+    pp.query_switch("prescribedflowmode", {
+        {"absolute", [&]() {value.prescribedflowmode = PrescribedFlowMode::Absolute;}},
+        {"relative", [&]() {value.prescribedflowmode = PrescribedFlowMode::Relative;}}
+    });
 
     // Gravitational acceleration vector
     pp.queryarr_default("g",value.g,Set::Vector::Zero());

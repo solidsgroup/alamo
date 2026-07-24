@@ -30,6 +30,7 @@ public:
         std::string kind = "input";
         std::string input;
         std::vector<FlowBranch> branches;
+        std::vector<FlowNode> children;
     };
 
     struct InputNode
@@ -63,6 +64,12 @@ public:
         std::vector<std::vector<Condition>> contexts;
         std::vector<Constraint> constraints;
         std::vector<InputNode> children;
+    };
+
+    struct TraversalIgnore
+    {
+        std::string note;
+        std::source_location location;
     };
 
     class TraversalBranchScope
@@ -99,6 +106,11 @@ public:
                                  std::vector<std::string> members,
                                  std::vector<std::string> units,
                                  const std::source_location &location);
+    static void RecordTraversalIgnore(const std::source_location &location,
+                                      std::string note);
+    static void CaptureSequenceTemplate(ParmParse &pp,
+                                        const std::string &sequence_name,
+                                        const std::string &template_name);
     static void PrintTraversalBranch(ParmParse &pp, std::string name, const std::string &value);
 
     template<typename T>
@@ -158,9 +170,11 @@ private:
     static std::vector<FlowNode> input_flow;
     static std::vector<FlowNode> *traversal_flow;
     static std::vector<std::vector<FlowNode> *> traversal_flow_stack;
+    static std::vector<TraversalIgnore> traversal_ignores;
 
     static InputNode &GetPath(InputNode &root, const std::string &path);
-    static std::string KindForDirective(const std::string &directive);
+    static std::string KindForDirective(const std::string &directive,
+                                        const std::vector<std::string> &options = {});
     static std::string MergeKind(const std::string &old_kind, const std::string &new_kind);
     static void AddContext(InputNode &node, const std::vector<InputNode::Condition> &conditions);
     static void RecordFlowInput(const std::string &path,

@@ -8,6 +8,7 @@
 #include "AMReX.H"
 #include "GB.H"
 
+#include "IO/ParmParse.H"
 #include "Numeric/Interpolator/Linear.H"
 
 #define PI 3.14159265 
@@ -94,7 +95,10 @@ public:
     static void Parse(Read & value, IO::ParmParse & pp)
     {
         std::string filename;
-        pp_query_file("filename",filename); // Filename containing GB data
+        pp.query_file("filename",filename); // Filename containing GB data
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
         value.Define(filename);
     }
       

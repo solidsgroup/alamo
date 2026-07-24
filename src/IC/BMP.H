@@ -189,19 +189,25 @@ public:
         std::string filename;
         pp.query_file("filename",filename); // BMP filename.
 
-        std::string fit;
-        // How to position image in space
-        pp.query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
-        if (fit=="stretch")        value.fit = Fit::Stretch;
-        else if (fit=="fitheight") value.fit = Fit::FitHeight;
-        else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
-        else if (fit=="coord")
-        {
-            value.fit = Fit::Coord;
-            pp.queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
-            pp.queryarr("coord.hi",value.coord_hi); // Location of upper-right corner in the domain
-        }
-        else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
+        // how to position the image
+        pp.query_switch("fit", {
+                {"stretch", [&]() {
+                    value.fit = Fit::Stretch;
+                }},
+                {"fitheight", [&]() {
+                    value.fit = Fit::FitHeight;
+                }},
+                {"fitwidth", [&]() {
+                    value.fit = Fit::FitWidth;
+                }},
+                {"coord", [&]() {
+                    value.fit = Fit::Coord;
+                    // Lower-left coordinates of image in domain
+                    pp.queryarr_required("coord.lo", value.coord_lo,Unit::Length());
+                    // Upper-right coordinates of image in domain
+                    pp.queryarr_required("coord.hi", value.coord_hi,Unit::Length());
+                }}
+            });
 
         std::string channel;
         // Color channel to use

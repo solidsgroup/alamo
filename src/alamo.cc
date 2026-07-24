@@ -42,39 +42,38 @@ int main (int argc, char* argv[])
 
     Integrator::Integrator *integrator = nullptr;
 
-    pp.query_switch("alamo.program",
-                    pp.forward_args(
-                        "microstructure",  [&] ()
-                        {
-                            std::string model;
-                            // This input determines which elastic model is used - only if using
-                            // the PhaseFieldMicrostructure integrator.
-                            pp.query_validate(  "alamo.program.microstructure.model",model,
-                                                {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
+    pp.query_switch("alamo.program", {
+        {"microstructure",  [&] ()
+        {
+            std::string model;
+            // This input determines which elastic model is used - only if using
+            // the PhaseFieldMicrostructure integrator.
+            pp.query_validate(  "alamo.program.microstructure.model",model,
+                                {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
 
-                            pp.query_switch("alamo.program.microstructure.model",
-                                            pp.forward_args(
-                                                "affine.cubic", [&]()
-                                                {
-                                                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
-                                                },
-                                                "affine.hexagonal", [&]()
-                                                {
-                                                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>>(integrator);
-                                                },
-                                                "finite.pseudoaffine.cubic", [&]()
-                                                {
-                                                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
-                                                }));
-                        },
-                        "flame", [&] ()        {pp.select_only<Integrator::Flame>(integrator);} ,
-                        "heat", [&] ()         {pp.select_only<Integrator::HeatConduction>(integrator);},
-                        "fracture", [&] ()     {pp.select_only<Integrator::Fracture>(integrator);},
-                        "dendrite", [&] ()     {pp.select_only<Integrator::Dendrite>(integrator);},
-                        "allencahn", [&] ()    {pp.select_only<Integrator::AllenCahn>(integrator);},
-                        "cahnhilliard", [&] () {pp.select_only<Integrator::CahnHilliard>(integrator);},
-                        "pfc", [&] ()          {pp.select_only<Integrator::PFC>(integrator); }
-                    ));
+            pp.query_switch("alamo.program.microstructure.model", {
+                {"affine.cubic", [&]()
+                {
+                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
+                }},
+                {"affine.hexagonal", [&]()
+                {
+                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>>(integrator);
+                }},
+                {"finite.pseudoaffine.cubic", [&]()
+                {
+                    pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
+                }}
+            });
+        }},
+        {"flame", [&] ()        {pp.select_only<Integrator::Flame>(integrator);}} ,
+        {"heat", [&] ()         {pp.select_only<Integrator::HeatConduction>(integrator);}},
+        {"fracture", [&] ()     {pp.select_only<Integrator::Fracture>(integrator);}},
+        {"dendrite", [&] ()     {pp.select_only<Integrator::Dendrite>(integrator);}},
+        {"allencahn", [&] ()    {pp.select_only<Integrator::AllenCahn>(integrator);}},
+        {"cahnhilliard", [&] () {pp.select_only<Integrator::CahnHilliard>(integrator);}},
+        {"pfc", [&] ()          {pp.select_only<Integrator::PFC>(integrator);}}
+    });
 
 
     integrator->InitData();

@@ -42,19 +42,24 @@ public:
 
         std::string fit = "stretch";
         // how to position the image
-        pp.query_validate("fit", fit, {"stretch","fitheight","fitwidth","coord"}); 
-        if (fit == "stretch")        value.fit = Fit::Stretch;
-        else if (fit == "fitheight") value.fit = Fit::FitHeight;
-        else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
-        else if (fit == "coord")
-        {
-            value.fit = Fit::Coord;
-            // Lower-left coordinates of image in domain
-            pp.queryarr("coord.lo", value.coord_lo,Unit::Length()); 
-            // Upper-right coordinates of image in domain
-            pp.queryarr("coord.hi", value.coord_hi,Unit::Length()); 
-        }
-        else Util::Abort(INFO);
+        pp.query_switch("fit", {
+                {"stretch", [&]() {
+                    value.fit = Fit::Stretch;
+                }},
+                {"fitheight", [&]() {
+                    value.fit = Fit::FitHeight;
+                }},
+                {"fitwidth", [&]() {
+                    value.fit = Fit::FitWidth;
+                }},
+                {"coord", [&]() {
+                    value.fit = Fit::Coord;
+                    // Lower-left coordinates of image in domain
+                    pp.queryarr_required("coord.lo", value.coord_lo,Unit::Length());
+                    // Upper-right coordinates of image in domain
+                    pp.queryarr_required("coord.hi", value.coord_hi,Unit::Length());
+                }}
+            });
 
         // Desired minimum value to scale pixels by
         pp.query_default("min", value.min, 0.0  );
@@ -68,7 +73,6 @@ public:
         // Now, read in the PNG
         //
         //
-
 
         FILE* fp = std::fopen(filename.c_str(), "rb");
 

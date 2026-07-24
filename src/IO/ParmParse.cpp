@@ -58,6 +58,15 @@ ParmParse::WriteInputTreeJsonFile(const std::string &path)
     InputScraper::WriteInputTreeJsonFile(path);
 }
 
+bool
+ParmParse::IgnoreInTraversalMode(std::string note,
+                                 const std::source_location &location)
+{
+    if (!InTraversalMode()) return false;
+    InputScraper::RecordTraversalIgnore(location, std::move(note));
+    return true;
+}
+
 void
 ParmParse::PrintTraversalBranch(std::string name, const std::string &value)
 {

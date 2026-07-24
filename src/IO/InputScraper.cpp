@@ -2,6 +2,7 @@
 #include "IO/JSON.H"
 #include "IO/ParmParse.H"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <utility>
@@ -103,6 +104,20 @@ WriteConstraint(std::ostream &os,
 }
 
 void
+WriteTraversalIgnore(std::ostream &os,
+                     const IO::InputScraper::TraversalIgnore &ignore,
+                     int indent)
+{
+    bool first = true;
+    os << "{";
+    IO::JSON::WriteStringField(os, first, indent + 2, "note", ignore.note);
+    IO::JSON::WriteSourceField(os, first, indent + 2, ignore.location);
+    os << "\n";
+    IO::JSON::Indent(os, indent);
+    os << "}";
+}
+
+void
 WriteNode(std::ostream &os, const IO::InputScraper::InputNode &node, int indent)
 {
     bool first = true;
@@ -197,6 +212,12 @@ WriteFlowNode(std::ostream &os, const IO::InputScraper::FlowNode &node, int inde
         IO::JSON::Indent(os, indent + 2);
         os << "]";
     }
+    if (!node.children.empty())
+    {
+        IO::JSON::Comma(os, first, indent + 2);
+        os << "\"children\": ";
+        WriteFlowNodes(os, node.children, indent + 2);
+    }
     os << "\n";
     IO::JSON::Indent(os, indent);
     os << "}";
@@ -234,6 +255,7 @@ std::vector<InputScraper::InputNode::Condition> InputScraper::traversal_conditio
 std::vector<InputScraper::FlowNode> InputScraper::input_flow;
 std::vector<InputScraper::FlowNode> *InputScraper::traversal_flow = &InputScraper::input_flow;
 std::vector<std::vector<InputScraper::FlowNode> *> InputScraper::traversal_flow_stack;
+std::vector<InputScraper::TraversalIgnore> InputScraper::traversal_ignores;
 
 InputScraper::InputNode &
 InputScraper::GetPath(InputNode &root, const std::string &path)
@@ -286,7 +308,7 @@ InputScraper::RecordFlowInput(const std::string &path,
         flow_node->input = path;
     }
 
-    if (KindForDirective(directive) != "switch") return;
+    if (KindForDirective(directive, options) != "switch") return;
 
     flow_node->kind = "switch";
     for (const auto &option : options)
@@ -305,10 +327,14 @@ InputScraper::RecordFlowInput(const std::string &path,
 }
 
 std::string
-InputScraper::KindForDirective(const std::string &directive)
+InputScraper::KindForDirective(const std::string &directive,
+                               const std::vector<std::string> &options)
 {
     if (directive == "query_switch" || directive == "query_if") return "switch";
     if (directive == "select" || directive == "select_default") return "switch";
+    if ((directive == "query" || directive == "query_required" || directive == "query_default") &&
+        options == std::vector<std::string>{"0", "1"})
+        return "switch";
     if (directive == "select_enumerate") return "sequence";
     if (directive == "query_enumerate" || directive == "queryarr_enumerate" || directive == "queryclass_enumerate") return "sequence";
     if (directive == "queryclass") return "scope";
@@ -378,6 +404,7 @@ InputScraper::ClearInputTree()
     input_flow.clear();
     traversal_flow = &input_flow;
     traversal_flow_stack.clear();
+    traversal_ignores.clear();
 }
 
 void
@@ -396,12 +423,24 @@ void
 InputScraper::WriteInputTreeJson(std::ostream &os)
 {
     os << "{\n";
-    os << "  \"schema_version\": 2,\n";
+    os << "  \"schema_version\": 3,\n";
     os << "  \"format\": \"alamo.input_schema\",\n";
     os << "  \"root\": ";
     WriteNode(os, input_tree, 2);
     os << ",\n  \"flow\": ";
     WriteFlowNodes(os, input_flow, 2);
+    if (!traversal_ignores.empty())
+    {
+        os << ",\n  \"traversal_ignored\": [";
+        for (std::size_t i = 0; i < traversal_ignores.size(); i++)
+        {
+            if (i) os << ",";
+            os << "\n";
+            IO::JSON::Indent(os, 4);
+            WriteTraversalIgnore(os, traversal_ignores[i], 4);
+        }
+        os << "\n  ]";
+    }
     os << "\n}\n";
 }
 
@@ -438,7 +477,7 @@ InputScraper::RecordInput(ParmParse &pp,
     if (!InTraversalMode()) return;
 
     InputNode &node = GetPath(input_tree, pp.full(name));
-    node.kind = MergeKind(node.kind, KindForDirective(directive));
+    node.kind = MergeKind(node.kind, KindForDirective(directive, options));
     node.directive = directive;
     node.location = location;
     if (!options.empty())
@@ -473,6 +512,55 @@ InputScraper::RecordInput(ParmParse &pp,
 }
 
 void
+InputScraper::CaptureSequenceTemplate(ParmParse &pp,
+                                      const std::string &sequence_name,
+                                      const std::string &template_name)
+{
+    if (!InTraversalMode()) return;
+
+    const std::string sequence_path = pp.full(sequence_name);
+    const std::string template_path = pp.full(template_name);
+    const std::size_t dot = template_path.rfind('.');
+    const std::string parent_path =
+        dot == std::string::npos ? std::string() : template_path.substr(0, dot);
+    const std::string child_name =
+        dot == std::string::npos ? template_path : template_path.substr(dot + 1);
+
+    InputNode &parent = GetPath(input_tree, parent_path);
+    auto child = std::find_if(parent.children.begin(), parent.children.end(),
+                              [&](const InputNode &node) { return node.name == child_name; });
+    if (child != parent.children.end())
+    {
+        InputNode item = std::move(*child);
+        parent.children.erase(child);
+        GetPath(input_tree, sequence_path).children.push_back(std::move(item));
+    }
+
+    if (!traversal_flow) return;
+    auto sequence = std::find_if(
+        traversal_flow->begin(), traversal_flow->end(),
+        [&](const FlowNode &node) { return node.input == sequence_path; });
+    if (sequence == traversal_flow->end()) return;
+
+    for (auto it = traversal_flow->begin(); it != traversal_flow->end();)
+    {
+        const bool template_root = it->input == template_path;
+        const bool template_child =
+            it->input.size() > template_path.size() &&
+            it->input.compare(0, template_path.size(), template_path) == 0 &&
+            it->input[template_path.size()] == '.';
+        if (!template_root && !template_child)
+        {
+            ++it;
+            continue;
+        }
+        if (template_child)
+            sequence->children.push_back(std::move(*it));
+        it = traversal_flow->erase(it);
+    }
+}
+
+void
 InputScraper::RecordConstraint(ParmParse &pp,
                                std::string kind,
                                int count,
@@ -494,6 +582,23 @@ InputScraper::RecordConstraint(ParmParse &pp,
     constraint.location = location;
     constraint.conditions = traversal_conditions;
     scope.constraints.push_back(std::move(constraint));
+}
+
+void
+InputScraper::RecordTraversalIgnore(const std::source_location &location,
+                                    std::string note)
+{
+    if (!InTraversalMode()) return;
+
+    const auto duplicate = std::find_if(
+        traversal_ignores.begin(), traversal_ignores.end(),
+        [&](const TraversalIgnore &ignore)
+        {
+            return std::string(ignore.location.file_name()) == location.file_name() &&
+                   ignore.location.line() == location.line();
+        });
+    if (duplicate == traversal_ignores.end())
+        traversal_ignores.push_back({std::move(note), location});
 }
 
 void

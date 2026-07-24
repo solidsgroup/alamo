@@ -94,6 +94,7 @@
 
 #include <filesystem>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <optional>
@@ -212,6 +213,9 @@ public:
     static const std::string &TraversalOutputFile();
     static void WriteInputTreeJson(std::ostream &os);
     static void WriteInputTreeJsonFile(const std::string &path);
+    static bool IgnoreInTraversalMode(
+        std::string note = "This input parser is not yet compliant with traversal mode; its inputs are not fully documented.",
+        const std::source_location &location = std::source_location::current());
 
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
     ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
@@ -283,7 +287,10 @@ public:
     int query(std::string name, T & value,
               const std::source_location & location = std::source_location::current())
     {
-        RecordInputAndContinue(name, location);
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue(name, location, {"0", "1"});
+        else
+            RecordInputAndContinue(name, location);
         if (InTraversalMode() && !contains(name.c_str())) return 0;
         return amrex::ParmParse::query(name.c_str(), value);
     }
@@ -361,7 +368,10 @@ public:
     int query_required( std::string name, T & value,
                         const std::source_location & location = std::source_location::current())
     {
-        RecordInputAndContinue(name, location);
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue(name, location, {"0", "1"});
+        else
+            RecordInputAndContinue(name, location);
         if (InTraversalMode())
         {
             if (!contains(name.c_str())) return 0;
@@ -429,7 +439,12 @@ public:
     int query_default(  std::string name, T & value, T defaultvalue,
                         const std::source_location & location = std::source_location::current())
     {
-        RecordInputAndContinue(name, location, {}, InputScraper::InputValueString(defaultvalue));
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue(name, location, {"0", "1"},
+                                   InputScraper::InputValueString(defaultvalue));
+        else
+            RecordInputAndContinue(name, location, {},
+                                   InputScraper::InputValueString(defaultvalue));
         if (InTraversalMode())
         {
             if (contains(name.c_str()))
@@ -643,26 +658,15 @@ public:
         return -1;
     }
 
-    template <typename... Cases>
-    int query_switch(std::string name, ForwardArgs<Cases...> cases,
+    int query_switch(std::string name,
+                     std::initializer_list<std::pair<std::string, std::function<void()>>> cases,
                      const std::source_location &location = std::source_location::current())
     {
-        static_assert(sizeof...(Cases) > 0,
-                      "query_switch requires at least one value/lambda pair");
-        static_assert(sizeof...(Cases) % 2 == 0,
-                      "query_switch arguments must alternate value, lambda");
-
-        constexpr std::size_t ncases = sizeof...(Cases) / 2;
-        auto &case_tuple = cases.values;
         std::string value;
         std::vector<std::string> possiblevals;
-        possiblevals.reserve(ncases);
-
-        auto collect_options = [&]<std::size_t... I>(std::index_sequence<I...>)
-        {
-            (possiblevals.push_back(std::string(std::get<2 * I>(case_tuple))), ...);
-        };
-        collect_options(std::make_index_sequence<ncases>{});
+        possiblevals.reserve(cases.size());
+        for (const auto &entry : cases)
+            possiblevals.push_back(entry.first);
         {
             RecordInputAndContinue(name, location, possiblevals);
         }
@@ -686,12 +690,6 @@ public:
             action();
         };
 
-        auto run_all = [&]<std::size_t... I>(std::index_sequence<I...>)
-        {
-            (run_case(std::string(std::get<2 * I>(case_tuple)),
-                      std::get<2 * I + 1>(case_tuple)), ...);
-        };
-
         if (InTraversalMode())
         {
             std::string original_value;
@@ -699,7 +697,8 @@ public:
             if (had_original_value)
                 amrex::ParmParse::query(name.c_str(), original_value);
 
-            run_all(std::make_index_sequence<ncases>{});
+            for (const auto &entry : cases)
+                run_case(entry.first, entry.second);
 
             if (had_original_value)
                 set_switch_value(original_value);
@@ -744,14 +743,14 @@ public:
         }
 
         bool matched = false;
-        auto run_selected = [&]<std::size_t... I>(std::index_sequence<I...>)
+        for (const auto &entry : cases)
         {
-            ((!matched && value == std::string(std::get<2 * I>(case_tuple))
-              ? (std::get<2 * I + 1>(case_tuple)(), matched = true, 0)
-              : 0), ...);
-        };
-
-        run_selected(std::make_index_sequence<ncases>{});
+            if (!matched && value == entry.first)
+            {
+                entry.second();
+                matched = true;
+            }
+        }
 
         if (!matched)
         {
@@ -1163,6 +1162,36 @@ public:
         }        
         return queryarr(name,value,unit);
     }
+    int queryarr_required(  std::string name, Set::Vector & value, Unit unit = Unit::Less(),
+                            const std::source_location &location = std::source_location::current())
+    {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                if (unit.isType(Unit::Less()))
+                    amrex::ParmParse::queryarr(name.c_str(), vals);
+                else
+                {
+                    std::vector<std::string> valstrings;
+                    amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                    for (const auto &valstring : valstrings)
+                        vals.push_back(Unit::Parse(valstring).normalized_value());
+                }
+                value = Set::Vector::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value(i) = vals[i];
+                return 0;
+            }
+            value = Set::Vector::Zero();
+            return 0;
+        }
+        if (!contains(name.c_str()))
+            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+        return queryarr(name,value,unit);
+    }
     int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue,
                             const std::source_location &location = std::source_location::current())
     {
@@ -1370,6 +1399,14 @@ public:
             RecordInputAndContinue(a_name, location);
         }
         value.clear();
+        if (InTraversalMode())
+        {
+            const std::string template_name = a_name + "0";
+            T tmp;
+            this->queryclass<T>(template_name, tmp);
+            InputScraper::CaptureSequenceTemplate(*this, a_name, template_name);
+            return 0;
+        }
 
         //
         // If only one is present with no subscript, then read
@@ -1916,13 +1953,15 @@ public:
     void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, ForwardArgs<Args...> args,
                            const std::source_location &location = std::source_location::current())
     {
-
+        RecordInputAndContinue(a_name, location);
         value.clear();
 
         if (InTraversalMode())
         {
             PTRTYPE *tmp = nullptr;
-            this->select<IC...>(a_name, tmp, args, location);
+            const std::string template_name = a_name + "0";
+            this->select<IC...>(template_name, tmp, args, location);
+            InputScraper::CaptureSequenceTemplate(*this, a_name, template_name);
             return;
         }
 

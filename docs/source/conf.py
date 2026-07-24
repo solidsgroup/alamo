@@ -21,10 +21,7 @@ import os, subprocess
 # -- Custom input file parameter parser -------------------------------------
 import sys
 sys.path.append(os.path.abspath('.'))
-import Inputs
 import Tests
-import Builder
-import InputIndex
 # -- Project information ----------------------------------------------------
 
 
@@ -91,7 +88,7 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
-exclude_patterns = []
+exclude_patterns = ['Inputs.generated.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
 #pygments_style = 'sphinx'
@@ -271,4 +268,3 @@ rst_prolog = """
 
 import os
 os.system("ls")
-

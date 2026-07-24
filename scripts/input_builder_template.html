@@ -121,6 +121,7 @@
       font-size: 19px;
       font-weight: 680;
       letter-spacing: 0;
+      overflow-wrap: anywhere;
     }
 
     .subtle {
@@ -140,6 +141,34 @@
     }
 
     .actions { gap: 8px; }
+
+    .builder-switcher {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .builder-switcher select {
+      width: min(280px, 30vw);
+      min-height: 34px;
+      padding-top: 5px;
+      padding-bottom: 5px;
+      color: var(--text);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .traversal-notice {
+      margin-top: 6px;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
 
     .workspace {
       max-width: 1660px;
@@ -368,8 +397,111 @@
       background: var(--conditional-soft);
     }
 
+    .flow-branch {
+      border-top-color: var(--branch-line);
+      border-left-color: var(--branch-color);
+      background: var(--branch-soft);
+    }
+
+    .flow-branch.nesting-level-0,
+    .switch-tab-group.nesting-level-0,
+    .branch-controller.nesting-level-0 {
+      --branch-color: var(--c0);
+      --branch-line: #8fbbd7;
+      --branch-soft: #eaf2f8;
+    }
+
+    .flow-branch.nesting-level-1,
+    .switch-tab-group.nesting-level-1,
+    .branch-controller.nesting-level-1 {
+      --branch-color: var(--c1);
+      --branch-line: #f2c79f;
+      --branch-soft: #fff5eb;
+    }
+
+    .flow-branch.nesting-level-2,
+    .switch-tab-group.nesting-level-2,
+    .branch-controller.nesting-level-2 {
+      --branch-color: var(--c2);
+      --branch-line: #a9d7a9;
+      --branch-soft: #eef8ee;
+    }
+
+    .flow-branch.nesting-level-3,
+    .switch-tab-group.nesting-level-3,
+    .branch-controller.nesting-level-3 {
+      --branch-color: var(--c4);
+      --branch-line: #c9b4da;
+      --branch-soft: #f5f0f8;
+    }
+
+    .flow-branch.nesting-level-4,
+    .switch-tab-group.nesting-level-4,
+    .branch-controller.nesting-level-4 {
+      --branch-color: var(--c5);
+      --branch-line: #d7bbb0;
+      --branch-soft: #f8f1ef;
+    }
+
+    .flow-branch.nesting-level-5,
+    .switch-tab-group.nesting-level-5,
+    .branch-controller.nesting-level-5 {
+      --branch-color: var(--c6);
+      --branch-line: #f0b8d9;
+      --branch-soft: #fcf1f7;
+    }
+
+    .flow-branch.nesting-level-6,
+    .switch-tab-group.nesting-level-6,
+    .branch-controller.nesting-level-6 {
+      --branch-color: var(--c7);
+      --branch-line: #c9c9c9;
+      --branch-soft: #f4f4f4;
+    }
+
+    .flow-branch.nesting-level-7,
+    .switch-tab-group.nesting-level-7,
+    .branch-controller.nesting-level-7 {
+      --branch-color: var(--c8);
+      --branch-line: #dada8a;
+      --branch-soft: #fbfbe9;
+    }
+
+    .flow-branch.nesting-level-8,
+    .switch-tab-group.nesting-level-8,
+    .branch-controller.nesting-level-8 {
+      --branch-color: var(--c9);
+      --branch-line: #9ad8df;
+      --branch-soft: #eafafa;
+    }
+
     .flow-branch > .scope-body {
       margin-left: 12px;
+    }
+
+    .branch-block > .branch-controller {
+      border-top: 0;
+      border-left: 3px solid var(--branch-color);
+      padding-left: 11px;
+    }
+
+    .branch-block > .conditional-heading {
+      padding-top: 4px;
+      padding-left: 13px;
+      padding-bottom: 8px;
+      border-left: 3px solid var(--branch-color);
+      background: transparent;
+    }
+
+    .branch-block {
+      border-left: 0;
+      box-shadow: inset 0 2px 0 var(--branch-color);
+    }
+
+    .branch-block > .scope-body {
+      margin-left: 0;
+      border-left: 3px solid var(--branch-color);
+      padding-left: 12px;
     }
 
     .flow-section-heading {
@@ -381,18 +513,77 @@
       font-weight: 700;
     }
 
+    .switch-tab-panel > .flow-section:first-child > .flow-section-heading {
+      border-top: 0;
+    }
+
+    button.flow-section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 0;
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .flow-section-heading::before {
+      width: 6px;
+      height: 6px;
+      margin: -3px 2px 0 1px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      content: "";
+      transform: rotate(45deg);
+    }
+
+    .flow-section-heading[aria-expanded="false"]::before {
+      transform: rotate(-45deg);
+    }
+
     .conditional-heading {
       display: flex;
       align-items: baseline;
       gap: 9px;
       padding: 10px 13px 6px;
-      color: var(--accent);
+      border-bottom: 1px solid var(--branch-line, var(--accent-line));
+      background: rgba(255, 255, 255, 0.32);
+      color: var(--branch-color, var(--accent));
       font-size: 12px;
+      font-weight: 650;
+    }
+
+    .conditional-heading::before {
+      width: 7px;
+      height: 7px;
+      margin: -3px 2px 0 1px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      content: "";
+      transform: rotate(45deg);
     }
 
     .conditional-heading code {
       color: #4d4d4d;
       font-weight: 650;
+    }
+
+    button.conditional-heading {
+      width: 100%;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .conditional-heading[aria-expanded="false"]::before {
+      transform: rotate(-45deg);
     }
 
     .field-row {
@@ -411,7 +602,11 @@
 
     .field-row:hover { background: #fafbfa; }
 
-    .field-row.configured { box-shadow: inset 3px 0 0 var(--success); }
+    .field-row.configured input[type="text"],
+    .field-row.configured select {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
 
     .field-row.missing-required { background: var(--red-soft); }
 
@@ -445,6 +640,23 @@
       word-break: break-word;
     }
 
+    .input-source-link {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .input-source-link:hover {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    .input-source-link:focus-visible {
+      border-radius: 2px;
+      outline: 2px solid rgba(31, 119, 180, 0.28);
+      outline-offset: 2px;
+    }
+
     .required-mark {
       font-size: 11px;
       font-weight: 650;
@@ -469,6 +681,53 @@
       grid-template-columns: 1fr;
       gap: 9px;
       background: #f7faff;
+    }
+
+    .field-row.branch-controller {
+      border-top-color: var(--branch-line);
+      border-left: 3px solid var(--branch-color);
+      padding-left: 11px;
+      background: var(--branch-soft);
+    }
+
+    .field-row.branch-controller:hover { background: var(--branch-soft); }
+
+    .switch-tab-group.query-if-group:not(.query-if-enabled) {
+      border-top-left-radius: 0;
+      background: transparent;
+    }
+
+    .switch-tab-panel > .query-if-group:not(.query-if-enabled) {
+      margin-top: 0;
+    }
+
+    .section-body > .query-if-group:first-child:not(.query-if-enabled) > .field-row,
+    .scope-body > .query-if-group:first-child:not(.query-if-enabled) > .field-row {
+      border-top: 0;
+    }
+
+    .query-if-group.query-if-enabled > .field-row.branch-controller {
+      border-left: 0;
+      border-top-left-radius: 6px;
+      padding-left: 14px;
+    }
+
+    .branch-controller .input-label { color: var(--branch-color); }
+
+    .branch-controller .switch-option.selected {
+      border-color: var(--branch-color);
+      background: var(--branch-soft);
+      color: var(--branch-color);
+    }
+
+    .branch-controller .boolean-toggle.enabled {
+      border-color: var(--branch-color);
+      background: var(--branch-soft);
+      color: var(--branch-color);
+    }
+
+    .branch-controller .boolean-toggle.enabled .boolean-indicator {
+      background: var(--branch-color);
     }
 
     .boolean-toggle {
@@ -553,17 +812,253 @@
 
     .switch-option.selected + .switch-option { border-left-width: 0; }
 
+    .switch-tab-group {
+      border-top-left-radius: 6px;
+      background: var(--branch-soft);
+    }
+
+    .switch-tab-panel > .switch-tab-group {
+      margin-top: 6px;
+    }
+
+    .switch-tab-group > .switch-tab-header {
+      border-top: 0;
+      border-left: 0;
+      border-top-left-radius: 6px;
+      padding: 9px 13px 0;
+    }
+
+    .switch-tab-group .switch-options {
+      align-items: flex-end;
+      flex-wrap: nowrap;
+      margin-top: 2px;
+      overflow-x: auto;
+      scrollbar-color: var(--line-strong) transparent;
+      scrollbar-width: thin;
+    }
+
+    .switch-tab-group .switch-options::-webkit-scrollbar { height: 4px; }
+    .switch-tab-group .switch-options::-webkit-scrollbar-thumb {
+      border-radius: 4px;
+      background: var(--line-strong);
+    }
+
+    .switch-tab-group .switch-option,
+    .switch-tab-group .switch-option:first-child,
+    .switch-tab-group .switch-option:last-child {
+      position: relative;
+      z-index: 0;
+      margin-right: 3px;
+      border-width: 1px;
+      border-radius: 5px 5px 0 0;
+      background: rgba(255, 255, 255, 0.48);
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .switch-tab-group .switch-option:last-child { margin-right: 0; }
+
+    .switch-tab-group .switch-option.tab-option.selected {
+      z-index: 2;
+      border-color: var(--branch-color);
+      border-bottom: 0;
+      padding-bottom: 6px;
+      background: var(--surface);
+      color: var(--branch-color);
+    }
+
+    .switch-tab-group .switch-option.tab-option.selected::after {
+      position: absolute;
+      right: 1px;
+      bottom: 0;
+      left: 1px;
+      height: 3px;
+      background: var(--surface);
+      content: "";
+    }
+
+    .switch-tab-group .switch-option.tab-option.selected + .switch-option {
+      border-left-width: 1px;
+    }
+
+    .switch-tab-panel {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      margin-top: -3px;
+      border-top: 3px solid var(--branch-color);
+      border-bottom: 3px solid var(--branch-color);
+      border-left: 3px solid var(--branch-color);
+      border-bottom-left-radius: 6px;
+      padding-left: 12px;
+      background: var(--surface);
+    }
+
+    .switch-tab-panel:empty {
+      min-height: 3px;
+      padding-left: 0;
+    }
+
     .sequence-content {
-      grid-column: 1 / -1;
       display: grid;
       gap: 9px;
     }
 
     .sequence-entry {
-      display: grid;
-      grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) auto;
-      gap: 8px;
+      position: relative;
+    }
+
+    .sequence-entry input { padding-left: 42px; }
+
+    .sequence-key {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      left: 1px;
+      z-index: 1;
+      display: flex;
       align-items: center;
+      justify-content: center;
+      width: 31px;
+      border-right: 1px solid var(--line);
+      border-radius: 4px 0 0 4px;
+      background: #f2f4f6;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      font-weight: 650;
+      pointer-events: none;
+    }
+
+    .sequence-row { align-items: start; }
+
+    .field-row.configured .sequence-entry.pending input[type="text"] {
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    .field-row.configured .sequence-entry.invalid input[type="text"],
+    .sequence-entry.invalid input[type="text"] {
+      border-color: #e08081;
+      background: #fffdfd;
+      padding-right: 34px;
+    }
+
+    .sequence-entry.invalid .sequence-key {
+      border-right-color: #e08081;
+      background: #fff3f3;
+      color: var(--red);
+    }
+
+    .sequence-delete {
+      position: absolute;
+      top: 50%;
+      right: 5px;
+      z-index: 2;
+      display: none;
+      min-width: 20px;
+      min-height: 20px;
+      transform: translateY(-50%);
+      border-color: #e6a3a4;
+      border-radius: 4px;
+      padding: 0 4px;
+      background: #fff;
+      color: var(--red);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .sequence-entry.invalid .sequence-delete { display: inline-flex; }
+
+    .class-sequence {
+      border-top: 1px solid #e8e8e8;
+    }
+
+    .class-sequence-header {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(210px, 310px);
+      gap: 22px;
+      align-items: start;
+      padding: 12px 14px;
+      background: #fafbfc;
+    }
+
+    .class-sequence-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .class-sequence-tabs {
+      display: flex;
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .class-sequence-tab {
+      min-width: 38px;
+      min-height: 34px;
+      border-radius: 0;
+      border-right-width: 0;
+      padding: 5px 10px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .class-sequence-tab:first-child { border-radius: 5px 0 0 5px; }
+
+    .class-sequence-tab:last-child {
+      border-right-width: 1px;
+      border-radius: 0 5px 5px 0;
+    }
+
+    .class-sequence-tab.active {
+      position: relative;
+      z-index: 1;
+      border-color: var(--accent-line);
+      border-right-width: 1px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .class-sequence-tab.active + .class-sequence-tab { border-left-width: 0; }
+
+    .class-sequence-add,
+    .class-sequence-remove {
+      flex: 0 0 auto;
+      min-width: 34px;
+      min-height: 34px;
+      border-radius: 5px;
+      padding: 4px 9px;
+      background: var(--surface);
+    }
+
+    .class-sequence-add {
+      border-color: var(--accent-line);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .class-sequence-remove {
+      border-color: #e6a3a4;
+      color: var(--red);
+      font-size: 17px;
+    }
+
+    .class-sequence-body {
+      border-top: 2px solid var(--accent);
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+    }
+
+    .class-sequence-empty {
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
     }
 
     .constraint-note {
@@ -698,6 +1193,13 @@
         padding-right: 5px;
         font-size: 12px;
       }
+
+      .builder-switcher {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+      }
+
+      .builder-switcher select { width: min(300px, 76vw); }
       .workspace { padding: 12px 0 28px; }
       .controls { padding: 0 12px; }
       .toolbar { grid-template-columns: 1fr; align-items: stretch; }
@@ -719,9 +1221,9 @@
       }
 
       .field-row { grid-template-columns: 1fr; gap: 8px; }
+      .class-sequence-header { grid-template-columns: 1fr; gap: 9px; }
+      .class-sequence-controls { justify-content: flex-start; }
       .active-decisions { display: none; }
-      .sequence-entry { grid-template-columns: 1fr; }
-
       .flow-branch > .scope-body { margin-left: 6px; }
 
       .switch-option,
@@ -732,18 +1234,36 @@
         border-radius: 4px;
         margin: 2px;
       }
+
+      .switch-tab-group .switch-option,
+      .switch-tab-group .switch-option:first-child,
+      .switch-tab-group .switch-option:last-child {
+        flex: 0 0 auto;
+        margin: 0 3px 0 0;
+        border-radius: 5px 5px 0 0;
+      }
+
+      .switch-tab-panel { padding-left: 6px; }
     }
   </style>
 </head>
 <body>
   <script id="schema-data" type="application/json">__SCHEMA_JSON__</script>
+  <script id="doxygen-source-data" type="application/json">__DOXYGEN_SOURCES_JSON__</script>
 
   <header class="topbar">
     <div>
       <h1>__TITLE__</h1>
       <div class="subtle" id="schemaSummary"></div>
+      <div class="traversal-notice" id="traversalNotice" hidden></div>
     </div>
     <div class="actions">
+      <label class="builder-switcher" for="builderSelect">
+        <span>Executable</span>
+        <select id="builderSelect" aria-label="Switch input builder">
+          __BUILDER_OPTIONS__
+        </select>
+      </label>
       <button id="resetButton" type="button">Reset</button>
       <button id="copyButton" type="button">Copy input</button>
       <button id="downloadButton" class="primary" type="button">Download input</button>
@@ -790,18 +1310,27 @@
       "use strict";
 
       const envelope = JSON.parse(document.getElementById("schema-data").textContent);
+      const doxygenSources = JSON.parse(document.getElementById("doxygen-source-data").textContent);
       const root = envelope.root || envelope;
       const flow = Array.isArray(envelope.flow) ? envelope.flow : null;
+      const traversalIgnored = Array.isArray(envelope.traversal_ignored)
+        ? envelope.traversal_ignored
+        : [];
       const flat = [];
       const switchNodes = [];
       const constraints = [];
       const nodeByPath = new Map();
+      const virtualNodeByPath = new Map();
+      const classSequenceInstances = new Map();
       const unitsByPath = new Map();
       const state = {
         switches: Object.create(null),
         values: Object.create(null),
         sequenceRows: Object.create(null),
+        classSequenceCounts: Object.create(null),
+        classSequenceActive: Object.create(null),
         collapsed: Object.create(null),
+        prefixCollapsed: Object.create(null),
         search: "",
         view: "all",
         currentSection: ""
@@ -814,6 +1343,7 @@
       const lineCount = document.getElementById("lineCount");
       const statusSummary = document.getElementById("statusSummary");
       const activeDecisions = document.getElementById("activeDecisions");
+      const traversalNotice = document.getElementById("traversalNotice");
 
       function pathFor(node, parentPath) {
         if (node.path !== undefined && node.path !== null) return String(node.path);
@@ -901,6 +1431,120 @@
         return (node.options || []).map((option) => String(option));
       }
 
+      function isClassSequence(node) {
+        return Boolean(node && node.kind === "sequence" &&
+          (node.directive === "queryclass_enumerate" || node.directive === "select_enumerate") &&
+          (node.children || []).length);
+      }
+
+      function classSequenceOwner(node) {
+        let parent = node ? node._parent : null;
+        while (parent) {
+          if (isClassSequence(parent)) return parent;
+          parent = parent._parent;
+        }
+        return null;
+      }
+
+      function nodeForPath(path) {
+        return virtualNodeByPath.get(path) || nodeByPath.get(path);
+      }
+
+      function replacePathPrefix(path, sourcePrefix, targetPrefix) {
+        const value = String(path || "");
+        if (value === sourcePrefix) return targetPrefix;
+        if (value.startsWith(sourcePrefix + ".")) return targetPrefix + value.slice(sourcePrefix.length);
+        return value;
+      }
+
+      function cloneConditions(conditions, sourcePrefix, targetPrefix) {
+        return (conditions || []).map((condition) => {
+          return Object.assign({}, condition, {
+            path: replacePathPrefix(condition.path, sourcePrefix, targetPrefix)
+          });
+        });
+      }
+
+      function initializeVirtualNode(node) {
+        if (!node._path) return;
+        if (node.kind === "parameter" && state.values[node._path] === undefined) {
+          state.values[node._path] = "";
+        }
+        if (node.kind === "sequence" && !isClassSequence(node) && !Array.isArray(state.sequenceRows[node._path])) {
+          state.sequenceRows[node._path] = [];
+        }
+        if (isClassSequence(node) && state.classSequenceCounts[node._path] === undefined) {
+          state.classSequenceCounts[node._path] = 0;
+          state.classSequenceActive[node._path] = 0;
+        }
+        if (node.kind === "switch" && state.switches[node._path] === undefined) {
+          const options = optionValues(node);
+          const preferred = String(node.default_value === undefined ? "" : node.default_value);
+          state.switches[node._path] = options.includes(preferred) ? preferred : (options[0] || "");
+        }
+      }
+
+      function instantiateTemplate(template, targetPrefix) {
+        const sourcePrefix = template._path;
+        const cloneNode = (source, parent) => {
+          const clone = Object.assign({}, source);
+          clone._path = replacePathPrefix(source._path, sourcePrefix, targetPrefix);
+          clone.path = clone._path;
+          clone.full_name = clone._path;
+          clone._parent = parent || null;
+          clone.contexts = (source.contexts || []).map((context) => {
+            return cloneConditions(context, sourcePrefix, targetPrefix);
+          });
+          clone.constraints = (source.constraints || []).map((constraint) => {
+            const copy = Object.assign({}, constraint);
+            copy.members = (constraint.members || []).map((member) => {
+              return replacePathPrefix(member, sourcePrefix, targetPrefix);
+            });
+            copy.conditions = cloneConditions(constraint.conditions, sourcePrefix, targetPrefix);
+            return copy;
+          });
+          clone.children = (source.children || []).map((child) => cloneNode(child, clone));
+          virtualNodeByPath.set(clone._path, clone);
+          initializeVirtualNode(clone);
+          return clone;
+        };
+        return cloneNode(template, null);
+      }
+
+      function instancesForClassSequence(node) {
+        if (classSequenceInstances.has(node._path)) return classSequenceInstances.get(node._path);
+        const count = Number(state.classSequenceCounts[node._path] || 0);
+        const template = (node.children || []).find(nodeActive) || (node.children || [])[0];
+        const instances = [];
+        if (template) {
+          for (let index = 0; index < count; index += 1) {
+            const instance = instantiateTemplate(template, node._path + index);
+            instances.push(instance);
+            const visit = (child) => {
+              if (isClassSequence(child)) instancesForClassSequence(child);
+              else (child.children || []).forEach(visit);
+            };
+            (instance.children || []).forEach(visit);
+          }
+        }
+        classSequenceInstances.set(node._path, instances);
+        return instances;
+      }
+
+      function instantiateFlow(nodes, sourcePrefix, targetPrefix) {
+        return (nodes || []).map((source) => {
+          const clone = Object.assign({}, source);
+          clone.input = replacePathPrefix(source.input, sourcePrefix, targetPrefix);
+          clone.branches = (source.branches || []).map((branch) => {
+            return Object.assign({}, branch, {
+              children: instantiateFlow(branch.children, sourcePrefix, targetPrefix)
+            });
+          });
+          clone.children = instantiateFlow(source.children, sourcePrefix, targetPrefix);
+          return clone;
+        });
+      }
+
       function reconcileSwitches() {
         if (flow) {
           let changed = true;
@@ -914,7 +1558,9 @@
                 const options = (flowNode.branches || []).map((branch) => String(branch.value));
                 if (!options.length) return;
                 if (!options.includes(state.switches[flowNode.input])) {
-                  state.switches[flowNode.input] = options[0];
+                  const node = nodeForPath(flowNode.input);
+                  const preferred = String(node && node.default_value !== undefined ? node.default_value : "");
+                  state.switches[flowNode.input] = options.includes(preferred) ? preferred : options[0];
                   changed = true;
                 }
                 const selected = (flowNode.branches || []).find((branch) => {
@@ -955,6 +1601,10 @@
           if (node.kind === "sequence" && !Array.isArray(state.sequenceRows[node._path])) {
             state.sequenceRows[node._path] = [];
           }
+          if (isClassSequence(node) && state.classSequenceCounts[node._path] === undefined) {
+            state.classSequenceCounts[node._path] = 0;
+            state.classSequenceActive[node._path] = 0;
+          }
         });
       }
 
@@ -967,6 +1617,7 @@
 
       function configured(node) {
         if (node.kind === "parameter") return String(state.values[node._path] || "").trim() !== "";
+        if (isClassSequence(node)) return Number(state.classSequenceCounts[node._path] || 0) > 0;
         if (node.kind === "sequence") return (state.sequenceRows[node._path] || []).length > 0;
         return node.kind === "switch";
       }
@@ -989,6 +1640,7 @@
       }
 
       function hasVisibleDescendant(node) {
+        if (isClassSequence(node)) return false;
         return (node.children || []).some((child) => {
           return nodeMatchesView(child) || hasVisibleDescendant(child);
         });
@@ -1006,7 +1658,7 @@
         let count = 0;
         (node.children || []).forEach((child) => {
           if (inputVisible(child)) count += 1;
-          count += activeItems(child);
+          if (!isClassSequence(child)) count += activeItems(child);
         });
         return count;
       }
@@ -1025,11 +1677,25 @@
       function validationIssues() {
         const issues = [];
         flat.forEach((node) => {
+          if (classSequenceOwner(node)) return;
           if (node.kind === "parameter" && missingRequired(node)) {
             issues.push({ path: node._path, message: "Required value missing" });
           }
         });
+        const validatedVirtualPaths = new Set();
+        classSequenceInstances.forEach((instances) => {
+          const visit = (node) => {
+            if (validatedVirtualPaths.has(node._path)) return;
+            validatedVirtualPaths.add(node._path);
+            if (node.kind === "parameter" && missingRequired(node)) {
+              issues.push({ path: node._path, message: "Required value missing" });
+            }
+            (node.children || []).forEach(visit);
+          };
+          instances.forEach(visit);
+        });
         constraints.forEach((item) => {
+          if (classSequenceOwner(item.owner)) return;
           if (!constraintActive(item) || item.constraint.kind !== "exactly") return;
           const result = constraintEvaluation(item);
           if (!result.valid) {
@@ -1050,9 +1716,20 @@
       function renderInputName(node, includeDoc) {
         const required = node.required ? '<span class="required-mark">Required</span>' : "";
         const unit = unitsByPath.has(node._path) ? '<span class="input-unit">' + esc(unitsByPath.get(node._path)) + '</span>' : "";
+        const source = node.source || {};
+        const sourceFile = String(source.file || "").replace(/\\/g, "/").replace(/^\.\//, "");
+        const sourcePage = doxygenSources[sourceFile];
+        const sourceLine = Number(source.line) || 0;
+        const sourceUrl = sourcePage
+          ? "../../doxygen/" + encodeURIComponent(sourcePage) + (sourceLine ? "#l" + String(sourceLine).padStart(5, "0") : "")
+          : "";
+        const label = sourceUrl
+          ? '<a class="input-label input-source-link" href="' + esc(sourceUrl) + '" target="_blank" rel="noopener" title="View ' +
+            esc(sourceFile + (sourceLine ? ":" + sourceLine : "")) + '">' + esc(node._path) + '</a>'
+          : '<span class="input-label">' + esc(node._path) + '</span>';
         return (
           '<div class="input-name">' +
-            '<div class="input-title"><span class="input-label">' + esc(node._path) + '</span>' + required + unit + '</div>' +
+            '<div class="input-title">' + label + required + unit + '</div>' +
             (includeDoc === false ? "" : renderDoc(node)) +
           '</div>'
         );
@@ -1065,12 +1742,12 @@
           const optionHtml = ['<option value="">Choose a value</option>'].concat(options.map((option) => {
             return '<option value="' + esc(option) + '"' + (option === value ? " selected" : "") + '>' + esc(option) + '</option>';
           })).join("");
-          return '<select data-value-id="' + node._id + '">' + optionHtml + '</select>';
+          return '<select data-value-path="' + esc(node._path) + '">' + optionHtml + '</select>';
         }
         const fallback = defaultPlaceholder(node);
         const placeholder = fallback === null ? "Enter a value" : fallback;
         const defaultAttr = fallback === null ? "" : ' data-default-placeholder="' + esc(fallback) + '"';
-        return '<input type="text" data-value-id="' + node._id + '" value="' + esc(value) + '" placeholder="' + esc(placeholder) + '"' + defaultAttr + '>';
+        return '<input type="text" data-value-path="' + esc(node._path) + '" value="' + esc(value) + '" placeholder="' + esc(placeholder) + '"' + defaultAttr + '>';
       }
 
       function renderParameter(node, includeDoc) {
@@ -1085,61 +1762,127 @@
         );
       }
 
-      function renderSwitch(node, flowOptions) {
+      function renderSwitch(node, flowOptions, nestingDepth, asTabs, tabOptions) {
         const current = state.switches[node._path];
+        const tabValues = new Set((tabOptions || []).map(String));
+        const queryIfDisabled = node.directive === "query_if" && String(current) !== "1";
+        const controllerClass = nestingDepth === undefined || queryIfDisabled
+          ? ""
+          : " branch-controller nesting-level-" + (nestingDepth % 9);
         const options = (flowOptions || optionValues(node)).map((option) => {
           const selected = option === current;
+          const optionIsTab = asTabs && tabValues.has(String(option));
           return (
-            '<button type="button" class="switch-option' + (selected ? " selected" : "") + '" ' +
-              'data-switch-id="' + node._id + '" data-switch-value="' + esc(option) + '" ' +
-              'aria-pressed="' + (selected ? "true" : "false") + '">' + esc(option) + '</button>'
+            '<button type="button" class="switch-option' +
+              (optionIsTab ? " tab-option" : "") +
+              (selected ? " selected" : "") + '" ' +
+              'data-switch-path="' + esc(node._path) + '" data-switch-value="' + esc(option) + '" ' +
+              (optionIsTab
+                ? 'role="tab" aria-selected="' + (selected ? "true" : "false") + '" tabindex="' + (selected ? "0" : "-1") + '" '
+                : 'aria-pressed="' + (selected ? "true" : "false") + '" ') +
+              '>' + esc(option) + '</button>'
           );
         }).join("");
-        if (node.directive === "query_if") {
-          const offValue = (flowOptions || optionValues(node))[0];
-          const onValue = (flowOptions || optionValues(node))[1];
+        const booleanOptions = flowOptions || optionValues(node);
+        if (booleanOptions.length === 2 &&
+            String(booleanOptions[0]) === "0" && String(booleanOptions[1]) === "1") {
+          const offValue = booleanOptions[0];
+          const onValue = booleanOptions[1];
           const enabled = String(current) === String(onValue);
           return (
-            '<div class="field-row configured" data-node-path="' + esc(node._path) + '">' +
+            '<div class="field-row' + controllerClass + '" data-node-path="' + esc(node._path) + '">' +
               renderInputName(node) +
               '<div class="field-control"><button type="button" class="boolean-toggle' + (enabled ? " enabled" : "") + '" ' +
-                'data-switch-id="' + node._id + '" data-switch-value="' + esc(enabled ? offValue : onValue) + '" ' +
+                'data-switch-path="' + esc(node._path) + '" data-switch-value="' + esc(enabled ? offValue : onValue) + '" ' +
                 'role="switch" aria-checked="' + (enabled ? "true" : "false") + '">' +
                 '<span>' + (enabled ? "On" : "Off") + '</span><span class="boolean-indicator" aria-hidden="true"></span></button></div>' +
             '</div>'
           );
         }
         return (
-          '<div class="field-row switch-row configured" data-node-path="' + esc(node._path) + '">' +
+          '<div class="field-row switch-row' + controllerClass + (asTabs ? " switch-tab-header" : "") +
+            '" data-node-path="' + esc(node._path) + '">' +
             renderInputName(node) +
-            '<div class="switch-options" role="group" aria-label="Options for ' + esc(node._path) + '">' + options + '</div>' +
+            '<div class="switch-options" role="' + (asTabs ? "tablist" : "group") +
+              '" aria-label="Options for ' + esc(node._path) + '">' + options + '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderSequenceEntry(node, row, index, pending) {
+        const inputPath = node._path + index;
+        const invalid = !pending && String(row.value || "").trim() === "";
+        return (
+          '<div class="sequence-entry' + (pending ? ' pending' : '') + (invalid ? ' invalid' : '') + '">' +
+            '<label class="sequence-key" for="sequence-' + esc(node._path) + '-' + index + '">' + index + '</label>' +
+            '<input id="sequence-' + esc(node._path) + '-' + index + '" type="text" data-seq-value="' + esc(node._path) +
+              '" data-row="' + index + '" value="' + esc(row.value || "") + '" aria-label="Value for ' + esc(inputPath) + '" placeholder="Enter a value">' +
+            '<button class="sequence-delete" type="button" data-seq-delete="' + esc(node._path) + '" data-row="' + index +
+              '" aria-label="Delete ' + esc(inputPath) + '" title="Delete and renumber later entries">&times;</button>' +
           '</div>'
         );
       }
 
       function renderSequence(node) {
         const rows = state.sequenceRows[node._path] || [];
-        const entries = rows.map((row, index) => {
-          return (
-            '<div class="sequence-entry">' +
-              '<input type="text" data-seq-key="' + node._id + '" data-row="' + index + '" value="' + esc(row.key || "") + '" aria-label="Input key" placeholder="Full input key">' +
-              '<input type="text" data-seq-value="' + node._id + '" data-row="' + index + '" value="' + esc(row.value || "") + '" aria-label="Input value" placeholder="Value">' +
-              '<button class="danger" type="button" data-seq-remove="' + node._id + '" data-row="' + index + '">Remove</button>' +
-            '</div>'
-          );
+        const entries = rows.concat([{ value: "" }]).map((row, index) => {
+          return renderSequenceEntry(node, row, index, index === rows.length);
         }).join("");
         return (
           '<div class="field-row sequence-row' + (rows.length ? " configured" : "") + '" data-node-path="' + esc(node._path) + '">' +
             renderInputName(node) +
-            '<div class="field-control"><button type="button" data-seq-add="' + node._id + '">Add entry</button></div>' +
-            (entries ? '<div class="sequence-content">' + entries + '</div>' : "") +
+            '<div class="field-control sequence-content">' + entries + '</div>' +
           '</div>'
         );
       }
 
-      function renderInput(node) {
+      function renderClassSequence(node, templateFlow, nestingDepth, parentBranchKey) {
+        const count = Number(state.classSequenceCounts[node._path] || 0);
+        const active = Math.min(Math.max(Number(state.classSequenceActive[node._path] || 0), 0), Math.max(0, count - 1));
+        state.classSequenceActive[node._path] = active;
+        const template = (node.children || []).find(nodeActive) || (node.children || [])[0];
+        const instances = instancesForClassSequence(node);
+
+        const tabs = instances.map((instance, index) => {
+          return '<button type="button" class="class-sequence-tab' + (index === active ? " active" : "") +
+            '" data-class-tab="' + esc(node._path) + '" data-index="' + index + '" aria-pressed="' +
+            (index === active ? "true" : "false") + '">' + index + '</button>';
+        }).join("");
+        const controls =
+          '<div class="class-sequence-controls">' +
+            (tabs ? '<div class="class-sequence-tabs" role="tablist" aria-label="' + esc(node._path) + ' entries">' + tabs + '</div>' : "") +
+            '<button type="button" class="class-sequence-add" data-class-add="' + esc(node._path) +
+              '" aria-label="Add ' + esc(node._path) + ' entry" title="Add entry">+</button>' +
+            (count ? '<button type="button" class="class-sequence-remove" data-class-remove="' + esc(node._path) +
+              '" data-index="' + active + '" aria-label="Delete ' + esc(node._path + active) +
+              '" title="Delete this entry">&times;</button>' : "") +
+          '</div>';
+
+        let body = "";
+        if (instances.length) {
+          const instance = instances[active];
+          const instanceFlow = instantiateFlow(templateFlow, template._path, instance._path);
+          body = renderFlowNodes(
+            instanceFlow,
+            (nestingDepth || 0) + 1,
+            (parentBranchKey || "") + "|" + node._path + active
+          );
+          if (!body) body = renderChildren(instance);
+        }
+        return (
+          '<section class="class-sequence' + (count ? " configured" : "") + '" data-node-path="' + esc(node._path) + '">' +
+            '<div class="class-sequence-header">' + renderInputName(node) + controls + '</div>' +
+            (count
+              ? '<div class="class-sequence-body">' + body + '</div>'
+              : '<div class="class-sequence-empty">No entries configured.</div>') +
+          '</section>'
+        );
+      }
+
+      function renderInput(node, sequenceFlow, nestingDepth, parentBranchKey) {
         if (node.kind === "parameter") return renderParameter(node);
         if (node.kind === "switch") return renderSwitch(node);
+        if (isClassSequence(node)) return renderClassSequence(node, sequenceFlow, nestingDepth, parentBranchKey);
         if (node.kind === "sequence") return renderSequence(node);
         return "";
       }
@@ -1153,12 +1896,31 @@
         }) || null;
       }
 
-      function renderConditionalBody(condition, body, isFlowBranch) {
+      function renderConditionalBody(condition, body, isFlowBranch, nestingDepth) {
+        const depthClass = isFlowBranch
+          ? " flow-branch nesting-level-" + ((nestingDepth || 0) % 9)
+          : "";
         return (
-          '<div class="conditional-group' + (isFlowBranch ? " flow-branch" : "") + '">' +
+          '<div class="conditional-group' + depthClass + '">' +
             '<div class="conditional-heading"><span>Shown for</span><code>' + esc(condition.path) + ' = ' + esc(condition.value) + '</code></div>' +
             '<div class="scope-body">' + body + '</div>' +
           '</div>'
+        );
+      }
+
+      function renderSwitchTabs(controller, body, nestingDepth, path, value, showPanel, queryIfEnabled) {
+        const depthClass = " nesting-level-" + (nestingDepth % 9);
+        const queryIfClass = queryIfEnabled === undefined
+          ? ""
+          : " query-if-group" + (queryIfEnabled ? " query-if-enabled" : "");
+        return (
+          '<section class="switch-tab-group' + depthClass + queryIfClass + '">' +
+            controller +
+            (showPanel
+              ? '<div class="scope-body switch-tab-panel" role="tabpanel" aria-label="' +
+                esc(path + " = " + value) + '">' + body + '</div>'
+              : "") +
+          '</section>'
         );
       }
 
@@ -1217,41 +1979,63 @@
         return dot < 0 ? "" : String(path).slice(0, dot);
       }
 
-      function renderFlowNodes(nodes) {
+      function renderFlowNodes(nodes, nestingDepth, parentBranchKey) {
+        nestingDepth = nestingDepth || 0;
+        parentBranchKey = parentBranchKey || "";
+        const orderedNodes = [...(nodes || [])].sort((left, right) => {
+          return String(left.input).localeCompare(String(right.input));
+        });
         let html = "";
         let run = [];
         let runGroup = null;
         const consumedExactlyMembers = new Set();
-        const flowInputs = new Set((nodes || []).map((node) => node.input));
+        const flowInputs = new Set(orderedNodes.map((node) => node.input));
+        const prefixGroups = new Set(orderedNodes.map((flowNode) => {
+          const node = nodeForPath(flowNode.input);
+          return node && (node.kind === "parameter" || node.kind === "sequence") && nodeMatchesView(node)
+            ? flowGroup(flowNode.input)
+            : "";
+        }).filter(Boolean));
+        const showNestedPrefixHeading = !parentBranchKey || prefixGroups.size > 1;
 
         const flushRun = () => {
           if (!run.length) return;
           const body = run.map(({ flowNode, node }) => {
-            return renderConstraintsBefore(flowNode.input) + renderInput(node);
+            return renderConstraintsBefore(flowNode.input) +
+              renderInput(node, flowNode.children, nestingDepth, parentBranchKey);
           }).join("");
-          html += runGroup && run.length > 1
-            ? '<div class="flow-section"><div class="flow-section-heading">' + esc(runGroup) + '</div>' + body + '</div>'
-            : body;
+          if (runGroup && run.length > 1 && showNestedPrefixHeading) {
+            const prefixKey = parentBranchKey + "|prefix:" + runGroup;
+            const collapsed = Boolean(state.prefixCollapsed[prefixKey]) && !state.search;
+            html +=
+              '<section class="flow-section">' +
+                '<button type="button" class="flow-section-heading" data-prefix-toggle="' + esc(prefixKey) +
+                  '" aria-expanded="' + (collapsed ? "false" : "true") + '">' + esc(runGroup) + '</button>' +
+                (collapsed ? "" : body) +
+              '</section>';
+          } else html += body;
           run = [];
           runGroup = null;
         };
 
-        (nodes || []).forEach((flowNode) => {
-          const node = nodeByPath.get(flowNode.input);
+        orderedNodes.forEach((flowNode) => {
+          const node = nodeForPath(flowNode.input);
           if (!node) return;
 
           if (consumedExactlyMembers.has(flowNode.input)) return;
 
           const exactly = constraints.find((item) => {
             const members = item.constraint.members || [];
+            const firstMember = orderedNodes.find((candidate) => members.includes(candidate.input));
             return item.constraint.kind === "exactly" && constraintActive(item) &&
-              members[0] === flowNode.input && members.every((member) => flowInputs.has(member));
+              firstMember && firstMember.input === flowNode.input &&
+              members.every((member) => flowInputs.has(member));
           });
           if (exactly) {
             flushRun();
-            const memberNodes = (exactly.constraint.members || []).map((member) => nodeByPath.get(member)).filter((member) => {
-              return member && member.kind === "parameter" && nodeMatchesView(member);
-            });
+            const memberNodes = (exactly.constraint.members || []).map((member) => nodeForPath(member))
+              .filter((member) => member && member.kind === "parameter" && nodeMatchesView(member))
+              .sort((left, right) => left._path.localeCompare(right._path));
             (exactly.constraint.members || []).forEach((member) => consumedExactlyMembers.add(member));
             if (memberNodes.length) html += renderExactlyGroup(exactly, memberNodes);
             return;
@@ -1264,13 +2048,33 @@
             const selected = (flowNode.branches || []).find((branch) => {
               return String(branch.value) === String(selectedValue);
             });
-            const childHtml = selected ? renderFlowNodes(selected.children) : "";
-            if (nodeMatchesView(node) || childHtml) {
-              html += renderSwitch(node, options);
-              if (childHtml) {
-                html += renderConditionalBody(
-                  { path: flowNode.input, value: selectedValue }, childHtml, true);
-              }
+            const branchKey = parentBranchKey + "|" + flowNode.input + "=" + selectedValue;
+            const childHtml = selected ? renderFlowNodes(selected.children, nestingDepth + 1, branchKey) : "";
+            const hasBranchContent = (flowNode.branches || []).some((branch) => {
+              return Array.isArray(branch.children) && branch.children.length > 0;
+            });
+            if (nodeMatchesView(node) || childHtml || hasBranchContent) {
+              const tabOptions = (flowNode.branches || []).filter((branch) => {
+                return Array.isArray(branch.children) && branch.children.length > 0;
+              }).map((branch) => String(branch.value));
+              const selectedHasChildren = Boolean(
+                selected && Array.isArray(selected.children) && selected.children.length > 0
+              );
+              const controller = renderSwitch(
+                node,
+                options,
+                hasBranchContent ? nestingDepth : undefined,
+                hasBranchContent,
+                tabOptions
+              );
+              if (hasBranchContent) {
+                const queryIfEnabled = node.directive === "query_if"
+                  ? String(selectedValue) === "1"
+                  : undefined;
+                html += renderSwitchTabs(
+                  controller, childHtml, nestingDepth, flowNode.input, selectedValue,
+                  selectedHasChildren, queryIfEnabled);
+              } else html += controller;
             }
             return;
           }
@@ -1333,6 +2137,13 @@
       }
 
       function renderBuilder() {
+        virtualNodeByPath.clear();
+        classSequenceInstances.clear();
+        flat.forEach((node) => {
+          if (isClassSequence(node) && !classSequenceOwner(node) && nodeActive(node)) {
+            instancesForClassSequence(node);
+          }
+        });
         if (flow) {
           const html = renderFlowNodes(flow);
           builderList.innerHTML = html || '<div class="empty">No active inputs match this view.</div>';
@@ -1439,8 +2250,99 @@
         renderOutput();
       }
 
+      function renderSequenceContent(node, content) {
+        const rows = state.sequenceRows[node._path] || [];
+        content.innerHTML = rows.concat([{ value: "" }]).map((row, index) => {
+          return renderSequenceEntry(node, row, index, index === rows.length);
+        }).join("");
+        content.querySelectorAll("[data-seq-value]").forEach(bindSequenceValueInput);
+        content.querySelectorAll("[data-seq-delete]").forEach(bindSequenceDeleteButton);
+      }
+
+      function bindSequenceValueInput(input) {
+        input.addEventListener("input", (event) => {
+          const node = nodeForPath(event.currentTarget.dataset.seqValue);
+          const rows = state.sequenceRows[node._path] || [];
+          const index = Number(event.currentTarget.dataset.row);
+          const value = event.currentTarget.value;
+          const entry = event.currentTarget.closest(".sequence-entry");
+          const content = event.currentTarget.closest(".sequence-content");
+
+          if (index === rows.length && value.trim() !== "") {
+            rows.push({ value: value });
+            entry.classList.remove("pending");
+            content.insertAdjacentHTML("beforeend", renderSequenceEntry(node, { value: "" }, index + 1, true));
+            bindSequenceValueInput(content.lastElementChild.querySelector("[data-seq-value]"));
+            bindSequenceDeleteButton(content.lastElementChild.querySelector("[data-seq-delete]"));
+          } else if (index < rows.length) {
+            rows[index].value = value;
+            if (value.trim() !== "") {
+              entry.classList.remove("invalid");
+              refreshAfterValue(node);
+              return;
+            }
+            if (index === rows.length - 1) {
+              rows.pop();
+              renderSequenceContent(node, content);
+              content.querySelector('[data-seq-value][data-row="' + index + '"]').focus();
+            } else entry.classList.add("invalid");
+          }
+          refreshAfterValue(node);
+        });
+      }
+
+      function bindSequenceDeleteButton(button) {
+        button.addEventListener("click", (event) => {
+          const node = nodeForPath(event.currentTarget.dataset.seqDelete);
+          const rows = state.sequenceRows[node._path] || [];
+          const index = Number(event.currentTarget.dataset.row);
+          const content = event.currentTarget.closest(".sequence-content");
+          rows.splice(index, 1);
+          renderSequenceContent(node, content);
+          refreshAfterValue(node);
+        });
+      }
+
+      function stateMapsWithPaths() {
+        return [
+          state.switches,
+          state.values,
+          state.sequenceRows,
+          state.classSequenceCounts,
+          state.classSequenceActive
+        ];
+      }
+
+      function keysBelow(map, prefix) {
+        return Object.keys(map).filter((key) => key === prefix || key.startsWith(prefix + "."));
+      }
+
+      function removeStatePrefix(prefix) {
+        stateMapsWithPaths().forEach((map) => {
+          keysBelow(map, prefix).forEach((key) => delete map[key]);
+        });
+      }
+
+      function moveStatePrefix(sourcePrefix, targetPrefix) {
+        stateMapsWithPaths().forEach((map) => {
+          const entries = keysBelow(map, sourcePrefix).map((key) => {
+            return [targetPrefix + key.slice(sourcePrefix.length), map[key]];
+          });
+          keysBelow(map, sourcePrefix).forEach((key) => delete map[key]);
+          entries.forEach(([key, value]) => { map[key] = value; });
+        });
+      }
+
       function bindBuilderEvents() {
         bindDefaultPlaceholders();
+        builderList.querySelectorAll("[data-prefix-toggle]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const key = event.currentTarget.dataset.prefixToggle;
+            if (state.prefixCollapsed[key]) delete state.prefixCollapsed[key];
+            else state.prefixCollapsed[key] = true;
+            renderBuilder();
+          });
+        });
         builderList.querySelectorAll("[data-section-toggle]").forEach((button) => {
           button.addEventListener("click", (event) => {
             const node = flat[Number(event.currentTarget.dataset.sectionToggle)];
@@ -1449,56 +2351,101 @@
             renderBuilder();
           });
         });
-        builderList.querySelectorAll("[data-switch-id]").forEach((button) => {
+        builderList.querySelectorAll("[data-switch-path]").forEach((button) => {
           button.addEventListener("click", (event) => {
-            const node = flat[Number(event.currentTarget.dataset.switchId)];
+            const node = nodeForPath(event.currentTarget.dataset.switchPath);
             state.switches[node._path] = event.currentTarget.dataset.switchValue;
             renderAll();
           });
+          if (button.getAttribute("role") === "tab") {
+            button.addEventListener("keydown", (event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const tabs = Array.from(event.currentTarget.parentElement.querySelectorAll('[role="tab"]'));
+              const current = tabs.indexOf(event.currentTarget);
+              let next = current;
+              if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+              if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+              if (event.key === "Home") next = 0;
+              if (event.key === "End") next = tabs.length - 1;
+              const path = tabs[next].dataset.switchPath;
+              const value = tabs[next].dataset.switchValue;
+              state.switches[path] = value;
+              renderAll();
+              requestAnimationFrame(() => {
+                Array.from(builderList.querySelectorAll('[role="tab"][data-switch-path]'))
+                  .find((tab) => tab.dataset.switchPath === path && tab.dataset.switchValue === value)
+                  ?.focus();
+              });
+            });
+          }
         });
-        builderList.querySelectorAll("[data-value-id]").forEach((control) => {
+        builderList.querySelectorAll("[data-value-path]").forEach((control) => {
           const eventName = control.tagName === "SELECT" ? "change" : "input";
           control.addEventListener(eventName, (event) => {
-            const node = flat[Number(event.currentTarget.dataset.valueId)];
+            const node = nodeForPath(event.currentTarget.dataset.valuePath);
             state.values[node._path] = event.currentTarget.value;
             refreshAfterValue(node);
           });
         });
-        builderList.querySelectorAll("[data-seq-add]").forEach((button) => {
+        builderList.querySelectorAll("[data-seq-value]").forEach(bindSequenceValueInput);
+        builderList.querySelectorAll("[data-seq-delete]").forEach(bindSequenceDeleteButton);
+        builderList.querySelectorAll("[data-class-add]").forEach((button) => {
           button.addEventListener("click", (event) => {
-            const node = flat[Number(event.currentTarget.dataset.seqAdd)];
-            const rows = state.sequenceRows[node._path] || [];
-            rows.push({ key: node._path + rows.length, value: "" });
-            state.sequenceRows[node._path] = rows;
+            const path = event.currentTarget.dataset.classAdd;
+            const count = Number(state.classSequenceCounts[path] || 0);
+            state.classSequenceCounts[path] = count + 1;
+            state.classSequenceActive[path] = count;
             renderAll();
           });
         });
-        builderList.querySelectorAll("[data-seq-remove]").forEach((button) => {
+        builderList.querySelectorAll("[data-class-tab]").forEach((button) => {
           button.addEventListener("click", (event) => {
-            const node = flat[Number(event.currentTarget.dataset.seqRemove)];
-            state.sequenceRows[node._path].splice(Number(event.currentTarget.dataset.row), 1);
+            state.classSequenceActive[event.currentTarget.dataset.classTab] =
+              Number(event.currentTarget.dataset.index);
             renderAll();
           });
         });
-        builderList.querySelectorAll("[data-seq-key]").forEach((input) => {
-          input.addEventListener("input", (event) => {
-            const node = flat[Number(event.currentTarget.dataset.seqKey)];
-            state.sequenceRows[node._path][Number(event.currentTarget.dataset.row)].key = event.currentTarget.value;
-            refreshAfterValue(node);
-          });
-        });
-        builderList.querySelectorAll("[data-seq-value]").forEach((input) => {
-          input.addEventListener("input", (event) => {
-            const node = flat[Number(event.currentTarget.dataset.seqValue)];
-            state.sequenceRows[node._path][Number(event.currentTarget.dataset.row)].value = event.currentTarget.value;
-            refreshAfterValue(node);
+        builderList.querySelectorAll("[data-class-remove]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const path = event.currentTarget.dataset.classRemove;
+            const index = Number(event.currentTarget.dataset.index);
+            const count = Number(state.classSequenceCounts[path] || 0);
+            removeStatePrefix(path + index);
+            for (let next = index + 1; next < count; next += 1) {
+              moveStatePrefix(path + next, path + (next - 1));
+            }
+            state.classSequenceCounts[path] = Math.max(0, count - 1);
+            state.classSequenceActive[path] = Math.min(index, Math.max(0, count - 2));
+            renderAll();
           });
         });
       }
 
       function outputLines() {
         const lines = ["# Generated by the Alamo input builder", "# Schema source: __SCHEMA_SOURCE__", ""];
+        const appendInstance = (node) => {
+          if (!node._path || !nodeActive(node)) return;
+          if (node.kind === "switch") {
+            const value = state.switches[node._path];
+            if (value !== undefined && value !== "") lines.push(node._path + " = " + value);
+          } else if (isClassSequence(node)) {
+            instancesForClassSequence(node).forEach(appendInstance);
+            return;
+          } else if (node.kind === "sequence") {
+            (state.sequenceRows[node._path] || []).forEach((row, index) => {
+              const value = String(row.value || "").trim();
+              if (value) lines.push(node._path + index + " = " + value);
+            });
+          } else if (node.kind === "parameter") {
+            const value = String(state.values[node._path] || "").trim();
+            if (value) lines.push(node._path + " = " + value);
+            else if (node.required) lines.push("# " + node._path + " = <value>");
+          }
+          (node.children || []).forEach(appendInstance);
+        };
         flat.forEach((node) => {
+          if (classSequenceOwner(node)) return;
           if (!node._path || !nodeActive(node)) return;
           if (node.kind === "switch") {
             const value = state.switches[node._path];
@@ -1506,11 +2453,13 @@
             return;
           }
           if (node.kind === "sequence") {
-            (state.sequenceRows[node._path] || []).forEach((row) => {
-              const key = String(row.key || "").trim();
+            if (isClassSequence(node)) {
+              instancesForClassSequence(node).forEach(appendInstance);
+              return;
+            }
+            (state.sequenceRows[node._path] || []).forEach((row, index) => {
               const value = String(row.value || "").trim();
-              if (key && value) lines.push(key + " = " + value);
-              else if (key) lines.push("# " + key + " = <value>");
+              if (value) lines.push(node._path + index + " = " + value);
             });
             return;
           }
@@ -1552,7 +2501,10 @@
         Object.keys(state.switches).forEach((key) => delete state.switches[key]);
         Object.keys(state.values).forEach((key) => delete state.values[key]);
         Object.keys(state.sequenceRows).forEach((key) => delete state.sequenceRows[key]);
+        Object.keys(state.classSequenceCounts).forEach((key) => delete state.classSequenceCounts[key]);
+        Object.keys(state.classSequenceActive).forEach((key) => delete state.classSequenceActive[key]);
         Object.keys(state.collapsed).forEach((key) => delete state.collapsed[key]);
+        Object.keys(state.prefixCollapsed).forEach((key) => delete state.prefixCollapsed[key]);
         state.search = "";
         state.view = "all";
         state.currentSection = "";
@@ -1577,6 +2529,9 @@
       });
 
       document.getElementById("resetButton").addEventListener("click", resetState);
+      document.getElementById("builderSelect").addEventListener("change", (event) => {
+        window.location.href = event.currentTarget.value;
+      });
       document.getElementById("copyButton").addEventListener("click", () => {
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(outputText.value);
         else {
@@ -1601,6 +2556,17 @@
         flat.filter((node) => node.kind === "parameter").length + " parameters  /  " +
         switchNodes.length + " decisions  /  " +
         flat.filter((node) => node.kind === "sequence").length + " repeatable inputs";
+
+      if (traversalIgnored.length) {
+        const sources = traversalIgnored.map((item) => {
+          const source = item.source || {};
+          const location = source.file ? source.file + ":" + (source.line || "?") : "legacy parser";
+          const note = item.note || "Its inputs are not fully documented.";
+          return location + ": " + note;
+        });
+        traversalNotice.hidden = false;
+        traversalNotice.textContent = "Legacy input parser skipped during documentation traversal. " + sources.join(" ");
+      }
 
       renderAll();
     }());

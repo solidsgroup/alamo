@@ -24,6 +24,7 @@
 #include "IO/ParmParse.H"
 #include "Set/Base.H"
 #include "Util/MPI.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -39,21 +40,25 @@ public:
     static void
     Parse(Disconnection &value, IO::ParmParse &pp)
     {
-        Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"2D only");
+        if (AMREX_SPACEDIM != 2)
+        {
+            if (IO::ParmParse::InTraversalMode()) return;
+            Util::ParmParseException(INFO,"2D only");
+        }
         // time to start applying disconnections
-        pp_query_default ("tstart", value.tstart,0.0); 
+        pp.query_default ("tstart", value.tstart,0.0); 
         // nucleation energy
-        pp_query_default ("nucleation_energy", value.nucleation_energy,0.0); 
+        pp.query_default ("nucleation_energy", value.nucleation_energy,0.0); 
         // characteristic time
-        pp_query_default("tau_vol", value.tau_vol, 1.0);
+        pp.query_default("tau_vol", value.tau_vol, 1.0);
         // temperature
-        pp_query_default("temp", value.temp, 0.0);
+        pp.query_default("temp", value.temp, 0.0);
         // characteristic size
-        pp_query_default("box_size", value.box_size, 0.0);
+        pp.query_default("box_size", value.box_size, 0.0);
         // interval between generation events
-        pp_query_required("interval", value.interval);
+        pp.query_required("interval", value.interval);
         // regularization epsilon
-        pp_query_default ("epsilon",value.epsilon,1E-20); 
+        pp.query_default ("epsilon",value.epsilon,1E-20); 
         // whether to manually specify disconnection nucleation points
         pp.query("disconnection.fixed.on",value.fixed.on); 
         if (value.fixed.on)

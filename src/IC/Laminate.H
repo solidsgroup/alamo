@@ -85,11 +85,11 @@ public:
 
         amrex::Vector<Set::Scalar> a_center;
         // (x,y,[z]) values for the center point of the laminate
-        if (pp.contains("center")) pp.queryarr("center", a_center, Unit::Length());
+        pp.queryarr("center", a_center, Unit::Length());
 
         amrex::Vector<Set::Scalar> a_thickness;
         // thickness of the laminate
-        if (pp.contains("thickness")) pp_queryarr("thickness", a_thickness,Unit::Length());
+        pp.queryarr("thickness", a_thickness,Unit::Length());
 
         amrex::Vector<Set::Scalar> a_orientation;
         // Vector normal to the interface of the laminate
@@ -101,11 +101,10 @@ public:
 
         std::string mollifier;
         // Type of mollifer to use (options: dirac, [gaussian])
-        pp.query_validate("mollifier", mollifier, {"dirac","gaussian"}); 
-        if (mollifier == "Dirac" || mollifier == "dirac")
-            value.moll = Mollifier::Dirac;
-        else
-            value.moll = Mollifier::Gaussian;
+        pp.query_switch("mollifier", {
+                {"dirac",    [&]() {value.moll = Mollifier::Dirac;    }},
+                {"gaussian", [&]() {value.moll = Mollifier::Gaussian; }}
+            });
 
         // Switch to mode where only one component is used.
         pp.query_default("singlefab", value.singlefab,false);

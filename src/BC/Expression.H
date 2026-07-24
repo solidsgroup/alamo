@@ -175,8 +175,8 @@ public:
         for (int face = 0; face != Face::INT; face++)
         {
             std::string querystr = std::string("val.") + std::string(facestr[face]);
-            if (pp.contains(querystr.c_str())) pp_queryarr(querystr.c_str(),val);
-            else val.resize(value.m_ncomp,"0.0");
+            pp.queryarr_default(querystr.c_str(),val,{"0.0"});
+            if (val.size() == 1) val.resize(value.m_ncomp,val[0]);
             if (val.size() != value.m_ncomp) Util::Abort(INFO,"Incorrect number of expressions specified for ",querystr,": expected 1 or ",value.m_ncomp," but received ",val.size());
 
             value.m_bc_func_parser[face].clear();

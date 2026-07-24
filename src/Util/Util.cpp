@@ -124,22 +124,11 @@ std::string GetFileName()
     {
         IO::ParmParse pp;
 
-        if (pp.contains("amr.plot_file") && pp.contains("plot_file"))
-            Util::Abort("plot_file specified in too many locations");
-        else if (pp.contains("amr.plot_file"))
-        {
-            if (amrex::ParallelDescriptor::IOProcessor())
-                amrex::Warning("amr.plot_file will be depricated; use plot_file instead");
+        pp.forbid("amr.plot_file","Depricated");
 
-            // (Depricated) Output file path
-            pp.query("amr.plot_file", filename);
+        // Output file path
+        pp.query_default("plot_file", filename, "output"); // Name of directory containing all output data
 
-        }
-        else if (pp.contains("plot_file"))
-        {
-            // Output file path
-            pp.query("plot_file", filename); // Name of directory containing all output data
-        }
         IO::FileNameParse(filename);
         // else
         // if (amrex::ParallelDescriptor::IOProcessor())
@@ -331,31 +320,28 @@ void Initialize (int argc, char* argv[])
     {
         IO::ParmParse pp("geometry");
         
-        if (pp.contains("prob_lo"))
-        {
-            std::vector<Set::Scalar> prob_lo, prob_hi;
-            // Location of the lower+left+bottom corner
-            pp.queryarr("prob_lo", prob_lo, Unit::Length());
-            // Location of the upper_right_top corner
-            pp.queryarr("prob_hi", prob_hi, Unit::Length());
-            pp.remove("prob_lo");
-            pp.remove("prob_hi");
+        std::vector<Set::Scalar> prob_lo, prob_hi;
+        // Location of the lower+left+bottom corner
+        pp.queryarr_required("prob_lo", prob_lo, Unit::Length());
+        // Location of the upper_right_top corner
+        pp.queryarr_required("prob_hi", prob_hi, Unit::Length());
+        pp.remove("prob_lo");
+        pp.remove("prob_hi");
 
-            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
-                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
-            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
-                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+        Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
+                        "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+        Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
+                        "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
 #if AMREX_SPACEDIM>2
-            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
-                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+        Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
+                        "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
 #endif
 
-            Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
-            Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+        Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+        Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
 
-            pp.addarr("prob_lo",prob_lo);
-            pp.addarr("prob_hi",prob_hi);
-        }
+        pp.addarr("prob_lo",prob_lo);
+        pp.addarr("prob_hi",prob_hi);
     }
 
 
