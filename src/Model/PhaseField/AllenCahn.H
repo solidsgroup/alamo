@@ -85,7 +85,9 @@ public:
     Set::Scalar operator()(const amrex::Array4<const Set::Scalar>& field,
                             const int component, const Set::Scalar scale,
                             const int i, const int j, const int k,
-                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+                            const Set::Scalar DX[AMREX_SPACEDIM],
+                            const Set::Scalar /*temperature*/,
+                            const Set::Scalar /*pressure*/) const
     {
         const Set::Scalar value = scale * field(i,j,k,component);
         const Set::Scalar value2 = value * value;
@@ -96,7 +98,9 @@ public:
         return -mobility * chemical_potential;
     }
 
-    Set::Scalar StabilityRate(const Set::Scalar dx) const
+    Set::Scalar StabilityRate(const Set::Scalar dx,
+                            const Set::Scalar /*temperature*/,
+                            const Set::Scalar /*pressure*/) const
     {
         return mobility *
             (2.0 * lambda + 6.0 * Util::Abs(driving_force) +

@@ -65,13 +65,14 @@ public:
 
     template<int I = 0>
     Set::Scalar StabilityRate(const Set::Scalar dx,
-                            const Set::Scalar temperature) const
+                            const Set::Scalar temperature,
+                            const Set::Scalar pressure) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).StabilityRate(dx, temperature);
-            return StabilityRate<I + 1>(dx, temperature);
+                return std::get<I>(obj).StabilityRate(dx, temperature, pressure);
+            return StabilityRate<I + 1>(dx, temperature, pressure);
         }
         Util::Abort(INFO, selected);
         return NAN;

@@ -2000,7 +2000,8 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         }
         for (const auto& mechanism : mechanisms)
             phasefieldmax = std::max(
-                phasefieldmax, mechanism.StabilityRate(dxmin, temperaturemax));
+                phasefieldmax,
+                mechanism.StabilityRate(dxmin, temperaturemax, pressure_reference));
     }
     amrex::ParallelDescriptor::ReduceRealMax(advmax);
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);

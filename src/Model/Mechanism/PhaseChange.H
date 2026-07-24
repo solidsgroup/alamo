@@ -141,13 +141,15 @@ public:
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx,
-                            const Set::Scalar temperature) const
+                            const Set::Scalar temperature,
+                            const Set::Scalar pressure) const
     {
         if (!(temperature > temperature_cutoff)) return 0.0;
         if (use_prescribed_speed) return prescribed_speed / dx;
         const Set::Scalar temperature_factor = activation_temperature > 0.0 ?
             std::exp(-activation_temperature / temperature) : 1.0;
-        return rate_multiplier * temperature_factor * model.StabilityRate(dx);
+        return rate_multiplier * temperature_factor *
+            model.StabilityRate(dx, temperature, pressure);
     }
 
 private:
@@ -173,7 +175,8 @@ private:
                             state.rigid_eta, i, j, k, 0, DX).norm();
                 else
                     eta_dot = input_eta / eta *
-                        model(state.rigid_eta, 0, 1.0, i, j, k, DX);
+                        model(state.rigid_eta, 0, 1.0, i, j, k, DX,
+                            state.temperature, state.pressure);
             }
         }
         else
@@ -184,7 +187,8 @@ private:
                         state.component_density, i, j, k, input, DX).norm();
             else
                 eta_dot = model(state.component_density, input,
-                                1.0 / reference_density, i, j, k, DX);
+                                1.0 / reference_density, i, j, k, DX,
+                                state.temperature, state.pressure);
         }
         eta_dot = Util::Min(eta_dot, 0.0);
         if (activation_temperature > 0.0)
