@@ -539,7 +539,7 @@ if args.yaml:
         if not os.path.exists(obj) or os.path.getmtime(src) > os.path.getmtime(obj):
             shellmessage(
                 "YAML-CPP-CXX",
-                cmd=f"{args.comp} -std=c++17 -fPIC -I{include_dir} -c {src} -o {obj}"
+                cmd=f"{args.comp} -std=c++20 -fPIC -I{include_dir} -c {src} -o {obj}"
             )
 
     lib_path = f"{build_dir}/libyaml-cpp.a"
