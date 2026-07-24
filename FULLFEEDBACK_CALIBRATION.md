@@ -48,8 +48,8 @@ Useful flags:
 
 ### Cost
 
-Each sim is ~a few minutes (`stop_time = 8.0e-3_s`, `plot_dt = 5.0e-4_s` for
-~16 samples per run so the steady-state window is well resolved by
+Each sim is ~a few minutes (`stop_time = 2.0e-2_s`, `plot_dt = 5.0e-4_s` for
+enough samples per run so the steady-state window is well resolved by
 `regression_rate.py`'s transient/steady/extinguished classification). Each
 `least_squares` iteration runs the full fit-pressure subset in parallel, so
 the whole optimization is a **multi-hour background job** — run it under
