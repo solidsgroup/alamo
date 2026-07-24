@@ -55,6 +55,7 @@ public:
             delete ic;
         delete pressure_ic;
         delete xi_ic;
+        delete laser_ic;
     }
 
 protected:
@@ -90,7 +91,7 @@ protected:
         Set::Patch<const Set::Scalar> component_density,
         Set::Patch<const Set::Scalar> temperature,
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
-        bool include_reaction = true) const;
+        bool include_reaction = true, Set::Scalar laser_source = 0.0) const;
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
@@ -113,6 +114,7 @@ protected:
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
+    Set::Field<Set::Scalar> laser_mf;
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> momentum_mf;
@@ -143,6 +145,8 @@ protected:
     std::vector<IC::IC<Set::Scalar>*> component_density_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
+    IC::IC<Set::Scalar>* laser_ic = nullptr;
+    bool laser_on = false;
 
     Model::Gas::Gas gas;
     using Chemistry = Model::Chemistry::Chemistry<
