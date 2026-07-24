@@ -158,6 +158,71 @@ def read_snapshot(path: Path, field: str, threshold: float) -> Snapshot:
     return Snapshot(step=step, time=time, front_y=front_y)
 
 
+def find_steady_state(
+    times: np.ndarray,
+    fronts: np.ndarray,
+    burnout_frac: float,
+    steady_tol: float,
+    min_points: int,
+) -> tuple[np.ndarray, int, int]:
+    """Classify per-interval rates and locate the steady-burning window.
+
+    Returns (phases, steady_start, steady_end) where ``phases`` has one entry
+    per interval (length ``len(times) - 1``) labeled "transient", "steady",
+    or "extinguished", and ``steady_start``/``steady_end`` are snapshot
+    indices (inclusive) bounding the steady-state interval run used for the
+    reported regression rate. If no steady window is found, both are -1.
+    """
+    n = len(times)
+    rates = np.diff(fronts) / np.diff(times)
+    phases = np.full(n - 1, "transient", dtype=object)
+    if n < 3:
+        return phases, -1, -1
+
+    max_rate = float(np.max(np.abs(rates)))
+    if max_rate <= 0.0:
+        phases[:] = "extinguished"
+        return phases, -1, -1
+
+    # A cell keeps regressing once ignited; a sustained drop to a small
+    # fraction of the peak rate near the end of the run means the AP burned
+    # through (or the run stopped advancing) and later data should be
+    # dropped, not just a single noisy interval mid-run.
+    burning = np.abs(rates) > burnout_frac * max_rate
+    burning_indices = np.where(burning)[0]
+    active_end = int(burning_indices[-1]) + 1 if burning_indices.size else 0
+    phases[active_end:] = "extinguished"
+    if active_end < min_points:
+        return phases, -1, -1
+
+    active_rates = rates[:active_end]
+    median_rate = float(np.median(active_rates))
+    steady = np.abs(active_rates - median_rate) <= steady_tol * abs(median_rate)
+
+    # Keep the longest contiguous run of steady intervals; ties favor the
+    # latest run, since transients are expected at the start of a burn.
+    best_start, best_len = -1, 0
+    run_start = None
+    for i in range(active_end + 1):
+        is_steady = i < active_end and steady[i]
+        if is_steady and run_start is None:
+            run_start = i
+        if not is_steady and run_start is not None:
+            run_len = i - run_start
+            if run_len >= best_len:
+                best_start, best_len = run_start, run_len
+            run_start = None
+    if run_start is not None:
+        run_len = active_end - run_start
+        if run_len >= best_len:
+            best_start, best_len = run_start, run_len
+
+    phases[:active_end][steady] = "steady"
+    if best_len < min_points:
+        return phases, -1, -1
+    return phases, best_start, best_start + best_len
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("plotfile_root", type=Path,
@@ -166,8 +231,18 @@ def parse_args() -> argparse.Namespace:
                          help="field to track (default: rigid_eta)")
     parser.add_argument("--threshold", type=float, default=0.5,
                          help="contour value defining the front (default: 0.5)")
+    parser.add_argument("--burnout-frac", type=float, default=0.1,
+                         help="interval rate below this fraction of the peak rate, "
+                              "sustained through the end of the run, is treated as "
+                              "extinguished and excluded (default: 0.1)")
+    parser.add_argument("--steady-tol", type=float, default=0.1,
+                         help="relative tolerance to the median active rate used to "
+                              "classify an interval as steady state (default: 0.1)")
+    parser.add_argument("--min-steady-points", type=int, default=3,
+                         help="minimum number of intervals required to report a "
+                              "steady-state rate (default: 3)")
     parser.add_argument("--csv", type=Path,
-                         help="optional path to write step,time,front_y,rate as CSV")
+                         help="optional path to write step,time,front_y,rate,phase as CSV")
     return parser.parse_args()
 
 
@@ -177,32 +252,50 @@ def main() -> None:
     print(f"Found {len(paths)} plotfile(s) under {args.plotfile_root}")
 
     snapshots = [read_snapshot(p, args.field, args.threshold) for p in paths]
-
-    rows = []
-    print(f"{'step':>10} {'time [s]':>14} {'front_y [m]':>14} {'rate [m/s]':>14}")
-    prev = None
-    for snap in snapshots:
-        rate = None
-        if prev is not None and snap.time > prev.time:
-            rate = (snap.front_y - prev.front_y) / (snap.time - prev.time)
-        rate_str = f"{rate:14.6e}" if rate is not None else " " * 14
-        print(f"{snap.step:10d} {snap.time:14.6e} {snap.front_y:14.6e} {rate_str}")
-        rows.append((snap.step, snap.time, snap.front_y, rate))
-        prev = snap
-
     times = np.array([s.time for s in snapshots])
     fronts = np.array([s.front_y for s in snapshots])
-    if len(snapshots) >= 2:
-        slope, intercept = np.polyfit(times, fronts, 1)
-        print(f"\nLinear fit over full run: d(front_y)/dt = {slope:.6e} m/s "
+
+    phases, steady_start, steady_end = find_steady_state(
+        times, fronts, args.burnout_frac, args.steady_tol, args.min_steady_points)
+
+    rows = []
+    print(f"{'step':>10} {'time [s]':>14} {'front_y [m]':>14} "
+          f"{'rate [m/s]':>14} {'phase':>13}")
+    for i, snap in enumerate(snapshots):
+        rate = None
+        phase = ""
+        if i > 0:
+            rate = (fronts[i] - fronts[i - 1]) / (times[i] - times[i - 1])
+            phase = phases[i - 1]
+        rate_str = f"{rate:14.6e}" if rate is not None else " " * 14
+        print(f"{snap.step:10d} {snap.time:14.6e} {snap.front_y:14.6e} "
+              f"{rate_str} {phase:>13}")
+        rows.append((snap.step, snap.time, snap.front_y, rate, phase))
+
+    if steady_start < 0:
+        print("\nNo sustained steady-burning window found; "
+              "no regression rate reported.")
+    else:
+        steady_times = times[steady_start:steady_end + 1]
+        steady_fronts = fronts[steady_start:steady_end + 1]
+        slope, _ = np.polyfit(steady_times, steady_fronts, 1)
+        print(f"\nSteady-state window: steps {snapshots[steady_start].step}-"
+              f"{snapshots[steady_end].step} "
+              f"(t = {steady_times[0]:.6g}-{steady_times[-1]:.6g} s)")
+        print(f"Steady-state regression rate: d(front_y)/dt = {slope:.6e} m/s "
               f"=> regression rate magnitude = {abs(slope):.6e} m/s "
               f"({abs(slope) * 1000.0:.6g} mm/s)")
+        if np.any(phases == "extinguished"):
+            first_ext = int(np.argmax(phases == "extinguished"))
+            print(f"AP stopped burning after step {snapshots[first_ext].step} "
+                  f"(t = {times[first_ext]:.6g} s); later data excluded.")
 
     if args.csv is not None:
         with open(args.csv, "w") as fh:
-            fh.write("step,time,front_y,rate\n")
-            for step, time, front_y, rate in rows:
-                fh.write(f"{step},{time},{front_y},{'' if rate is None else rate}\n")
+            fh.write("step,time,front_y,rate,phase\n")
+            for step, time, front_y, rate, phase in rows:
+                fh.write(f"{step},{time},{front_y},"
+                         f"{'' if rate is None else rate},{phase}\n")
         print(f"Wrote {args.csv}")
 
 
