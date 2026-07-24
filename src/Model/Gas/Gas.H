@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <string>
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Thermo/Rocfire.H"
@@ -11,6 +12,7 @@
 #include "Model/Gas/Transport/Rocfire.H"
 #include "Model/Gas/EOS/CPG.H"
 #include "Model/Gas/EOS/TPG.H"
+#include "Model/Gas/EOS/Rocfire.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -29,24 +31,39 @@ public:
                 const int i, const int j, const int k)
         : partial_density(a_partial_density),
         molecular_weight(a_molecular_weight),
-        moles(0.0)
+        normalization(0.0)
     {
         for (int n = 0; n < a_nspecies; ++n)
-            moles += partial_density(i,j,k,n) / molecular_weight[n];
+            normalization += partial_density(i,j,k,n) / molecular_weight[n];
+    }
+
+    /// Equal-molecular-weight specialization: mole and mass fractions coincide.
+    MoleFraction(const amrex::Array4<const Set::Scalar>& a_partial_density,
+                const int a_nspecies,
+                const int i, const int j, const int k)
+        : partial_density(a_partial_density),
+        molecular_weight(nullptr),
+        normalization(0.0)
+    {
+        for (int n = 0; n < a_nspecies; ++n)
+            normalization += partial_density(i,j,k,n);
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator()(const int i, const int j, const int k, const int n) const
     {
-        return moles > 0.0 ?
-            (partial_density(i,j,k,n) / molecular_weight[n]) / moles :
-            (n == 0 ? 1.0 : 0.0);
+        if (normalization <= 0.0) return n == 0 ? 1.0 : 0.0;
+
+        const Set::Scalar amount = molecular_weight ?
+            partial_density(i,j,k,n) / molecular_weight[n] :
+            partial_density(i,j,k,n);
+        return amount / normalization;
     }
 
 private:
     amrex::Array4<const Set::Scalar> partial_density;
     const double* molecular_weight;
-    Set::Scalar moles;
+    Set::Scalar normalization;
 };
 
 class Gas {
@@ -57,7 +74,7 @@ public:
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
     Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
-    EOS::EOS<EOS::CPG,EOS::TPG> eos;
+    EOS::EOS<EOS::CPG,EOS::TPG,EOS::Rocfire> eos;
 
 public:
     Gas() 
@@ -77,14 +94,14 @@ public:
 
         // thermo model
         pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire>(
-            "thermo", value.thermo, value.nspecies);
+            "thermo", value.thermo, value.MW);
 
         // transport model
         pp.select<Transport::Mixture_Averaged,Transport::Rocfire>(
             "transport", value.transport, value.nspecies, value.MW, value.thermo);
 
         // eos model
-        pp.select<EOS::CPG,EOS::TPG>("eos", value.eos);
+        pp.select<EOS::CPG,EOS::TPG,EOS::Rocfire>("eos", value.eos);
     }
     
 public:
@@ -117,7 +134,8 @@ public:
     MoleFraction MoleFractions(const amrex::Array4<const Set::Scalar>& partial_density,
                                 const int i, const int j, const int k) const
     {
-        return MoleFraction(partial_density, MW.data(), nspecies, i, j, k);
+        return thermo.MoleFractions<MoleFraction>(
+            partial_density, MW.data(), nspecies, i, j, k);
     }
 
     template<class Composition>
@@ -196,9 +214,7 @@ public:
     template<class Composition>
     double GetMW(const Composition& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
-        double mw = 0.0;
-        for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
-        return mw;
+        return thermo.GetMW(MW.data(), nspecies, X, i, j, k);
     }
     double ComputeD(Set::Patch<const Set::Scalar> rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
@@ -229,7 +245,8 @@ public:
     template<class Composition>
     double gamma(double T, const Composition& X, int i, int j, int k) const  {
         // Specific heat ratio
-        return cp_mol(T, X, i, j, k) / cv_mol(T, X, i, j, k);
+        const double cp = cp_mol(T, X, i, j, k);
+        return cp / (cp - Rg);
     }
     double enthalpy_mass(double T, Set::Patch<const Set::Scalar> X, int i, int j, int k) const {
         // Specific enthalpy, J/kg

@@ -27,9 +27,10 @@ public:
     CpConstant() {} ;
 
 
-    static void Parse(CpConstant & value, IO::ParmParse & pp, int a_nspecies)
+    static void Parse(CpConstant & value, IO::ParmParse & pp,
+            const std::vector<double>& molecular_weight)
     {
-        value.nspecies = a_nspecies;
+        value.nspecies = molecular_weight.size();
 
         // heat capacity in moles (one per species)
         pp.queryarr_required("cp_moles",value.cp_moles,Unit::Energy()/Unit::Amount()/Unit::Temperature());

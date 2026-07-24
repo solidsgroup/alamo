@@ -37,9 +37,10 @@ private:
 public:
     NASA7() {};
 
-    static void Parse(NASA7 & value, IO::ParmParse & pp, int a_nspecies)
+    static void Parse(NASA7 & value, IO::ParmParse & pp,
+            const std::vector<double>& molecular_weight)
     {
-        value.nspecies = a_nspecies;
+        value.nspecies = molecular_weight.size();
         value.Tranges.resize(value.nspecies);
         value.coeffs.resize(value.nspecies);
 

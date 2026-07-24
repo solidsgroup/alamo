@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <memory>
+#include <cmath>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
@@ -35,26 +36,21 @@ public:
 
 private:
     int nspecies = 1;
-    Set::Scalar Rg;
-    std::vector<double> MW;
-    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
-    Set::Scalar mw, lewis, prandtl, lambda_a, lambda_b;
+    Set::Scalar mw, cp_mass_value, lewis, prandtl, lambda_a, lambda_b;
 
 public:
-    Rocfire()
-    {
-        Rg = Set::Constant::Rg;
-    }
+    Rocfire() = default;
 
     static void Parse(  Rocfire & value, IO::ParmParse & pp,
                         int a_nspecies, const std::vector<double> &a_MW,
                         const Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> &a_thermo)
     {
         value.nspecies = a_nspecies;
-        value.MW = a_MW;
-        value.thermo = a_thermo;
-        // molecular weight
-        pp.query_default("mw", value.mw, "26.0_g/mol", Unit::Mass()/Unit::Amount());
+        Util::Assert(INFO, TEST(static_cast<int>(a_MW.size()) == value.nspecies),
+            "Transport::Rocfire molecular-weight count does not match its species count.");
+        Util::Assert(INFO, TEST(!a_MW.empty()),
+            "gas.mw must contain at least one molecular weight.");
+        value.mw = a_MW[0];
         // prandtl number
         pp.query_default("prandtl", value.prandtl, "0.69", Unit::Less());
         // lewis number
@@ -64,26 +60,31 @@ public:
         // thermal conductivity coefficient, lambda_b
         pp.query_default("lambda_b", value.lambda_b, "5.32743e-6_cal/cm/s/K", Unit::Energy()/Unit::Length()/Unit::Time()/Unit::Temperature());
 
-        Util::Assert(INFO, TEST(value.mw > 0.0), "gas.transport.rocfire.mw must be positive.");
+        const Set::Scalar mw_tol = 1.0e-12 *
+            ((std::fabs(value.mw) > 1.0) ? std::fabs(value.mw) : 1.0);
+        for (int n = 0; n < value.nspecies; ++n)
+        {
+            Util::Assert(INFO,
+                TEST(std::isfinite(a_MW[n]) && a_MW[n] > 0.0),
+                "Invalid molecular weight for species ", n, ": ", a_MW[n]);
+            Util::Assert(INFO, TEST(std::fabs(a_MW[n] - value.mw) <= mw_tol),
+                "gas.transport.rocfire requires all gas molecular weights to equal ",
+                value.mw, "; species ", n, " has molecular weight ", a_MW[n], ".");
+        }
+        value.cp_mass_value = a_thermo.cp_mol_species(0.0, 0) / value.mw;
+
         Util::Assert(INFO, TEST(value.prandtl > 0.0), "gas.transport.rocfire.prandtl must be positive.");
         Util::Assert(INFO, TEST(value.lewis > 0.0), "gas.transport.rocfire.lewis must be positive.");
+        Util::Assert(INFO, TEST(value.cp_mass_value > 0.0),
+            "gas.transport.rocfire requires positive cp_mass from the thermo model.");
     }
 
 public:
     template<class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar mixture_mw(const Composition& X, int i, int j, int k) const
-    {
-        Set::Scalar mw_mix = 0.0;
-        for (int n = 0; n < nspecies; ++n) mw_mix += X(i,j,k,n) * MW[n];
-        return mw_mix;
-    }
-
-    template<class Composition>
     Set::Scalar dynamic_viscosity(Set::Scalar T, const Composition& X, int i, int j, int k) const
     {
-        const Set::Scalar cp_mass = thermo.cp_mol(T, X, i, j, k) / mw;
-        return prandtl * thermal_conductivity(T, X, i, j, k) / cp_mass;
+        return prandtl * thermal_conductivity(T, X, i, j, k) /
+            cp_mass_value;
     }
 
     template<class Composition>
@@ -98,9 +99,10 @@ public:
                                     int /*species*/) const
     {
         const Set::Scalar kappa = thermal_conductivity(T, X, i, j, k);
-        const Set::Scalar cp_mass = thermo.cp_mol(T, X, i, j, k) / mw;
-        const Set::Scalar rho = (P > 0.0 && T > 0.0) ? P * mixture_mw(X, i, j, k) / (Set::Constant::Rg * T) : 0.0;
-        return (rho > 0.0) ? kappa / rho / cp_mass / lewis : 0.0;
+        const Set::Scalar rho = (P > 0.0 && T > 0.0) ?
+            P * mw / (Set::Constant::Rg * T) : 0.0;
+        return (rho > 0.0) ?
+            kappa / rho / cp_mass_value / lewis : 0.0;
     }
 
     template<class Composition>

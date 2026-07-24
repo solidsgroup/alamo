@@ -196,7 +196,7 @@ def make_rocfire_gas(pp):
     add_strings(pp, f"{prefix}.mw", ["26.0_g/mol"] * len(ROCFIRE_SPECIES))
     add_string(pp, f"{prefix}.thermo.type", "rocfire")
     add_string(pp, f"{prefix}.transport.type", "rocfire")
-    add_string(pp, f"{prefix}.eos.type", "tpg")
+    add_string(pp, f"{prefix}.eos.type", "rocfire")
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
