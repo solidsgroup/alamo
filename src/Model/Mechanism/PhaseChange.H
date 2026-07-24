@@ -16,6 +16,7 @@
 
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
+#include "Model/PhaseField/FullFeedback.H"
 #include "Model/PhaseField/PhaseField.H"
 #include "Numeric/Stencil.H"
 #include "Set/Set.H"
@@ -114,7 +115,8 @@ public:
                 Util::Exception(INFO,
                     "phase-change prescribed_speed must be nonnegative");
         }
-        pp.select<Model::PhaseField::AllenCahn>("phase_field", value.model);
+        pp.select<Model::PhaseField::AllenCahn, Model::PhaseField::FullFeedback>(
+            "phase_field", value.model);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -196,7 +198,8 @@ private:
         return rate_multiplier * reference_density * eta_dot;
     }
 
-    Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn> model;
+    Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn,
+        Model::PhaseField::FullFeedback> model;
     int input = -1;
     int nproducts = 0;
     std::array<int, max_products> products{};
