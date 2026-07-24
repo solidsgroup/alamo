@@ -103,10 +103,6 @@ public:
         // Disable: do nothing.
         pp.query_switch("type",
         {
-            { "disable", [&]() {
-                value.m_type = Type::Disable;
-                
-            }}, 
             { "static", [&]() {
                 value.m_type = Type::Static;
                 // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
@@ -126,7 +122,19 @@ public:
                 pp.query_default("viscous.mu_newton", value.mu_newton,0.0); 
                 
                 // Velocity field initial condition
-                pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.velocity_ic,pp.forward_args(value.geom));
+                pp.query_switch("velocity.ic.type", {
+                    { "none", [&]() {} },
+                    { "constant", [&]() {
+                        auto *ic = new IC::Constant(value.geom, pp, "velocity.ic.constant");
+                        if (IO::ParmParse::InTraversalMode()) delete ic;
+                        else value.velocity_ic = ic;
+                    }},
+                    { "expression", [&]() {
+                        auto *ic = new IC::Expression(value.geom, pp, "velocity.ic.expression");
+                        if (IO::ParmParse::InTraversalMode()) delete ic;
+                        else value.velocity_ic = ic;
+                    }}
+                });
                 
                 value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel",true);
                 value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
@@ -134,6 +142,9 @@ public:
                 value.RegisterGeneralFab(value.ddw_mf, 1, 2);
                 
                 parse_nonstatic();
+            }},
+            { "disable", [&]() {
+                value.m_type = Type::Disable;
             }}
         });
         

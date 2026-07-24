@@ -123,7 +123,7 @@ public:
     static void Parse(Voronoi &value, IO::ParmParse &pp)
     {
         pp_query("number_of_grains",value.number_of_grains); // Number of grains
-        pp.queryarr_default("alpha",value.alpha,{1.0});
+        pp.queryarr_default("alpha",value.alpha,{1.0}); // value that the field should take in each grain
         pp_query("seed",value.seed); // Random seed to use
 
         if (IO::ParmParse::InTraversalMode()) return;

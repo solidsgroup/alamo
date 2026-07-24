@@ -59,8 +59,8 @@ ParmParse::WriteInputTreeJsonFile(const std::string &path)
 }
 
 bool
-ParmParse::IgnoreInTraversalMode(std::string note,
-                                 const std::source_location &location)
+ParmParse::IgnoreInTraversalMode(   std::string note,
+                                    const std::source_location &location)
 {
     if (!InTraversalMode()) return false;
     InputScraper::RecordTraversalIgnore(location, std::move(note));
@@ -74,14 +74,14 @@ ParmParse::PrintTraversalBranch(std::string name, const std::string &value)
 }
 
 void
-ParmParse::RecordInput(std::string name,
-                       std::string directive,
-                       const std::source_location &location,
-                       std::vector<std::string> options,
-                       std::optional<std::string> default_value)
+ParmParse::RecordInput( std::string name,
+                        std::string directive,
+                        const std::source_location &location,
+                        std::vector<std::string> options,
+                        std::optional<std::string> default_value)
 {
-    InputScraper::RecordInput(*this, std::move(name), std::move(directive),
-                              location, std::move(options), std::move(default_value));
+    InputScraper::RecordInput(  *this, std::move(name), std::move(directive),
+                                location, std::move(options), std::move(default_value));
 }
 
 void
@@ -91,7 +91,7 @@ ParmParse::RecordConstraint(std::string kind,
                             std::vector<std::string> units,
                             const std::source_location &location)
 {
-    InputScraper::RecordConstraint(*this, std::move(kind), count, std::move(members),
-                                   std::move(units), location);
+    InputScraper::RecordConstraint( *this, std::move(kind), count, std::move(members),
+                                    std::move(units), location);
 }
 }

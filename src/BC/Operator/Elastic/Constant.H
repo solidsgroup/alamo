@@ -451,29 +451,21 @@ public:
         // TYPES
         
         #if AMREX_SPACEDIM==3
-        pp.queryarr("type.xloylozlo",str); // 3D Corner
-        pp.queryarr("type.xloylozhi",str); // 3D Corner
-        pp.queryarr("type.xloyhizlo",str); // 3D Corner
-        pp.queryarr("type.xloyhizhi",str); // 3D Corner
-        pp.queryarr("type.xhiylozlo",str); // 3D Corner
-        pp.queryarr("type.xhiylozhi",str); // 3D Corner
-        pp.queryarr("type.xhiyhizlo",str); // 3D Corner
-        pp.queryarr("type.xhiyhizhi",str); // 3D Corner
-        if (pp.contains("type.xloylozlo")) {
+        if (pp.queryarr("type.xloylozlo",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xloylozhi")) {
+        if (pp.queryarr("type.xloylozhi",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xloyhizlo")) {
+        if (pp.queryarr("type.xloyhizlo",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xloyhizhi")) {
+        if (pp.queryarr("type.xloyhizhi",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiylozlo")) {
+        if (pp.queryarr("type.xhiylozlo",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiylozhi")) {
+        if (pp.queryarr("type.xhiylozhi",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiyhizlo")) {
+        if (pp.queryarr("type.xhiyhizlo",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiyhizhi")) {
+        if (pp.queryarr("type.xhiyhizhi",str)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; }
         #else // ignore unused inputs
         pp.ignore("type.xloylozlo"); pp.ignore("type.xloylozhi"); pp.ignore("type.xloyhizlo"); pp.ignore("type.xloyhizhi"); 
@@ -481,66 +473,48 @@ public:
         #endif
 
         #if AMREX_SPACEDIM==3
-        pp_queryarr("type.ylozlo",str);  // 3D Edge
-        pp_queryarr("type.ylozhi",str);  // 3D Edge
-        pp_queryarr("type.yhizlo",str);  // 3D Edge
-        pp_queryarr("type.yhizhi",str);  // 3D Edge
-        pp_queryarr("type.zloxlo",str);  // 3D Edge
-        pp_queryarr("type.zloxhi",str);  // 3D Edge
-        pp_queryarr("type.zhixlo",str);  // 3D Edge
-        pp_queryarr("type.zhixhi",str);  // 3D Edge
-        if (pp.contains("type.ylozlo")) {
+        if (pp.queryarr("type.ylozlo",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.ylozhi")) { 
+        if (pp.queryarr("type.ylozhi",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.yhizlo")) { 
+        if (pp.queryarr("type.yhizlo",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.yhizhi")) { 
+        if (pp.queryarr("type.yhizhi",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.zloxlo")) { 
+        if (pp.queryarr("type.zloxlo",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.zloxhi")) { 
+        if (pp.queryarr("type.zloxhi",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.zhixlo")) { 
+        if (pp.queryarr("type.zhixlo",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.zhixhi")) { 
+        if (pp.queryarr("type.zhixhi",str)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; }
         #else 
         pp.ignore("type.ylozlo"); pp.ignore("type.ylozhi"); pp.ignore("type.yhizlo"); pp.ignore("type.yhizhi"); 
         pp.ignore("type.zloxlo"); pp.ignore("type.zloxhi"); pp.ignore("type.zhixlo"); pp.ignore("type.zhixhi"); 
         #endif
         
-        pp_queryarr("type.xloylo",str);  // 3D Edge / 2D Corner
-        pp_queryarr("type.xloyhi",str);  // 3D Edge / 2D Corner
-        pp_queryarr("type.xhiylo",str);  // 3D Edge / 2D Corner
-        pp_queryarr("type.xhiyhi",str);  // 3D Edge / 2D Corner
-        if (pp.contains("type.xloylo")) { 
+        if (pp.queryarr("type.xloylo",str)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xloyhi")) { 
+        if (pp.queryarr("type.xloyhi",str)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiylo")) { 
+        if (pp.queryarr("type.xhiylo",str)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.xhiyhi")) { 
+        if (pp.queryarr("type.xhiyhi",str)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI][i] = bcmap[str[i]]; }
 
-        pp_queryarr("type.xlo",str); // 3D Face / 2D Edge
-        pp_queryarr("type.xhi",str); // 3D Face / 2D Edge
-        pp_queryarr("type.ylo",str); // 3D Face / 2D Edge
-        pp_queryarr("type.yhi",str); // 3D Face / 2D Edge
-        if (pp.contains("type.xlo")) { 
+        if (pp.queryarr("type.xlo",str)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; } 
-        if (pp.contains("type.xhi")) { 
+        if (pp.queryarr("type.xhi",str)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI][i] = bcmap[str[i]]; }
-        if (pp.contains("type.ylo")) { 
+        if (pp.queryarr("type.ylo",str)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO][i] = bcmap[str[i]]; }
-        if (pp.contains("type.yhi")) { 
+        if (pp.queryarr("type.yhi",str)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI][i] = bcmap[str[i]]; }
         #if AMREX_SPACEDIM==3
-        pp_queryarr("type.zlo",str); // 3D Face
-        pp_queryarr("type.zhi",str); // 3D Face
-        if (pp.contains("type.zlo")) { 
+        if (pp.queryarr("type.zlo",str)) { // 3D Face
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; } 
-        if (pp.contains("type.zhi")) { 
+        if (pp.queryarr("type.zhi",str)) { // 3D Face
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; } 
         #else
         pp.ignore("type.zlo"); pp.ignore("type.zhi");
@@ -551,29 +525,21 @@ public:
         std::vector<std::string> val;
         
         #if AMREX_SPACEDIM==3
-        pp_queryarr("val.xloylozlo",val); // 3D Corner
-        pp_queryarr("val.xloylozhi",val); // 3D Corner
-        pp_queryarr("val.xloyhizlo",val); // 3D Corner
-        pp_queryarr("val.xloyhizhi",val); // 3D Corner
-        pp_queryarr("val.xhiylozlo",val); // 3D Corner
-        pp_queryarr("val.xhiylozhi",val); // 3D Corner
-        pp_queryarr("val.xhiyhizlo",val); // 3D Corner
-        pp_queryarr("val.xhiyhizhi",val); // 3D Corner
-        if (pp.contains("val.xloylozlo")) { 
+        if (pp.queryarr("val.xloylozlo",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YLO_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.xloylozhi")) { 
+        if (pp.queryarr("val.xloylozhi",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YLO_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xloyhizlo")) { 
+        if (pp.queryarr("val.xloyhizlo",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YHI_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xloyhizhi")) { 
+        if (pp.queryarr("val.xloyhizhi",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YHI_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xhiylozlo")) { 
+        if (pp.queryarr("val.xhiylozlo",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YLO_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xhiylozhi")) { 
+        if (pp.queryarr("val.xhiylozhi",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YLO_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xhiyhizlo")) { 
+        if (pp.queryarr("val.xhiyhizlo",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.xhiyhizhi")) { 
+        if (pp.queryarr("val.xhiyhizhi",val)) { // 3D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         #else
         pp.ignore("val.xloylozlo"); pp.ignore("val.xloylozhi"); pp.ignore("val.xloyhizlo"); pp.ignore("val.xloyhizhi"); 
@@ -581,65 +547,47 @@ public:
         #endif
 
         #if AMREX_SPACEDIM==3
-        pp_queryarr("val.ylozlo",val); // 3D Edge
-        pp_queryarr("val.ylozhi",val); // 3D Edge
-        pp_queryarr("val.yhizlo",val); // 3D Edge
-        pp_queryarr("val.yhizhi",val); // 3D Edge
-        pp_queryarr("val.zloxlo",val); // 3D Edge
-        pp_queryarr("val.zloxhi",val); // 3D Edge
-        pp_queryarr("val.zhixlo",val); // 3D Edge
-        pp_queryarr("val.zhixhi",val); // 3D Edge
-        if (pp.contains("val.ylozlo")) { 
+        if (pp.queryarr("val.ylozlo",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YLO_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.ylozhi")) { 
+        if (pp.queryarr("val.ylozhi",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YLO_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.yhizlo")) { 
+        if (pp.queryarr("val.yhizlo",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YHI_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.yhizhi")) { 
+        if (pp.queryarr("val.yhizhi",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YHI_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.zloxlo")) { 
+        if (pp.queryarr("val.zloxlo",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO_XLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.zloxhi")) { 
+        if (pp.queryarr("val.zloxhi",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO_XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.zhixlo")) { 
+        if (pp.queryarr("val.zhixlo",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
-        if (pp.contains("val.zhixhi")) { 
+        if (pp.queryarr("val.zhixhi",val)) { // 3D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
         #else
         pp.ignore("val.ylozlo"); pp.ignore("val.ylozhi"); pp.ignore("val.yhizlo"); pp.ignore("val.yhizhi"); 
         pp.ignore("val.zloxlo"); pp.ignore("val.zloxhi"); pp.ignore("val.zhixlo"); pp.ignore("val.zhixhi"); 
         #endif
-        pp_queryarr("val.xloylo",val); // 3D Edge / 2D Corner
-        pp_queryarr("val.xloyhi",val); // 3D Edge / 2D Corner
-        pp_queryarr("val.xhiylo",val); // 3D Edge / 2D Corner
-        pp_queryarr("val.xhiyhi",val); // 3D Edge / 2D Corner
-        if (pp.contains("val.xloylo")) { 
+        if (pp.queryarr("val.xloylo",val)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.xloyhi")) { 
+        if (pp.queryarr("val.xloyhi",val)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.xhiylo")) { 
+        if (pp.queryarr("val.xhiylo",val)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.xhiyhi")) { 
+        if (pp.queryarr("val.xhiyhi",val)) { // 3D Edge / 2D Corner
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
 
-        pp_queryarr("val.xlo",val); // 3D Face / 2D Edge
-        pp_queryarr("val.xhi",val); // 3D Face / 2D Edge
-        pp_queryarr("val.ylo",val); // 3D Face / 2D Edge
-        pp_queryarr("val.yhi",val); // 3D Face / 2D Edge
-        pp_queryarr("val.zlo",val); // 3D Face
-        pp_queryarr("val.zhi",val); // 3D Face
-        if (pp.contains("val.xlo")) { 
+        if (pp.queryarr("val.xlo",val)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.xhi")) { 
+        if (pp.queryarr("val.xhi",val)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.ylo")) { 
+        if (pp.queryarr("val.ylo",val)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.yhi")) { 
+        if (pp.queryarr("val.yhi",val)) { // 3D Face / 2D Edge
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::YHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
         #if AMREX_SPACEDIM==3
-        if (pp.contains("val.zlo")) { 
+        if (pp.queryarr("val.zlo",val)) { // 3D Face
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
-        if (pp.contains("val.zhi")) { 
+        if (pp.queryarr("val.zhi",val)) { // 3D Face
             for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } 
         #else
         pp.ignore("val.zlo"); pp.ignore("val.zhi");

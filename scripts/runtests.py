@@ -5,6 +5,7 @@ sys.path.append('./scripts')
 from report import init_html, append_html, finalize_html, write_master_html
 
 import argparse
+import hashlib
 import os, glob, subprocess
 import configparser, io
 from collections import OrderedDict
@@ -147,6 +148,8 @@ parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_tru
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
 parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
+parser.add_argument('--shard-count', default=1, type=int, help='Split test sections into this many deterministic shards')
+parser.add_argument('--shard-index', default=0, type=int, help='Zero-based shard to run')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -157,6 +160,10 @@ if args.memcheck and not args.debug:
     raise Exception("Debug must be enabled with memory check")
 if args.memcheck and not args.serial:
     raise Exception("Memory check supported in serial only")
+if args.shard_count < 1:
+    raise Exception("--shard-count must be at least 1")
+if args.shard_index < 0 or args.shard_index >= args.shard_count:
+    raise Exception("--shard-index must be between 0 and --shard-count - 1")
 
 if args.only_python:
     args.python = True
@@ -171,6 +178,22 @@ if args.post:
 
 class DryRunException(Exception):
     pass
+
+def shard_selected(testdir, section, config=None):
+    if args.shard_count == 1:
+        return True
+
+    # Keep a restart with the section that produces its checkpoint.
+    shard_section = section
+    if config is not None and "restart" in config[section]:
+        match = re.search(r"\{testid\}_([^/]+)", config[section]["restart"])
+        if match:
+            shard_section = match.group(1)
+
+    key = str(pathlib.Path(testdir) / shard_section)
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    shard = int.from_bytes(digest[:8], byteorder="big") % args.shard_count
+    return shard == args.shard_index
 
 def test(testdir):
     """
@@ -204,6 +227,9 @@ def test(testdir):
 
 
     if os.path.isfile(testdir + "/input.py"):
+        if not shard_selected(testdir, "python"):
+            print("{}IGNORE {}{} (different shard)".format(color.darkgray,testdir,color.reset))
+            return 0,0,0,0,0,0,0,0,0,[]
         print(f"RUN    {color.bold}{testdir}{color.reset}")
         cmd = f'python {testdir}/input.py'
         print("  │      Running test............................................",end="",flush=True)
@@ -264,6 +290,8 @@ def test(testdir):
     if args.sections:
         if len(args.sections)>0:
             sections = list(set(config.sections()).intersection(set(args.sections)))
+
+    sections = [section for section in sections if shard_selected(testdir, section, config)]
 
     # If there are no runs specified, then we will not test anything
     # in this directory, and will print an "ignore" message.
@@ -887,7 +915,7 @@ for testdir in tests:
         print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
         continue
 
-    f, k, c, w, t, s, fa, sl, to, re = test(testdir)
+    f, k, c, w, t, s, fa, sl, to, test_records = test(testdir)
     stats.fails += f
     stats.kills += k
     stats.tests += t
@@ -897,7 +925,7 @@ for testdir in tests:
     stats.fasters += fa
     stats.slowers += sl
     stats.timeouts += to
-    stats.records += re
+    stats.records += test_records
 
 # Print a quick summary of all tests
 print("\nTest Summary")

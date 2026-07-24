@@ -223,18 +223,20 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
-    pp_query_default("elastic.on", value.elastic.on, 0); 
+    pp.query_if("elastic.on", [&]() {
+        value.elastic.on = true;
 
-    // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
+        // Body force
+        pp_query_default("elastic.traction", value.elastic.traction, 0.0);
 
-    // Phi refinement criteria 
-    pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
+        // Phi refinement criteria
+        pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
 
-    pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
+        // Elastic integrator
+        pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
-    if (value.m_type != Type::Disable)
-    {
+
+
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
@@ -253,7 +255,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Use our current eta field as the psi field for the solver
         value.psi_on = false;
         value.solver.setPsi(value.eta_mf);
-    }
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        Util::AssertException(INFO, TEST(value.m_type != Disable), "You must specify elastic type to be dynamic or static");
+    });
+
+
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.

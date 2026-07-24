@@ -43,22 +43,22 @@ public:
         Indent(os, indent);
     }
 
-    static void WriteStringField(std::ostream &os, bool &first, int indent,
-                                 const std::string &name, const std::string &value)
+    static void WriteStringField(   std::ostream &os, bool &first, int indent,
+                                    const std::string &name, const std::string &value)
     {
         Comma(os, first, indent);
         os << "\"" << name << "\": \"" << Escape(value) << "\"";
     }
 
-    static void WriteBoolField(std::ostream &os, bool &first, int indent,
-                               const std::string &name, bool value)
+    static void WriteBoolField( std::ostream &os, bool &first, int indent,
+                                const std::string &name, bool value)
     {
         Comma(os, first, indent);
         os << "\"" << name << "\": " << (value ? "true" : "false");
     }
 
-    static void WriteIntField(std::ostream &os, bool &first, int indent,
-                              const std::string &name, int value)
+    static void WriteIntField(  std::ostream &os, bool &first, int indent,
+                                const std::string &name, int value)
     {
         Comma(os, first, indent);
         os << "\"" << name << "\": " << value;
@@ -75,17 +75,17 @@ public:
         os << "]";
     }
 
-    static void WriteStringArrayField(std::ostream &os, bool &first, int indent,
-                                      const std::string &name,
-                                      const std::vector<std::string> &values)
+    static void WriteStringArrayField(  std::ostream &os, bool &first, int indent,
+                                        const std::string &name,
+                                        const std::vector<std::string> &values)
     {
         Comma(os, first, indent);
         os << "\"" << name << "\": ";
         WriteStringArray(os, values);
     }
 
-    static void WriteSourceField(std::ostream &os, bool &first, int indent,
-                                 const std::source_location &location)
+    static void WriteSourceField(   std::ostream &os, bool &first, int indent,
+                                    const std::source_location &location)
     {
         Comma(os, first, indent);
         os << "\"source\": {";

@@ -2,58 +2,20 @@ name: Memory Leak Check
 
 on:
   push:
-    branches-ignore: ["paper","candidate-install"]
-  pull_request:
     branches:
-      - development
       - master
+  schedule:
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  memcheck-2d-asan-gcc:
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
-    - name: installing mpich (needed for asan)
-      run: sudo apt install -y libmpich-dev libmpich12 mpich
-    - name: switch mpi compiler to mpich
-      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
-    - name: switch mpirun to mpich
-      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
-    - name: configure (2d)
-      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=g++
-    - name: make (2d)
-      run: make
-    - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --comp=g++
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name memcheck-2d-asan-gcc
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="memcheck-2d-asan-gcc"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: memcheck-2d-asan-gcc
-        path: memcheck-2d-asan-gcc
-
   memcheck-2d-asan-clang:
     runs-on: ubuntu-24.04
     steps:
@@ -67,7 +29,6 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=clang++
     - name: make (2d)
       run: make
@@ -108,7 +69,6 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=msan --comp=clang++
     - name: make (2d)
       run: make

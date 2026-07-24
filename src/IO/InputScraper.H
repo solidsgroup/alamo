@@ -100,14 +100,14 @@ public:
                             const std::source_location &location,
                             std::vector<std::string> options = {},
                             std::optional<std::string> default_value = std::nullopt);
-    static void RecordConstraint(ParmParse &pp,
-                                 std::string kind,
-                                 int count,
-                                 std::vector<std::string> members,
-                                 std::vector<std::string> units,
-                                 const std::source_location &location);
-    static void RecordTraversalIgnore(const std::source_location &location,
-                                      std::string note);
+    static void RecordConstraint(   ParmParse &pp,
+                                    std::string kind,
+                                    int count,
+                                    std::vector<std::string> members,
+                                    std::vector<std::string> units,
+                                    const std::source_location &location);
+    static void RecordTraversalIgnore(  const std::source_location &location,
+                                        std::string note);
     static void CaptureSequenceTemplate(ParmParse &pp,
                                         const std::string &sequence_name,
                                         const std::string &template_name);

@@ -40,7 +40,6 @@ public:
         std::string filename;
         pp.query_file("filename", filename); // BMP filename.
 
-        std::string fit = "stretch";
         // how to position the image
         pp.query_switch("fit", {
                 {"stretch", [&]() {

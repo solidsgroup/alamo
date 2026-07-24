@@ -154,8 +154,8 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_switch("integration.type", {
                 {"ForwardEuler", [&]() {}},
                 {"RungeKutta", [&]() {
-                    // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
                     int type;
+                    // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
                     pp.query_validate("integration.rk.type", type, {1,2,3,4});
                 }}
             });

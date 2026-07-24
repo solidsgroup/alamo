@@ -5,18 +5,18 @@ name: Coverage
   push:
     branches:
       - development
-  pull_request:
-    branches:
-      - development
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-coverage:
-    name: Run Regression Test Suite & Build Documentation
+    name: Run regression test suite and collect coverage
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -24,18 +24,15 @@ jobs:
       - name: Install Dependencies
         run: bash .github/workflows/dependencies-ubuntu-24.04.sh
       - name: Configure (2D)
-        continue-on-error: true
         run: ./configure --dim=2 --coverage --comp=g++
       - name: Build (2D)
-        continue-on-error: true
         run: make
       - name: Configure (3D)
-        continue-on-error: true
         run: ./configure --dim=3 --coverage --comp=g++
       - name: Build (3D)
-        continue-on-error: true
         run: make
       - name: Regression Tests & Coverage (2D/3D)
+        id: regression
         continue-on-error: true
         run: >
           scripts/runtests.py --serial
@@ -49,27 +46,6 @@ jobs:
         with:
           name: coverage-report
           path: ./cov
-      - name: Generate Input Builders
-        run: make docs-input-builders
-      - name: Upload Input Builder Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: input-builders
-          path: |
-            docs/source/_static/input-builders
-            docs/source/_static/input-schemas
-      - name: Compile GitHub Pages
-        run: make githubpages
-      - name: Upload GitHub Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: githubpages
-  deploy-documentation:
-    name: Deploy Documentation
-    needs: test-coverage
-    if: ${{ github.ref == 'refs/heads/development' }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Deploy Documentation
-        uses: actions/deploy-pages@v4
+      - name: Propagate regression failure
+        if: ${{ steps.regression.outcome != 'success' }}
+        run: exit 1

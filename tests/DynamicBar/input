@@ -59,6 +59,8 @@ geometry.prob_hi	    = 32 1  1
 ic.type = constant
 ic.constant.value = 1.0
 
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0
 
 # elastic moduli
 nmodels = 1

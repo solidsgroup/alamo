@@ -608,15 +608,19 @@
       background: var(--accent-soft);
     }
 
-    .field-row.missing-required { background: var(--red-soft); }
-
     .field-row.missing-required .input-label,
     .required-mark { color: var(--red); }
 
     .field-row.missing-required input[type="text"],
     .field-row.missing-required select {
       border-color: #e08081;
-      background: #fffdfd;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .field-row.missing-required input[type="text"]::placeholder {
+      color: var(--red);
+      opacity: 0.72;
     }
 
     .input-name,
@@ -1619,7 +1623,14 @@
         if (node.kind === "parameter") return String(state.values[node._path] || "").trim() !== "";
         if (isClassSequence(node)) return Number(state.classSequenceCounts[node._path] || 0) > 0;
         if (node.kind === "sequence") return (state.sequenceRows[node._path] || []).length > 0;
-        return node.kind === "switch";
+        if (node.kind === "switch") {
+          const options = optionValues(node);
+          if (!options.length) return false;
+          const preferred = String(node.default_value === undefined ? "" : node.default_value);
+          const defaultValue = options.includes(preferred) ? preferred : options[0];
+          return String(state.switches[node._path]) !== defaultValue;
+        }
+        return false;
       }
 
       function missingRequired(node) {
@@ -1633,7 +1644,7 @@
 
       function nodeMatchesView(node) {
         if (!nodeActive(node)) return false;
-        if (state.view === "required" && node.kind !== "switch" && !node.required) return false;
+        if (state.view === "required" && !node.required) return false;
         if (state.view === "configured" && !configured(node)) return false;
         if (state.search && !searchableText(node).includes(state.search)) return false;
         return node.kind === "parameter" || node.kind === "switch" || node.kind === "sequence";
@@ -2053,7 +2064,7 @@
             const hasBranchContent = (flowNode.branches || []).some((branch) => {
               return Array.isArray(branch.children) && branch.children.length > 0;
             });
-            if (nodeMatchesView(node) || childHtml || hasBranchContent) {
+            if (nodeMatchesView(node) || childHtml) {
               const tabOptions = (flowNode.branches || []).filter((branch) => {
                 return Array.isArray(branch.children) && branch.children.length > 0;
               }).map((branch) => String(branch.value));
@@ -2178,7 +2189,7 @@
           return (
             '<button type="button" class="nav-link' + (issues ? " has-errors" : "") + (state.currentSection === node._path ? " current" : "") + '" data-nav-id="' + node._id + '">' +
               '<span class="nav-link-label">' + esc(node._path) + '</span>' +
-              '<span class="nav-count">' + (issues ? issues + "!" : activeItems(node)) + '</span>' +
+          '<span class="nav-count">' + (issues ? issues : activeItems(node)) + '</span>' +
             '</button>'
           );
         }).join("");

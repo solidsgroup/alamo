@@ -26,8 +26,8 @@ GetChild(IO::InputScraper::InputNode &node, const std::string &name)
 }
 
 bool
-SameConditions(const std::vector<IO::InputScraper::InputNode::Condition> &a,
-               const std::vector<IO::InputScraper::InputNode::Condition> &b)
+SameConditions( const std::vector<IO::InputScraper::InputNode::Condition> &a,
+                const std::vector<IO::InputScraper::InputNode::Condition> &b)
 {
     if (a.size() != b.size()) return false;
     for (std::size_t i = 0; i < a.size(); i++)
@@ -47,8 +47,8 @@ WriteConditions(std::ostream &os,
         if (i) os << ",";
         os << "\n";
         IO::JSON::Indent(os, indent + 2);
-        os << "{\"path\": \"" << IO::JSON::Escape(conditions[i].path)
-           << "\", \"value\": \"" << IO::JSON::Escape(conditions[i].value) << "\"}";
+        os  << "{\"path\": \"" << IO::JSON::Escape(conditions[i].path)
+            << "\", \"value\": \"" << IO::JSON::Escape(conditions[i].value) << "\"}";
     }
     if (!conditions.empty())
     {
@@ -59,8 +59,8 @@ WriteConditions(std::ostream &os,
 }
 
 void
-WriteContextsField(std::ostream &os, bool &first, int indent,
-                   const std::vector<std::vector<IO::InputScraper::InputNode::Condition>> &contexts)
+WriteContextsField( std::ostream &os, bool &first, int indent,
+                    const std::vector<std::vector<IO::InputScraper::InputNode::Condition>> &contexts)
 {
     IO::JSON::Comma(os, first, indent);
     os << "\"contexts\": [";
@@ -104,9 +104,9 @@ WriteConstraint(std::ostream &os,
 }
 
 void
-WriteTraversalIgnore(std::ostream &os,
-                     const IO::InputScraper::TraversalIgnore &ignore,
-                     int indent)
+WriteTraversalIgnore(   std::ostream &os,
+                        const IO::InputScraper::TraversalIgnore &ignore,
+                        int indent)
 {
     bool first = true;
     os << "{";
@@ -177,9 +177,9 @@ WriteNode(std::ostream &os, const IO::InputScraper::InputNode &node, int indent)
 }
 
 void
-WriteFlowNodes(std::ostream &os,
-               const std::vector<IO::InputScraper::FlowNode> &nodes,
-               int indent);
+WriteFlowNodes( std::ostream &os,
+                const std::vector<IO::InputScraper::FlowNode> &nodes,
+                int indent);
 
 void
 WriteFlowNode(std::ostream &os, const IO::InputScraper::FlowNode &node, int indent)
@@ -199,8 +199,8 @@ WriteFlowNode(std::ostream &os, const IO::InputScraper::FlowNode &node, int inde
             IO::JSON::Indent(os, indent + 4);
             os << "{";
             bool branch_first = true;
-            IO::JSON::WriteStringField(os, branch_first, indent + 6,
-                                       "value", node.branches[i].value);
+            IO::JSON::WriteStringField( os, branch_first, indent + 6,
+                                        "value", node.branches[i].value);
             IO::JSON::Comma(os, branch_first, indent + 6);
             os << "\"children\": ";
             WriteFlowNodes(os, node.branches[i].children, indent + 6);
@@ -224,9 +224,9 @@ WriteFlowNode(std::ostream &os, const IO::InputScraper::FlowNode &node, int inde
 }
 
 void
-WriteFlowNodes(std::ostream &os,
-               const std::vector<IO::InputScraper::FlowNode> &nodes,
-               int indent)
+WriteFlowNodes( std::ostream &os,
+                const std::vector<IO::InputScraper::FlowNode> &nodes,
+                int indent)
 {
     os << "[";
     for (std::size_t i = 0; i < nodes.size(); i++)
@@ -285,9 +285,9 @@ InputScraper::AddContext(InputNode &node, const std::vector<InputNode::Condition
 }
 
 void
-InputScraper::RecordFlowInput(const std::string &path,
-                              const std::string &directive,
-                              const std::vector<std::string> &options)
+InputScraper::RecordFlowInput(  const std::string &path,
+                                const std::string &directive,
+                                const std::vector<std::string> &options)
 {
     if (!traversal_flow) traversal_flow = &input_flow;
 
@@ -327,8 +327,8 @@ InputScraper::RecordFlowInput(const std::string &path,
 }
 
 std::string
-InputScraper::KindForDirective(const std::string &directive,
-                               const std::vector<std::string> &options)
+InputScraper::KindForDirective( const std::string &directive,
+                                const std::vector<std::string> &options)
 {
     if (directive == "query_switch" || directive == "query_if") return "switch";
     if (directive == "select" || directive == "select_default") return "switch";
@@ -467,12 +467,12 @@ InputScraper::PrintTraversalBranch(ParmParse &pp, std::string name, const std::s
 }
 
 void
-InputScraper::RecordInput(ParmParse &pp,
-                          std::string name,
-                          std::string directive,
-                          const std::source_location &location,
-                          std::vector<std::string> options,
-                          std::optional<std::string> default_value)
+InputScraper::RecordInput(  ParmParse &pp,
+                            std::string name,
+                            std::string directive,
+                            const std::source_location &location,
+                            std::vector<std::string> options,
+                            std::optional<std::string> default_value)
 {
     if (!InTraversalMode()) return;
 
@@ -512,9 +512,9 @@ InputScraper::RecordInput(ParmParse &pp,
 }
 
 void
-InputScraper::CaptureSequenceTemplate(ParmParse &pp,
-                                      const std::string &sequence_name,
-                                      const std::string &template_name)
+InputScraper::CaptureSequenceTemplate(  ParmParse &pp,
+                                        const std::string &sequence_name,
+                                        const std::string &template_name)
 {
     if (!InTraversalMode()) return;
 
@@ -527,8 +527,8 @@ InputScraper::CaptureSequenceTemplate(ParmParse &pp,
         dot == std::string::npos ? template_path : template_path.substr(dot + 1);
 
     InputNode &parent = GetPath(input_tree, parent_path);
-    auto child = std::find_if(parent.children.begin(), parent.children.end(),
-                              [&](const InputNode &node) { return node.name == child_name; });
+    auto child = std::find_if(  parent.children.begin(), parent.children.end(),
+                                [&](const InputNode &node) { return node.name == child_name; });
     if (child != parent.children.end())
     {
         InputNode item = std::move(*child);
@@ -561,12 +561,12 @@ InputScraper::CaptureSequenceTemplate(ParmParse &pp,
 }
 
 void
-InputScraper::RecordConstraint(ParmParse &pp,
-                               std::string kind,
-                               int count,
-                               std::vector<std::string> members,
-                               std::vector<std::string> units,
-                               const std::source_location &location)
+InputScraper::RecordConstraint( ParmParse &pp,
+                                std::string kind,
+                                int count,
+                                std::vector<std::string> members,
+                                std::vector<std::string> units,
+                                const std::source_location &location)
 {
     if (!InTraversalMode()) return;
 
@@ -595,7 +595,7 @@ InputScraper::RecordTraversalIgnore(const std::source_location &location,
         [&](const TraversalIgnore &ignore)
         {
             return std::string(ignore.location.file_name()) == location.file_name() &&
-                   ignore.location.line() == location.line();
+                ignore.location.line() == location.line();
         });
     if (duplicate == traversal_ignores.end())
         traversal_ignores.push_back({std::move(note), location});
@@ -616,8 +616,8 @@ InputScraper::PopTraversalCondition()
 }
 
 void
-InputScraper::PushTraversalBranch(ParmParse &pp, const std::string &name,
-                                  const std::string &value)
+InputScraper::PushTraversalBranch(  ParmParse &pp, const std::string &name,
+                                    const std::string &value)
 {
     if (!traversal_flow) traversal_flow = &input_flow;
 

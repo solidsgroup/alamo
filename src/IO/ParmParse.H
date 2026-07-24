@@ -168,16 +168,16 @@ private:
         checked_for_input_files = true;
     }
     static bool checked_for_input_files;
-    void RecordInput(std::string name,
-                     std::string directive,
-                     const std::source_location &location,
-                     std::vector<std::string> options = {},
-                     std::optional<std::string> default_value = std::nullopt);
-    void RecordConstraint(std::string kind,
-                          int count,
-                          std::vector<std::string> members,
-                          std::vector<std::string> units,
-                          const std::source_location &location);
+    void RecordInput(   std::string name,
+                        std::string directive,
+                        const std::source_location &location,
+                        std::vector<std::string> options = {},
+                        std::optional<std::string> default_value = std::nullopt);
+    void RecordConstraint(  std::string kind,
+                            int count,
+                            std::vector<std::string> members,
+                            std::vector<std::string> units,
+                            const std::source_location &location);
     void PrintTraversalBranch(std::string name, const std::string &value);
     void RecordInputAndContinue(
         std::string name,
@@ -262,8 +262,8 @@ public:
         }
     }
 
-    bool contains(std::string name,
-                  const std::source_location & location = std::source_location::current())
+    bool contains(  std::string name,
+                    const std::source_location & location = std::source_location::current())
     {
         (void)location;
         if (amrex::ParmParse::contains(name.c_str()))
@@ -284,8 +284,8 @@ public:
     }
 
     template<typename T>
-    int query(std::string name, T & value,
-              const std::source_location & location = std::source_location::current())
+    int query(  std::string name, T & value,
+                const std::source_location & location = std::source_location::current())
     {
         if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
             RecordInputAndContinue(name, location, {"0", "1"});
@@ -295,8 +295,8 @@ public:
         return amrex::ParmParse::query(name.c_str(), value);
     }
 
-    int queryunit (std::string name, Unit &value,
-                   const std::source_location & location = std::source_location::current())
+    int queryunit ( std::string name, Unit &value,
+                    const std::source_location & location = std::source_location::current())
     {
         RecordInputAndContinue(name, location);
         if (InTraversalMode() && !contains(name.c_str())) return 0;
@@ -320,8 +320,8 @@ public:
         return -1;
     }
 
-    int queryunit (std::string name, Unit &value, const Unit type,
-                   const std::source_location & location = std::source_location::current())
+    int queryunit ( std::string name, Unit &value, const Unit type,
+                    const std::source_location & location = std::source_location::current())
     {
         RecordInputAndContinue(name, location);
         if (InTraversalMode() && !contains(name.c_str())) return 0;
@@ -331,9 +331,9 @@ public:
             if (!value.isType(type) && !value.isType(Unit::Less()))
             {
                 if (!InTraversalMode())
-                    Util::ParmParseException(INFO, full(name),
-                                             "value requiested had wrong units:", value.normalized_unitstring(),
-                                             ", units requested are of SI type ",type.normalized_unitstring());
+                    Util::ParmParseException(   INFO, full(name),
+                                                "value requiested had wrong units:", value.normalized_unitstring(),
+                                                ", units requested are of SI type ",type.normalized_unitstring());
             }
             return retval;
         }
@@ -344,8 +344,8 @@ public:
         }
         return -1;
     }
-    int queryunit (std::string name, Set::Scalar &value, const Unit type,
-                   const std::source_location & location = std::source_location::current())
+    int queryunit ( std::string name, Set::Scalar &value, const Unit type,
+                    const std::source_location & location = std::source_location::current())
     {
         RecordInputAndContinue(name, location);
         if (InTraversalMode() && !contains(name.c_str())) return 0;
@@ -440,11 +440,11 @@ public:
                         const std::source_location & location = std::source_location::current())
     {
         if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
-            RecordInputAndContinue(name, location, {"0", "1"},
-                                   InputScraper::InputValueString(defaultvalue));
+            RecordInputAndContinue( name, location, {"0", "1"},
+                                    InputScraper::InputValueString(defaultvalue));
         else
-            RecordInputAndContinue(name, location, {},
-                                   InputScraper::InputValueString(defaultvalue));
+            RecordInputAndContinue( name, location, {},
+                                    InputScraper::InputValueString(defaultvalue));
         if (InTraversalMode())
         {
             if (contains(name.c_str()))
@@ -658,9 +658,9 @@ public:
         return -1;
     }
 
-    int query_switch(std::string name,
-                     std::initializer_list<std::pair<std::string, std::function<void()>>> cases,
-                     const std::source_location &location = std::source_location::current())
+    int query_switch(   std::string name,
+                        std::initializer_list<std::pair<std::string, std::function<void()>>> cases,
+                        const std::source_location &location = std::source_location::current())
     {
         std::string value;
         std::vector<std::string> possiblevals;
@@ -761,11 +761,11 @@ public:
     }
 
     template <typename Action>
-    int query_if(std::string name, Action &&action,
-                 const std::source_location &location = std::source_location::current())
+    int query_if(   std::string name, Action &&action,
+                    const std::source_location &location = std::source_location::current())
     {
-        static_assert(std::is_invocable_v<Action &>,
-                      "query_if action must be callable without arguments");
+        static_assert(  std::is_invocable_v<Action &>,
+                        "query_if action must be callable without arguments");
 
         RecordInputAndContinue(name, location, {"0", "1"}, "0");
 
@@ -1392,8 +1392,8 @@ public:
 
     template <typename T>
     int
-    queryclass_enumerate(std::string a_name, std::vector<T> &value, int number = 1,
-                         const std::source_location &location = std::source_location::current())
+    queryclass_enumerate(   std::string a_name, std::vector<T> &value, int number = 1,
+                            const std::source_location &location = std::source_location::current())
     {
         {
             RecordInputAndContinue(a_name, location);
@@ -1541,8 +1541,8 @@ public:
 
     template <typename T>
     int
-    queryarr_enumerate(std::string a_name, std::vector<std::vector<T>> &value, int number = 1,
-                       const std::source_location &location = std::source_location::current())
+    queryarr_enumerate( std::string a_name, std::vector<std::vector<T>> &value, int number = 1,
+                        const std::source_location &location = std::source_location::current())
     {
         RecordInputAndContinue(a_name, location);
         value.clear();
@@ -1772,16 +1772,16 @@ public:
     // Otherwise, no type is necessary.
     //
     template<typename... IC, typename PTRTYPE>
-    void select (std::string name, PTRTYPE *& ic_eta,
-                 const std::source_location &location = std::source_location::current())
+    void select (   std::string name, PTRTYPE *& ic_eta,
+                    const std::source_location &location = std::source_location::current())
     {
         auto args = forward_args();
         select<IC...>(std::move(name), ic_eta, args, location);
     }
 
     template<typename... IC, typename... Args, typename PTRTYPE>
-    void select (std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
-                 const std::source_location &location = std::source_location::current())
+    void select (   std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
+                    const std::source_location &location = std::source_location::current())
     {
         try
         {
@@ -1866,16 +1866,16 @@ public:
     // firs specified 
     //
     template<typename FirstIC, typename... IC, typename PTRTYPE>
-    void select_default (std::string name, PTRTYPE *& ic_eta,
-                         const std::source_location &location = std::source_location::current())
+    void select_default (   std::string name, PTRTYPE *& ic_eta,
+                            const std::source_location &location = std::source_location::current())
     {
         auto args = forward_args();
         select_default<FirstIC, IC...>(std::move(name), ic_eta, args, location);
     }
 
     template<typename FirstIC, typename... IC, typename... Args, typename PTRTYPE>
-    void select_default (std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
-                         const std::source_location &location = std::source_location::current())
+    void select_default (   std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
+                            const std::source_location &location = std::source_location::current())
     {
         std::string type = "";
         std::string type_name = name + ".type";
@@ -1942,16 +1942,16 @@ public:
     //
     //
     template<typename... IC, typename PTRTYPE>
-    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value,
-                           const std::source_location &location = std::source_location::current())
+    void select_enumerate ( std::string a_name, std::vector<PTRTYPE*> & value,
+                            const std::source_location &location = std::source_location::current())
     {
         auto args = forward_args();
         select_enumerate<IC...>(std::move(a_name), value, args, location);
     }
 
     template<typename... IC, typename... Args, typename PTRTYPE>
-    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, ForwardArgs<Args...> args,
-                           const std::source_location &location = std::source_location::current())
+    void select_enumerate ( std::string a_name, std::vector<PTRTYPE*> & value, ForwardArgs<Args...> args,
+                            const std::source_location &location = std::source_location::current())
     {
         RecordInputAndContinue(a_name, location);
         value.clear();
@@ -2159,9 +2159,9 @@ private:
 
             if (value.selected < 0)
                 if (!InTraversalMode())
-                    Util::ParmParseException(INFO,getPrefix(),
-                                             "Error reading " + getPrefix() +
-                                             ", invalid type " + type);
+                    Util::ParmParseException(   INFO,getPrefix(),
+                                                "Error reading " + getPrefix() +
+                                                ", invalid type " + type);
 
             
             pushPrefix(type);
