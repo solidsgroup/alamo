@@ -223,6 +223,10 @@ def find_steady_state(
     return phases, best_start, best_start + best_len
 
 
+#: Conversion factor from m/s to the unit named by --unit.
+UNIT_SCALE = {"m/s": 1.0, "mm/s": 1.0e3, "cm/s": 1.0e2}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("plotfile_root", type=Path,
@@ -243,14 +247,19 @@ def parse_args() -> argparse.Namespace:
                               "steady-state rate (default: 3)")
     parser.add_argument("--csv", type=Path,
                          help="optional path to write step,time,front_y,rate,phase as CSV")
+    parser.add_argument("--rate-only", action="store_true",
+                         help="print only the steady-state regression-rate magnitude "
+                              "(in --unit) to stdout and exit; exit status is nonzero "
+                              "and 'nan' is printed if no steady window is found -- "
+                              "for use in scripted parameter sweeps")
+    parser.add_argument("--unit", choices=sorted(UNIT_SCALE), default="m/s",
+                         help="unit for the --rate-only value (default: m/s)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     paths = discover_plotfiles(args.plotfile_root)
-    print(f"Found {len(paths)} plotfile(s) under {args.plotfile_root}")
-
     snapshots = [read_snapshot(p, args.field, args.threshold) for p in paths]
     times = np.array([s.time for s in snapshots])
     fronts = np.array([s.front_y for s in snapshots])
@@ -258,6 +267,21 @@ def main() -> None:
     phases, steady_start, steady_end = find_steady_state(
         times, fronts, args.burnout_frac, args.steady_tol, args.min_steady_points)
 
+    rate_magnitude = None
+    if steady_start >= 0:
+        steady_times = times[steady_start:steady_end + 1]
+        steady_fronts = fronts[steady_start:steady_end + 1]
+        slope, _ = np.polyfit(steady_times, steady_fronts, 1)
+        rate_magnitude = abs(slope)
+
+    if args.rate_only:
+        if rate_magnitude is None:
+            print("nan")
+            raise SystemExit(1)
+        print(f"{rate_magnitude * UNIT_SCALE[args.unit]:.6e}")
+        return
+
+    print(f"Found {len(paths)} plotfile(s) under {args.plotfile_root}")
     rows = []
     print(f"{'step':>10} {'time [s]':>14} {'front_y [m]':>14} "
           f"{'rate [m/s]':>14} {'phase':>13}")
@@ -276,15 +300,12 @@ def main() -> None:
         print("\nNo sustained steady-burning window found; "
               "no regression rate reported.")
     else:
-        steady_times = times[steady_start:steady_end + 1]
-        steady_fronts = fronts[steady_start:steady_end + 1]
-        slope, _ = np.polyfit(steady_times, steady_fronts, 1)
         print(f"\nSteady-state window: steps {snapshots[steady_start].step}-"
               f"{snapshots[steady_end].step} "
-              f"(t = {steady_times[0]:.6g}-{steady_times[-1]:.6g} s)")
-        print(f"Steady-state regression rate: d(front_y)/dt = {slope:.6e} m/s "
-              f"=> regression rate magnitude = {abs(slope):.6e} m/s "
-              f"({abs(slope) * 1000.0:.6g} mm/s)")
+              f"(t = {times[steady_start]:.6g}-{times[steady_end]:.6g} s)")
+        print(f"Steady-state regression rate: "
+              f"regression rate magnitude = {rate_magnitude:.6e} m/s "
+              f"({rate_magnitude * 1000.0:.6g} mm/s)")
         if np.any(phases == "extinguished"):
             first_ext = int(np.argmax(phases == "extinguished"))
             print(f"AP stopped burning after step {snapshots[first_ext].step} "
