@@ -4,6 +4,7 @@ parser = argparse.ArgumentParser(description='For use by Makefile generating Ala
 parser.add_argument('--alamo_home',   default=os.getcwd(), help='Alamo home directory')
 parser.add_argument('--postfix',      required=True, help="Build postfix")
 parser.add_argument('--amrex',required=True, help='AMReX version')
+parser.add_argument('--yaml', default=None, help='yaml-cpp source directory')
 args=parser.parse_args()
 
 result = subprocess.run(['mpicxx', '--showme:compile'],capture_output=True,text=True).stdout.strip()
@@ -78,6 +79,11 @@ import sys
 for openmpi_include in openmpi_includes:
     f.write(f"cppyy.add_include_path('{openmpi_include}')\n")
     #cppyy.add_include_path('/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi')
+
+if args.yaml:
+    yaml_include = os.path.join(args.alamo_home, args.yaml, 'include')
+    f.write(f"cppyy.add_include_path('{yaml_include}')\n")
+    f.write('cppyy.cppdef("#define ALAMO_YAML")\n')
 
 f.write(f"""
 cppyy.add_include_path('{args.alamo_home}/{args.amrex}/include/')

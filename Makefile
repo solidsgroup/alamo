@@ -122,7 +122,7 @@ realclean: clean
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
 py: python_ok lib/libalamo-$(POSTFIX).so ${AMREX_TARGET}/lib/libamrex.so
-	@python3 ./scripts/make_alamo_package.py --postfix=$(POSTFIX) --amrex=$(AMREX_TARGET)
+	@python3 ./scripts/make_alamo_package.py --postfix=$(POSTFIX) --amrex=$(AMREX_TARGET) $(if $(YAML_CPP_DIR),--yaml=$(YAML_CPP_DIR),)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 info:
@@ -265,4 +265,3 @@ endif
 endif
 endif
 endif
-
