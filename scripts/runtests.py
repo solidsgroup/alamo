@@ -206,23 +206,67 @@ def test(testdir):
     if os.path.isfile(testdir + "/input.py"):
         print(f"RUN    {color.bold}{testdir}{color.reset}")
         cmd = f'python {testdir}/input.py'
-        print("  │      Running test............................................",end="",flush=True)
+        print("  │      Running test", flush=True)
         try:
+            timeStarted = time.time()
+            result_pattern = re.compile(
+                r"^.*\[(?:PASS|FAIL)\]\s+\d+(?:\.\d+)?\s+s$")
             proc = subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            stdout, stderr = proc.communicate(timeout=int(args.timeout))
-            retcode = proc.returncode
+            stdout_lines = []
+            stderr_lines = []
+
+            def read_python_stream(stream, lines, show_results=False):
+                for raw_line in iter(stream.readline, b""):
+                    lines.append(raw_line)
+                    line = raw_line.decode("utf-8", errors="replace").rstrip()
+                    if show_results and result_pattern.fullmatch(line):
+                        print("  ├ " + line, flush=True)
+
+            stdout_thread = threading.Thread(
+                target=read_python_stream,
+                args=(proc.stdout, stdout_lines, True))
+            stderr_thread = threading.Thread(
+                target=read_python_stream,
+                args=(proc.stderr, stderr_lines))
+            stdout_thread.start()
+            stderr_thread.start()
+            try:
+                retcode = proc.wait(timeout=int(args.timeout))
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                stdout_thread.join()
+                stderr_thread.join()
+                raise subprocess.TimeoutExpired(
+                    proc.args, int(args.timeout),
+                    output=b"".join(stdout_lines),
+                    stderr=b"".join(stderr_lines))
+            stdout_thread.join()
+            stderr_thread.join()
+            stdout = b"".join(stdout_lines)
+            stderr = b"".join(stderr_lines)
             if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
-            print("[{}PASS{}]".format(color.boldgreen,color.reset))
+            executionTime = time.time() - timeStarted
             tests += 1
-            print("  └ Python test complete ")
+            print("  └ Python test complete........................................."
+                "[{}PASS{}] ({:.2f}s)".format(
+                    color.boldgreen, color.reset, executionTime))
             return fails, kills, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
         except subprocess.CalledProcessError as e:
-            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
+            print("  └ Python test complete........................................."
+                "[{}FAIL{}]".format(color.red, color.reset))
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+
+        except subprocess.TimeoutExpired as e:
+            print("  └ Python test timed out........................................"
+                "[{}TIME{}]".format(color.red, color.reset))
+            print("  │      {}CMD   : {}{}".format(
+                color.red, ' '.join(e.cmd), color.reset))
+            timeouts += 1
 
         if os.path.isfile(f"{testdir}/input"):
             raise(Exception(f"Test {testdir} cannot have both input and input.py"))
