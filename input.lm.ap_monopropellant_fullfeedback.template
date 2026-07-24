@@ -130,8 +130,17 @@ Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*@PR
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
-temperature.ic.type = constant
-temperature.ic.constant.value = 700.0
+# The gas side (y>=0) starts at the 700 K product temperature implied by the
+# Final density IC above, keeping the initial temperature/density fields
+# consistent with the ideal-gas EOS at t=0. The solid side stays at 700 K
+# through a ~100 micron preheat zone ahead of the interface -- required
+# because fullfeedback.temperature_bound = 500 K below makes the reaction
+# mobility exactly zero anywhere colder, so the interface needs to start hot
+# enough to ignite -- then decays to the 273 K ambient reactant temperature
+# further into the solid, which the burn is expected to relax into as it
+# establishes its own steady conductive preheat profile.
+temperature.ic.type = expression
+temperature.ic.expression.region0 = "273.0 + 427.0*0.5*(1.0+tanh(2.0*(y+1.0e-4)/4.0e-5))"
 pressure.ic.type = constant
 pressure.ic.constant.value = @PRESSURE@
 

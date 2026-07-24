@@ -119,8 +119,8 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
 
     def objective(x: np.ndarray) -> np.ndarray:
         iteration[0] += 1
-        pre_exponential = 10.0 ** x[0]
-        activation_temperature = x[1]
+        pre_exponential = float(10.0 ** x[0])
+        activation_temperature = float(x[1])
         eval_dir = workdir / f"iter_{iteration[0]:03d}"
         eval_dir.mkdir(parents=True, exist_ok=True)
         rates = run_sweep(pre_exponential, activation_temperature, pressures,
@@ -198,8 +198,8 @@ def main() -> None:
     result = least_squares(objective, x0, bounds=bounds, xtol=args.xtol,
                            max_nfev=args.max_nfev, diff_step=0.05)
 
-    pre_exponential = 10.0 ** result.x[0]
-    activation_temperature = result.x[1]
+    pre_exponential = float(10.0 ** result.x[0])
+    activation_temperature = float(result.x[1])
     print("\n=== Converged (or hit max_nfev) ===")
     print(f"pre_exponential      = {pre_exponential:.6g} 1/Pa/s")
     print(f"activation_temperature = {activation_temperature:.6g} K")
