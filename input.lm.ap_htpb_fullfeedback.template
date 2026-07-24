@@ -1,0 +1,211 @@
+# Templated version of input.lm.ap_htpb_fullfeedback for calibrating the
+# HTPB_pyrolysis fullfeedback (pre_exponential, activation_temperature) against
+# the pure-AP/pure-HTPB sandwich burning-rate data in
+# HTPB_sandwich_reg_rate_chorpening2000_summary.csv (digitized from Chorpening,
+# Knott & Brewster, Proc. Combust. Inst. 28:847-853 (2000), 0.2-3.2 MPa).
+#
+# AP_decomposition's fullfeedback parameters are HELD FIXED at the values
+# already calibrated against pure AP monopropellant self-deflagration data
+# (see FULLFEEDBACK_CALIBRATION.md / input.lm.ap_monopropellant_fullfeedback) --
+# only HTPB_pyrolysis's own fullfeedback (pre_exponential, activation_temperature)
+# are fit here. HTPB_pyrolysis now uses phase_field.type = fullfeedback (an
+# Arrhenius, pressure-scaled mobility) instead of the old constant-mobility
+# allencahn field, mirroring AP's model so both species regress through the
+# same functional form; the mechanism-level activation_temperature is zeroed
+# to avoid double-counting the Arrhenius factor already inside fullfeedback,
+# exactly as done for AP_decomposition.
+#
+# Placeholders filled in by scripts/render_htpb_sandwich_input.py:
+#   @PRESSURE@              operating pressure [Pa]
+#   @PRODUCT_DENSITY@       gas-side product density at that pressure [kg/m^3]
+#                           (rho = P / (319.787 * 700), same convention as the
+#                           original input.lm.ap_htpb_fullfeedback)
+#   @HTPB_PRE_EXPONENTIAL@  HTPB_pyrolysis fullfeedback pre_exponential [1/Pa/s]
+#   @HTPB_ACT_TEMP@         HTPB_pyrolysis fullfeedback activation_temperature [K]
+#
+# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ <rendered_input>
+
+plot_file = output.lm.ap_htpb_fullfeedback
+amr.plot_dt = 5.0e-4_s
+amr.max_level = 2
+amr.n_cell = 32 32
+amr.max_grid_size = 16
+amr.blocking_factor = 4
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.nsubsteps = 1
+
+eta_refinement_criterion = 0.01
+temperature_refinement_criterion = 500.0
+
+timestep = 2.5e-6_s
+stop_time = 3.0e-2_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 2.5e-6
+dynamictimestep.verbose = 0
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = -0.0003_m -0.0001_m 0.0
+geometry.prob_hi =  0.0003_m  0.0005_m 0.0
+geometry.is_periodic = 1 0 0
+
+# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
+# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
+system.amount = kmol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
+
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+AP_solid.reference_density = 1950.0_kg/m^3
+HTPB_solid.reference_density = 920.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+HTPB_solid.specific_heat = 2418.29_J/kg/K
+HTPB_solid.thermal_conductivity = 0.1300_W/m/K
+
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
+
+# AP regresses through the fullfeedback phase field with the parameters
+# already calibrated against pure AP monopropellant regression-rate data
+# (AP_reg_rate.csv, 2.76-13.79 MPa) -- held fixed here, not part of this fit.
+mechanisms.names = AP_decomposition HTPB_pyrolysis
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.in = AP_solid
+AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.activation_temperature = 0.0_K
+AP_decomposition.phase_change.temperature_cutoff = 500.0_K
+AP_decomposition.phase_change.phase_field.type = fullfeedback
+AP_decomposition.phase_change.phase_field.fullfeedback.pre_exponential = 0.0006072874693037711_1/Pa/s
+AP_decomposition.phase_change.phase_field.fullfeedback.activation_temperature = 1905.3816062268543_K
+AP_decomposition.phase_change.phase_field.fullfeedback.pressure_dependence = 1
+AP_decomposition.phase_change.phase_field.fullfeedback.reference_pressure = 1.0_MPa
+AP_decomposition.phase_change.phase_field.fullfeedback.temperature_bound = 500.0_K
+AP_decomposition.phase_change.phase_field.fullfeedback.sigma = 0.001_J/m^2
+AP_decomposition.phase_change.phase_field.fullfeedback.epsilon = 80.0_um
+AP_decomposition.phase_change.phase_field.fullfeedback.driving_force = 200.0_Pa
+
+# HTPB regresses through the same fullfeedback functional form as AP (rather
+# than the old constant-mobility allencahn field), so its own Arrhenius
+# pre_exponential/activation_temperature can be calibrated the same way AP's
+# were. sigma/epsilon/driving_force are numerical interface-regularization
+# parameters tied to this case's AMR resolution, not physical fit targets, so
+# they are kept identical to AP_decomposition's rather than swept.
+HTPB_pyrolysis.type = phase_change
+HTPB_pyrolysis.phase_change.in = HTPB_solid
+HTPB_pyrolysis.phase_change.out = HTPB_gas
+HTPB_pyrolysis.phase_change.rate_multiplier = 2.333333333333333e5
+HTPB_pyrolysis.phase_change.activation_temperature = 0.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
+HTPB_pyrolysis.phase_change.phase_field.type = fullfeedback
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.pre_exponential = @HTPB_PRE_EXPONENTIAL@_1/Pa/s
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.activation_temperature = @HTPB_ACT_TEMP@_K
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.pressure_dependence = 1
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.reference_pressure = 1.0_MPa
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.temperature_bound = 500.0_K
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.sigma = 0.001_J/m^2
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.epsilon = 80.0_um
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.driving_force = 200.0_Pa
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.6
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+#diagnostics.interval = 100
+diagnostics.extended_fields = 0
+
+# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
+# the two outer strips (0.1 mm each, joined across the periodic boundary into
+# one continuous 0.2 mm HTPB lamina -- within the paper's 100-450 um range
+# where burning rate is reported to be roughly binder-width independent). The
+# vertical factor is the equilibrium profile for the Allen-Cahn/fullfeedback
+# sigma/epsilon parameterization. Partial densities encode both composition
+# and volume.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+
+# The gas initially contains final products. AP and HTPB reactants enter only
+# through regression, avoiding a domain-wide homogeneous ignition transient.
+Final.density.ic.type = expression
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*@PRODUCT_DENSITY@)"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 700.0
+pressure.ic.type = constant
+pressure.ic.constant.value = @PRESSURE@
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = dirichlet
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 @PRODUCT_DENSITY@ 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = @PRESSURE@

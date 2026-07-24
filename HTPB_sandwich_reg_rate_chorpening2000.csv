@@ -1,0 +1,14 @@
+pressure_MPa,binder_width_um,burning_rate_mm_s,note
+0.206,210-290,1.298,average of two nearby overlapping 210-290um markers
+0.215,70-100 & 375-400,1.208,overlapping + and inverted-triangle markers averaged
+0.205,210-290,1.146,
+0.238,140-185,1.091,
+0.203,140-185,1.079,
+0.425,140-185,1.204,average of two nearby overlapping 140-185um markers
+0.448,125,1.607,average of two nearby overlapping 125um markers
+0.464,50 & 210-290,1.391,overlapping circle and square markers averaged
+0.532,70-100,1.593,
+1.453,50,1.170,isolated very-thin-binder point trending toward the AP monopropellant rate (see paper text); excluded from the calibration summary as anomalous/atypical for a >=100um binder
+1.498,140-185 & 210-290 & 375-400,2.142,average of three overlapping markers (diamond/square/inverted-triangle)
+3.095,70-100,3.057,
+3.100,125 & 210-290,3.648,average of two overlapping markers (triangle/square)
