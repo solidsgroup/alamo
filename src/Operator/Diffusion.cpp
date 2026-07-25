@@ -519,8 +519,9 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         {
             face_pointer[d] = &system.face_mobility[lev][d];
             face_mobility_pointer[lev][d] = &system.face_mobility[lev][d];
-            face_tensor_mobility_pointer[lev][d] =
-                &system.face_tensor_mobility[lev][d];
+            if (use_tensor_mobility)
+                face_tensor_mobility_pointer[lev][d] =
+                    &system.face_tensor_mobility[lev][d];
         }
         amrex::average_cellcenter_to_face(
             face_pointer, *system.mobility[lev], geometry[lev], 1, true, 0);
