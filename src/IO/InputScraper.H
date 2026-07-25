@@ -29,6 +29,8 @@ public:
     {
         std::string kind = "input";
         std::string input;
+        std::source_location location;
+        bool has_unnamed_default = false;
         std::vector<FlowBranch> branches;
         std::vector<FlowNode> children;
     };
@@ -60,6 +62,7 @@ public:
         bool required = false;
         bool has_default = false;
         bool has_default_value = false;
+        bool has_unnamed_default = false;
         std::string default_value;
         std::vector<std::vector<Condition>> contexts;
         std::vector<Constraint> constraints;
@@ -99,7 +102,8 @@ public:
                             std::string directive,
                             const std::source_location &location,
                             std::vector<std::string> options = {},
-                            std::optional<std::string> default_value = std::nullopt);
+                            std::optional<std::string> default_value = std::nullopt,
+                            bool has_unnamed_default = false);
     static void RecordConstraint(   ParmParse &pp,
                                     std::string kind,
                                     int count,
@@ -179,7 +183,9 @@ private:
     static void AddContext(InputNode &node, const std::vector<InputNode::Condition> &conditions);
     static void RecordFlowInput(const std::string &path,
                                 const std::string &directive,
-                                const std::vector<std::string> &options);
+                                const std::vector<std::string> &options,
+                                const std::source_location &location,
+                                bool has_unnamed_default);
     static void PushTraversalCondition(ParmParse &pp, std::string name, std::string value);
     static void PopTraversalCondition();
     static void PushTraversalBranch(ParmParse &pp, const std::string &name,

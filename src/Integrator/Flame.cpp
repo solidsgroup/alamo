@@ -223,6 +223,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
+    value.m_type = Base::Mechanics<model_type>::Type::Disable;
     pp.query_if("elastic.on", [&]() {
         value.elastic.on = true;
 

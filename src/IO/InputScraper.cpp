@@ -137,6 +137,8 @@ WriteNode(std::ostream &os, const IO::InputScraper::InputNode &node, int indent)
         if (node.has_default_value)
             IO::JSON::WriteStringField(os, first, indent + 2, "default_value", node.default_value);
     }
+    if (node.has_unnamed_default)
+        IO::JSON::WriteBoolField(os, first, indent + 2, "has_unnamed_default", true);
     if (!node.directive.empty())
         IO::JSON::WriteSourceField(os, first, indent + 2, node.location);
     if (!node.contexts.empty())
@@ -188,6 +190,9 @@ WriteFlowNode(std::ostream &os, const IO::InputScraper::FlowNode &node, int inde
     os << "{";
     IO::JSON::WriteStringField(os, first, indent + 2, "kind", node.kind);
     IO::JSON::WriteStringField(os, first, indent + 2, "input", node.input);
+    IO::JSON::WriteSourceField(os, first, indent + 2, node.location);
+    if (node.has_unnamed_default)
+        IO::JSON::WriteBoolField(os, first, indent + 2, "has_unnamed_default", true);
     if (!node.branches.empty())
     {
         IO::JSON::Comma(os, first, indent + 2);
@@ -287,7 +292,9 @@ InputScraper::AddContext(InputNode &node, const std::vector<InputNode::Condition
 void
 InputScraper::RecordFlowInput(  const std::string &path,
                                 const std::string &directive,
-                                const std::vector<std::string> &options)
+                                const std::vector<std::string> &options,
+                                const std::source_location &location,
+                                bool has_unnamed_default)
 {
     if (!traversal_flow) traversal_flow = &input_flow;
 
@@ -307,10 +314,22 @@ InputScraper::RecordFlowInput(  const std::string &path,
         flow_node = &traversal_flow->back();
         flow_node->input = path;
     }
+    flow_node->location = location;
+    flow_node->has_unnamed_default =
+        flow_node->has_unnamed_default || has_unnamed_default;
 
     if (KindForDirective(directive, options) != "switch") return;
 
     flow_node->kind = "switch";
+    if (has_unnamed_default)
+    {
+        bool found = false;
+        for (const auto &branch : flow_node->branches)
+            if (branch.value.empty())
+                found = true;
+        if (!found)
+            flow_node->branches.push_back(FlowBranch());
+    }
     for (const auto &option : options)
     {
         bool found = false;
@@ -472,7 +491,8 @@ InputScraper::RecordInput(  ParmParse &pp,
                             std::string directive,
                             const std::source_location &location,
                             std::vector<std::string> options,
-                            std::optional<std::string> default_value)
+                            std::optional<std::string> default_value,
+                            bool has_unnamed_default)
 {
     if (!InTraversalMode()) return;
 
@@ -484,13 +504,15 @@ InputScraper::RecordInput(  ParmParse &pp,
         node.options = std::move(options);
     node.required = node.required || directive.find("required") != std::string::npos;
     node.has_default = node.has_default || directive.find("default") != std::string::npos || default_value.has_value();
+    node.has_unnamed_default = node.has_unnamed_default || has_unnamed_default;
     if (default_value.has_value())
     {
         node.has_default_value = true;
         node.default_value = std::move(*default_value);
     }
     AddContext(node, traversal_conditions);
-    RecordFlowInput(node.full_name, directive, node.options);
+    RecordFlowInput(node.full_name, directive, node.options, location,
+                    has_unnamed_default);
 
     if (!amrex::ParallelDescriptor::IOProcessor()) return;
 

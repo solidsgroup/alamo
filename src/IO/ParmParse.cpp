@@ -78,10 +78,12 @@ ParmParse::RecordInput( std::string name,
                         std::string directive,
                         const std::source_location &location,
                         std::vector<std::string> options,
-                        std::optional<std::string> default_value)
+                        std::optional<std::string> default_value,
+                        bool has_unnamed_default)
 {
     InputScraper::RecordInput(  *this, std::move(name), std::move(directive),
-                                location, std::move(options), std::move(default_value));
+                                location, std::move(options), std::move(default_value),
+                                has_unnamed_default);
 }
 
 void

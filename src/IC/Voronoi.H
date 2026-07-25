@@ -122,13 +122,22 @@ public:
 
     static void Parse(Voronoi &value, IO::ParmParse &pp)
     {
-        pp_query("number_of_grains",value.number_of_grains); // Number of grains
+        pp.query("number_of_grains",value.number_of_grains); // Number of grains
         pp.queryarr_default("alpha",value.alpha,{1.0}); // value that the field should take in each grain
-        pp_query("seed",value.seed); // Random seed to use
+        pp.query("seed",value.seed); // Random seed to use
+
+        // Determine initialization type. 
+        // "Partition" splits the tesselation across components, with voronoi region "n" being set to alpha[n]
+        // in field component n only.
+        // "Values" combines all cells into a single component of the field.
+        pp.query_switch("type",{
+                {"partition",[&](){ value.type = Type::Partition; }},
+                {"values",   [&](){ value.type = Type::Values;   }}
+            });
 
         if (IO::ParmParse::InTraversalMode()) return;
 
-        value.Define(value.number_of_grains,value.alpha);
+        value.Define(value.number_of_grains,value.alpha,value.type);
     }
     
 private:

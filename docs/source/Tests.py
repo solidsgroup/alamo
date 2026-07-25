@@ -72,7 +72,9 @@ def load_input_reference_targets():
             path = str(node.get("path", ""))
             if path and node.get("has_default"):
                 default_value = node.get("default_value")
-                if default_value is None and node.get("options"):
+                if node.get("has_unnamed_default"):
+                    default_value = ""
+                elif default_value is None and node.get("options"):
                     default_value = node["options"][0]
                 default_candidates.setdefault(path, set()).add(
                     normalize_input_value(str(default_value or ""))

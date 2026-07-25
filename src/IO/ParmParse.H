@@ -172,7 +172,8 @@ private:
                         std::string directive,
                         const std::source_location &location,
                         std::vector<std::string> options = {},
-                        std::optional<std::string> default_value = std::nullopt);
+                        std::optional<std::string> default_value = std::nullopt,
+                        bool has_unnamed_default = false);
     void RecordConstraint(  std::string kind,
                             int count,
                             std::vector<std::string> members,
@@ -184,11 +185,13 @@ private:
         const std::source_location &location,
         std::vector<std::string> options = {},
         std::optional<std::string> default_value = std::nullopt,
+        bool has_unnamed_default = false,
         const std::source_location &handler_location = std::source_location::current())
     {
         if (InTraversalMode())
             RecordInput(name, InputScraper::DirectiveName(handler_location), location,
-                        std::move(options), std::move(default_value));
+                        std::move(options), std::move(default_value),
+                        has_unnamed_default);
     }
     using TraversalBranchScope = InputScraper::TraversalBranchScope;
 
@@ -201,6 +204,53 @@ private:
                 return new T(constructor_args..., pp, name);
             },
             args.values);
+    }
+
+    template<typename T, typename = void>
+    struct HasSelectName : std::false_type {};
+
+    template<typename T>
+    struct HasSelectName<T, std::void_t<decltype(T::name)>> : std::true_type {};
+
+    template<typename T, typename... Args>
+    static constexpr bool HasSelectedConstructor =
+        std::is_constructible_v<T, std::add_lvalue_reference_t<Args>...,
+                                ParmParse &, std::string>;
+
+    template<typename T, typename... Args>
+    static T *ConstructSelectDefault(ForwardArgs<Args...> &args)
+    {
+        return std::apply(
+            [&](auto &...constructor_args) -> T *
+            {
+                static_assert(  std::is_constructible_v<T, decltype(constructor_args)...>,
+                                "The unnamed select default cannot be constructed from forward_args");
+                return new T(constructor_args...);
+            },
+            args.values);
+    }
+
+    template<typename T, typename... Args>
+    static void AppendSelectName(std::vector<std::string> &names, ForwardArgs<Args...> &)
+    {
+        if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+            names.emplace_back(T::name);
+    }
+
+    template<typename T, typename... Args, typename PTRTYPE>
+    static bool TrySelectNamed( const std::string &type, const std::string &name,
+                                PTRTYPE *&value, ForwardArgs<Args...> &args,
+                                ParmParse &pp)
+    {
+        if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+        {
+            if (type == T::name)
+            {
+                value = ConstructSelected<T>(args, pp, name + "." + std::string(T::name));
+                return true;
+            }
+        }
+        return false;
     }
     
 public:
@@ -1862,8 +1912,9 @@ public:
     }
 
     //
-    // Identical to the above, except sets the type automatically to the
-    // firs specified 
+    // Identical to the above, except the first class is the default. A first
+    // class without a ParmParse constructor is constructed directly when
+    // no type is specified.
     //
     template<typename FirstIC, typename... IC, typename PTRTYPE>
     void select_default (   std::string name, PTRTYPE *& ic_eta,
@@ -1879,12 +1930,18 @@ public:
     {
         std::string type = "";
         std::string type_name = name + ".type";
-        std::vector<std::string> possiblevals = {std::string(FirstIC::name), std::string(IC::name)...};
+        constexpr bool has_unnamed_default =
+            !(  HasSelectName<FirstIC>::value &&
+                HasSelectedConstructor<FirstIC, Args...>);
+        std::vector<std::string> possiblevals;
+        AppendSelectName<FirstIC>(possiblevals, args);
+        (AppendSelectName<IC>(possiblevals, args), ...);
 
         if (InTraversalMode())
         {
             {
-                RecordInputAndContinue(type_name, location, possiblevals);
+                RecordInputAndContinue( type_name, location, possiblevals,
+                                        std::nullopt, has_unnamed_default);
             }
 
             std::string original_type;
@@ -1907,12 +1964,15 @@ public:
 
             auto traverse_one = [&]<typename T>()
             {
-                std::string select_value = T::name;
-                set_select_value(select_value);
-                PrintTraversalBranch(type_name, select_value);
-                TraversalBranchScope branch(*this, type_name, select_value);
-                PTRTYPE *tmp = ConstructSelected<T>(args, *this, name + "." + select_value);
-                delete tmp;
+                if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+                {
+                    std::string select_value = T::name;
+                    set_select_value(select_value);
+                    PrintTraversalBranch(type_name, select_value);
+                    TraversalBranchScope branch(*this, type_name, select_value);
+                    PTRTYPE *tmp = ConstructSelected<T>(args, *this, name + "." + select_value);
+                    delete tmp;
+                }
             };
 
             traverse_one.template operator()<FirstIC>();
@@ -1922,17 +1982,23 @@ public:
             return;
         }
 
-        this->query_default(type_name, type, FirstIC::name);
+        if constexpr (  HasSelectName<FirstIC>::value &&
+                        HasSelectedConstructor<FirstIC, Args...>)
+        {
+            this->query_default(type_name, type, std::string(FirstIC::name));
+        }
+        else
+        {
+            if (!this->contains(type_name.c_str()))
+            {
+                ic_eta = ConstructSelectDefault<FirstIC>(args);
+                return;
+            }
+            this->query_required(type_name, type);
+        }
 
-        bool matched =
-            ((  type == FirstIC::name 
-                ? (ic_eta = ConstructSelected<FirstIC>(args, *this, name + "." + std::string(FirstIC::name))),
-                true : false))
-            || 
-            ((  type == IC::name 
-                ? (ic_eta = ConstructSelected<IC>(args, *this, name + "." + std::string(IC::name))),
-                true : false) || ...);
-
+        bool matched = TrySelectNamed<FirstIC>(type, name, ic_eta, args, *this);
+        matched = matched || (TrySelectNamed<IC>(type, name, ic_eta, args, *this) || ...);
 
         if (!matched && !InTraversalMode())
             Util::ParmParseException(INFO,full(name), type," not a valid type for ",name);

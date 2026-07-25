@@ -242,7 +242,7 @@ public:
         pp.select<BC::Constant>("bc.eta",value.mybc,pp.forward_args(value.number_of_grains));
 
         // Initial condition for the order parameter eta
-        pp.select<IC::Constant,IC::PerturbedInterface,IC::Voronoi,IC::Expression,IC::Sphere,IC::Ellipse,IC::Random>("ic",value.ic,pp.forward_args(value.geom));
+        pp.select_default<IC::Constant::One,IC::Constant,IC::PerturbedInterface,IC::Voronoi,IC::Expression,IC::Sphere,IC::Ellipse,IC::Random>("ic",value.ic,pp.forward_args(value.geom));
 
         // Anisotropic mobility
         pp.query_if("anisotropic_kinetics.on",[&](){
