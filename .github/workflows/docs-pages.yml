@@ -253,6 +253,7 @@ jobs:
   deploy:
     name: Deploy versioned documentation
     needs: assemble
+    if: ${{ always() && needs.assemble.result == 'success' }}
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
