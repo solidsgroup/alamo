@@ -61,6 +61,7 @@ for header in [
     "Model/Chemistry/FiniteRate.H",
     "Model/Chemistry/Frozen.H",
     "Model/Chemistry/Rocfire.H",
+    "Model/Chemistry/Rocfire_Aluminized.H",
 ]:
     alamo.include(header)
 
@@ -69,6 +70,7 @@ FINITE_SPECIES = [
     "H2", "H", "O", "O2", "OH", "H2O", "HO2", "H2O2", "AR", "N2"
 ]
 ROCFIRE_SPECIES = ["AP", "HTPB", "Mono", "Premixed", "Primary", "Final"]
+ROCFIRE_ALUMINIZED_SPECIES = ROCFIRE_SPECIES + ["Al_vapor"]
 
 FINITE_MOLECULAR_WEIGHTS = [
     "2.016_g/mol", "1.008_g/mol", "15.999_g/mol", "31.998_g/mol",
@@ -90,6 +92,9 @@ FINITE_INITIAL_PARTIAL_DENSITIES = numpy.array(
 )
 ROCFIRE_INITIAL_PARTIAL_DENSITIES = numpy.array(
     [0.28154378279353426, 0.03530772294877530, 0.0, 0.0, 0.0, 0.0]
+)
+ROCFIRE_ALUMINIZED_INITIAL_PARTIAL_DENSITIES = numpy.append(
+    ROCFIRE_INITIAL_PARTIAL_DENSITIES, 0.05
 )
 
 EXPECTED_WDOT = numpy.array(
@@ -155,6 +160,7 @@ CHEMISTRY_TYPE = alamo.Model.Chemistry.Chemistry[
     alamo.Model.Chemistry.Frozen,
     alamo.Model.Chemistry.FiniteRate,
     alamo.Model.Chemistry.Rocfire,
+    alamo.Model.Chemistry.Rocfire_Aluminized,
 ]
 
 
@@ -194,6 +200,18 @@ def make_finite_gas(pp):
 def make_rocfire_gas(pp):
     prefix = "rocfire_gas"
     add_strings(pp, f"{prefix}.mw", ["26.0_g/mol"] * len(ROCFIRE_SPECIES))
+    add_string(pp, f"{prefix}.thermo.type", "rocfire")
+    add_string(pp, f"{prefix}.transport.type", "rocfire")
+    add_string(pp, f"{prefix}.eos.type", "rocfire")
+    return alamo.Model.Gas.Gas(pp, prefix)
+
+
+def make_rocfire_aluminized_gas(pp):
+    prefix = "rocfire_aluminized_gas"
+    add_strings(
+        pp, f"{prefix}.mw",
+        ["26.0_g/mol"] * len(ROCFIRE_ALUMINIZED_SPECIES),
+    )
     add_string(pp, f"{prefix}.thermo.type", "rocfire")
     add_string(pp, f"{prefix}.transport.type", "rocfire")
     add_string(pp, f"{prefix}.eos.type", "rocfire")
@@ -354,6 +372,7 @@ try:
 
     finite_gas = make_finite_gas(pp)
     rocfire_gas = make_rocfire_gas(pp)
+    rocfire_aluminized_gas = make_rocfire_aluminized_gas(pp)
     source_model = make_finite_source_model(pp, "source_finite")
     substep_source_model = make_finite_source_model(
         pp, "source_finite_substep", substeps=10
@@ -394,6 +413,10 @@ try:
         )
         for _, prefix, solver, nsubsteps in rocfire_cases
     ]
+    rocfire_aluminized_integrator = make_integrator(
+        pp, "rocfire_aluminized_backward", "rocfire_aluminized",
+        "backward_euler", 1, len(ROCFIRE_ALUMINIZED_SPECIES),
+    )
 
     print("\nChemistry cases")
 
@@ -446,6 +469,28 @@ try:
         )
 
     run_case("Frozen chemistry", check_frozen)
+
+    def check_rocfire_aluminized():
+        initial = ROCFIRE_ALUMINIZED_INITIAL_PARTIAL_DENSITIES
+        mass_fractions, temperatures = integrate_composition(
+            rocfire_aluminized_integrator, rocfire_aluminized_gas, initial,
+            1.0e-7, numpy.array([0.0, 1.0e-6]),
+        )
+        validate_mass_fractions("Rocfire aluminized", mass_fractions)
+        initial_aluminum_fraction = initial[-1] / initial.sum()
+        numpy.testing.assert_allclose(
+            mass_fractions[:, -1], initial_aluminum_fraction,
+            rtol=0.0, atol=2.0e-14,
+            err_msg="Rocfire_Aluminized reacted its inert Al_vapor species",
+        )
+        if numpy.allclose(mass_fractions[-1, :6], mass_fractions[0, :6]):
+            raise RuntimeError(
+                "Rocfire_Aluminized did not advance its AP/HTPB chemistry"
+            )
+        if not numpy.all(numpy.isfinite(temperatures)):
+            raise RuntimeError("Rocfire_Aluminized produced non-finite temperature")
+
+    run_case("Rocfire aluminized inert aluminum", check_rocfire_aluminized)
 
     finite_histories = []
     for case, integrator in zip(finite_cases, finite_integrators):
