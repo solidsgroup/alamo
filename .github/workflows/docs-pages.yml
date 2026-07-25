@@ -2,11 +2,20 @@
 name: Versioned Documentation
 
 "on":
-  push:
-    branches:
-      - master
-      - development
-      - pp-update
+  workflow_call:
+    inputs:
+      current_version:
+        description: URL-safe documentation version name
+        required: true
+        type: string
+      source_ref:
+        description: Git commit, branch, or tag to document
+        required: true
+        type: string
+      coverage_run_id:
+        description: Workflow run containing this version's coverage artifact
+        required: true
+        type: string
   delete:
   workflow_dispatch:
 
@@ -26,22 +35,32 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       current_version: ${{ steps.context.outputs.current_version }}
+      current_ref: ${{ steps.context.outputs.current_ref }}
       master_run_id: ${{ steps.artifacts.outputs.master_run_id }}
       development_run_id: ${{ steps.artifacts.outputs.development_run_id }}
       pp_update_run_id: ${{ steps.artifacts.outputs.pp_update_run_id }}
       pp_update_exists: ${{ steps.artifacts.outputs.pp_update_exists }}
-      coverage_run_id: ${{ steps.artifacts.outputs.coverage_run_id }}
+      master_coverage_run_id: ${{ steps.artifacts.outputs.master_coverage_run_id }}
+      development_coverage_run_id: ${{ steps.artifacts.outputs.development_coverage_run_id }}
+      pp_update_coverage_run_id: ${{ steps.artifacts.outputs.pp_update_coverage_run_id }}
     if: ${{ github.event_name != 'delete' || github.event.ref == 'pp-update' }}
     steps:
       - name: Determine current documentation version
         id: context
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REQUESTED_VERSION: ${{ inputs.current_version }}
+          REQUESTED_REF: ${{ inputs.source_ref }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "delete" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_call" ]; then
+            current_version="$REQUESTED_VERSION"
+            current_ref="$REQUESTED_REF"
+          elif [ "$GITHUB_EVENT_NAME" = "delete" ]; then
             current_version="$DEFAULT_BRANCH"
+            current_ref="$DEFAULT_BRANCH"
           else
             current_version="$GITHUB_REF_NAME"
+            current_ref="$GITHUB_REF_NAME"
           fi
           case "$current_version" in
             master|development|pp-update) ;;
@@ -51,11 +70,14 @@ jobs:
               ;;
           esac
           echo "current_version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "current_ref=$current_ref" >> "$GITHUB_OUTPUT"
 
       - name: Locate latest unexpired artifacts
         id: artifacts
         env:
           GH_TOKEN: ${{ github.token }}
+          CURRENT_VERSION: ${{ steps.context.outputs.current_version }}
+          CURRENT_COVERAGE_RUN_ID: ${{ inputs.coverage_run_id }}
         run: |
           artifact_run_id()
           {
@@ -67,14 +89,20 @@ jobs:
           echo "master_run_id=$(artifact_run_id docs-master)" >> "$GITHUB_OUTPUT"
           echo "development_run_id=$(artifact_run_id docs-development)" >> "$GITHUB_OUTPUT"
           echo "pp_update_run_id=$(artifact_run_id docs-pp-update)" >> "$GITHUB_OUTPUT"
-          coverage_run_id="$(
-            gh api \
-              "repos/$GITHUB_REPOSITORY/actions/artifacts?name=coverage-report&per_page=100" \
-              --jq '[.artifacts[] |
-                select(.expired == false and .workflow_run.head_branch == "development")
-              ][0].workflow_run.id // ""'
-          )"
-          echo "coverage_run_id=$coverage_run_id" >> "$GITHUB_OUTPUT"
+
+          master_coverage_run_id="$(artifact_run_id coverage-master)"
+          development_coverage_run_id="$(artifact_run_id coverage-development)"
+          pp_update_coverage_run_id="$(artifact_run_id coverage-pp-update)"
+          if [ -n "$CURRENT_COVERAGE_RUN_ID" ]; then
+            case "$CURRENT_VERSION" in
+              master) master_coverage_run_id="$CURRENT_COVERAGE_RUN_ID" ;;
+              development) development_coverage_run_id="$CURRENT_COVERAGE_RUN_ID" ;;
+              pp-update) pp_update_coverage_run_id="$CURRENT_COVERAGE_RUN_ID" ;;
+            esac
+          fi
+          echo "master_coverage_run_id=$master_coverage_run_id" >> "$GITHUB_OUTPUT"
+          echo "development_coverage_run_id=$development_coverage_run_id" >> "$GITHUB_OUTPUT"
+          echo "pp_update_coverage_run_id=$pp_update_coverage_run_id" >> "$GITHUB_OUTPUT"
           if gh api "repos/$GITHUB_REPOSITORY/branches/pp-update" > /dev/null 2>&1; then
             echo "pp_update_exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -87,7 +115,7 @@ jobs:
     if: ${{ needs.discover.result == 'success' }}
     uses: ./.github/workflows/docs-build.yml
     with:
-      source_ref: ${{ needs.discover.outputs.current_version }}
+      source_ref: ${{ needs.discover.outputs.current_ref }}
       version: ${{ needs.discover.outputs.current_version }}
 
   rebuild_master:
@@ -195,15 +223,39 @@ jobs:
               needs.discover.outputs.pp_update_run_id
             }}
 
-      - name: Download latest coverage report
-        if: ${{ needs.discover.outputs.coverage_run_id != '' }}
+      - name: Download master coverage report
+        if: ${{ needs.discover.outputs.master_coverage_run_id != '' }}
         uses: actions/download-artifact@v4
         with:
-          name: coverage-report
-          path: site/cov
+          name: coverage-master
+          path: site/docs/master/cov
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.discover.outputs.coverage_run_id }}
+          run-id: ${{ needs.discover.outputs.master_coverage_run_id }}
+
+      - name: Download development coverage report
+        if: ${{ needs.discover.outputs.development_coverage_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-development
+          path: site/docs/development/cov
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.discover.outputs.development_coverage_run_id }}
+
+      - name: Download pp-update coverage report
+        if: >-
+          ${{
+            needs.discover.outputs.pp_update_exists == 'true' &&
+            needs.discover.outputs.pp_update_coverage_run_id != ''
+          }}
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-pp-update
+          path: site/docs/pp-update/cov
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.discover.outputs.pp_update_coverage_run_id }}
 
       - name: Add default-version redirects and compatibility paths
         run: |
@@ -242,6 +294,17 @@ jobs:
           if [ "${{ needs.discover.outputs.pp_update_exists }}" = "true" ]; then
             test -f site/docs/pp-update/index.html
           fi
+          case "${{ needs.discover.outputs.current_version }}" in
+            master)
+              test -f site/docs/master/cov/index.html
+              ;;
+            development)
+              test -f site/docs/development/cov/index.html
+              ;;
+            pp-update)
+              test -f site/docs/pp-update/cov/index.html
+              ;;
+          esac
           test -f site/inputs/index.html
           test -f site/input-schemas/input-scrape-coverage.json
 

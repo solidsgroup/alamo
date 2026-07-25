@@ -41,12 +41,12 @@ jobs:
 
       - name: Build 2D executables
         run: |
-          ./configure --dim=2 --comp=g++
+          ./configure --dim=2 --comp=clang++
           make -j2
 
       - name: Build 3D executables
         run: |
-          ./configure --dim=3 --comp=g++
+          ./configure --dim=3 --comp=clang++
           make -j2
 
       - name: Build documentation

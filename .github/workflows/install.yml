@@ -1,6 +1,7 @@
 name: Install
 
 on:
+  workflow_call:
   push:
     branches: ["development", "master", "candidate", "candidate-install"]
   workflow_dispatch:
@@ -9,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: install-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

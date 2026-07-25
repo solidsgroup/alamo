@@ -1,6 +1,7 @@
 name: Memory Leak Check
 
 on:
+  workflow_call:
   push:
     branches:
       - master
@@ -12,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: memcheck-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

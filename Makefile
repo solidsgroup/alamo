@@ -329,9 +329,8 @@ GCDA = $(shell mkdir -p obj && find obj/ -name "*.gcda")
 GCNO = $(shell mkdir -p obj && find obj/ -name "*.gcno")
 
 GCDA_DIRS  = $(shell mkdir -p obj && find obj/ -maxdepth 1 -name "*coverage*" )
-GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
-GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
-GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+GCDA_INFOS = $(patsubst obj/obj-%,cov/coverage_%.info,$(GCDA_DIRS))
+GCDA_LCOVS = $(addprefix --add-tracefile ,$(GCDA_INFOS))
 
 cov-report: cov/index.html
 	@echo $(GCDA_LCOVS)
@@ -342,15 +341,17 @@ cov-clean: .FORCE
 	rm -rf ./cov
 
 cov/index.html: cov/coverage_merged.info
-	genhtml cov/coverage_merged.info --output-directory cov
+	genhtml cov/coverage_merged.info --output-directory cov --ignore-errors inconsistent
 
 cov/coverage_merged.info: $(GCDA_INFOS)
 	mkdir -p ./cov/
-	lcov --ignore-errors=gcov,source,graph $(GCDA_LCOVS) -o cov/coverage_merged.info  
+	lcov --ignore-errors=gcov,source,graph,inconsistent $(GCDA_LCOVS) -o cov/coverage_merged.info
 
-cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
+cov/coverage_%.info: obj/obj-%/ $(GCDA)
 	mkdir -p ./cov/
-	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*" \
+		--ignore-errors gcov,source,graph,inconsistent \
+		$(if $(findstring clang++,$<),--gcov-tool ./.github/workflows/llvm-gcov.sh)
 
 lib/libalamo-$(POSTFIX).so: ${OBJ} 
 	@printf "$(B_ON)$(FG_ORANGE)LIBALAMO$(RESET)             $@\n" 	
@@ -367,7 +368,7 @@ githubpages: docs-with-input-builders cov-report
 	mkdir -p ./githubpages/
 	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
 	cp -rf docs/build/html ./githubpages/docs/
-	cp -rf cov/ ./githubpages/cov/
+	cp -rf cov/ ./githubpages/docs/cov/
 	cp -rf $(DOC_INPUT_BUILDER_DIR)/ ./githubpages/inputs/
 	cp -rf $(DOC_INPUT_SCHEMA_DIR)/ ./githubpages/input-schemas/
 
