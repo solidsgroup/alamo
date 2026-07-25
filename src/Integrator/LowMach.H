@@ -16,6 +16,7 @@
 #include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Frozen.H"
 #include "Model/Chemistry/Rocfire.H"
+#include "Model/Chemistry/Rocfire_Aluminized.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Solid/Finite/NeoHookean.H"
@@ -77,6 +78,7 @@ protected:
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
+    void UpdateFreeRigidBodyState();
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
@@ -111,6 +113,8 @@ protected:
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
+    Set::Field<Set::Scalar> fixed_rigid_eta_mf;
+    Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -148,7 +152,8 @@ protected:
     using Chemistry = Model::Chemistry::Chemistry<
         Model::Chemistry::Frozen,
         Model::Chemistry::FiniteRate,
-        Model::Chemistry::Rocfire>;
+        Model::Chemistry::Rocfire,
+        Model::Chemistry::Rocfire_Aluminized>;
     Chemistry chemistry;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
@@ -162,6 +167,8 @@ protected:
     int nspecies = 0;
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
+    std::vector<int> fixed_rigid_solid_species;
+    int free_rigid_solid_species = -1;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -196,6 +203,24 @@ protected:
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
     Set::Scalar rigid_relaxation_time = 1.0;
     Set::Vector rigid_velocity = Set::Vector::Zero();
+    int free_rigid_picard_iterations = 1;
+    Set::Scalar free_rigid_picard_tolerance = 1.0e-6;
+    int last_free_rigid_picard_iterations = 0;
+    Set::Scalar last_free_rigid_picard_residual = 0.0;
+    Set::Scalar previous_free_rigid_dt = NAN;
+
+    struct FreeRigidBodyState
+    {
+        Set::Scalar mass = 0.0;
+        Set::Vector center = Set::Vector::Zero();
+        Set::Vector velocity = Set::Vector::Zero();
+        Set::Vector angular_velocity = Set::Vector::Zero();
+        Set::Matrix inertia = Set::Matrix::Zero();
+        Set::Scalar radius_of_gyration = 0.0;
+        bool valid = false;
+    };
+    FreeRigidBodyState free_rigid_body;
+    FreeRigidBodyState previous_free_rigid_body;
 
     Numeric::Advect::Advect<Numeric::Advect::MUSCL,
                             Numeric::Advect::Upwind,

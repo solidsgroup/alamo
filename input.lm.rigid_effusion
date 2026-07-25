@@ -46,6 +46,7 @@ Al_vapor.mechanics = fluid
 ambient_gas.mechanics = fluid
 Al_solid.mechanics = rigid_solid
 Al_solid.reference_density = 100.0_kg/m^3
+Al_solid.rigid.motion = free
 
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
@@ -54,7 +55,6 @@ Al_sublimation.phase_change.out = Al_vapor
 Al_sublimation.phase_change.phase_field.type = allencahn
 
 rigid.relaxation_time = 5.0e-5_s
-rigid.velocity = 0.0 0.0
 
 Al_sublimation.phase_change.phase_field.allencahn.mobility = 20.0_1/Pa/s
 Al_sublimation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2

@@ -188,6 +188,36 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             if (value.reference_density[n] <= 0.0)
                 Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
+
+            std::string motion;
+            pp.query_default(value.species_names[n] + ".rigid.motion",
+                            motion, "fixed");
+            if (motion == "fixed")
+                value.fixed_rigid_solid_species.push_back(n);
+            else if (motion == "free")
+            {
+                if (value.free_rigid_solid_species >= 0)
+                    Util::Exception(INFO,
+                        "LowMach currently supports one freely moving rigid species");
+                value.free_rigid_solid_species = n;
+            }
+            else
+                Util::Exception(INFO, motion,
+                    " is not a valid rigid motion for species ",
+                    value.species_names[n], "; expected fixed or free");
+        }
+        if (value.free_rigid_solid_species >= 0)
+        {
+            pp.query_default("rigid.free.picard_iterations",
+                            value.free_rigid_picard_iterations, 1);
+            pp.query_default("rigid.free.picard_tolerance",
+                            value.free_rigid_picard_tolerance, 1.0e-6);
+            if (value.free_rigid_picard_iterations < 1)
+                Util::Exception(INFO,
+                    "rigid.free.picard_iterations must be at least one");
+            if (!(value.free_rigid_picard_tolerance > 0.0))
+                Util::Exception(INFO,
+                    "rigid.free.picard_tolerance must be positive");
         }
     }
 
@@ -302,6 +332,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     }
     if (!value.rigid_solid_species.empty())
         value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 1, "rigid_eta", true, false);
+    if (!value.fixed_rigid_solid_species.empty())
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.fixed_rigid_eta_mf, &value.bc_nothing, 1, 1, "fixed_rigid_eta", true, false);
+    if (value.free_rigid_solid_species >= 0)
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.free_rigid_eta_mf, &value.bc_nothing, 1, 1, "free_rigid_eta", true, false);
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
@@ -452,8 +486,12 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     density_mf[lev]->setVal(0.0);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
+    const bool fixed_rigid_solid = !fixed_rigid_solid_species.empty();
+    const bool free_rigid_solid = free_rigid_solid_species >= 0;
     if (deformable_solid) eta_mf[lev]->setVal(0.0);
     if (rigid_solid) rigid_eta_mf[lev]->setVal(0.0);
+    if (fixed_rigid_solid) fixed_rigid_eta_mf[lev]->setVal(0.0);
+    if (free_rigid_solid) free_rigid_eta_mf[lev]->setVal(0.0);
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->setVal(0.0);
@@ -523,6 +561,21 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
             amrex::MultiFab::Saxpy(*rigid_eta_mf[lev], 1.0 / reference_density[n],
                                     component_density_mf, n, 0, 1, 1);
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
+    if (fixed_rigid_solid)
+    {
+        for (const int n : fixed_rigid_solid_species)
+            amrex::MultiFab::Saxpy(*fixed_rigid_eta_mf[lev], 1.0 / reference_density[n],
+                                    component_density_mf, n, 0, 1, 1);
+        fixed_rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
+    if (free_rigid_solid)
+    {
+        amrex::MultiFab::Copy(*free_rigid_eta_mf[lev], component_density_mf,
+                            free_rigid_solid_species, 0, 1, 1);
+        free_rigid_eta_mf[lev]->mult(
+            1.0 / reference_density[free_rigid_solid_species], 0, 1, 1);
+        free_rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
     if (diagnostics_extended_fields)
     {
@@ -1260,6 +1313,171 @@ LowMach::ComputeThermochemicalSource(
     return std::tie(species,temperature,dilatation);
 }
 
+//
+// Compute the mass-weighted rigid velocity associated with the freely moving
+// condensed species.  Coarse cells covered by a finer AMR level are excluded
+// so that the moments describe the composite hierarchy exactly once.
+//
+void
+LowMach::UpdateFreeRigidBodyState()
+{
+    BL_PROFILE("Integrator::LowMach::UpdateFreeRigidBodyState");
+    free_rigid_body = FreeRigidBodyState{};
+    if (free_rigid_solid_species < 0) return;
+
+    // M, Mx[3], P[3], raw symmetric second moment[6], raw angular momentum[3].
+    std::array<Set::Scalar, 16> moment{};
+    const int component_count = nspecies;
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        std::unique_ptr<amrex::iMultiFab> uncovered;
+        if (lev < finest_level)
+            uncovered = std::make_unique<amrex::iMultiFab>(
+                amrex::makeFineMask(*component_density_mf[lev],
+                    component_density_mf[lev + 1]->boxArray(), refRatio(lev),
+                    geom[lev].periodicity(), 1, 0));
+
+        const auto prob_lo = geom[lev].ProbLoArray();
+        const auto dx = geom[lev].CellSizeArray();
+        Set::Scalar cell_volume = 1.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) cell_volume *= dx[d];
+
+        for (amrex::MFIter mfi(*component_density_mf[lev],
+                amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<const Set::Scalar> component_density =
+                component_density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> free_eta =
+                free_rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
+            amrex::Array4<const int> uncovered_patch;
+            const bool has_fine_coverage = uncovered != nullptr;
+            if (has_fine_coverage) uncovered_patch = uncovered->const_array(mfi);
+
+            using Sum = amrex::ReduceOpSum;
+            amrex::ReduceOps<Sum,Sum,Sum,Sum,Sum,Sum,Sum,Sum,
+                            Sum,Sum,Sum,Sum,Sum,Sum,Sum,Sum> reduce_op;
+            amrex::ReduceData<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,
+                            Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,
+                            Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,
+                            Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar>
+                reduce_data(reduce_op);
+            using ReduceTuple = typename decltype(reduce_data)::Type;
+
+            reduce_op.eval(bx, reduce_data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+            {
+                if (has_fine_coverage && uncovered_patch(i,j,k) == 0)
+                    return {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+                            0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+
+                Set::Scalar mixture_density = 0.0;
+                for (int n = 0; n < component_count; ++n)
+                    mixture_density += Util::Max(component_density(i,j,k,n), 0.0);
+                const Set::Scalar indicator = Model::PhaseField::H(
+                    Util::Clamp(free_eta(i,j,k), 0.0, 1.0));
+                const Set::Scalar dm = mixture_density * indicator * cell_volume;
+                const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0];
+                Set::Scalar y = 0.0, z = 0.0;
+                Set::Scalar ux = u(i,j,k,0), uy = 0.0, uz = 0.0;
+#if AMREX_SPACEDIM > 1
+                y = prob_lo[1] + (j + 0.5) * dx[1];
+                uy = u(i,j,k,1);
+#endif
+#if AMREX_SPACEDIM > 2
+                z = prob_lo[2] + (k + 0.5) * dx[2];
+                uz = u(i,j,k,2);
+#endif
+                return {
+                    dm,
+                    dm*x, dm*y, dm*z,
+                    dm*ux, dm*uy, dm*uz,
+                    dm*x*x, dm*x*y, dm*x*z,
+                    dm*y*y, dm*y*z, dm*z*z,
+                    dm*(y*uz-z*uy), dm*(z*ux-x*uz), dm*(x*uy-y*ux)};
+            });
+
+            ReduceTuple value = reduce_data.value();
+            moment[0]  += amrex::get<0>(value);
+            moment[1]  += amrex::get<1>(value);
+            moment[2]  += amrex::get<2>(value);
+            moment[3]  += amrex::get<3>(value);
+            moment[4]  += amrex::get<4>(value);
+            moment[5]  += amrex::get<5>(value);
+            moment[6]  += amrex::get<6>(value);
+            moment[7]  += amrex::get<7>(value);
+            moment[8]  += amrex::get<8>(value);
+            moment[9]  += amrex::get<9>(value);
+            moment[10] += amrex::get<10>(value);
+            moment[11] += amrex::get<11>(value);
+            moment[12] += amrex::get<12>(value);
+            moment[13] += amrex::get<13>(value);
+            moment[14] += amrex::get<14>(value);
+            moment[15] += amrex::get<15>(value);
+        }
+    }
+    amrex::ParallelDescriptor::ReduceRealSum(moment.data(), moment.size());
+
+    const Set::Scalar mass = moment[0];
+    if (!(mass > density_floor) || !std::isfinite(mass)) return;
+
+    free_rigid_body.mass = mass;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        free_rigid_body.center(d) = moment[1 + d] / mass;
+        free_rigid_body.velocity(d) = moment[4 + d] / mass;
+    }
+
+    Set::Matrix central_second_moment = Set::Matrix::Zero();
+    central_second_moment(0,0) = moment[7] -
+        mass * free_rigid_body.center(0) * free_rigid_body.center(0);
+#if AMREX_SPACEDIM > 1
+    central_second_moment(0,1) = central_second_moment(1,0) = moment[8] -
+        mass * free_rigid_body.center(0) * free_rigid_body.center(1);
+    central_second_moment(1,1) = moment[10] -
+        mass * free_rigid_body.center(1) * free_rigid_body.center(1);
+#endif
+#if AMREX_SPACEDIM > 2
+    central_second_moment(0,2) = central_second_moment(2,0) = moment[9] -
+        mass * free_rigid_body.center(0) * free_rigid_body.center(2);
+    central_second_moment(1,2) = central_second_moment(2,1) = moment[11] -
+        mass * free_rigid_body.center(1) * free_rigid_body.center(2);
+    central_second_moment(2,2) = moment[12] -
+        mass * free_rigid_body.center(2) * free_rigid_body.center(2);
+#endif
+    free_rigid_body.inertia = central_second_moment.trace() *
+        Set::Matrix::Identity() - central_second_moment;
+    free_rigid_body.radius_of_gyration = std::sqrt(Util::Max(
+        central_second_moment.trace() / mass, 0.0));
+
+#if AMREX_SPACEDIM == 2
+    const Set::Scalar angular_momentum = moment[15] -
+        (free_rigid_body.center(0) * moment[5] -
+        free_rigid_body.center(1) * moment[4]);
+    const Set::Scalar scalar_inertia = central_second_moment.trace();
+    if (scalar_inertia > density_floor)
+        free_rigid_body.angular_velocity(0) =
+            angular_momentum / scalar_inertia;
+#elif AMREX_SPACEDIM == 3
+    Set::Vector angular_momentum;
+    angular_momentum(0) = moment[13] -
+        (free_rigid_body.center(1) * moment[6] -
+        free_rigid_body.center(2) * moment[5]);
+    angular_momentum(1) = moment[14] -
+        (free_rigid_body.center(2) * moment[4] -
+        free_rigid_body.center(0) * moment[6]);
+    angular_momentum(2) = moment[15] -
+        (free_rigid_body.center(0) * moment[5] -
+        free_rigid_body.center(1) * moment[4]);
+    if (Util::Abs(free_rigid_body.inertia.determinant()) > density_floor)
+        free_rigid_body.angular_velocity =
+            free_rigid_body.inertia.inverse() * angular_momentum;
+#endif
+    free_rigid_body.valid = true;
+}
+
 
 void
 LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
@@ -1270,6 +1488,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const int nlev = finest_level + 1;
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
+    const bool fixed_rigid_solid = !fixed_rigid_solid_species.empty();
+    const bool free_rigid_solid = free_rigid_solid_species >= 0;
     const bool mixed_phase = deformable_solid || rigid_solid;
     const bool split_chemistry = chemistry.Split();
     const bool split_diffusion =
@@ -1278,6 +1498,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> projection_source(nlev);
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> provisional_velocity(nlev);
 
     for (int lev = 0; lev < nlev; ++lev)
     {
@@ -1285,38 +1507,53 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
         velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
         UpdateComponentState(lev, *component_density_mf[lev]);
+    }
 
-        if (rigid_solid)
+    // The body's position and inertia come from the current phase field.  Its
+    // velocity is predicted from pressure-corrected states so that the
+    // Brinkman update can be included in the one primary projection.
+    FreeRigidBodyState projected_body_state = free_rigid_body;
+    FreeRigidBodyState target_body;
+    if (free_rigid_solid)
+    {
+        UpdateFreeRigidBodyState();
+        target_body = free_rigid_body;
+        if (target_body.valid && projected_body_state.valid)
         {
-            // Eliminate the implicit Brinkman term locally; its mobility also
-            // weights the pressure operator and correction below.
-            const Set::Scalar inverse_relaxation_time = 1.0 / rigid_relaxation_time;
-            const Set::Vector target_velocity = rigid_velocity;
-            for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            target_body.velocity = projected_body_state.velocity;
+            target_body.angular_velocity =
+                projected_body_state.angular_velocity;
+            if (previous_free_rigid_body.valid)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> eta = rigid_eta_mf.Patch(lev,mfi);
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    const Set::Scalar weight =
-                        Model::PhaseField::H(eta(i,j,k));
-                    const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
-                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                        u(i,j,k,d) = mobility * u(i,j,k,d) +
-                                    (1.0 - mobility) * target_velocity(d);
-                });
+                const Set::Scalar extrapolation = previous_free_rigid_dt > 0.0 ?
+                    dt / previous_free_rigid_dt : 1.0;
+                target_body.velocity += extrapolation *
+                    (projected_body_state.velocity -
+                    previous_free_rigid_body.velocity);
+                target_body.angular_velocity += extrapolation *
+                    (projected_body_state.angular_velocity -
+                    previous_free_rigid_body.angular_velocity);
             }
-            velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
-            velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+        }
+
+        if (free_rigid_picard_iterations > 1)
+        {
+            for (int lev = 0; lev < nlev; ++lev)
+            {
+                provisional_velocity[lev] = std::make_unique<amrex::MultiFab>(
+                    velocity_mf[lev]->boxArray(),
+                    velocity_mf[lev]->DistributionMap(), AMREX_SPACEDIM,
+                    velocity_mf[lev]->nGrow());
+                amrex::MultiFab::Copy(*provisional_velocity[lev],
+                    *velocity_mf[lev], 0, 0, AMREX_SPACEDIM,
+                    velocity_mf[lev]->nGrow());
+            }
         }
     }
 
     for (int lev = 0; lev < nlev; ++lev)
     {
         const Set::Scalar* DX = geom[lev].CellSize();
-        amrex::MultiFab& u_mf = *velocity_mf[lev];
         amrex::MultiFab& beta_mf = pressure_poisson.Coefficient(lev);
         const Set::Scalar rho_floor = density_floor;
         const Set::Scalar inverse_relaxation_time = rigid_solid ?
@@ -1396,61 +1633,255 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> fixed_rigid_eta;
+            if (fixed_rigid_solid)
+                fixed_rigid_eta = fixed_rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> free_rigid_eta;
+            if (free_rigid_solid)
+                free_rigid_eta = free_rigid_eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                const Set::Scalar weight = rigid_solid ?
-                    Model::PhaseField::H(rigid_eta(i,j,k)) : 0.0;
+                Set::Scalar weight = 0.0;
+                if (fixed_rigid_solid)
+                    weight += Model::PhaseField::H(Util::Clamp(
+                        fixed_rigid_eta(i,j,k), 0.0, 1.0));
+                if (free_rigid_solid)
+                    weight += Model::PhaseField::H(Util::Clamp(
+                        free_rigid_eta(i,j,k), 0.0, 1.0));
                 const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
                 beta(i,j,k) = mobility / Util::Max(rho(i,j,k), rho_floor);
             });
         }
-        pressure_poisson.PrepareRHS(lev, u_mf, dt);
+        if (free_rigid_solid)
+        {
+            projection_source[lev] = std::make_unique<amrex::MultiFab>(
+                pressure_poisson.RHS(lev).boxArray(),
+                pressure_poisson.RHS(lev).DistributionMap(), 1, 0);
+            amrex::MultiFab::Copy(*projection_source[lev],
+                pressure_poisson.RHS(lev), 0, 0, 1, 0);
+        }
     }
 
-    pressure_poisson.Solve(time, pressure_bc->GetBCRec());
+    auto ApplyRigidPenalty = [&](const FreeRigidBodyState& body)
+    {
+        const Set::Scalar inverse_relaxation_time =
+            1.0 / rigid_relaxation_time;
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            const bool active_free_rigid = free_rigid_solid && body.valid;
+            const auto prob_lo = geom[lev].ProbLoArray();
+            const auto dx = geom[lev].CellSizeArray();
+            const Set::Vector fixed_translation = rigid_velocity;
+            const Set::Vector center = body.center;
+            const Set::Vector free_translation = body.velocity;
+            const Set::Vector rotation = body.angular_velocity;
+            for (amrex::MFIter mfi(*velocity_mf[lev],
+                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> fixed_eta;
+                if (fixed_rigid_solid)
+                    fixed_eta = fixed_rigid_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> free_eta;
+                if (active_free_rigid)
+                    free_eta =
+                        free_rigid_eta_mf.Patch(lev,mfi);
 
-    for (int lev = 0; lev < nlev; ++lev)
-        amrex::MultiFab::Copy(*pressure_correction_mf[lev],
-                            pressure_poisson.Solution(lev), 0, 0, 1, 0);
+                amrex::ParallelFor(bx,
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar total_weight = 0.0;
+                    Set::Scalar weighted_target[AMREX_SPACEDIM] = {0.0};
+                    if (fixed_rigid_solid)
+                    {
+                        const Set::Scalar weight = Model::PhaseField::H(
+                            Util::Clamp(fixed_eta(i,j,k), 0.0, 1.0));
+                        total_weight += weight;
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                            weighted_target[d] += weight *
+                                fixed_translation(d);
+                    }
+                    if (active_free_rigid)
+                    {
+                        const Set::Scalar weight = Model::PhaseField::H(
+                            Util::Clamp(free_eta(i,j,k), 0.0, 1.0));
+                        total_weight += weight;
+                        Set::Scalar target[AMREX_SPACEDIM];
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                            target[d] = free_translation(d);
+#if AMREX_SPACEDIM == 2
+                        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
+                        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
+                        target[0] -= rotation(0) * y;
+                        target[1] += rotation(0) * x;
+#elif AMREX_SPACEDIM == 3
+                        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
+                        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
+                        const Set::Scalar z = prob_lo[2] + (k + 0.5) * dx[2] - center(2);
+                        target[0] += rotation(1) * z - rotation(2) * y;
+                        target[1] += rotation(2) * x - rotation(0) * z;
+                        target[2] += rotation(0) * y - rotation(1) * x;
+#endif
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                            weighted_target[d] += weight * target[d];
+                    }
+                    const Set::Scalar mobility = 1.0 /
+                        (1.0 + dt * total_weight * inverse_relaxation_time);
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        u(i,j,k,d) = mobility * (u(i,j,k,d) + dt *
+                            inverse_relaxation_time * weighted_target[d]);
+                });
+            }
+
+            velocity_bc->define(geom[lev]);
+            velocity_bc->FillBoundary(*velocity_mf[lev], 0,
+                AMREX_SPACEDIM, time, 0);
+            velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+        }
+
+        // A composite projection requires covered coarse cells to contain the
+        // same penalized predictor represented by the fine level.
+        if (free_rigid_solid && body.valid)
+        {
+            for (int lev = nlev - 2; lev >= 0; --lev)
+                amrex::average_down(*velocity_mf[lev + 1], *velocity_mf[lev],
+                    geom[lev + 1], geom[lev], 0, AMREX_SPACEDIM,
+                    refRatio(lev));
+            for (int lev = 0; lev < nlev; ++lev)
+            {
+                velocity_bc->define(geom[lev]);
+                velocity_bc->FillBoundary(*velocity_mf[lev], 0,
+                    AMREX_SPACEDIM, time, 0);
+                velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+            }
+        }
+    };
+
+    auto RigidBodyResidual = [](const FreeRigidBodyState& a,
+                                const FreeRigidBodyState& b)
+    {
+        if (!a.valid && !b.valid) return Set::Scalar(0.0);
+        if (!a.valid || !b.valid) return Set::Scalar(1.0e100);
+        const Set::Scalar radius = Util::Max(
+            Util::Max(a.radius_of_gyration, b.radius_of_gyration), 1.0e-12);
+        Set::Scalar delta_squared = 0.0;
+        Set::Scalar a_squared = 0.0;
+        Set::Scalar b_squared = 0.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            const Set::Scalar delta_velocity = a.velocity(d) - b.velocity(d);
+            const Set::Scalar delta_rotation = radius *
+                (a.angular_velocity(d) - b.angular_velocity(d));
+            delta_squared += delta_velocity * delta_velocity +
+                delta_rotation * delta_rotation;
+            a_squared += a.velocity(d) * a.velocity(d) + radius * radius *
+                a.angular_velocity(d) * a.angular_velocity(d);
+            b_squared += b.velocity(d) * b.velocity(d) + radius * radius *
+                b.angular_velocity(d) * b.angular_velocity(d);
+        }
+        const Set::Scalar scale = Util::Max(
+            Util::Max(std::sqrt(a_squared), std::sqrt(b_squared)), 1.0e-12);
+        return std::sqrt(delta_squared) / scale;
+    };
+
+    const int projection_iterations = free_rigid_solid ?
+        free_rigid_picard_iterations : 1;
+    last_free_rigid_picard_iterations = 0;
+    last_free_rigid_picard_residual = 0.0;
+    for (int iteration = 0; iteration < projection_iterations; ++iteration)
+    {
+        // Picard corrections are alternative coupled solutions of the same
+        // step.  Always restart from u* instead of projecting an already
+        // corrected velocity again.
+        if (iteration > 0)
+            for (int lev = 0; lev < nlev; ++lev)
+                amrex::MultiFab::Copy(*velocity_mf[lev],
+                    *provisional_velocity[lev], 0, 0, AMREX_SPACEDIM,
+                    velocity_mf[lev]->nGrow());
+
+        if (rigid_solid) ApplyRigidPenalty(target_body);
+
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            if (free_rigid_solid)
+                amrex::MultiFab::Copy(pressure_poisson.RHS(lev),
+                    *projection_source[lev], 0, 0, 1, 0);
+            pressure_poisson.PrepareRHS(lev, *velocity_mf[lev], dt);
+        }
+        pressure_poisson.Solve(time, pressure_bc->GetBCRec());
+
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            pressure_poisson.ApplyCorrection(lev, *velocity_mf[lev], dt);
+            velocity_bc->define(geom[lev]);
+            velocity_bc->FillBoundary(*velocity_mf[lev], 0,
+                AMREX_SPACEDIM, time, 0);
+            velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+        }
+        for (int lev = nlev - 2; lev >= 0; --lev)
+            amrex::average_down(*velocity_mf[lev + 1], *velocity_mf[lev],
+                geom[lev + 1], geom[lev], 0, AMREX_SPACEDIM,
+                refRatio(lev));
+
+        if (!free_rigid_solid) break;
+
+        UpdateFreeRigidBodyState();
+        last_free_rigid_picard_iterations = iteration + 1;
+        last_free_rigid_picard_residual =
+            RigidBodyResidual(free_rigid_body, target_body);
+        if (last_free_rigid_picard_residual <=
+                free_rigid_picard_tolerance ||
+            iteration + 1 == projection_iterations)
+            break;
+        target_body = free_rigid_body;
+    }
+
+    // Only the final Picard candidate contributes a pressure correction.
     for (int lev = 0; lev < nlev; ++lev)
     {
-        amrex::MultiFab& u_mf = *velocity_mf[lev];
+        amrex::MultiFab::Copy(*pressure_correction_mf[lev],
+            pressure_poisson.Solution(lev), 0, 0, 1, 0);
         amrex::MultiFab& p_mf = *pressure_mf[lev];
         const Set::Scalar p_floor = pressure_floor;
-        const Set::Scalar p_scale = pressure_scale;
-        const Set::Scalar p_scale_inv = 1.0 / p_scale;
+        const Set::Scalar p_scale_inv = 1.0 / pressure_scale;
         const Set::Scalar p_reference = pressure_reference;
         const bool update_pressure = projection_update_pressure;
-
-        pressure_poisson.ApplyCorrection(lev, u_mf, dt);
-
-        for (amrex::MFIter mfi(u_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(p_mf, amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar> p = p_mf.array(mfi);
-            Set::Patch<const Set::Scalar> phi = pressure_poisson.Solution(lev).array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            Set::Patch<const Set::Scalar> phi =
+                pressure_poisson.Solution(lev).array(mfi);
+            amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 if (update_pressure)
-                    p(i,j,k) = Util::Max(p_reference + p_scale_inv * phi(i,j,k), p_floor);
+                    p(i,j,k) = Util::Max(
+                        p_reference + p_scale_inv * phi(i,j,k), p_floor);
             });
         }
-
-        velocity_bc->define(geom[lev]);
-        velocity_bc->FillBoundary(u_mf, 0, AMREX_SPACEDIM, time, 0);
-        u_mf.FillBoundary(geom[lev].periodicity());
         pressure_bc->define(geom[lev]);
         pressure_bc->FillBoundary(p_mf, 0, 1, time, 0);
         p_mf.FillBoundary(geom[lev].periodicity());
     }
 
-    for (int lev = nlev - 2; lev >= 0; --lev)
-        amrex::average_down(*velocity_mf[lev + 1], *velocity_mf[lev],
-                            geom[lev + 1], geom[lev], 0, AMREX_SPACEDIM, refRatio(lev));
+    if (free_rigid_solid)
+    {
+        if (free_rigid_body.valid && projected_body_state.valid)
+        {
+            previous_free_rigid_body = projected_body_state;
+            previous_free_rigid_dt = dt;
+        }
+        else
+        {
+            previous_free_rigid_body = FreeRigidBodyState{};
+            previous_free_rigid_dt = NAN;
+        }
+    }
 }
 
 void
@@ -1723,7 +2154,9 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
         if (deformable_solid)
             xi_rhs = xi_rhs_mf->array(mfi);
         const int ngas = ngas_species;
-        const int solid = deformable_solid_species;
+        const int component_count = nspecies;
+        const int deformable_component = deformable_solid_species;
+        const int free_rigid_component = free_rigid_solid_species;
         const bool advect_T = advect_temperature;
 
         amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1758,11 +2191,16 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                     advect(component_density, u, i, j, k, n, DX,
                             {Numeric::Advect::Form::Conservative}, sten) + mechanism_source + species[n];
             }
-            if (deformable_solid)
+            for (int n = ngas; n < component_count; ++n)
             {
-                const Set::Scalar mechanism_source = component_density_rhs(i,j,k,solid);
-                component_density_rhs(i,j,k,solid) =
-                    advect(component_density, u, i, j, k, solid, DX,
+                // Prescribed/fixed rigid phases keep their existing spatial
+                // profiles.  Their mechanism source was assembled above;
+                // only deformable and freely moving phases are transported.
+                if (n != deformable_component && n != free_rigid_component)
+                    continue;
+                const Set::Scalar mechanism_source = component_density_rhs(i,j,k,n);
+                component_density_rhs(i,j,k,n) =
+                    advect(component_density, u, i, j, k, n, DX,
                             {Numeric::Advect::Form::Conservative}, sten) + mechanism_source;
             }
             if (deformable_solid)
@@ -2116,7 +2554,31 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
                         << " divmax " << divmax
                         << " divrms " << divrms
                         << " divmax_interior " << divmax_interior
-                        << " divrms_interior " << divrms_interior << "\n";
+                        << " divrms_interior " << divrms_interior;
+    if (amrex::ParallelDescriptor::IOProcessor() && free_rigid_body.valid)
+    {
+        amrex::Print() << " free_rigid_mass " << free_rigid_body.mass
+                        << " free_rigid_center_x " << free_rigid_body.center(0)
+                        << " free_rigid_velocity_x " << free_rigid_body.velocity(0);
+#if AMREX_SPACEDIM > 1
+        amrex::Print() << " free_rigid_center_y " << free_rigid_body.center(1)
+                        << " free_rigid_velocity_y " << free_rigid_body.velocity(1)
+                        << " free_rigid_omega " << free_rigid_body.angular_velocity(0);
+#endif
+#if AMREX_SPACEDIM > 2
+        amrex::Print() << " free_rigid_center_z " << free_rigid_body.center(2)
+                        << " free_rigid_velocity_z " << free_rigid_body.velocity(2)
+                        << " free_rigid_omega_y " << free_rigid_body.angular_velocity(1)
+                        << " free_rigid_omega_z " << free_rigid_body.angular_velocity(2);
+#endif
+        amrex::Print() << " free_rigid_radius_of_gyration "
+                        << free_rigid_body.radius_of_gyration
+                        << " free_rigid_picard_iterations "
+                        << last_free_rigid_picard_iterations
+                        << " free_rigid_picard_residual "
+                        << last_free_rigid_picard_residual;
+    }
+    if (amrex::ParallelDescriptor::IOProcessor()) amrex::Print() << "\n";
 }
 
 void
