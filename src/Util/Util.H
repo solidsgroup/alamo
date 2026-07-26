@@ -15,6 +15,8 @@
 #include "Util/String.H"
 
 #include "AMReX.H"
+#include <AMReX_GpuAtomic.H>
+#include <AMReX_GpuMemory.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_iMultiFab.H>
@@ -23,6 +25,15 @@
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
 #define TEST(x) #x, x
+
+#ifdef ALAMO_GPU
+#define ALAMO_GPU_UNSUPPORTED_HOST_LOOP(name) \
+    do { \
+        Util::Abort(INFO, name, " is not supported in CUDA builds because it writes device-arena fabs from a host LoopConcurrentOnCpu path."); \
+    } while (false)
+#else
+#define ALAMO_GPU_UNSUPPORTED_HOST_LOOP(name) do {} while (false)
+#endif
 
 
 #ifndef ALAMO_SINGLE_DEFINITION
@@ -35,7 +46,6 @@ namespace Util
 extern std::string globalprefix;
 extern bool initialized;
 extern bool finalized;
-
 
 std::string GetFileName();
 void CopyFileToOutputDir(std::string a_path, bool fullpath = true, std::string prefix = "");
@@ -51,12 +61,34 @@ void Finalize ();
 
 void Terminate(const char * msg, int signal, bool backtrace);
 
+AMREX_GPU_HOST_DEVICE
 void Abort (const char * msg);
 
-template<typename... Args>
-AMREX_FORCE_INLINE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
+class DeviceErrorFlag
 {
+public:
+    DeviceErrorFlag() : m_flag(0) {}
+
+    [[nodiscard]] int* dataPtr() { return m_flag.dataPtr(); }
+    [[nodiscard]] int value() const { return m_flag.dataValue(); }
+
+private:
+    amrex::Gpu::DeviceScalar<int> m_flag;
+};
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void SetDeviceError(int* flag)
+{
+    if (flag == nullptr) return;
+    AMREX_IF_ON_DEVICE((amrex::Gpu::Atomic::AddNoRet(flag, 1);))
+    AMREX_IF_ON_HOST((*flag = 1;))
+}
+
+template<typename... Args>
+AMREX_GPU_HOST_DEVICE
+void Assert (const char * file, const char * func, int line, const char * smt, bool pass, Args const &... args)
+{
+#ifndef __CUDA_ARCH__
     if (pass) return;
 
     std::ostringstream infostream;
@@ -77,12 +109,17 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    amrex::Abort();
+#endif
 }
 
 
 template<typename... Args>
-void Abort (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Abort (const char * file, const char * func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -101,12 +138,29 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
         std::cout << info << message << std::endl;
     }
     Abort("Fatal Error");
+#else
+    amrex::Abort();
+#endif
 }
 
 template<typename... Args>
+void AbortIfDeviceError(const DeviceErrorFlag& flag, const char* file, const char* func, int line, Args const&... args)
+{
+    // flag.value() only syncs the *current* stream (DeviceScalar::dataValue()).
+    // SetDeviceError() writes from boxes processed on other streams in AMReX's
+    // per-MFIter stream pool may still be in flight, so a bare read here can
+    // silently miss a real device-side error (false negative, not corruption --
+    // but the masked error state then propagates downstream to code that isn't
+    // expecting it). Full sync before the read closes that window.
+    amrex::Gpu::streamSynchronizeAll();
+    if (flag.value() != 0) Util::Abort(file, func, line, args...);
+}
+
+template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void ParallelAbort (std::string file, std::string func, int line, Args const &... args)
 {
-
+#ifndef __CUDA_ARCH__
     std::ostringstream infostream;
     infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
@@ -123,11 +177,16 @@ void ParallelAbort (std::string file, std::string func, int line, Args const &..
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    amrex::Abort();
+#endif
 }
 
 template<typename... Args>
-void Message (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Message (const char * file, const char * func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -146,6 +205,9 @@ void Message (std::string file, std::string func, int line, Args const &... args
 
         std::cout << info << message << std::endl;
     }
+#else
+    // Device-side messages are intentionally suppressed.
+#endif
 }
 
 #ifdef AMREX_DEBUG
@@ -182,8 +244,10 @@ void DebugMessage (std::string, std::string, int, Args const &... )
 
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     std::ostringstream infostream;
     infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
@@ -196,11 +260,16 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
     Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
+#else
+    // Device-side messages are intentionally suppressed.
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void Warning (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -219,12 +288,17 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 
         std::cout << info << message << std::endl;
     }
+#else
+    // Device-side warnings are intentionally suppressed.
+#endif
 }
 
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void Exception (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -247,14 +321,19 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
 
         std::throw_with_nested(std::runtime_error("IO::Exception"));
     }
+#else
+    amrex::Abort();
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 void AssertException (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
     if (pass) return;
 
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -276,6 +355,9 @@ void AssertException (std::string file, std::string func, int line, std::string 
 
         Exception(file,func,line,"Fatal Error");
     }
+#else
+    amrex::Abort();
+#endif
 }
 
 
@@ -334,6 +416,8 @@ int SubFinalMessage(int failed);
 // These two functions are not really necessary anymore.
 // TODO: remove RealFillBoundary and all references to them.
 //
+
+
 template<class T>
 AMREX_FORCE_INLINE
 void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/, const int nghost=2)
@@ -355,7 +439,6 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, 
 }
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
-
 
 template <class T>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
