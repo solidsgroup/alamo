@@ -4,7 +4,9 @@
 #include "Util/Util.H"
 
 #include "Test/Numeric/Stencil.H"
+#include "Test/BC/Constant.H"
 #include "Test/Set/Matrix4.H"
+#include "Test/Solver/Nonlocal/Newton.H"
 
 #include "Operator/Elastic.H"
 
@@ -98,6 +100,10 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
         subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
         subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
+        subfailed += Util::Test::SubMessage("face elastic mixed polynomial",
+            Test::Numeric::FaceElasticMixedPolynomial());
+        subfailed += Util::Test::SubMessage("face elastic nullspace",
+            Test::Numeric::FaceElasticNullspace());
 #if AMREX_SPACEDIM>2
         // first order
         subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
@@ -117,6 +123,28 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("1-2-1",test.Derivative<1,2,1>(0));
         subfailed += Util::Test::SubMessage("1-1-2",test.Derivative<1,1,2>(0));
 #endif
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Solver::Nonlocal::Newton test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Line-search residual acceptance",
+            Test::Solver::Nonlocal::LineSearchResidualAcceptance());
+        subfailed += Util::Test::SubMessage("Newton termination decision",
+            Test::Solver::Nonlocal::NewtonTerminationDecision());
+        subfailed += Util::Test::SubMessage("conservative nodal stress reconstruction",
+            Test::Solver::Nonlocal::ConservativeNodalStressReconstruction());
+        subfailed += Util::Test::SubMessage("symmetry nodal stress reconstruction",
+            Test::Solver::Nonlocal::SymmetryNodalStressReconstruction());
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("BC::Constant test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Nonzero Neumann subcell spacing",
+            Test::BC::ConstantNeumannSubcellSpacing());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

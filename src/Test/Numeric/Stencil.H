@@ -134,6 +134,91 @@ private:
     Set::Field<Set::Scalar> DphiNumeric;
     amrex::Vector<std::string> varnames = {"phi","dphi_exact","dphi_numeric"};
 };
+
+inline Set::Matrix IsotropicFaceStress(const Set::Matrix& gradu,
+                                       Set::Scalar lambda,
+                                       Set::Scalar mu)
+{
+    return lambda * gradu.trace() * Set::Matrix::Identity()
+        + mu * (gradu + gradu.transpose());
+}
+
+inline Set::Vector FaceElasticOperator(const amrex::Array4<const Set::Scalar>& u,
+                                       int i, int j, int k,
+                                       const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    constexpr Set::Scalar lambda = 2.0;
+    constexpr Set::Scalar mu = 1.0;
+    Set::Vector value = Set::Vector::Zero();
+    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+    {
+        const int im = i - (face == 0);
+        const int jm = j - (face == 1);
+        const int km = k - (face == 2);
+        const Set::Matrix stress_hi = IsotropicFaceStress(
+            ::Numeric::FaceGradient(u, i, j, k, face, dx), lambda, mu);
+        const Set::Matrix stress_lo = IsotropicFaceStress(
+            ::Numeric::FaceGradient(u, im, jm, km, face, dx), lambda, mu);
+        value += (stress_hi.col(face) - stress_lo.col(face)) / dx[face];
+    }
+    return value;
+}
+
+inline int FaceElasticMixedPolynomial()
+{
+    const amrex::IntVect small(AMREX_D_DECL(-3, -3, -3));
+    const amrex::IntVect big(AMREX_D_DECL(5, 5, 5));
+    amrex::FArrayBox fab(amrex::Box(small, big), AMREX_SPACEDIM);
+    auto u = fab.array();
+    const amrex::Box box = fab.box();
+    amrex::LoopOnCpu(box, [=] (int i, int j, int k)
+    {
+        u(i, j, k, 0) = 0.0;
+        u(i, j, k, 1) = static_cast<Set::Scalar>(i * i * j);
+#if AMREX_SPACEDIM == 3
+        u(i, j, k, 2) = 0.0;
+#endif
+    });
+
+    const Set::Scalar dx[AMREX_SPACEDIM] = {AMREX_D_DECL(1.0, 1.0, 1.0)};
+    const int i = 2, j = 2, k = AMREX_D_PICK(0, 0, 2);
+    const Set::Vector actual = FaceElasticOperator(
+        fab.const_array(), i, j, k, dx);
+    Set::Vector exact = Set::Vector::Zero();
+    exact(0) = 6.0 * i;
+    exact(1) = 2.0 * j;
+    return (actual - exact).lpNorm<Eigen::Infinity>() < 1.0e-12 ? 0 : 1;
+}
+
+inline int FaceElasticNullspace()
+{
+    const amrex::IntVect small(AMREX_D_DECL(-3, -3, -3));
+    const amrex::IntVect big(AMREX_D_DECL(5, 5, 5));
+    amrex::FArrayBox fab(amrex::Box(small, big), AMREX_SPACEDIM);
+    auto u = fab.array();
+    const amrex::Box box = fab.box();
+    const Set::Scalar dx[AMREX_SPACEDIM] = {AMREX_D_DECL(1.0, 1.0, 1.0)};
+    const int i0 = 2, j0 = 2, k0 = AMREX_D_PICK(0, 0, 2);
+
+    amrex::LoopOnCpu(box, [=] (int i, int j, int k)
+    {
+        for (int n = 0; n < AMREX_SPACEDIM; ++n)
+            u(i, j, k, n) = static_cast<Set::Scalar>(n + 1);
+    });
+    const Set::Vector translation = FaceElasticOperator(
+        fab.const_array(), i0, j0, k0, dx);
+
+    amrex::LoopOnCpu(box, [=] (int i, int j, int k)
+    {
+        u(i, j, k, 0) = ((i + j + AMREX_D_PICK(0, 0, k)) & 1) ? -1.0 : 1.0;
+        for (int n = 1; n < AMREX_SPACEDIM; ++n) u(i, j, k, n) = 0.0;
+    });
+    const Set::Vector checkerboard = FaceElasticOperator(
+        fab.const_array(), i0, j0, k0, dx);
+
+    return translation.lpNorm<Eigen::Infinity>() < 1.0e-12
+        && checkerboard.lpNorm<Eigen::Infinity>() > 1.0 ? 0 : 1;
+}
 }
 }
 
