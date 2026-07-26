@@ -6,11 +6,11 @@ name: Linux
     branches:
       - development
       - master
-      - pp-update
   pull_request:
     branches:
       - development
       - master
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 permissions:
@@ -207,7 +207,30 @@ jobs:
             }}
           path: cov
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
+
+  documentation:
+    name: Build documentation preview
+    if: >-
+      ${{
+        github.event_name == 'push' ||
+        (
+          github.event_name == 'pull_request' &&
+          (
+            github.event.pull_request.head.repo.full_name == github.repository ||
+            contains(github.event.pull_request.labels.*.name, 'docs-preview')
+          )
+        )
+      }}
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_ref: ${{ github.sha }}
+      version: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          format('pr-{0}', github.event.pull_request.number) ||
+          github.ref_name
+        }}
 
   pr-install:
     name: PR install scripts
@@ -228,6 +251,7 @@ jobs:
       - regression
       - fft
       - coverage-report
+      - documentation
       - pr-install
       - pr-memcheck
     runs-on: ubuntu-24.04
@@ -239,6 +263,7 @@ jobs:
           REGRESSION: ${{ needs.regression.result }}
           FFT: ${{ needs.fft.result }}
           COVERAGE: ${{ needs.coverage-report.result }}
+          DOCUMENTATION: ${{ needs.documentation.result }}
           INSTALL: ${{ needs.pr-install.result }}
           MEMCHECK: ${{ needs.pr-memcheck.result }}
         run: |
@@ -247,28 +272,6 @@ jobs:
           test "$REGRESSION" = success
           test "$FFT" = success
           test "$COVERAGE" = success
+          case "$DOCUMENTATION" in success|skipped) ;; *) exit 1 ;; esac
           case "$INSTALL" in success|skipped) ;; *) exit 1 ;; esac
           case "$MEMCHECK" in success|skipped) ;; *) exit 1 ;; esac
-
-  publish-docs:
-    name: Publish branch documentation
-    needs:
-      - ci-gate
-      - coverage-report
-    if: >-
-      ${{
-        github.event_name == 'push' &&
-        needs.ci-gate.result == 'success' &&
-        needs.coverage-report.result == 'success' &&
-        contains(fromJSON('["master","development","pp-update"]'), github.ref_name)
-      }}
-    uses: ./.github/workflows/docs-pages.yml
-    permissions:
-      actions: read
-      contents: read
-      pages: write
-      id-token: write
-    with:
-      current_version: ${{ github.ref_name }}
-      source_ref: ${{ github.sha }}
-      coverage_run_id: ${{ format('{0}', github.run_id) }}
