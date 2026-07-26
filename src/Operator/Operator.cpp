@@ -3,14 +3,23 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
+#include <AMReX_ParallelDescriptor.H>
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
 
 using namespace amrex;
+
+#ifdef ALAMO_GPU
+#define ALAMO_OPERATOR_FOR amrex::ParallelFor
+#define ALAMO_OPERATOR_DEVICE AMREX_GPU_DEVICE
+#else
+#define ALAMO_OPERATOR_FOR amrex::LoopConcurrentOnCpu
+#define ALAMO_OPERATOR_DEVICE
+#endif
+
 namespace Operator {
 
-// constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
 constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx, Operator<Grid::Cell>::dy, Operator<Grid::Cell>::dz);
 
 void Operator<Grid::Node>::Diagonal(bool recompute)
@@ -31,7 +40,6 @@ void Operator<Grid::Node>::Diagonal(bool recompute)
 void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag)
 {
     BL_PROFILE("Operator::Diagonal()");
-    //Util::Message(INFO);
 
     int ncomp = diag.nComp();
     int nghost = 0;
@@ -50,16 +58,15 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
         amrex::FArrayBox& xfab = x[mfi];
         amrex::FArrayBox& Axfab = Ax[mfi];
 
-        diagfab.setVal(0.0);
+        diagfab.setVal<amrex::RunOn::Device>(0.0);
 
         for (int i = 0; i < num; i++)
         {
             for (int n = 0; n < ncomp; n++)
             {
-                xfab.setVal(0.0);
-                Axfab.setVal(0.0);
+                xfab.setVal<amrex::RunOn::Device>(0.0);
+                Axfab.setVal<amrex::RunOn::Device>(0.0);
 
-                //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++),
                     for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++),
                         for (int m3 = bx.loVect()[2]; m3 <= bx.hiVect()[2]; m3++))
@@ -69,17 +76,14 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                     if (m1 % sep == i / sep && m2 % sep == i % sep) xfab(m, n) = 1.0;
                     else xfab(m, n) = 0.0;
                 }
-                //BL_PROFILE_VAR_STOP(part1);
 
                 BL_PROFILE_VAR("Operator::Part2", part2);
                 Util::Message(INFO, "Calling fapply...", cntr++);
                 Fapply(amrlev, mglev, Ax, x);
                 BL_PROFILE_VAR_STOP(part2);
 
-                //BL_PROFILE_VAR("Operator::Part3", part3); 
-                Axfab.mult(xfab, n, n, 1);
-                diagfab.plus(Axfab, n, n, 1);
-                //BL_PROFILE_VAR_STOP(part3);
+                Axfab.mult<amrex::RunOn::Device>(xfab, n, n, 1);
+                diagfab.plus<amrex::RunOn::Device>(Axfab, n, n, 1);
             }
         }
     }
@@ -93,7 +97,8 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
     domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
-    int nghost = 2; //b.nGrow();
+    const bool relax_ghost_rows = relaxCoarseFineGhostRows();
+    int nghost = relax_ghost_rows ? 2 : 0;
 
 
     amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -102,8 +107,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
     if (!m_diagonal_computed) Util::Abort(INFO, "Operator::Diagonal() must be called before using Fsmooth");
 
-    // This is a JACOBI iteration, not Gauss-Seidel.
-    // So we need to do twice the number of iterations to get the same behavior as GS.
+    // Jacobi, not Gauss-Seidel: run twice to match GS behavior.
     for (int ctr = 0; ctr < 2; ctr++)
     {
         Fapply(amrlev, mglev, Ax, x); // find Ax
@@ -116,35 +120,34 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.grownnodaltilebox();
+            // relax_ghost_rows: conservative rows treat C/F ghosts as prescribed interpolation data.
+            Box bx = relax_ghost_rows ? mfi.grownnodaltilebox()
+                                      : (mfi.nodaltilebox() & domain);
             
-            amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
-            amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
-            amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
-            amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
+            auto xfab = x.array(mfi);
+            auto bfab = b.const_array(mfi);
+            auto Rxfab = Rx.const_array(mfi);
+            auto diagfab = (*m_diag[amrlev][mglev]).const_array(mfi);
 
-
-            for (int n = 0; n < ncomp; n++)
+            auto m_omega = this->m_omega;
+            amrex::ParallelFor(bx, ncomp, [=] AMREX_GPU_DEVICE(int i, int j, int k, int n)
             {
-                amrex::ParallelFor(bx, [&] AMREX_GPU_DEVICE(int i, int j, int k) 
-                {
 
-                    // Skip ghost cells outside problem domain
-                    if (!domain.contains(i,j,k))
-                    {
-                        //continue;
-                    }
-                    else if ( !bx.strictly_contains(i,j,k))
-                    {
-                        xfab(i, j, k, n) = 0.0;
-                        //continue;
-                    }
-                    else
-                    {
-                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
-                    }
-                });
-            }
+                if (relax_ghost_rows && !domain.contains(i,j,k))
+                {
+                    // Physical ghosts are supplied by the boundary condition.
+                }
+                else if (relax_ghost_rows && !bx.strictly_contains(i,j,k))
+                {
+                    xfab(i, j, k, n) = 0.0;
+                }
+                else
+                {
+                    xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n)
+                        + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n))
+                        / diagfab(i,j,k,n);
+                }
+            });
         }
         amrex::Geometry geom = m_geom[amrlev][mglev];
         x.setMultiGhost(true);
@@ -158,7 +161,8 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
     if (!m_diagonal_computed)
         Util::Abort(INFO, "Operator::Diagonal() must be called before using normalize");
 
-    a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),2);
+    a_x.divide(*m_diag[amrlev][mglev], 0, getNComp(),
+        relaxCoarseFineGhostRows() ? 2 : 0);
 
     a_x.setMultiGhost(true);
     a_x.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
@@ -220,9 +224,7 @@ void Operator<Grid::Node>::define(const Vector<Geometry>& a_geom,
         }
     }
 
-    // We need to instantiate the m_lobc objects.
-    // WE DO NOT USE THEM - our BCs are implemented differently.
-    // But they need to be the right size or the code will segfault.
+    // m_lobc/m_hibc unused (BCs implemented differently) but must be sized to avoid segfault.
     m_lobc.resize(getNComp(), { {AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)} });
     m_hibc.resize(getNComp(), { {AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)} });
 }
@@ -289,11 +291,31 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
         for (int n = 0; n < crse.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
+            // (I,J,K) = coarse, (i,j,k) = fine
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
+#if AMREX_SPACEDIM == 2
+                if ((I == lo.x || I == hi.x) && (J == lo.y || J == hi.y)) // Corner
+                {
+                    cdata(I, J, K, n) = fdata(i, j, k, n);
+                }
+                else if (J == lo.y || J == hi.y) // Y boundary
+                {
+                    cdata(I, J, K, n) = 0.25 * fdata(i - 1, j, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i + 1, j, k, n);
+                }
+                else if (I == lo.x || I == hi.x) // X boundary
+                {
+                    cdata(I, J, K, n) = 0.25 * fdata(i, j - 1, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i, j + 1, k, n);
+                }
+                else // Interior
+                {
+                    cdata(I, J, K, n) =
+                        (+fdata(i - 1, j - 1, k, n) + 2.0 * fdata(i, j - 1, k, n) + fdata(i + 1, j - 1, k, n)
+                            + 2.0 * fdata(i - 1, j, k, n) + 4.0 * fdata(i, j, k, n) + 2.0 * fdata(i + 1, j, k, n)
+                            + fdata(i - 1, j + 1, k, n) + 2.0 * fdata(i, j + 1, k, n) + fdata(i + 1, j + 1, k, n)) / 16.0;
+                }
+#else
                 if ((I == lo.x || I == hi.x) &&
                     (J == lo.y || J == hi.y) &&
                     (K == lo.z || K == hi.z)) // Corner
@@ -349,6 +371,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
                         fdata(i + 1, j, k, n) + fdata(i, j + 1, k, n) + fdata(i, j, k + 1, n)) / 16.0
                     +
                     fdata(i, j, k, n) / 8.0;
+#endif
             });
         }
     }
@@ -386,7 +409,10 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
         tmpfab.resize(tmpbx, fine.nComp());
-        tmpfab.setVal(0.0);
+        // Elixir required: without it this per-box temp can be freed/reused by a different CUDA stream
+        // mid-flight, causing a nondeterministic cross-stream race (GPU multi-box MLMG divergence).
+        amrex::Gpu::Elixir tmpfab_eli = tmpfab.elixir();
+        tmpfab.setVal<amrex::RunOn::Device>(0.0);
         const amrex::FArrayBox& crsefab = (*cmf)[mfi];
 
         amrex::Array4<const amrex::Real> const& cdata = crsefab.const_array();
@@ -394,12 +420,22 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
         for (int n = 0; n < crse.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
-            amrex::ParallelFor(fine_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // (I,J,K) = coarse, (i,j,k) = fine
+            ALAMO_OPERATOR_FOR(fine_bx, [=] ALAMO_OPERATOR_DEVICE (int i, int j, int k) {
 
                 int I = i / 2, J = j / 2, K = k / 2;
 
+#if AMREX_SPACEDIM == 2
+                if (i % 2 == 0 && j % 2 == 0) // Coincident
+                    fdata(i, j, k, n) = cdata(I, J, K, n);
+                else if (j % 2 == 0) // X edge
+                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n));
+                else if (i % 2 == 0) // Y edge
+                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I, J + 1, K, n));
+                else // Center
+                    fdata(i, j, k, n) = 0.25 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n) +
+                        cdata(I, J + 1, K, n) + cdata(I + 1, J + 1, K, n));
+#else
                 if (i % 2 == 0 && j % 2 == 0 && k % 2 == 0) // Coincident
                     fdata(i, j, k, n) = cdata(I, J, K, n);
                 else if (j % 2 == 0 && k % 2 == 0) // X Edge
@@ -422,15 +458,17 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
                         cdata(I + 1, J, K, n) + cdata(I, J + 1, K, n) + cdata(I, J, K + 1, n) +
                         cdata(I, J + 1, K + 1, n) + cdata(I + 1, J, K + 1, n) + cdata(I + 1, J + 1, K, n) +
                         cdata(I + 1, J + 1, K + 1, n));
+#endif
 
             });
         }
-        fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
+        fine[mfi].plus<amrex::RunOn::Device>(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
     fine.setMultiGhost(true);
     fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
     nodalSync(amrlev, fmglev, fine);
+
 }
 
 void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
@@ -447,6 +485,78 @@ void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_so
 
 }
 
+void Operator<Grid::Node>::interpolationAmr(int famrlev, MultiFab& fine,
+    const MultiFab& crse, IntVect const& nghost) const
+{
+    BL_PROFILE("Operator::interpolationAmr()");
+    if (!useQuadraticAmrInterpolation())
+    {
+        amrex::MLNodeLinOp::interpolationAmr(famrlev, fine, crse, nghost);
+        return;
+    }
+    Util::Assert(INFO, TEST(AMRRefRatio(famrlev - 1) == 2));
+    const int ncomp = getNComp();
+
+    for (MFIter mfi(fine, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        Box fbx = mfi.tilebox();
+        const Box valid = mfi.validbox();
+        fbx.grow(nghost);
+        const Dim3 vlo = amrex::lbound(valid), vhi = amrex::ubound(valid);
+        Array4<Real> const& ffab = fine.array(mfi);
+        Array4<Real const> const& cfab = crse.const_array(mfi);
+
+        ALAMO_OPERATOR_FOR(fbx, ncomp,
+            [=] ALAMO_OPERATOR_DEVICE(int i, int j, int k, int n)
+        {
+            int ci[3][3] = {};
+            Real cw[3][3] = {};
+            int nc[3] = {1, 1, 1};
+            cw[0][0] = cw[1][0] = cw[2][0] = 1.0;
+
+            const int fi[3] = {i, j, k};
+            const int flo[3] = {vlo.x, vlo.y, vlo.z};
+            const int fhi[3] = {vhi.x, vhi.y, vhi.z};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const int q = fi[d] >= 0 ? fi[d] / 2 : (fi[d] - 1) / 2;
+                if (fi[d] % 2 == 0)
+                {
+                    ci[d][0] = q;
+                }
+                else if (fi[d] < flo[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q;     cw[d][0] =  3.0 / 8.0;
+                    ci[d][1] = q + 1; cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 2; cw[d][2] = -1.0 / 8.0;
+                }
+                else if (fi[d] > fhi[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q - 1; cw[d][0] = -1.0 / 8.0;
+                    ci[d][1] = q;     cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 1; cw[d][2] =  3.0 / 8.0;
+                }
+                else
+                {
+                    nc[d] = 2;
+                    ci[d][0] = q;     cw[d][0] = 0.5;
+                    ci[d][1] = q + 1; cw[d][1] = 0.5;
+                }
+            }
+
+            Real value = 0.0;
+            for (int a = 0; a < nc[0]; ++a)
+                for (int b = 0; b < nc[1]; ++b)
+                    for (int c = 0; c < nc[2]; ++c)
+                        value += cw[0][a] * cw[1][b] * cw[2][c]
+                            * cfab(ci[0][a], ci[1][b], ci[2][c], n);
+            ffab(i, j, k, n) = value;
+        });
+    }
+}
+
 void Operator<Grid::Node>::realFillBoundary(MultiFab& phi, const Geometry& geom)
 {
     Util::RealFillBoundary(phi, geom);
@@ -460,8 +570,6 @@ void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/
     const Geometry& geom = m_geom[amrlev][mglev];
 
     if (!skip_fillboundary) {
-        //phi.FillBoundary(geom.periodicity());
-        //phi.setMultiGhost(true);
         phi.FillBoundaryAndSync(geom.periodicity());
     }
 }
@@ -548,6 +656,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // const int coarse_coarse_node = 0;
     const int coarse_fine_node = 1;
     const int fine_fine_node = 2;
+    const bool retain_coarse_fine = retainCoarseFineResidualRow();
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
@@ -557,7 +666,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const int> const& nmask = nodemask.array(mfi);
-        //amrex::Array4<const int> const& cmask = cellmask.array(mfi);
 
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
@@ -566,12 +674,13 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
-            // I,J,K == coarse coordinates
-            // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            // (I,J,K) = coarse, (i,j,k) = fine
+            ALAMO_OPERATOR_FOR(bx, [=] ALAMO_OPERATOR_DEVICE (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
-                if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)
+                // Only nodes fully covered by the fine level get its residual; shared C/F nodes keep this level's row.
+                if (nmask(I, J, K) == fine_fine_node ||
+                    (!retain_coarse_fine && nmask(I, J, K) == coarse_fine_node))
                 {
                     if ((I == lo.x || I == hi.x) &&
                         (J == lo.y || J == hi.y) &&
@@ -639,7 +748,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int mglev = 0;
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
@@ -650,8 +759,10 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
 {
     resid.setVal(0.0);
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
