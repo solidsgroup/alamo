@@ -291,6 +291,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // we install no psi at all: psi_avg stays 1 everywhere and the gas is
         // conditioned only by its (soft, unitized) model_void stiffness.
         value.psi_on = false;
+        value.solver.setConservativeFaceFlux(!value.elastic.use_psi);
         if (value.elastic.use_psi)
             value.solver.setPsi(value.psi_mf);
     }
@@ -423,7 +424,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Scalar Tcutoff = thermal.Tcutoff;
-
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
@@ -495,7 +495,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 });
             }
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
 
     }
 }
@@ -956,4 +957,3 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
