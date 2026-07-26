@@ -232,10 +232,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Phi refinement criteria
         pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
 
+        // Opt into the conservative face-flux formulation by using an explicit,
+        // finite-stiffness void material instead of an eta mask.
+        pp_query_default("elastic.use_psi", value.elastic.use_psi, 1);
+
         // Elastic integrator
         pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
-
-
 
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
@@ -244,6 +246,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        if (!value.elastic.use_psi)
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>(
+                "model_void", value.elastic.model_void);
 
         // eta cutoff value to stop applying the traction force and/or chamber pressure to the RHS.
         // Below this vlaue the RHS is set to 0.0
@@ -254,14 +259,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         // Use our current eta field as the psi field for the solver
         value.psi_on = false;
-        value.solver.setPsi(value.eta_mf);
+        value.solver.setConservativeFaceFlux(!value.elastic.use_psi);
+        if (value.elastic.use_psi)
+            value.solver.setPsi(value.eta_mf);
 
         if (IO::ParmParse::InTraversalMode()) return;
 
         Util::AssertException(INFO, TEST(value.m_type != Disable), "You must specify elastic type to be dynamic or static");
     });
-
-
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -332,6 +337,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Scalar Tcutoff = thermal.Tcutoff;
+            const bool use_psi = elastic.use_psi;
 
             if (elastic.on)
             {
@@ -341,7 +347,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
 
-                    if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && elastic.apply_chamber_pressure)
+                    if (!use_psi)
+                        {
+                            rhs(i, j, k) = -elastic.traction * grad_eta;
+                        }
+                    else if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && elastic.apply_chamber_pressure)
                         {
                             rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
                             // std::cout << "Applying chamber pressure" << std::endl;
@@ -369,7 +379,23 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 *= (temp_avg - elastic.Telastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
+                    model_type solid_model =
+                        model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    if (elastic.use_psi)
+                    {
+                        model(i, j, k) = solid_model;
+                    }
+                    else
+                    {
+                        model_type model_void = elastic.model_void;
+                        model_void.F0 -= Set::Matrix::Identity();
+                        model_void.F0 *= (temp_avg - elastic.Telastic);
+                        model_void.F0 += Set::Matrix::Identity();
+                        const Set::Scalar eta_value =
+                            Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, 0);
+                        model(i, j, k) = solid_model * eta_value
+                            + model_void * (1.0 - eta_value);
+                    }
                 });
             }
             else
@@ -386,7 +412,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 });
             }
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
 
     }
 }

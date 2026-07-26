@@ -116,11 +116,14 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
-        model_type model_ap, model_htpb;
+        model_type model_ap, model_htpb, model_void;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
         Set::Scalar etacutoff = NAN;
         Set::Scalar apply_chamber_pressure = NAN;
+        // The legacy masked formulation uses eta as psi.  The conservative
+        // formulation instead resolves a finite-stiffness void material.
+        int use_psi = 1;
     } elastic;
 
     // Chamber state variables (not inputs)
