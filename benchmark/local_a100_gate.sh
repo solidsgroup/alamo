@@ -54,6 +54,8 @@ TIERS="${TIERS:-1 2}"   # default = smoke + memcheck (practical per-change gate)
 OUT="${OUT:-$ROOT/benchmark/_a100_gate_$(date +%Y%m%d_%H%M%S)}"
 CUDA_HOME="${CUDA_HOME:-$ROOT/.local/cuda}"
 SAN="${SAN:-$ROOT/.local/cuda-12.0-ubuntu/usr/bin/compute-sanitizer}"
+ARENA_INIT_SIZE="${ARENA_INIT_SIZE:-1073741824}"
+MLMG_NO_GPU_SYNC="${MLMG_NO_GPU_SYNC:-0}"
 export CUDA_HOME
 export LD_LIBRARY_PATH="${CUDA_HOME}/lib:${LD_LIBRARY_PATH:-}"
 
@@ -71,7 +73,9 @@ need_san () { [ -x "$SAN" ] || { echo "ERROR: missing compute-sanitizer at $SAN"
 run_base () {  # $1=logfile  $2=stop_time  rest=extra alamo args
   local log="$1" stop="$2"; shift 2
   "$BIN" "$INPUT" amr.max_grid_size="$MGS" plot_file="$OUT/plt" \
-      stop_time="$stop" "${ELASTIC_FAST[@]}" "$@" >"$log" 2>&1
+      stop_time="$stop" "${ELASTIC_FAST[@]}" \
+      elastic.solver.no_gpu_sync="$MLMG_NO_GPU_SYNC" \
+      amrex.the_arena_init_size="$ARENA_INIT_SIZE" "$@" >"$log" 2>&1
 }
 
 # --- Tier 1: runtime-strict smoke -------------------------------------------
@@ -95,7 +99,10 @@ tier2 () {
   local log="$OUT/tier2_memcheck.log" t0=$(date +%s)
   "$SAN" --tool memcheck --error-exitcode 99 --launch-timeout 120 \
       "$BIN" "$INPUT" amr.max_grid_size="$MGS" plot_file="$OUT/plt_mc" \
-      stop_time="$STOP_TIME" "${ELASTIC_FAST[@]}" amrex.the_arena_is_managed=1 >"$log" 2>&1
+      stop_time="$STOP_TIME" "${ELASTIC_FAST[@]}" \
+      elastic.solver.no_gpu_sync="$MLMG_NO_GPU_SYNC" \
+      amrex.the_arena_init_size="$ARENA_INIT_SIZE" \
+      amrex.the_arena_is_managed=1 >"$log" 2>&1
   local rc=$?; local t1=$(date +%s)
   if grep -q "ERROR SUMMARY: 0 errors" "$log"; then
     echo "  PASS  wall=$((t1-t0))s  -> $log"
@@ -113,7 +120,10 @@ tier3 () {
     local log="$OUT/tier3_${tool}.log" t0=$(date +%s)
     "$SAN" --tool "$tool" --error-exitcode 99 \
         "$BIN" "$INPUT" amr.max_grid_size="$MGS" plot_file="$OUT/plt_$tool" \
-        stop_time="$STOP_TIME" "${ELASTIC_FAST[@]}" amrex.the_arena_is_managed=1 >"$log" 2>&1
+        stop_time="$STOP_TIME" "${ELASTIC_FAST[@]}" \
+        elastic.solver.no_gpu_sync="$MLMG_NO_GPU_SYNC" \
+        amrex.the_arena_init_size="$ARENA_INIT_SIZE" \
+        amrex.the_arena_is_managed=1 >"$log" 2>&1
     local rc=$?; local t1=$(date +%s)
     # memcheck/initcheck print "ERROR SUMMARY: 0 errors"; racecheck prints
     # "RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)".
@@ -149,6 +159,7 @@ tier4 () {
 
 # --- driver -----------------------------------------------------------------
 echo "local_a100_gate: bin=$BIN input=$INPUT mgs=$MGS stop_time=$STOP_TIME tiers='$TIERS'"
+echo "local_a100_gate: mlmg_no_gpu_sync=$MLMG_NO_GPU_SYNC arena_init_size=$ARENA_INIT_SIZE"
 echo "HMM status: addressing=$(nvidia-smi -q 2>/dev/null | awk -F: '/Addressing Mode/{print $2}' | xargs)  uvm_disable_hmm=$(cat /sys/module/nvidia_uvm/parameters/uvm_disable_hmm 2>/dev/null)"
 for t in $TIERS; do "tier$t"; done
 say "RESULT"
