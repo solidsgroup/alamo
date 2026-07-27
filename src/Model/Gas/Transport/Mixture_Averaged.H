@@ -65,7 +65,6 @@ public:
         value.thermo = a_thermo;
 
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
-        pp.query_validate("type", value.type, {"constant", "LJ"});
         pp.query_switch("type",{
                 {"constant", [&]() {
                     // Dynamic viscosity if type=constant

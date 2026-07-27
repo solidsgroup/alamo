@@ -528,10 +528,12 @@ def test(testdir):
                     time.sleep(1)
 
             def write_log(stdout,stderr):
+                logdir = "{}/{}_{}".format(testdir,testid,desc)
+                os.makedirs(logdir, exist_ok=True)
                 try:
                     if stdout is None: stdout = ""
                     if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
-                    fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+                    fstdout = open("{}/stdout".format(logdir),"w")
                     fstdout.write(ansi_escape.sub('',stdout))
                     fstdout.close()
                 except Exception:
@@ -539,7 +541,7 @@ def test(testdir):
                 try:
                     if stderr is None: stderr = ""
                     if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
-                    fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+                    fstderr = open("{}/stderr".format(logdir),"w")
                     fstderr.write(ansi_escape.sub('',stderr))
                     fstderr.close()
                 except Exception:

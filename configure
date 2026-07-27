@@ -689,7 +689,10 @@ if comp_basename =='g++':
         f.write("LINKER_FLAGS += -flto\n")
 if comp_basename =='clang++':
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.coverage:
+    if args.memcheck and args.memcheck_tool=="asan":
+        f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
+        f.write("LINKER_FLAGS += -fsanitize=address\n")
+    elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -g -O0 --coverage\n")
         f.write("LINKER_FLAGS += --coverage\n")
     elif args.debug:
