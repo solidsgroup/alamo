@@ -245,6 +245,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-steady-points", type=int, default=3,
                          help="minimum number of intervals required to report a "
                               "steady-state rate (default: 3)")
+    parser.add_argument("--min-time", type=float, default=0.0,
+                         help="exclude plotfiles before this time [s] from the "
+                              "regression-rate calculation entirely (e.g. to skip "
+                              "a known startup transient before steady burning is "
+                              "established; default: 0.0, no exclusion)")
     parser.add_argument("--csv", type=Path,
                          help="optional path to write step,time,front_y,rate,phase as CSV")
     parser.add_argument("--rate-only", action="store_true",
@@ -261,6 +266,12 @@ def main() -> None:
     args = parse_args()
     paths = discover_plotfiles(args.plotfile_root)
     snapshots = [read_snapshot(p, args.field, args.threshold) for p in paths]
+    if args.min_time > 0.0:
+        snapshots = [s for s in snapshots if s.time >= args.min_time]
+        if len(snapshots) < 2:
+            raise RuntimeError(
+                f"--min-time {args.min_time} leaves fewer than 2 plotfiles "
+                f"under {args.plotfile_root}")
     times = np.array([s.time for s in snapshots])
     fronts = np.array([s.front_y for s in snapshots])
 

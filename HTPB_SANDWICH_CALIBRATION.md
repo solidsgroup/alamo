@@ -99,9 +99,12 @@ resulting HTPB fit as approximate for this reason.
   `pressure_mpa,reg_rate_mm_s` CSV.
 - `scripts/optimize_htpb_fullfeedback.py` -- `scipy.optimize.least_squares`
   driver over `log10(htpb_pre_exponential)` and
-  `htpb_activation_temperature`, fitting all 4 summary-CSV points at once.
-  Logs every iteration, then runs a full validation sweep and writes the
-  calibrated input plus a sim-vs-experiment plot.
+  `htpb_activation_temperature`. By default runs in two stages: first a
+  cheap bracket fit against only the lowest and highest `--fit-pressures`
+  (2 sims/iteration), then a full fit against all 4 summary-CSV points
+  starting from that result. Logs every iteration, then runs a full
+  validation sweep and writes the calibrated input plus a sim-vs-experiment
+  plot.
 
 ## Running the real calibration
 
@@ -117,7 +120,17 @@ Useful flags:
 - `--pre-exponential0` / `--activation-temperature0` -- initial guess
   (defaults `0.001` 1/Pa/s, `4000` K -- rough starting points, not derived
   from any prior fit; adjust if the optimizer struggles to converge).
-- `--max-nfev` -- cap on objective evaluations (default 30).
+- `--max-nfev` -- cap on objective evaluations for the full-pressure-set
+  stage (default 30).
+- `--bracket-max-nfev` -- cap on objective evaluations for the initial
+  lowest+highest-pressure bracket stage (default 15); `--no-bracket-stage`
+  skips straight to the full-pressure fit.
+- `--min-time` -- seconds of simulated time to exclude from the start of
+  each run before measuring the regression rate (default 0.0, no
+  exclusion). At 3 MPa the front position is still transient for roughly
+  the first half of the (now 8.0e-2 s) run, so pass e.g. `--min-time 0.04`
+  to keep that startup transient out of the steady-state window
+  `regression_rate.py` fits over.
 - `--xtol` -- `least_squares` convergence tolerance (default 1e-3).
 - `--lowmach-bin` / `--template` -- override paths if they differ on the
   machine running this (defaults assume
@@ -156,11 +169,11 @@ aren't tracked in this worktree). Before the real optimization:
 
 ### Cost
 
-Each sim is a full 2D run (`amr.max_level = 2`, `stop_time = 3.0e-2_s`,
-`plot_dt = 5.0e-4_s` in the template -- these are untested starting guesses,
-not tuned; the first smoke test above should confirm whether the case
-reaches a steady corrugated regression front well within `stop_time`, and
-adjust both up or down accordingly) and will be substantially more
+Each sim is a full 2D run (`amr.max_level = 2`, `stop_time = 8.0e-2_s`,
+`plot_dt = 1.0e-3_s` in the template -- raised from the original 3.0e-2 s/
+5.0e-4 s after the 3 MPa case was found to still be in its startup
+transient for roughly the first half of a 3.0e-2 s run; use `--min-time` to
+exclude that transient from the regression-rate fit) and will be substantially more
 expensive per-run than the 1D-like AP monopropellant sweep. With only 4 fit
 pressures (vs. AP's 6), each `least_squares` iteration runs 4 sims in
 parallel, but expect this to still be a multi-hour-to-multi-day background
