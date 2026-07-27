@@ -1,0 +1,1 @@
+elastic.max_coarsening_level=4

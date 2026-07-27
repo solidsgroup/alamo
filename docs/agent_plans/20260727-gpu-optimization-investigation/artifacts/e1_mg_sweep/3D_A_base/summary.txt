@@ -1,0 +1,9 @@
+arm: 3D_A_base
+args: <none>
+
+rep          wall_s     mlmg_iters final_rel_resid     bottom_s
+rep1          6.989             72 9.485674648e-06   .395374992
+rep2          7.044             72 9.485674648e-06   .402604671
+rep3          7.079             72 9.485674648e-06   .403423538
+
+median wall: 7.044479276

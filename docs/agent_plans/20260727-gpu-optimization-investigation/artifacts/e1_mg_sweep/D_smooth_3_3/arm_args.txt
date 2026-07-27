@@ -1,0 +1,2 @@
+elastic.solver.pre_smooth=3
+elastic.solver.post_smooth=3

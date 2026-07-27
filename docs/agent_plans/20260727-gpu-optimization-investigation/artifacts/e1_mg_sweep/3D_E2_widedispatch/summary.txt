@@ -1,0 +1,9 @@
+arm: 3D_E2_widedispatch
+args: <none>
+
+rep          wall_s     mlmg_iters final_rel_resid     bottom_s
+rep1          7.142             72 9.485674648e-06   .399250670
+rep2          7.228             72 9.485674648e-06   .400165329
+rep3          7.276             72 9.485674648e-06   .409301760
+
+median wall: 7.227719152

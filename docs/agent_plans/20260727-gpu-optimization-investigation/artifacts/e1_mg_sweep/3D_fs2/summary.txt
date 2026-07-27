@@ -1,0 +1,9 @@
+arm: 3D_fs2
+args: elastic.solver.final_smooth=2
+
+rep          wall_s     mlmg_iters final_rel_resid     bottom_s
+rep1          7.153             73 9.806206933e-06   .111027488
+rep2          7.167             73 9.806206933e-06   .117677853
+rep3          7.179             73 9.806206933e-06   .111634818
+
+median wall: 7.166932834

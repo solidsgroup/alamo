@@ -1,0 +1,9 @@
+arm: C_mcl4
+args: elastic.max_coarsening_level=4
+
+rep          wall_s     mlmg_iters final_rel_resid     bottom_s
+rep1          1.743             81 9.279704904e-06   .164429331
+rep2          1.719             81 9.279704904e-06   .169072653
+rep3          1.748             81 9.279704904e-06   .170218437
+
+median wall: 1.743408015
