@@ -3,7 +3,7 @@ set -eu -o pipefail
 #
 # In the alamo directory, run this command with any additional arguments. 
 #
-./configure 
+./configure "$@"
 
 #
 # Compile the code by running make
