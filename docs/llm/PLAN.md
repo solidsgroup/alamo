@@ -15,6 +15,12 @@ before/after (255→244 reg/thread, ~14.5% Fapply wall win, occupancy flat —
 see task 3.2); every task below must clear the same two gates before it
 lands.
 
+GPU performance claims must use multi-step runs (10 steps by default) and
+report external wall per step plus a startup calibration. Synchronized solver
+or trace-region timers are supporting evidence when available; asynchronous
+no-sync region attribution is not authoritative. Two-step decks remain
+correctness smokes, not speed evidence.
+
 ## Next 3 tasks
 
 1. **3.3 — FApply runtime follow-on. DONE 2026-07-22.**

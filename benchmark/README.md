@@ -138,6 +138,29 @@ compute vs `WritePlotFile` IO vs `Operator::Elastic` solve vs `Flame::Regrid`),
 wraps the GPU run in `nsys` when present, and prints a side-by-side speedup
 table. Artifacts land in `benchmark/results_<stamp>/`.
 
+### GPU timing protocol
+
+Use at least 10 completed steps for a GPU speed claim; use more when the
+measured operation runs infrequently. One- or two-step decks are correctness
+smokes only because CUDA/AMReX initialization and arena reservation can
+dominate their wall time.
+
+For an A/B result:
+
+- use identical binaries, inputs, rank/GPU counts, output settings, and arena
+  settings between arms;
+- alternate arm order for at least three repetitions and report the median;
+- report total wall and wall per completed step;
+- record a separate one-step startup calibration and a startup-excluding
+  synchronized solver or trace-region timer when one is available;
+- retain raw samples and state whether an arena-size override was local-only.
+
+Multi-step external wall is the authoritative speed metric. Startup subtraction
+is a useful calibration, not a substitute for it. Per-region GPU timers are
+valid only when their region boundaries synchronize the measured work:
+asynchronous/no-sync execution can move completion costs into later regions and
+make inner-region attribution misleading.
+
 ### Flame graphs
 
 * **GPU (best):** the script captures `gpu_trace.nsys-rep`. Open it in NVIDIA
