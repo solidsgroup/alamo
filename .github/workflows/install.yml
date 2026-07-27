@@ -1,14 +1,17 @@
 name: Install
 
 on:
+  workflow_call:
   push:
-    branches: ["development", "master","candidate","candidate-install"]
-  pull_request:
-    branches:
-    - development
+    branches: ["development", "master", "candidate", "candidate-install"]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: install-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   install-ubuntu-22-04:
@@ -18,7 +21,7 @@ jobs:
     - name: running the install script
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: build and test
-      run: bash .github/workflows/build-and-test.sh
+      run: bash .github/workflows/build-and-test.sh --comp=g++
   install-ubuntu-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -27,16 +30,6 @@ jobs:
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: build and test
       run: bash .github/workflows/build-and-test.sh
-    - name: documentation
-      run: bash .github/workflows/build-docs.sh
-    - name: python
-      run: bash .github/workflows/python.sh
-  install-python:
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: running the install script
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: python
       run: bash .github/workflows/python.sh
   install-macos:
@@ -45,4 +38,3 @@ jobs:
     - uses: actions/checkout@v4
     - name: running the install script
       run: bash .github/workflows/install-macos.sh
-

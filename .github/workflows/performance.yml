@@ -2,36 +2,41 @@ name: Performance
 
 on:
   push:
-    branches: ["development", "master","candidate","candidate-performance"]
+    branches: ["development", "master"]
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   scooter:
-    name: scooter
+    name: scooter (${{ matrix.branch }})
     runs-on: scooter
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(github.event_name == 'schedule' && '["master","development"]' || format('["{0}"]', github.ref_name)) }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ matrix.branch }}
     - name: configure 2d
-      continue-on-error: true
       run: ./configure --dim=2 --comp=g++
     - name: make 2d
-      continue-on-error: true
       run: make -j8
     - name: unit tests 2d
-      continue-on-error: true
       run: ./bin/test-2d-g++
     - name: configure 3d
-      continue-on-error: true
       run: ./configure --dim=3 --comp=g++
     - name: make 3d
-      continue-on-error: true
       run: make -j8
     - name: unit tests 3d
-      continue-on-error: true
       run: ./bin/test-3d-g++
     - name: regression tests (2d + 3d)
       run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace --post-timeout=10 --comp=g++
@@ -54,5 +59,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: scoter
-        path: scoter
+        name: scooter-${{ matrix.branch }}
+        path: scooter

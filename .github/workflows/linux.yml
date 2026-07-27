@@ -1,280 +1,283 @@
+---
 name: Linux
 
-on:
+"on":
   push:
-    branches-ignore: ["paper", "candidate-install"]
+    branches:
+      - development
+      - master
   pull_request:
     branches:
       - development
       - master
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  style-check:
+  quality:
+    name: Source and documentation checks
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Tabs
+      - name: Check tabs
         run: .github/workflows/style/check_tabs.py
-
-  editorconfig-compliance:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: update aptitude
-        run: sudo apt update
-      - name: installing npm
-        run: sudo apt install npm
-      - name: installing eclint
+      - name: Install eclint
         run: npm install -g eclint
-      - name: EditorConfigCompliance
+      - name: Check EditorConfig compliance
         run: eclint check src/
-  documentation-check:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: checking documentation coverage
+      - name: Check documentation coverage
         run: python3 scripts/checkdoc.py
-  build-docs:
+
+  build:
+    name: Build ${{ matrix.dim }}D Clang coverage
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        dim: [2, 3]
     steps:
       - uses: actions/checkout@v4
-      - name: installing preliminaries
+      - name: Install dependencies
         run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-      - name: make
-        run: bash .github/workflows/build-docs.sh
-
-      - name: upload documentation
-        if: always()
-        id: upload_report
+      - name: Configure
+        run: ./configure --dim=${{ matrix.dim }} --coverage --comp=clang++
+      - name: Build
+        run: make -j2
+      - name: Upload coverage build
         uses: actions/upload-artifact@v4
         with:
-          name: documentation
-          path: docs/build/html
+          name: coverage-build-${{ matrix.dim }}d-clang
+          path: |
+            bin/*-${{ matrix.dim }}d-coverage-clang++
+            obj/obj-${{ matrix.dim }}d-coverage-clang++/**/*.gcno
+          if-no-files-found: error
+          retention-days: 2
 
-      - name: Add report link to summary
+  regression:
+    name: Test ${{ matrix.dim }}D Clang coverage (shard ${{ matrix.shard }})
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        dim: [2, 3]
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      - name: Download coverage build
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-build-${{ matrix.dim }}d-clang
+          path: .
+      - name: Restore executable permissions
+        run: chmod +x bin/*-${{ matrix.dim }}d-coverage-clang++
+      - name: Run regression shard
+        id: regression
+        continue-on-error: true
+        run: >-
+          scripts/runtests.py --serial --coverage --dim=${{ matrix.dim }}
+          --benchmark=github --no-backspace --comp=clang++
+          --shard-count=3 --shard-index=${{ matrix.shard }}
+      - name: Capture shard coverage
         if: always()
         run: |
-          echo "## 📄 Documentation" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+          mkdir -p coverage-info
+          lcov --capture \
+            --directory obj/obj-${{ matrix.dim }}d-coverage-clang++ \
+            --base-directory . \
+            --output-file coverage-info/${{ matrix.dim }}d-${{ matrix.shard }}.info \
+            --gcov-tool .github/workflows/llvm-gcov.sh \
+            --exclude '/usr/*' \
+            --exclude 'ext/*' \
+            --ignore-errors gcov,source,graph,inconsistent
+      - name: Upload shard coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-info-${{ matrix.dim }}d-${{ matrix.shard }}
+          path: coverage-info
+          if-no-files-found: error
+          retention-days: 2
+      - name: Package report
+        if: always()
+        run: >-
+          python3 scripts/package_report.py
+          --name test-${{ matrix.dim }}d-clang-${{ matrix.shard }}
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.dim }}d-clang-${{ matrix.shard }}
+          path: test-${{ matrix.dim }}d-clang-${{ matrix.shard }}
+      - name: Propagate regression failure
+        if: ${{ steps.regression.outcome != 'success' }}
+        run: exit 1
 
-  test-2d-22-04:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
-    - name: configure (2d)
-      run: ./configure --dim=2 --comp=g++
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
-    - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name test-2d-22-04
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="test-2d-22-04"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      id: upload_report
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-2d-22-04
-        path: test-2d-22-04
-    - name: Add report link to summary
-      if: always()
-      run: |
-        echo "## 📄 Report: test-2d-22-04" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
-
-  test-2d-24-04:
+  fft:
+    name: Clang FFT coverage tests
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-    - name: configure (2d)
-      run: ./configure --dim=2 --comp=g++
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
-    - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name test-2d-24-04
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="test-2d-24-04"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      id: upload_report
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-2d-24-04
-        path: test-2d-24-04
-    - name: Add report link to summary
-      if: always()
-      run: |
-        echo "## 📄 Report: test-2d-24-04" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      - name: Install FFTW
+        run: sudo apt install libfftw3-dev
+      - name: Configure
+        run: ./configure --dim=2 --coverage --comp=clang++ --fft
+      - name: Build
+        run: make -j2
+      - name: Run FFT regressions
+        id: regression
+        continue-on-error: true
+        run: >-
+          scripts/runtests.py --serial --coverage --dim=2 --comp=clang++
+          --no-backspace --fft-only
+      - name: Capture FFT coverage
+        if: always()
+        run: |
+          mkdir -p coverage-info
+          lcov --capture \
+            --directory obj/obj-2d-coverage-clang++ \
+            --base-directory . \
+            --output-file coverage-info/fft.info \
+            --gcov-tool .github/workflows/llvm-gcov.sh \
+            --exclude '/usr/*' \
+            --exclude 'ext/*' \
+            --ignore-errors gcov,source,graph,inconsistent
+      - name: Upload FFT coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-info-fft
+          path: coverage-info
+          if-no-files-found: error
+          retention-days: 2
+      - name: Propagate FFT regression failure
+        if: ${{ steps.regression.outcome != 'success' }}
+        run: exit 1
 
-  test-3d-24-04:
+  coverage-report:
+    name: Merge Clang coverage
+    needs:
+      - regression
+      - fft
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-    - name: configure
-      run: ./configure --dim=3 --comp=g++
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace --comp=g++
-    - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe" --comp=g++
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name test-3d-24-04
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="test-3d-24-04"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      id: upload_report
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-3d-24-04
-        path: test-3d-24-04
-    - name: Add report link to summary
-      if: always()
-      run: |
-        echo "## 📄 Report: test-3d-24-04" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+      - name: Install coverage tools
+        run: sudo apt install lcov
+      - name: Download shard coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-info-*
+          path: coverage-info
+          merge-multiple: true
+      - name: Generate coverage report
+        run: |
+          mapfile -t tracefiles < <(find coverage-info -type f -name '*.info' | sort)
+          test "${#tracefiles[@]}" -gt 0
+          merge_args=()
+          for tracefile in "${tracefiles[@]}"; do
+            merge_args+=(--add-tracefile "$tracefile")
+          done
+          mkdir -p cov
+          lcov --ignore-errors gcov,source,graph,inconsistent \
+            "${merge_args[@]}" -o cov/coverage_merged.info
+          genhtml cov/coverage_merged.info --output-directory cov \
+            --ignore-errors inconsistent
+      - name: Upload coverage report
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: >-
+            ${{
+              github.event_name == 'pull_request' &&
+              format('coverage-pr-{0}', github.event.pull_request.number) ||
+              format('coverage-{0}', github.ref_name)
+            }}
+          path: cov
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report coverage artifact
+        run: |
+          echo "### Coverage artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download coverage report](${{ steps.upload.outputs.artifact-url }})" \
+            >> "$GITHUB_STEP_SUMMARY"
 
-  test-2d-24-04-clang:
+  documentation:
+    name: Build documentation preview
+    if: >-
+      ${{
+        github.event_name == 'push' ||
+        (
+          github.event_name == 'pull_request' &&
+          (
+            github.event.pull_request.head.repo.full_name == github.repository ||
+            contains(github.event.pull_request.labels.*.name, 'docs-preview')
+          )
+        )
+      }}
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_ref: ${{ github.sha }}
+      version: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          format('pr-{0}', github.event.pull_request.number) ||
+          github.ref_name
+        }}
+
+  pr-install:
+    name: PR install scripts
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/install.yml
+
+  pr-memcheck:
+    name: PR memory checks
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/memcheck.yml
+
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs:
+      - quality
+      - build
+      - regression
+      - fft
+      - coverage-report
+      - documentation
+      - pr-install
+      - pr-memcheck
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-    - name: installing clang
-      run: sudo apt install clang
-    - name: configure (2d)
-      run: ./configure --dim=2 --comp=clang++ --perf
-    - name: make
-      run: make
-    - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe" --perf
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace --perf
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name test-2d-24-04-clang
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="test-2d-24-04-clang"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      id: upload_report
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-2d-24-04-clang
-        path: test-2d-24-04-clang
-    - name: Add report link to summary
-      if: always()
-      run: |
-        echo "## 📄 Report: test-2d-24-04-clang" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
-  test-2d-24-04-clang-fft:
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
-    - name: installing clang
-      run: sudo apt install clang
-    - name: installing fftw3
-      run: sudo apt install libfftw3-dev
-    - name: configure (2d)
-      run: ./configure --dim=2 --comp=clang++ --fft
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
-    - name: create report
-      if: always()
-      run: python3 scripts/package_report.py --name test-2d-24-04-clang-fft
-    - name: report artifact summary
-      if: always()
-      run: |
-        name="test-2d-24-04-clang-fft"
-        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
-        if [ -d "$name" ]; then
-          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
-        fi
-    - name: upload report
-      if: always()
-      id: upload_report
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-2d-24-04-clang-fft
-        path: test-2d-24-04-clang-fft
-    - name: Add report link to summary
-      if: always()
-      run: |
-        echo "## 📄 Report: test-2d-24-04-clang-fft" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+      - name: Require every CI job
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          BUILD: ${{ needs.build.result }}
+          REGRESSION: ${{ needs.regression.result }}
+          FFT: ${{ needs.fft.result }}
+          COVERAGE: ${{ needs.coverage-report.result }}
+          DOCUMENTATION: ${{ needs.documentation.result }}
+          INSTALL: ${{ needs.pr-install.result }}
+          MEMCHECK: ${{ needs.pr-memcheck.result }}
+        run: |
+          test "$QUALITY" = success
+          test "$BUILD" = success
+          test "$REGRESSION" = success
+          test "$FFT" = success
+          test "$COVERAGE" = success
+          case "$DOCUMENTATION" in success|skipped) ;; *) exit 1 ;; esac
+          case "$INSTALL" in success|skipped) ;; *) exit 1 ;; esac
+          case "$MEMCHECK" in success|skipped) ;; *) exit 1 ;; esac

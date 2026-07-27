@@ -1,0 +1,183 @@
+---
+name: Publish Documentation
+
+"on":
+  workflow_run:
+    workflows:
+      - Linux
+    types:
+      - completed
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Check master, development, and PR artifacts
+    runs-on: ubuntu-24.04
+    outputs:
+      master_docs_found: ${{ steps.artifacts.outputs.master_docs_found }}
+      development_docs_found: ${{ steps.artifacts.outputs.development_docs_found }}
+      ready_preview_count: ${{ steps.artifacts.outputs.ready_preview_count }}
+    steps:
+      - name: Checkout trusted publisher
+        uses: actions/checkout@v4
+      - name: Locate documentation and coverage artifacts
+        id: artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/workflows/assemble_pages.py discover
+          --repository "$GITHUB_REPOSITORY"
+          --token "$GH_TOKEN"
+
+  rebuild_master:
+    name: Rebuild missing master documentation
+    needs: discover
+    if: ${{ needs.discover.outputs.master_docs_found != 'true' }}
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_ref: master
+      version: master
+
+  rebuild_development:
+    name: Rebuild missing development documentation
+    needs: discover
+    if: ${{ needs.discover.outputs.development_docs_found != 'true' }}
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      source_ref: development
+      version: development
+
+  assemble:
+    name: Download and assemble documentation and coverage
+    runs-on: ubuntu-24.04
+    needs:
+      - discover
+      - rebuild_master
+      - rebuild_development
+    if: >-
+      ${{
+        always() &&
+        needs.discover.result == 'success' &&
+        (needs.rebuild_master.result == 'success' || needs.rebuild_master.result == 'skipped') &&
+        (needs.rebuild_development.result == 'success' || needs.rebuild_development.result == 'skipped')
+      }}
+    outputs:
+      preview_published: ${{ steps.assemble.outputs.preview_published }}
+      preview_pr_number: ${{ steps.assemble.outputs.preview_pr_number }}
+      preview_slug: ${{ steps.assemble.outputs.preview_slug }}
+    steps:
+      - name: Checkout trusted publisher
+        uses: actions/checkout@v4
+      - name: Download and assemble version artifacts
+        id: assemble
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_RUN_ID: >-
+            ${{
+              github.event_name == 'workflow_run' &&
+              github.event.workflow_run.id ||
+              ''
+            }}
+        run: >-
+          python3 .github/workflows/assemble_pages.py assemble
+          --repository "$GITHUB_REPOSITORY"
+          --token "$GH_TOKEN"
+          --site site
+          --trusted-run-id "$GITHUB_RUN_ID"
+          --trigger-run-id "$TRIGGER_RUN_ID"
+      - name: Verify assembled site
+        run: |
+          test -f site/docs/master/index.html
+          test -f site/docs/development/index.html
+          test -f site/versions.json
+          test -f site/versions.html
+          test -f site/inputs/index.html
+          test -f site/input-schemas/input-scrape-coverage.json
+      - name: Upload combined documentation and coverage site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy documentation and coverage
+    needs: assemble
+    if: ${{ needs.assemble.result == 'success' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish combined GitHub Pages site
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  preview_comment:
+    name: Report PR preview
+    needs:
+      - assemble
+      - deploy
+    if: >-
+      ${{
+        always() &&
+        github.event_name == 'workflow_run' &&
+        needs.deploy.result == 'success' &&
+        needs.assemble.outputs.preview_pr_number != ''
+      }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Update preview comment
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_PR_NUMBER: ${{ needs.assemble.outputs.preview_pr_number }}
+          PREVIEW_PUBLISHED: ${{ needs.assemble.outputs.preview_published }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+          PREVIEW_SLUG: ${{ needs.assemble.outputs.preview_slug }}
+        with:
+          script: |
+            const marker = "<!-- alamo-documentation-preview -->";
+            const published = process.env.PREVIEW_PUBLISHED === "true";
+            const previewUrl = `${process.env.PAGE_URL}docs/${process.env.PREVIEW_SLUG}/`;
+            const body = published
+              ? `${marker}\nDocumentation and coverage preview: ${previewUrl}`
+              : `${marker}\nDocumentation preview is not available for the current PR head.`;
+            const issue_number = Number(process.env.PREVIEW_PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(comment => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
