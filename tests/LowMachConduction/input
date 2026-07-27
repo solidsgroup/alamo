@@ -1,0 +1,172 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@ check-file = reference/conduction-analytic.csv
+
+# 1D semi-infinite two-phase contact conduction test.
+#
+# Reproduces the analytic validation in Ettrich et al. 2014, Modelling
+# Simul. Mater. Sci. Eng. 22 085006, section 8.1 (eqs 40-42): two
+# semi-infinite bodies of different thermal conductivity/heat capacity,
+# initially at different uniform temperatures, brought into contact. The
+# closed-form solution (erfc on the hot side, erf on the cold side) is
+# compared against LowMach's diffuse-interface thermal conduction.
+#
+# The problem is run as a *pure conduction* problem so it matches the
+# analytic assumptions exactly: projection is disabled (no flow, so no
+# thermal-expansion velocity is ever generated), temperature advection is
+# disabled, and chemistry is frozen (no reaction, no surface motion). A
+# single fluid ("air") species and a single deformable-solid ("solid",
+# aluminium-like) species form the diffuse interface; with velocity held at
+# zero the solid never deforms (F = I everywhere), so the interface stays
+# stationary for the whole run.
+#
+# The fluid ("air") is given a moderately elevated reference pressure and a
+# non-atmospheric constant conductivity rather than literal air properties.
+# Real air's density/heat capacity are so much smaller than aluminium's
+# (>1000x) that, at a several-cell-wide diffuse interface, the discretization
+# error from resolving the interface itself dominates over any difference
+# between conductivity-mixing rules -- not a useful regression signal. The
+# properties here (~40-70x contrast in k and C_V) keep a strong, physically
+# meaningful contrast while remaining in a regime where the mixing rule
+# change is the dominant effect being measured.
+
+plot_file = tests/LowMachConduction/output
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 256
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.n_cell = 200 8
+
+timestep = 1.0e-3
+stop_time = 0.1
+
+geometry.prob_lo = 0.0    0.0    0.0
+geometry.prob_hi = 0.05   0.002  0.0
+geometry.is_periodic = 0 1 0
+
+system.amount = kmol
+gas.mw = 28.96_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = air solid
+air.mechanics = fluid
+solid.mechanics = deformable_solid
+solid.specific_heat = 900.0_J/kg/K
+solid.thermal_conductivity = 205.0_W/m/K
+
+advection.type = upwind
+cfl = 0.25
+include_viscosity = 0
+include_conduction = 1
+advect_temperature = 0
+projection.enabled = 0
+diagnostics.extended_fields = 1
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+diffusion.tol_rel = 1.0e-6
+diffusion.tol_abs = 1.0e-8
+
+reference_map.eta_core = 0.7
+reference_map.eta_extension = 1.0e-3
+reference_map.extrapolation_sweeps = 0
+reference_map.smoothing_sweeps = 0
+
+solid.model.type = finite.neohookean
+solid.model.reference_density = 2700.0_kg/m^3
+solid.model.eta_threshold = 0.5
+solid.model.J_floor = 1.0e-6
+solid.model.finite.neohookean.mu = 1.0e1_Pa
+solid.model.finite.neohookean.kappa = 1.0e2_Pa
+
+# Complementary smooth (tanh) density profiles: solid occupies x < xi,
+# air occupies x > xi, with a diffuse transition of width ~4*w (~4 cells)
+# straddling the interface at x = xi. rho_air_bulk is the ideal-gas density
+# of air at (pressure.ic, 300 K).
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.rho_solid_bulk = 2700.0
+solid.density.ic.expression.constant.xi = 0.025
+solid.density.ic.expression.constant.w  = 0.0005
+solid.density.ic.expression.region0 = "rho_solid_bulk*0.5*(1.0-tanh((x-xi)/w))"
+
+air.density.ic.type = expression
+air.density.ic.expression.constant.rho_air_bulk = 117.7  # ~ideal gas at pressure.ic, 300 K
+air.density.ic.expression.constant.xi = 0.025
+air.density.ic.expression.constant.w  = 0.0005
+air.density.ic.expression.region0 = "rho_air_bulk*0.5*(1.0+tanh((x-xi)/w))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+# Step initial temperature: 600 K in the solid (x < xi), 300 K in the air
+# (x > xi), smoothed over the same width as the density transition so the
+# initial state is consistent with the diffuse interface.
+temperature.ic.type = expression
+temperature.ic.expression.constant.Ta = 600.0
+temperature.ic.expression.constant.Tb = 300.0
+temperature.ic.expression.constant.xi = 0.025
+temperature.ic.expression.constant.w  = 0.0005
+temperature.ic.expression.region0 = "Ta + (Tb-Ta)*0.5*(1.0+tanh((x-xi)/w))"
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.01325e7
+
+xi.ic.type = expression
+xi.ic.expression.region0 = "x"
+xi.ic.expression.region1 = "y"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+
+# Fixed (Dirichlet) far-field temperatures at the two ends of the domain,
+# matching the semi-infinite bath temperatures T0^alpha (solid, left) and
+# T0^beta (air, right) assumed by the analytic solution.
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = dirichlet
+temperature.bc.constant.type.xhi = dirichlet
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 600.0
+temperature.bc.constant.val.xhi = 300.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+
+xi.bc.type = expression
+xi.bc.expression.type.xlo = dirichlet dirichlet
+xi.bc.expression.type.xhi = dirichlet dirichlet
+xi.bc.expression.type.ylo = periodic periodic
+xi.bc.expression.type.yhi = periodic periodic
+xi.bc.expression.val.xlo = "x" "y"
+xi.bc.expression.val.xhi = "x" "y"

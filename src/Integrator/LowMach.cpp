@@ -595,12 +595,15 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
 
             mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
             auto [thermal_gas_volume_fraction, gas_heat_capacity,
-                heat_capacity, conductivity, cp] = ComputeThermalState(
+                heat_capacity, conductivity, cp, conductivity_perp,
+                heat_capacity_perp] = ComputeThermalState(
                     component_density, T(i,j,k), i, j, k);
             (void)thermal_gas_volume_fraction;
             (void)gas_heat_capacity;
             (void)heat_capacity;
             (void)cp;
+            (void)conductivity_perp;
+            (void)heat_capacity_perp;
             kappa(i,j,k) = conductivity;
             for (int n = 0; n < ngas_species; ++n)
                 diffusion(i,j,k,n) = gas.diffusion_coefficient(
@@ -698,11 +701,14 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 
             Set::Scalar temperature = T(i,j,k);
             auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                conductivity, cp] = ComputeThermalState(
+                conductivity, cp, conductivity_perp,
+                heat_capacity_perp] = ComputeThermalState(
                     component_density, temperature, i, j, k);
             (void)thermal_gas_volume_fraction;
             (void)gas_heat_capacity;
             (void)conductivity;
+            (void)conductivity_perp;
+            (void)heat_capacity_perp;
             const Set::Scalar mixture_density = cp > 0.0 ?
                 heat_capacity / cp : gas_density;
 
@@ -724,7 +730,7 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 }
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
 LowMach::ComputeThermalState(
     Set::Patch<const Set::Scalar> component_density,
     Set::Scalar temperature, int i, int j, int k) const
@@ -750,7 +756,7 @@ LowMach::ComputeThermalState(
 
     if (!condensed_thermal_transport)
         return {gas_volume_fraction, density * cp, density * cp,
-                gas_conductivity, cp};
+                gas_conductivity, cp, gas_conductivity, density * cp};
 
     Set::Scalar condensed_volume_fraction = 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
@@ -770,21 +776,54 @@ LowMach::ComputeThermalState(
     const Set::Scalar gas_heat_capacity =
         gas_volume_fraction * intrinsic_gas_density * cp;
     Set::Scalar heat_capacity = gas_heat_capacity;
+    // Arithmetic/parallel mixing rule: correct for flux tangential to the
+    // diffuse interface (phases in parallel share the same gradient).
     Set::Scalar conductivity = gas_volume_fraction * gas_conductivity;
+    // Inverse/harmonic (series) mixing rule: correct for flux normal to the
+    // diffuse interface, where the phases present the same heat current and
+    // their thermal resistances (1/k) add. See Ettrich et al. 2014, eq 28.
+    Set::Scalar inverse_conductivity_perp = gas_volume_fraction > 0.0 ?
+        gas_volume_fraction / gas_conductivity : 0.0;
+    // Inverse/harmonic mixing rule for the volumetric heat capacity
+    // (transient/mass coefficient), paired with conductivity_perp below.
+    // Using the harmonic conductivity together with an *arithmetic* heat
+    // capacity creates a diffusivity (k/C_V) "barrier" in the diffuse
+    // interface that can nearly insulate the two phases -- see Ettrich et
+    // al. 2014, eq 10 and the fig 5 discussion. gas_heat_capacity is the
+    // intrinsic (pure-phase) gas volumetric heat capacity already scaled by
+    // gas_volume_fraction, so dividing it back out recovers the pure-phase
+    // value used as the harmonic denominator.
+    Set::Scalar inverse_heat_capacity_perp = gas_volume_fraction > 0.0 ?
+        gas_volume_fraction * gas_volume_fraction / gas_heat_capacity : 0.0;
     const Set::Scalar solid_scale = condensed_volume_fraction > 0.0 ?
         solid_fraction / condensed_volume_fraction : 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
     {
         const Set::Scalar partial_density =
             Util::Max(component_density(i,j,k,n), 0.0);
+        const Set::Scalar species_volume_weight = solid_scale *
+            partial_density * condensed_inverse_reference_density[n];
         heat_capacity += solid_scale * partial_density *
             condensed_specific_heat[n];
-        conductivity += solid_scale * partial_density *
-            condensed_inverse_reference_density[n] *
+        conductivity += species_volume_weight *
             condensed_thermal_conductivity[n];
+        if (species_volume_weight > 0.0)
+        {
+            inverse_conductivity_perp += species_volume_weight /
+                condensed_thermal_conductivity[n];
+            // Pure-phase volumetric heat capacity of species n is
+            // specific_heat / condensed_inverse_reference_density.
+            inverse_heat_capacity_perp += species_volume_weight *
+                condensed_inverse_reference_density[n] /
+                condensed_specific_heat[n];
+        }
     }
+    const Set::Scalar conductivity_perp = inverse_conductivity_perp > 0.0 ?
+        1.0 / inverse_conductivity_perp : conductivity;
+    const Set::Scalar heat_capacity_perp = inverse_heat_capacity_perp > 0.0 ?
+        1.0 / inverse_heat_capacity_perp : heat_capacity;
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
-            conductivity, cp};
+            conductivity, cp, conductivity_perp, heat_capacity_perp};
 }
 
 void
@@ -940,6 +979,17 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
 
     if (implicit_thermal_diffusion)
     {
+        // A solid phase adjacent to gas introduces a diffuse conduction
+        // interface. Flux normal to that interface must use the harmonic
+        // (series) conductivity, while tangential flux uses the arithmetic
+        // (parallel) one -- see ComputeThermalState and Ettrich et al. 2014,
+        // Model. Simul. Mater. Sci. Eng. 22 085006, eqs 27-28. This is
+        // represented as a tensor mobility K = k_par*I + (k_perp-k_par)*(n(x)n)
+        // on top of the scalar mobility b = k_par, with n = grad(eta)/|grad(eta)|
+        // the local interface normal. In bulk regions k_perp == k_par, so the
+        // tensor term vanishes and the operator reduces to the isotropic case.
+        const bool solid_interface_present =
+            deformable_solid_species >= 0 || !rigid_solid_species.empty();
         diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
         for (int lev = 0; lev < nlev; ++lev)
         {
@@ -948,6 +998,17 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
             amrex::MultiFab& mobility = diffusion.Mobility(lev, 1);
             amrex::MultiFab::Copy(
                 state, *temperature_mf[lev], 0, 0, 1, state.nGrow());
+
+            const amrex::Box domain = geom[lev].Domain();
+            const Set::Scalar* DX = geom[lev].CellSize();
+            amrex::MultiFab* tensor_mobility = solid_interface_present ?
+                &diffusion.TensorMobility(lev, 1) : nullptr;
+            // rigid solids require projection.enabled=1 and cannot coexist
+            // with a deformable solid, so the two eta fields are mutually
+            // exclusive; prefer whichever is present.
+            const amrex::MultiFab* solid_eta_mf = !rigid_solid_species.empty() ?
+                rigid_eta_mf[lev].get() :
+                (deformable_solid_species >= 0 ? eta_mf[lev].get() : nullptr);
 
             for (amrex::MFIter mfi(mass, amrex::TilingIfNotGPU());
                 mfi.isValid(); ++mfi)
@@ -959,21 +1020,57 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<Set::Scalar> a = mass.array(mfi);
                 Set::Patch<Set::Scalar> b = mobility.array(mfi);
                 const Set::Scalar rho_floor = density_floor;
+                const bool has_interface = solid_interface_present;
+                Set::Patch<const Set::Scalar> eta;
+                Set::Patch<Set::Scalar> Kt;
+                if (has_interface)
+                {
+                    eta = solid_eta_mf->array(mfi);
+                    Kt = tensor_mobility->array(mfi);
+                }
 
                 amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto [gas_volume_fraction, gas_heat_capacity,
-                        heat_capacity, conductivity, cp] = ComputeThermalState(
+                        heat_capacity, conductivity, cp, conductivity_perp,
+                        heat_capacity_perp] = ComputeThermalState(
                             component_density, T(i,j,k), i, j, k);
                     (void)gas_volume_fraction;
                     (void)gas_heat_capacity;
-                    a(i,j,k) = Util::Max(heat_capacity, rho_floor * cp);
+                    // Use the harmonic-mixed heat capacity as the transient
+                    // (mass) coefficient wherever the harmonic conductivity
+                    // also applies (i.e. wherever a solid interface exists);
+                    // pairing harmonic k with arithmetic C_V would create a
+                    // spurious diffusivity "barrier" at the interface (see
+                    // ComputeThermalState).
+                    const Set::Scalar mass_coefficient =
+                        has_interface ? heat_capacity_perp : heat_capacity;
+                    a(i,j,k) = Util::Max(mass_coefficient, rho_floor * cp);
                     b(i,j,k) = conductivity;
+
+                    if (has_interface)
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
+                        const Set::Vector grad =
+                            Numeric::Gradient(eta, i, j, k, 0, DX, sten);
+                        const Set::Scalar grad_mag = grad.lpNorm<2>();
+                        const Set::Scalar delta_k = conductivity_perp - conductivity;
+                        Set::Matrix Tn = Set::Matrix::Zero();
+                        if (grad_mag > 1.0e-8)
+                        {
+                            const Set::Vector n = grad / grad_mag;
+                            Tn = delta_k * (n * n.transpose());
+                        }
+                        for (int e = 0; e < AMREX_SPACEDIM; ++e)
+                            for (int f = 0; f < AMREX_SPACEDIM; ++f)
+                                Kt(i,j,k, e * AMREX_SPACEDIM + f) = Tn(e,f);
+                    }
                 });
             }
         }
 
-        diffusion.Solve(time, dt, temperature_bc->GetBCRec(), 1);
+        diffusion.Solve(time, dt, temperature_bc->GetBCRec(), 1,
+                        solid_interface_present);
         for (int lev = 0; lev < nlev; ++lev)
             amrex::MultiFab::Copy(*temperature_mf[lev], diffusion.State(lev, 1),
                                     0, 0, 1, 0);
@@ -1241,11 +1338,14 @@ LowMach::ComputeThermochemicalSource(
     }
 
     auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
-        conductivity, cp] = ComputeThermalState(
+        conductivity, cp, conductivity_perp,
+        heat_capacity_perp] = ComputeThermalState(
             component_density, T(i,j,k), i, j, k);
     (void)thermal_gas_volume_fraction;
     (void)gas_heat_capacity;
     (void)cp;
+    (void)conductivity_perp;
+    (void)heat_capacity_perp;
     if (include_conduction && !implicit_thermal_diffusion &&
         heat_capacity > 0.0)
     {
@@ -1769,11 +1869,14 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             if (advect_T)
             {
                 auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                    conductivity, cp] = ComputeThermalState(
+                    conductivity, cp, conductivity_perp,
+                    heat_capacity_perp] = ComputeThermalState(
                         component_density, T(i,j,k), i, j, k);
                 (void)gas_volume_fraction;
                 (void)conductivity;
                 (void)cp;
+                (void)conductivity_perp;
+                (void)heat_capacity_perp;
                 Set::Vector grad_T = Numeric::Gradient(T, i, j, k, 0, DX, sten);
                 if (heat_capacity > 0.0)
                     T_rhs(i,j,k) -=
