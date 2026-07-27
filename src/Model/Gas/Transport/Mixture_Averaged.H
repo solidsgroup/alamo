@@ -65,26 +65,22 @@ public:
         value.thermo = a_thermo;
 
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
-        pp.query_validate("type", value.type, {"constant", "LJ"});
-        if (value.type == "constant")
-        {
-            // Dynamic viscosity if type=constant
-            pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
-            // Thermal conductivity if type=constant
-            pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
-        }
-        else if (value.type == "LJ")
-        {
-            // Lennard-Jones diameter if type=LJ
-            pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
-            // Lennard-Jones well depth if type=LJ
-            pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
-        }
-        else
-        {
-            Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
-        }
-        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_switch("type",{
+                {"constant", [&]() {
+                    value.type = "constant";
+                    // Dynamic viscosity if type=constant
+                    pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
+                    // Thermal conductivity if type=constant
+                    pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+                }},
+                {"LJ", [&]() {
+                    value.type = "LJ";
+                    // Lennard-Jones diameter if type=LJ
+                    pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
+                    // Lennard-Jones well depth if type=LJ
+                    pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
+                }}
+            });
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
         Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));

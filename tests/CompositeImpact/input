@@ -35,6 +35,9 @@ ic.bmp.fit = "coord"
 ic.bmp.coord.lo = -16 -6
 ic.bmp.coord.hi = 16 2
 
+velocity.ic.type=constant
+velocity.ic.constant.value = 0.0
+
 # elastic moduli
 nmodels = 2
 model1.E = 1.1 

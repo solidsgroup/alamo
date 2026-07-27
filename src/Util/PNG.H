@@ -20,6 +20,7 @@ public:
     {pp.queryclass(name, *this);}
     ~PNG()
     {
+        if (IO::ParmParse::InTraversalMode()) return;
 #ifndef ALAMO_NOPNG
         for (int y = 0; y < png_height; y++) {
             free(row_pointers[y]);
@@ -37,35 +38,40 @@ public:
 #ifndef ALAMO_NOPNG
 
         std::string filename;
-        pp_query_file("filename", filename); // BMP filename.
+        pp.query_file("filename", filename); // BMP filename.
 
-        std::string fit = "stretch";
         // how to position the image
-        pp_query_validate("fit", fit, {"stretch","fitheight","fitwidth","coord"}); 
-        if (fit == "stretch")        value.fit = Fit::Stretch;
-        else if (fit == "fitheight") value.fit = Fit::FitHeight;
-        else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
-        else if (fit == "coord")
-        {
-            value.fit = Fit::Coord;
-            // Lower-left coordinates of image in domain
-            pp_queryarr("coord.lo", value.coord_lo,Unit::Length()); 
-            // Upper-right coordinates of image in domain
-            pp_queryarr("coord.hi", value.coord_hi,Unit::Length()); 
-        }
-        else Util::Abort(INFO);
+        pp.query_switch("fit", {
+                {"stretch", [&]() {
+                    value.fit = Fit::Stretch;
+                }},
+                {"fitheight", [&]() {
+                    value.fit = Fit::FitHeight;
+                }},
+                {"fitwidth", [&]() {
+                    value.fit = Fit::FitWidth;
+                }},
+                {"coord", [&]() {
+                    value.fit = Fit::Coord;
+                    // Lower-left coordinates of image in domain
+                    pp.queryarr_required("coord.lo", value.coord_lo,Unit::Length());
+                    // Upper-right coordinates of image in domain
+                    pp.queryarr_required("coord.hi", value.coord_hi,Unit::Length());
+                }}
+            });
 
         // Desired minimum value to scale pixels by
-        pp_query_default("min", value.min, 0.0  );
+        pp.query_default("min", value.min, 0.0  );
         // Desired maximum value to scale pixels by
-        pp_query_default("max", value.max, 255.0);
+        pp.query_default("max", value.max, 255.0);
+
+        if (IO::ParmParse::InTraversalMode()) return;
 
         //
         //
         // Now, read in the PNG
         //
         //
-
 
         FILE* fp = std::fopen(filename.c_str(), "rb");
 
