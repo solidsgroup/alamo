@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -142,7 +143,15 @@ def front_position(y: np.ndarray, field_1d: np.ndarray, threshold: float) -> flo
     return float(y[i0] + frac * (y[i1] - y[i0]))
 
 
-def read_snapshot(path: Path, field: str, threshold: float) -> Snapshot:
+def read_snapshot(path: Path, field: str, threshold: float) -> Snapshot | None:
+    """Read one plotfile's front position, or None if the interface is gone.
+
+    A fast/high-pressure run can fully consume the solid before ``stop_time``
+    -- later plotfiles then have no ``field=threshold`` crossing anywhere in
+    the domain. That is not a data error, just the run continuing past
+    burnout, so it is reported as None (skip this snapshot) rather than
+    raised as an exception.
+    """
     with h5py.File(path, "r") as f:
         time = float(f.attrs["time"][0])
         comp = component_index(f, field)
@@ -152,7 +161,7 @@ def read_snapshot(path: Path, field: str, threshold: float) -> Snapshot:
         crossings = [front_position(y, grid[i, :], threshold) for i in range(grid.shape[0])]
         crossings = [c for c in crossings if c is not None]
         if not crossings:
-            raise RuntimeError(f"no {field}={threshold} crossing found in {path}")
+            return None
         front_y = float(np.mean(crossings))
     step = int(PLOTFILE_RE.match(path.name).group(1))
     return Snapshot(step=step, time=time, front_y=front_y)
@@ -265,7 +274,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     paths = discover_plotfiles(args.plotfile_root)
-    snapshots = [read_snapshot(p, args.field, args.threshold) for p in paths]
+    raw_snapshots = [read_snapshot(p, args.field, args.threshold) for p in paths]
+    n_missing = sum(1 for s in raw_snapshots if s is None)
+    if n_missing:
+        print(f"note: {n_missing}/{len(raw_snapshots)} plotfile(s) had no "
+              f"{args.field}={args.threshold} crossing (interface fully "
+              f"consumed/left the domain); excluded from the fit",
+              file=sys.stderr)
+    snapshots = [s for s in raw_snapshots if s is not None]
+    if len(snapshots) < 2:
+        raise RuntimeError(
+            f"fewer than 2 usable plotfiles under {args.plotfile_root} "
+            f"after excluding missing-crossing snapshots")
     if args.min_time > 0.0:
         snapshots = [s for s in snapshots if s.time >= args.min_time]
         if len(snapshots) < 2:
