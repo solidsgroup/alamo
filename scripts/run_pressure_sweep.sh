@@ -16,6 +16,14 @@
 #                 resolved relative to this script's repo root)
 #   KEEP_OUTPUT   if set to 1, do not delete each run's plotfile directory
 #                 after measuring (useful for debugging)
+#   MIN_TIME_LOW  seconds of simulated time to exclude from the start of the
+#                 run at the lowest requested pressure, to skip its startup
+#                 transient before measuring the regression rate (default:
+#                 0.0, no exclusion)
+#   MIN_TIME_HIGH same as MIN_TIME_LOW but for the highest requested
+#                 pressure (default: 0.0). Pressures between the lowest and
+#                 highest requested pressure get a --min-time linearly
+#                 interpolated between MIN_TIME_LOW and MIN_TIME_HIGH.
 #
 # Writes <results_csv> with header "pressure_mpa,reg_rate_cm_s" and one row
 # per requested pressure (reg_rate_cm_s is empty if that run never reached a
@@ -29,6 +37,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOWMACH_BIN="${LOWMACH_BIN:-/home/mungerct/research/alamo/bin/lowmach-2d-hdf5-clang++}"
 TEMPLATE="${TEMPLATE:-${REPO_ROOT}/input.lm.ap_monopropellant_fullfeedback.template}"
 KEEP_OUTPUT="${KEEP_OUTPUT:-0}"
+MIN_TIME_LOW="${MIN_TIME_LOW:-0.0}"
+MIN_TIME_HIGH="${MIN_TIME_HIGH:-0.0}"
 
 if [[ $# -lt 5 ]]; then
     echo "usage: $0 <pre_exponential> <activation_temperature_K> <workdir> <results_csv> <pressure_MPa> [<pressure_MPa> ...]" >&2
@@ -54,6 +64,21 @@ fi
 mkdir -p "${WORKDIR}"
 echo "pre_exponential=${PRE_EXPONENTIAL} activation_temperature=${ACTIVATION_TEMPERATURE}" \
     > "${WORKDIR}/params.txt"
+
+P_MIN="$(printf '%s\n' "${PRESSURES[@]}" | sort -g | head -1)"
+P_MAX="$(printf '%s\n' "${PRESSURES[@]}" | sort -g | tail -1)"
+
+# Linearly interpolate --min-time between MIN_TIME_LOW (at P_MIN) and
+# MIN_TIME_HIGH (at P_MAX) for this pressure.
+min_time_for() {
+    awk -v p="$1" -v pmin="${P_MIN}" -v pmax="${P_MAX}" \
+        -v tlo="${MIN_TIME_LOW}" -v thi="${MIN_TIME_HIGH}" \
+        'BEGIN {
+            if (pmax == pmin) { t = tlo }
+            else { t = tlo + (thi - tlo) * (p - pmin) / (pmax - pmin) }
+            printf "%.10g", t
+        }'
+}
 
 pids=()
 for p in "${PRESSURES[@]}"; do
@@ -88,7 +113,9 @@ fi
     echo "pressure_mpa,reg_rate_cm_s"
     for p in "${PRESSURES[@]}"; do
         run_dir="${WORKDIR}/P${p}"
+        min_time="$(min_time_for "${p}")"
         rate="$(python3 "${SCRIPT_DIR}/regression_rate.py" --rate-only --unit cm/s \
+            --min-time "${min_time}" \
             "${run_dir}/output" 2>>"${run_dir}/rate.log" || true)"
         if [[ "${rate}" == "nan" || -z "${rate}" ]]; then
             echo "${p},"

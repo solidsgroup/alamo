@@ -87,7 +87,9 @@ def nearest_experimental(data: dict[float, float], pressures: list[float]) -> li
 
 def run_sweep(pre_exponential: float, activation_temperature: float,
               pressures: list[float], workdir: Path,
-              lowmach_bin: str | None, template: Path | None) -> dict[float, float | None]:
+              lowmach_bin: str | None, template: Path | None,
+              min_time_low: float = 0.0, min_time_high: float = 0.0
+              ) -> dict[float, float | None]:
     results_csv = workdir / "results.csv"
     env_prefix = []
     import os
@@ -96,6 +98,10 @@ def run_sweep(pre_exponential: float, activation_temperature: float,
         env["LOWMACH_BIN"] = lowmach_bin
     if template:
         env["TEMPLATE"] = str(template)
+    if min_time_low:
+        env["MIN_TIME_LOW"] = repr(min_time_low)
+    if min_time_high:
+        env["MIN_TIME_HIGH"] = repr(min_time_high)
     cmd = [
         str(SCRIPT_DIR / "run_pressure_sweep.sh"),
         repr(pre_exponential), repr(activation_temperature),
@@ -114,17 +120,20 @@ def run_sweep(pre_exponential: float, activation_temperature: float,
 
 
 def make_objective(pressures: list[float], targets: list[float], workdir: Path,
-                    lowmach_bin: str | None, template: Path | None, log_path: Path):
+                    lowmach_bin: str | None, template: Path | None, log_path: Path,
+                    min_time_low: float = 0.0, min_time_high: float = 0.0,
+                    stage: str = "full"):
     iteration = [0]
 
     def objective(x: np.ndarray) -> np.ndarray:
         iteration[0] += 1
         pre_exponential = float(10.0 ** x[0])
         activation_temperature = float(x[1])
-        eval_dir = workdir / f"iter_{iteration[0]:03d}"
+        eval_dir = workdir / f"{stage}_iter_{iteration[0]:03d}"
         eval_dir.mkdir(parents=True, exist_ok=True)
         rates = run_sweep(pre_exponential, activation_temperature, pressures,
-                           eval_dir, lowmach_bin, template)
+                           eval_dir, lowmach_bin, template,
+                           min_time_low, min_time_high)
 
         residuals = []
         for p, target in zip(pressures, targets):
@@ -136,6 +145,7 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
         residuals = np.array(residuals)
 
         record = {
+            "stage": stage,
             "iteration": iteration[0],
             "pre_exponential": pre_exponential,
             "activation_temperature": activation_temperature,
@@ -144,7 +154,7 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
         }
         with open(log_path, "a") as fh:
             fh.write(json.dumps(record) + "\n")
-        print(f"[iter {iteration[0]}] pre_exponential={pre_exponential:.6g} "
+        print(f"[{stage} iter {iteration[0]}] pre_exponential={pre_exponential:.6g} "
               f"activation_temperature={activation_temperature:.6g} "
               f"residual_norm={record['residual_norm']:.6g}", flush=True)
         return residuals
@@ -173,10 +183,30 @@ def parse_args() -> argparse.Namespace:
                          help="override LOWMACH_BIN for run_pressure_sweep.sh")
     parser.add_argument("--template", type=Path,
                          help="override TEMPLATE for run_pressure_sweep.sh")
+    parser.add_argument("--min-time-low", type=float, default=0.0,
+                         help="seconds of simulated time to exclude from the start "
+                              "of the run at the lowest pressure in each sweep, to "
+                              "skip its startup transient (default: 0.0, no "
+                              "exclusion). Pressures between the lowest and highest "
+                              "in a given sweep get a --min-time linearly "
+                              "interpolated between --min-time-low and "
+                              "--min-time-high (forwarded via MIN_TIME_LOW/"
+                              "MIN_TIME_HIGH)")
+    parser.add_argument("--min-time-high", type=float, default=0.0,
+                         help="same as --min-time-low but for the highest pressure "
+                              "in each sweep (default: 0.0)")
     parser.add_argument("--xtol", type=float, default=1.0e-3,
                          help="least_squares xtol (default: 1e-3)")
     parser.add_argument("--max-nfev", type=int, default=30,
-                         help="cap on objective evaluations (default: 30)")
+                         help="cap on objective evaluations for the full-pressure-set "
+                              "stage (default: 30)")
+    parser.add_argument("--no-bracket-stage", dest="bracket_stage",
+                         action="store_false",
+                         help="skip the initial lowest+highest-pressure-only stage "
+                              "and optimize all --fit-pressures directly")
+    parser.add_argument("--bracket-max-nfev", type=int, default=15,
+                         help="cap on objective evaluations for the initial "
+                              "lowest+highest-pressure bracket stage (default: 15)")
     return parser.parse_args()
 
 
@@ -190,11 +220,34 @@ def main() -> None:
     print(f"Fitting to {len(args.fit_pressures)} pressures: "
           f"{list(zip(args.fit_pressures, targets))}")
 
-    objective = make_objective(args.fit_pressures, targets, args.workdir,
-                               args.lowmach_bin, args.template, log_path)
-
     x0 = np.array([np.log10(args.pre_exponential0), args.activation_temperature0])
     bounds = ([-6.0, 0.0], [1.0, 10000.0])
+
+    if args.bracket_stage and len(args.fit_pressures) > 2:
+        # Optimize against just the lowest and highest fit pressures first --
+        # two sims per iteration instead of the full set -- to get close to
+        # the right (pre_exponential, activation_temperature) region cheaply
+        # before paying for every pressure.
+        bracket_pressures = [min(args.fit_pressures), max(args.fit_pressures)]
+        bracket_targets = nearest_experimental(data, bracket_pressures)
+        print(f"\n=== Stage 1: bracket fit to {bracket_pressures} ===")
+        bracket_objective = make_objective(
+            bracket_pressures, bracket_targets, args.workdir,
+            args.lowmach_bin, args.template, log_path,
+            args.min_time_low, args.min_time_high, stage="bracket")
+        bracket_result = least_squares(
+            bracket_objective, x0, bounds=bounds, xtol=args.xtol,
+            max_nfev=args.bracket_max_nfev, diff_step=0.05)
+        print(f"Stage 1 result: pre_exponential={10.0 ** bracket_result.x[0]:.6g} "
+              f"activation_temperature={bracket_result.x[1]:.6g} "
+              f"residual_norm={np.linalg.norm(bracket_result.fun):.6g}")
+        x0 = bracket_result.x
+
+    print(f"\n=== Stage 2: full fit to {args.fit_pressures} ===")
+    objective = make_objective(args.fit_pressures, targets, args.workdir,
+                               args.lowmach_bin, args.template, log_path,
+                               args.min_time_low, args.min_time_high, stage="full")
+
     result = least_squares(objective, x0, bounds=bounds, xtol=args.xtol,
                            max_nfev=args.max_nfev, diff_step=0.05)
 
@@ -220,7 +273,8 @@ def main() -> None:
     val_dir = args.workdir / "validation"
     val_dir.mkdir(parents=True, exist_ok=True)
     val_rates = run_sweep(pre_exponential, activation_temperature, all_pressures,
-                          val_dir, args.lowmach_bin, args.template)
+                          val_dir, args.lowmach_bin, args.template,
+                          args.min_time_low, args.min_time_high)
 
     calibrated_input = args.workdir / "input.lm.ap_monopropellant_fullfeedback"
     render_cmd = [
