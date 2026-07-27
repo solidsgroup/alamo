@@ -119,17 +119,38 @@ def run_sweep(pre_exponential: float, activation_temperature: float,
     return rates
 
 
-def make_objective(pressures: list[float], targets: list[float], workdir: Path,
-                    lowmach_bin: str | None, template: Path | None, log_path: Path,
-                    min_time_low: float = 0.0, min_time_high: float = 0.0,
-                    stage: str = "full"):
-    iteration = [0]
+def make_fun_jac(pressures: list[float], targets: list[float], workdir: Path,
+                  lowmach_bin: str | None, template: Path | None, log_path: Path,
+                  min_time_low: float = 0.0, min_time_high: float = 0.0,
+                  stage: str = "full", diff_step: float = 0.05):
+    """Build (fun, jac) for least_squares that run independent sweeps concurrently.
 
-    def objective(x: np.ndarray) -> np.ndarray:
-        iteration[0] += 1
+    Each gradient step needs the residual at x plus one forward-difference
+    perturbation per parameter -- 3 independent sweeps here (2 params). scipy
+    calls these one at a time by default; running all of them at once (each
+    on its own thread, since run_sweep just blocks on a subprocess) uses the
+    machine's idle cores instead of leaving them idle between sequential
+    sweeps. Evaluations are cached by parameter vector so repeated x's (e.g.
+    fun(x) then jac(x) at the same point) don't re-run a sweep.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    iteration = [0]
+    cache: dict[tuple, np.ndarray] = {}
+    lock = threading.Lock()
+
+    def eval_at(x: np.ndarray) -> np.ndarray:
+        key = tuple(round(float(v), 12) for v in x)
+        with lock:
+            if key in cache:
+                return cache[key]
+            iteration[0] += 1
+            idx = iteration[0]
+
         pre_exponential = float(10.0 ** x[0])
         activation_temperature = float(x[1])
-        eval_dir = workdir / f"{stage}_iter_{iteration[0]:03d}"
+        eval_dir = workdir / f"{stage}_iter_{idx:03d}"
         eval_dir.mkdir(parents=True, exist_ok=True)
         rates = run_sweep(pre_exponential, activation_temperature, pressures,
                            eval_dir, lowmach_bin, template,
@@ -146,20 +167,41 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
 
         record = {
             "stage": stage,
-            "iteration": iteration[0],
+            "iteration": idx,
             "pre_exponential": pre_exponential,
             "activation_temperature": activation_temperature,
             "rates_cm_s": rates,
             "residual_norm": float(np.linalg.norm(residuals)),
         }
-        with open(log_path, "a") as fh:
-            fh.write(json.dumps(record) + "\n")
-        print(f"[{stage} iter {iteration[0]}] pre_exponential={pre_exponential:.6g} "
-              f"activation_temperature={activation_temperature:.6g} "
-              f"residual_norm={record['residual_norm']:.6g}", flush=True)
+        with lock:
+            with open(log_path, "a") as fh:
+                fh.write(json.dumps(record) + "\n")
+            print(f"[{stage} iter {idx}] pre_exponential={pre_exponential:.6g} "
+                  f"activation_temperature={activation_temperature:.6g} "
+                  f"residual_norm={record['residual_norm']:.6g}", flush=True)
+            cache[key] = residuals
         return residuals
 
-    return objective
+    def fun(x: np.ndarray) -> np.ndarray:
+        return eval_at(x)
+
+    def jac(x: np.ndarray, f0: np.ndarray | None = None) -> np.ndarray:
+        steps = [diff_step * max(abs(xi), 1.0) for xi in x]
+        perturbed = []
+        for i, step in enumerate(steps):
+            xp = x.copy()
+            xp[i] = xp[i] + step
+            perturbed.append(xp)
+
+        with ThreadPoolExecutor(max_workers=len(x) + 1) as ex:
+            base_future = ex.submit(eval_at, x)
+            pert_futures = [ex.submit(eval_at, xp) for xp in perturbed]
+            base = base_future.result()
+            columns = [(fut.result() - base) / step
+                       for fut, step in zip(pert_futures, steps)]
+        return np.column_stack(columns)
+
+    return fun, jac
 
 
 def parse_args() -> argparse.Namespace:
@@ -231,25 +273,25 @@ def main() -> None:
         bracket_pressures = [min(args.fit_pressures), max(args.fit_pressures)]
         bracket_targets = nearest_experimental(data, bracket_pressures)
         print(f"\n=== Stage 1: bracket fit to {bracket_pressures} ===")
-        bracket_objective = make_objective(
+        bracket_fun, bracket_jac = make_fun_jac(
             bracket_pressures, bracket_targets, args.workdir,
             args.lowmach_bin, args.template, log_path,
             args.min_time_low, args.min_time_high, stage="bracket")
         bracket_result = least_squares(
-            bracket_objective, x0, bounds=bounds, xtol=args.xtol,
-            max_nfev=args.bracket_max_nfev, diff_step=0.05)
+            bracket_fun, x0, jac=bracket_jac, bounds=bounds, xtol=args.xtol,
+            max_nfev=args.bracket_max_nfev)
         print(f"Stage 1 result: pre_exponential={10.0 ** bracket_result.x[0]:.6g} "
               f"activation_temperature={bracket_result.x[1]:.6g} "
               f"residual_norm={np.linalg.norm(bracket_result.fun):.6g}")
         x0 = bracket_result.x
 
     print(f"\n=== Stage 2: full fit to {args.fit_pressures} ===")
-    objective = make_objective(args.fit_pressures, targets, args.workdir,
-                               args.lowmach_bin, args.template, log_path,
-                               args.min_time_low, args.min_time_high, stage="full")
+    fun, jac = make_fun_jac(args.fit_pressures, targets, args.workdir,
+                             args.lowmach_bin, args.template, log_path,
+                             args.min_time_low, args.min_time_high, stage="full")
 
-    result = least_squares(objective, x0, bounds=bounds, xtol=args.xtol,
-                           max_nfev=args.max_nfev, diff_step=0.05)
+    result = least_squares(fun, x0, jac=jac, bounds=bounds, xtol=args.xtol,
+                           max_nfev=args.max_nfev)
 
     pre_exponential = float(10.0 ** result.x[0])
     activation_temperature = float(result.x[1])
