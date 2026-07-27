@@ -1,12 +1,12 @@
 {
   "abs_tol": 1e-08,
-  "binary": "bin/alamo_gpu-2d-cuda86-g++",
+  "binary": "bin/alamo_gpu-2d-nofast-cuda86-g++",
   "case": "rod_and_tube_step2",
   "command": [
     "mpiexec",
     "-np",
     "1",
-    "/home/jackplum/Projects/alamo/bin/alamo_gpu-2d-cuda86-g++",
+    "/home/jackplum/Projects/alamo/bin/alamo_gpu-2d-nofast-cuda86-g++",
     "input_rod_and_tube_2d",
     "max_step=2",
     "stop_time=1e99_s",
@@ -16,9 +16,9 @@
     "elastic.solver.verbose=0",
     "elastic.print_model=0",
     "elastic.interval=1",
-    "plot_file=/home/jackplum/Projects/alamo/benchmark/baseline_runs/rod_and_tube_step2/gpu_fast/plot"
+    "plot_file=/home/jackplum/Projects/alamo/benchmark/baseline_runs/rod_and_tube_step2/gpu_strict/plot"
   ],
-  "elapsed_s": 1.6535839750431478,
+  "elapsed_s": 4.447116019029636,
   "final": {
     "L_max": 0.000708836,
     "area": 0.496209,
@@ -33,10 +33,10 @@
     "max_temp": 301.126,
     "mdot_max": 127.579,
     "time": 0.0001,
-    "trac_xhi_x": -61097.5,
-    "trac_xhi_y": 19.5131,
-    "trac_yhi_x": 2.46422,
-    "trac_yhi_y": -59799.0,
+    "trac_xhi_x": -60959.1,
+    "trac_xhi_y": 19.0546,
+    "trac_yhi_x": 1.81302,
+    "trac_yhi_y": -59673.4,
     "volume": 0.00322642
   },
   "header": [
@@ -65,7 +65,7 @@
   "overrides": [
     "elastic.interval=1"
   ],
-  "profile": "gpu_fast",
+  "profile": "gpu_strict",
   "rel_tol": 1e-05,
   "rows": [
     [
@@ -103,10 +103,10 @@
       0.0,
       0.0,
       0.0,
-      -61097.5,
-      19.5131,
-      2.46422,
-      -59799.0
+      -60959.1,
+      19.0546,
+      1.81302,
+      -59673.4
     ]
   ]
 }
