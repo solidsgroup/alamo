@@ -1,0 +1,10 @@
+metric,value
+span_first_to_last_kernel_ms,776.0
+kernel_busy_ms,421.85
+idle_ms,354.15
+idle_pct_of_span,45.64
+num_gaps,32771
+median_gap_us,6.34
+mean_gap_us,10.81
+idle_before_fapply_block128_ms,146.47
+idle_before_other_block256_ms,207.68

@@ -1,0 +1,235 @@
+Initializing AMReX (26.06-dirty)...
+MPI initialized with 1 MPI processes
+MPI initialized with thread support level 0
+Initializing CUDA...
+CUDA initialized with 1 device.
+AMReX (26.06-dirty) initialized
+
+STEP 1 starts ...
+STEP 1 ends. TIME = 0.0001 DT = 0.0001
+
+STEP 2 starts ...
+[1m[34mMESSAGE[0m: [94msrc/Integrator/Base/Mechanics.H[0m:219 ([92mTimeStepBegin[0m) ELASTIC SOLVE: t=0.0001 step=1 m_type=0
+STEP 2 ends. TIME = 0.0002 DT = 0.0001
+
+
+TinyProfiler total time across processes [min...avg...max]: 0.6272 ... 0.6272 ... 0.6272
+
+--------------------------------------------------------------------------------------------
+Name                                         NCalls  Excl. Min  Excl. Avg  Excl. Max   Max %
+--------------------------------------------------------------------------------------------
+Operator::Elastic::Fapply()                   11808       0.37       0.37       0.37  58.99%
+Operator::Fsmooth()                            5248     0.1371     0.1371     0.1371  21.86%
+FabArray::setVal()                             2231      0.017      0.017      0.017   2.71%
+Operator::interpolation()                       246    0.01173    0.01173    0.01173   1.87%
+FabArray::Xpay()                               1312    0.01138    0.01138    0.01138   1.81%
+FabArray::ParallelCopy_nowait()                1214   0.008824   0.008824   0.008824   1.41%
+amrex::Add()                                    902   0.008532   0.008532   0.008532   1.36%
+Integrator::Base::Mechanics::TimeStepBegin        2   0.006677   0.006677   0.006677   1.06%
+FabArrayBase::getFB()                         30864   0.004378   0.004378   0.004378   0.70%
+amrex::Copy()                                   522   0.003846   0.003846   0.003846   0.61%
+FillBoundary_nowait()                         30859   0.003387   0.003387   0.003387   0.54%
+Operator::interpolationAmr()                    164   0.003116   0.003116   0.003116   0.50%
+Operator::Elastic::reflux()                     252   0.003101   0.003101   0.003101   0.49%
+Operator::restriction()                         246   0.002905   0.002905   0.002905   0.46%
+amrex::average_down                             332   0.002313   0.002313   0.002313   0.37%
+Integrador::Flame::Advance                       14   0.002008   0.002008   0.002008   0.32%
+FabArray::FillBoundary()                      11648   0.001929   0.001929   0.001929   0.31%
+FabArray::norminf()                             102   0.001746   0.001746   0.001746   0.28%
+FabArray::norminf(mask)                          92    0.00173    0.00173    0.00173   0.28%
+CellConservativeLinear::interp()                 96   0.001581   0.001581   0.001581   0.25%
+FillPatchSingleLevel                            136   0.001568   0.001568   0.001568   0.25%
+FillBoundary_finish()                         30859   0.001532   0.001532   0.001532   0.24%
+FAbArray::OverrideSync()                      11496   0.001502   0.001502   0.001502   0.24%
+MLMG::interpCorrection_2                        164   0.001173   0.001173   0.001173   0.19%
+OverrideSync_nowait()                         11496   0.001141   0.001141   0.001141   0.18%
+FabArray::FillBoundaryAndSync()                7937   0.001081   0.001081   0.001081   0.17%
+OverrideSync_finish()                         11496  0.0009482  0.0009482  0.0009482   0.15%
+FillBoundaryAndSync_nowait()                   7937  0.0008778  0.0008778  0.0008778   0.14%
+amrex::average_down_w_geom                       74   0.000831   0.000831   0.000831   0.13%
+FillPatchInterp(Fab)                             24  0.0007753  0.0007753  0.0007753   0.12%
+Operator::applyBC()                            6238  0.0007308  0.0007308  0.0007308   0.12%
+FillBoundaryAndSync_finish()                   7937  0.0007253  0.0007253  0.0007253   0.12%
+Integrator::Flame::Initialize                     3  0.0006694  0.0006694  0.0006694   0.11%
+Integrator::Base::Mechanics::Integrate           18    0.00062    0.00062    0.00062   0.10%
+Integrator::MakeNewLevelFromScratch               3  0.0005511  0.0005511  0.0005511   0.09%
+Flame::Integrate                                 18  0.0004235  0.0004235  0.0004235   0.07%
+FillPatchTwoLevels                               96  0.0003319  0.0003319  0.0003319   0.05%
+MLMG:computeResOfCorrection()                   656  0.0003081  0.0003081  0.0003081   0.05%
+MLMG::oneIter()                                  82  0.0002895  0.0002895  0.0002895   0.05%
+Operator::~Operator()                             1  0.0002779  0.0002779  0.0002779   0.04%
+FabArray::ParallelCopy()                       1214  0.0002755  0.0002755  0.0002755   0.04%
+MLMG::actualBottomSolve()                       246  0.0002536  0.0002536  0.0002536   0.04%
+MLMG::mgVcycle_bottom                           492  0.0002118  0.0002118  0.0002118   0.03%
+MLMG::interpCorrection_1                        164  0.0002001  0.0002001  0.0002001   0.03%
+MLMG::mgFcycle()                                 82  0.0001516  0.0001516  0.0001516   0.02%
+MLMG::computeResWithCrseSolFineCor()            164  0.0001481  0.0001481  0.0001481   0.02%
+MLMG::mgVcycle_up::1                            164  0.0001173  0.0001173  0.0001173   0.02%
+MLMG::mgVcycle_down::1                          164  0.0001035  0.0001035  0.0001035   0.02%
+MLMG::computeResWithCrseCorFineCor()            164  9.742e-05  9.742e-05  9.742e-05   0.02%
+MLMG::mgVcycle()                                492  9.708e-05  9.708e-05  9.708e-05   0.02%
+Operator::Elastic::define()                       1  9.131e-05  9.131e-05  9.131e-05   0.01%
+MLMG::addInterpCorrection()                     246  9.084e-05  9.084e-05  9.084e-05   0.01%
+Integrator::Evolve                                1  6.637e-05  6.637e-05  6.637e-05   0.01%
+Integrator::Flame::TimeStepBegin                  2  5.987e-05  5.987e-05  5.987e-05   0.01%
+MLMG::mgVcycle_up::0                             82  5.906e-05  5.906e-05  5.906e-05   0.01%
+Integrator::FillPatch                           112  5.679e-05  5.679e-05  5.679e-05   0.01%
+MLMG::mgVcycle_down::0                           82  5.387e-05  5.387e-05  5.387e-05   0.01%
+MLMG::miniCycle()                               328  4.665e-05  4.665e-05  4.665e-05   0.01%
+MLMG::prepareForSolve()                           2  4.651e-05  4.651e-05  4.651e-05   0.01%
+Integrator::TimeStep                             14  4.308e-05  4.308e-05  4.308e-05   0.01%
+MLMG::computeMLResidual()                        40  3.888e-05  3.888e-05  3.888e-05   0.01%
+MLMG::solve()                                     2  3.031e-05  3.031e-05  3.031e-05   0.00%
+MLMG::computeResidual()                          82  2.606e-05  2.606e-05  2.606e-05   0.00%
+MLMG::ResNormInf()                              164  2.408e-05  2.408e-05  2.408e-05   0.00%
+Integrator::IntegrateVariables                    2  1.748e-05  1.748e-05  1.748e-05   0.00%
+Integrator::InitData                              1   1.59e-05   1.59e-05   1.59e-05   0.00%
+MLMG::MLResNormInf()                             40  9.122e-06  9.122e-06  9.122e-06   0.00%
+Operator::Elastic::Elastic()                      1  2.465e-06  2.465e-06  2.465e-06   0.00%
+Operator::prepareForSolve()                       1  1.942e-06  1.942e-06  1.942e-06   0.00%
+Other                                          1577   0.003625   0.003625   0.003625   0.58%
+--------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------
+Name                                         NCalls  Incl. Min  Incl. Avg  Incl. Max   Max %
+--------------------------------------------------------------------------------------------
+Integrator::Evolve                                1     0.6221     0.6221     0.6221  99.19%
+Integrator::Flame::TimeStepBegin                  2     0.6123     0.6123     0.6123  97.64%
+Integrator::Base::Mechanics::TimeStepBegin        2     0.6123     0.6123     0.6123  97.62%
+MLMG::solve()                                     2     0.6019     0.6019     0.6019  95.97%
+MLMG::oneIter()                                  82     0.5847     0.5847     0.5847  93.23%
+MLMG::mgVcycle()                                492     0.4792     0.4792     0.4792  76.41%
+Operator::Fsmooth()                            5248     0.4682     0.4682     0.4682  74.65%
+Operator::Elastic::Fapply()                   11808       0.37       0.37       0.37  58.99%
+MLMG::mgFcycle()                                 82     0.3402     0.3402     0.3402  54.25%
+MLMG::mgVcycle_bottom                           492     0.2814     0.2814     0.2814  44.87%
+MLMG::miniCycle()                               328     0.1872     0.1872     0.1872  29.85%
+MLMG::actualBottomSolve()                       246     0.1313     0.1313     0.1313  20.94%
+MLMG::mgVcycle_up::1                            164    0.06756    0.06756    0.06756  10.77%
+MLMG::mgVcycle_down::1                          164    0.04766    0.04766    0.04766   7.60%
+MLMG::mgVcycle_up::0                             82     0.0456     0.0456     0.0456   7.27%
+MLMG::mgVcycle_down::0                           82    0.03684    0.03684    0.03684   5.87%
+MLMG::computeResWithCrseSolFineCor()            164     0.0284     0.0284     0.0284   4.53%
+MLMG:computeResOfCorrection()                   656    0.02827    0.02827    0.02827   4.51%
+FabArray::setVal()                             2231      0.017      0.017      0.017   2.71%
+MLMG::computeResWithCrseCorFineCor()            164    0.01318    0.01318    0.01318   2.10%
+MLMG::addInterpCorrection()                     246    0.01241    0.01241    0.01241   1.98%
+Operator::interpolation()                       246    0.01231    0.01231    0.01231   1.96%
+FabArray::Xpay()                               1312    0.01138    0.01138    0.01138   1.81%
+FabArray::ParallelCopy()                       1214   0.009399   0.009399   0.009399   1.50%
+Operator::Elastic::reflux()                     252   0.009088   0.009088   0.009088   1.45%
+FabArray::ParallelCopy_nowait()                1214   0.009018   0.009018   0.009018   1.44%
+Integrator::TimeStep                             14   0.008623   0.008623   0.008623   1.37%
+amrex::Add()                                    902   0.008532   0.008532   0.008532   1.36%
+FillBoundary_nowait()                         30859   0.007791   0.007791   0.007791   1.24%
+MLMG::computeResidual()                          82   0.006996   0.006996   0.006996   1.12%
+FAbArray::OverrideSync()                      11496   0.006579   0.006579   0.006579   1.05%
+MLMG::interpCorrection_1                        164   0.006359   0.006359   0.006359   1.01%
+MLMG::computeMLResidual()                        40   0.005967   0.005967   0.005967   0.95%
+FabArray::FillBoundaryAndSync()                7937   0.005647   0.005647   0.005647   0.90%
+FabArray::FillBoundary()                      11648   0.005303   0.005303   0.005303   0.85%
+Integrator::FillPatch                           112   0.005244   0.005244   0.005244   0.84%
+Operator::applyBC()                            6238   0.005211   0.005211   0.005211   0.83%
+FillPatchTwoLevels                               96   0.005065   0.005065   0.005065   0.81%
+FabArrayBase::getFB()                         30864    0.00441    0.00441    0.00441   0.70%
+amrex::Copy()                                   522   0.003846   0.003846   0.003846   0.61%
+OverrideSync_nowait()                         11496   0.003596   0.003596   0.003596   0.57%
+FillBoundaryAndSync_nowait()                   7937   0.003438   0.003438   0.003438   0.55%
+Operator::restriction()                         246   0.003338   0.003338   0.003338   0.53%
+Operator::interpolationAmr()                    164   0.003116   0.003116   0.003116   0.50%
+MLMG::ResNormInf()                              164   0.002825   0.002825   0.002825   0.45%
+Integrator::InitData                              1   0.002729   0.002729   0.002729   0.44%
+FillPatchInterp(Fab)                             24   0.002356   0.002356   0.002356   0.38%
+amrex::average_down                             332   0.002337   0.002337   0.002337   0.37%
+Integrador::Flame::Advance                       14   0.002138   0.002138   0.002138   0.34%
+Integrator::MakeNewLevelFromScratch               3   0.002089   0.002089   0.002089   0.33%
+FillPatchSingleLevel                            136   0.001956   0.001956   0.001956   0.31%
+amrex::average_down_w_geom                       74   0.001807   0.001807   0.001807   0.29%
+FabArray::norminf()                             102   0.001746   0.001746   0.001746   0.28%
+FabArray::norminf(mask)                          92    0.00173    0.00173    0.00173   0.28%
+CellConservativeLinear::interp()                 96   0.001581   0.001581   0.001581   0.25%
+FillBoundary_finish()                         30859   0.001532   0.001532   0.001532   0.24%
+OverrideSync_finish()                         11496   0.001481   0.001481   0.001481   0.24%
+MLMG::MLResNormInf()                             40   0.001463   0.001463   0.001463   0.23%
+MLMG::interpCorrection_2                        164   0.001238   0.001238   0.001238   0.20%
+MLMG::prepareForSolve()                           2   0.001207   0.001207   0.001207   0.19%
+FillBoundaryAndSync_finish()                   7937   0.001127   0.001127   0.001127   0.18%
+Integrator::IntegrateVariables                    2   0.001061   0.001061   0.001061   0.17%
+Flame::Integrate                                 18   0.001043   0.001043   0.001043   0.17%
+Integrator::Flame::Initialize                     3  0.0009535  0.0009535  0.0009535   0.15%
+Operator::Elastic::Elastic()                      1  0.0009474  0.0009474  0.0009474   0.15%
+Operator::Elastic::define()                       1   0.000945   0.000945   0.000945   0.15%
+Operator::prepareForSolve()                       1  0.0008464  0.0008464  0.0008464   0.13%
+Operator::~Operator()                             1  0.0007554  0.0007554  0.0007554   0.12%
+Integrator::Base::Mechanics::Integrate           18    0.00062    0.00062    0.00062   0.10%
+Other                                          1577   0.005972   0.005972   0.005972   0.95%
+--------------------------------------------------------------------------------------------
+
+Device Memory Usage:
+-----------------------------------------------------------------------
+Name                                         Nalloc    AvgMem    MaxMem
+-----------------------------------------------------------------------
+The_Arena::Initialize()                           1     9 KiB  5872 MiB
+Integrator::Base::Mechanics::TimeStepBegin       60  5646 KiB  7981 KiB
+Integrator::MakeNewLevelFromScratch              63  4959 KiB  6542 KiB
+Operator::Elastic::define()                      10  4496 KiB  6056 KiB
+ResizeRandomSeed                                  1  5149 KiB  5184 KiB
+MLMG::prepareForSolve()                          21  1259 KiB  1708 KiB
+Elastic::averageDownCoeffsSameAmrLevel()          4   381   B  1116 KiB
+Operator::~Operator()                            18   406 KiB   582 KiB
+Operator::Fsmooth()                            5248    43 KiB   199 KiB
+amrex::average_down_w_geom                      148   191   B   122 KiB
+Integrator::Base::Mechanics::Integrate           36    81   B   108 KiB
+Flame::Integrate                                 18    41   B    81 KiB
+Operator::Elastic::reflux()                     504   534   B    73 KiB
+Operator::interpolation()                       246   476   B    66 KiB
+MLMG::interpCorrection_1                        164   290   B    58 KiB
+amrex::average_down                               4     3   B    51 KiB
+MLMG::oneIter()                                 164    89   B    51 KiB
+MLNodeLinOp::buildMasks()                         8    27 KiB    51 KiB
+FabArray::norminf(mask)                         106  1187   B    29 KiB
+FabArray::norminf()                             111   716   B    28 KiB
+FillPatchTwoLevels                              192    70   B    19 KiB
+OwnerMask()                                       2    13 KiB    18 KiB
+CellConservativeLinear::interp()                192     9   B  8704   B
+MultiFab::is_finite()                            15   568   B  4352   B
+FabArray::ParallelCopy_nowait()                  48     0   B  1024   B
+Integrator::Flame::Flame()                        2   583   B   768   B
+FabArray::setVal(val, thecmd, scomp, ncomp)       2     0   B   512   B
+Integrador::Flame::Advance                       28     0   B   512   B
+-----------------------------------------------------------------------
+
+Managed Memory Usage:
+---------------------------------------------------------
+Name                             Nalloc  AvgMem    MaxMem
+---------------------------------------------------------
+The_Managed_Arena::Initialize()       1   3   B  8192 KiB
+---------------------------------------------------------
+
+Pinned Memory Usage:
+-----------------------------------------------------------------------
+Name                                         Nalloc    AvgMem    MaxMem
+-----------------------------------------------------------------------
+The_Pinned_Arena::Initialize()                    1    13   B  8192 KiB
+FabArray::norminf(mask)                         106  1133   B  2304   B
+FabArray::norminf()                             111   661   B  1792   B
+CellConservativeLinear::interp()                 96     1   B  1024   B
+FabArray::ParallelCopy_nowait()                  48     0   B  1024   B
+MultiFab::is_finite()                            15   567   B  1024   B
+Integrator::Flame::Flame()                        2   583   B   768   B
+FabArray::setVal(val, thecmd, scomp, ncomp)       2     0   B   512   B
+Operator::~Operator()                             2     0   B   512   B
+Flame::Integrate                                 18     0   B   256   B
+Integrator::Base::Mechanics::Integrate           36     0   B   256   B
+Integrator::Base::Mechanics::TimeStepBegin       18     0   B   256   B
+-----------------------------------------------------------------------
+
+Total GPU global memory (MB) spread across MPI: [7829 ... 7829]
+Free  GPU global memory (MB) spread across MPI: [558 ... 558]
+[The         Arena] max space (MB) allocated spread across MPI: [5872 ... 5872]
+[The         Arena] max space (MB) used      spread across MPI: [28 ... 28]
+[The Managed Arena] max space (MB) allocated spread across MPI: [8 ... 8]
+[The Managed Arena] max space (MB) used      spread across MPI: [0 ... 0]
+[The  Pinned Arena] max space (MB) allocated spread across MPI: [8 ... 8]
+[The  Pinned Arena] max space (MB) used      spread across MPI: [0 ... 0]
+AMReX (26.06-dirty) finalized

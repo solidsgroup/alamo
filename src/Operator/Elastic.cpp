@@ -4,14 +4,27 @@
 
 #include "Numeric/Stencil.H"
 
+// Launch width for Fapply only.  Fapply is register-bound (254 regs/thread on
+// sm_86, 1 block/SM) and the MG hierarchy issues most of its launches on coarse
+// levels: the 2D-conservative nsys trace has 3,936 launches whose grid is *two*
+// blocks, each costing ~30 us on a 16-SM device.  At those sizes the block
+// width, not occupancy, decides how many SMs are engaged at all, so this is a
+// tuned constant rather than AMREX_GPU_MAX_THREADS.  Block size cannot change
+// results: every thread writes only its own F(i,j,k,.) with no reduction.
+#ifndef ALAMO_ELASTIC_FAPPLY_MT
+#define ALAMO_ELASTIC_FAPPLY_MT 128
+#endif
+
 #ifdef ALAMO_GPU
 #define ALAMO_ELASTIC_OP_FOR amrex::ParallelFor
+#define ALAMO_ELASTIC_FAPPLY_FOR amrex::ParallelFor<ALAMO_ELASTIC_FAPPLY_MT>
 #define ALAMO_ELASTIC_OP_CAPTURE [=]
 #define ALAMO_ELASTIC_OP_DEVICE AMREX_GPU_DEVICE
 #define ALAMO_ELASTIC_OP_BC_EVAL(bc, bc_type, u, gradu, sigma, i, j, k, bx) \
     ::BC::Operator::Elastic::Elastic::eval(bc_type, u, gradu, sigma, i, j, k, bx)
 #else
 #define ALAMO_ELASTIC_OP_FOR amrex::LoopConcurrentOnCpu
+#define ALAMO_ELASTIC_FAPPLY_FOR amrex::LoopConcurrentOnCpu
 #define ALAMO_ELASTIC_OP_CAPTURE [=]
 #define ALAMO_ELASTIC_OP_DEVICE
 #define ALAMO_ELASTIC_OP_BC_EVAL(bc, bc_type, u, gradu, sigma, i, j, k, bx) \
@@ -196,10 +209,13 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 
-        amrex::Array4<MATRIX4> const& DDW = (*(m_ddw_mf[amrlev][mglev])).array(mfi);
+        // DDW and psi are read-only here: taking them as const Array4 lets the
+        // compiler rule out aliasing against the F store and use the read-only
+        // path for the coefficient loads, which dominate this kernel's traffic.
+        amrex::Array4<const MATRIX4> const& DDW = m_ddw_mf[amrlev][mglev]->const_array(mfi);
         amrex::Array4<const amrex::Real> const& U = a_u.array(mfi);
         amrex::Array4<amrex::Real> const& F = a_f.array(mfi);
-        amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
+        amrex::Array4<const Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->const_array(mfi);
 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
         auto m_psi_set = this->m_psi_set;
@@ -212,7 +228,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         auto m_bc = this->m_bc;
 #endif
 
-        ALAMO_ELASTIC_OP_FOR(tilebox, ALAMO_ELASTIC_OP_CAPTURE ALAMO_ELASTIC_OP_DEVICE (int i, int j, int k) {
+        ALAMO_ELASTIC_FAPPLY_FOR(tilebox, ALAMO_ELASTIC_OP_CAPTURE ALAMO_ELASTIC_OP_DEVICE (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -238,8 +254,11 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
-            // ddw is reused below (sig, C(gradgradu), grad(psi) correction) - loaded once.
-            MATRIX4 const ddw = DDW(i, j, k);
+            // ddw is reused below (sig, C(gradgradu), grad(psi) correction).
+            // Bound by reference, not copied: a by-value Matrix4<3,Major> is 45
+            // doubles, and the conservative-face-flux branch never reads it at
+            // all, so the copy was pure register pressure on the hot path.
+            MATRIX4 const& ddw = DDW(i, j, k);
 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))

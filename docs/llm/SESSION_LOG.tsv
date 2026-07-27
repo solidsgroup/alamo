@@ -26,3 +26,8 @@ date	task	model	tier	cost_usd	outcome
 2026-07-22	fapply-runtime-a100-closeout	GPT-5	3	n/a	done (retain 2/2 only; A100 wall -16.56%, solve -22.54%, FApply -23.30%; two-step physics gate and fresh review PASS; source experiments reverted)
 2026-07-22	eta-ripple-rootcause	GPT-5	3	n/a	done (H0 affirmed: raw stress balances -p grad eta; corrected planar traction roundoff, radial Nyquist converges order 2.10/2.27; temporary restart hook reverted)
 2026-07-23	phi-radial-stress-aberration	GPT-5	3	n/a	done (post-regrid solve changes native Nyquist <=0.0227%; native and saved profiles monotone with zero overshoot; visible 1.4-1.8 MPa band is a smooth phi/material transition; no source change)
+2026-07-24	chi-casing-output	GPT-5	3	n/a	done (renamed casing support field to chi; emitted nodal chi output; legacy input aliases accepted with explicit conflict checks; 2-D tests and smoke runs pass)
+2026-07-24	matched-phi-chi-width	GPT-5	3	n/a	done (input phi and chi replaced/matched with analytic tanh scales equal to pf.eps; one-step 2-D smoke run passes; resolution caveat recorded)
+2026-07-24	phi-chi-width-3p5mm	GPT-5	3	n/a	done (set phi and chi analytic tanh scales to 3.5e-3 m; one-step 2-D smoke run passes)
+2026-07-24	nova-fairshare-figures	GPT-5	0	n/a	done (three post-fix NOVA fair-share figures; timestamped read-only snapshot; editable SVG and PNG exports; renderer oracle PASS)
+2026-07-26	gpu-optimization-sweep	Opus 5	3	n/a	done (Fsmooth elementwise fusion + Fapply const-array/by-ref coefficients + Fapply launch width 128; -24.2% wall 2D, -9.8% 3D section, -56% kernel launches; strict build bit-identical; MulCol and MT=64 measured and rejected; rod_and_tube gpu reference confirmed stale pre-existing)
