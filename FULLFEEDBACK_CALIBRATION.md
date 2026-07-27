@@ -39,7 +39,19 @@ Useful flags:
   16 experimental pressures are used only for the final validation sweep).
 - `--pre-exponential0` / `--activation-temperature0` — initial guess
   (defaults `0.0027` 1/Pa/s, `3145` K).
-- `--max-nfev` — cap on objective evaluations (default 30).
+- `--max-nfev` — cap on objective evaluations for the full-pressure-set stage
+  (default 30).
+- `--no-bracket-stage` / `--bracket-max-nfev` — by default, optimization
+  first fits against only the lowest and highest `--fit-pressures` (cheapest
+  possible sweep), then refines against the full set from that result;
+  `--no-bracket-stage` skips straight to the full-pressure fit.
+- `--min-time-low` / `--min-time-high` — seconds of simulated time to
+  exclude from the start of each run before measuring the regression rate,
+  linearly interpolated per-pressure between the lowest and highest pressure
+  in each sweep (default 0.0/0.0, no exclusion). The front position is still
+  transient for roughly the first half of the run at low pressure, so e.g.
+  `--min-time-low 0.04 --min-time-high 0.01` keeps that startup transient
+  out of the steady-state window.
 - `--xtol` — `least_squares` convergence tolerance (default 1e-3).
 - `--lowmach-bin` / `--template` — override paths if they differ on the
   machine running this (defaults assume
@@ -48,9 +60,10 @@ Useful flags:
 
 ### Cost
 
-Each sim is ~a few minutes (`stop_time = 2.0e-2_s`, `plot_dt = 5.0e-4_s` for
-enough samples per run so the steady-state window is well resolved by
-`regression_rate.py`'s transient/steady/extinguished classification). Each
+Each sim is `stop_time = 8.0e-2_s`, `plot_dt = 5.0e-4_s` for enough samples
+per run so the steady-state window is well resolved by
+`regression_rate.py`'s transient/steady/extinguished classification (after
+`--min-time` excludes the startup transient). Each
 `least_squares` iteration runs the full fit-pressure subset in parallel, so
 the whole optimization is a **multi-hour background job** — run it under
 `nohup`/`tmux`/similar. Progress streams to stdout and to

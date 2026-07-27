@@ -6,10 +6,12 @@
 # activation_temperature [K].
 #
 # Derived from input.lm.ap_monopropellant_fullfeedback, but with a shortened
-# stop_time and denser plot cadence: the front reaches steady state by ~4 ms,
-# so 8 ms is enough to measure the steady regression rate while keeping each
-# sim short (~a few minutes). plot_dt is fine enough to give many samples of
-# the steady window for scripts/regression_rate.py.
+# stop_time and denser plot cadence than the original. stop_time was later
+# extended from 8 ms to 80 ms because the front position is still transient
+# for roughly the first half of the run at low pressure; use
+# scripts/regression_rate.py --min-time to exclude that startup transient
+# from the steady-state regression-rate fit. plot_dt is fine enough to give
+# many samples of the steady window for scripts/regression_rate.py.
 
 plot_file = output.lm.ap_monopropellant_fullfeedback
 amr.plot_dt = 5.0e-4_s
@@ -21,7 +23,7 @@ amr.nsubsteps = 1
 eta_refinement_criterion = 0.01
 
 timestep = 2.5e-7_s
-stop_time = 8.0e-3_s
+stop_time = 8.0e-2_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
