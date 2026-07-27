@@ -1,33 +1,69 @@
-# Effectively one-dimensional AP monopropellant regression calibration case.
-# Run with: ./bin/lowmach-2d-clang++ input.lm.ap_monopropellant
+#@ [2d-*MPa]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@
+#@ [2d-1MPa]
+#@ args = Final.density.ic.expression.constant.P=1.0e6
+#@ args = component_density.bc.expression.constant.P=1.0e6
+#@ args = pressure.ic.constant.value=1.0e6
+#@ args = pressure.bc.constant.val.yhi=1.0e6
+#@ args = stop_time=3.0e-3
+#@ args = amr.plot_dt=1.5e-4
+#@
+#@ [2d-2MPa]
+#@ args = Final.density.ic.expression.constant.P=2.0e6
+#@ args = component_density.bc.expression.constant.P=2.0e6
+#@ args = pressure.ic.constant.value=2.0e6
+#@ args = pressure.bc.constant.val.yhi=2.0e6
+#@
+#@ [2d-3MPa]
+#@ args = Final.density.ic.expression.constant.P=3.0e6
+#@ args = component_density.bc.expression.constant.P=3.0e6
+#@ args = pressure.ic.constant.value=3.0e6
+#@ args = pressure.bc.constant.val.yhi=3.0e6
+#@
+#@ [2d-4MPa]
+#@ args = Final.density.ic.expression.constant.P=4.0e6
+#@ args = component_density.bc.expression.constant.P=4.0e6
+#@ args = pressure.ic.constant.value=4.0e6
+#@ args = pressure.bc.constant.val.yhi=4.0e6
+#@
+#@ [2d-5MPa]
+#@ args = Final.density.ic.expression.constant.P=5.0e6
+#@ args = component_density.bc.expression.constant.P=5.0e6
+#@ args = pressure.ic.constant.value=5.0e6
+#@ args = pressure.bc.constant.val.yhi=5.0e6
+#@
+#@ [2d-6MPa]
+#@ args = Final.density.ic.expression.constant.P=6.0e6
+#@ args = component_density.bc.expression.constant.P=6.0e6
+#@ args = pressure.ic.constant.value=6.0e6
+#@ args = pressure.bc.constant.val.yhi=6.0e6
 
-plot_file = output.lm.ap_monopropellant
-amr.plot_dt = 2.0e-3_s
-amr.max_level = 1
-amr.n_cell = 4 128
-amr.max_grid_size = 128
-amr.blocking_factor = 4
-amr.nsubsteps = 1
-eta_refinement_criterion = 0.01
+# Effectively one-dimensional Rocfire AP monopropellant regression. The
+# pressure cases share all phase-field and mechanism parameters.
 
-timestep = 2.5e-7_s
-stop_time = 2.0e-2_s
+plot_file = tests/LMRFMonoAP/output
+amr.plot_dt = 1.0e-4_s
+amr.max_level = 0
+amr.n_cell = 2 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+
+timestep = 1.0e-7_s
+stop_time = 1.5e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
-dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-# The narrow periodic direction makes the solution one-dimensional while
-# retaining an isotropic 3.125 micron mesh in the 2D executable. The 20 micron
-# interface remains resolved by approximately six cells.
-geometry.prob_lo = -1.25e-5_m -5.0e-4_m 0.0
-geometry.prob_hi =  1.25e-5_m  3.0e-4_m 0.0
+geometry.prob_lo = -3.125e-6_m -1.5e-4_m 0.0
+geometry.prob_hi =  3.125e-6_m  5.0e-5_m 0.0
 geometry.is_periodic = 1 0 0
 
-# Rocfire requires its six gas species in this order. Only the AP
-# monopropellant path AP_gas -> Mono is active in this case.
 system.amount = kmol
 gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
 gas.thermo.type = rocfire
@@ -66,19 +102,17 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# These provisional coefficients were fit with the removed tensor thermal
-# bridge. Recalibration against physical scalar conduction remains necessary.
 mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 500.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-AP_decomposition.phase_change.phase_field.allencahn.epsilon = 20.0_um
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
 AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
 AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
 AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
@@ -88,45 +122,56 @@ rigid.velocity = 0.0 0.0
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
-cfl = 0.6
+cfl = 0.8
 include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
 projection.enabled = 1
-projection.tol_rel = 1.0e-11
+projection.tol_rel = 1.0e-10
 projection.tol_abs = 1.0e-12
 projection.verbose = 0
 projection.update_pressure = 1
-diffusion.tol_rel = 1.0e-11
+diffusion.tol_rel = 1.0e-10
 diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0
-diagnostics.interval = 100
+diagnostics.interval = 0
 diagnostics.extended_fields = 1
 
-# The eta=0.5 AP surface starts at y=0 with the equilibrium profile implied
-# by the configured sigma/epsilon coefficients.
 AP_solid.density.ic.type = expression
 AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6)))"
 
-# Fill the gas side with final products at 3 MPa and 700 K. Fresh AP gas is
-# introduced only by the moving condensed/gas interface.
 Final.density.ic.type = expression
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*3000000.0/(319.787*700.0))"
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(319.787*300.0))"
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
-temperature.ic.constant.value = 700.0
+temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
-pressure.ic.constant.value = 3000000.0
+pressure.ic.constant.value = 3.0e6
 
-component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic
-component_density.bc.constant.type.xhi = periodic
-component_density.bc.constant.type.ylo = neumann
-component_density.bc.constant.type.yhi = dirichlet
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0
+# A short surface-localized heat flux initiates burning from the 300 K state.
+# Its Gaussian integral in y is qflux; it is absent from the rate-fit window.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 3.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+
+component_density.bc.type = expression
+component_density.bc.expression.constant.P = 3.0e6
+component_density.bc.expression.constant.R = 319.787
+component_density.bc.expression.constant.T = 300.0
+component_density.bc.expression.type.xlo = periodic
+component_density.bc.expression.type.xhi = periodic
+component_density.bc.expression.type.ylo = neumann
+component_density.bc.expression.type.yhi = dirichlet
+component_density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "P/(R*T)" "0.0"
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic
@@ -146,4 +191,4 @@ pressure.bc.constant.type.xlo = periodic
 pressure.bc.constant.type.xhi = periodic
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
-pressure.bc.constant.val.yhi = 3000000.0
+pressure.bc.constant.val.yhi = 3.0e6

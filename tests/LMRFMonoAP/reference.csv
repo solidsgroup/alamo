@@ -1,0 +1,9 @@
+# Price, Boggs, and Derr AP data digitized at integer pressures from
+# Meier et al., Combustion and Flame 259 (2024), Figure 5(a).
+# pressure_MPa,burn_rate_mm_per_s
+1.0,0.0
+2.0,2.65
+3.0,3.80
+4.0,5.00
+5.0,6.30
+6.0,7.90

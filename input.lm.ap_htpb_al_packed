@@ -21,7 +21,7 @@ eta_refinement_criterion = 0.01
 temperature_refinement_criterion = 500.0
 
 timestep = 2.5e-6_s
-stop_time = 25_ms
+stop_time = 1_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -94,7 +94,9 @@ AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
 AP_decomposition.phase_change.phase_field.allencahn.epsilon = 80.0_um
-AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.in = HTPB_solid
@@ -106,7 +108,9 @@ HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
 HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 80.0_um
-HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
 
 # All three condensed species use the same fixed rigid-body velocity.
 rigid.relaxation_time = 1.0e-8_s

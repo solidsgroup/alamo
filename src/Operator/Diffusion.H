@@ -18,7 +18,7 @@ namespace Operator
 ///
 /// This class solves
 ///
-///   a (q - q_old) - dt div(B grad(q)) = 0
+///   a (q - q_old) - dt div(B grad(q)) = dt source
 ///
 /// for one or more cell-centered components sharing the coefficients. Scalar
 /// mobility uses b I; tensor mobility adds a full symmetric tensor B. This
@@ -35,16 +35,19 @@ public:
                     int number_of_levels, int number_of_components);
 
     amrex::MultiFab& State(int lev, int ncomp);
+    amrex::MultiFab& Source(int lev, int ncomp);
     amrex::MultiFab& Mass(int lev, int ncomp);
     amrex::MultiFab& Mobility(int lev, int ncomp);
     amrex::MultiFab& TensorMobility(int lev, int ncomp);
 
     void Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::BCRec& boundary_condition, int ncomp,
-                bool tensor_mobility = false);
+                bool tensor_mobility = false,
+                bool include_source = false);
     void Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::Vector<amrex::BCRec>& boundary_conditions,
-                int ncomp, bool tensor_mobility = false);
+                int ncomp, bool tensor_mobility = false,
+                bool include_source = false);
     void FillBoundary(Set::Field<Set::Scalar>& field,
                         BC::BC<Set::Scalar>& boundary_condition,
                         Set::Scalar time, int ncomp) const;
@@ -54,6 +57,7 @@ private:
     struct System
     {
         Set::Field<Set::Scalar> state;
+        Set::Field<Set::Scalar> source;
         Set::Field<Set::Scalar> rhs;
         Set::Field<Set::Scalar> mass;
         Set::Field<Set::Scalar> mobility;

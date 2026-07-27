@@ -18,6 +18,7 @@ struct State
 {
     amrex::Array4<const Set::Scalar> component_density;
     amrex::Array4<const Set::Scalar> rigid_eta;
+    amrex::Array4<const Set::Scalar> rigid_species_eta;
     Set::Scalar temperature;
     Set::Scalar pressure;
 };
@@ -75,6 +76,69 @@ public:
         }
         Util::Abort(INFO, selected);
         return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalRate(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).LocalRate(state, i, j, k);
+            return LocalRate<I + 1>(state, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GradientCoefficient(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).GradientCoefficient(
+                    state, i, j, k);
+            return GradientCoefficient<I + 1>(state, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyImplicitChange(
+        const amrex::Array4<Set::Scalar>& component_density,
+        const State& state, const Set::Scalar eta_change,
+        const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).ApplyImplicitChange(
+                    component_density, state, eta_change, i, j, k);
+            return ApplyImplicitChange<I + 1>(
+                component_density, state, eta_change, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    int RigidComponent() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).RigidComponent();
+            return RigidComponent<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return -1;
     }
 
 private:
