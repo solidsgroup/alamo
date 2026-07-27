@@ -61,16 +61,11 @@ public:
 
             pp_query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)
         
-            // This if is here because the code currently allows for no
-            // body force to be defined, in which case value.ic_rhs is set to
-            // a nullptr. This should eventually be fixed - this is a stopgap.
-            if (pp.contains("rhs.type"))
-                // initial condition for right hand side (body force) 
-                pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,pp.forward_args(value.geom));
+            // initial condition for right hand side (body force) 
+            pp.select_default<IC::Constant::Zero, IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,pp.forward_args(value.geom));
 
             // Timestep interval for elastic solves (default - solve every time)
             pp_query_default("interval", value.m_interval, 0);
-
 
             // Maximum multigrid coarsening level (default - none, maximum coarsening)
             pp_query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
@@ -87,7 +82,6 @@ public:
 
             // Time to start doing the elastic solve (by default, start immediately)
             pp_query_default("tstart", value.tstart,-1.0);
-
 
             // Relative tolerance in mechanics solve
             pp.query_default("tol_rel",value.tol_rel,1E-8);

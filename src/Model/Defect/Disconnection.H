@@ -60,9 +60,9 @@ public:
         // regularization epsilon
         pp.query_default ("epsilon",value.epsilon,1E-20); 
         // whether to manually specify disconnection nucleation points
-        pp.query("disconnection.fixed.on",value.fixed.on); 
-        if (value.fixed.on)
-        {
+        pp.query_if_else("disconnection.fixed.on", [&]() {
+            value.fixed.on = true;
+
             // array of x locations
             pp.queryarr("fixed.sitex",value.fixed.sitex); 
             // array of y locations
@@ -75,18 +75,18 @@ public:
             Util::Assert(INFO,TEST(value.fixed.sitex.size() == value.fixed.phases.size()));
             Util::Assert(INFO,TEST(value.fixed.sitex.size() == value.fixed.time.size()));
             value.fixed.done.resize(value.fixed.sitex.size(),false);
-        }
-        else
-        {
+
+        }, [&]() {
+
             value.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
             value.int_dist = std::uniform_int_distribution<int>(0,1);
             value.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
-        }
+        });
 
         // verbosity
         pp_query_default("verbose",value.verbose,false); 
     }
-
+    
 
     /// This operates on an entire field, and manages all of the MPI
     /// communication necessary for consistent nucleation.

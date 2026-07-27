@@ -134,14 +134,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         ("propellant",value.propellant);
 
 
-    // Whether to use the Thermal Transport Model
-    pp_query_default("thermal.on", value.thermal.on, false); 
-
     // Reference temperature
     // Used to set all other reference temperatures by default.
     pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature());
 
-    if (value.thermal.on) {
+    // Whether to use the Thermal Transport Model
+    pp.query_if("thermal.on", [&](){
+        value.thermal.on = true;
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
@@ -188,7 +187,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
                             IC::BMP,
                             IC::PNG  >
             ("temp.ic",value.thermal.ic_temp,pp.forward_args(value.geom, Unit::Temperature()));
-    }
+    });
 
 
     // Constant pressure value

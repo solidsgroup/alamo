@@ -51,6 +51,8 @@
 //    +---------------------------------+-----------------------------------------------------------------+
 //    | :bdg-success:`query_if`         | Read a Boolean value and run the supplied lambda when enabled.  |
 //    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_if_else`    | Read a Boolean value and run the corresponding supplied lambda. |
+//    +---------------------------------+-----------------------------------------------------------------+
 //    | :bdg-success:`query_file`       | Read in a string that defines a file name.                      |
 //    |                                 | Check to make sure that the file exists and is a regular file,  |
 //    |                                 | and print an informative error message if not (this can be      |
@@ -119,6 +121,7 @@
 #define pp_query_validate(...) pp.query_validate(__VA_ARGS__)
 #define pp_query_switch(...) pp.query_switch(__VA_ARGS__)
 #define pp_query_if(...) pp.query_if(__VA_ARGS__)
+#define pp_query_if_else(...) pp.query_if_else(__VA_ARGS__)
 #define pp_query_file(...) pp.query_file(__VA_ARGS__)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__)
 #define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__)
@@ -852,6 +855,61 @@ public:
             Util::ParmParseException(INFO, full(name), "expected 0 or 1 but got ", enabled);
         if (enabled)
             action();
+        return retval;
+    }
+
+    template <typename TrueAction, typename FalseAction>
+    int query_if_else(  std::string name,
+                        TrueAction &&true_action,
+                        FalseAction &&false_action,
+                        const std::source_location &location = std::source_location::current())
+    {
+        static_assert(  std::is_invocable_v<TrueAction &>,
+                        "query_if_else true action must be callable without arguments");
+        static_assert(  std::is_invocable_v<FalseAction &>,
+                        "query_if_else false action must be callable without arguments");
+
+        RecordInputAndContinue(name, location, {"0", "1"}, "0");
+
+        auto set_value = [&](const std::string &value)
+        {
+            this->remove(name.c_str());
+            this->add(name.c_str(), value);
+        };
+
+        auto run_action = [&](const std::string &value, auto &&action)
+        {
+            set_value(value);
+            PrintTraversalBranch(name, value);
+            TraversalBranchScope branch(*this, name, value);
+            action();
+        };
+
+        if (InTraversalMode())
+        {
+            std::string original_value;
+            bool had_original_value = amrex::ParmParse::contains(name.c_str());
+            if (had_original_value)
+                amrex::ParmParse::query(name.c_str(), original_value);
+
+            run_action("0", false_action);
+            run_action("1", true_action);
+
+            if (had_original_value)
+                set_value(original_value);
+            else
+                this->remove(name.c_str());
+            return 0;
+        }
+
+        int enabled = 0;
+        int retval = amrex::ParmParse::query(name.c_str(), enabled);
+        if (retval && enabled != 0 && enabled != 1)
+            Util::ParmParseException(INFO, full(name), "expected 0 or 1 but got ", enabled);
+        if (enabled)
+            true_action();
+        else
+            false_action();
         return retval;
     }
 

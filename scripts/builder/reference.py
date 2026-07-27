@@ -67,7 +67,7 @@ class Entry:
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=repo_root)
     parser.add_argument(
@@ -597,7 +597,7 @@ def generate_pages(
         output.write_text(
             ".. note::\n\n"
             "   No generated input schemas are available. Run "
-            "``make docs-input-builders`` before publishing the input reference.\n",
+            "``make input-builders`` before publishing the input reference.\n",
             encoding="utf-8",
         )
         return 0, 0

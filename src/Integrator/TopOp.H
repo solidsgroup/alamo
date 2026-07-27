@@ -59,17 +59,19 @@ public:
         Base::Mechanics<MODEL>::Parse(value, pp);
 
         pp.queryclass<MODEL>("model", value.model);
-        // Read in IC for psi
-        if (pp.contains("psi.ic.type"))
-        {
-            // Initial condition for psi field
-            pp.select<IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
 
+        // Read in IC for psi
+        if (pp.contains("psi.ic.type")) 
+        {
+            value.psi_on = true;
             value.bc_psi = new BC::Constant(1, pp, "psi.bc");
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
             value.RegisterNewFab(value.psi_old_mf, value.bc_psi, 1, 2, "psiold", false);
-            value.psi_on = true;
         }
+
+        // Initial condition for psi field
+        pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
+
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01); // Refinement threshold based on eta
         pp_query_default("alpha", value.alpha, 1.0); // :math:`\alpha` parameter
         pp_query_default("beta", value.beta, 1.0); // :math:`\beta` parameter

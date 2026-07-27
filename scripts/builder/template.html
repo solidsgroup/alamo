@@ -1054,7 +1054,9 @@
 
     .class-sequence-body {
       border-top: 2px solid var(--accent);
+      border-bottom: 3px solid var(--accent);
       border-left: 3px solid var(--accent);
+      border-bottom-left-radius: 6px;
       padding-left: 12px;
     }
 
@@ -1348,6 +1350,76 @@
       const statusSummary = document.getElementById("statusSummary");
       const activeDecisions = document.getElementById("activeDecisions");
       const traversalNotice = document.getElementById("traversalNotice");
+      const persistenceKey = "alamo.input-builder.v1:" + window.location.pathname;
+      const restoredLocation = { scrollY: 0, sectionNavScrollTop: 0 };
+      let persistenceReady = false;
+      let persistenceFrame = null;
+
+      function restoreMap(target, source) {
+        if (!source || typeof source !== "object" || Array.isArray(source)) return;
+        Object.entries(source).forEach(([key, value]) => {
+          target[key] = value;
+        });
+      }
+
+      function restorePersistedState() {
+        try {
+          const payload = JSON.parse(window.localStorage.getItem(persistenceKey));
+          if (!payload || payload.version !== 1 || !payload.state) return;
+          const saved = payload.state;
+          restoreMap(state.switches, saved.switches);
+          restoreMap(state.values, saved.values);
+          restoreMap(state.sequenceRows, saved.sequenceRows);
+          restoreMap(state.classSequenceCounts, saved.classSequenceCounts);
+          restoreMap(state.classSequenceActive, saved.classSequenceActive);
+          restoreMap(state.collapsed, saved.collapsed);
+          restoreMap(state.prefixCollapsed, saved.prefixCollapsed);
+          state.search = typeof saved.search === "string" ? saved.search : "";
+          state.view = ["all", "required", "configured"].includes(saved.view) ? saved.view : "all";
+          state.currentSection = typeof saved.currentSection === "string" ? saved.currentSection : "";
+
+          const savedLocation = payload.location || {};
+          if (Number.isFinite(savedLocation.scrollY))
+            restoredLocation.scrollY = Math.max(0, savedLocation.scrollY);
+          if (Number.isFinite(savedLocation.sectionNavScrollTop))
+            restoredLocation.sectionNavScrollTop = Math.max(0, savedLocation.sectionNavScrollTop);
+        } catch (error) {
+          // localStorage may be unavailable when the standalone builder is opened directly.
+        }
+      }
+
+      function persistState() {
+        if (!persistenceReady) return;
+        try {
+          window.localStorage.setItem(persistenceKey, JSON.stringify({
+            version: 1,
+            state: state,
+            location: {
+              scrollY: window.scrollY,
+              sectionNavScrollTop: sectionNav.scrollTop
+            }
+          }));
+        } catch (error) {
+          // Persistence is optional; the builder remains usable without storage access.
+        }
+      }
+
+      function schedulePersistence() {
+        if (!persistenceReady || persistenceFrame !== null) return;
+        persistenceFrame = window.requestAnimationFrame(() => {
+          persistenceFrame = null;
+          persistState();
+        });
+      }
+
+      function setScrollPosition(scrollY) {
+        const scrollBehavior = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        window.scrollTo(0, scrollY);
+        document.documentElement.style.scrollBehavior = scrollBehavior;
+      }
+
+      restorePersistedState();
 
       function pathFor(node, parentPath) {
         if (node.path !== undefined && node.path !== null) return String(node.path);
@@ -2099,7 +2171,9 @@
               if (hasBranchContent) {
                 const queryIfEnabled = node.directive === "query_if"
                   ? String(selectedValue) === "1"
-                  : undefined;
+                  : node.directive === "query_if_else"
+                    ? true
+                    : undefined;
                 html += renderSwitchTabs(
                   controller, childHtml, nestingDepth, flowNode.input, selectedValue,
                   selectedHasChildren, queryIfEnabled);
@@ -2177,6 +2251,7 @@
           const html = renderFlowNodes(flow);
           builderList.innerHTML = html || '<div class="empty">No active inputs match this view.</div>';
           bindBuilderEvents();
+          schedulePersistence();
           return;
         }
 
@@ -2199,6 +2274,7 @@
         flushLoose();
         builderList.innerHTML = html || '<div class="empty">No active inputs match this view.</div>';
         bindBuilderEvents();
+        schedulePersistence();
       }
 
       function renderNavigation() {
@@ -2218,6 +2294,7 @@
             if (flow) {
               state.currentSection = node._path;
               renderNavigation();
+              schedulePersistence();
               const target = Array.from(builderList.querySelectorAll("[data-node-path]")).find((element) => {
                 const path = element.dataset.nodePath || "";
                 return path === node._path || path.startsWith(node._path + ".");
@@ -2229,6 +2306,7 @@
             state.currentSection = node._path;
             renderBuilder();
             renderNavigation();
+            schedulePersistence();
             const target = document.getElementById("section-" + node._id);
             if (target) target.scrollIntoView({ block: "start" });
           });
@@ -2277,6 +2355,7 @@
         renderNavigation();
         renderStatus();
         renderOutput();
+        schedulePersistence();
       }
 
       function renderSequenceContent(node, content) {
@@ -2527,9 +2606,15 @@
         renderNavigation();
         renderStatus();
         renderOutput();
+        schedulePersistence();
       }
 
       function resetState() {
+        try {
+          window.localStorage.removeItem(persistenceKey);
+        } catch (error) {
+          // Ignore unavailable storage and still reset the in-memory builder.
+        }
         Object.keys(state.switches).forEach((key) => delete state.switches[key]);
         Object.keys(state.values).forEach((key) => delete state.values[key]);
         Object.keys(state.sequenceRows).forEach((key) => delete state.sequenceRows[key]);
@@ -2545,6 +2630,8 @@
           button.classList.toggle("active", button.dataset.view === "all");
         });
         renderAll();
+        setScrollPosition(0);
+        sectionNav.scrollTop = 0;
       }
 
       searchInput.addEventListener("input", (event) => {
@@ -2562,6 +2649,7 @@
 
       document.getElementById("resetButton").addEventListener("click", resetState);
       document.getElementById("builderSelect").addEventListener("change", (event) => {
+        persistState();
         window.location.href = event.currentTarget.value;
       });
       document.getElementById("copyButton").addEventListener("click", () => {
@@ -2600,7 +2688,20 @@
         traversalNotice.textContent = "Legacy input parser skipped during documentation traversal. " + sources.join(" ");
       }
 
+      searchInput.value = state.search;
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.view === state.view);
+      });
+      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+      window.addEventListener("scroll", schedulePersistence, { passive: true });
+      sectionNav.addEventListener("scroll", schedulePersistence, { passive: true });
+      window.addEventListener("pagehide", persistState);
       renderAll();
+      window.requestAnimationFrame(() => {
+        persistenceReady = true;
+        setScrollPosition(restoredLocation.scrollY);
+        sectionNav.scrollTop = restoredLocation.sectionNavScrollTop;
+      });
     }());
   </script>
 </body>

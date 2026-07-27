@@ -10,7 +10,7 @@ from html import escape, unescape
 from pathlib import Path
 
 
-TEMPLATE_PATH = Path(__file__).with_name("input_builder_template.html")
+TEMPLATE_PATH = Path(__file__).with_name("template.html")
 
 
 def parse_args() -> argparse.Namespace:

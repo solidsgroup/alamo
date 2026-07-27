@@ -349,7 +349,9 @@ std::string
 InputScraper::KindForDirective( const std::string &directive,
                                 const std::vector<std::string> &options)
 {
-    if (directive == "query_switch" || directive == "query_if") return "switch";
+    if (directive == "query_switch" || directive == "query_if" ||
+        directive == "query_if_else")
+        return "switch";
     if (directive == "select" || directive == "select_default") return "switch";
     if ((directive == "query" || directive == "query_required" || directive == "query_default") &&
         options == std::vector<std::string>{"0", "1"})

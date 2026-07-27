@@ -19,9 +19,9 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import MakefileLexer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "builder"))
 
-from make_schema_reference import (
+from reference import (
     entry_anchor,
     load_entries,
     normalized_source_file,

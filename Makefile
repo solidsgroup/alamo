@@ -68,33 +68,6 @@ HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
-# Input-builder generation first ensures executables from the active configuration
-# are current, then also includes executable files already present in bin/.
-# Keep the complete basename so configurations do not overwrite each other's data.
-INPUT_BUILDER_CONFIGURED_EXE = $(EXE)
-INPUT_BUILDER_PRESENT_EXE = $(shell find bin -maxdepth 1 -type f -executable -print 2>/dev/null)
-INPUT_BUILDER_EXE ?= $(sort $(INPUT_BUILDER_CONFIGURED_EXE) $(INPUT_BUILDER_PRESENT_EXE))
-INPUT_BUILDER_EXECUTABLE_NAMES = $(notdir $(INPUT_BUILDER_EXE))
-INPUT_BUILDER_ANNOTATE_SCRIPT ?= scripts/annotate_input_schema.py
-INPUT_BUILDER_HTML_SCRIPT ?= scripts/make_input_builder.py
-INPUT_BUILDER_HTML_TEMPLATE ?= scripts/input_builder_template.html
-INPUT_BUILDER_CHECK_SCRIPT ?= scripts/check_input_scrape.py
-INPUT_REFERENCE_SCRIPT ?= scripts/make_schema_reference.py
-INPUT_BUILDER_CHECK_STRICT ?= 0
-INPUT_SCHEMA_GENERATORS = $(INPUT_BUILDER_ANNOTATE_SCRIPT)
-INPUT_HTML_GENERATORS = $(INPUT_BUILDER_HTML_SCRIPT) $(INPUT_BUILDER_HTML_TEMPLATE)
-INPUT_COVERAGE_GENERATORS = $(INPUT_BUILDER_CHECK_SCRIPT)
-DOC_INPUT_SCHEMA_DIR ?= docs/source/_static/input-schemas
-DOC_INPUT_BUILDER_DIR ?= docs/source/_static/input-builders
-DOC_INPUT_BUILDER_INDEX ?= $(DOC_INPUT_BUILDER_DIR)/index.html
-DOC_INPUT_COVERAGE_REPORT ?= $(DOC_INPUT_SCHEMA_DIR)/input-scrape-coverage.json
-DOC_INPUT_REFERENCE ?= docs/source/Inputs.generated.rst
-DOC_INPUT_REFERENCE_DIR ?= docs/source/InputsReference
-DOC_DOXYGEN_INDEX ?= docs/build/html/doxygen/index.html
-DOC_DOXYGEN_INPUTS = $(shell find src -type f) README.rst docs/Doxyfile docs/Makefile
-DOC_INPUT_SCHEMAS = $(addprefix $(DOC_INPUT_SCHEMA_DIR)/,$(addsuffix .schema.json,$(INPUT_BUILDER_EXECUTABLE_NAMES)))
-DOC_INPUT_BUILDERS = $(addprefix $(DOC_INPUT_BUILDER_DIR)/,$(addsuffix .html,$(INPUT_BUILDER_EXECUTABLE_NAMES)))
-DOC_SOURCE_FILES = $(shell find docs/source/ -type f ! -path '$(DOC_INPUT_SCHEMA_DIR)/*' ! -path '$(DOC_INPUT_BUILDER_DIR)/*' ! -path '$(DOC_INPUT_REFERENCE_DIR)/*' ! -name '$(notdir $(DOC_INPUT_REFERENCE))')
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
 OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
@@ -217,102 +190,77 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARG
 	@mkdir -p $(dir $@)
 	$(QUIET)$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-.PHONY: .FORCE input-builders docs-input-builders input-scrape-check input-reference docs-with-input-builders
+.PHONY: .FORCE input-builders
 
 docs: docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
-docs/build/html/index.html: input-reference $(DOC_SOURCE_FILES) README.rst .FORCE
+docs/build/html/index.html: input-builders $(shell find docs/source/ -type f) README.rst .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html SKIP_DOXYGEN=1 # > /dev/null
 
-input-builders: docs-input-builders
-
-docs-input-builders: $(INPUT_BUILDER_CONFIGURED_EXE) $(DOC_INPUT_BUILDER_INDEX)
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT BUILDERS$(RESET) Done\n"
-
-input-scrape-check: $(DOC_INPUT_COVERAGE_REPORT)
-
-input-reference: docs-input-builders $(DOC_DOXYGEN_INDEX) $(INPUT_REFERENCE_SCRIPT)
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT REFERENCE$(RESET) Sphinx\n"
-	@python3 "$(INPUT_REFERENCE_SCRIPT)" \
-		--repo-root "." \
-		--schema-dir "$(DOC_INPUT_SCHEMA_DIR)" \
-		$(foreach schema,$(DOC_INPUT_SCHEMAS),--schema "$(schema)") \
-		--output "$(DOC_INPUT_REFERENCE)" \
-		--output-dir "$(DOC_INPUT_REFERENCE_DIR)"
-
-$(DOC_DOXYGEN_INDEX): $(DOC_DOXYGEN_INPUTS)
-	@$(MAKE) -C docs doxygen
-
-$(DOC_INPUT_SCHEMA_DIR)/%.schema.json: bin/% $(INPUT_SCHEMA_GENERATORS) Makefile
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT SCHEMA$(RESET) $*\n"
-	@mkdir -p "$(DOC_INPUT_SCHEMA_DIR)"
+input-builders: $(shell find bin -maxdepth 1 -type f -executable -print 2>/dev/null) \
+		scripts/builder/annotate.py scripts/builder/check.py \
+		scripts/builder/reference.py scripts/builder/render.py \
+		scripts/builder/template.html
 	@set -e; \
-	tmp="$@.tmp"; \
-	log=$$(mktemp); \
-	trap 'rm -f "$$tmp" "$$log"' EXIT; \
-	if ! "$<" --parse-args --parse-args-output "$$tmp" > "$$log" 2>&1; then \
-		cat "$$log"; \
+	executables=$$(find bin -maxdepth 1 -type f -executable -print | sort); \
+	if [ -z "$$executables" ]; then \
+		echo "No executables found in bin; build Alamo before generating input builders."; \
 		exit 1; \
 	fi; \
-	python3 "$(INPUT_BUILDER_ANNOTATE_SCRIPT)" --schema "$$tmp" > /dev/null; \
-	mv "$$tmp" "$@"; \
-	rm -f "$$log"; \
-	trap - EXIT
-
-$(DOC_INPUT_BUILDER_DIR)/%.html: $(DOC_INPUT_SCHEMA_DIR)/%.schema.json $(INPUT_HTML_GENERATORS) $(DOC_DOXYGEN_INDEX) Makefile
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT BUILDER$(RESET) $*\n"
-	@mkdir -p "$(DOC_INPUT_BUILDER_DIR)"
-	@python3 "$(INPUT_BUILDER_HTML_SCRIPT)" --schema "$<" --output "$@.tmp" --title "Alamo Input Builder: $*" --current-builder "$*" --doxygen-dir "$(dir $(DOC_DOXYGEN_INDEX))" $(foreach builder,$(INPUT_BUILDER_EXECUTABLE_NAMES),--builder "$(builder)") > /dev/null
-	@mv "$@.tmp" "$@"
-
-$(DOC_INPUT_COVERAGE_REPORT): $(DOC_INPUT_SCHEMAS) $(INPUT_COVERAGE_GENERATORS) Makefile
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT CHECK$(RESET) Scrape coverage\n"
-	@mkdir -p "$(dir $@)"
-	@set -e; \
-	tmp="$@.tmp"; \
-	trap 'rm -f "$$tmp"' EXIT; \
-	strict_flags=""; \
-	case "$(INPUT_BUILDER_CHECK_STRICT)" in \
-		1|yes|YES|true|TRUE) strict_flags="--fail-on-missing";; \
-	esac; \
-	python3 "$(INPUT_BUILDER_CHECK_SCRIPT)" \
-		--repo-root "." \
-		--source-dir "src" \
-		--schema-dir "$(DOC_INPUT_SCHEMA_DIR)" \
-		$(foreach schema,$(DOC_INPUT_SCHEMAS),--schema "$(schema)") \
-		--report "$$tmp" \
-		--max-list 25 \
-		$$strict_flags; \
-	mv "$$tmp" "$@"; \
-	trap - EXIT
-
-$(DOC_INPUT_BUILDER_INDEX): $(DOC_INPUT_BUILDERS) $(DOC_INPUT_COVERAGE_REPORT) Makefile
-	@printf "$(B_ON)$(FG_MAGENTA)INPUT BUILDERS$(RESET) Updating index\n"
-	@mkdir -p "$(dir $@)"
-	@set -e; \
-	tmp="$@.tmp"; \
+	mkdir -p docs/source/_static/input-schemas docs/source/_static/input-builders; \
+	$(MAKE) -C docs doxygen; \
+	builder_args=""; \
+	schema_args=""; \
+	for executable in $$executables; do \
+		name=$$(basename "$$executable"); \
+		builder_args="$$builder_args --builder $$name"; \
+		schema_args="$$schema_args --schema docs/source/_static/input-schemas/$$name.schema.json"; \
+	done; \
+	for executable in $$executables; do \
+		name=$$(basename "$$executable"); \
+		schema="docs/source/_static/input-schemas/$$name.schema.json"; \
+		builder="docs/source/_static/input-builders/$$name.html"; \
+		printf "$(B_ON)$(FG_MAGENTA)INPUT BUILDER$(RESET) %s\n" "$$name"; \
+		log=$$(mktemp); \
+		if ! "$$executable" --parse-args --parse-args-output "$$schema.tmp" > "$$log" 2>&1; then \
+			cat "$$log"; \
+			rm -f "$$schema.tmp" "$$log"; \
+			exit 1; \
+		fi; \
+		python3 scripts/builder/annotate.py --schema "$$schema.tmp" > /dev/null; \
+		mv "$$schema.tmp" "$$schema"; \
+		rm -f "$$log"; \
+		python3 scripts/builder/render.py \
+			--schema "$$schema" \
+			--output "$$builder.tmp" \
+			--title "Alamo Input Builder: $$name" \
+			--current-builder "$$name" \
+			--doxygen-dir docs/build/html/doxygen \
+			$$builder_args > /dev/null; \
+		mv "$$builder.tmp" "$$builder"; \
+	done; \
+	python3 scripts/builder/check.py \
+		--repo-root . \
+		--source-dir src \
+		$$schema_args \
+		--report docs/source/_static/input-schemas/input-scrape-coverage.json \
+		--max-list 25; \
+	python3 scripts/builder/reference.py \
+		--repo-root . \
+		$$schema_args \
+		--output docs/source/Inputs.generated.rst \
+		--output-dir docs/source/InputsReference; \
+	set -- $$executables; \
+	first=$$(basename "$$1"); \
 	{ \
 		printf '<!doctype html>\n'; \
-		printf '<html lang="en"><head><meta charset="utf-8">\n'; \
-		printf '<meta name="viewport" content="width=device-width, initial-scale=1">\n'; \
+		printf '<meta charset="utf-8">\n'; \
+		printf '<meta http-equiv="refresh" content="0;url=%s.html">\n' "$$first"; \
 		printf '<title>Alamo Input Builders</title>\n'; \
-		printf '<meta http-equiv="refresh" content="0; url=$(firstword $(INPUT_BUILDER_EXECUTABLE_NAMES)).html">\n'; \
-		printf '<style>body{margin:0;padding:32px;font:14px/1.5 system-ui,sans-serif;color:#262626;background:#f7f7f7}main{max-width:720px;margin:auto;background:white;border:1px solid #d9d9d9;padding:24px}h1{margin-top:0;font-size:22px}ul{padding-left:20px}a{color:#1f77b4}</style>\n'; \
-		printf '</head><body><main><h1>Alamo Input Builders</h1>\n'; \
-		printf '<p>Select the executable and build configuration whose input structure you need.</p>\n'; \
-		printf '<ul>\n'; \
-	} > "$$tmp"; \
-	for executable in $(INPUT_BUILDER_EXECUTABLE_NAMES); do \
-		printf '<li><a href="%s.html">%s</a></li>\n' "$$executable" "$$executable" >> "$$tmp"; \
-	done; \
-	{ \
-		printf '</ul>\n'; \
-		printf '<p><a href="../input-schemas/$(notdir $(DOC_INPUT_COVERAGE_REPORT))">Input scrape coverage report</a></p>\n'; \
-		printf '</main></body></html>\n'; \
-	} >> "$$tmp"; \
-	mv "$$tmp" "$@"
+		printf '<a href="%s.html">Open input builder</a>\n' "$$first"; \
+	} > docs/source/_static/input-builders/index.html
 
 
 check: .FORCE
@@ -362,15 +310,13 @@ ${AMREX_TARGET}/lib/libamrex.so : ${AMREX_TARGET}/lib/libamrex.a
 	@printf "$(B_ON)$(FG_ORANGE)LIBAMREX$(RESET)             $@\n" 	
 	$(QUIET)$(CC) -shared -fPIC -o $@ -Wl,--whole-archive $< -Wl,--no-whole-archive
 
-docs-with-input-builders: docs
-
-githubpages: docs-with-input-builders cov-report
+githubpages: docs cov-report
 	mkdir -p ./githubpages/
 	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
 	cp -rf docs/build/html ./githubpages/docs/
 	cp -rf cov/ ./githubpages/docs/cov/
-	cp -rf $(DOC_INPUT_BUILDER_DIR)/ ./githubpages/inputs/
-	cp -rf $(DOC_INPUT_SCHEMA_DIR)/ ./githubpages/input-schemas/
+	cp -rf docs/source/_static/input-builders/ ./githubpages/inputs/
+	cp -rf docs/source/_static/input-schemas/ ./githubpages/input-schemas/
 
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)

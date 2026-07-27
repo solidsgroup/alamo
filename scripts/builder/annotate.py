@@ -11,7 +11,7 @@ from typing import Any
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
         description="Annotate alamo --parse-args JSON with comments scraped from source files."
     )

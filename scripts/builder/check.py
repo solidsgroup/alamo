@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -19,6 +21,7 @@ INPUT_METHODS = {
     "query_validate",
     "query_switch",
     "query_if",
+    "query_if_else",
     "query_file",
     "queryunit",
     "queryarr",
@@ -74,7 +77,7 @@ class CallSite:
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
         description=(
             "Scan source files for ParmParse input call sites and compare them "
@@ -345,6 +348,10 @@ def scan_source_file(repo_root: Path, path: Path) -> list[CallSite]:
 
         method = match.group("macro_method") or match.group("member_method")
         arguments = split_cpp_arguments(masked[opening + 1 : closing])
+        if method == "queryclass" and any(
+            re.fullmatch(r"\s*\*\s*this\s*", argument) for argument in arguments
+        ):
+            continue
         end_line = line_for_offset(masked, closing)
         calls.append(
             CallSite(
@@ -509,26 +516,68 @@ def build_report(
 
 
 def print_summary(report: dict[str, Any], max_list: int) -> None:
+    color = "NO_COLOR" not in os.environ and (
+        sys.stdout.isatty()
+        or os.environ.get("FORCE_COLOR") not in {None, "", "0"}
+        or os.environ.get("GITHUB_ACTIONS") == "true"
+    )
+
+    def styled(text: object, code: str) -> str:
+        value = str(text)
+        return f"\033[{code}m{value}\033[0m" if color else value
+
+    total = report["total_source_call_sites"]
+    missing_count = report["missing"]
+    missing_percent = 100.0 * missing_count / total if total else 0.0
+
+    print()
+    print(styled("INPUT SCRAPE COVERAGE", "1;34"))
     print(
-        "Input scrape coverage: "
-        f"{report['captured_by_source_location']} captured by source location, "
-        f"{report['covered_by_schema_name']} covered by schema name, "
-        f"{report['ignored_by_traversal_opt_out']} intentionally ignored, "
-        f"{report['missing']} missing "
-        f"out of {report['total_source_call_sites']} source call sites."
+        f"  {styled('captured', '32')} "
+        f"{report['captured_by_source_location']:>5}  by source location"
+    )
+    print(
+        f"  {styled('matched ', '36')} "
+        f"{report['covered_by_schema_name']:>5}  by schema name"
+    )
+    print(
+        f"  {styled('ignored ', '33')} "
+        f"{report['ignored_by_traversal_opt_out']:>5}  by traversal opt-out"
+    )
+    print(
+        f"  {styled('missing ', '1;31')} "
+        f"{styled(f'{missing_count:>5}', '1;31')}  "
+        f"of {total} call sites ({missing_percent:.1f}%)"
     )
 
     missing = report["missing_call_sites"]
     if not missing:
+        print()
+        print(styled("All relevant input calls were captured.", "1;32"))
         return
 
-    print("Uncaptured ParmParse input call sites:")
-    for call in missing[:max_list]:
-        name = f" {call['name']!r}" if call["name"] else ""
-        print(f"  {call['file']}:{call['line']} {call['method']}{name}")
-        print(f"    {call['code']}")
+    listed = missing[:max_list]
+    by_file: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for call in listed:
+        by_file[call["file"]].append(call)
+
+    print()
+    print(styled("MISSING INPUT CALLS", "1;31"))
+    for source_file, calls in by_file.items():
+        print()
+        print(
+            f"{styled(source_file, '1;36')} "
+            f"{styled(f'({len(calls)})', '2')}"
+        )
+        for call in calls:
+            name = f" {call['name']!r}" if call["name"] else ""
+            location = styled(f"{source_file}:{call['line']}", "33")
+            method = styled(f"{call['method']}{name}", "1")
+            print(f"  {location}  {method}")
+            print(f"    {styled(call['code'], '2')}")
     if len(missing) > max_list:
-        print(f"  ... {len(missing) - max_list} more")
+        print()
+        print(styled(f"... {len(missing) - max_list} additional calls not shown", "2"))
 
 
 def main() -> int:

@@ -53,19 +53,14 @@ from source text.
 Documentation generation
 ------------------------
 
-To build the executable-specific schemas and input builders, run
-
-.. code:: bash
-
-    make docs-input-builders
-
-Then build the Sphinx documentation with
+From the alamo root directory, build the Sphinx documentation with
 
 .. code:: bash
 
     make docs
 
-in the alamo root directory.
+This also generates the executable-specific schemas and input builders.
+
 The file :code:`alamo/docs/requirements.txt` contains a list of the necessary packages.
 You can install them using pip.
 Once the documenation generation is complete, you can view it by
@@ -171,4 +166,3 @@ You can store reference data inside the test directory; e.g.
 
 as long as the data files are reasonably small in size and, of course, are text-based.
 For example tests, see the existing tests in the repository.
-
