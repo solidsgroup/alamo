@@ -17,7 +17,7 @@ sudo apt install libpng-dev
 #
 # [optional] Install these packages if compiling with clang
 #
-sudo apt install clang llvm libstdc++-14-dev
+sudo apt install clang libstdc++-14-dev
 
 #
 # [optional] These are needed for regression test scripts and
