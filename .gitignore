@@ -86,3 +86,6 @@ __pycache__/
 # local GPU A/B profiling artifacts
 benchmark/local_ab_*/
 benchmark/local_amr_shape_*/
+
+# multi-rank correctness probe artifacts (benchmark/two_rank_probe.sh)
+benchmark/_two_rank_probe_*/
