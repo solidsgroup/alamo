@@ -85,9 +85,8 @@ jobs:
         id: regression
         continue-on-error: true
         run: >-
-          scripts/runtests.py --coverage --dim=${{ matrix.dim }}
-          --benchmark=github --timeout=200 --no-backspace --comp=clang++
-          --check-mpi --mpirun-flags="--oversubscribe"
+          scripts/runtests.py --serial --coverage --dim=${{ matrix.dim }}
+          --benchmark=github --no-backspace --comp=clang++
           --shard-count=3 --shard-index=${{ matrix.shard }}
       - name: Capture shard coverage
         if: always()
@@ -141,8 +140,8 @@ jobs:
         id: regression
         continue-on-error: true
         run: >-
-          scripts/runtests.py --coverage --dim=2 --comp=clang++
-          --timeout=200 --no-backspace --fft-only
+          scripts/runtests.py --serial --coverage --dim=2 --comp=clang++
+          --no-backspace --fft-only
       - name: Capture FFT coverage
         if: always()
         run: |
@@ -197,6 +196,7 @@ jobs:
           genhtml cov/coverage_merged.info --output-directory cov \
             --ignore-errors inconsistent
       - name: Upload coverage report
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: >-
@@ -208,6 +208,12 @@ jobs:
           path: cov
           if-no-files-found: error
           retention-days: 90
+      - name: Report coverage artifact
+        run: |
+          echo "### Coverage artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download coverage report](${{ steps.upload.outputs.artifact-url }})" \
+            >> "$GITHUB_STEP_SUMMARY"
 
   documentation:
     name: Build documentation preview

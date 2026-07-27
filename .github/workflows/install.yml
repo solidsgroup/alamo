@@ -21,7 +21,7 @@ jobs:
     - name: running the install script
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: build and test
-      run: bash .github/workflows/build-and-test.sh
+      run: bash .github/workflows/build-and-test.sh --comp=g++
   install-ubuntu-24-04:
     runs-on: ubuntu-24.04
     steps:

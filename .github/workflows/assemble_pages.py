@@ -127,6 +127,13 @@ def output(name, value):
         print(f"{name}={value}")
 
 
+def summary(lines):
+    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a", encoding="utf-8") as stream:
+            stream.write("\n".join(lines) + "\n")
+
+
 def valid_push_run(run, branch):
     return (
         run["event"] == "push"
@@ -228,7 +235,7 @@ def pull_request_version(client, pull, repository):
         if not coverage:
             continue
         return {
-            "slug": f"pr-{number}",
+            "slug": f"docs-pr-{number}",
             "label": f"PR #{number}",
             "kind": "pull_request",
             "number": number,
@@ -337,10 +344,36 @@ def add_compatibility_paths(site):
 
 def discover(args):
     client = GitHub(args.repository, args.token)
-    output("master_docs_found", str(bool(valid_branch_docs(client, "master"))).lower())
-    output(
-        "development_docs_found",
-        str(bool(valid_branch_docs(client, "development"))).lower(),
+    rows = []
+    for branch in ("master", "development"):
+        docs = valid_branch_docs(client, branch)
+        version = branch_version(client, branch)
+        output(f"{branch}_docs_found", str(bool(docs)).lower())
+        rows.append(
+            f"| `{branch}` | {'yes' if docs else 'no'} | "
+            f"{'yes' if version and version['coverage'] else 'no'} |"
+        )
+
+    ready_previews = 0
+    for pull in client.open_pull_requests():
+        if not preview_allowed(pull, args.repository):
+            continue
+        version = pull_request_version(client, pull, args.repository)
+        ready_previews += bool(version)
+        rows.append(
+            f"| `docs-pr-{pull['number']}` | {'yes' if version else 'waiting'} | "
+            f"{'yes' if version and version['coverage'] else 'waiting'} |"
+        )
+
+    output("ready_preview_count", ready_previews)
+    summary(
+        [
+            "### Documentation and coverage artifacts",
+            "",
+            "| Version | Documentation | Coverage |",
+            "| --- | --- | --- |",
+            *rows,
+        ]
     )
 
 
@@ -405,7 +438,18 @@ def assemble(args):
         "preview_slug",
         preview["slug"]
         if preview
-        else (f"pr-{trigger_pull_number}" if trigger_pull_number else ""),
+        else (f"docs-pr-{trigger_pull_number}" if trigger_pull_number else ""),
+    )
+    summary(
+        [
+            "### GitHub Pages contents",
+            "",
+            *[
+                f"- `{version['slug']}` from `{version['sha'][:12]}`"
+                + (" with coverage" if version["coverage"] else "")
+                for version in versions
+            ],
+        ]
     )
 
 

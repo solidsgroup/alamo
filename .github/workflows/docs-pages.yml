@@ -27,15 +27,16 @@ concurrency:
 
 jobs:
   discover:
-    name: Find published branch documentation
+    name: Check master, development, and PR artifacts
     runs-on: ubuntu-24.04
     outputs:
       master_docs_found: ${{ steps.artifacts.outputs.master_docs_found }}
       development_docs_found: ${{ steps.artifacts.outputs.development_docs_found }}
+      ready_preview_count: ${{ steps.artifacts.outputs.ready_preview_count }}
     steps:
       - name: Checkout trusted publisher
         uses: actions/checkout@v4
-      - name: Locate branch documentation artifacts
+      - name: Locate documentation and coverage artifacts
         id: artifacts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,7 +64,7 @@ jobs:
       version: development
 
   assemble:
-    name: Assemble branch and PR previews
+    name: Download and assemble documentation and coverage
     runs-on: ubuntu-24.04
     needs:
       - discover
@@ -83,7 +84,7 @@ jobs:
     steps:
       - name: Checkout trusted publisher
         uses: actions/checkout@v4
-      - name: Assemble Pages site
+      - name: Download and assemble version artifacts
         id: assemble
         env:
           GH_TOKEN: ${{ github.token }}
@@ -108,13 +109,13 @@ jobs:
           test -f site/versions.html
           test -f site/inputs/index.html
           test -f site/input-schemas/input-scrape-coverage.json
-      - name: Upload GitHub Pages artifact
+      - name: Upload combined documentation and coverage site
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
-    name: Deploy documentation
+    name: Deploy documentation and coverage
     needs: assemble
     if: ${{ needs.assemble.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -124,7 +125,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy GitHub Pages
+      - name: Publish combined GitHub Pages site
         id: deployment
         uses: actions/deploy-pages@v4
 
