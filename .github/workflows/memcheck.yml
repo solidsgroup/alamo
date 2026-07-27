@@ -13,6 +13,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  UCX_TLS: self,sm,tcp
+
 jobs:
   memcheck-2d-asan-gcc:
     runs-on: ubuntu-24.04
