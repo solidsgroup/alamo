@@ -668,8 +668,10 @@ is being set up anyway.
 
 ## 13. Pattern capture
 
-Chamber optimization is also template generation for `multicomponent/FMA`.
-Capture as work proceeds rather than reconstructing afterward:
+This campaign is also template generation for the ports that follow it —
+`multicomponent/FMA`, and now the **Hydro/SFI port** (§18), which is explicitly
+scoped as "a future project that will learn from this one". Capture as work
+proceeds rather than reconstructing afterward:
 
 | Pattern | Destination |
 |---|---|
@@ -679,10 +681,15 @@ Capture as work proceeds rather than reconstructing afterward:
 | Sync inventory and elimination checklist | `gpu_manual` |
 | Flip-per-subsystem migration method | `gpu_manual` |
 | Gap table and figure set | `CHAMBER_GPU_MASTER_REPORT.md`, new section |
+| **Curated-closure method** (`IntegratorPolicy.mk` + a per-integrator main) as the way to bring a new integrator onto the GPU incrementally | `gpu_manual`; direct input to the Hydro port |
 
 The multicomponent port should then be a mechanical pass against a pattern set
 rather than a fresh design exercise. Genuinely new work there is confined to the
 advection kernels and to whatever register pressure the species arrays introduce.
+
+The Hydro port inherits less directly — it has to clear nvcc-cleanliness before
+any of the residency patterns apply — but the closure method, the correctness
+gate, and the flip-per-subsystem discipline transfer whole.
 
 ---
 
@@ -765,7 +772,29 @@ simulation. That was wrong. Corrections:
 4. The branch name `chamber-gpu-mem` is now a misnomer. Not worth a rename
    mid-campaign; recorded here so the name is not read as scope.
 
-## 18. Hydro — in scope, unassessed (opened 2026-07-27)
+## 18. Hydro — assessed, then DEFERRED out of this campaign (2026-07-27)
+
+**Final disposition, user ruling 2026-07-27:** *"Hydro will be a future project
+that will learn from this one. For this project, we're worried about Flame,
+Elastic, and parts of code they each depend on."*
+
+So this campaign's scope is settled: **Flame + Elastic + their dependency
+closure** — which is exactly `ALAMO_GPU_SOURCES_flame` in
+`src/GPU/IntegratorPolicy.mk`. Hydro gets its own port project later, and this
+campaign is one of its inputs (see §13).
+
+Two consequences worth stating so they are not rediscovered:
+
+1. **The Phase 0 decks are already correct.** `input` and
+   `input_3d_centre_bore_128_a2` exercise Flame + Elastic and nothing else. An
+   earlier concern that the baseline would measure two thirds of the target
+   dissolves — the target *is* what the decks measure.
+2. **The assessment below is not wasted.** It is the scoping document the Hydro
+   port starts from, and it is why that port is a port rather than a tuning pass.
+
+The assessment as run, kept for that project:
+
+### Assessment (2026-07-27)
 
 Nothing in this campaign's Phases 0-4 was written with Hydro in mind. Facts
 established from source on 2026-07-27, before any judgment:
@@ -835,16 +864,13 @@ Hydro and its ICs turn out to need. The second class is
 `docs/llm/BUG_PATTERNS.md` #2 — a bug this branch has already paid for
 elsewhere.
 
-**Consequence for this campaign.** Hydro cannot be a phase of a memory-strategy
-plan, because there is nothing on the GPU to optimize yet. It needs its own port
-task: make `SFI.H` + `Hydro.{H,cpp}` nvcc-clean, add a curated `sfi` main and an
+**Starting point for the future Hydro project** (not this campaign's work): make
+`SFI.H` + `Hydro.{H,cpp}` nvcc-clean, add a curated `sfi` main and an
 `ALAMO_GPU_SOURCES_sfi` closure to `IntegratorPolicy.mk`, then bring it under the
 existing correctness gate (device lint + golden compare + compute-sanitizer)
-before any residency work. Only after that does Hydro become a Phase 1-3 subject.
-
-This campaign therefore covers **Flame + Elastic**. Hydro is tracked here as a
-dependency of the user's actual target set and is handed to a separate port
-folder. Note also that `SFI.H` is 2D-only, so a GPU SFI has no 3D story yet.
+before any residency work. Open questions for whoever picks it up: standalone
+`Hydro` first or coupled `SFI<Flame>`, and whether 2D-only suffices — `SFI.H` is
+`#if AMREX_SPACEDIM==2`, so a GPU SFI has no 3D story today.
 
 ## Note on specifics
 
