@@ -1,12 +1,13 @@
 //
 // Rocfire_Aluminized extends the six-species AP/HTPB Rocfire mechanism with
-// one inert gaseous aluminum species.  The required gas ordering is
+// two inert aluminum-bearing gas species.  The required gas ordering is
 //
-//   AP, binder, monopropellant, premixed, primary, final, Al_vapor.
+//   AP, binder, monopropellant, premixed, primary, final, Al_gas, Al2O3_gas.
 //
 // The first six species retain the original Rocfire reactions and heat
-// release.  Al_vapor participates in mixture thermodynamics and dilution but
-// has zero homogeneous chemistry source until aluminum kinetics are added.
+// release.  Al_gas and Al2O3_gas participate in mixture thermodynamics and
+// dilution but have zero homogeneous chemistry source until aluminum kinetics
+// are added.
 //
 
 #ifndef MODEL_CHEMISTRY_ROCFIRE_ALUMINIZED_H
@@ -24,8 +25,9 @@ struct Rocfire_Aluminized : public Rocfire
     static constexpr const char* name = "rocfire_aluminized";
     static constexpr bool reactive = true;
     static constexpr bool has_jacobian = true;
-    static constexpr int aluminum_vapor = 6;
-    static constexpr int required_species = 7;
+    static constexpr int aluminum_gas = 6;
+    static constexpr int aluminum_oxide_gas = 7;
+    static constexpr int required_species = 8;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<SpeciesArray, Set::Scalar>
@@ -40,7 +42,7 @@ struct Rocfire_Aluminized : public Rocfire
         if (nspecies != required_species)
         {
             Util::Abort(INFO,
-                "Rocfire_Aluminized chemistry requires seven gas species.");
+                "Rocfire_Aluminized chemistry requires eight gas species.");
             return {source, 0.0};
         }
 
@@ -94,9 +96,9 @@ struct Rocfire_Aluminized : public Rocfire
             return {source, heat_release_integral / dt};
         }
 
-        // Rocfire::evaluate_source touches only indices 0--5.  The seventh
-        // source therefore remains exactly zero while its density dilutes the
-        // reacting mass fractions used by the inherited progress rates.
+        // Rocfire::evaluate_source touches only indices 0--5.  Both aluminum
+        // gas sources therefore remain exactly zero while their densities
+        // dilute the reacting mass fractions used by the inherited rates.
         return evaluate_source(pressure, temperature, valid_density, dt);
     }
 
@@ -253,9 +255,9 @@ struct Rocfire_Aluminized : public Rocfire
         Rocfire_Aluminized& value, IO::ParmParse& pp, int gas_species)
     {
         Util::Assert(INFO, TEST(gas_species == required_species),
-            "Rocfire_Aluminized chemistry requires seven gas species ordered "
+            "Rocfire_Aluminized chemistry requires eight gas species ordered "
             "as AP, binder, monopropellant, premixed, primary, final, "
-            "Al_vapor.");
+            "Al_gas, Al2O3_gas.");
 
         // Reuse the original model's parser without weakening its six-species
         // contract.  Parameters are read from the rocfire_aluminized prefix;

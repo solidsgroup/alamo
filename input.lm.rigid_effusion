@@ -40,9 +40,9 @@ gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K
 gas.eos.type = cpg
 
 # Component order remains significant for the corresponding gas property arrays.
-species.names = Al_vapor ambient_gas Al_solid
+species.names = Al_gas ambient_gas Al_solid
 
-Al_vapor.mechanics = fluid
+Al_gas.mechanics = fluid
 ambient_gas.mechanics = fluid
 Al_solid.mechanics = rigid_solid
 Al_solid.reference_density = 100.0_kg/m^3
@@ -51,7 +51,7 @@ Al_solid.rigid.motion = free
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.in = Al_solid
-Al_sublimation.phase_change.out = Al_vapor
+Al_sublimation.phase_change.out = Al_gas
 Al_sublimation.phase_change.phase_field.type = allencahn
 
 rigid.relaxation_time = 5.0e-5_s

@@ -1,8 +1,7 @@
 //
 // :code:Model::Gas::EOS::Rocfire:code: implements the reduced Rocfire gas equation
-// of state. Rocfire assumes a single molecular weight and heat capacity for all
-// species, so the mixture gas constant and heat-capacity ratio are independent of
-// composition.
+// of state. The reduced closure retains a common mass heat capacity while the
+// gas object supplies a composition-dependent mixture gas constant.
 //
 
 #ifndef MODEL_GAS_EOS_ROCFIRE_H_

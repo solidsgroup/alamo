@@ -54,18 +54,19 @@ gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
 gas.eos.type = rocfire
 
 # Rocfire_Aluminized retains the original six reacting species and appends an
-# inert aluminum-vapor species.  The reduced Rocfire gas closure requires one
-# effective molecular weight for every gas species, so Al_vapor uses 26 g/mol
-# here; solid/vapor aluminum mass is nevertheless transferred conservatively.
-gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
-species.names = AP_gas HTPB_gas Mono Premixed Primary Final Al_vapor AP_solid HTPB_solid Al_solid
+# inert aluminum-bearing gas species. The reduced Rocfire closure accepts one
+# molecular weight for every gas species. Al_gas uses its atomic weight and
+# the inert lumped Al2O3_gas species uses its molecular weight of 101.96 g/mol.
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.9815385_g/mol 101.96_g/mol
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final Al_gas Al2O3_gas AP_solid HTPB_solid Al_solid
 AP_gas.mechanics = fluid
 HTPB_gas.mechanics = fluid
 Mono.mechanics = fluid
 Premixed.mechanics = fluid
 Primary.mechanics = fluid
 Final.mechanics = fluid
-Al_vapor.mechanics = fluid
+Al_gas.mechanics = fluid
+Al2O3_gas.mechanics = fluid
 AP_solid.mechanics = rigid_solid
 HTPB_solid.mechanics = rigid_solid
 Al_solid.mechanics = rigid_solid
@@ -132,7 +133,7 @@ HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.in = Al_solid
-Al_sublimation.phase_change.out = Al_vapor
+Al_sublimation.phase_change.out = Al_gas
 # This deliberately elevated 0.5 mm/s regression speed shrinks the nominal
 # 75 um particle radius by 12.5 um over the 25 ms simulation.
 Al_sublimation.phase_change.prescribed_speed = 0.5_mm/s
@@ -188,8 +189,10 @@ Final.density.ic.expression.constant.al_r = 75.0_um
 Final.density.ic.expression.constant.al_eps = 20.0_um
 Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-al_y)^2)-al_r)/al_eps))*3000000.0/(319.787*700.0))"
 
-Al_vapor.density.ic.type = constant
-Al_vapor.density.ic.constant.value = 0.0_kg/m^3
+Al_gas.density.ic.type = constant
+Al_gas.density.ic.constant.value = 0.0_kg/m^3
+Al2O3_gas.density.ic.type = constant
+Al2O3_gas.density.ic.constant.value = 0.0_kg/m^3
 
 # Initialize an upward gas stream while leaving the solid regions at rest.
 # No aluminum velocity is prescribed after initialization; its translation and
@@ -214,9 +217,9 @@ component_density.bc.constant.type.xlo = periodic
 component_density.bc.constant.type.xhi = periodic
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = dirichlet
-# Ten component values in the new ordering.  Final products retain the outlet
-# state from the base case and Al_vapor has a zero imposed exterior value.
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0 0.0 0.0
+# Eleven component values in the new ordering. Final products retain the outlet
+# state from the base case and both aluminum gases have zero exterior values.
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0 0.0 0.0 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic

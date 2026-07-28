@@ -70,7 +70,7 @@ FINITE_SPECIES = [
     "H2", "H", "O", "O2", "OH", "H2O", "HO2", "H2O2", "AR", "N2"
 ]
 ROCFIRE_SPECIES = ["AP", "HTPB", "Mono", "Premixed", "Primary", "Final"]
-ROCFIRE_ALUMINIZED_SPECIES = ROCFIRE_SPECIES + ["Al_vapor"]
+ROCFIRE_ALUMINIZED_SPECIES = ROCFIRE_SPECIES + ["Al_gas", "Al2O3_gas"]
 
 FINITE_MOLECULAR_WEIGHTS = [
     "2.016_g/mol", "1.008_g/mol", "15.999_g/mol", "31.998_g/mol",
@@ -94,7 +94,7 @@ ROCFIRE_INITIAL_PARTIAL_DENSITIES = numpy.array(
     [0.28154378279353426, 0.03530772294877530, 0.0, 0.0, 0.0, 0.0]
 )
 ROCFIRE_ALUMINIZED_INITIAL_PARTIAL_DENSITIES = numpy.append(
-    ROCFIRE_INITIAL_PARTIAL_DENSITIES, 0.05
+    ROCFIRE_INITIAL_PARTIAL_DENSITIES, [0.05, 0.03]
 )
 
 EXPECTED_WDOT = numpy.array(
@@ -210,7 +210,7 @@ def make_rocfire_aluminized_gas(pp):
     prefix = "rocfire_aluminized_gas"
     add_strings(
         pp, f"{prefix}.mw",
-        ["26.0_g/mol"] * len(ROCFIRE_ALUMINIZED_SPECIES),
+        ["26.0_g/mol"] * 6 + ["26.9815385_g/mol", "101.96_g/mol"],
     )
     add_string(pp, f"{prefix}.thermo.type", "rocfire")
     add_string(pp, f"{prefix}.transport.type", "rocfire")
@@ -477,11 +477,13 @@ try:
             1.0e-7, numpy.array([0.0, 1.0e-6]),
         )
         validate_mass_fractions("Rocfire aluminized", mass_fractions)
-        initial_aluminum_fraction = initial[-1] / initial.sum()
+        initial_aluminum_fractions = initial[-2:] / initial.sum()
         numpy.testing.assert_allclose(
-            mass_fractions[:, -1], initial_aluminum_fraction,
+            mass_fractions[:, -2:],
+            numpy.broadcast_to(initial_aluminum_fractions,
+                               mass_fractions[:, -2:].shape),
             rtol=0.0, atol=2.0e-14,
-            err_msg="Rocfire_Aluminized reacted its inert Al_vapor species",
+            err_msg="Rocfire_Aluminized reacted an inert aluminum gas species",
         )
         if numpy.allclose(mass_fractions[-1, :6], mass_fractions[0, :6]):
             raise RuntimeError(

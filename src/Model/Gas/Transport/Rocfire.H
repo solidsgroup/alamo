@@ -15,6 +15,7 @@
 #ifndef MODEL_GAS_TRANSPORT_ROCFIRE_H_
 #define MODEL_GAS_TRANSPORT_ROCFIRE_H_
 
+#include <array>
 #include <vector>
 #include <memory>
 #include <cmath>
@@ -35,8 +36,10 @@ public:
     static constexpr bool common_diffusivity = true;
 
 private:
+    static constexpr int max_species = 64;
     int nspecies = 1;
-    Set::Scalar mw, cp_mass_value, lewis, prandtl, lambda_a, lambda_b;
+    std::array<Set::Scalar, max_species> molecular_weight{};
+    Set::Scalar cp_mass_value, lewis, prandtl, lambda_a, lambda_b;
 
 public:
     Rocfire() = default;
@@ -50,7 +53,8 @@ public:
             "Transport::Rocfire molecular-weight count does not match its species count.");
         Util::Assert(INFO, TEST(!a_MW.empty()),
             "gas.mw must contain at least one molecular weight.");
-        value.mw = a_MW[0];
+        Util::Assert(INFO, TEST(a_MW.size() <= max_species),
+            "gas.transport.rocfire supports at most ", max_species, " species.");
         // prandtl number
         pp.query_default("prandtl", value.prandtl, "0.69", Unit::Less());
         // lewis number
@@ -60,18 +64,15 @@ public:
         // thermal conductivity coefficient, lambda_b
         pp.query_default("lambda_b", value.lambda_b, "5.32743e-6_cal/cm/s/K", Unit::Energy()/Unit::Length()/Unit::Time()/Unit::Temperature());
 
-        const Set::Scalar mw_tol = 1.0e-12 *
-            ((std::fabs(value.mw) > 1.0) ? std::fabs(value.mw) : 1.0);
         for (int n = 0; n < value.nspecies; ++n)
         {
             Util::Assert(INFO,
                 TEST(std::isfinite(a_MW[n]) && a_MW[n] > 0.0),
                 "Invalid molecular weight for species ", n, ": ", a_MW[n]);
-            Util::Assert(INFO, TEST(std::fabs(a_MW[n] - value.mw) <= mw_tol),
-                "gas.transport.rocfire requires all gas molecular weights to equal ",
-                value.mw, "; species ", n, " has molecular weight ", a_MW[n], ".");
+            value.molecular_weight[n] = a_MW[n];
         }
-        value.cp_mass_value = a_thermo.cp_mol_species(0.0, 0) / value.mw;
+        value.cp_mass_value =
+            a_thermo.cp_mol_species(0.0, 0) / value.molecular_weight[0];
 
         Util::Assert(INFO, TEST(value.prandtl > 0.0), "gas.transport.rocfire.prandtl must be positive.");
         Util::Assert(INFO, TEST(value.lewis > 0.0), "gas.transport.rocfire.lewis must be positive.");
@@ -99,8 +100,11 @@ public:
                                     int /*species*/) const
     {
         const Set::Scalar kappa = thermal_conductivity(T, X, i, j, k);
+        Set::Scalar mixture_molecular_weight = 0.0;
+        for (int n = 0; n < nspecies; ++n)
+            mixture_molecular_weight += X(i,j,k,n) * molecular_weight[n];
         const Set::Scalar rho = (P > 0.0 && T > 0.0) ?
-            P * mw / (Set::Constant::Rg * T) : 0.0;
+            P * mixture_molecular_weight / (Set::Constant::Rg * T) : 0.0;
         return (rho > 0.0) ?
             kappa / rho / cp_mass_value / lewis : 0.0;
     }
