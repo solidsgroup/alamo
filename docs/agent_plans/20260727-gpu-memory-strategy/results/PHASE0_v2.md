@@ -11,7 +11,7 @@ superseded — this file tracks the v2 set, which is a different and larger set.
 | 3 | `AbortIfDeviceError` disabled comparison | 5.3 | NOT DONE — §C |
 | 4 | Mechanical sync inventory | 5.4 | **ENUMERATED, unranked** — §D |
 | 5 | Footprint budget including 40 GB | 5.5 | **DONE (model); high-water pending** — §E |
-| 6 | T0/T6b/T7 thresholds | 5.6 | BLOCKED on re-capture |
+| 6 | T0/T6b/T7 thresholds | 5.6 | BLOCKED — re-capture IN FLIGHT (11775088/89/90) |
 | 7 | Target set v2 false-pass validated in-tree | 3.1/3.3 | **PARTIAL** — §F |
 | 8 | Gap table | — | BLOCKED on 1, 6 |
 | 9 | Revised cost estimate | 6 | BLOCKED — N11 moves it again |
@@ -201,6 +201,32 @@ pure norm — removing the copies is a correctness-sensitive change, not a
 cleanup.
 
 ---
+
+## §G Re-capture — submitted 2026-07-28
+
+Build `11774784` COMPLETED (11:33), all four sm_80 binaries rebuilt from the
+current tree.
+
+| Job | Deck | Dim |
+|---|---|---|
+| 11775088 | `input_copy` | 2D |
+| 11775089 | `input` | 2D |
+| 11775090 | `input_3d_centre_bore_128_a2` | 3D |
+
+Provenance: `local_head=ee65247b7`, `tree_hash=5e0efcf7a5766c1b`,
+`src_hash=73126499fd418d70`, `local_dirty_files=575`, 3,036 files manifested.
+
+This run carries four harness changes that the previous one did not:
+
+1. nsys no longer traces MPI — the previous three captures produced **no**
+   `trace.nsys-rep` at all, so F1/F2/F3/F8/F9 were empty.
+2. ncu runs `--kill yes`, so it stops the app after its launches instead of
+   riding the full horizon and being OOM-killed.
+3. F10 has a `max_step=1` startup calibration and 3 reps with a standard
+   deviation, so it is admissible for the first time.
+4. The N4 probe reads the MPI the binary actually links, not the module.
+
+Collect with `bash benchmark/phase0_capture.sh collect <remote_dir>`.
 
 ## Blocking summary
 
