@@ -167,4 +167,37 @@ Valid candidate logs:
 
 ## §5
 
-Not started.
+Complete 2026-07-28. The PLAN's "19 sites" reconciles as two overload
+definitions in `Numeric/Stencil.H`, 16 compiled call expressions, and one
+commented-out expression. The three Elastic calls are adjudicated in §2-§3;
+the remaining fourteen textual sites are below.
+
+| Site | Launch/source contract | Verdict |
+|---|---|---|
+| `Newton.H:644` | Call is guarded strictly inside the grown nodal `bx`; with the two-ghost `psi`, the largest required source extent is exactly `[L-2,H+2]`. | **Safe by explicit bounds guard.** |
+| `Newton.H:654` | Same `bx`, `psi`, and strict-interior guard as `:644`. | **Safe by explicit bounds guard.** |
+| `Newton.H:1411` | Reduction launches only on the ungrown nodal valid box; `psi` has two ghosts and only one is required. The passed global stencil handles physical-boundary semantics. | **Safe.** |
+| `PhaseFieldMicrostructure.cpp:270` | `UpdateEigenstrain` launches over the two-ghost nodal model box. Static mechanics raises both eta fields to three ghosts. | **Safe in current static decks; dormant mismatch if a non-static/shear-coupled configuration reaches this path with fewer than three ghosts.** |
+| `PhaseFieldMicrostructure.cpp:271` | Same kernel and eta allocation as `:270`. | **Same dormant configuration risk.** |
+| `PhaseFieldMicrostructure.cpp:272` | Same kernel and eta allocation as `:270`. | **Same dormant configuration risk.** |
+| `PhaseFieldMicrostructure.cpp:273` | Same kernel and eta allocation as `:270`. | **Same dormant configuration risk.** |
+| `PhaseFieldMicrostructure.cpp:353` | `UpdateModel` also launches over the two-ghost nodal model box. Static mechanics supplies the required three eta ghosts; the class otherwise starts at one ghost and anisotropy raises it only to two. | **Safe in current static decks; same defect class is dormant for permitted non-static configurations.** |
+| `ThermoElastic.H:59` | `ThermoElastic` constructs `HeatConduction(3)`, so temperature has three ghosts for the two-ghost nodal model launch. | **Safe.** |
+| `Flame.cpp:544` | Cell-centered phi is registered with three ghosts and is read only when `phi_cell_centered_mixing` is true; model launch grows two nodes. | **Safe.** |
+| `Flame.cpp:546` | Temperature is registered with three ghosts for the same two-node-grown model launch. | **Safe.** |
+| `Flame.cpp:572` | Eta is registered with three ghosts for the same two-node-grown model launch. | **Safe.** |
+| `Util.cpp:426` | Helper launches on an ungrown nodal tile and requires one matching cell ghost. The ordinary plot caller rejects zero-ghost fields first and default `amr.print_ghost_nodes=0` satisfies this contract. The unused generic-base-field arm constructs a zero-ghost source and would trip the helper assertion; nonzero `print_ghost_nodes` is also not represented in the assertion. | **Current callers safe; dormant plot-helper contract hazard, not a live device read.** |
+| `SutureCrack.H:219` | Entire expression is commented out. | **Not compiled.** |
+
+The `PhaseFieldMicrostructure.cpp:270-273` `//, sten);` fragments are not a
+missing bounds fix. A global stencil does not identify interior fab edges, as
+§3 demonstrated. The current static configurations use the storage-width
+solution already; the weaker non-static allocation is the dormant copy of the
+same defect class.
+
+No follow-on folder was opened because none of these fourteen is live in the
+current CUDA closure: `alamo_gpu.cc` includes only Flame, Newton, and Elastic;
+the live calls in that closure satisfy their measured halo contracts. The two
+dormant contracts above should be revisited when
+`PhaseFieldMicrostructure` is GPU-enabled or nonzero ghost-node plotting is
+made a supported configuration.
