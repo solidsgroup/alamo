@@ -1,0 +1,214 @@
+#@ [2d-solid-liquid-forward]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=mechanisms.names=Al_melting
+#@
+#@ [2d-solid-liquid-reverse]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=mechanisms.names=Al_solidification
+#@
+#@ [2d-liquid-gas-bundle]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=mechanisms.names=Al_vaporization
+#@
+#@ [2d-gas-liquid-reverse]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=mechanisms.names=Al_condensation
+
+plot_file = tests/LMPhaseChange/output
+allow_unused = True
+amr.plot_int = 100
+amr.max_level = 0
+amr.max_grid_size = 48
+amr.blocking_factor = 8
+amr.n_cell = 48 48
+
+timestep = 2.0e-4
+stop_time = 0.02
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol 28.0_kg/kmol 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K 28000.0_J/kmol/K 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol 0.0_J/kmol 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K 0.0_J/kmol/K 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K 300.0_K 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s 2.0e-5_Pa*s 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = product_A product_B ambient_gas Al_solid Al_liquid
+product_A.mechanics = fluid
+product_B.mechanics = fluid
+ambient_gas.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+Al_solid.reference_density = 2.0_kg/m^3
+Al_solid.specific_heat = 1000.0_J/kg/K
+Al_solid.thermal_conductivity = 0.1_W/m/K
+Al_solid.rigid.motion = fixed
+Al_liquid.mechanics = liquid
+Al_liquid.reference_density = 2.0_kg/m^3
+Al_liquid.dynamic_viscosity = 1.0e-2_Pa*s
+Al_liquid.specific_heat = 1000.0_J/kg/K
+Al_liquid.thermal_conductivity = 0.1_W/m/K
+
+liquid.interface_thickness = 0.04_m
+liquid.surface_tension.Al_liquid_gas = 0.01_J/m^2
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+Al_melting.type = phase_change
+Al_melting.phase_change.phase0 = Al_solid
+Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.reversible = 0
+Al_melting.phase_change.latent_heat = 50000.0_J/kg
+Al_melting.phase_change.prescribed_speed = 0.1_m/s
+Al_melting.phase_change.phase_field.type = allencahn
+
+Al_solidification.type = phase_change
+Al_solidification.phase_change.phase0 = Al_solid
+Al_solidification.phase_change.phase1 = Al_liquid
+Al_solidification.phase_change.reversible = 1
+Al_solidification.phase_change.latent_heat = 50000.0_J/kg
+Al_solidification.phase_change.phase_field.type = allencahn
+Al_solidification.phase_change.phase_field.allencahn.mobility = 1.0_1/Pa/s
+Al_solidification.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
+Al_solidification.phase_change.phase_field.allencahn.epsilon = 0.04_m
+Al_solidification.phase_change.phase_field.allencahn.w0 = 1.0
+Al_solidification.phase_change.phase_field.allencahn.w12 = 2.0
+Al_solidification.phase_change.phase_field.allencahn.w1 = 0.0
+
+Al_vaporization.type = phase_change
+Al_vaporization.phase_change.phase0 = Al_liquid
+Al_vaporization.phase_change.phase1 = product_A product_B
+Al_vaporization.phase_change.phase1.mass_fractions = 0.3 0.7
+Al_vaporization.phase_change.latent_heat = 0.0_J/kg
+Al_vaporization.phase_change.prescribed_speed = 0.1_m/s
+Al_vaporization.phase_change.phase_field.type = allencahn
+
+Al_condensation.type = phase_change
+Al_condensation.phase_change.phase0 = Al_liquid
+Al_condensation.phase_change.phase1 = product_A product_B
+Al_condensation.phase_change.phase1.mass_fractions = 0.3 0.7
+Al_condensation.phase_change.reversible = 1
+Al_condensation.phase_change.latent_heat = 0.0_J/kg
+Al_condensation.phase_change.rate_multiplier = 0.1
+Al_condensation.phase_change.phase_field.type = allencahn
+Al_condensation.phase_change.phase_field.allencahn.mobility = 1.0_1/Pa/s
+Al_condensation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
+Al_condensation.phase_change.phase_field.allencahn.epsilon = 0.04_m
+Al_condensation.phase_change.phase_field.allencahn.w0 = 10.0
+Al_condensation.phase_change.phase_field.allencahn.w12 = 11.0
+Al_condensation.phase_change.phase_field.allencahn.w1 = 0.0
+
+rigid.relaxation_time = 1.0e-4_s
+diffusion.verbose = 0
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+
+product_A.density.ic.type = expression
+product_A.density.ic.expression.constant.rhog = 1.12254198039921
+product_A.density.ic.expression.constant.x0 = 0.5
+product_A.density.ic.expression.constant.y0 = 0.5
+product_A.density.ic.expression.constant.R = 0.30
+product_A.density.ic.expression.constant.eps = 0.03
+product_A.density.ic.expression.region0 = "0.3*rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+product_B.density.ic.type = expression
+product_B.density.ic.expression.constant.rhog = 1.12254198039921
+product_B.density.ic.expression.constant.x0 = 0.5
+product_B.density.ic.expression.constant.y0 = 0.5
+product_B.density.ic.expression.constant.R = 0.30
+product_B.density.ic.expression.constant.eps = 0.03
+product_B.density.ic.expression.region0 = "0.7*rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 0.0
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rho = 2.0
+Al_solid.density.ic.expression.constant.x0 = 0.5
+Al_solid.density.ic.expression.constant.y0 = 0.5
+Al_solid.density.ic.expression.constant.R = 0.18
+Al_solid.density.ic.expression.constant.eps = 0.03
+Al_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+Al_liquid.density.ic.type = expression
+Al_liquid.density.ic.expression.constant.rho = 2.0
+Al_liquid.density.ic.expression.constant.x0 = 0.5
+Al_liquid.density.ic.expression.constant.y0 = 0.5
+Al_liquid.density.ic.expression.constant.R0 = 0.18
+Al_liquid.density.ic.expression.constant.R1 = 0.30
+Al_liquid.density.ic.expression.constant.eps = 0.03
+Al_liquid.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R0)/eps))*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R1)/eps))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0

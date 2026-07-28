@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    solid = data["component_density_Al_solid"].to_ndarray()
+    liquid = data["component_density_Al_liquid"].to_ndarray()
+    product_a = data["component_density_product_A"].to_ndarray()
+    product_b = data["component_density_product_B"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    aluminum = solid + liquid + product_a + product_b
+    mass = (aluminum * volume).sum()
+    condensed = solid + liquid
+    condensed_mass = (condensed * volume).sum()
+    weighted_temperature = (
+        temperature * condensed * volume).sum() / condensed_mass
+    return {
+        "solid": (solid * volume).sum(),
+        "liquid": (liquid * volume).sum(),
+        "product_a": (product_a * volume).sum(),
+        "product_b": (product_b * volume).sum(),
+        "mass": mass,
+        "temperature": weighted_temperature,
+        "minimum": min(
+            solid.min(), liquid.min(), product_a.min(), product_b.min()),
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LMPhaseChange requires initial and final plotfiles")
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+relative_mass_error = abs(final["mass"] - initial["mass"]) / initial["mass"]
+if relative_mass_error > 5.0e-3:
+    raise RuntimeError(
+        f"Phase change altered conserved mass by {relative_mass_error:.3e}")
+if final["minimum"] < -1.0e-9:
+    raise RuntimeError(
+        f"Phase change produced negative density {final['minimum']:.3e}")
+
+if "gas-liquid-reverse" in outdir:
+    consumed_a = initial["product_a"] - final["product_a"]
+    consumed_b = initial["product_b"] - final["product_b"]
+    consumed = consumed_a + consumed_b
+    if not final["liquid"] > 1.002 * initial["liquid"] or consumed <= 0.0:
+        raise RuntimeError("Gas-bundle condensation did not produce liquid")
+    if abs(consumed_a / consumed - 0.3) > 5.0e-3:
+        raise RuntimeError("Condensed product A mass fraction is not 0.3")
+    if abs(consumed_b / consumed - 0.7) > 5.0e-3:
+        raise RuntimeError("Condensed product B mass fraction is not 0.7")
+elif "bundle" in outdir:
+    produced_a = final["product_a"] - initial["product_a"]
+    produced_b = final["product_b"] - initial["product_b"]
+    produced = produced_a + produced_b
+    if not final["liquid"] < 0.998 * initial["liquid"] or produced <= 0.0:
+        raise RuntimeError("Gas-bundle phase change did not consume liquid")
+    if abs(produced_a / produced - 0.3) > 5.0e-3:
+        raise RuntimeError("Gas-bundle product A mass fraction is not 0.3")
+    if abs(produced_b / produced - 0.7) > 5.0e-3:
+        raise RuntimeError("Gas-bundle product B mass fraction is not 0.7")
+elif "reverse" in outdir:
+    if not final["solid"] > 1.002 * initial["solid"]:
+        raise RuntimeError("Reversible phase change did not solidify liquid")
+    if not final["liquid"] < 0.998 * initial["liquid"]:
+        raise RuntimeError("Solidification did not consume liquid")
+    if not final["temperature"] > initial["temperature"] + 1.0e-3:
+        raise RuntimeError("Solidification did not release latent heat")
+else:
+    if not final["solid"] < 0.998 * initial["solid"]:
+        raise RuntimeError("Forward phase change did not melt solid")
+    if not final["liquid"] > 1.002 * initial["liquid"]:
+        raise RuntimeError("Melting did not produce liquid")
+    if not final["temperature"] < initial["temperature"] - 1.0e-3:
+        raise RuntimeError("Melting did not absorb latent heat")
+
+print("LowMach condensed phase-change regression passed")
