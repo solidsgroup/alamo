@@ -6,7 +6,7 @@
 # Thus 0 <= x <= 50 um is half of the HTPB laminate and 50 <= x <= 250 um is AP.
 # The lateral faces are impermeable slip walls rather than periodic boundaries.
 
-plot_file = output.lm.ap_htpb
+#plot_file = output.lm.ap_htpb
 amr.plot_dt = 1.0e-4_s
 amr.max_level = 3
 amr.n_cell = 16 256
@@ -164,14 +164,15 @@ diagnostics.extended_fields = 0
 #pressure.bc.constant.val.yhi = 2.5e6
 #
 # --- 3.0 MPa (active) ---
-Final.density.ic.expression.constant.P = 3.0e6
-pressure.ic.constant.value = 3.0e6
-pressure.bc.constant.val.yhi = 3.0e6
+#Final.density.ic.expression.constant.P = 3.0e6
+#pressure.ic.constant.value = 3.0e6
+#pressure.bc.constant.val.yhi = 3.0e6
 #
 # --- 4.0 MPa ---
-#Final.density.ic.expression.constant.P = 4.0e6
-#pressure.ic.constant.value = 4.0e6
-#pressure.bc.constant.val.yhi = 4.0e6
+Final.density.ic.expression.constant.P = 4.0e6
+pressure.ic.constant.value = 4.0e6
+pressure.bc.constant.val.yhi = 4.0e6
+plot_file = output.lm.ap_htpb_4MPa
 
 # The solid occupies y<0. The complementary expressions reconstruct one
 # common condensed/gas interface while placing the symmetry plane at the

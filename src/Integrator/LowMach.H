@@ -11,6 +11,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/FiniteRate.H"

@@ -8,6 +8,7 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "Unit/Unit.H"
 #include "Util/Util.H"
 using namespace std;
 #include <iostream>
@@ -33,6 +34,11 @@ public:
     PSRead(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
 
     PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    {
+        pp.queryclass(name, *this);
+    }
+    PSRead(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit,
+           IO::ParmParse& pp, std::string name) : IC(_geom), field_unit(a_unit)
     {
         pp.queryclass(name, *this);
     }
@@ -96,9 +102,23 @@ public:
                     }
                 }
 
-                phi(i, j, k, 0) = min_grain_id;
-                if (invert) phi(i,j,k,0) = 1.0 - min_grain_id;
-                if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
+                Set::Scalar mask = 1.0;
+                if (use_plane)
+                {
+                    const Set::Scalar distance =
+                        (x - plane_point).dot(plane_normal);
+                    mask = plane_eps > 0.0 ?
+                        0.5 * (1.0 + std::tanh(
+                            2.0 * distance / plane_eps)) :
+                        static_cast<Set::Scalar>(distance >= 0.0);
+                }
+
+                phi(i, j, k, 0) =
+                    field_value * mask *
+                    (invert ? 1.0 - min_grain_id : min_grain_id);
+                if (ncomp > 1)
+                    phi(i, j, k, 1) =
+                        field_value * mask * (1.0 - min_grain_id);
             });
         }
     }
@@ -123,11 +143,37 @@ public:
         // Whether to invert (1 outside instead of inside spheres)
         pp.query_default("invert",value.invert,false); 
 
+        // Value represented by the packed-sphere indicator
+        pp.query_default("value", value.field_value, "1.0", value.field_unit);
+
         // X-offset 
         pp.queryarr_default("x0",value.x0,"0 0 0", Unit::Length());
 
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
+
+        // Optionally restrict the packing to one side of a diffuse plane.
+        value.use_plane = pp.contains("plane.normal");
+        if (value.use_plane)
+        {
+            pp.queryarr("plane.normal", value.plane_normal);
+            pp.queryarr_default(
+                "plane.point", value.plane_point, "0 0 0", Unit::Length());
+            pp.query_default(
+                "plane.eps", value.plane_eps, "0.0", Unit::Length());
+            const Set::Scalar norm = value.plane_normal.norm();
+            Util::AssertException(
+                INFO, TEST(norm > 0.0), "plane.normal must be nonzero");
+            Util::AssertException(
+                INFO, TEST(value.plane_eps >= 0.0),
+                "plane.eps must be nonnegative");
+            value.plane_normal /= norm;
+        }
+
+        const bool use_slice = pp.contains("slice.z");
+        Set::Scalar slice_z = 0.0;
+        if (use_slice)
+            pp.query_required("slice.z", slice_z, Unit::Length());
         
         Unit unit = Unit::Length();
         // Units of length in the file
@@ -151,11 +197,17 @@ public:
 
                 Set::Scalar x = (std::stod(strx) * unit).normalized_value();
                 Set::Scalar y = (std::stod(stry) * unit).normalized_value();
-                #if AMREX_SPACEDIM > 2
                 Set::Scalar z = (std::stod(strz) * unit).normalized_value();
-                #endif
                 Set::Scalar r = (std::stod(strR) * unit).normalized_value();
 
+#if AMREX_SPACEDIM == 2
+                if (use_slice)
+                {
+                    const Set::Scalar dz = slice_z - z;
+                    if (Util::Abs(dz) >= r) continue;
+                    r = std::sqrt(r * r - dz * dz);
+                }
+#endif
                 Set::Vector X(AMREX_D_DECL(x,y,z));
                 X = value.x0 + value.mult*X;
 
@@ -179,6 +231,12 @@ private:
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
     bool invert = false;
+    Unit field_unit = Unit::Less();
+    Set::Scalar field_value = 1.0;
+    bool use_plane = false;
+    Set::Vector plane_point = Set::Vector::Zero();
+    Set::Vector plane_normal = Set::Vector::Zero();
+    Set::Scalar plane_eps = 0.0;
 };
 }
 #endif

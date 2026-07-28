@@ -135,7 +135,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression>(
+            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
                 value.geom, Unit::Density());
     }
@@ -295,9 +295,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         species_suffix[n] = "_" + value.species_names[n];
     std::vector<std::string> gas_species_suffix(
         species_suffix.begin(), species_suffix.begin() + value.ngas_species);
+    std::vector<std::string> vector_suffix = {"x", "y", "z"};
+    vector_suffix.resize(AMREX_SPACEDIM);
 
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, {"x","y"});
-    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, {"x","y"});
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_mf,        value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity",          true,  true, vector_suffix);
+    value.AddField<Set::Scalar,Set::HC::Cell>(value.velocity_old_mf,    value.velocity_bc,      AMREX_SPACEDIM, nghost, "velocity_old",      false, true, vector_suffix);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_mf,       value.temperature_bc,   1,              nghost, "temperature",       true,  true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.temperature_old_mf,   value.temperature_bc,   1,              nghost, "temperature_old",   false, true);
     if (value.heat_source_ic)
@@ -309,8 +311,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (value.deformable_solid_species >= 0)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,     value.xi_bc, AMREX_SPACEDIM, nghost, "xi",     true,  true, {"x","y"});
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf, value.xi_bc, AMREX_SPACEDIM, nghost, "xi_old", false, true, {"x","y"});
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,     value.xi_bc, AMREX_SPACEDIM, nghost, "xi",     true,  true, vector_suffix);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf, value.xi_bc, AMREX_SPACEDIM, nghost, "xi_old", false, true, vector_suffix);
     }
     if (!value.rigid_solid_species.empty())
     {
@@ -343,7 +345,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mass_fraction", true, false, gas_species_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mole_fraction", true, false, gas_species_suffix);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, {"x","y"});
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, vector_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.energy_mf, &value.bc_nothing, 1, 1, "energy", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.viscosity_mf, &value.bc_nothing, 1, 1, "viscosity", true, false);
@@ -836,6 +838,18 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
         UpdateComponentState(lev, *component_density_mf[lev]);
 
     BC::Constant::ZeroNeumann phase_field_bc(1);
+    for (int lev = 0; lev < nlev; ++lev)
+    {
+        amrex::MultiFab::Copy(
+            diffusion.State(lev, 1), *rigid_eta_mf[lev],
+            0, 0, 1, diffusion.State(lev, 1).nGrow());
+        diffusion.Source(lev, 1).setVal(0.0);
+        diffusion.Mass(lev, 1).setVal(0.0);
+        diffusion.Mobility(lev, 1).setVal(1.0);
+    }
+
+    // All rigid species contribute to one aggregate eta equation. Solving
+    // separately would evolve the same rigid_eta repeatedly from stale data.
     for (const auto& configured_mechanism : mechanisms)
     {
         const auto mechanism = configured_mechanism;
@@ -845,13 +859,6 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
 
         for (int lev = 0; lev < nlev; ++lev)
         {
-            amrex::MultiFab::Copy(
-                diffusion.State(lev, 1), *rigid_eta_mf[lev],
-                0, 0, 1, diffusion.State(lev, 1).nGrow());
-            diffusion.Source(lev, 1).setVal(0.0);
-            diffusion.Mass(lev, 1).setVal(0.0);
-            diffusion.Mobility(lev, 1).setVal(1.0);
-
             for (amrex::MFIter mfi(diffusion.Mass(lev, 1),
                                     amrex::TilingIfNotGPU());
                 mfi.isValid(); ++mfi)
@@ -876,53 +883,62 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                         const Model::Mechanism::State state = {
                             component_density, rigid_eta, rigid_species_eta,
                             T(i,j,k), p_reference};
-                        coefficient(i,j,k) =
+                        coefficient(i,j,k) +=
                             mechanism.GradientCoefficient(state, i, j, k);
-                        local_rate(i,j,k) =
+                        local_rate(i,j,k) +=
                             mechanism.LocalRate(state, i, j, k);
                     });
             }
         }
+    }
 
-        Set::Scalar coefficient_max = 0.0;
-        for (int lev = 0; lev < nlev; ++lev)
-            coefficient_max = Util::Max(
-                coefficient_max,
-                diffusion.Mass(lev, 1).max(0, 0, true));
-        amrex::ParallelDescriptor::ReduceRealMax(coefficient_max);
-        if (!(coefficient_max > 0.0)) continue;
-        const Set::Scalar coefficient_floor = 1.0e-6 * coefficient_max;
+    Set::Scalar coefficient_max = 0.0;
+    for (int lev = 0; lev < nlev; ++lev)
+        coefficient_max = Util::Max(
+            coefficient_max,
+            diffusion.Mass(lev, 1).max(0, 0, true));
+    amrex::ParallelDescriptor::ReduceRealMax(coefficient_max);
+    if (!(coefficient_max > 0.0)) return;
+    const Set::Scalar coefficient_floor = 1.0e-6 * coefficient_max;
 
-        // Express D laplacian(eta) as a standard ABec solve by dividing the
-        // equation by D. A small coefficient floor keeps inactive cells from
-        // dominating the composite residual norm.
-        for (int lev = 0; lev < nlev; ++lev)
+    // Express D laplacian(eta) as a standard ABec solve by dividing the
+    // equation by D. A small coefficient floor keeps inactive cells from
+    // dominating the composite residual norm.
+    for (int lev = 0; lev < nlev; ++lev)
+    {
+        for (amrex::MFIter mfi(diffusion.Mass(lev, 1),
+                                amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi)
         {
-            for (amrex::MFIter mfi(diffusion.Mass(lev, 1),
-                                    amrex::TilingIfNotGPU());
-                mfi.isValid(); ++mfi)
-            {
-                const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> coefficient =
-                    diffusion.Mass(lev, 1).array(mfi);
-                Set::Patch<Set::Scalar> local_rate =
-                    diffusion.Source(lev, 1).array(mfi);
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> coefficient =
+                diffusion.Mass(lev, 1).array(mfi);
+            Set::Patch<Set::Scalar> local_rate =
+                diffusion.Source(lev, 1).array(mfi);
 
-                amrex::ParallelFor(
-                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                    {
-                        coefficient(i,j,k) =
-                            1.0 / Util::Max(
-                                coefficient(i,j,k), coefficient_floor);
-                        local_rate(i,j,k) *= coefficient(i,j,k);
-                    });
-            }
+            amrex::ParallelFor(
+                bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    coefficient(i,j,k) =
+                        1.0 / Util::Max(
+                            coefficient(i,j,k), coefficient_floor);
+                    local_rate(i,j,k) *= coefficient(i,j,k);
+                });
         }
+    }
 
-        diffusion.Solve(
-            time, dt, phase_field_bc.GetBCRec(), 1,
-            /*tensor_mobility=*/false, /*include_source=*/true);
+    diffusion.Solve(
+        time, dt, phase_field_bc.GetBCRec(), 1,
+        /*tensor_mobility=*/false, /*include_source=*/true);
 
+    // Recover each mechanism's share of the aggregate update from the solved
+    // equation, then transfer the corresponding mass to its products.
+    for (const auto& configured_mechanism : mechanisms)
+    {
+        const auto mechanism = configured_mechanism;
+        const int component = mechanism.RigidComponent();
+        if (component < 0) continue;
+        const Set::Scalar p_reference = pressure_reference;
         for (int lev = 0; lev < nlev; ++lev)
         {
             for (amrex::MFIter mfi(*component_density_mf[lev],
@@ -940,6 +956,10 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> eta_new =
                     diffusion.State(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> inverse_coefficient =
+                    diffusion.Mass(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> scaled_local_rate =
+                    diffusion.Source(lev, 1).array(mfi);
                 Set::Patch<const Set::Scalar> T =
                     temperature_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation =
@@ -952,13 +972,26 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                             component_density_state, rigid_eta,
                             rigid_species_eta,
                             T(i,j,k), p_reference};
+                        const Set::Scalar aggregate_coefficient =
+                            1.0 / inverse_coefficient(i,j,k);
+                        if (!(aggregate_coefficient > coefficient_floor))
+                            return;
                         const Set::Scalar eta_change =
-                            mechanism.GradientCoefficient(
-                                state, i, j, k) > coefficient_floor ?
-                                eta_new(i,j,k) - rigid_eta(i,j,k) : 0.0;
+                            eta_new(i,j,k) - rigid_eta(i,j,k);
+                        const Set::Scalar aggregate_local_rate =
+                            scaled_local_rate(i,j,k) *
+                            aggregate_coefficient;
+                        const Set::Scalar laplacian =
+                            (eta_change / dt - aggregate_local_rate) /
+                            aggregate_coefficient;
+                        const Set::Scalar mechanism_eta_change = dt *
+                            (mechanism.LocalRate(state, i, j, k) +
+                             mechanism.GradientCoefficient(
+                                state, i, j, k) * laplacian);
                         integrated_dilatation(i,j,k) +=
                             mechanism.ApplyImplicitChange(
-                                component_density, state, eta_change, i, j, k);
+                                component_density, state,
+                                mechanism_eta_change, i, j, k);
                     });
             }
         }
@@ -2370,7 +2403,10 @@ void
 LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
-    Set::Scalar dr = std::sqrt(DX[0] * DX[0] + DX[1] * DX[1]);
+    Set::Scalar dr = 0.0;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        dr += DX[d] * DX[d];
+    dr = std::sqrt(dr);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
 

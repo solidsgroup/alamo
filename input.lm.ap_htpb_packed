@@ -1,17 +1,18 @@
-# 3 MPa AP/HTPB packed-particle regression and Rocfire gas-phase combustion
-# Run with: mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed
+# 3 MPa AP/HTPB Miller-packed regression and Rocfire gas-phase combustion.
+# Run in either dimension:
+#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed
+#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed
 #
-# The condensed bed contains a fixed random realization of 20 non-overlapping
-# circular AP cross-sections in an HTPB matrix. Particle radii range from about
-# 19 to 90 um and give an AP area fraction of approximately 0.56. The AP and
-# HTPB partial densities are sharp complements, so their sum reconstructs one
-# common diffuse condensed/gas phase field without premixing the propellants.
+# The XYZR file contains 659 AP spheres from a mechanically contracted Miller
+# packing. The 3D case uses the spheres directly; the 2D case uses their z=0
+# cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
+# the 2D slice. AP and HTPB partial volume fractions are exact complements.
 
 plot_file = output.lm.ap_htpb_packed
-amr.plot_dt = 1.0e-4_s
-amr.max_level = 2
-amr.n_cell = 32 48
-amr.max_grid_size = 16
+amr.plot_dt = 1.0e-5_s
+amr.max_level = 4
+amr.n_cell = 40 40 16
+amr.max_grid_size = 20
 amr.blocking_factor = 4
 amr.regrid_int = 5
 amr.grid_eff = 0.7
@@ -19,8 +20,11 @@ amr.nsubsteps = 1
 amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
-eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 500.0
+# Resolve the condensed/gas interface through level 3. Level 4 remains
+# available for flame and flow structure selected by the criteria below.
+eta_refinement_criterion = 1.2
+temperature_refinement_criterion = 10.0
+velocity_refinement_criterion = 10.0
 
 timestep = 1.0e-7_s
 stop_time = 25_ms
@@ -32,9 +36,9 @@ dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.0003_m -0.0004_m 0.0
-geometry.prob_hi =  0.0003_m  0.0005_m 0.0
-geometry.is_periodic = 1 0 0
+geometry.prob_lo = -1.0_mm -1.0_mm -0.25_mm
+geometry.prob_hi =  1.0_mm  1.0_mm  0.25_mm
+geometry.is_periodic = 0 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
 # AP, binder, monopropellant, premixed, primary-flame, final-flame products.
@@ -113,7 +117,7 @@ HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
 HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
 
 rigid.relaxation_time = 1.0e-8_s
-rigid.velocity = 0.0 0.0
+rigid.velocity = 0.0 0.0 0.0
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
@@ -134,38 +138,55 @@ diffusion.verbose = 0
 #diagnostics.interval = 100
 diagnostics.extended_fields = 0
 
-# The common diffuse condensed/gas surface is y=0. The repeated minimum below
-# is the signed distance to the nearest AP particle, including periodic x
-# images. Its strict sign test gives a sharp AP/HTPB interface. Multiplying
-# complementary compositions by the same surface profile guarantees
-# rho_AP/rho_AP_ref + rho_HTPB/rho_HTPB_ref = eta_solid.
-AP_solid.density.ic.type = expression
-AP_solid.density.ic.expression.constant.lx = 0.0006_m
-AP_solid.density.ic.expression.constant.surface_eps = 20.0_um
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/surface_eps))*(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+(y+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+(y+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+(y+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+(y+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+(y-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+(y+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+(y+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+(y-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+(y-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+(y+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+(y+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+(y+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+(y+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+(y+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+(y-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+(y+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+(y+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+(y-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+(y+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+(y+0.000394822)^2)-0.000047122)<0.0))"
+# The common diffuse condensed/gas surface is y=0. Both species read the same
+# packing; inversion makes HTPB the exact complement of AP inside the bed.
+AP_solid.density.ic.type = psread
+AP_solid.density.ic.psread.file.name = input.lm.ap_htpb_packed.xyzr
+AP_solid.density.ic.psread.file.unit = mm
+AP_solid.density.ic.psread.slice.z = 0.0_mm
+AP_solid.density.ic.psread.eps = 10.0_um
+AP_solid.density.ic.psread.value = 1950.0_kg/m^3
+AP_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
+AP_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
+AP_solid.density.ic.psread.plane.eps = 20.0_um
 
-HTPB_solid.density.ic.type = expression
-HTPB_solid.density.ic.expression.constant.lx = 0.0006_m
-HTPB_solid.density.ic.expression.constant.surface_eps = 20.0_um
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/surface_eps))*(1.0-(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+(y+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+(y+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+(y+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+(y+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+(y-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+(y+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+(y+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+(y-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+(y-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+(y+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+(y+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+(y+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+(y+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+(y+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+(y-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+(y+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+(y+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+(y-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+(y+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+(y+0.000394822)^2)-0.000047122)<0.0)))"
+HTPB_solid.density.ic.type = psread
+HTPB_solid.density.ic.psread.file.name = input.lm.ap_htpb_packed.xyzr
+HTPB_solid.density.ic.psread.file.unit = mm
+HTPB_solid.density.ic.psread.slice.z = 0.0_mm
+HTPB_solid.density.ic.psread.eps = 10.0_um
+HTPB_solid.density.ic.psread.value = 920.0_kg/m^3
+HTPB_solid.density.ic.psread.invert = 1
+HTPB_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
+HTPB_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
+HTPB_solid.density.ic.psread.plane.eps = 20.0_um
 
-# The gas initially contains final products above the packed bed.
+# The gas initially contains final products above the packed bed. Initialize
+# the gas consistently with the thermal penetration profile so that pressure
+# is uniform at startup.
 Final.density.ic.type = expression
-Final.density.ic.expression.constant.surface_eps = 20.0_um
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/surface_eps))*3000000.0/(319.787*300.0))"
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas))))"
 
 velocity.ic.type = constant
-velocity.ic.constant.value = 0.0 0.0
-temperature.ic.type = constant
-temperature.ic.constant.value = 300.0
+velocity.ic.constant.value = 0.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
 pressure.ic.type = constant
 pressure.ic.constant.value = 3000000.0
 
-# Apply the same transient ignition flux used by the calibrated monopropellant
-# cases. It heats the packed surface without preheating the entire bed.
+# Apply the transient ignition flux used by the AP/HTPB sandwich case.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
-heat_source.ic.expression.constant.qflux = 3.0e7_W/m^2
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
 heat_source.ic.expression.constant.width = 6.25e-6_m
 heat_source.ic.expression.constant.norm = 1.772453850905516
 heat_source.ic.expression.constant.toff = 2.5e-4_s
@@ -173,28 +194,37 @@ heat_source.ic.expression.constant.tramp = 1.0e-5_s
 heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic
-component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
 component_density.bc.constant.type.ylo = neumann
-component_density.bc.constant.type.yhi = dirichlet
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 31.2708146359921 0.0 0.0
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.type.zlo = neumann
+component_density.bc.constant.type.zhi = neumann
 
 velocity.bc.type = constant
-velocity.bc.constant.type.xlo = periodic
-velocity.bc.constant.type.xhi = periodic
+# Slip walls: reflect the wall-normal component oddly and tangential
+# components evenly. The z walls are the 3D analogues of the x walls.
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
 velocity.bc.constant.type.ylo = dirichlet
 velocity.bc.constant.type.yhi = neumann
-velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.type.zlo = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.type.zhi = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.val.ylo = 0.0
 
 temperature.bc.type = constant
-temperature.bc.constant.type.xlo = periodic
-temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
 temperature.bc.constant.type.ylo = neumann
 temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.type.zlo = neumann
+temperature.bc.constant.type.zhi = neumann
 
 pressure.bc.type = constant
-pressure.bc.constant.type.xlo = periodic
-pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.type.zlo = neumann
+pressure.bc.constant.type.zhi = neumann
 pressure.bc.constant.val.yhi = 3000000.0
