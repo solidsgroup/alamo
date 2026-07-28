@@ -1,0 +1,219 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+
+# Moving-boundary extension of tests/LowMachElastic: two rigid_solid species
+# (AP_solid, HTPB_solid) regress directly into the single fluid species (Gas)
+# at a prescribed, fixed interface speed -- no Arrhenius/chemistry kinetics
+# are involved (chemistry.model.type = frozen; the phase_change mechanism's
+# `prescribed_speed` option converts solid to gas at a constant normal rate,
+# see Model/Mechanism/PhaseChange.H). AP_solid and HTPB_solid are given
+# different prescribed speeds, so the diffuse AP/HTPB split in x produces a
+# non-planar regressing front (locally blended by each species' volume
+# fraction) rather than a uniformly retreating flat surface.
+#
+# This exercises the elastic FSI solve (added to LowMach in
+# tests/LowMachElastic) against a *moving* rigid_eta field: UpdateModel is
+# re-run (via elastic.interval) as the interface retreats, so the model
+# mixture and the psi mask used by the elastic solver must track the moving
+# solid/fluid boundary correctly, not just a fixed one.
+
+plot_file = tests/LowMachMovingBoundary/output
+amr.plot_dt = 3.0e-6_s
+amr.max_level = 0
+amr.n_cell = 32 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+
+timestep = 1.0e-7_s
+stop_time = 9.0e-6_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 2.5e-6
+
+geometry.prob_lo = 0.0    0.0     0.0
+geometry.prob_hi = 3.2e-3 6.4e-3  0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 29.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas AP_solid HTPB_solid
+Gas.mechanics        = fluid
+AP_solid.mechanics   = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+
+AP_solid.reference_density   = 1950.0_kg/m^3
+HTPB_solid.reference_density =  920.0_kg/m^3
+
+# Both species use the SAME elastic constants here (unlike
+# tests/LowMachElastic, which exercises the arbitrary-species mixing with a
+# modest contrast between species). This test's focus is the moving
+# boundary; as the interface retreats and tilts it becomes more irregular
+# than the static case, and re-triggers the pre-existing Operator::Elastic
+# MLMG divergence for heterogeneous media (see tests/LowMachElastic/Readme.rst)
+# even at the same modest contrast that converges reliably in the static
+# case. A spatially uniform model sidesteps that unrelated robustness gap so
+# this test can isolate what it's actually meant to check: that the elastic
+# solve continues to track a moving/evolving rigid_eta correctly.
+AP_solid.elastic.model.mu    = 140.0
+AP_solid.elastic.model.kappa = 150.0
+HTPB_solid.elastic.model.mu    = 140.0
+HTPB_solid.elastic.model.kappa = 150.0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+# Both rigid solid species regress directly to Gas at a fixed, prescribed
+# normal speed -- no activation energy/temperature dependence, no chemical
+# heat release. AP_solid regresses twice as fast as HTPB_solid, so the
+# initially-flat interface tilts as it retreats. The phase_field block is
+# required by Model::Mechanism::PhaseChange's parser but unused (its
+# Allen-Cahn rate calc is bypassed whenever prescribed_speed is set).
+mechanisms.names = AP_regression HTPB_regression
+
+AP_regression.type = phase_change
+AP_regression.phase_change.in  = AP_solid
+AP_regression.phase_change.out = Gas
+AP_regression.phase_change.prescribed_speed = 4.0_m/s
+AP_regression.phase_change.phase_field.type = allencahn
+AP_regression.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_regression.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_regression.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_regression.phase_change.phase_field.allencahn.w0 = 0.0
+AP_regression.phase_change.phase_field.allencahn.w12 = 2.0
+AP_regression.phase_change.phase_field.allencahn.w1 = 1.0
+
+HTPB_regression.type = phase_change
+HTPB_regression.phase_change.in  = HTPB_solid
+HTPB_regression.phase_change.out = Gas
+HTPB_regression.phase_change.prescribed_speed = 2.0_m/s
+HTPB_regression.phase_change.phase_field.type = allencahn
+HTPB_regression.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+HTPB_regression.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_regression.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_regression.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_regression.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_regression.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diagnostics.interval = 0
+
+# Complementary smooth density profiles (see tests/LowMachElastic/input for
+# the volume-fraction-consistency note that makes this well-posed):
+#   rigid_eta            = 0.5*(1 - tanh((y-y0)/wy))   -- solid below y0
+#   AP fraction of solid  = 0.5*(1 - tanh((x-x0)/wx))   -- AP left of x0
+#   HTPB fraction         = 1 - (AP fraction)           -- HTPB right of x0
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.rho = 1950.0
+AP_solid.density.ic.expression.constant.y0  = 3.2e-3
+AP_solid.density.ic.expression.constant.wy  = 2.0e-4
+AP_solid.density.ic.expression.constant.x0  = 1.6e-3
+AP_solid.density.ic.expression.constant.wx  = 2.0e-4
+AP_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))*0.5*(1.0-tanh((x-x0)/wx))"
+
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.constant.rho = 920.0
+HTPB_solid.density.ic.expression.constant.y0  = 3.2e-3
+HTPB_solid.density.ic.expression.constant.wy  = 2.0e-4
+HTPB_solid.density.ic.expression.constant.x0  = 1.6e-3
+HTPB_solid.density.ic.expression.constant.wx  = 2.0e-4
+HTPB_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))*0.5*(1.0+tanh((x-x0)/wx))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 1.0e6
+Gas.density.ic.expression.constant.R  = 286.7  # ~8314.4 J/kmol/K / 29.0 g/mol
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.y0 = 3.2e-3
+Gas.density.ic.expression.constant.wy = 2.0e-4
+Gas.density.ic.expression.region0 = "(P/(R*T))*0.5*(1.0+tanh((y-y0)/wy))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e6
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = neumann neumann
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# One open (Dirichlet-pressure) boundary at the top (gas side) is required
+# for a well-posed pressure projection.
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 1.0e6
+
+# Elastic solve over the rigid solid phase. interval > 1 exercises
+# Base::Mechanics's elastic.interval throttle -- the solve does not need to
+# run every timestep to track a slowly-moving boundary, and this keeps the
+# 300-fixed-iteration MLMG solve from dominating the runtime over the ~40+
+# timesteps needed to see visible regression.
+elastic.type = static
+elastic.interval = 5
+elastic.traction = 150.0
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.fixed_iter = 300
+
+# Base (y=ylo) is clamped, everything else (including the retreating
+# solid/fluid interface) is traction-free.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = trac trac
+elastic.bc.constant.type.xhi = trac trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = trac trac
+elastic.bc.constant.type.xhiyhi = trac trac

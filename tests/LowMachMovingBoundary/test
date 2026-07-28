@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+# rigid_eta/x/y are cell-centered (written to the *cell plotfiles); the
+# elastic solve's disp/stress/strain/model fields are nodal (written to the
+# separate *node plotfiles).
+cell_plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+node_plotfiles = sorted(glob.glob(f"{outdir}/*node/"))
+if len(cell_plotfiles) < 2 or len(node_plotfiles) < 2:
+    raise RuntimeError("LowMachMovingBoundary requires initial and final plotfiles")
+
+ds0 = testlib.yt.load(cell_plotfiles[0])
+ds1 = testlib.yt.load(cell_plotfiles[-1])
+ad0 = ds0.all_data()
+ad1 = ds1.all_data()
+
+nds1 = testlib.yt.load(node_plotfiles[-1])
+nad1 = nds1.all_data()
+
+
+def field(ad, name):
+    arr = ad[name].to_ndarray()
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+    return arr
+
+
+# This is a regression/smoke test (see Readme.rst), not a comparison against
+# an analytic solution. It checks that:
+#   1. the moving rigid_eta interface actually regresses (mass is
+#      transferred from the rigid solid species into Gas at the prescribed
+#      speeds, with AP_solid -- twice as fast -- regressing further than
+#      HTPB_solid), and
+#   2. the elastic solve (re-run periodically via elastic.interval) tracks
+#      this moving boundary and continues to produce sane, finite, and
+#      traction-responsive disp/stress/strain.
+
+eta0 = field(ad0, "rigid_eta")
+eta1 = field(ad1, "rigid_eta")
+
+# 1a. Total solid volume (integral of rigid_eta) must decrease -- solid mass
+# is being converted to gas, not created or conserved in place.
+vol0 = float(eta0.sum())
+vol1 = float(eta1.sum())
+if not (vol1 < vol0 - 1.0):
+    raise RuntimeError(
+        f"rigid_eta volume did not decrease: initial sum={vol0}, final sum={vol1}")
+
+# 1b. AP_solid (2x prescribed_speed) must lose a larger fraction of its
+# initial volume than HTPB_solid over the same time. Use the per-species
+# volume fraction fields directly (rigid_species_eta_<name>) rather than a
+# grid-cell interface-height threshold, since the regression distance over
+# this short a run is sub-cell and would not reliably cross a full grid line.
+ap_eta0 = field(ad0, "rigid_species_eta_AP_solid")
+ap_eta1 = field(ad1, "rigid_species_eta_AP_solid")
+htpb_eta0 = field(ad0, "rigid_species_eta_HTPB_solid")
+htpb_eta1 = field(ad1, "rigid_species_eta_HTPB_solid")
+
+ap_vol0, ap_vol1 = float(ap_eta0.sum()), float(ap_eta1.sum())
+htpb_vol0, htpb_vol1 = float(htpb_eta0.sum()), float(htpb_eta1.sum())
+ap_loss_frac = (ap_vol0 - ap_vol1) / ap_vol0
+htpb_loss_frac = (htpb_vol0 - htpb_vol1) / htpb_vol0
+
+if not (ap_loss_frac > 1.0e-3):
+    raise RuntimeError(f"AP_solid did not regress (fractional loss={ap_loss_frac})")
+if not (htpb_loss_frac > 1.0e-3):
+    raise RuntimeError(f"HTPB_solid did not regress (fractional loss={htpb_loss_frac})")
+if not (ap_loss_frac > htpb_loss_frac):
+    raise RuntimeError(
+        "AP_solid (2x prescribed_speed) lost less volume fraction than "
+        f"HTPB_solid: ap={ap_loss_frac}, htpb={htpb_loss_frac}")
+
+# 2. Elastic solve remains sane on the final (moved) plotfile. AP_solid and
+# HTPB_solid share the same elastic constants here (see input for why), so
+# the mixed model field should just equal those constants everywhere.
+mu_expect, kappa_expect = 140.0, 150.0
+mu = field(nad1, "model_mu")
+kappa = field(nad1, "model_kappa")
+testlib.numpy.testing.assert_allclose(mu, mu_expect, rtol=1.0e-6)
+testlib.numpy.testing.assert_allclose(kappa, kappa_expect, rtol=1.0e-6)
+
+disp_x = field(nad1, "disp_x")
+disp_y = field(nad1, "disp_y")
+field(nad1, "stress_xx")
+field(nad1, "stress_yy")
+field(nad1, "strain_xx")
+field(nad1, "strain_yy")
+
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+if not (disp_mag_max > 1.0e-6):
+    raise RuntimeError(
+        f"nonzero elastic.traction produced no displacement response "
+        f"(max|disp|={disp_mag_max})")
+
+print(f"LowMachMovingBoundary smoke test passed "
+      f"(AP loss frac={ap_loss_frac:.4g}, HTPB loss frac={htpb_loss_frac:.4g}, "
+      f"max|disp|={disp_mag_max:.6g})")
