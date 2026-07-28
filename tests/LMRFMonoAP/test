@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+import glob
+from pathlib import Path
+import re
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+match = re.search(r"-(\d)MPa(?:-|$)", outdir)
+if not match:
+    raise RuntimeError(f"Could not determine pressure from {outdir}")
+
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 3:
+    raise RuntimeError("LMRFMonoAP requires at least three plotfiles")
+
+times = []
+positions = []
+interface_widths = []
+for path in plotfiles:
+    ds = testlib.yt.load(path)
+    data = ds.all_data().to_dataframe(
+        [("index", "y"), ("boxlib", "rigid_eta"),
+         ("boxlib", "temperature")])
+    if not testlib.numpy.all(
+            testlib.numpy.isfinite(data["temperature"].to_numpy())):
+        raise AssertionError(f"Non-finite temperature in {path}")
+    if not times:
+        testlib.numpy.testing.assert_allclose(
+            data["temperature"].to_numpy(), 300.0)
+    profile = data.groupby("y", as_index=False)["rigid_eta"].mean()
+    y = profile["y"].to_numpy()
+    eta = profile["rigid_eta"].to_numpy()
+    if not testlib.numpy.all(testlib.numpy.isfinite(eta)):
+        raise AssertionError(f"Non-finite rigid_eta in {path}")
+    crossing = testlib.numpy.flatnonzero(
+        (eta[:-1] >= 0.5) & (eta[1:] < 0.5))
+    if not len(crossing):
+        raise RuntimeError(f"No eta=0.5 interface found in {path}")
+    n = crossing[-1]
+    position = y[n] + (0.5 - eta[n]) * (y[n + 1] - y[n]) / (
+        eta[n + 1] - eta[n])
+    times.append(float(ds.current_time))
+    positions.append(position)
+    interface_widths.append(
+        y[testlib.numpy.argmin(testlib.numpy.abs(eta - 0.1))] -
+        y[testlib.numpy.argmin(testlib.numpy.abs(eta - 0.9))])
+
+times = testlib.numpy.asarray(times)
+positions = testlib.numpy.asarray(positions)
+pressure = int(match.group(1))
+fit = times >= (0.75 if pressure == 1 else 0.5) * times[-1]
+burn_rate = -1000.0 * testlib.numpy.polyfit(
+    times[fit], positions[fit], 1)[0]
+
+references = testlib.numpy.loadtxt(
+    Path(__file__).with_name("reference.csv"), delimiter=",")
+reference_rate = dict(references)[pressure]
+if pressure == 1:
+    testlib.numpy.testing.assert_allclose(burn_rate, reference_rate, atol=0.05)
+else:
+    testlib.numpy.testing.assert_allclose(
+        burn_rate, reference_rate, rtol=0.15)
+testlib.numpy.testing.assert_allclose(
+    interface_widths[-1], 20.0e-6, rtol=0.6)
+
+testlib.pylab.clf()
+testlib.pylab.plot(1000.0 * times, 1.0e6 * positions,
+                   marker="o", markerfacecolor="none")
+testlib.pylab.plot(
+    1000.0 * times[fit],
+    1.0e6 * testlib.numpy.polyval(
+        testlib.numpy.polyfit(times[fit], positions[fit], 1), times[fit]),
+    linestyle="--")
+testlib.pylab.xlabel("Time [ms]")
+testlib.pylab.ylabel("Interface position [um]")
+testlib.pylab.title(
+    f"{pressure} MPa: {burn_rate:.3f} mm/s "
+    f"(experiment {reference_rate:.3f} mm/s)")
+testlib.pylab.grid()
+testlib.pylab.tight_layout()
+testlib.pylab.savefig(f"{outdir}/interface-position.png")
+
+print(f"{pressure} MPa burn rate: {burn_rate:.8g} mm/s")

@@ -30,6 +30,24 @@ class PhaseField
 public:
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar Local(const amrex::Array4<const Set::Scalar>& field,
+                      const int component, const Set::Scalar scale,
+                      const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).Local(
+                    field, component, scale, i, j, k);
+            return this->template Local<I + 1>(
+                field, component, scale, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar operator()(const amrex::Array4<const Set::Scalar>& field,
                             const int component, const Set::Scalar scale,
                             const int i, const int j, const int k,
@@ -41,6 +59,33 @@ public:
                 return std::get<I>(obj)(field, component, scale, i, j, k, DX);
             return this->template operator()<I + 1>(
                 field, component, scale, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GradientCoefficient() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).GradientCoefficient();
+            return GradientCoefficient<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    Set::Scalar LocalStabilityRate() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).LocalStabilityRate();
+            return LocalStabilityRate<I + 1>();
         }
         Util::Abort(INFO, selected);
         return NAN;

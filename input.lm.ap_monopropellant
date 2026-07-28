@@ -77,7 +77,9 @@ AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
 AP_decomposition.phase_change.phase_field.allencahn.epsilon = 20.0_um
-AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0

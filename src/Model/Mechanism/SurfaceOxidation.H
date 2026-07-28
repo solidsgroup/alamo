@@ -175,6 +175,36 @@ public:
         return aluminum_mass_flux * input_inverse_reference_density / dx;
     }
 
+    // Surface oxidation is advanced explicitly.  These methods satisfy the
+    // common mechanism interface used by the implicit rigid phase-change
+    // path and deliberately opt this mechanism out of that solve.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalRate(
+        const State& /*state*/, const int /*i*/, const int /*j*/,
+        const int /*k*/) const
+    {
+        return 0.0;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GradientCoefficient(
+        const State& /*state*/, const int /*i*/, const int /*j*/,
+        const int /*k*/) const
+    {
+        return 0.0;
+    }
+
+    int RigidComponent() const { return -1; }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyImplicitChange(
+        const amrex::Array4<Set::Scalar>& /*component_density*/,
+        const State& /*state*/, const Set::Scalar /*eta_change*/,
+        const int /*i*/, const int /*j*/, const int /*k*/) const
+    {
+        return 0.0;
+    }
+
 private:
     struct Source
     {

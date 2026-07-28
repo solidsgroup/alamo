@@ -557,6 +557,35 @@ range and is not reproduced by this continuously active law. Reproducing it
 requires an ignition/extinction construction; it should not be forced by
 adding pressure directly to the mobility.
 
+### HTPB sandwich calibration
+
+The original HTPB law (`A=2.333e5`, `Ta=7500 K`, cutoff `500 K`) produced
+essentially no HTPB regression or binder gas in the 3 MPa sandwich. This
+starved the gas chemistry of binder reactant and contributed to the observed
+intermittent burning. With the same Allen-Cahn normalization used for AP, a
+short 3 MPa sweep selected
+
+```text
+rate_multiplier       = 1.85e5
+activation_temperature = 3145 K
+temperature_cutoff     = 360 K
+```
+
+The resulting HTPB `eta=0.5` front regressed at 3.95 mm/s over 0.75--1.5 ms
+and 4.07 mm/s over 0.9--1.5 ms. The AP front moved at 5.71 mm/s over the latter
+window. This is an initial 3 MPa, short-time calibration for continuous binder
+supply; it is not yet a validation of long-time sandwich morphology or of the
+HTPB pressure response.
+
+The sweep also exposed a numerical issue in the implicit phase-field solve.
+Inactive cells had been assigned a very large artificial mass coefficient.
+That coefficient dominated MLMG's composite residual normalization and could
+make an active fine level return exactly zero phase update. The solve now
+scales each equation by the local gradient coefficient with a floor based on
+the global active maximum, and applies the phase change only where the physical
+coefficient exceeds that floor. Thermal and species diffusion are applied
+before phase change so the Arrhenius law sees the current diffused temperature.
+
 That historical sweep was a 20 ms front-rate fit, not an asymptotic steady-state
 fit, and must not be treated as validation of the current scalar model.
 The 3 and 4 MPa fronts continue to accelerate after 20 ms. The NaNs formerly

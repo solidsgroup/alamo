@@ -51,8 +51,12 @@ public:
                             " in ", pp.full("in"));
         if (value.input < ngas_species)
             Util::Exception(INFO, pp.full("in"), " must identify a condensed species");
-        for (const int n : rigid_solid_species)
-            if (value.input == n) value.input_is_rigid = true;
+        for (int n = 0; n < static_cast<int>(rigid_solid_species.size()); ++n)
+            if (value.input == rigid_solid_species[n])
+            {
+                value.input_is_rigid = true;
+                value.rigid_component = n;
+            }
         value.reference_density = reference_density[value.input];
         if (!(value.reference_density > 0.0))
             Util::Exception(INFO, "No positive reference density is defined for ", input);
@@ -155,7 +159,74 @@ public:
         if (use_prescribed_speed) return prescribed_speed / dx;
         const Set::Scalar temperature_factor = activation_temperature > 0.0 ?
             std::exp(-activation_temperature / temperature) : 1.0;
-        return rate_multiplier * temperature_factor * model.StabilityRate(dx);
+        return rate_multiplier * temperature_factor *
+            (input_is_rigid ? model.LocalStabilityRate() :
+                              model.StabilityRate(dx));
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalRate(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if (!input_is_rigid || use_prescribed_speed ||
+            !(state.temperature > temperature_cutoff))
+            return 0.0;
+
+        const Set::Scalar eta =
+            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+        if (!(eta > 0.0)) return 0.0;
+        const Set::Scalar input_eta = Util::Clamp(
+            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
+        const Set::Scalar composition =
+            Model::PhaseField::H(input_eta / eta);
+        Set::Scalar rate = composition *
+            model.Local(state.rigid_eta, 0, 1.0, i, j, k);
+        if (activation_temperature > 0.0)
+            rate *= std::exp(
+                -activation_temperature / state.temperature);
+        return rate_multiplier * rate;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GradientCoefficient(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if (!input_is_rigid || use_prescribed_speed ||
+            !(state.temperature > temperature_cutoff))
+            return 0.0;
+
+        const Set::Scalar eta =
+            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+        if (!(eta > 0.0)) return 0.0;
+        const Set::Scalar input_eta = Util::Clamp(
+            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
+        const Set::Scalar composition =
+            Model::PhaseField::H(input_eta / eta);
+        const Set::Scalar temperature_factor =
+            activation_temperature > 0.0 ?
+                std::exp(-activation_temperature / state.temperature) : 1.0;
+        return composition * rate_multiplier * temperature_factor *
+            model.GradientCoefficient();
+    }
+
+    int RigidComponent() const { return rigid_component; }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyImplicitChange(
+        const amrex::Array4<Set::Scalar>& component_density,
+        const State& state, const Set::Scalar eta_change,
+        const int i, const int j, const int k) const
+    {
+        const Set::Scalar mass_change = reference_density * eta_change;
+        component_density(i,j,k,input) += mass_change;
+        for (int n = 0; n < nproducts; ++n)
+            component_density(i,j,k,products[n]) -=
+                mass_fractions[n] * mass_change;
+
+        const Set::Scalar product_specific_volume =
+            product_gas_constant * state.temperature / state.pressure;
+        return mass_change *
+            (1.0 / reference_density - product_specific_volume);
     }
 
 private:
@@ -169,19 +240,16 @@ private:
         Set::Scalar eta_dot = 0.0;
         if (input_is_rigid)
         {
-            const Set::Scalar eta = Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-            if (eta > 0.0)
+            const Set::Scalar eta =
+                Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+            if (eta > 0.0 && use_prescribed_speed)
             {
                 const Set::Scalar input_eta = Util::Clamp(
-                    state.component_density(i,j,k,input) / reference_density,
+                    state.rigid_species_eta(i,j,k,rigid_component),
                     0.0, eta);
-                if (use_prescribed_speed)
-                    eta_dot = -input_eta / eta * prescribed_speed *
-                        Numeric::Gradient(
-                            state.rigid_eta, i, j, k, 0, DX).norm();
-                else
-                    eta_dot = input_eta / eta *
-                        model(state.rigid_eta, 0, 1.0, i, j, k, DX);
+                eta_dot = -input_eta / eta * prescribed_speed *
+                    Numeric::Gradient(
+                        state.rigid_eta, i, j, k, 0, DX).norm();
             }
         }
         else
@@ -194,7 +262,6 @@ private:
                 eta_dot = model(state.component_density, input,
                                 1.0 / reference_density, i, j, k, DX);
         }
-        eta_dot = Util::Min(eta_dot, 0.0);
         if (activation_temperature > 0.0)
             eta_dot *= std::exp(-activation_temperature / state.temperature);
         return rate_multiplier * reference_density * eta_dot;
@@ -202,6 +269,7 @@ private:
 
     Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn> model;
     int input = -1;
+    int rigid_component = -1;
     int nproducts = 0;
     std::array<int, max_products> products{};
     std::array<Set::Scalar, max_products> mass_fractions{};

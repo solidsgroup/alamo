@@ -363,6 +363,8 @@ Diffusion::SetLayout(
     System& system = *system_pointer;
     system.state.Define(nlevels, grids, distribution_mapping,
                         number_of_components, 1);
+    system.source.Define(nlevels, grids, distribution_mapping,
+                        number_of_components, 0);
     system.rhs.Define(nlevels, grids, distribution_mapping,
                         number_of_components, 0);
     system.mass.Define(nlevels, grids, distribution_mapping, 1, 0);
@@ -384,6 +386,12 @@ amrex::MultiFab&
 Diffusion::State(int lev, int ncomp)
 {
     return *GetSystem(ncomp).state[lev];
+}
+
+amrex::MultiFab&
+Diffusion::Source(int lev, int ncomp)
+{
+    return *GetSystem(ncomp).source[lev];
 }
 
 amrex::MultiFab&
@@ -424,16 +432,16 @@ Diffusion::TensorMobility(int lev, int ncomp)
 void
 Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::BCRec& boundary_condition, int ncomp,
-                bool use_tensor_mobility)
+                bool use_tensor_mobility, bool include_source)
 {
     Solve(time, dt, amrex::Vector<amrex::BCRec>(ncomp, boundary_condition),
-        ncomp, use_tensor_mobility);
+        ncomp, use_tensor_mobility, include_source);
 }
 
 void
 Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::Vector<amrex::BCRec>& boundary_conditions,
-                int ncomp, bool use_tensor_mobility)
+                int ncomp, bool use_tensor_mobility, bool include_source)
 {
     BL_PROFILE("Operator::Diffusion::Solve");
     Util::Assert(INFO,
@@ -577,13 +585,15 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         {
             const amrex::Box& bx = mfi.tilebox();
             const auto state = system.state[lev]->const_array(mfi);
+            const auto source = system.source[lev]->const_array(mfi);
             const auto mass = system.mass[lev]->const_array(mfi);
             const auto rhs = system.rhs[lev]->array(mfi);
             amrex::ParallelFor(
                 bx, ncomp,
                 [=] AMREX_GPU_DEVICE(int i, int j, int k, int n)
                 {
-                    rhs(i,j,k,n) = mass(i,j,k) * state(i,j,k,n);
+                    rhs(i,j,k,n) = mass(i,j,k) * state(i,j,k,n) +
+                        (include_source ? dt * source(i,j,k,n) : 0.0);
                 });
         }
     }

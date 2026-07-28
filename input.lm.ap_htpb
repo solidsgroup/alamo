@@ -1,32 +1,39 @@
-# 3 MPa AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach
+# AP/HTPB sandwich regression and Rocfire gas-phase combustion in LowMach.
 # Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
+#
+# This is one symmetric half of the standard sandwich specimen used in
+# meier2024finite: a 100 um HTPB laminate embedded in a 0.5 mm-wide AP matrix.
+# Thus 0 <= x <= 50 um is half of the HTPB laminate and 50 <= x <= 250 um is AP.
+# The lateral faces are impermeable slip walls rather than periodic boundaries.
 
-plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-5_s
-amr.max_level = 2
-amr.n_cell = 32 32
-amr.max_grid_size = 16
+#plot_file = output.lm.ap_htpb
+amr.plot_dt = 1.0e-4_s
+amr.max_level = 3
+amr.n_cell = 16 256
+amr.max_grid_size = 32
 amr.blocking_factor = 4
 amr.regrid_int = 5
 amr.grid_eff = 0.7
 amr.nsubsteps = 1
+amr.reinitialize_condensed_composition = 1
+amr.reinitialize_condensed_composition_eta_min = 0.99
 
 eta_refinement_criterion = 0.01
 temperature_refinement_criterion = 500.0
 
-timestep = 2.5e-6_s
-stop_time = 1_s
+timestep = 1.0e-7_s
+stop_time = 50_ms
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 2.5e-6
+dynamictimestep.max = 5.0e-6
 dynamictimestep.verbose = 0
 
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.0003_m -0.0001_m 0.0
-geometry.prob_hi =  0.0003_m  0.0005_m 0.0
-geometry.is_periodic = 1 0 0
+geometry.prob_lo = 0.0_m     -3.0e-3_m 0.0
+geometry.prob_hi = 0.25e-3_m  1.0e-3_m 0.0
+geometry.is_periodic = 0 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
 # AP, binder, monopropellant, premixed, primary-flame, final-flame products.
@@ -70,43 +77,46 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# Each condensed species regresses into its corresponding gas species. These
-# coefficients predate removal of the artificial tensor thermal bridge and are
-# retained provisionally for transport testing; burn-rate calibration against
-# the physical scalar conduction model remains necessary. For the configured
-# Allen-Cahn parameters, the unscaled planar speed is 1.5*L*df*epsilon =
-# 6.0e-5 m/s.
+# AP uses the calibrated LMRFMonoAP parameters. The HTPB prefactor is calibrated
+# to approximately 4 mm/s regression in the 3 MPa sandwich configuration. Both
+# mechanisms use the calibrated aggregate-eta interface energy, and the
+# phase-field gradient terms are integrated implicitly.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 500.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-AP_decomposition.phase_change.phase_field.allencahn.epsilon = 80.0_um
-AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.in = HTPB_solid
 HTPB_pyrolysis.phase_change.out = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 2.333333333333333e5
-HTPB_pyrolysis.phase_change.activation_temperature = 7500.0_K
-HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
+HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 80.0_um
-HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
-cfl = 0.6
+cfl = 0.8
+phase_field.cfl = 1.5
 include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
@@ -122,50 +132,107 @@ diffusion.verbose = 0
 #diagnostics.interval = 100
 diagnostics.extended_fields = 0
 
-# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
-# the two outer strips. The vertical factor is the equilibrium profile for the
-# Allen-Cahn sigma/epsilon parameterization. Partial densities encode both
-# composition and volume.
-AP_solid.density.ic.type = expression
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
-HTPB_solid.density.ic.type = expression
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((abs(x)-0.0002)/10.0e-6)))"
+# Select one pressure block. Comment the active block before uncommenting
+# another. The experimental pressure points plotted in Meier et al. are
+# 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, and 4.0 MPa; 3 MPa is active by default.
+#
+# --- 0.8 MPa ---
+#Final.density.ic.expression.constant.P = 0.8e6
+#pressure.ic.constant.value = 0.8e6
+#pressure.bc.constant.val.yhi = 0.8e6
+#
+# --- 1.0 MPa ---
+#Final.density.ic.expression.constant.P = 1.0e6
+#pressure.ic.constant.value = 1.0e6
+#pressure.bc.constant.val.yhi = 1.0e6
+#
+# --- 1.5 MPa ---
+#Final.density.ic.expression.constant.P = 1.5e6
+#pressure.ic.constant.value = 1.5e6
+#pressure.bc.constant.val.yhi = 1.5e6
+#
+# --- 2.0 MPa ---
+#Final.density.ic.expression.constant.P = 2.0e6
+#pressure.ic.constant.value = 2.0e6
+#pressure.bc.constant.val.yhi = 2.0e6
+#
+# --- 2.5 MPa ---
+#Final.density.ic.expression.constant.P = 2.5e6
+#pressure.ic.constant.value = 2.5e6
+#pressure.bc.constant.val.yhi = 2.5e6
+#
+# --- 3.0 MPa (active) ---
+#Final.density.ic.expression.constant.P = 3.0e6
+#pressure.ic.constant.value = 3.0e6
+#pressure.bc.constant.val.yhi = 3.0e6
+#
+# --- 4.0 MPa ---
+Final.density.ic.expression.constant.P = 4.0e6
+pressure.ic.constant.value = 4.0e6
+pressure.bc.constant.val.yhi = 4.0e6
+plot_file = output.lm.ap_htpb_4MPa
 
-# The gas initially contains final products. AP and HTPB reactants enter only
-# through regression, avoiding a domain-wide homogeneous ignition transient.
+# The solid occupies y<0. The complementary expressions reconstruct one
+# common condensed/gas interface while placing the symmetry plane at the
+# center of the 100 um HTPB laminate.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((x-50.0e-6)/10.0e-6)))"
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((x-50.0e-6)/10.0e-6)))"
+
+# The gas initially contains final products. Its density uses the preheated
+# temperature profile below so that the ignition state is initially isobaric;
+# AP and HTPB reactants enter only through regression.
 Final.density.ic.type = expression
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*3000000.0/(319.787*700.0))"
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas))))"
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
-temperature.ic.type = constant
-temperature.ic.constant.value = 700.0
+# Initialize the solid and gas with a mildly preheated thermal penetration
+# profile. A hotter initial interface drives the calibrated AP phase field far
+# above its steady regression rate before the gas flame has developed.
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
 pressure.ic.type = constant
-pressure.ic.constant.value = 3000000.0
+
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic
-component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
 component_density.bc.constant.type.ylo = neumann
-component_density.bc.constant.type.yhi = dirichlet
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0
+component_density.bc.constant.type.yhi = neumann
 
 velocity.bc.type = constant
-velocity.bc.constant.type.xlo = periodic
-velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN
 velocity.bc.constant.type.ylo = dirichlet
 velocity.bc.constant.type.yhi = neumann
 velocity.bc.constant.val.ylo = 0.0 0.0
 
 temperature.bc.type = constant
-temperature.bc.constant.type.xlo = periodic
-temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
 temperature.bc.constant.type.ylo = neumann
 temperature.bc.constant.type.yhi = neumann
 
 pressure.bc.type = constant
-pressure.bc.constant.type.xlo = periodic
-pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
-pressure.bc.constant.val.yhi = 3000000.0

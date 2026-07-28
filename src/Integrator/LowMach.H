@@ -11,6 +11,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/FiniteRate.H"
@@ -53,6 +54,7 @@ public:
 
         delete velocity_ic;
         delete temperature_ic;
+        delete heat_source_ic;
         for (auto* ic : component_density_ic)
             delete ic;
         delete pressure_ic;
@@ -78,6 +80,7 @@ protected:
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
+    void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
     void UpdateFreeRigidBodyState();
 
@@ -114,11 +117,13 @@ protected:
     Set::Field<Set::Scalar> velocity_old_mf;
     Set::Field<Set::Scalar> temperature_mf;
     Set::Field<Set::Scalar> temperature_old_mf;
+    Set::Field<Set::Scalar> heat_source_mf;
     Set::Field<Set::Scalar> component_density_mf;
     Set::Field<Set::Scalar> component_density_old_mf;
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
+    Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> liquid_eta_mf;
@@ -130,6 +135,7 @@ protected:
     Set::Field<Set::Scalar> pressure_mf;
     Set::Field<Set::Scalar> pressure_correction_mf;
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
+    Set::Field<Set::Scalar> phase_change_dilatation_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -151,6 +157,7 @@ protected:
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* temperature_ic = nullptr;
+    IC::IC<Set::Scalar>* heat_source_ic = nullptr;
     std::vector<IC::IC<Set::Scalar>*> component_density_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
@@ -184,6 +191,7 @@ protected:
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
+    Set::Scalar phase_field_cfl = NAN;
     Set::Scalar cfl_v = 1.0e100;
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
