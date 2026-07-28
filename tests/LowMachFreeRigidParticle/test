@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def particle_moments(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    rho = data["component_density_Al_solid"].to_ndarray()
+    vapor = data["component_density_Al_vapor"].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    ux = data["velocityx"].to_ndarray()
+    uy = data["velocityy"].to_ndarray()
+    weight = rho * volume
+    mass = weight.sum()
+    vapor_mass = (vapor * volume).sum()
+    center_x = (weight * x).sum() / mass
+    center_y = (weight * y).sum() / mass
+    # Measure acceleration in the particle core.  The diffuse initial
+    # interface overlaps the imposed gas velocity and would otherwise make a
+    # nominally stationary particle appear to have finite initial momentum.
+    core_weight = weight * (rho > 0.8 * 5.0)
+    core_mass = core_weight.sum()
+    velocity_x = (core_weight * ux).sum() / core_mass
+    velocity_y = (core_weight * uy).sum() / core_mass
+    radius = testlib.numpy.sqrt(
+        (weight * ((x - center_x)**2 + (y - center_y)**2)).sum() / mass)
+    return mass, vapor_mass, center_x, center_y, velocity_x, velocity_y, radius
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachFreeRigidParticle requires initial and final plotfiles")
+
+initial = particle_moments(plotfiles[0])
+final = particle_moments(plotfiles[-1])
+
+is_sublimation = "sublimation" in outdir
+if is_sublimation:
+    total_initial = initial[0] + initial[1]
+    total_final = final[0] + final[1]
+    mass_change = abs(total_final - total_initial) / total_initial
+    if mass_change > 1.0e-2:
+        raise RuntimeError(f"Total aluminum mass changed by {mass_change:.3e}")
+    if not final[0] < 0.995 * initial[0] or not final[1] > initial[1]:
+        raise RuntimeError("Sublimation did not transfer solid aluminum to vapor")
+else:
+    mass_change = abs(final[0] - initial[0]) / initial[0]
+    if mass_change > 1.0e-2:
+        raise RuntimeError(f"Solid aluminum mass changed by {mass_change:.3e}")
+
+if not final[4] > initial[4] + 2.0e-3:
+    raise RuntimeError(
+        f"Particle did not accelerate naturally: ux {initial[4]:.6e} -> {final[4]:.6e}")
+if not final[2] > initial[2]:
+    raise RuntimeError(
+        f"Particle center did not move downstream: x {initial[2]:.6e} -> {final[2]:.6e}")
+if abs(final[3] - initial[3]) > 2.0e-3 or abs(final[5]) > 2.0e-3:
+    raise RuntimeError("Symmetric particle developed excessive transverse motion")
+shape_change = abs(final[6] - initial[6]) / initial[6]
+if not is_sublimation and shape_change > 5.0e-2:
+    raise RuntimeError(f"Particle radius of gyration changed by {shape_change:.3e}")
+
+print("LowMach freely moving rigid particle regression passed")

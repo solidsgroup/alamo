@@ -1,0 +1,172 @@
+#@ [2d-amr]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@
+#@ [2d-amr-parallel]
+#@ exe=lowmach
+#@ dim=2
+#@ nprocs=2
+#@ timeout=240
+#@
+#@ [2d-amr-picard]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=rigid.free.picard_iterations=2
+#@ args=rigid.free.picard_tolerance=1.0e-8
+#@ args=stop_time=0.04
+#@ args=amr.plot_int=100
+#@
+#@ [2d-sublimation]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=Al_sublimation.phase_change.prescribed_speed=0.2_m/s
+#@ args=stop_time=0.004
+#@ args=amr.plot_int=10
+#@ args=amr.max_level=0
+#@ args=amr.regrid_int=-1
+
+# A dense aluminum disk starts at rest in a periodic moving gas.  Its velocity
+# is not prescribed: viscous and pressure coupling must accelerate it.
+plot_file = tests/LowMachFreeRigidParticle/output
+amr.plot_int = 100
+amr.max_grid_size = 24
+amr.blocking_factor = 4
+amr.regrid_int = 20
+amr.max_level = 1
+amr.nsubsteps = 1
+amr.n_cell = 48 48
+amr.grid_eff = 0.7
+
+eta_refinement_criterion = 0.01
+
+timestep = 2.0e-4
+stop_time = 0.04
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 26.98_g/mol 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 20.8_J/mol/K 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0 0.0
+gas.thermo.cpconstant.s0 = 0.0 0.0
+gas.thermo.cpconstant.Tref = 0.0_K 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 5.0e-2_Pa*s 5.0e-2_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = Al_vapor ambient_gas Al_solid
+Al_vapor.mechanics = fluid
+ambient_gas.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+Al_solid.reference_density = 5.0_kg/m^3
+Al_solid.rigid.motion = free
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+mechanisms.names = Al_sublimation
+Al_sublimation.type = phase_change
+Al_sublimation.phase_change.in = Al_solid
+Al_sublimation.phase_change.out = Al_vapor
+Al_sublimation.phase_change.prescribed_speed = 0.0_m/s
+Al_sublimation.phase_change.phase_field.type = allencahn
+
+rigid.relaxation_time = 1.0e-5_s
+# One is the single-projection default.  Values above one enable restart-based
+# fixed-point corrections of the body target without accumulating projections.
+rigid.free.picard_iterations = 1
+rigid.free.picard_tolerance = 1.0e-6
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 0
+diagnostics.interval = 20
+diagnostics.extended_fields = 0
+
+Al_vapor.density.ic.type = constant
+Al_vapor.density.ic.constant.value = 0.0
+ambient_gas.density.ic.type = expression
+ambient_gas.density.ic.expression.constant.rhog = 1.12254198039921
+ambient_gas.density.ic.expression.constant.x0 = 0.35
+ambient_gas.density.ic.expression.constant.y0 = 0.5
+ambient_gas.density.ic.expression.constant.R = 0.15
+ambient_gas.density.ic.expression.constant.eps = 0.025
+ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rhos = 5.0
+Al_solid.density.ic.expression.constant.x0 = 0.35
+Al_solid.density.ic.expression.constant.y0 = 0.5
+Al_solid.density.ic.expression.constant.R = 0.15
+Al_solid.density.ic.expression.constant.eps = 0.025
+Al_solid.density.ic.expression.region0 = "rhos*(1.0-0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.U = 1.0
+velocity.ic.expression.constant.x0 = 0.35
+velocity.ic.expression.constant.y0 = 0.5
+velocity.ic.expression.constant.R = 0.15
+velocity.ic.expression.constant.eps = 0.025
+velocity.ic.expression.region0 = "U*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+velocity.ic.expression.region1 = "0.0"
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0

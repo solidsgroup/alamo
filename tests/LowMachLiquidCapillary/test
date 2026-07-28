@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def fields(path):
+    ds = testlib.yt.load(path)
+    grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
+    eta = grid[("boxlib", "liquid_eta_Al_liquid")].to_ndarray()[:, :, 0]
+    ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
+    uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
+    pressure = grid[("boxlib", "pressure")].to_ndarray()[:, :, 0]
+    return eta, ux, uy, pressure
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) != 2:
+    raise RuntimeError("Static-droplet regression requires initial and final plotfiles")
+
+eta0, ux0, uy0, _ = fields(plotfiles[0])
+eta, ux, uy, pressure = fields(plotfiles[-1])
+speed = testlib.numpy.sqrt(ux * ux + uy * uy)
+
+if "checkerboard" in outdir:
+    initial_speed = testlib.numpy.sqrt(ux0 * ux0 + uy0 * uy0)
+    if initial_speed.max() < 0.99:
+        raise RuntimeError("Checkerboard regression did not initialize its null mode")
+    attenuation = speed.max() / initial_speed.max()
+    if attenuation > 1.0e-6:
+        raise RuntimeError(
+            f"Face projection retained {attenuation:.3e} of the checkerboard mode")
+    print("LowMach face-projection checkerboard regression passed")
+    sys.exit(0)
+
+mass_drift = abs(eta.sum() / eta0.sum() - 1.0)
+if mass_drift > 2.0e-4:
+    raise RuntimeError(f"Liquid phase volume changed by {mass_drift:.3e}")
+
+pressure_jump = testlib.numpy.median(pressure[eta > 0.9]) - \
+    testlib.numpy.median(pressure[eta < 0.01])
+expected_jump = 1.0 / 0.20
+jump_error = abs(pressure_jump / expected_jump - 1.0)
+if jump_error > 0.12:
+    raise RuntimeError(
+        f"Laplace pressure jump error {jump_error:.3e}: {pressure_jump:.6e}")
+
+high_pass = ux[1:-1, 1:-1] - 0.25 * (
+    ux[:-2, 1:-1] + ux[2:, 1:-1] +
+    ux[1:-1, :-2] + ux[1:-1, 2:])
+interface = (eta[1:-1, 1:-1] > 0.02) & (eta[1:-1, 1:-1] < 0.98)
+checkerboard_rms = testlib.numpy.sqrt(
+    testlib.numpy.mean(high_pass[interface] ** 2))
+
+if speed.max() > 8.0e-3:
+    raise RuntimeError(f"Static droplet developed speed {speed.max():.3e}")
+if checkerboard_rms > 1.0e-3:
+    raise RuntimeError(
+        f"Static droplet checkerboard RMS {checkerboard_rms:.3e}")
+
+print("LowMach balanced liquid-capillary regression passed")
