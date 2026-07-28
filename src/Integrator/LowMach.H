@@ -82,8 +82,21 @@ protected:
     void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
+    // Returns {gas_volume_fraction, gas_heat_capacity, heat_capacity,
+    // conductivity, cp, conductivity_perp, heat_capacity_perp}. `conductivity`
+    // and `heat_capacity` are the volume-weighted (arithmetic/parallel) mixing
+    // rules, appropriate for flux/thermal mass tangential to a diffuse
+    // solid/gas interface and for characterizing the local cell's average
+    // properties; `conductivity_perp` and `heat_capacity_perp` are the
+    // inverse-weighted (harmonic/series) mixing rules, used together as the
+    // conductivity and transient (mass) coefficients of the diffusion
+    // equation normal to the interface -- using the arithmetic heat capacity
+    // there while conductivity is harmonic creates a spurious diffusivity
+    // "barrier" that nearly insulates the two phases (see Ettrich et al.
+    // 2014, Model. Simul. Mater. Sci. Eng. 22 085006, eqs 10, 28, and the
+    // discussion/fig 5 in section 6.2-6.3).
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+    std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
     ComputeThermalState(
         Set::Patch<const Set::Scalar> component_density,
         Set::Scalar temperature, int i, int j, int k) const;
