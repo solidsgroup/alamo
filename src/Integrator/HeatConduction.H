@@ -86,12 +86,12 @@ public:
                             Unit::Temperature());
 
         // Initial condition type.
-        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>(  "ic",value.ic,value.geom, 
-                                                                    Unit::Temperature());
+        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>(  "ic",value.ic,
+                                                                    pp.forward_args(value.geom, Unit::Temperature()));
 
         // Select BC object for temperature
-        pp.select_default<BC::Constant,BC::Expression>( "bc.temp",value.bc,1,
-                                                        Unit::Temperature());
+        pp.select_default<BC::Constant,BC::Expression>( "bc.temp",value.bc,
+                                                        pp.forward_args(1, Unit::Temperature()));
 
         // Select between using a realspace solve or the spectral method
         pp.query_validate("method",value.method,{"realspace","spectral"});

@@ -460,13 +460,13 @@ def extract(basefilename):
                 rets.append(input)
                 continue
 
-            # Catch a query_enumerate
-            match = re.findall(rf'{pp}query_enumerate\s*\({stringmatch}{variablematch}{nargs}\){docmatch}',line)
+            # Catch a query_enumerate or queryarr_enumerate
+            match = re.findall(rf'{pp}(query_enumerate|queryarr_enumerate)\s*\({stringmatch}{variablematch}{nargs}\){docmatch}',line)
             if match:
                 input = dict()
-                input["type"] = "query_enumerate"
-                input["string"] = match[0][0].replace(' ','')
-                input["doc"] = match[0][1]
+                input["type"] = match[0][0]
+                input["string"] = match[0][1].replace(' ','')
+                input["doc"] = match[0][2]
                 input["file"] = filename
                 input["line"] = i+1
 

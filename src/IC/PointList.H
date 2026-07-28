@@ -274,6 +274,13 @@ public:
         Unit unit = Unit::Length();
         // Units of length in the file
         pp.queryunit("file.unit",unit);
+
+        // Per-polygon void flag: nonzero marks a polygon as a void/negative region that is cut out of
+        // the solid field instead of being unioned into it. Must have one entry per polygon if given.
+        pp.queryarr("invert", value.invert);
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
         Util::AssertException(  INFO,TEST(unit.isType(Unit::Length())), 
                                 "Unit must be of type length but got unit ",unit.normalized_unitstring());
         
@@ -339,9 +346,6 @@ public:
             Util::Abort(INFO, "Unable to open file ", filename);
         }
 
-        // Per-polygon void flag: nonzero marks a polygon as a void/negative region that is cut out of
-        // the solid field instead of being unioned into it. Must have one entry per polygon if given.
-        pp.queryarr("invert", value.invert);
             
         Util::AssertException(  INFO, TEST(value.invert.size() == value.polygons.size()),
                                 "'invert' must have one entry per polygon: expected ", value.polygons.size(),

@@ -155,7 +155,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (pp.contains(name + ".density.ic.type"))
             pp.select<IC::Constant,IC::Expression,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
-                value.geom, Unit::Density());
+                pp.forward_args(value.geom, Unit::Density()));
     }
 
     value.chemistry.Define(value.ngas_species);
@@ -307,9 +307,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
         pp.select<Model::Mechanism::PhaseChange,
                 Model::Mechanism::SurfaceOxidation>(
-            id, value.mechanisms[n], value.species_names, value.ngas_species,
-            value.rigid_solid_species, value.reference_density, value.gas.MW,
-            value.gas.Rg);
+            id, value.mechanisms[n],
+            pp.forward_args(value.species_names, value.ngas_species,
+                            value.rigid_solid_species,
+                            value.reference_density, value.gas.MW,
+                            value.gas.Rg));
     }
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
@@ -357,22 +359,22 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
     int nghost = value.advect.NGhost();
     if (nghost < 3) nghost = 3;
-    pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, AMREX_SPACEDIM);
-    pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, 1);
-    pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("component_density.bc", value.component_density_bc, value.nspecies);
-    pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, 1);
+    pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, pp.forward_args(AMREX_SPACEDIM));
+    pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, pp.forward_args(1));
+    pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("component_density.bc", value.component_density_bc, pp.forward_args(value.nspecies));
+    pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, pp.forward_args(1));
 
-    pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, value.geom);
-    pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, pp.forward_args(value.geom));
     if (pp.contains("heat_source.ic.type"))
         pp.select<IC::Constant,IC::Expression>(
-            "heat_source.ic", value.heat_source_ic, value.geom,
-            Unit::Power() / Unit::Volume());
-    pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, value.geom);
+            "heat_source.ic", value.heat_source_ic,
+            pp.forward_args(value.geom,Unit::Power() / Unit::Volume()));
+    pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, pp.forward_args(value.geom));
     if (value.deformable_solid_species >= 0)
     {
-        pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("xi.bc", value.xi_bc, AMREX_SPACEDIM);
-        pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, value.geom);
+        pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("xi.bc", value.xi_bc, pp.forward_args(AMREX_SPACEDIM));
+        pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, pp.forward_args(value.geom));
     }
 
     std::vector<std::string> species_suffix(value.nspecies);

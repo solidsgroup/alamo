@@ -578,12 +578,15 @@ def append_html(record):
 
         # Images
         image_extensions = {".svg", ".png", ".jpg", ".jpeg"}
-        images = [f for f in path.iterdir() if f.suffix.lower() in image_extensions]
-        if images:
-            f.write("<div class='thumbnails'>\n")
-            for img in images:
-                f.write(f"<a href='../{img}'><img src='../{img}' class='thumbnail'></a>\n")
-            f.write("</div>\n")
+        try:
+            images = [f for f in path.iterdir() if f.suffix.lower() in image_extensions]
+            if images:
+                f.write("<div class='thumbnails'>\n")
+                for img in images:
+                    f.write(f"<a href='../{img}'><img src='../{img}' class='thumbnail'></a>\n")
+                f.write("</div>\n")
+        except FileNotFoundError as e:
+            pass
 
         f.write("</div>\n")
 

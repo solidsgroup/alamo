@@ -182,7 +182,7 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
-obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET} ${DEP_DIFF}
+obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARGET} | ${DEP_DIFF}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
@@ -190,14 +190,77 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET} ${DEP_DIFF}
 	@mkdir -p $(dir $@)
 	$(QUIET)$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-.PHONY: .FORCE
+.PHONY: .FORCE input-builders
 
 docs: docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
-docs/build/html/index.html: $(shell find docs/source/ -type f) README.rst .FORCE
+docs/build/html/index.html: input-builders $(shell find docs/source/ -type f) README.rst .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
-	@make -C docs html # > /dev/null
+	@make -C docs html SKIP_DOXYGEN=1 # > /dev/null
+
+input-builders: $(shell find bin -maxdepth 1 -type f -executable -print 2>/dev/null) \
+		scripts/builder/annotate.py scripts/builder/check.py \
+		scripts/builder/reference.py scripts/builder/render.py \
+		scripts/builder/template.html
+	@set -e; \
+	executables=$$(find bin -maxdepth 1 -type f -executable -print | sort); \
+	if [ -z "$$executables" ]; then \
+		echo "No executables found in bin; build Alamo before generating input builders."; \
+		exit 1; \
+	fi; \
+	mkdir -p docs/source/_static/input-schemas docs/source/_static/input-builders; \
+	$(MAKE) -C docs doxygen; \
+	builder_args=""; \
+	schema_args=""; \
+	for executable in $$executables; do \
+		name=$$(basename "$$executable"); \
+		builder_args="$$builder_args --builder $$name"; \
+		schema_args="$$schema_args --schema docs/source/_static/input-schemas/$$name.schema.json"; \
+	done; \
+	for executable in $$executables; do \
+		name=$$(basename "$$executable"); \
+		schema="docs/source/_static/input-schemas/$$name.schema.json"; \
+		builder="docs/source/_static/input-builders/$$name.html"; \
+		printf "$(B_ON)$(FG_MAGENTA)INPUT BUILDER$(RESET) %s\n" "$$name"; \
+		log=$$(mktemp); \
+		if ! "$$executable" --parse-args --parse-args-output "$$schema.tmp" > "$$log" 2>&1; then \
+			cat "$$log"; \
+			rm -f "$$schema.tmp" "$$log"; \
+			exit 1; \
+		fi; \
+		python3 scripts/builder/annotate.py --schema "$$schema.tmp" > /dev/null; \
+		mv "$$schema.tmp" "$$schema"; \
+		rm -f "$$log"; \
+		python3 scripts/builder/render.py \
+			--schema "$$schema" \
+			--output "$$builder.tmp" \
+			--title "Alamo Input Builder: $$name" \
+			--current-builder "$$name" \
+			--doxygen-dir docs/build/html/doxygen \
+			$$builder_args > /dev/null; \
+		mv "$$builder.tmp" "$$builder"; \
+	done; \
+	python3 scripts/builder/check.py \
+		--repo-root . \
+		--source-dir src \
+		$$schema_args \
+		--report docs/source/_static/input-schemas/input-scrape-coverage.json \
+		--max-list 25; \
+	python3 scripts/builder/reference.py \
+		--repo-root . \
+		$$schema_args \
+		--output docs/source/Inputs.generated.rst \
+		--output-dir docs/source/InputsReference; \
+	set -- $$executables; \
+	first=$$(basename "$$1"); \
+	{ \
+		printf '<!doctype html>\n'; \
+		printf '<meta charset="utf-8">\n'; \
+		printf '<meta http-equiv="refresh" content="0;url=%s.html">\n' "$$first"; \
+		printf '<title>Alamo Input Builders</title>\n'; \
+		printf '<a href="%s.html">Open input builder</a>\n' "$$first"; \
+	} > docs/source/_static/input-builders/index.html
 
 
 check: .FORCE
@@ -214,9 +277,8 @@ GCDA = $(shell mkdir -p obj && find obj/ -name "*.gcda")
 GCNO = $(shell mkdir -p obj && find obj/ -name "*.gcno")
 
 GCDA_DIRS  = $(shell mkdir -p obj && find obj/ -maxdepth 1 -name "*coverage*" )
-GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
-GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
-GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+GCDA_INFOS = $(patsubst obj/obj-%,cov/coverage_%.info,$(GCDA_DIRS))
+GCDA_LCOVS = $(addprefix --add-tracefile ,$(GCDA_INFOS))
 
 cov-report: cov/index.html
 	@echo $(GCDA_LCOVS)
@@ -227,15 +289,17 @@ cov-clean: .FORCE
 	rm -rf ./cov
 
 cov/index.html: cov/coverage_merged.info
-	genhtml cov/coverage_merged.info --output-directory cov
+	genhtml cov/coverage_merged.info --output-directory cov --ignore-errors inconsistent
 
 cov/coverage_merged.info: $(GCDA_INFOS)
 	mkdir -p ./cov/
-	lcov --ignore-errors=gcov,source,graph $(GCDA_LCOVS) -o cov/coverage_merged.info  
+	lcov --ignore-errors=gcov,source,graph,inconsistent $(GCDA_LCOVS) -o cov/coverage_merged.info
 
-cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
+cov/coverage_%.info: obj/obj-%/ $(GCDA)
 	mkdir -p ./cov/
-	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*" \
+		--ignore-errors gcov,source,graph,inconsistent \
+		$(if $(findstring clang++,$<),--gcov-tool ./.github/workflows/llvm-gcov.sh)
 
 lib/libalamo-$(POSTFIX).so: ${OBJ} 
 	@printf "$(B_ON)$(FG_ORANGE)LIBALAMO$(RESET)             $@\n" 	
@@ -250,7 +314,9 @@ githubpages: docs cov-report
 	mkdir -p ./githubpages/
 	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
 	cp -rf docs/build/html ./githubpages/docs/
-	cp -rf cov/ ./githubpages/cov/
+	cp -rf cov/ ./githubpages/docs/cov/
+	cp -rf docs/source/_static/input-builders/ ./githubpages/inputs/
+	cp -rf docs/source/_static/input-schemas/ ./githubpages/input-schemas/
 
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
