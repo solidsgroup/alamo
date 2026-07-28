@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachElasticPressure requires initial and final plotfiles")
+
+# Analytic validation of LowMach's fluid-pressure-driven interfacial
+# traction (elastic.apply_fluid_pressure). Unlike tests/LowMachElastic
+# (an explicit smoke test, not a validation), this compares against the
+# closed-form 1-D confined (oedometric) compression solution -- see
+# Readme.rst for the derivation:
+#
+#   sigma_yy(y) = -P
+#   disp_y(y)   = -P*y/M,  M = kappa + 4*mu/3
+#   disp_x(y)   = 0
+#   sigma_xx    = -P*lambda/M,  lambda = kappa - 2*mu/3
+
+mu = 140.0
+kappa = 150.0
+lam = kappa - 2.0 * mu / 3.0
+M = lam + 2.0 * mu
+
+# Applied pressure and whether the fluid-pressure traction path is enabled,
+# read from the run's metadata (same idiom as tests/LowMachElastic/test for
+# elastic.traction) so one script serves all three sub-cases.
+pressure = None
+apply_fluid_pressure = None
+with open(f"{outdir}/metadata") as f:
+    for line in f:
+        if "pressure.ic.constant.value" in line:
+            pressure = float(line.split("=")[-1].strip())
+        if "elastic.apply_fluid_pressure" in line:
+            apply_fluid_pressure = float(line.split("=")[-1].strip())
+if pressure is None or apply_fluid_pressure is None:
+    raise RuntimeError("could not find pressure/apply_fluid_pressure in metadata")
+
+final = plotfiles[-1]
+
+# Sample a vertical ray through the domain interior, restricted to the solid
+# away from the clamped base (y=0) and the diffuse solid/fluid interface
+# (y0=3.2e-3, wy=2.0e-4): [0.5e-3, 2.4e-3] is >2mm from y0 (>10 interface
+# widths) and well above the base.
+x_mid = 1.6e-3
+y_lo, y_hi = 0.5e-3, 2.4e-3
+
+df = testlib.readContours(
+    path=final,
+    start=[x_mid, 0.0, 0.0],
+    end=[x_mid, 6.4e-3, 0.0],
+    vars=["disp_x", "disp_y", "stress_xx", "stress_yy"],
+)
+y = df["y"].to_numpy()
+mask = (y >= y_lo) & (y <= y_hi)
+if mask.sum() < 4:
+    raise RuntimeError(f"too few sample points in [{y_lo},{y_hi}]: {mask.sum()}")
+
+y_s = y[mask]
+disp_x = df["disp_x"].to_numpy()[mask]
+disp_y = df["disp_y"].to_numpy()[mask]
+stress_xx = df["stress_xx"].to_numpy()[mask]
+stress_yy = df["stress_yy"].to_numpy()[mask]
+
+for name, arr in (("disp_x", disp_x), ("disp_y", disp_y),
+                   ("stress_xx", stress_xx), ("stress_yy", stress_yy)):
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+
+if apply_fluid_pressure == 0.0:
+    # Control case: pressure branch disabled and elastic.traction = 0, so
+    # the interfacial RHS is identically zero -> zero displacement.
+    if disp_mag_max > 1.0e-12:
+        raise RuntimeError(
+            f"apply_fluid_pressure=0 case shows nonzero displacement: "
+            f"max|disp|={disp_mag_max}")
+    print("LowMachElasticPressure control case (pressure off) passed: "
+          f"max|disp|={disp_mag_max:.3g}")
+    sys.exit(0)
+
+# --- Pressure-driven cases -------------------------------------------------
+
+# 1. Sign and magnitude: sigma_yy must equal -P uniformly in the solid. This
+# is the headline check -- it catches a sign flip and an incorrectly
+# normalized diffuse delta (partial pressure transmission) in one shot.
+sigma_yy_mean = float(stress_yy.mean())
+sigma_yy_expected = -pressure
+# Achieved error is well under 1% (see Readme.rst); 2% still catches a
+# meaningful regression without being sensitive to mesh/MLMG-tolerance noise.
+tol_sigma_yy = 0.02 * abs(sigma_yy_expected)
+if abs(sigma_yy_mean - sigma_yy_expected) > tol_sigma_yy:
+    raise RuntimeError(
+        f"sigma_yy={sigma_yy_mean:.6g}, expected {sigma_yy_expected:.6g} "
+        f"(tol {tol_sigma_yy:.3g})")
+
+# 2. Displacement profile: relative L2 of disp_y(y) against -P*y/M.
+disp_y_exact = -pressure * y_s / M
+err = testlib.numpy.sqrt(testlib.integrate(y_s, (disp_y - disp_y_exact) ** 2))
+mag = testlib.numpy.sqrt(testlib.integrate(y_s, disp_y_exact ** 2))
+relerr_disp_y = err / mag if mag > 1.0e-300 else err
+# Achieved error is ~1e-9 (a single Newton step from F=I is the exact linear
+# solve -- see Readme.rst); 1% leaves ample margin while still catching a
+# regression to a genuinely wrong displacement profile.
+tol_disp_y = 0.01
+if relerr_disp_y > tol_disp_y:
+    raise RuntimeError(
+        f"disp_y relative L2 error {relerr_disp_y:.4g} exceeds tolerance {tol_disp_y}")
+
+# 3. Confinement: the roller BCs should keep u_x negligible relative to u_y.
+disp_y_max = float(testlib.numpy.abs(disp_y).max())
+disp_x_max = float(testlib.numpy.abs(disp_x).max())
+if disp_x_max > 1.0e-2 * disp_y_max:
+    raise RuntimeError(
+        f"disp_x not negligible: max|disp_x|={disp_x_max:.3g}, "
+        f"max|disp_y|={disp_y_max:.3g}")
+
+# 4. Constitutive ratio: sigma_xx/sigma_yy = lambda/M, pinning that kappa is
+# used as a true bulk modulus (lambda = kappa - 2*mu/3) in plane strain.
+ratio = float((stress_xx / stress_yy).mean())
+ratio_expected = lam / M
+tol_ratio = 0.05 * abs(ratio_expected)
+if abs(ratio - ratio_expected) > tol_ratio:
+    raise RuntimeError(
+        f"sigma_xx/sigma_yy={ratio:.4g}, expected {ratio_expected:.4g} "
+        f"(tol {tol_ratio:.3g})")
+
+print(f"LowMachElasticPressure passed (P={pressure}, "
+      f"sigma_yy={sigma_yy_mean:.6g} (expected {sigma_yy_expected:.6g}), "
+      f"disp_y relerr={relerr_disp_y:.3g}, "
+      f"sigma_xx/sigma_yy={ratio:.4g} (expected {ratio_expected:.4g}))")

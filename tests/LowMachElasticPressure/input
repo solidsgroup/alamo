@@ -1,0 +1,194 @@
+#@ [2d-*]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@
+#@ [2d-pressure-off]
+#@ args = elastic.apply_fluid_pressure=0 pressure.ic.constant.value=1.0 Gas.density.ic.expression.constant.P=1.0
+#@
+#@ [2d-pressure-1Pa]
+#@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=1.0 Gas.density.ic.expression.constant.P=1.0
+#@
+#@ [2d-pressure-4Pa]
+#@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=4.0 Gas.density.ic.expression.constant.P=4.0
+
+# Analytic validation of the LowMach elastic solve driven by the local fluid
+# pressure (elastic.apply_fluid_pressure, see LowMach::UpdateModel), as
+# opposed to a constant elastic.traction (tests/LowMachElastic).
+#
+# A single rigid_solid species occupies the bottom half of the domain
+# (y < y0); a single fluid species (Gas) above it is held at a uniform,
+# TIME-FROZEN pressure P (projection.update_pressure = 0). Rollers on the
+# x-faces (elastic.bc: disp in x, trac in y) force u_x = 0 everywhere, so the
+# problem reduces to exact 1-D confined (oedometric) compression:
+#
+#   sigma_yy(y) = -P                        (uniform in the solid)
+#   disp_y(y)   = -P*y/M,  M = kappa + 4*mu/3   (linear, disp_y(0) = 0)
+#   disp_x(y)   = 0
+#   sigma_xx    = -P * lambda/M,  lambda = kappa - 2*mu/3
+#
+# With elastic.solver.nriters = 1 and elastic.zero_out_displacement = 1, the
+# Newton step linearizes NeoHookeanPredeformed about F = I, which is exactly
+# plane-strain linear elasticity -- so the above is the exact discrete
+# target, not an approximation (see Readme.rst for the derivation).
+#
+# Three sub-cases: pressure off (control -- must give zero displacement),
+# and two different pressure magnitudes (1 Pa, 4 Pa) so the sign/magnitude/
+# linearity of the response can all be checked independently.
+
+plot_file = tests/LowMachElasticPressure/output
+amr.plot_dt = 2.0e-7_s
+amr.max_level = 0
+amr.n_cell = 32 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+# Write elastic fields (disp/stress/strain, nodal) into the *cell* plotfiles
+# too, so the analytic comparison can use the same ray-extraction path
+# (testlib.readContours / ds.ray) used by tests/Eshelby and tests/PlateHole,
+# rather than reconstructing coordinates from a *node plotfile by hand.
+amr.cell.all = 1
+
+timestep = 1.0e-7_s
+stop_time = 3.0e-7_s
+dynamictimestep.on = 0
+
+geometry.prob_lo = 0.0    0.0     0.0
+geometry.prob_hi = 3.2e-3 6.4e-3  0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 29.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas Solid
+Gas.mechanics   = fluid
+Solid.mechanics = rigid_solid
+
+Solid.reference_density = 1950.0_kg/m^3
+
+# Single rigid_solid species -> the elastic model field is spatially
+# uniform, sidestepping the pre-existing Operator::Elastic
+# heterogeneous-media MLMG-divergence gap documented in
+# tests/LowMachElastic/input (arbitrary-species mixing is already covered
+# there). Same proven-stable nondimensional-style magnitudes as that test --
+# literal SI moduli (~1e8 Pa) on this SI grid push the modulus/dx^2 ratio far
+# out of the MLMG solver's well-behaved range.
+Solid.elastic.model.mu    = 140.0
+Solid.elastic.model.kappa = 150.0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+# Freeze pressure_mf at its IC: the projection otherwise overwrites it every
+# step as max(pressure_reference + phi/pressure_scale, pressure_floor),
+# discarding the prescribed field this test depends on.
+projection.update_pressure = 0
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diagnostics.interval = 0
+
+# Complementary smooth density profiles (see tests/LowMachElastic/input for
+# the volume-fraction-consistency note this depends on): rigid_eta = solid
+# fraction, Gas density = the exact ideal-gas-consistent complement so the
+# pressure-projection's mixture-volume constraint stays satisfied.
+Solid.density.ic.type = expression
+Solid.density.ic.expression.constant.rho = 1950.0
+Solid.density.ic.expression.constant.y0  = 3.2e-3
+Solid.density.ic.expression.constant.wy  = 2.0e-4
+Solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 1.0
+Gas.density.ic.expression.constant.R  = 286.7  # ~8314.4 J/kmol/K / 29.0 g/mol
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.y0 = 3.2e-3
+Gas.density.ic.expression.constant.wy = 2.0e-4
+Gas.density.ic.expression.region0 = "(P/(R*T))*0.5*(1.0+tanh((y-y0)/wy))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = neumann neumann
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# One open (Dirichlet-pressure) boundary at the top (gas side) is required
+# for a well-posed pressure projection.
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 1.0
+
+# Elastic solve over the rigid solid phase. Pressure drives the interfacial
+# body force (rhs = elastic.traction*grad(eta) - pressure*grad(eta)); the
+# constant traction is left at zero so the pressure term is the only driver.
+elastic.type = static
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.verbose = 0
+# One Newton iteration from a zeroed initial guess linearizes about F = I,
+# giving the exact plane-strain linear-elastic solution -- see input header.
+elastic.solver.nriters = 1
+elastic.zero_out_displacement = 1
+
+# Base (y=ylo) is clamped. The x-faces are rollers (u_x = 0, zero shear)
+# so the problem is exactly 1-D; the top (fluid side) is traction-free.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp trac
+elastic.bc.constant.type.xhi = disp trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = disp trac
+elastic.bc.constant.type.xhiyhi = disp trac
