@@ -276,15 +276,21 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
-        // elastic model of the homogenized propellant (single material; replaces the
-        // former AP/HTPB rule-of-mixtures blend)
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_prop", value.elastic.model_prop);
-        // elastic model of void (gas phase, lives where phi=1 and eta=0)
         if (value.homogenized)
+        {
+            // Elastic model of the homogenized propellant.
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_prop", value.elastic.model_prop);
+            // Elastic model of void (gas phase, lives where phi=1 and eta=0).
             pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
-        // elastic model of casing (stiff confinement outside the fuel disk, phi=0)
-        if (value.homogenized)
+            // Elastic model of casing (stiff confinement outside the fuel disk, phi=0).
             pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_casing", value.elastic.model_casing);
+        }
+        else
+        {
+            // Full-feedback propellants retain their AP/HTPB mechanical mixture.
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        }
 
         // Use (floored) eta as the psi field to weight the elastic operator and zero
         // out the gas region. psi_mf is filled from eta in UpdateModel. When use_psi=0
@@ -415,6 +421,14 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             psi_mf[lev]->plus(elastic.psi_floor, 0, 1, ng);
         }
 
+        const bool use_homogenized_model = homogenized;
+        const Set::Scalar Telastic = elastic.Telastic;
+        const model_type base_model_prop = elastic.model_prop;
+        const model_type base_model_ap = elastic.model_ap;
+        const model_type base_model_htpb = elastic.model_htpb;
+        const model_type base_model_void = elastic.model_void;
+        const model_type base_model_casing = elastic.model_casing;
+
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box smallbox = mfi.nodaltilebox();
@@ -423,7 +437,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Scalar Tcutoff = thermal.Tcutoff;
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
@@ -444,22 +457,21 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    // Single homogenized propellant model. Apply the thermoelastic
-                    // eigenstrain F0 <- I + (F0 - I)*(T - Telastic).
-                    model_type model_prop = elastic.model_prop;
-                    model_prop.F0 -= Set::Matrix::Identity();
-                    model_prop.F0 *= (temp_avg - elastic.Telastic);
-                    model_prop.F0 += Set::Matrix::Identity();
-
-                    if (homogenized)
+                    if (use_homogenized_model)
                     {
-                        model_type model_void = elastic.model_void;
+                        // Apply the thermoelastic eigenstrain
+                        // F0 <- I + (F0 - I)*(T - Telastic).
+                        model_type model_prop = base_model_prop;
+                        model_prop.F0 -= Set::Matrix::Identity();
+                        model_prop.F0 *= (temp_avg - Telastic);
+                        model_prop.F0 += Set::Matrix::Identity();
+                        model_type model_void = base_model_void;
                         model_void.F0 -= Set::Matrix::Identity();
-                        model_void.F0 *= (temp_avg - elastic.Telastic);
+                        model_void.F0 *= (temp_avg - Telastic);
                         model_void.F0 += Set::Matrix::Identity();
-                        model_type model_casing = elastic.model_casing;
+                        model_type model_casing = base_model_casing;
                         model_casing.F0 -= Set::Matrix::Identity();
-                        model_casing.F0 *= (temp_avg - elastic.Telastic);
+                        model_casing.F0 *= (temp_avg - Telastic);
                         model_casing.F0 += Set::Matrix::Identity();
 
                         // Three-material partition of unity (sums to 1):
@@ -475,12 +487,21 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         Set::Scalar w_void   = phi_avg * (1. - eta_avg);
                         Set::Scalar w_casing = 1. - phi_avg;
                         model(i, j, k) = model_prop * w_solid
-                                       + model_void * w_void
-                                       + model_casing * w_casing;
+                                        + model_void * w_void
+                                        + model_casing * w_casing;
                     }
                     else
                     {
-                        model(i, j, k) = model_prop;
+                        model_type model_ap = base_model_ap;
+                        model_ap.F0 -= Set::Matrix::Identity();
+                        model_ap.F0 *= (temp_avg - Telastic);
+                        model_ap.F0 += Set::Matrix::Identity();
+                        model_type model_htpb = base_model_htpb;
+                        model_htpb.F0 -= Set::Matrix::Identity();
+                        model_htpb.F0 *= (temp_avg - Telastic);
+                        model_htpb.F0 += Set::Matrix::Identity();
+                        model(i, j, k) =
+                            model_ap * phi_avg + model_htpb * (1. - phi_avg);
                     }
                 });
             }
@@ -489,9 +510,22 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     // Elasticity disabled: build the propellant model with no eigenstrain.
-                    model_type model_prop = elastic.model_prop;
-                    model_prop.F0 *= Set::Matrix::Zero();
-                    model(i, j, k) = model_prop;
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    if (use_homogenized_model)
+                    {
+                        model_type model_prop = base_model_prop;
+                        model_prop.F0 *= Set::Matrix::Zero();
+                        model(i, j, k) = model_prop;
+                    }
+                    else
+                    {
+                        model_type model_ap = base_model_ap;
+                        model_ap.F0 *= Set::Matrix::Zero();
+                        model_type model_htpb = base_model_htpb;
+                        model_htpb.F0 *= Set::Matrix::Zero();
+                        model(i, j, k) =
+                            model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    }
                 });
             }
         }

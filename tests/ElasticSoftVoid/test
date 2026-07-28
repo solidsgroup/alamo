@@ -303,8 +303,8 @@ for level in range(1, required_level + 1):
 for field_name, parameter in ((mu_name, "mu"), (kappa_name, "kappa")):
     values = field_values(ad, field_name)
     void_modulus = mpa_value(meta[f"model_void.{parameter}"])
-    propellant_modulus = mpa_value(meta[f"model_ap.{parameter}"])
-    casing_modulus = mpa_value(meta[f"model_htpb.{parameter}"])
+    propellant_modulus = mpa_value(meta[f"model_prop.{parameter}"])
+    casing_modulus = mpa_value(meta[f"model_casing.{parameter}"])
     require(math.isclose(propellant_modulus, casing_modulus),
             f"the {parameter} mixture oracle requires equal solid moduli")
     expected = void_modulus + psi * (propellant_modulus - void_modulus)

@@ -32,11 +32,11 @@ ConstantNeumannSubcellSpacing()
     ::BC::Constant boundary(
         1, types, types,
         AMREX_D_DECL(amrex::Vector<amrex::Real>{2.0},
-                     amrex::Vector<amrex::Real>{0.0},
-                     amrex::Vector<amrex::Real>{0.0}),
+                    amrex::Vector<amrex::Real>{0.0},
+                    amrex::Vector<amrex::Real>{0.0}),
         AMREX_D_DECL(amrex::Vector<amrex::Real>{3.0},
-                     amrex::Vector<amrex::Real>{0.0},
-                     amrex::Vector<amrex::Real>{0.0}));
+                    amrex::Vector<amrex::Real>{0.0},
+                    amrex::Vector<amrex::Real>{0.0}));
     boundary.define(geom);
 
     amrex::FArrayBox field(

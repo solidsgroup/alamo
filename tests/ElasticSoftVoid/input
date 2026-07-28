@@ -99,29 +99,24 @@ pf.eta.bc.constant.val.xhi = 1.0
 pf.eta.bc.constant.val.ylo = 1.0
 pf.eta.bc.constant.val.yhi = 1.0
 
-# Homogenized propellant supplies the material blend used by Flame.  Use the
-# development-branch schema here so this elastic regression does not require
-# the unrelated chamber propellant-model refactor.
+# Homogenized propellant supplies the material blend used by Flame.  These
+# chamber-schema values keep thermal evolution effectively inert over the two
+# steps exercised by this elastic regression.
 propellant.type = homogenize
-propellant.homogenize.dispersion1 = 0.025
-propellant.homogenize.dispersion2 = 1.2
-propellant.homogenize.dispersion3 = 1000
-propellant.homogenize.h1 = 1.5e6
-propellant.homogenize.h2 = 8.0e6
-propellant.homogenize.massfraction = 0.8
-propellant.homogenize.rho_ap = 1745
-propellant.homogenize.rho_htpb = 1745
-propellant.homogenize.k_ap = 1.5
-propellant.homogenize.k_htpb = 1.5
-propellant.homogenize.cp_ap = 1476
-propellant.homogenize.cp_htpb = 1476
-propellant.homogenize.mlocal_ap = 0.1
-propellant.homogenize.m_ap = 8000_cm/s
-propellant.homogenize.m_htpb = 8000_cm/s
-propellant.homogenize.E_ap = 0_J
-propellant.homogenize.E_htpb = 0_J
-propellant.homogenize.mob_ap = false
-propellant.homogenize.bound = 0
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 1.5e6_W/m^2
+propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.rho_prop = 1745_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476_J/kg/K
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.m_prop = 8000_cm/s
+propellant.homogenize.E_prop = 0_K
+propellant.homogenize.mob_prop = false
+propellant.homogenize.bound = 0_K
 
 thermal.on = 1
 thermal.Tref = 300
@@ -176,12 +171,12 @@ elastic.solver.verbose = 2
 
 # Every runner section overrides the void below with a 0.2 MPa finite
 # material.  This is a real constitutive phase, not a psi regularization.
-model_ap.kappa = 150_MPa
-model_ap.mu = 140_MPa
+model_prop.kappa = 150_MPa
+model_prop.mu = 140_MPa
 model_void.kappa = 10_MPa
 model_void.mu = 10_MPa
-model_htpb.kappa = 150_MPa
-model_htpb.mu = 140_MPa
+model_casing.kappa = 150_MPa
+model_casing.mu = 140_MPa
 
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = disp disp disp

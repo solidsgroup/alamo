@@ -130,7 +130,7 @@ public:
 
         // AP mass flux reference value 
         pp.query_default("mlocal_prop", value.mlocal, "5e-1_kg/m^2/s",
-                         Unit::Mass()/Unit::Area()/Unit::Time()); 
+                        Unit::Mass()/Unit::Area()/Unit::Time());
         
         // Prop Pre-exponential factor for Arrhenius Law
         pp.query_required("m_prop", value.m_prop, Unit::Velocity()); 
@@ -143,6 +143,7 @@ public:
         // Smoothing width for the bound cutoff (transition over ~bound_width Kelvin)
         pp.query_default("bound_width", value.bound_width,"50_K", Unit::Temperature());
 
+        // Exponent applied to pressure in the propellant burn-rate law.
         pp.query_default("pressure_exponent", value.pressure_exponent,"0.5_1", Unit::Less());
     }
 
@@ -174,5 +175,3 @@ public:
 
 
 #endif
-
-

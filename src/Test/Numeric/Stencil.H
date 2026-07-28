@@ -136,16 +136,16 @@ private:
 };
 
 inline Set::Matrix IsotropicFaceStress(const Set::Matrix& gradu,
-                                       Set::Scalar lambda,
-                                       Set::Scalar mu)
+                                        Set::Scalar lambda,
+                                        Set::Scalar mu)
 {
     return lambda * gradu.trace() * Set::Matrix::Identity()
         + mu * (gradu + gradu.transpose());
 }
 
 inline Set::Vector FaceElasticOperator(const amrex::Array4<const Set::Scalar>& u,
-                                       int i, int j, int k,
-                                       const Set::Scalar dx[AMREX_SPACEDIM])
+                                        int i, int j, int k,
+                                        const Set::Scalar dx[AMREX_SPACEDIM])
 {
     constexpr Set::Scalar lambda = 2.0;
     constexpr Set::Scalar mu = 1.0;

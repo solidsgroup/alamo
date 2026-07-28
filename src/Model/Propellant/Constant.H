@@ -50,10 +50,15 @@ public:
     static void Parse(Constant& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
+        // Thermal conductivity of the propellant.
         pp_query_required("K", value.K);   
+        // Propellant density.
         pp_query_required("rho", value.rho);
+        // Propellant specific heat capacity.
         pp_query_required("cp", value.cp);
+        // Volumetric heat-release rate.
         pp_query_required("qdot", value.qdot);
+        // Latent heat associated with propellant conversion.
         pp_query_required("L", value.L);
     }
 

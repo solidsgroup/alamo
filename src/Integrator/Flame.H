@@ -124,7 +124,7 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
-        model_type model_prop, model_void, model_casing;
+        model_type model_prop, model_ap, model_htpb, model_void, model_casing;
         Set::Scalar traction = NAN;
         // When 1, the interface traction follows the evolving chamber pressure
         // instead of the constant elastic.traction value.

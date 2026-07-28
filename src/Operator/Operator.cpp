@@ -122,8 +122,8 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         {
             // relax_ghost_rows: conservative rows treat C/F ghosts as prescribed interpolation data.
             Box bx = relax_ghost_rows ? mfi.grownnodaltilebox()
-                                      : (mfi.nodaltilebox() & domain);
-            
+                                    : (mfi.nodaltilebox() & domain);
+
             auto xfab = x.array(mfi);
             auto bfab = b.const_array(mfi);
             auto Rxfab = Rx.const_array(mfi);

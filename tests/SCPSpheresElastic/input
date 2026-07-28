@@ -135,6 +135,7 @@ chamber.pressure = 4.0_MPa # [MPa]
 
 # Thermoelasticity
 elastic.on = 1
+elastic.type = static
 elastic.interval = 100
 # Elastic model params
 model_ap.mu = 140
@@ -162,7 +163,5 @@ elastic.bc.constant.type.xloyhi = trac disp
 
 # No traction on free surface
 elastic.traction = 0.0
-
-
 
 
