@@ -34,7 +34,7 @@ namespace Detail
 {
 inline bool
 AcceptLineSearchResidual(Set::Scalar initial, Set::Scalar trial,
-                         Set::Scalar relative_tolerance = 1.0e-4)
+                        Set::Scalar relative_tolerance = 1.0e-4)
 {
     if (!std::isfinite(initial) || !std::isfinite(trial) ||
         !std::isfinite(relative_tolerance) || initial < 0.0 || trial < 0.0 ||
@@ -80,7 +80,7 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 T
 FaceModel(const amrex::Array4<const T>& model,
-          const int i, const int j, const int k, const int face)
+        const int i, const int j, const int k, const int face)
 {
     const int ip = i + (face == 0);
     const int jp = j + (face == 1);
@@ -94,9 +94,9 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
 FaceKinematicVariable(const amrex::Array4<const T>& model,
-                      const U& u,
-                      const int i, const int j, const int k, const int face,
-                      const Set::Scalar dx[AMREX_SPACEDIM])
+                    const U& u,
+                    const int i, const int j, const int k, const int face,
+                    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     const T face_model = FaceModel(model, i, j, k, face);
     Set::Matrix gradu = Numeric::FaceGradient(u, i, j, k, face, dx);
@@ -115,9 +115,9 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
 FaceStress(const amrex::Array4<const T>& model,
-           const U& u,
-           const int i, const int j, const int k, const int face,
-           const Set::Scalar dx[AMREX_SPACEDIM])
+            const U& u,
+            const int i, const int j, const int k, const int face,
+            const Set::Scalar dx[AMREX_SPACEDIM])
 {
     const T face_model = FaceModel(model, i, j, k, face);
     return face_model.DW(
@@ -133,9 +133,9 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
 NodalStressFromFaces(const amrex::Array4<const T>& model,
-                     const U& u,
-                     const int i, const int j, const int k,
-                     const Set::Scalar dx[AMREX_SPACEDIM])
+                    const U& u,
+                    const int i, const int j, const int k,
+                    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     Set::Matrix ret = Set::Matrix::Zero();
     for (int face = 0; face < AMREX_SPACEDIM; ++face)
@@ -208,8 +208,8 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
 SymmetryFaceGradient(const SymmetryDisplacementExtension& displacement,
-                     const int i, const int j, const int k, const int face,
-                     const Set::Scalar dx[AMREX_SPACEDIM])
+                    const int i, const int j, const int k, const int face,
+                    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     Set::Matrix ret = Set::Matrix::Zero();
     const int ip = i + (face == 0);
@@ -221,17 +221,17 @@ SymmetryFaceGradient(const SymmetryDisplacementExtension& displacement,
     if (face != 0)
         ret.col(0) = (displacement(i + 1, j, k) - displacement(i - 1, j, k)
                     + displacement(ip + 1, jp, kp) - displacement(ip - 1, jp, kp))
-                   / (4.0 * dx[0]);
+                    / (4.0 * dx[0]);
     if (face != 1)
         ret.col(1) = (displacement(i, j + 1, k) - displacement(i, j - 1, k)
                     + displacement(ip, jp + 1, kp) - displacement(ip, jp - 1, kp))
-                   / (4.0 * dx[1]);
+                    / (4.0 * dx[1]);
 #endif
 #if AMREX_SPACEDIM > 2
     if (face != 2)
         ret.col(2) = (displacement(i, j, k + 1) - displacement(i, j, k - 1)
                     + displacement(ip, jp, kp + 1) - displacement(ip, jp, kp - 1))
-                   / (4.0 * dx[2]);
+                    / (4.0 * dx[2]);
 #endif
     return ret;
 }
@@ -242,9 +242,9 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Matrix
 SymmetryFaceStress(const SymmetryModelExtension<T>& model,
-                   const SymmetryDisplacementExtension& displacement,
-                   const int i, const int j, const int k, const int face,
-                   const Set::Scalar dx[AMREX_SPACEDIM])
+                    const SymmetryDisplacementExtension& displacement,
+                    const int i, const int j, const int k, const int face,
+                    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     const int ip = i + (face == 0);
     const int jp = j + (face == 1);
@@ -318,9 +318,9 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Set::Vector
 FaceStressDivergence(const amrex::Array4<const T>& model,
-                     const U& u,
-                     const int i, const int j, const int k,
-                     const Set::Scalar dx[AMREX_SPACEDIM])
+                    const U& u,
+                    const int i, const int j, const int k,
+                    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     Set::Vector ret = Set::Vector::Zero();
     for (int face = 0; face < AMREX_SPACEDIM; ++face)
@@ -839,8 +839,8 @@ public:
                 {
                     std::ostringstream reason;
                     reason << "Newton line search failed after " << max_backtrack
-                           << " backtracks: initial residual=" << resnorm0
-                           << ", final trial residual=" << resnorm;
+                            << " backtracks: initial residual=" << resnorm0
+                            << ", final trial residual=" << resnorm;
                     restore_and_abort(reason.str());
                 }
             }
@@ -1307,7 +1307,7 @@ public:
     }
 
     bool HasNonFinite(const Set::Field<Set::Scalar>& a_mf,
-                      bool include_ghosts = false) const
+                    bool include_ghosts = false) const
     {
         amrex::Gpu::streamSynchronizeAll();
         if (!include_ghosts)
@@ -1351,8 +1351,8 @@ public:
     }
 
     void AbortIfNonFinite(const Set::Field<Set::Scalar>& a_mf,
-                          const char* description,
-                          bool include_ghosts = false) const
+                        const char* description,
+                        bool include_ghosts = false) const
     {
         if (HasNonFinite(a_mf, include_ghosts))
             Util::Abort(INFO, description, " contains a non-finite value");
@@ -1507,10 +1507,15 @@ public:
         // update by local psi so low-stiffness void displacement drift does not
         // dominate convergence after the stress-bearing region has settled.
         pp_query("nr_convergence", value.m_nr_convergence);
+        // Minimum psi used when weighting displacement updates.
         pp_query("nr_psi_weight_floor", value.m_nr_psi_weight_floor);
+        // Exponent applied to psi in the weighted Newton convergence metric.
         pp_query("nr_psi_power", value.m_nr_psi_power);
+        // Psi threshold defining the stress-bearing (solid) region.
         pp_query("nr_solid_psi", value.m_nr_solid_psi);
+        // Enable diagnostic output for nonlinear convergence metrics.
         pp_query("nr_diagnostics", value.m_nr_diagnostics);
+        // Per-coordinate flags enabling periodic invariant-preserving solves.
         pp_queryarr("invariant_periodic", value.m_invariant_periodic);
         if (!value.m_invariant_periodic.empty() &&
             value.m_invariant_periodic.size() != AMREX_SPACEDIM)

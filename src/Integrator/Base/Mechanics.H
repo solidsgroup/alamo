@@ -56,11 +56,17 @@ public:
             pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
             pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
             AMREX_D_TERM(
+                // Treat the lower x boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.xlo", value.m_output_stress_symmetry_lo[0], 0);
+                // Treat the upper x boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.xhi", value.m_output_stress_symmetry_hi[0], 0);,
+                // Treat the lower y boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.ylo", value.m_output_stress_symmetry_lo[1], 0);
+                // Treat the upper y boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.yhi", value.m_output_stress_symmetry_hi[1], 0);,
+                // Treat the lower z boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.zlo", value.m_output_stress_symmetry_lo[2], 0);
+                // Treat the upper z boundary as a symmetry plane when reconstructing output stress.
                 pp_query_default("output_stress_symmetry.zhi", value.m_output_stress_symmetry_hi[2], 0););
 
             // Select the mechanical boundary conditions
