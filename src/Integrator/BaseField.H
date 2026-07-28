@@ -267,6 +267,9 @@ public:
             for (amrex::MFIter mfi(*m_field[lev],true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& box = mfi.tilebox();
+                amrex::Box grown_box = box;
+                grown_box.grow(m_nghost);
+                if (m_geom[lev].Domain().contains(grown_box)) continue;
                 amrex::BaseFab<T>  &patch = (*(m_field[lev]))[mfi];
                 m_bc->FillBoundary(patch,box,m_nghost,0,m_ncomp,time);
             }
