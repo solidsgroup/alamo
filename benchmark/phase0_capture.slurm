@@ -365,7 +365,13 @@ if have_leg nsys; then
     # Distinguish "nsys produced nothing" from "this nsys lacks that report".
     # The old loop reported eight MISSING reports when the real fault was an
     # absent trace, which reads as a version quirk instead of a dead capture.
-    if [ ! -f "${L}/trace.nsys-rep" ]; then
+    # Test SIZE, not existence. nsys creates trace.nsys-rep up front and starts
+    # streaming into it, so a capture killed mid-write leaves a 0-byte file that
+    # passes -f. That is exactly what happened on the 3D deck in 11775090: the
+    # guard stayed quiet, `ls` showed a full set of report files, and every one
+    # of them was empty. A dead capture that looks alive is the failure this
+    # guard exists to prevent.
+    if [ ! -s "${L}/trace.nsys-rep" ]; then
       echo "  CAPTURE FAILED: no ${L}/trace.nsys-rep (nsys rc=${NSYS_RC})."
       echo "  F1,F2,F3,F8,F9 are NOT captured for this deck. Read ${L}/run.log;"
       echo "  rc=137 with a libToolsInjection64.so frame means the -t list is at"
@@ -376,11 +382,16 @@ if have_leg nsys; then
       # vary across nsys versions -- try each, record which ones existed.
       for rep in nvtx_sum cuda_gpu_kern_sum cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum \
                  cuda_api_sum cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
-        if nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
-             "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1; then
+        nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
+             "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1
+        # nsys stats exits 0 having written a 0-byte CSV when the sqlite export
+        # fails ("Exportation error: Cannot read from stream"). Judge by the
+        # output, not the exit code.
+        OUTCSV=$(ls "${L}/${rep}"*.csv 2>/dev/null | head -1)
+        if [ -s "${OUTCSV:-/nonexistent}" ]; then
           echo "  stats ok: ${rep}"
         else
-          echo "  stats MISSING in this nsys version: ${rep}" | tee -a "${L}/stats_missing.txt"
+          echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
         fi
       done
     fi
