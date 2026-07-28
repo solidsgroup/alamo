@@ -248,6 +248,29 @@ fi
 # F10. Non-profile binary only. See the header note on why.
 if have_leg timing; then
   say "LEG timing -- F10 wall/step, managed vs device arena (NON-profile binary)"
+  # PLAN v2 §12.1: startup EXCLUDED, calibration derived up front rather than
+  # deferred to analysis. Every prior F10 number here included CUDA context
+  # creation and InitData in a 12-33 s total, which is why none of them were
+  # admissible. REPS>1 gives the uncertainty estimate §12.1 also requires; the
+  # arena arms are interleaved rather than run in blocks so machine drift lands
+  # on both.
+  REPS="${REPS:-3}"
+  for mode in managed device; do
+    L="${OUT}/timing/${mode}"; mkdir -p "${L}"
+    if [ "${mode}" = managed ]; then ARENA=( "${MANAGED[@]}" ); else ARENA=( "${DEVICE[@]}" ); fi
+    if [ "${DRYRUN}" = 1 ]; then
+      echo "+ [startup calib] srun ... ./${PLAIN_BIN} ${COMMON[*]} ${ARENA[*]} max_step=1 ..."
+      continue
+    fi
+    S0=$(date +%s.%N)
+    srun --mpi=pmix -n1 --gpus-per-task=1 \
+      "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step=1 \
+      stop_time=1e99_s plot_file="${L}/plot_calib" > "${L}/startup.log" 2>&1
+    S1=$(date +%s.%N)
+    STARTUP=$(awk -v a="${S0}" -v b="${S1}" 'BEGIN{printf "%.3f", b-a}')
+    echo "  startup calibration (${mode}, max_step=1): ${STARTUP}s"
+    printf 'startup_s=%s\n' "${STARTUP}" > "${L}/startup.txt"
+  done
   for mode in managed device; do
     L="${OUT}/timing/${mode}"; mkdir -p "${L}"
     if [ "${mode}" = managed ]; then ARENA=( "${MANAGED[@]}" ); else ARENA=( "${DEVICE[@]}" ); fi
@@ -255,20 +278,39 @@ if have_leg timing; then
     if [ "${DRYRUN}" = 1 ]; then
       echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ./${PLAIN_BIN} ${COMMON[*]} ${ARENA[*]} max_step=${MAX_STEP} stop_time=1e99_s plot_file=${L}/plot"
     else
-      T0=$(date +%s.%N)
-      srun --mpi=pmix -n1 --gpus-per-task=1 \
-        "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step="${MAX_STEP}" \
-        stop_time=1e99_s plot_file="${L}/plot" > "${L}/run.log" 2>&1
-      RC=$?; T1=$(date +%s.%N)
-      WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
-      PER=$(awk -v w="${WALL}" -v n="${MAX_STEP}" 'BEGIN{printf "%.4f", w/n}')
-      echo "  rc=${RC} wall=${WALL}s steps=${MAX_STEP} wall_per_step=${PER}s"
-      printf 'mode=%s rc=%s wall_s=%s steps=%s wall_per_step_s=%s\n' \
-        "${mode}" "${RC}" "${WALL}" "${MAX_STEP}" "${PER}" > "${L}/timing.txt"
+      STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
+      STARTUP="${STARTUP:-0}"
+      : > "${L}/reps.txt"
+      for rep in $(seq 1 "${REPS}"); do
+        T0=$(date +%s.%N)
+        srun --mpi=pmix -n1 --gpus-per-task=1 \
+          "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step="${MAX_STEP}" \
+          stop_time=1e99_s plot_file="${L}/plot" > "${L}/run_rep${rep}.log" 2>&1
+        RC=$?; T1=$(date +%s.%N)
+        WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
+        # Steady-state per step: startup removed, so this is comparable across
+        # decks and across phases. The raw wall is kept for audit.
+        PER=$(awk -v w="${WALL}" -v s="${STARTUP}" -v n="${MAX_STEP}" \
+              'BEGIN{printf "%.5f", (w-s)/n}')
+        echo "  rep${rep}: rc=${RC} wall=${WALL}s steady_per_step=${PER}s"
+        printf '%s\t%s\t%s\n' "${rep}" "${WALL}" "${PER}" >> "${L}/reps.txt"
+      done
+      awk -v m="${mode}" -v n="${MAX_STEP}" -v s="${STARTUP}" '
+        {w[NR]=$2; p[NR]=$3; sw+=$2; sp+=$3}
+        END{
+          k=NR; if(k==0){print "no reps"; exit}
+          mw=sw/k; mp=sp/k;
+          for(i=1;i<=k;i++){vw+=(w[i]-mw)^2; vp+=(p[i]-mp)^2}
+          sdw=(k>1)?sqrt(vw/(k-1)):0; sdp=(k>1)?sqrt(vp/(k-1)):0;
+          printf "mode=%s reps=%d steps=%d startup_s=%s\n", m, k, n, s;
+          printf "wall_mean_s=%.3f wall_sd_s=%.3f\n", mw, sdw;
+          printf "steady_per_step_mean_s=%.5f steady_per_step_sd_s=%.5f\n", mp, sdp;
+        }' "${L}/reps.txt" | tee "${L}/timing.txt"
     fi
   done
-  echo "NOTE: wall includes startup. Campaign requires a startup calibration alongside"
-  echo "      wall/step; derive it from the two horizons or a max_step=1 run."
+  echo "T0 rule: compare steady_per_step_mean_s between arms and against the"
+  echo "  previous phase's ledger row. A difference inside +/- 2 sd is NOT a"
+  echo "  regression and NOT an improvement -- PLAN v2 §12.1."
 fi
 
 # --------------------------------------------------------------- leg: flip ---
