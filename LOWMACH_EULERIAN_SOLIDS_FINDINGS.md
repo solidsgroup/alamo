@@ -46,7 +46,7 @@ The current solver supports:
 - one deformable-solid species with one reference map and a Neo-Hookean model;
 - multiple rigid-solid species sharing one prescribed rigid velocity;
 - mass-conservative condensed-to-gas phase-change mechanisms;
-- frozen, finite-rate, or six-species Rocfire gas chemistry;
+- frozen, finite-rate, or six-species GrossModel gas chemistry;
 - explicit or locally implicit chemistry;
 - composite AMR implicit species, thermal, and optional momentum diffusion;
 - a hierarchy-wide variable-coefficient pressure projection;
@@ -164,7 +164,7 @@ partial densities using the pre-diffusion gas density, preserving the local
 sum of gas partial densities. Thermal and species diffusion contribute their
 integrated EOS volume change to the following pressure projection.
 
-Thermal conduction and common-coefficient Rocfire species diffusion are
+Thermal conduction and common-coefficient GrossModel species diffusion are
 implicit automatically when active. Newtonian momentum diffusion is opt-in
 through `implicit_viscosity=1`; this preserves the established explicit cavity
 discretization for existing inputs. The AP/HTPB input enables all three.
@@ -398,7 +398,7 @@ scratch preparation, not an alternate state-management path.
 
 ## Chemistry Port And LowMach Coupling
 
-The finite-rate and Rocfire kinetics were ported from
+The finite-rate and GrossModel kinetics were ported from
 `origin/flame-with-multicomponent` with limited model changes:
 
 - compile-time `NSPECIES` became runtime `ngas_species`, backed by a GPU-safe
@@ -531,7 +531,7 @@ rate_multiplier = 2450
 activation_temperature = 3145 K.
 ```
 
-Pressure still does not enter the mobility explicitly. It changes the Rocfire
+Pressure still does not enter the mobility explicitly. It changes the GrossModel
 reaction structure, normal heat flux, interface temperature, and hence the
 Arrhenius factor. The multiplier is specific to the current Allen-Cahn
 normalization (`mobility=0.01 1/Pa/s`, `sigma=0.001 J/m2`, `epsilon=20 um`, and
@@ -717,7 +717,7 @@ significant correction rather than radiation as the general dominant feedback.
 
 The thin `AP_gas` and `HTPB_gas` layers are not passive species that can be
 removed by redirecting phase change to `Mono` and `Premixed`. The six-species
-Rocfire mechanism represents four flames:
+GrossModel mechanism represents four flames:
 
 ```text
 AP_gas -> Mono
@@ -747,7 +747,7 @@ the eliminated heat at a physically chosen location, retain the effective
 pressure/temperature response, and replace the primary flame. The last item is
 not a simple local reduction: competition between self-reaction and lateral
 AP/HTPB mixing is the mechanism that creates the primary diffusion flame and
-particle-size effects. Keep the existing six-species Rocfire model as the
+particle-size effects. Keep the existing six-species GrossModel implementation as the
 reference implementation; test any direct solid-to-product closure under a
 distinct model name and compare heat flux, flame standoff, grooving, and
 pressure response.

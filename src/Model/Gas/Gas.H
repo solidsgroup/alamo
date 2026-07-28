@@ -7,12 +7,12 @@
 #include <string>
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
-#include "Model/Gas/Thermo/Rocfire.H"
+#include "Model/Gas/Thermo/GrossModel.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
-#include "Model/Gas/Transport/Rocfire.H"
+#include "Model/Gas/Transport/GrossModel.H"
 #include "Model/Gas/EOS/CPG.H"
 #include "Model/Gas/EOS/TPG.H"
-#include "Model/Gas/EOS/Rocfire.H"
+#include "Model/Gas/EOS/GrossModel.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -72,9 +72,9 @@ public:
     int nspecies;
     double Rg;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
-    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
-    Transport::Transport<Transport::Mixture_Averaged,Transport::Rocfire> transport;
-    EOS::EOS<EOS::CPG,EOS::TPG,EOS::Rocfire> eos;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel> thermo;
+    Transport::Transport<Transport::Mixture_Averaged,Transport::GrossModel> transport;
+    EOS::EOS<EOS::CPG,EOS::TPG,EOS::GrossModel> eos;
 
 public:
     Gas() 
@@ -93,14 +93,14 @@ public:
         value.nspecies = value.MW.size();
 
         // thermo model
-        pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire>(
+        pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel>(
             "thermo", value.thermo, pp.forward_args(value.MW));
 
         // transport model
-        pp.select<Transport::Mixture_Averaged,Transport::Rocfire>("transport", value.transport, pp.forward_args(value.nspecies, value.MW, value.thermo));
+        pp.select<Transport::Mixture_Averaged,Transport::GrossModel>("transport", value.transport, pp.forward_args(value.nspecies, value.MW, value.thermo));
 
         // eos model
-        pp.select<EOS::CPG,EOS::TPG,EOS::Rocfire>("eos", value.eos);
+        pp.select<EOS::CPG,EOS::TPG,EOS::GrossModel>("eos", value.eos);
     }
     
 public:

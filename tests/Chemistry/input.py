@@ -60,8 +60,8 @@ for header in [
     "Model/Chemistry/Chemistry.H",
     "Model/Chemistry/FiniteRate.H",
     "Model/Chemistry/Frozen.H",
-    "Model/Chemistry/Rocfire.H",
-    "Model/Chemistry/Rocfire_Aluminized.H",
+    "Model/Chemistry/GrossModel.H",
+    "Model/Chemistry/GrossModel_Aluminized.H",
 ]:
     alamo.include(header)
 
@@ -69,8 +69,8 @@ for header in [
 FINITE_SPECIES = [
     "H2", "H", "O", "O2", "OH", "H2O", "HO2", "H2O2", "AR", "N2"
 ]
-ROCFIRE_SPECIES = ["AP", "HTPB", "Mono", "Premixed", "Primary", "Final"]
-ROCFIRE_ALUMINIZED_SPECIES = ROCFIRE_SPECIES + ["Al_gas", "Al2O3_gas"]
+GROSS_MODEL_SPECIES = ["AP", "HTPB", "Mono", "Premixed", "Primary", "Final"]
+GROSS_MODEL_ALUMINIZED_SPECIES = GROSS_MODEL_SPECIES + ["Al_gas", "Al2O3_gas"]
 
 FINITE_MOLECULAR_WEIGHTS = [
     "2.016_g/mol", "1.008_g/mol", "15.999_g/mol", "31.998_g/mol",
@@ -90,11 +90,11 @@ FINITE_INITIAL_PARTIAL_DENSITIES = numpy.array(
     [0.016378785527602464, 0.0, 0.0, 0.12998223693259516,
      0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 )
-ROCFIRE_INITIAL_PARTIAL_DENSITIES = numpy.array(
+GROSS_MODEL_INITIAL_PARTIAL_DENSITIES = numpy.array(
     [0.28154378279353426, 0.03530772294877530, 0.0, 0.0, 0.0, 0.0]
 )
-ROCFIRE_ALUMINIZED_INITIAL_PARTIAL_DENSITIES = numpy.append(
-    ROCFIRE_INITIAL_PARTIAL_DENSITIES, [0.05, 0.03]
+GROSS_MODEL_ALUMINIZED_INITIAL_PARTIAL_DENSITIES = numpy.append(
+    GROSS_MODEL_INITIAL_PARTIAL_DENSITIES, [0.05, 0.03]
 )
 
 EXPECTED_WDOT = numpy.array(
@@ -151,16 +151,16 @@ CANTERA_TEMPERATURES = numpy.array(
      2997.3317879691244, 3137.5919460842397, 3156.9585418678357]
 )
 
-ROCFIRE_FINAL_MASS_FRACTIONS = numpy.array(
+GROSS_MODEL_FINAL_MASS_FRACTIONS = numpy.array(
     [0.0, 0.0, 0.500736734, 0.0262405425, 0.217721183, 0.255301541]
 )
-ROCFIRE_FINAL_TEMPERATURE = 2915.8206291858073
+GROSS_MODEL_FINAL_TEMPERATURE = 2915.8206291858073
 
 CHEMISTRY_TYPE = alamo.Model.Chemistry.Chemistry[
     alamo.Model.Chemistry.Frozen,
     alamo.Model.Chemistry.FiniteRate,
-    alamo.Model.Chemistry.Rocfire,
-    alamo.Model.Chemistry.Rocfire_Aluminized,
+    alamo.Model.Chemistry.GrossModel,
+    alamo.Model.Chemistry.GrossModel_Aluminized,
 ]
 
 
@@ -197,24 +197,24 @@ def make_finite_gas(pp):
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
-def make_rocfire_gas(pp):
-    prefix = "rocfire_gas"
-    add_strings(pp, f"{prefix}.mw", ["26.0_g/mol"] * len(ROCFIRE_SPECIES))
-    add_string(pp, f"{prefix}.thermo.type", "rocfire")
-    add_string(pp, f"{prefix}.transport.type", "rocfire")
-    add_string(pp, f"{prefix}.eos.type", "rocfire")
+def make_gross_model_gas(pp):
+    prefix = "gross_model_gas"
+    add_strings(pp, f"{prefix}.mw", ["26.0_g/mol"] * len(GROSS_MODEL_SPECIES))
+    add_string(pp, f"{prefix}.thermo.type", "gross_model")
+    add_string(pp, f"{prefix}.transport.type", "gross_model")
+    add_string(pp, f"{prefix}.eos.type", "gross_model")
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
-def make_rocfire_aluminized_gas(pp):
-    prefix = "rocfire_aluminized_gas"
+def make_gross_model_aluminized_gas(pp):
+    prefix = "gross_model_aluminized_gas"
     add_strings(
         pp, f"{prefix}.mw",
         ["26.0_g/mol"] * 6 + ["26.9815385_g/mol", "101.96_g/mol"],
     )
-    add_string(pp, f"{prefix}.thermo.type", "rocfire")
-    add_string(pp, f"{prefix}.transport.type", "rocfire")
-    add_string(pp, f"{prefix}.eos.type", "rocfire")
+    add_string(pp, f"{prefix}.thermo.type", "gross_model")
+    add_string(pp, f"{prefix}.transport.type", "gross_model")
+    add_string(pp, f"{prefix}.eos.type", "gross_model")
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
@@ -371,8 +371,8 @@ try:
     pp = alamo.IO.ParmParse()
 
     finite_gas = make_finite_gas(pp)
-    rocfire_gas = make_rocfire_gas(pp)
-    rocfire_aluminized_gas = make_rocfire_aluminized_gas(pp)
+    gross_model_gas = make_gross_model_gas(pp)
+    gross_model_aluminized_gas = make_gross_model_aluminized_gas(pp)
     source_model = make_finite_source_model(pp, "source_finite")
     substep_source_model = make_finite_source_model(
         pp, "source_finite_substep", substeps=10
@@ -396,26 +396,26 @@ try:
         )
         for _, prefix, solver, nsubsteps, _ in finite_cases
     ]
-    rocfire_cases = [
-        ("Rocfire: Forward Euler, 1 substep", "rocfire_forward_1",
+    gross_model_cases = [
+        ("GrossModel: Forward Euler, 1 substep", "gross_model_forward_1",
          "forward_euler", 1),
-        ("Rocfire: Forward Euler, 10 substeps", "rocfire_forward_10",
+        ("GrossModel: Forward Euler, 10 substeps", "gross_model_forward_10",
          "forward_euler", 10),
-        ("Rocfire: Backward Euler, 1 substep", "rocfire_backward_1",
+        ("GrossModel: Backward Euler, 1 substep", "gross_model_backward_1",
          "backward_euler", 1),
-        ("Rocfire: Backward Euler, 10 substeps", "rocfire_backward_10",
+        ("GrossModel: Backward Euler, 10 substeps", "gross_model_backward_10",
          "backward_euler", 10),
     ]
-    rocfire_integrators = [
+    gross_model_integrators = [
         make_integrator(
-            pp, prefix, "rocfire", solver, nsubsteps,
-            len(ROCFIRE_SPECIES),
+            pp, prefix, "gross_model", solver, nsubsteps,
+            len(GROSS_MODEL_SPECIES),
         )
-        for _, prefix, solver, nsubsteps in rocfire_cases
+        for _, prefix, solver, nsubsteps in gross_model_cases
     ]
-    rocfire_aluminized_integrator = make_integrator(
-        pp, "rocfire_aluminized_backward", "rocfire_aluminized",
-        "backward_euler", 1, len(ROCFIRE_ALUMINIZED_SPECIES),
+    gross_model_aluminized_integrator = make_integrator(
+        pp, "gross_model_aluminized_backward", "gross_model_aluminized",
+        "backward_euler", 1, len(GROSS_MODEL_ALUMINIZED_SPECIES),
     )
 
     print("\nChemistry cases")
@@ -470,29 +470,29 @@ try:
 
     run_case("Frozen chemistry", check_frozen)
 
-    def check_rocfire_aluminized():
-        initial = ROCFIRE_ALUMINIZED_INITIAL_PARTIAL_DENSITIES
+    def check_gross_model_aluminized():
+        initial = GROSS_MODEL_ALUMINIZED_INITIAL_PARTIAL_DENSITIES
         mass_fractions, temperatures = integrate_composition(
-            rocfire_aluminized_integrator, rocfire_aluminized_gas, initial,
+            gross_model_aluminized_integrator, gross_model_aluminized_gas, initial,
             1.0e-7, numpy.array([0.0, 1.0e-6]),
         )
-        validate_mass_fractions("Rocfire aluminized", mass_fractions)
+        validate_mass_fractions("GrossModel aluminized", mass_fractions)
         initial_aluminum_fractions = initial[-2:] / initial.sum()
         numpy.testing.assert_allclose(
             mass_fractions[:, -2:],
             numpy.broadcast_to(initial_aluminum_fractions,
                                mass_fractions[:, -2:].shape),
             rtol=0.0, atol=2.0e-14,
-            err_msg="Rocfire_Aluminized reacted an inert aluminum gas species",
+            err_msg="GrossModel_Aluminized reacted an inert aluminum gas species",
         )
         if numpy.allclose(mass_fractions[-1, :6], mass_fractions[0, :6]):
             raise RuntimeError(
-                "Rocfire_Aluminized did not advance its AP/HTPB chemistry"
+                "GrossModel_Aluminized did not advance its AP/HTPB chemistry"
             )
         if not numpy.all(numpy.isfinite(temperatures)):
-            raise RuntimeError("Rocfire_Aluminized produced non-finite temperature")
+            raise RuntimeError("GrossModel_Aluminized produced non-finite temperature")
 
-    run_case("Rocfire aluminized inert aluminum", check_rocfire_aluminized)
+    run_case("GrossModel aluminized inert aluminum", check_gross_model_aluminized)
 
     finite_histories = []
     for case, integrator in zip(finite_cases, finite_integrators):
@@ -519,34 +519,34 @@ try:
         history = run_case(name, check_finite)
         finite_histories.append((name.removeprefix("Finite rate: "), *history))
 
-    rocfire_times = numpy.linspace(0.0, 1.0e-5, 21)
-    rocfire_histories = []
-    for case, integrator in zip(rocfire_cases, rocfire_integrators):
+    gross_model_times = numpy.linspace(0.0, 1.0e-5, 21)
+    gross_model_histories = []
+    for case, integrator in zip(gross_model_cases, gross_model_integrators):
         name, _, _, nsubsteps = case
 
-        def check_rocfire(
+        def check_gross_model(
             integrator=integrator, name=name, nsubsteps=nsubsteps
         ):
             mass_fractions, temperatures = integrate_composition(
-                integrator, rocfire_gas, ROCFIRE_INITIAL_PARTIAL_DENSITIES,
-                1.0e-7, rocfire_times,
+                integrator, gross_model_gas, GROSS_MODEL_INITIAL_PARTIAL_DENSITIES,
+                1.0e-7, gross_model_times,
             )
             validate_mass_fractions(name, mass_fractions)
             numpy.testing.assert_allclose(
-                mass_fractions[-1], ROCFIRE_FINAL_MASS_FRACTIONS,
+                mass_fractions[-1], GROSS_MODEL_FINAL_MASS_FRACTIONS,
                 rtol=5.0e-2 if nsubsteps == 10 else 1.2e-1,
                 atol=2.0e-3,
                 err_msg=f"{name} final composition differs from the reference",
             )
             numpy.testing.assert_allclose(
-                temperatures[-1], ROCFIRE_FINAL_TEMPERATURE,
+                temperatures[-1], GROSS_MODEL_FINAL_TEMPERATURE,
                 rtol=5.0e-2, atol=1.0,
                 err_msg=f"{name} final temperature differs from the reference",
             )
             return mass_fractions, temperatures
 
-        history = run_case(name, check_rocfire)
-        rocfire_histories.append((name.removeprefix("Rocfire: "), *history))
+        history = run_case(name, check_gross_model)
+        gross_model_histories.append((name.removeprefix("GrossModel: "), *history))
 
     OUTPUT.mkdir(exist_ok=True)
     plot_histories(
@@ -556,12 +556,12 @@ try:
         CANTERA_MASS_FRACTIONS, CANTERA_TEMPERATURES,
     )
     plot_histories(
-        OUTPUT / "rocfire.png",
-        "Rocfire stoichiometric AP/HTPB chemistry integration",
-        ROCFIRE_SPECIES, rocfire_histories, rocfire_times,
+        OUTPUT / "gross_model.png",
+        "GrossModel stoichiometric AP/HTPB chemistry integration",
+        GROSS_MODEL_SPECIES, gross_model_histories, gross_model_times,
     )
     print(f"\nPlots: {OUTPUT / 'finiterate.png'}")
-    print(f"       {OUTPUT / 'rocfire.png'}")
+    print(f"       {OUTPUT / 'gross_model.png'}")
 finally:
     alamo.Util.Finalize()
 

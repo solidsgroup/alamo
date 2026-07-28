@@ -16,8 +16,8 @@
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Frozen.H"
-#include "Model/Chemistry/Rocfire.H"
-#include "Model/Chemistry/Rocfire_Aluminized.H"
+#include "Model/Chemistry/GrossModel.H"
+#include "Model/Chemistry/GrossModel_Aluminized.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Mechanism/InterphaseReaction.H"
@@ -170,8 +170,8 @@ protected:
     using Chemistry = Model::Chemistry::Chemistry<
         Model::Chemistry::Frozen,
         Model::Chemistry::FiniteRate,
-        Model::Chemistry::Rocfire,
-        Model::Chemistry::Rocfire_Aluminized>;
+        Model::Chemistry::GrossModel,
+        Model::Chemistry::GrossModel_Aluminized>;
     Chemistry chemistry;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<

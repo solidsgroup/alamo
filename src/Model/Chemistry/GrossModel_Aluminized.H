@@ -1,28 +1,28 @@
 //
-// Rocfire_Aluminized extends the six-species AP/HTPB Rocfire mechanism with
+// GrossModel_Aluminized extends the six-species AP/HTPB GrossModel mechanism with
 // two inert aluminum-bearing gas species.  The required gas ordering is
 //
 //   AP, binder, monopropellant, premixed, primary, final, Al_gas, Al2O3_gas.
 //
-// The first six species retain the original Rocfire reactions and heat
+// The first six species retain the original GrossModel reactions and heat
 // release.  Al_gas and Al2O3_gas participate in mixture thermodynamics and
 // dilution but have zero homogeneous chemistry source until aluminum kinetics
 // are added.
 //
 
-#ifndef MODEL_CHEMISTRY_ROCFIRE_ALUMINIZED_H
-#define MODEL_CHEMISTRY_ROCFIRE_ALUMINIZED_H
+#ifndef MODEL_CHEMISTRY_GROSS_MODEL_ALUMINIZED_H
+#define MODEL_CHEMISTRY_GROSS_MODEL_ALUMINIZED_H
 
-#include "Model/Chemistry/Rocfire.H"
+#include "Model/Chemistry/GrossModel.H"
 
 namespace Model
 {
 namespace Chemistry
 {
 
-struct Rocfire_Aluminized : public Rocfire
+struct GrossModel_Aluminized : public GrossModel
 {
-    static constexpr const char* name = "rocfire_aluminized";
+    static constexpr const char* name = "gross_model_aluminized";
     static constexpr bool reactive = true;
     static constexpr bool has_jacobian = true;
     static constexpr int aluminum_gas = 6;
@@ -42,7 +42,7 @@ struct Rocfire_Aluminized : public Rocfire
         if (nspecies != required_species)
         {
             Util::Abort(INFO,
-                "Rocfire_Aluminized chemistry requires eight gas species.");
+                "GrossModel_Aluminized chemistry requires eight gas species.");
             return {source, 0.0};
         }
 
@@ -52,7 +52,7 @@ struct Rocfire_Aluminized : public Rocfire
         {
             if (!std::isfinite(partial_density[n]))
                 Util::Abort(INFO,
-                    "Rocfire_Aluminized chemistry received non-finite species "
+                    "GrossModel_Aluminized chemistry received non-finite species "
                     "density for species ", n, ": ", partial_density[n]);
             density_scale += std::abs(partial_density[n]);
         }
@@ -66,7 +66,7 @@ struct Rocfire_Aluminized : public Rocfire
             {
                 if (valid_density[n] < -density_tolerance)
                     Util::Abort(INFO,
-                        "Rocfire_Aluminized chemistry received negative species "
+                        "GrossModel_Aluminized chemistry received negative species "
                         "density for species ", n, ": rhoY=", valid_density[n],
                         ", tolerance=", density_tolerance);
                 valid_density[n] = 0.0;
@@ -96,7 +96,7 @@ struct Rocfire_Aluminized : public Rocfire
             return {source, heat_release_integral / dt};
         }
 
-        // Rocfire::evaluate_source touches only indices 0--5.  Both aluminum
+        // GrossModel::evaluate_source touches only indices 0--5.  Both aluminum
         // gas sources therefore remain exactly zero while their densities
         // dilute the reacting mass fractions used by the inherited rates.
         return evaluate_source(pressure, temperature, valid_density, dt);
@@ -252,17 +252,17 @@ struct Rocfire_Aluminized : public Rocfire
     }
 
     static void Parse(
-        Rocfire_Aluminized& value, IO::ParmParse& pp, int gas_species)
+        GrossModel_Aluminized& value, IO::ParmParse& pp, int gas_species)
     {
         Util::Assert(INFO, TEST(gas_species == required_species),
-            "Rocfire_Aluminized chemistry requires eight gas species ordered "
+            "GrossModel_Aluminized chemistry requires eight gas species ordered "
             "as AP, binder, monopropellant, premixed, primary, final, "
             "Al_gas, Al2O3_gas.");
 
         // Reuse the original model's parser without weakening its six-species
-        // contract.  Parameters are read from the rocfire_aluminized prefix;
+        // contract.  Parameters are read from the gross_model_aluminized prefix;
         // restore the aluminized species count afterward.
-        Rocfire::Parse(static_cast<Rocfire&>(value), pp, 6);
+        GrossModel::Parse(static_cast<GrossModel&>(value), pp, 6);
         value.nspecies = gas_species;
     }
 };

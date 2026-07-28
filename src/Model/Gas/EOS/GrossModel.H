@@ -1,11 +1,11 @@
 //
-// :code:Model::Gas::EOS::Rocfire:code: implements the reduced Rocfire gas equation
+// :code:Model::Gas::EOS::GrossModel:code: implements the reduced GrossModel gas equation
 // of state. The reduced closure retains a common mass heat capacity while the
 // gas object supplies a composition-dependent mixture gas constant.
 //
 
-#ifndef MODEL_GAS_EOS_ROCFIRE_H_
-#define MODEL_GAS_EOS_ROCFIRE_H_
+#ifndef MODEL_GAS_EOS_GROSS_MODEL_H_
+#define MODEL_GAS_EOS_GROSS_MODEL_H_
 
 #include "IO/ParmParse.H"
 #include "Model/Gas/EOS/EOS.H"
@@ -14,12 +14,12 @@ namespace Model {
 namespace Gas {
 namespace EOS {
 
-class Rocfire
+class GrossModel
 {
 public:
-    static constexpr const char* name = "rocfire";
+    static constexpr const char* name = "gross_model";
 
-    static void Parse(Rocfire & /*value*/, IO::ParmParse & /*pp*/) {}
+    static void Parse(GrossModel & /*value*/, IO::ParmParse & /*pp*/) {}
 
     template<typename GAS, class Composition>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE

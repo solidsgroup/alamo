@@ -26,7 +26,7 @@
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
-#include "Model/Chemistry/Rocfire.H"
+#include "Model/Chemistry/GrossModel.H"
 
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/ODE/BackwardEuler.H"
@@ -37,7 +37,7 @@
 
 namespace
 {
-struct RocfireJacobianTestGas
+struct GrossModelJacobianTestGas
 {
     Set::Scalar Rg = Set::Constant::Rg;
     std::array<Set::Scalar, 6> MW = {{26.0, 28.0, 24.0, 30.0, 22.0, 32.0}};
@@ -237,14 +237,14 @@ int main (int argc, char* argv[])
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
-    Util::Test::Message("Model::Chemistry::Rocfire Jacobian test");
+    Util::Test::Message("Model::Chemistry::GrossModel Jacobian test");
     {
         int subfailed = 0;
-        Model::Chemistry::Rocfire chemistry;
+        Model::Chemistry::GrossModel chemistry;
         chemistry.nspecies = 6;
-        RocfireJacobianTestGas gas;
+        GrossModelJacobianTestGas gas;
         constexpr int size = 6;
-        const int dependent_species = Model::Chemistry::Rocfire::Primary;
+        const int dependent_species = Model::Chemistry::GrossModel::Primary;
         const Set::Scalar pressure = 2.0e6;
         const Set::Scalar mixture_density = 1200.0;
         const Set::Scalar gas_density = 0.6;

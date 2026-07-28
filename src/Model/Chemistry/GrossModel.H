@@ -1,15 +1,12 @@
 //
-// :code:Model::Chemistry::Rocfire:code: implements a very specific finite rate
+// :code:Model::Chemistry::GrossModel:code: implements a very specific finite rate
 // kinetics model for AP/HTPB combustion using a 4 step, 6 species global reaction
 // mechanism.  The mechanism utilizes a different form of equations for computing
 // reaction rates than typical Cantera/Chemkin style kinetics, so this implementation
 // is separate from :code:Model::Chemistry::FiniteRate:code:.
 //
-// The mechanism is available in public literature, but was originally developed
-// for implementation in Thomas Jackson's (University of Florida) Rocfire
-// software, which is the impetus for the model name.  Note that the Alamo
-// implementation was developed completely independent from Rocfire, and solely
-// from publicly available resources.
+// The mechanism is available in public literature.  This implementation is
+// named GrossModel after Matt Gross, the original author of the model.
 // 
 // Reference: Gross, M. L., Hedman, T. D., Son, S. F., Jackson, T. L., &
 // Beckstead, M. W. (2013). Coupling micro and meso-scale combustion models of
@@ -17,8 +14,8 @@
 // https://doi.org/10.1016/j.combustflame.2013.01.016
 //
 
-#ifndef MODEL_CHEMISTRY_ROCFIRE_H
-#define MODEL_CHEMISTRY_ROCFIRE_H
+#ifndef MODEL_CHEMISTRY_GROSS_MODEL_H
+#define MODEL_CHEMISTRY_GROSS_MODEL_H
 
 #include "AMReX_Extension.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -32,9 +29,9 @@ namespace Model
 namespace Chemistry
 {
 
-struct Rocfire
+struct GrossModel
 {
-    static constexpr const char* name = "rocfire";
+    static constexpr const char* name = "gross_model";
     static constexpr bool reactive = true;
     static constexpr bool has_jacobian = true;
     static constexpr int nreactions = 4;
@@ -64,7 +61,7 @@ struct Rocfire
     Set::Scalar beta = 7.974;
     Set::Scalar gamma = 3.19;
 
-    Rocfire() = default;
+    GrossModel() = default;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static Set::Scalar sum_species(const std::array<Set::Scalar, MAX_SPECIES>& values)
@@ -325,7 +322,7 @@ struct Rocfire
 
         if (nspecies != 6)
         {
-            Util::Abort(INFO, "Rocfire chemistry requires six gas species.");
+            Util::Abort(INFO, "GrossModel chemistry requires six gas species.");
             return {wdot, 0.0};
         }
 
@@ -336,7 +333,7 @@ struct Rocfire
             {
                 if (!std::isfinite(rhoY[n]))
                 {
-                    Util::Abort(INFO, "Rocfire chemistry received non-finite species density for species ",
+                    Util::Abort(INFO, "GrossModel chemistry received non-finite species density for species ",
                         n, ": ", rhoY[n]);
                 }
                 density_scale += std::abs(rhoY[n]);
@@ -350,7 +347,7 @@ struct Rocfire
                 {
                     if (rhoY_valid[n] < -density_tol)
                     {
-                        Util::Abort(INFO, "Rocfire chemistry received negative species density for species ",
+                        Util::Abort(INFO, "GrossModel chemistry received negative species density for species ",
                             n, ": rhoY=", rhoY_valid[n], ", tolerance=", density_tol);
                     }
                     rhoY_valid[n] = 0.0;
@@ -389,12 +386,12 @@ struct Rocfire
         }
     }
 
-    static void Parse(Rocfire& value, IO::ParmParse& pp, int a_nspecies)
+    static void Parse(GrossModel& value, IO::ParmParse& pp, int a_nspecies)
     {
         value.nspecies = a_nspecies;
         Util::Message(INFO, pp.getPrefix());
         Util::Assert(INFO, TEST(value.nspecies == 6),
-            "Rocfire chemistry requires six gas species.");
+            "GrossModel chemistry requires six gas species.");
 
         std::vector<Set::Scalar> A;
         std::vector<Set::Scalar> pressure_exponent;
@@ -411,7 +408,7 @@ struct Rocfire
         else if (integration_type == "implicit")
             value.integration = IntegrationType::IMPLICIT;
         else
-            Util::Abort(INFO, "Invalid Rocfire integration type: ", integration_type);
+            Util::Abort(INFO, "Invalid GrossModel integration type: ", integration_type);
 
         pp.queryarr_default("A", A,
             {"27.0e3_g/cm^3/s", "25.3e3_g/cm^3/s", "5.0e3_g/cm^3/s", "0.4e3_g/cm^3/s"},
@@ -438,23 +435,23 @@ struct Rocfire
         // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
         pp.query_default("gamma", value.gamma, 3.19);
 
-        Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.model.rocfire.A must have 4 entries.");
+        Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.model.gross_model.A must have 4 entries.");
         Util::Assert(INFO, TEST(pressure_exponent.size() == nreactions),
-            "chemistry.model.rocfire.pressure_exponent must have 4 entries.");
+            "chemistry.model.gross_model.pressure_exponent must have 4 entries.");
         Util::Assert(INFO, TEST(activation_energy.size() == nreactions),
-            "chemistry.model.rocfire.activation_energy must have 4 entries.");
-        Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.model.rocfire.qgas must have 4 entries.");
-        Util::Assert(INFO, TEST(qsolid.size() == 2), "chemistry.model.rocfire.qsolid must have 2 entries.");
+            "chemistry.model.gross_model.activation_energy must have 4 entries.");
+        Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.model.gross_model.qgas must have 4 entries.");
+        Util::Assert(INFO, TEST(qsolid.size() == 2), "chemistry.model.gross_model.qsolid must have 2 entries.");
         Util::Assert(INFO, TEST(value.pressure_reference > 0.0),
-            "chemistry.model.rocfire.pressure_reference must be positive.");
-        Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.model.rocfire.nsubsteps must be > 0.");
-        Util::Assert(INFO, TEST(value.max_iter > 0), "chemistry.model.rocfire.max_iter must be > 0.");
-        Util::Assert(INFO, TEST(value.reltol >= 0.0), "chemistry.model.rocfire.reltol must be nonnegative.");
-        Util::Assert(INFO, TEST(value.abstol >= 0.0), "chemistry.model.rocfire.abstol must be nonnegative.");
+            "chemistry.model.gross_model.pressure_reference must be positive.");
+        Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.model.gross_model.nsubsteps must be > 0.");
+        Util::Assert(INFO, TEST(value.max_iter > 0), "chemistry.model.gross_model.max_iter must be > 0.");
+        Util::Assert(INFO, TEST(value.reltol >= 0.0), "chemistry.model.gross_model.reltol must be nonnegative.");
+        Util::Assert(INFO, TEST(value.abstol >= 0.0), "chemistry.model.gross_model.abstol must be nonnegative.");
         Util::Assert(INFO, TEST(value.reltol > 0.0 || value.abstol > 0.0),
-            "Rocfire implicit integration requires a positive tolerance.");
-        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.model.rocfire.beta must be > 0.");
-        Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.model.rocfire.gamma must be > 0.");
+            "GrossModel implicit integration requires a positive tolerance.");
+        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.model.gross_model.beta must be > 0.");
+        Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.model.gross_model.gamma must be > 0.");
 
         std::copy(A.begin(), A.end(), value.A.begin());
         std::copy(pressure_exponent.begin(), pressure_exponent.end(), value.pressure_exponent.begin());

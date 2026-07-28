@@ -1,6 +1,6 @@
 //
-// :code:Model::Gas::Thermo::Rocfire:code: provides a reduced thermodynamic model used
-// with Rocfire-style propellant gas closures.
+// :code:Model::Gas::Thermo::GrossModel:code: provides a reduced thermodynamic model used
+// with GrossModel-style propellant gas closures.
 //
 // The model assumes a common constant mass heat capacity. Species enthalpy is
 // linear in temperature relative to :code:Tref:code:, entropy is zero, and
@@ -12,8 +12,8 @@
 // https://doi.org/10.1016/j.combustflame.2013.01.016
 //
 
-#ifndef MODEL_GAS_THERMO_ROCFIRE_H_
-#define MODEL_GAS_THERMO_ROCFIRE_H_
+#ifndef MODEL_GAS_THERMO_GROSS_MODEL_H_
+#define MODEL_GAS_THERMO_GROSS_MODEL_H_
 
 #include <array>
 #include <vector>
@@ -26,10 +26,10 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class Rocfire
+class GrossModel
 {
 public:
-    static constexpr const char* name = "rocfire";
+    static constexpr const char* name = "gross_model";
 
 private:
     static constexpr int max_species = 64;
@@ -39,15 +39,15 @@ private:
     Set::Scalar Tref;
 
 public:
-    Rocfire() {} ;
+    GrossModel() {} ;
 
-    static void Parse(Rocfire & value, IO::ParmParse & pp,
+    static void Parse(GrossModel & value, IO::ParmParse & pp,
             const std::vector<double>& molecular_weight)
     {
         Util::Assert(INFO, TEST(!molecular_weight.empty()),
             "gas.mw must contain at least one molecular weight.");
         Util::Assert(INFO, TEST(molecular_weight.size() <= max_species),
-            "gas.thermo.rocfire supports at most ", max_species, " species.");
+            "gas.thermo.gross_model supports at most ", max_species, " species.");
         value.nspecies = static_cast<int>(molecular_weight.size());
         // gravimetric specific heat
         pp.query_default("cp_mass", value.cp_mass_value, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
@@ -62,8 +62,8 @@ public:
             value.molecular_weight[n] = molecular_weight[n];
         }
 
-        Util::Assert(INFO, TEST(value.cp_mass_value > 0.0), "gas.thermo.rocfire.cp_mass must be positive.");
-        Util::Assert(INFO, TEST(value.Tref >= 0.0), "gas.thermo.rocfire.Tref must be greater than or equal to zero.");
+        Util::Assert(INFO, TEST(value.cp_mass_value > 0.0), "gas.thermo.gross_model.cp_mass must be positive.");
+        Util::Assert(INFO, TEST(value.Tref >= 0.0), "gas.thermo.gross_model.Tref must be greater than or equal to zero.");
     }
 
 public:
@@ -124,7 +124,7 @@ public:
         return value;
     }
 
-}; // class Rocfire
+}; // class GrossModel
 
 } // namespace Thermo
 } // namespace Gas

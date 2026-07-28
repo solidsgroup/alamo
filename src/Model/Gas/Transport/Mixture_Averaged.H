@@ -7,7 +7,7 @@
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
-#include "Model/Gas/Thermo/Rocfire.H"
+#include "Model/Gas/Thermo/GrossModel.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
@@ -50,7 +50,7 @@ private:
     int nspecies;
     double Rg;
     std::vector<double> MW;
-    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> thermo;
+    Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel> thermo;
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
@@ -65,7 +65,7 @@ public:
 
     static void Parse(  Mixture_Averaged & value, IO::ParmParse & pp,
                         int a_nspecies, std::vector<double> &a_MW,
-                        Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> a_thermo)
+                        Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel> a_thermo)
     {
         value.nspecies = a_nspecies;
         value.MW = a_MW;

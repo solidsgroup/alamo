@@ -1,6 +1,6 @@
 //
-// :code:Model::Gas::Transport::Rocfire:code: provides a reduced transport closure used
-// with Rocfire-style propellant gas models.
+// :code:Model::Gas::Transport::GrossModel:code: provides a reduced transport closure used
+// with GrossModel-style propellant gas models.
 //
 // Thermal conductivity is modeled as a linear function of temperature. Dynamic viscosity
 // is inferred from the Prandtl number and heat capacity, and species diffusion is inferred
@@ -12,8 +12,8 @@
 // https://doi.org/10.1016/j.combustflame.2013.01.016
 //
 
-#ifndef MODEL_GAS_TRANSPORT_ROCFIRE_H_
-#define MODEL_GAS_TRANSPORT_ROCFIRE_H_
+#ifndef MODEL_GAS_TRANSPORT_GROSS_MODEL_H_
+#define MODEL_GAS_TRANSPORT_GROSS_MODEL_H_
 
 #include <array>
 #include <vector>
@@ -22,17 +22,17 @@
 #include "IO/ParmParse.H"
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
-#include "Model/Gas/Thermo/Rocfire.H"
+#include "Model/Gas/Thermo/GrossModel.H"
 #include "Model/Gas/Transport/Transport.H"
 
 namespace Model {
 namespace Gas {
 namespace Transport {
 
-class Rocfire
+class GrossModel
 {
 public:
-    static constexpr const char* name = "rocfire";
+    static constexpr const char* name = "gross_model";
     static constexpr bool common_diffusivity = true;
 
 private:
@@ -42,19 +42,19 @@ private:
     Set::Scalar cp_mass_value, lewis, prandtl, lambda_a, lambda_b;
 
 public:
-    Rocfire() = default;
+    GrossModel() = default;
 
-    static void Parse(  Rocfire & value, IO::ParmParse & pp,
+    static void Parse(  GrossModel & value, IO::ParmParse & pp,
                         int a_nspecies, const std::vector<double> &a_MW,
-                        const Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire> &a_thermo)
+                        const Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel> &a_thermo)
     {
         value.nspecies = a_nspecies;
         Util::Assert(INFO, TEST(static_cast<int>(a_MW.size()) == value.nspecies),
-            "Transport::Rocfire molecular-weight count does not match its species count.");
+            "Transport::GrossModel molecular-weight count does not match its species count.");
         Util::Assert(INFO, TEST(!a_MW.empty()),
             "gas.mw must contain at least one molecular weight.");
         Util::Assert(INFO, TEST(a_MW.size() <= max_species),
-            "gas.transport.rocfire supports at most ", max_species, " species.");
+            "gas.transport.gross_model supports at most ", max_species, " species.");
         // prandtl number
         pp.query_default("prandtl", value.prandtl, "0.69", Unit::Less());
         // lewis number
@@ -74,10 +74,10 @@ public:
         value.cp_mass_value =
             a_thermo.cp_mol_species(0.0, 0) / value.molecular_weight[0];
 
-        Util::Assert(INFO, TEST(value.prandtl > 0.0), "gas.transport.rocfire.prandtl must be positive.");
-        Util::Assert(INFO, TEST(value.lewis > 0.0), "gas.transport.rocfire.lewis must be positive.");
+        Util::Assert(INFO, TEST(value.prandtl > 0.0), "gas.transport.gross_model.prandtl must be positive.");
+        Util::Assert(INFO, TEST(value.lewis > 0.0), "gas.transport.gross_model.lewis must be positive.");
         Util::Assert(INFO, TEST(value.cp_mass_value > 0.0),
-            "gas.transport.rocfire requires positive cp_mass from the thermo model.");
+            "gas.transport.gross_model requires positive cp_mass from the thermo model.");
     }
 
 public:
@@ -118,7 +118,7 @@ public:
             DKM(i,j,k,a) = diffusion_coefficient(T, P, X, i, j, k, a);
     }
 
-}; // class Rocfire
+}; // class GrossModel
 
 } // namespace Transport
 } // namespace Gas

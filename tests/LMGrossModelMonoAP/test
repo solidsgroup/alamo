@@ -15,7 +15,7 @@ if not match:
 
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) < 3:
-    raise RuntimeError("LMRFMonoAP requires at least three plotfiles")
+    raise RuntimeError("LMGrossModelMonoAP requires at least three plotfiles")
 
 times = []
 positions = []

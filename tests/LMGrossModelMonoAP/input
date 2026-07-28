@@ -41,10 +41,10 @@
 #@ args = pressure.ic.constant.value=6.0e6
 #@ args = pressure.bc.constant.val.yhi=6.0e6
 
-# Effectively one-dimensional Rocfire AP monopropellant regression. The
+# Effectively one-dimensional GrossModel AP monopropellant regression. The
 # pressure cases share all phase-field and mechanism parameters.
 
-plot_file = tests/LMRFMonoAP/output
+plot_file = tests/LMGrossModelMonoAP/output
 amr.plot_dt = 1.0e-4_s
 amr.max_level = 0
 amr.n_cell = 2 64
@@ -66,14 +66,14 @@ geometry.is_periodic = 1 0 0
 
 system.amount = kmol
 gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
-gas.thermo.type = rocfire
-gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
-gas.thermo.rocfire.Tref = 273.15_K
-gas.transport.type = rocfire
-gas.transport.rocfire.prandtl = 0.69
-gas.transport.rocfire.lewis = 1.0
-gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
-gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.thermo.type = gross_model
+gas.thermo.gross_model.cp_mass = 0.3_cal/g/K
+gas.thermo.gross_model.Tref = 273.15_K
+gas.transport.type = gross_model
+gas.transport.gross_model.prandtl = 0.69
+gas.transport.gross_model.lewis = 1.0
+gas.transport.gross_model.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.gross_model.lambda_b = 5.32743e-6_cal/cm/s/K
 gas.eos.type = tpg
 
 species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid
@@ -88,13 +88,13 @@ AP_solid.reference_density = 1950.0_kg/m^3
 AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
 
-chemistry.model.type = rocfire
-chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
-chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
-chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
-chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
-chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
-chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.model.type = gross_model
+chemistry.model.gross_model.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.gross_model.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.gross_model.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.gross_model.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.gross_model.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.gross_model.pressure_reference = 1.0_bar
 chemistry.solver.type = backward_euler
 chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8

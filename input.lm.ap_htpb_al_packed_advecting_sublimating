@@ -43,18 +43,18 @@ geometry.is_periodic = 1 0 0
 
 # Gas model
 system.amount = kmol
-gas.thermo.type = rocfire
-gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
-gas.thermo.rocfire.Tref = 273.15_K
-gas.transport.type = rocfire
-gas.transport.rocfire.prandtl = 0.69
-gas.transport.rocfire.lewis = 1.0
-gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
-gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
-gas.eos.type = rocfire
+gas.thermo.type = gross_model
+gas.thermo.gross_model.cp_mass = 0.3_cal/g/K
+gas.thermo.gross_model.Tref = 273.15_K
+gas.transport.type = gross_model
+gas.transport.gross_model.prandtl = 0.69
+gas.transport.gross_model.lewis = 1.0
+gas.transport.gross_model.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.gross_model.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = gross_model
 
-# Rocfire_Aluminized retains the original six reacting species and appends an
-# inert aluminum-bearing gas species. The reduced Rocfire closure accepts one
+# GrossModel_Aluminized retains the original six reacting species and appends an
+# inert aluminum-bearing gas species. The reduced GrossModel closure accepts one
 # molecular weight for every gas species. Al_gas uses its atomic weight and
 # the inert lumped Al2O3_gas species uses its molecular weight of 101.96 g/mol.
 gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.9815385_g/mol 101.96_g/mol
@@ -81,13 +81,13 @@ HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 Al_solid.specific_heat = 900.0_J/kg/K
 Al_solid.thermal_conductivity = 237.0_W/m/K
 
-chemistry.model.type = rocfire_aluminized
-chemistry.model.rocfire_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
-chemistry.model.rocfire_aluminized.pressure_exponent = 1.6 1.7 1.7 1.7
-chemistry.model.rocfire_aluminized.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
-chemistry.model.rocfire_aluminized.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
-chemistry.model.rocfire_aluminized.qsolid = -100.0_cal/g -300.0_cal/g
-chemistry.model.rocfire_aluminized.pressure_reference = 1.0_bar
+chemistry.model.type = gross_model_aluminized
+chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.gross_model_aluminized.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.gross_model_aluminized.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.gross_model_aluminized.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.gross_model_aluminized.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.gross_model_aluminized.pressure_reference = 1.0_bar
 chemistry.solver.type = backward_euler
 chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
