@@ -50,10 +50,11 @@ gas.transport.mixture_averaged.mu = 0.10_Pa*s
 gas.transport.mixture_averaged.k = 0.10_W/m/K
 gas.eos.type = cpg
 
-species.names = ambient Al_liquid Al2O3_liquid
+species.names = ambient Al_liquid Al2O3_liquid tracer_liquid
 ambient.mechanics = fluid
 Al_liquid.mechanics = liquid
 Al2O3_liquid.mechanics = liquid
+tracer_liquid.mechanics = liquid
 
 Al_liquid.reference_density = 10.0_kg/m^3
 Al_liquid.dynamic_viscosity = 0.10_Pa*s
@@ -63,13 +64,18 @@ Al2O3_liquid.reference_density = 10.0_kg/m^3
 Al2O3_liquid.dynamic_viscosity = 0.10_Pa*s
 Al2O3_liquid.specific_heat = 1000.0_J/kg/K
 Al2O3_liquid.thermal_conductivity = 1.0_W/m/K
+tracer_liquid.reference_density = 10.0_kg/m^3
+tracer_liquid.dynamic_viscosity = 0.10_Pa*s
+tracer_liquid.specific_heat = 1000.0_J/kg/K
+tracer_liquid.thermal_conductivity = 1.0_W/m/K
 
 liquid.interface_thickness = 0.125
-liquid.regularization_speed = 0.0
-liquid.smooth_curvature = 1
 liquid.surface_tension.Al_liquid_gas = 1.0
 liquid.surface_tension.Al2O3_liquid_gas = 1.0
 liquid.surface_tension.Al_liquid_Al2O3_liquid = 1.0
+liquid.surface_tension.Al_liquid_tracer_liquid = 1.0
+liquid.surface_tension.Al2O3_liquid_tracer_liquid = 1.0
+liquid.surface_tension.tracer_liquid_gas = 1.0
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
@@ -99,6 +105,9 @@ Al_liquid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh(2.0*(sqrt((x-x0)*(x
 Al2O3_liquid.density.ic.type = constant
 Al2O3_liquid.density.ic.constant.value = 0.0
 
+tracer_liquid.density.ic.type = constant
+tracer_liquid.density.ic.constant.value = 0.0
+
 ambient.density.ic.type = expression
 ambient.density.ic.expression.constant.rho = 1.12254198039921
 ambient.density.ic.expression.constant.x0 = 0.5
@@ -119,10 +128,10 @@ pressure.ic.type = constant
 pressure.ic.constant.value = 1.0e5
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic periodic periodic
-component_density.bc.constant.type.xhi = periodic periodic periodic
-component_density.bc.constant.type.ylo = periodic periodic periodic
-component_density.bc.constant.type.yhi = periodic periodic periodic
+component_density.bc.constant.type.xlo = periodic periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic periodic
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic periodic
 velocity.bc.constant.type.xhi = periodic periodic

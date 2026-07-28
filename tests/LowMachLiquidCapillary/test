@@ -10,10 +10,13 @@ def fields(path):
     ds = testlib.yt.load(path)
     grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
     eta = grid[("boxlib", "liquid_eta_Al_liquid")].to_ndarray()[:, :, 0]
+    eta_oxide = grid[("boxlib", "liquid_eta_Al2O3_liquid")].to_ndarray()[:, :, 0]
+    eta_tracer = grid[("boxlib", "liquid_eta_tracer_liquid")].to_ndarray()[:, :, 0]
+    eta_gas = grid[("boxlib", "liquid_eta_gas")].to_ndarray()[:, :, 0]
     ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
     uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
     pressure = grid[("boxlib", "pressure")].to_ndarray()[:, :, 0]
-    return eta, ux, uy, pressure
+    return eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure
 
 
 outdir = sys.argv[1]
@@ -21,9 +24,16 @@ plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) != 2:
     raise RuntimeError("Static-droplet regression requires initial and final plotfiles")
 
-eta0, ux0, uy0, _ = fields(plotfiles[0])
-eta, ux, uy, pressure = fields(plotfiles[-1])
+eta0, _, _, _, ux0, uy0, _ = fields(plotfiles[0])
+eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure = fields(plotfiles[-1])
 speed = testlib.numpy.sqrt(ux * ux + uy * uy)
+
+simplex_error = testlib.numpy.max(testlib.numpy.abs(
+    eta + eta_oxide + eta_tracer + eta_gas - 1.0))
+if simplex_error > 1.0e-12:
+    raise RuntimeError(f"MultLiquid simplex error {simplex_error:.3e}")
+if testlib.numpy.max(testlib.numpy.abs(eta_tracer)) > 1.0e-14:
+    raise RuntimeError("An absent liquid phase was spuriously generated")
 
 if "checkerboard" in outdir:
     initial_speed = testlib.numpy.sqrt(ux0 * ux0 + uy0 * uy0)
