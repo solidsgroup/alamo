@@ -6,6 +6,21 @@ regenerate/edit by hand as tasks close — do not let this exceed 100 lines.
 
 ## Current phase & gate
 
+**Active work is the chamber-gpu-mem memory-strategy campaign, Phase 0** —
+`docs/agent_plans/20260727-gpu-memory-strategy/PLAN.md` (v2.0) and its
+deliverable record `results/PHASE0_v2.md`. Phases 1-3 of that campaign are
+blocked on preconditions P1-P4, and the branch currently carries a live 3D
+GPU correctness defect (`NOTES.md` N11, folder
+`docs/agent_plans/20260728-elastic-psi-stencil-oob/`).
+
+**`status.sh` changed 2026-07-28.** Its default run is orientation only and is
+explicitly NOT a correctness gate; the sanitizer and gpu_strict legs run under
+`FULL=1 bash benchmark/status.sh`. Use `FULL=1` before committing `src/` and at
+every phase exit.
+
+The Phase 3 material below is retained as the standing gate definition and as
+the elastic-optimization backlog; it is not the active phase.
+
 **Phase 3 — elastic `Fapply` structural win**, on `chamber-gpu` /
 `chamber-gpu-elastic-opt`. Phase 1 (physics-error-budget validation suite,
 `benchmark/validate/`) is the standing gate: **no kernel optimization ships
@@ -23,7 +38,19 @@ correctness smokes, not speed evidence.
 
 ## Next 3 tasks
 
-1. **3.3 — FApply runtime follow-on. DONE 2026-07-22.**
+1. **3.3 — FApply runtime follow-on. DONE 2026-07-22. RECOMMENDATION REFUTED
+   2026-07-28 — DO NOT ADOPT 2/2.**
+   Job `11772154` ran both arms on `input_copy` for 800 steps at production
+   cadence. 4/4 completed 37 elastic solves (MLMG iters mean 157.41, max 289).
+   **2/2 diverged on the first solve** — residual growing ~4.4× per iteration
+   to 1.735e+20, then `amrex::Abort::0::MLMG failing so lets stop here`, dead
+   at 6.5 s of an expected 431 s. Evidence:
+   `docs/agent_plans/20260727-phase0-baseline/results/RESULT.md` §L6.
+   The measurements below stand and the task correctly bounded itself to the
+   frozen two-step horizon; the horizon simply cannot see this failure mode.
+   All decks already set 4/4, so nothing shipped and nothing needs reverting.
+   Original text follows.
+
    Retain configuration-only 2/2 pre/post smoothing: on A1000 it reduced
    external wall by 12.8%/21.0% and MLMG solve by 24.0%/23.4% in the frozen
    2D-conservative/3D-psi two-step cases. Step 3 conservative specialization
