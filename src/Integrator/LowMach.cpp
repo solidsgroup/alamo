@@ -319,10 +319,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         std::vector<std::string> rigid_species_suffix;
         for (const int n : value.rigid_solid_species)
             rigid_species_suffix.push_back(species_suffix[n]);
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 1, "rigid_eta", true, false);
+        // 2 ghost cells (rather than 1) so that the elastic solver's
+        // cell-to-node averaging of psi/model on grown boxes has valid data.
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 2, "rigid_eta", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.rigid_species_eta_mf, &value.bc_nothing,
-            value.rigid_solid_species.size(), 1, "rigid_species_eta",
+            value.rigid_solid_species.size(), 2, "rigid_species_eta",
             true, false, rigid_species_suffix);
     }
 
@@ -356,6 +358,35 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (value.deformable_solid_species >= 0)
             value.AddField<Set::Matrix,Set::HC::Cell>(value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
     }
+
+    // Elastic solve over the rigid solid phase. Only active when elastic.type
+    // is specified, so existing LowMach inputs are unaffected.
+    if (pp.contains("elastic.type"))
+    {
+        if (value.rigid_solid_species.empty())
+            Util::Exception(INFO, "elastic.type requires at least one rigid_solid species");
+
+        // Constant traction applied at the solid/fluid interface
+        pp.query_default("elastic.traction", value.elastic.traction, "0.0", Unit::Pressure());
+        // Solid fraction below which no interface traction is applied
+        pp.query_default("elastic.etacutoff", value.elastic.etacutoff, "0.0", Unit::Less());
+
+        pp.queryclass<Base::Mechanics<elastic_model_type>>("elastic", value);
+
+        if (value.m_type != Base::Mechanics<elastic_model_type>::Type::Disable)
+        {
+            for (const int n : value.rigid_solid_species)
+                pp.queryclass<elastic_model_type>(
+                    value.species_names[n] + ".elastic.model", value.elastic_model[n]);
+
+            // Use the rigid solid volume fraction directly as psi
+            // (cf. Flame::Parse, which does the same with its eta_mf).
+            value.psi_on = false;
+            value.solver.setPsi(value.rigid_eta_mf);
+        }
+    }
+    else
+        value.m_type = Base::Mechanics<elastic_model_type>::Type::Disable;
 
     bool allow_unused;
     pp.query_default("allow_unused", allow_unused, false);
@@ -551,17 +582,18 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
         eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     if (rigid_solid)
     {
+        const int rigid_nghost = rigid_species_eta_mf[lev]->nGrow();
         for (int m = 0; m < static_cast<int>(rigid_solid_species.size()); ++m)
         {
             const int n = rigid_solid_species[m];
             amrex::MultiFab::Copy(
                 *rigid_species_eta_mf[lev], component_density_mf,
-                n, m, 1, 1);
+                n, m, 1, rigid_nghost);
             rigid_species_eta_mf[lev]->mult(
-                1.0 / reference_density[n], m, 1, 1);
+                1.0 / reference_density[n], m, 1, rigid_nghost);
             amrex::MultiFab::Saxpy(
                 *rigid_eta_mf[lev], 1.0, *rigid_species_eta_mf[lev],
-                m, 0, 1, 1);
+                m, 0, 1, rigid_nghost);
         }
         rigid_species_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -1691,6 +1723,7 @@ void
 LowMach::Initialize(int lev)
 {
     BL_PROFILE("Integrator::LowMach::Initialize");
+    Base::Mechanics<elastic_model_type>::Initialize(lev);
     const bool deformable_solid = deformable_solid_species >= 0;
 
     velocity_mf[lev]->setVal(0.0, 0, velocity_mf[lev]->nComp(), velocity_mf[lev]->nGrow());
@@ -2034,6 +2067,7 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 void
 LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+    Base::Mechanics<elastic_model_type>::Advance(lev, time, dt);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool split_chemistry = chemistry.Split();
     if (split_chemistry && time == t_new[0])
@@ -2155,11 +2189,110 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 }
 
 //
+// Build the elastic model field and interfacial body force (rhs) from the
+// rigid solid species composition. Called from
+// Base::Mechanics<elastic_model_type>::TimeStepBegin.
+//
+// - model_mf is set to the volume-fraction-weighted mixture of each rigid
+//   solid species' elastic constants (normalized so the weights sum to 1
+//   inside the solid; outside the solid the model is masked out by psi =
+//   rigid_eta_mf, so its value there is irrelevant).
+// - rhs_mf is set to a constant traction acting normal to the solid/fluid
+//   interface: rhs = elastic.traction * grad(rigid_eta). This is a stand-in
+//   for the local fluid pressure and will be replaced by a real two-way
+//   coupling in a follow-on change.
+//
+void
+LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
+{
+    if (m_type == Base::Mechanics<elastic_model_type>::Type::Disable) return;
+
+    const int nrigid = static_cast<int>(rigid_solid_species.size());
+
+    // Fixed-size, capture-by-value copy: std::vector is not usable in a
+    // device lambda.
+    std::array<elastic_model_type, Model::Chemistry::MAX_SPECIES> models{};
+    for (int m = 0; m < nrigid; ++m)
+        models[m] = elastic_model[rigid_solid_species[m]];
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        amrex::Box domain = geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        const Set::Scalar* DX = geom[lev].CellSize();
+
+        rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+        rigid_species_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            amrex::Box smallbox = mfi.nodaltilebox();
+            amrex::Box bx       = mfi.grownnodaltilebox() & domain;
+
+            Set::Patch<elastic_model_type> model = model_mf.Patch(lev, mfi);
+            Set::Patch<Set::Vector>        rhs   = rhs_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar>  rigid_eta   = rigid_eta_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar>  species_eta = rigid_species_eta_mf.Patch(lev, mfi);
+
+            const Set::Scalar traction  = elastic.traction;
+            const Set::Scalar etacutoff = elastic.etacutoff;
+            const Set::Scalar eta_small = small;
+
+            // Interfacial body force (constant traction for now)
+            amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Vector grad_eta =
+                    Numeric::CellGradientOnNode(rigid_eta, i, j, k, 0, DX);
+                Set::Scalar eta_node =
+                    Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0);
+                if (eta_node > etacutoff)
+                    rhs(i,j,k) = traction * grad_eta;
+                else
+                    rhs(i,j,k) = Set::Vector::Zero();
+            });
+
+            // Composition-weighted model
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Scalar w[Model::Chemistry::MAX_SPECIES] = {};
+                Set::Scalar total = 0.0;
+                for (int m = 0; m < nrigid; ++m)
+                {
+                    w[m] = Util::Max(Numeric::Interpolate::CellToNodeAverage(
+                                         species_eta, i, j, k, m), 0.0);
+                    total += w[m];
+                }
+                // Normalize so the weights sum to exactly 1 inside the solid.
+                // This keeps F0 an affine mixture (F0 is scaled by
+                // operator*, so weights summing to <1 would drive it
+                // singular). Outside the solid the model is arbitrary but
+                // masked out by psi = rigid_eta.
+                const bool valid = total > eta_small;
+                elastic_model_type mixed = models[0] * (valid ? w[0] / total : 1.0);
+                for (int m = 1; m < nrigid; ++m)
+                    mixed += models[m] * (valid ? w[m] / total : 0.0);
+                model(i,j,k) = mixed;
+            });
+        }
+        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+    }
+}
+
+//
 // Calculate dynamic timestep
 //
 void
-LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+LowMach::TimeStepBegin(Set::Scalar time, int iter)
 {
+    if (m_type != Base::Mechanics<elastic_model_type>::Type::Disable)
+    {
+        // Ensure rigid_eta_mf / rigid_species_eta_mf are current before
+        // UpdateModel (called from Base::Mechanics::TimeStepBegin) uses them.
+        for (int lev = 0; lev <= finest_level; ++lev)
+            UpdateComponentState(lev, *component_density_mf[lev]);
+        Base::Mechanics<elastic_model_type>::TimeStepBegin(time, iter);
+    }
+
     if (!dynamictimestep.on) return;
 
     Set::Scalar advmax = 0.0;
@@ -2206,7 +2339,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                 include_conduction && !implicit_thermal_diffusion;
             const bool species_diffusive =
                 ngas_species > 1 && !implicit_species_diffusion;
-            const bool elastic = explicit_solid_deviatoric_stress;
+            const bool explicit_elastic = explicit_solid_deviatoric_stress;
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
             const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
@@ -2241,7 +2374,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                         nu = Util::Max(nu, gas.diffusion_coefficient(
                             T(i,j,k), p_reference, X, i, j, k, n));
                 Set::Scalar elastic_rate = 0.0;
-                if (elastic && Util::Clamp(eta(i,j,k), 0.0, 1.0) > eta_threshold)
+                if (explicit_elastic && Util::Clamp(eta(i,j,k), 0.0, 1.0) > eta_threshold)
                 {
                     Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
                     Set::Scalar wave_speed = std::sqrt(Util::Max(kappa_solid + (4.0 / 3.0) * mu_solid, mu_solid) / density);
@@ -2400,8 +2533,9 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
 }
 
 void
-LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow)
 {
+    Base::Mechanics<elastic_model_type>::TagCellsForRefinement(lev, tags, time, ngrow);
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = 0.0;
     for (int d = 0; d < AMREX_SPACEDIM; ++d)

@@ -20,6 +20,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Solid/Finite/NeoHookean.H"
+#include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
 #include "Numeric/Advect/Centered.H"
@@ -30,11 +31,15 @@
 #include "Numeric/ReferenceMap/Reconstruction.H"
 #include "Operator/Diffusion.H"
 #include "Operator/PressurePoisson.H"
+#include "Integrator/Base/Mechanics.H"
 
 namespace Integrator
 {
-class LowMach : virtual public Integrator
+class LowMach : virtual public Integrator,
+                virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
 {
+    using elastic_model_type = Model::Solid::Finite::NeoHookeanPredeformed;
+
 public:
     static constexpr const char* name = "lowmach";
 
@@ -68,6 +73,7 @@ protected:
     void PrintDiagnostics(Set::Scalar time, int iter);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+    void UpdateModel(int a_step, Set::Scalar a_time) override;
 
     void UpdateSolidStress(int lev,
                             const amrex::MultiFab& u_mf,
@@ -169,6 +175,15 @@ protected:
     int nspecies = 0;
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
+
+    // Elastic constants for each rigid solid species, indexed by global
+    // species index n (parallel to condensed_specific_heat, etc). Only
+    // entries in rigid_solid_species are populated/used.
+    std::array<elastic_model_type, Model::Chemistry::MAX_SPECIES> elastic_model;
+    struct {
+        Set::Scalar traction  = 0.0;
+        Set::Scalar etacutoff = 0.0;
+    } elastic;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;

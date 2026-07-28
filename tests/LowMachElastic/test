@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*node/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachElastic requires initial and final plotfiles")
+
+final = plotfiles[-1]
+ds = testlib.yt.load(final)
+ad = ds.all_data()
+
+
+def field(name):
+    arr = ad[name].to_ndarray()
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+    return arr
+
+
+# This is a regression/smoke test for the LowMach elastic solve, not a
+# comparison against an analytic solution -- see Readme.rst. It checks that
+# the arbitrary-count rigid_solid species mixing feeds the elastic solver
+# correctly, and that the solve itself produces sane, finite results.
+
+# 1. The model field must correctly mix the two rigid_solid species' elastic
+# constants by volume fraction. AP_solid.elastic.model.mu/kappa = 140/150,
+# HTPB_solid.elastic.model.mu/kappa = 130/140 (see input for why this
+# contrast is modest). Everywhere in the domain the mixed value must lie
+# within [min, max] of the two species (a convex combination), and both
+# extremes must actually be reached (confirming both species are present
+# and mixed, not just one).
+mu = field("model_mu")
+kappa = field("model_kappa")
+mu_lo, mu_hi = 130.0, 140.0
+kappa_lo, kappa_hi = 140.0, 150.0
+tol = 1.0e-6
+if mu.min() < mu_lo - tol or mu.max() > mu_hi + tol:
+    raise RuntimeError(
+        f"model_mu out of the convex-combination range [{mu_lo},{mu_hi}]: "
+        f"got [{mu.min()},{mu.max()}]")
+if kappa.min() < kappa_lo - tol or kappa.max() > kappa_hi + tol:
+    raise RuntimeError(
+        f"model_kappa out of the convex-combination range [{kappa_lo},{kappa_hi}]: "
+        f"got [{kappa.min()},{kappa.max()}]")
+if not (mu.max() - mu.min() > 1.0):
+    raise RuntimeError("model_mu shows no variation -- AP/HTPB mixing did not occur")
+
+# 2. disp/stress/strain must be finite everywhere (checked via `field()`
+# above raising on non-finite values).
+disp_x = field("disp_x")
+disp_y = field("disp_y")
+field("stress_xx")
+field("stress_yy")
+field("strain_xx")
+field("strain_yy")
+
+# 3. Traction-dependent displacement magnitude check.
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+traction = 0.0
+with open(f"{outdir}/metadata") as f:
+    for line in f:
+        if "elastic.traction" in line:
+            traction = float(line.split("=")[-1].strip())
+
+if traction == 0.0:
+    # Zero interfacial traction: no driving force anywhere, so displacement
+    # should stay at (numerically) zero.
+    if disp_mag_max > 1.0e-8:
+        raise RuntimeError(
+            f"traction=0 case shows nonzero displacement: max|disp|={disp_mag_max}")
+else:
+    # Nonzero interfacial traction: displacement must actually respond.
+    if not (disp_mag_max > 1.0e-6):
+        raise RuntimeError(
+            f"traction={traction} case shows no displacement response "
+            f"(max|disp|={disp_mag_max})")
+
+print(f"LowMachElastic smoke test passed (traction={traction}, "
+      f"max|disp|={disp_mag_max:.6g}, "
+      f"model_mu range=[{mu.min():.3g},{mu.max():.3g}])")

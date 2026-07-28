@@ -1,0 +1,222 @@
+#@ [2d-*]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@
+#@ [2d-traction-zero]
+#@ args = elastic.traction=0.0
+#@
+#@ [2d-traction-applied]
+#@ args = elastic.traction=150.0
+
+# Smoke test for the LowMach elastic solve added to support fluid-structure
+# interaction with an arbitrary number of rigid_solid species.
+#
+# Two rigid_solid species (AP_solid, HTPB_solid) occupy the bottom half of
+# the domain (y < y0), separated by a diffuse interface at x = x0 (AP_solid
+# to the left, HTPB_solid to the right). A single fluid species (Gas)
+# occupies the top half (y > y0) at a uniform reference pressure. Chemistry
+# is frozen and there are no phase change mechanisms, so the composition
+# (and hence rigid_eta / the AP-HTPB split) does not evolve -- this isolates
+# the elastic solve/model-mixing from the rest of the physics.
+#
+# This is a regression/smoke test, not a comparison against an analytic
+# solution (see Readme.rst): it checks that
+#   - the model field mu/kappa correctly mixes the two rigid_solid species'
+#     elastic constants by their (arbitrary-count) volume fractions,
+#   - the elastic solve produces finite disp/stress/strain,
+#   - a zero interfacial traction produces (near) zero displacement, and
+#   - a nonzero interfacial traction produces a nonzero, physically sane
+#     displacement localized at the solid/fluid interface.
+#
+# The two sub-cases above only differ in elastic.traction.
+
+plot_file = tests/LowMachElastic/output
+amr.plot_dt = 2.0e-6_s
+amr.max_level = 0
+amr.n_cell = 32 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+
+timestep = 1.0e-7_s
+stop_time = 1.0e-5_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 2.5e-6
+
+geometry.prob_lo = 0.0    0.0     0.0
+geometry.prob_hi = 3.2e-3 6.4e-3  0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 29.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas AP_solid HTPB_solid
+Gas.mechanics        = fluid
+AP_solid.mechanics   = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+
+AP_solid.reference_density   = 1950.0_kg/m^3
+HTPB_solid.reference_density =  920.0_kg/m^3
+
+# Elastic constants for each rigid solid species. These use the same
+# nondimensional-style magnitudes (O(1)-O(1e2), no explicit Pa/MPa suffix)
+# as every other elastic test in this suite (e.g. tests/SCPSpheresElastic,
+# tests/Eshelby): Operator::Elastic's multigrid solve is only well-behaved
+# when the modulus/dx^2 ratio stays moderate. Literal SI moduli (~1e8 Pa)
+# combined with this test's SI grid spacing (~1e-4 m) push that ratio to
+# ~1e16-1e20 and the MLMG solve fails to converge -- a numerical scaling
+# limitation of the elastic solver, not a bug in the model-mixing logic
+# being tested here.
+#
+# The AP/HTPB contrast is deliberately modest (~7%, vs. e.g. 140/8 used in
+# tests/SCPSpheresElastic). During development, any two-material contrast
+# larger than this -- regardless of magnitude, independent of the
+# rigid/fluid void, the traction forcing, or the profile shape used for the
+# AP/HTPB split -- caused this solver's multigrid V-cycle to diverge on this
+# mesh (verified: the mixed model_mu/model_kappa fields themselves are
+# computed correctly; a spatially UNIFORM model converges in ~15-30
+# iterations regardless of magnitude; any spatial CONTRAST between the two
+# species, even applied via a plain boundary traction with no interior void
+# at all, diverges). This looks like a pre-existing multigrid-for-
+# heterogeneous-media robustness gap rather than anything specific to
+# LowMach's new elastic path, but it was not root-caused further here --
+# see Readme.rst.
+AP_solid.elastic.model.mu    = 140.0
+AP_solid.elastic.model.kappa = 150.0
+HTPB_solid.elastic.model.mu    = 130.0
+HTPB_solid.elastic.model.kappa = 140.0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diagnostics.interval = 0
+
+# Complementary smooth density profiles:
+#   rigid_eta            = 0.5*(1 - tanh((y-y0)/wy))   -- solid below y0
+#   AP fraction of solid  = 0.5*(1 - tanh((x-x0)/wx))   -- AP left of x0
+#   HTPB fraction         = 1 - (AP fraction)           -- HTPB right of x0
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.rho = 1950.0
+AP_solid.density.ic.expression.constant.y0  = 3.2e-3
+AP_solid.density.ic.expression.constant.wy  = 2.0e-4
+AP_solid.density.ic.expression.constant.x0  = 1.6e-3
+AP_solid.density.ic.expression.constant.wx  = 2.0e-4
+AP_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))*0.5*(1.0-tanh((x-x0)/wx))"
+
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.constant.rho = 920.0
+HTPB_solid.density.ic.expression.constant.y0  = 3.2e-3
+HTPB_solid.density.ic.expression.constant.wy  = 2.0e-4
+HTPB_solid.density.ic.expression.constant.x0  = 1.6e-3
+HTPB_solid.density.ic.expression.constant.wx  = 2.0e-4
+HTPB_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))*0.5*(1.0+tanh((x-x0)/wx))"
+
+#
+# NOTE: LowMach's pressure projection includes a mixture-volume-constraint
+# term (rhs += (volume_fraction-1)/dt, "mixed_phase" branch of RHS()) that
+# requires gas_volume_fraction + rigid_eta == 1 everywhere -- i.e. the gas
+# density profile must be the exact ideal-gas-consistent complement of the
+# solid volume fraction, not an independently-chosen profile. Getting this
+# wrong (e.g. a spatially uniform gas density, or one inconsistent with
+# P/(R*T) in the diffuse band) leaves a residual (volume_fraction-1) that is
+# divided by dt, injecting an O(1/dt) pressure-Poisson source that produces
+# unbounded velocity as dt/dx -> 0 -- this looks exactly like a solver
+# instability but is purely an inconsistent-IC bug. Matches the pattern
+# used for the "Final" (gas) species IC in tests/LMRFMonoAP/input.
+#
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 1.0e6
+Gas.density.ic.expression.constant.R  = 286.7  # ~8314.4 J/kmol/K / 29.0 g/mol
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.y0 = 3.2e-3
+Gas.density.ic.expression.constant.wy = 2.0e-4
+Gas.density.ic.expression.region0 = "(P/(R*T))*0.5*(1.0+tanh((y-y0)/wy))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e6
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = neumann neumann
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# One open (Dirichlet-pressure) boundary at the top (gas side) is required
+# for a well-posed pressure projection; an all-Neumann (fully closed) box is
+# a singular pure-Neumann problem and the projection solve will not converge.
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 1.0e6
+
+# Elastic solve over the rigid solid phase
+elastic.type = static
+elastic.traction = 0.0
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.verbose = 0
+elastic.solver.nriters = 1
+elastic.solver.fixed_iter = 300
+
+# Base (y=ylo) is clamped, everything else is traction-free -- the only
+# driving force is the interfacial body force computed from rigid_eta.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = trac trac
+elastic.bc.constant.type.xhi = trac trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = trac trac
+elastic.bc.constant.type.xhiyhi = trac trac
