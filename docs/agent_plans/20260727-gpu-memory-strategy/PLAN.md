@@ -71,6 +71,7 @@ Recorded so the deltas stay visible rather than being silently absorbed.
 | C4 | T1 (managed off) is a Phase 1 exit gate | T1 is **NOVA/A100-only**. Local A1000 (8 GB) keeps managed; it cannot validate T1 | A1000 needs managed at 8 GB; `the_arena_init_size` default already OOMs intermittently at init |
 | C5 | §14 open questions 1-5 all open | Q1-Q3 partly answered from source (§14). Q4 answered. Q5 answered | Source read 2026-07-27, this session |
 | C6 | Testing implicitly local | Explicit access + scheduling model added (§2) | User ruling: `ssh -MN` tunnel, agent-authorized runs, SLURM-bound |
+| C7 | "chamber" used throughout to mean the whole simulation | **"Chamber" = `Model/Chamber/Ballistic.H`, the ballistic chamber model, and it needs no work.** The targets are **Flame, Hydro, Elastic** and whatever they depend on | User ruling 2026-07-27, answering the §6 decision gate. See §17 |
 
 ---
 
@@ -728,6 +729,73 @@ CLAUDE.md hard rule, restated because this campaign is entirely perf work:
 Tier-2 gate ignores mid-run aborts; supplement with a converging-deck memcheck.
 
 ---
+
+## 17. Target correction — decision gate answered 2026-07-27
+
+The §6 decision gate ("is chamber the right target?") is **answered: proceed, but
+not on chamber.**
+
+User ruling, verbatim in substance: *"chamber specifically is fine. When I say
+chamber I mean the actual code which handles the chamber, ballistic. What I need
+is work done on flame, hydro, elastic, and any of the other files which flame,
+hydro, and elastic need to run."*
+
+This document, and the branch name, used "chamber" as shorthand for the whole
+simulation. That was wrong. Corrections:
+
+| Was | Is |
+|---|---|
+| Optimize "the chamber timestep loop" | Optimize **Flame, Hydro, Elastic** and their dependencies |
+| `Model/Chamber/Ballistic.H` implicitly in scope | Ballistic **needs no work** — out of scope |
+| §9 headline = "the chamber feedback loop" | §9 headline = **sync elimination in the Flame/Elastic step loop**; the chamber loop is one instance, not the point |
+
+### What this changes, concretely
+
+1. **§9 keeps its site inventory but loses its headline framing.** The
+   device-resident-pressure-scalar design (one-element device array, one-thread
+   update kernel, Allreduce-shaped reduction) was justified as a *chamber*
+   improvement. Chamber is fine. That work now has to stand on **sync removal
+   alone**: `Flame.cpp:1127` is a device sync per box per complement-piece per
+   level inside `Flame::Integrate`, and that cost is Flame's, not Ballistic's.
+   It stays a Phase 2 target on those grounds. Do not carry the chamber-physics
+   justification forward — it is no longer load-bearing.
+2. **Hydro enters scope and has never been assessed.** See §18.
+3. **Elastic keeps its C2 status**: memory residency, arena, and sync work is in
+   scope; algorithmic redesign is not.
+4. The branch name `chamber-gpu-mem` is now a misnomer. Not worth a rename
+   mid-campaign; recorded here so the name is not read as scope.
+
+## 18. Hydro — in scope, unassessed (opened 2026-07-27)
+
+Nothing in this campaign's Phases 0-4 was written with Hydro in mind. Facts
+established from source on 2026-07-27, before any judgment:
+
+- `src/Integrator/Hydro.{H,cpp}`, entry point `src/hydro.cc`. Coupled to the
+  phase-field side through `src/Integrator/SFI.H`
+  (`SFI<PF> : virtual PF, virtual Hydro`), instantiated for `flame`,
+  `allencahn`, and `dendrite` in `src/sfi.cc`. **`SFI.H` is `#if
+  AMREX_SPACEDIM==2` only** — there is no 3D Flame+Hydro coupling today.
+- Hydro is **device-shaped already**: `amrex::ParallelFor` with
+  `AMREX_GPU_DEVICE` lambdas in `Mix`, `Advance`, `RHS`, `TagCellsForRefinement`
+  and others. It is not a from-scratch port.
+- **Zero tiling guards.** All 10 `MFIter` constructions in `Hydro.cpp` hardcode
+  `true`/`false`; `TilingIfNotGPU()` appears 0 times. For comparison:
+  `Elastic.cpp` 8 of 13, `Flame.cpp` 1 of 10, `Integrator.cpp` 0 of 3. CPU tiling
+  on a GPU is pure overhead (§10), so this is the same defect class as NOTES N3
+  and it is systemic rather than isolated.
+- **No GPU Hydro binary has ever been built in this repo.** `bin/` carries
+  `hydro-2d-g++` and `sfi-2d-g++`, both CPU. `build_alamo_nova.sh` builds only
+  `bin/alamo_gpu`. Whether `hydro`/`sfi` even *compile* under `--cuda` is
+  unknown and untested.
+- Hydro is inside the device-lint scan scope (`SCAN_DIRS` includes
+  `src/Integrator`) and currently lints clean — but that lint enforces three bug
+  patterns, not device-readiness.
+
+**Open question, needs a decision before Phase 1 planning is final:** is Hydro a
+*memory-strategy* target (like Flame/Elastic: ported, works, now optimize
+residency) or a *porting* target (does not run on GPU yet)? Those are different
+campaigns. The cheap discriminator is a single `configure --cuda && make bin/sfi`
+plus a short run — do that before folding Hydro into any phase.
 
 ## Note on specifics
 
