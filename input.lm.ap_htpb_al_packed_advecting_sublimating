@@ -108,8 +108,8 @@ rigid.free.picard_tolerance = 1.0e-5
 mechanisms.names = AP_decomposition HTPB_pyrolysis Al_sublimation
 
 AP_decomposition.type = phase_change
-AP_decomposition.phase_change.in = AP_solid
-AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.phase0 = AP_solid
+AP_decomposition.phase_change.phase1 = AP_gas
 AP_decomposition.phase_change.rate_multiplier = 2450.0
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 500.0_K
@@ -120,8 +120,8 @@ AP_decomposition.phase_change.phase_field.allencahn.epsilon = 80.0_um
 AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 HTPB_pyrolysis.type = phase_change
-HTPB_pyrolysis.phase_change.in = HTPB_solid
-HTPB_pyrolysis.phase_change.out = HTPB_gas
+HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
+HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
 HTPB_pyrolysis.phase_change.rate_multiplier = 2.333333333333333e5
 HTPB_pyrolysis.phase_change.activation_temperature = 7500.0_K
 HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
@@ -132,8 +132,8 @@ HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 80.0_um
 HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
 
 Al_sublimation.type = phase_change
-Al_sublimation.phase_change.in = Al_solid
-Al_sublimation.phase_change.out = Al_gas
+Al_sublimation.phase_change.phase0 = Al_solid
+Al_sublimation.phase_change.phase1 = Al_gas
 # This deliberately elevated 0.5 mm/s regression speed shrinks the nominal
 # 75 um particle radius by 12.5 um over the 25 ms simulation.
 Al_sublimation.phase_change.prescribed_speed = 0.5_mm/s

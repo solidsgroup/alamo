@@ -87,8 +87,8 @@ chemistry.solver.backward_euler.abstol = 1.0e-12
 # The phase-field gradient terms are integrated implicitly.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
-AP_decomposition.phase_change.in = AP_solid
-AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.phase0 = AP_solid
+AP_decomposition.phase_change.phase1 = AP_gas
 AP_decomposition.phase_change.rate_multiplier = 2.75e6
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 360.0_K
@@ -101,8 +101,8 @@ AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
 AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
 HTPB_pyrolysis.type = phase_change
-HTPB_pyrolysis.phase_change.in = HTPB_solid
-HTPB_pyrolysis.phase_change.out = HTPB_gas
+HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
+HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
 HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
 HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
 HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K

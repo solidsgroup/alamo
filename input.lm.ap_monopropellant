@@ -68,8 +68,8 @@ chemistry.solver.backward_euler.abstol = 1.0e-12
 # bridge. Recalibration against physical scalar conduction remains necessary.
 mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
-AP_decomposition.phase_change.in = AP_solid
-AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.phase0 = AP_solid
+AP_decomposition.phase_change.phase1 = AP_gas
 AP_decomposition.phase_change.rate_multiplier = 2450.0
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 500.0_K

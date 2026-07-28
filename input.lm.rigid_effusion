@@ -50,8 +50,8 @@ Al_solid.rigid.motion = free
 
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
-Al_sublimation.phase_change.in = Al_solid
-Al_sublimation.phase_change.out = Al_gas
+Al_sublimation.phase_change.phase0 = Al_solid
+Al_sublimation.phase_change.phase1 = Al_gas
 Al_sublimation.phase_change.phase_field.type = allencahn
 
 rigid.relaxation_time = 5.0e-5_s
