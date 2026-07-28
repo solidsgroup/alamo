@@ -11,7 +11,7 @@ superseded — this file tracks the v2 set, which is a different and larger set.
 | 3 | `AbortIfDeviceError` disabled comparison | 5.3 | NOT DONE — §C |
 | 4 | Mechanical sync inventory | 5.4 | **ENUMERATED, unranked** — §D |
 | 5 | Footprint budget including 40 GB | 5.5 | **DONE (model); high-water pending** — §E |
-| 6 | T0/T6b/T7 thresholds | 5.6 | BLOCKED — re-capture IN FLIGHT (11775088/89/90) |
+| 6 | T0/T6b/T7 thresholds | 5.6 | **T0 baseline+band DONE; T7 classified (register/occupancy, NOT bandwidth); T6b blocked on F1** — §G |
 | 7 | Target set v2 false-pass validated in-tree | 3.1/3.3 | **PARTIAL** — §F |
 | 8 | Gap table | — | BLOCKED on 1, 6 |
 | 9 | Revised cost estimate | 6 | BLOCKED — N11 moves it again |
@@ -225,6 +225,113 @@ This run carries four harness changes that the previous one did not:
 3. F10 has a `max_step=1` startup calibration and 3 reps with a standard
    deviation, so it is admissible for the first time.
 4. The N4 probe reads the MPI the binary actually links, not the module.
+
+All three COMPLETED (8:53 / 8:04 / 6:44). CSVs and logs collected under
+`results/figures/` (47 MB; the 173 MB `.ncu-rep` binaries stay on NOVA).
+
+### Outcome per leg
+
+| Leg | Result |
+|---|---|
+| env | ok, all three |
+| timing | **ok — admissible for the first time** |
+| flip | ok, `failures.txt` empty on all three |
+| ncu | **FIXED** — 3/3 ranges on every deck, `mgVcycle` no longer OOM-killed |
+| nsys | **STILL DEAD on all three** |
+
+### F10 — startup-corrected, 3 reps, with uncertainty
+
+| deck | arm | startup | wall mean | steady per step |
+|---|---|---:|---:|---:|
+| `input_copy` | managed | 3.921 s | 35.703 ± 0.984 | 0.35313 ± 0.01093 |
+| `input_copy` | device | 2.462 s | 35.766 ± 0.539 | 0.37005 ± 0.00599 |
+| `input` | managed | 3.196 s | 16.953 ± 0.849 | 0.12506 ± 0.00771 |
+| `input` | device | 2.798 s | 16.382 ± 2.991 | 0.12349 ± 0.02719 |
+| 3D | managed | 4.186 s | 15.814 ± 4.218 | 0.10571 ± 0.03835 |
+| 3D | device | 2.600 s | 13.176 ± 0.750 | 0.09614 ± 0.00682 |
+
+**No arena verdict.** Every per-step difference is inside 2 sd of run-to-run
+scatter, and the scatter is large and asymmetric — one arm's sd is 3-5× the
+other's on two of three decks, meaning individual reps were disturbed. n=3 is
+not enough. Raise `REPS` and prefer a quiet node before anyone claims a
+direction.
+
+**Startup is the one clean signal:** the device arena initializes 0.4-1.6 s
+faster than managed on every deck. On `input_copy` that offsets a slower steady
+state so exactly that the raw wall means are 35.703 vs 35.766 — the
+uncalibrated comparison would have reported "no difference" and hidden both
+effects. This is why §12.1 requires the calibration.
+
+Every earlier F10 number in this campaign, including "device −5.5% on
+`input_copy`", was a single unrepeated run and is withdrawn.
+
+### F5/F6/F7 — T7 is answered, and v1's assumption was wrong
+
+3D, `Operator::Elastic::Fapply()`, 135 launches:
+
+| metric | value |
+|---|---|
+| Registers per thread | **254** |
+| Block Limit Registers | **2** blocks/SM |
+| Theoretical occupancy | 12.50% |
+| Achieved occupancy | 11.95% (96% of theoretical) |
+| Compute (SM) throughput | 31.0% |
+| **DRAM throughput** | **11.9%** |
+| Duration | ~552 µs |
+
+**These kernels are nowhere near the HBM roof.** DRAM throughput is 11.9% and
+compute 31%; neither is the limiter. The limiter is occupancy, and occupancy is
+capped by *registers* — 254 regs/thread gives a hard 2-block/SM ceiling and a
+12.5% theoretical occupancy that the kernel already achieves 96% of.
+
+§3.3's T7 rewrite predicted exactly this: "a kernel can sit far from the HBM
+roof and be correctly optimized." Confirmed by measurement, not argument.
+**T7's threshold for this class is a register/occupancy target, not a bandwidth
+target.** A bandwidth-roof target would have declared Fapply an 88%-headroom
+opportunity and sent Phase 3 chasing memory traffic that is not the constraint.
+
+Setting a number still needs the missing F1: with no timeline, the fraction of
+wall these kernels actually own is unmeasured here.
+
+### F4 is confirmed broken as §14.1 says
+
+`OperatorElasticFapply.csv` and `OperatorFsmooth.csv` contain the **same
+kernel** — identical name, identical grid `(2315,1,1)`, identical 135 launches.
+`Operator::Elastic::Fapply()` is nested inside `Operator::Fsmooth()`, and
+`--nvtx-include "range/"` takes nested launches. The three hardcoded ranges
+resolve to one distinct elastic kernel plus MLMG's extra `IsFabArray` kernel.
+
+So the ncu numbers are sound but the labels are not: this is one kernel measured
+three times, not three kernels. §14.1's F4 requirement — "**discovered** top 10,
+must not be hardcoded to three ranges" — is now demonstrated rather than
+asserted. Until F4 discovers kernels by time, the Pareto does not exist and
+"top kernels" is an assumption.
+
+### nsys — H1 fix failed, root cause restated
+
+Dropping `mpi` from `-t` did not help. The injection library loads regardless of
+the trace list. The real abort:
+
+```
+terminate called after throwing an instance of 'boost::wrapexcept<std::runtime_error>'
+  what():  Expected shared object name, found a path delimiter
+```
+
+thrown from `libToolsInjection64.so`, during `ompi_mpi_init`, then SIGKILL. My
+first reading blamed the MPI trace because MPI frames dominated the backtrace;
+that was where it aborted, not why.
+
+Two guard defects this exposed, both now fixed (`d9e2005be`):
+
+- `CAPTURE_FAILED` tested `-f` on `trace.nsys-rep`. nsys creates that file up
+  front, so a killed capture leaves a 0-byte file that passes. On the 3D deck
+  the guard stayed silent and `ls` showed a full set of reports, all 0 bytes.
+- The stats loop trusted the exit code. `nsys stats` exits 0 after writing a
+  0-byte CSV when the sqlite export fails.
+
+Next step is isolation, not another guess: `nsys profile -t cuda,nvtx` on a
+trivial binary, with and without `srun`. Every run here is `-n1`, so dropping
+`srun` for the nsys leg is the leading candidate.
 
 Collect with `bash benchmark/phase0_capture.sh collect <remote_dir>`.
 
