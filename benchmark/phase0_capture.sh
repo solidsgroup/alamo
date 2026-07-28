@@ -60,15 +60,61 @@ case "${ACTION}" in
     # cloned there, NOT the working tree being pushed over it. The metrics ledger
     # is keyed on commit_sha (campaign §12), so stamp the real source revision
     # into a file that travels with the code and gets read back by the env leg.
+    # Campaign PLAN v2 §5.1 (precondition P2): a ledger row keyed on commit_sha
+    # cannot identify a dirty-tree measurement, and the branch cannot bisect or
+    # reproduce it. A dirty count is not enough -- 574 dirty files including
+    # Flame.* was the state the first baseline was captured from.
+    #
+    # Policy here is RECORD, not REFUSE. Refusing would make the harness
+    # unusable exactly when it is most needed (the working tree carries the
+    # changes under test). Instead every capture now ships:
+    #   _pushed_rev.txt       provenance header, including tree_hash
+    #   _pushed_tree.diff     full diff of tracked modifications vs HEAD
+    #   _pushed_manifest.tsv  sha256 of every file actually shipped
+    # tree_hash is the ledger's second key and is content-derived, so two
+    # captures from the same source get the same key whether or not it is
+    # committed.
+    #
+    # STRICT=1 restores the refuse-on-dirty behaviour for release captures.
+    DIRTY_N=$(git status --porcelain | wc -l)
+    if [ "${STRICT:-0}" = "1" ] && [ "${DIRTY_N}" -ne 0 ]; then
+      echo "STRICT=1 and the tree is dirty (${DIRTY_N} files). Refusing to push." >&2
+      echo "Commit, stash, or drop STRICT to capture with a recorded manifest." >&2
+      exit 3
+    fi
+
+    git diff HEAD > benchmark/_pushed_tree.diff 2>/dev/null || : > benchmark/_pushed_tree.diff
+
+    # Manifest over exactly what rsync ships below, plus the untracked BMP deck
+    # assets. Sorted so the hash is order-independent.
+    {
+      find ./benchmark ./src -type f \
+           ! -path '*/_phase0_*' ! -path '*/_two_rank_probe_*' \
+           ! -path '*/_a100_gate_*' ! -path '*/baseline_runs/*' \
+           ! -path '*/__pycache__/*' -print0
+      find . -maxdepth 1 \( -name 'input*' -o -name '*.bmp' -o -name 'configure' \
+           -o -name 'Makefile' \) -type f -print0
+    } 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null \
+      | awk '{print $1"\t"$2}' > benchmark/_pushed_manifest.tsv
+
+    # tree_hash: HEAD + the diff + the manifest. Any source change moves it.
+    TREE_HASH=$( { git rev-parse HEAD
+                   sha256sum benchmark/_pushed_tree.diff | cut -d' ' -f1
+                   sha256sum benchmark/_pushed_manifest.tsv | cut -d' ' -f1
+                 } | sha256sum | cut -c1-16 )
     {
       echo "pushed_from_host=$(hostname)"
       echo "pushed_at=$(date -Is)"
       echo "local_branch=$(git rev-parse --abbrev-ref HEAD)"
       echo "local_head=$(git rev-parse HEAD)"
-      echo "local_dirty_files=$(git status --porcelain | wc -l)"
-      echo "# A nonzero dirty count means the captured binary does NOT correspond"
-      echo "# to local_head alone. Record that in the ledger row rather than"
-      echo "# pretending the sha is sufficient."
+      echo "local_dirty_files=${DIRTY_N}"
+      echo "tree_hash=${TREE_HASH}"
+      echo "manifest_files=$(wc -l < benchmark/_pushed_manifest.tsv)"
+      echo "# tree_hash = sha256(HEAD + sha256(_pushed_tree.diff) +"
+      echo "#                    sha256(_pushed_manifest.tsv)), first 16 hex."
+      echo "# LEDGER KEY is (local_head, tree_hash, case, n_ranks, device,"
+      echo "# build_config) per PLAN v2 §14.2. local_head ALONE is not a key"
+      echo "# whenever local_dirty_files != 0."
     } > benchmark/_pushed_rev.txt
     echo "=== rsync -> ${HOST}:${REMOTE_DIR}"
     rsync -az --info=stats1 \
