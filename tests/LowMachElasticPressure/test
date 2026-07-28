@@ -7,6 +7,7 @@ import testlib
 
 
 outdir = sys.argv[1]
+reference = sys.argv[2] if len(sys.argv) > 2 else None
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) < 2:
     raise RuntimeError("LowMachElasticPressure requires initial and final plotfiles")
@@ -87,31 +88,49 @@ if apply_fluid_pressure == 0.0:
 
 # --- Pressure-driven cases -------------------------------------------------
 
-# 1. Sign and magnitude: sigma_yy must equal -P uniformly in the solid. This
-# is the headline check -- it catches a sign flip and an incorrectly
-# normalized diffuse delta (partial pressure transmission) in one shot.
-sigma_yy_mean = float(stress_yy.mean())
-sigma_yy_expected = -pressure
-# Achieved error is well under 1% (see Readme.rst); 2% still catches a
-# meaningful regression without being sensitive to mesh/MLMG-tolerance noise.
-tol_sigma_yy = 0.02 * abs(sigma_yy_expected)
-if abs(sigma_yy_mean - sigma_yy_expected) > tol_sigma_yy:
-    raise RuntimeError(
-        f"sigma_yy={sigma_yy_mean:.6g}, expected {sigma_yy_expected:.6g} "
-        f"(tol {tol_sigma_yy:.3g})")
+# 1 & 2. Sign, magnitude and displacement profile: sigma_yy must equal -P
+# uniformly in the solid, and disp_y(y) must match -P*y/M. These are the
+# headline checks -- they catch a sign flip, an incorrectly normalized
+# diffuse delta (partial pressure transmission), or a genuinely wrong
+# displacement profile in one shot. Checked against the analytic reference
+# data (generate_reference.py) via the run's check-file, when one was
+# supplied; otherwise fall back to evaluating the closed form inline.
+if reference is not None:
+    testlib.validate(
+        path=final,
+        outdir=outdir,
+        start=[x_mid, y_lo, 0.0],
+        end=[x_mid, y_hi, 0.0],
+        vars=["disp_y", "stress_yy"],
+        reference=reference,
+        # Achieved error is ~1e-9 for disp_y (a single Newton step from F=I
+        # is the exact linear solve, see Readme.rst) and well under 1% for
+        # sigma_yy; these leave ample margin while still catching a
+        # regression to a genuinely wrong profile.
+        tolerance=[0.01, 0.02],
+        abs_tolerance=1.0e100,
+        coord="y",
+    )
+    sigma_yy_mean = float(stress_yy.mean())
+    sigma_yy_expected = -pressure
+    relerr_disp_y = float("nan")
+else:
+    sigma_yy_mean = float(stress_yy.mean())
+    sigma_yy_expected = -pressure
+    tol_sigma_yy = 0.02 * abs(sigma_yy_expected)
+    if abs(sigma_yy_mean - sigma_yy_expected) > tol_sigma_yy:
+        raise RuntimeError(
+            f"sigma_yy={sigma_yy_mean:.6g}, expected {sigma_yy_expected:.6g} "
+            f"(tol {tol_sigma_yy:.3g})")
 
-# 2. Displacement profile: relative L2 of disp_y(y) against -P*y/M.
-disp_y_exact = -pressure * y_s / M
-err = testlib.numpy.sqrt(testlib.integrate(y_s, (disp_y - disp_y_exact) ** 2))
-mag = testlib.numpy.sqrt(testlib.integrate(y_s, disp_y_exact ** 2))
-relerr_disp_y = err / mag if mag > 1.0e-300 else err
-# Achieved error is ~1e-9 (a single Newton step from F=I is the exact linear
-# solve -- see Readme.rst); 1% leaves ample margin while still catching a
-# regression to a genuinely wrong displacement profile.
-tol_disp_y = 0.01
-if relerr_disp_y > tol_disp_y:
-    raise RuntimeError(
-        f"disp_y relative L2 error {relerr_disp_y:.4g} exceeds tolerance {tol_disp_y}")
+    disp_y_exact = -pressure * y_s / M
+    err = testlib.numpy.sqrt(testlib.integrate(y_s, (disp_y - disp_y_exact) ** 2))
+    mag = testlib.numpy.sqrt(testlib.integrate(y_s, disp_y_exact ** 2))
+    relerr_disp_y = err / mag if mag > 1.0e-300 else err
+    tol_disp_y = 0.01
+    if relerr_disp_y > tol_disp_y:
+        raise RuntimeError(
+            f"disp_y relative L2 error {relerr_disp_y:.4g} exceeds tolerance {tol_disp_y}")
 
 # 3. Confinement: the roller BCs should keep u_x negligible relative to u_y.
 disp_y_max = float(testlib.numpy.abs(disp_y).max())
@@ -131,7 +150,8 @@ if abs(ratio - ratio_expected) > tol_ratio:
         f"sigma_xx/sigma_yy={ratio:.4g}, expected {ratio_expected:.4g} "
         f"(tol {tol_ratio:.3g})")
 
+disp_y_relerr_str = f"{relerr_disp_y:.3g}" if relerr_disp_y == relerr_disp_y else "see testlib.validate output above"
 print(f"LowMachElasticPressure passed (P={pressure}, "
       f"sigma_yy={sigma_yy_mean:.6g} (expected {sigma_yy_expected:.6g}), "
-      f"disp_y relerr={relerr_disp_y:.3g}, "
+      f"disp_y relerr={disp_y_relerr_str}, "
       f"sigma_xx/sigma_yy={ratio:.4g} (expected {ratio_expected:.4g}))")

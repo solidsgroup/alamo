@@ -129,6 +129,27 @@ node with the prescribed elastic BC value (this is how ``elastic.bc.type``
 is enforced). The analytic comparison therefore samples the domain interior
 only, well clear of the ``x = 0``/``x = 3.2e-3`` boundary columns.
 
+Reference data
+---------------
+
+``disp_y`` and ``stress_yy`` are checked against ``reference/pressure-{off,1Pa,4Pa}.csv``
+via ``testlib.validate`` (the run's ``check-file``, wired up per sub-case in
+``input``), rather than an inline formula in ``test`` -- consistent with
+``tests/SCPThermalContact`` and ``tests/LowMachConduction``. Each reference
+CSV is produced directly from the closed-form solution above by
+``generate_reference.py`` (not from a prior simulation run), so the
+comparison is against a known-correct answer, not just a snapshot of past
+behavior. ``mu``/``kappa`` in that script must match ``input`` exactly; if
+either changes, regenerate::
+
+    cd tests/LowMachElasticPressure
+    python3 generate_reference.py
+
+``disp_x`` (confinement) and ``sigma_xx/sigma_yy`` (constitutive ratio) are
+still checked inline in ``test`` against their analytic targets, since a
+zero-valued or ratio-based reference doesn't fit the ``testlib.validate``
+CSV-comparison idiom cleanly.
+
 Run the case with::
 
     ./configure --dim=2

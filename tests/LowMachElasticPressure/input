@@ -4,12 +4,15 @@
 #@ timeout = 300
 #@
 #@ [2d-pressure-off]
+#@ check-file = reference/pressure-off.csv
 #@ args = elastic.apply_fluid_pressure=0 pressure.ic.constant.value=1.0 Gas.density.ic.expression.constant.P=1.0
 #@
 #@ [2d-pressure-1Pa]
+#@ check-file = reference/pressure-1Pa.csv
 #@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=1.0 Gas.density.ic.expression.constant.P=1.0
 #@
 #@ [2d-pressure-4Pa]
+#@ check-file = reference/pressure-4Pa.csv
 #@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=4.0 Gas.density.ic.expression.constant.P=4.0
 
 # Analytic validation of the LowMach elastic solve driven by the local fluid
