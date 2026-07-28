@@ -206,26 +206,6 @@ void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, 
     }    
 }
 template<>
-ALAMO_SINGLE_DEFINITION
-void Field<Set::Matrix>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
-{
-    for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
-        if (bx.ok())
-        {
-            amrex::Array4<Set::Matrix> const & dst = ((*this)[a_lev])->array(mfi);
-            amrex::Array4<const Set::Scalar> const & src = a_src.array(mfi);
-            for (int n = 0; n < AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
-            {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    dst(i,j,k)(n/AMREX_SPACEDIM,n%AMREX_SPACEDIM) = src(i,j,k,a_srccomp + n);
-                });
-            }
-        }
-    }
-}
-template<>
 ALAMO_SINGLE_DEFINITION int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
 template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Matrix>::Name(int i) const
 {

@@ -18,9 +18,17 @@ namespace Operator
 
 template <Grid G> class Operator;
 
+//
+//
+//  NODE-BASED OPERATOR
+//
+//
+
 template <>
 class Operator<Grid::Node> : public amrex::MLNodeLinOp
 {
+    //
+    // Public: Constructor/Destructor/Operators/defines
     //
 public :
     Operator () {}
@@ -39,8 +47,6 @@ public :
             const LPInfo& a_info = LPInfo(),
             const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
     const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
-    /// Infinity norm over the active AMR composite grid.  Coarse nodes covered
-    /// by a finer level are excluded using the same nodal mask as MLMG.
     Set::Scalar CompositeNormInf(int amrlev, const MultiFab& mf) const
     {
         return normInf(amrlev, mf, false);
@@ -55,28 +61,41 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
-    // Must run once per Newton relinearization; MLMG only auto-syncs on its first solve.
-    void SyncCoefficients() { averageDownCoeffs(); Diagonal(true); }
-
+    
+    //
+    // Public Utilty functions
+    //
 public:
     void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
     void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
     const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
     virtual void SetHomogeneous (bool) {};
+    //
+    // Pure Virtual: you MUST override these functions
+    //
 protected:
     virtual void Fapply (int amrlev, int mglev,MultiFab& out,const MultiFab& in) const override =0;
     virtual void averageDownCoeffs () = 0;
     virtual bool useQuadraticAmrInterpolation() const { return false; }
     virtual bool retainCoarseFineResidualRow() const { return false; }
     virtual bool relaxCoarseFineGhostRows() const { return true; }
-public:
+    //
+    // Virtual: you SHOULD override these functions
+    //
+protected:
     virtual void Diagonal (bool recompute=false);
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag);
+    //
+    // Virtual: you CAN override these functions (but probably don't need to)
+    //
     virtual void Fsmooth (int amrlev, int mglev, MultiFab& x,const MultiFab& b) const override;
     virtual void normalize (int amrlev, int mglev, MultiFab& mf) const override;
     virtual void reflux (int crse_amrlev, MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
                 MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;
-public:
+    //
+    // Virtual: you CAN'T override these functions (they take care of AMReX business) and you SHOULDN'T
+    //
+protected:
     virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
     virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
     virtual void interpolationAmr (int famrlev, MultiFab& fine,
@@ -86,7 +105,6 @@ public:
     virtual bool isSingular (int amrlev) const final {return (amrlev == 0) ? m_is_bottom_singular : false; }
     virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
     virtual void applyBC (int amrlev, int mglev, MultiFab& phi, BCMode bc_mode, amrex::MLLinOp::StateMode /**/, bool skip_fillboundary=false) const final;
-public:
     virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 public:
     virtual int getNGrow(int /*alev*/=0,int /*mglev*/=0) const override final {return 2;}
@@ -117,6 +135,13 @@ protected:
 
 
 
+//
+//
+//  CELL-BASED OPERATOR
+//
+//
+
+
 template<>
 class Operator<Grid::Cell> : public amrex::MLCellLinOp
 {
@@ -140,6 +165,8 @@ public:
             const amrex::LPInfo& a_info = amrex::LPInfo(),
             const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
+    // virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
+
 protected:
     
     BC::BC<Set::Scalar> *m_bc;
@@ -150,7 +177,9 @@ protected:
     amrex::Vector<std::unique_ptr<amrex::MLMGBndry> > m_bndry_cor;
     amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_cor_br;
 
-    // Agglomerated coarse MG grids aren't simply coarsened from fine grids, so bcond/bcloc are per-MG-level.
+    // In case of agglomeration, coarse MG grids on amr level 0 are
+    // not simply coarsened from fine MG grids.  So we need to build
+    // bcond and bcloc for each MG level.
     using RealTuple = std::array<amrex::Real,2*BL_SPACEDIM>;
     using BCTuple   = std::array<amrex::BoundCond,2*BL_SPACEDIM>;
     class BndryCondLoc
@@ -187,6 +216,9 @@ protected:
     void updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 
     virtual void prepareForSolve () override;
+
+
+    // PURE VIRTUAL METHODS
 
     virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const override = 0;
     virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const override = 0;

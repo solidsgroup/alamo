@@ -173,11 +173,8 @@ inline int FaceElasticMixedPolynomial()
     const amrex::Box box = fab.box();
     amrex::LoopOnCpu(box, [=] (int i, int j, int k)
     {
-        u(i, j, k, 0) = 0.0;
+        for (int n = 0; n < AMREX_SPACEDIM; ++n) u(i, j, k, n) = 0.0;
         u(i, j, k, 1) = static_cast<Set::Scalar>(i * i * j);
-#if AMREX_SPACEDIM == 3
-        u(i, j, k, 2) = 0.0;
-#endif
     });
 
     const Set::Scalar dx[AMREX_SPACEDIM] = {AMREX_D_DECL(1.0, 1.0, 1.0)};

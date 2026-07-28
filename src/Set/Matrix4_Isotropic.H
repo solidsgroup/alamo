@@ -48,7 +48,6 @@ public:
     ///
     /// you will get a `lvalue required as left operand of assignment` compile error.
     /// You should probably consider using a lower symmetry operator.
-    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     Scalar operator () (const int i, const int j, const int k, const int l) const
     {

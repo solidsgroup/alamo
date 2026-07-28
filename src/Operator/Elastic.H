@@ -90,6 +90,8 @@ public:
     ///
     void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u, bool a_homogeneous=false);
 
+    //void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<SOLID> models, bool a_homogeneous=false);
+
     /// This function is depricated and should not be used. Use the other `SetBC` function.
     ///
     void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
@@ -108,10 +110,8 @@ public:
     
     using Operator::Reflux;
 
-public:
+protected:
 
-
-    using Operator::Diagonal;
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
     virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;
@@ -124,14 +124,12 @@ public:
 
     virtual int getNComp() const override {return AMREX_SPACEDIM;};
     virtual bool isCrossStencil () const { return false; }
-protected:
     bool useQuadraticAmrInterpolation() const override
     { return m_conservative_face_flux; }
     bool retainCoarseFineResidualRow() const override
     { return m_conservative_face_flux; }
     bool relaxCoarseFineGhostRows() const override
     { return !m_conservative_face_flux; }
-public:
     virtual void prepareForSolve () override
     {
         if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
@@ -139,14 +137,18 @@ public:
         Operator<Grid::Node>::prepareForSolve();
     };
 
-public:
+private:
     /// Simple arrays storing boundary conditions for each component and each face.
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
-    /// \brief Multifab of elastic constant models (e.g. Model::Solid::Elastic::Isotropic::Isotropic)
+    /// This is a multifab-type object containing objects of type
+    /// Model::Solid::Elastic::Isotropic::Isotropic
+    /// (or some other model type). T is the template argument.
+    /// The models contain elastic constants and contain methods for converting strain to stress
     amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
+    // This is a mask variable.
     amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
     Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
@@ -157,7 +159,18 @@ public:
     
     /// \fn averageDownCoeffsSameAmrLevel
     /// \brief Update coarse-level AMR coefficients with data from fine level
-    /// Disabled by default; enable via SetAverageDownCoeffs(true).
+    ///
+    /// This function is called before the solve, and it updates the Matrix4 coefficients
+    /// on coarse levels with averaged versions on the fine levels.
+    /// Typically, this is not necessary, since the coefficients are computed on each level
+    /// already. 
+    /// However, there are some cases where this messes up the multigrid solver.
+    /// (Phase field fracture is the primary example.)
+    /// 
+    /// This is disabled by default. In order to enable, call
+    ///    
+    ///     elasticoperator.SetAverageDownCoeffs(true);
+    ///
     void averageDownCoeffsSameAmrLevel (int amrlev);
 
     void FillBoundaryCoeff (MultiTab& sigma, const amrex::Periodicity& p);

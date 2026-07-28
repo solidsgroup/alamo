@@ -4,7 +4,6 @@
 #include "Util/Util.H"
 
 #include "Test/Numeric/Stencil.H"
-#include "Test/BC/Constant.H"
 #include "Test/Set/Matrix4.H"
 #include "Test/Solver/Nonlocal/Newton.H"
 
@@ -133,18 +132,6 @@ int main (int argc, char* argv[])
             Test::Solver::Nonlocal::LineSearchResidualAcceptance());
         subfailed += Util::Test::SubMessage("Newton termination decision",
             Test::Solver::Nonlocal::NewtonTerminationDecision());
-        subfailed += Util::Test::SubMessage("conservative nodal stress reconstruction",
-            Test::Solver::Nonlocal::ConservativeNodalStressReconstruction());
-        subfailed += Util::Test::SubMessage("symmetry nodal stress reconstruction",
-            Test::Solver::Nonlocal::SymmetryNodalStressReconstruction());
-        failed += Util::Test::SubFinalMessage(subfailed);
-    }
-
-    Util::Test::Message("BC::Constant test");
-    {
-        int subfailed = 0;
-        subfailed += Util::Test::SubMessage("Nonzero Neumann subcell spacing",
-            Test::BC::ConstantNeumannSubcellSpacing());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

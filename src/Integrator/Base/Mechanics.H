@@ -37,8 +37,8 @@ public:
         delete bc;
     }
 
-    // The mechanics integrator manages the solution of an elastic
-    // solve using the MLMG solver.
+    // The mechanics integrator manages the solution of an elastic 
+    // solve using the MLMG solver. 
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
         BL_PROFILE("Integrator::Base::Mechanics::Parse");
@@ -55,19 +55,6 @@ public:
             pp_query_default("plot_psi", value.plot_psi, true); // Include :math:`\psi` field in output
             pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
             pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
-            AMREX_D_TERM(
-                // Treat the lower x boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.xlo", value.m_output_stress_symmetry_lo[0], 0);
-                // Treat the upper x boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.xhi", value.m_output_stress_symmetry_hi[0], 0);,
-                // Treat the lower y boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.ylo", value.m_output_stress_symmetry_lo[1], 0);
-                // Treat the upper y boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.yhi", value.m_output_stress_symmetry_hi[1], 0);,
-                // Treat the lower z boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.zlo", value.m_output_stress_symmetry_lo[2], 0);
-                // Treat the upper z boundary as a symmetry plane when reconstructing output stress.
-                pp_query_default("output_stress_symmetry.zhi", value.m_output_stress_symmetry_hi[2], 0););
 
             // Select the mechanical boundary conditions
             pp.select<BC::Operator::Elastic::Constant,BC::Operator::Elastic::TensionTest,BC::Operator::Elastic::Expression>("bc",value.bc);
@@ -155,29 +142,16 @@ public:
             }}
         });
         
-#ifdef ALAMO_GPU
-        if (value.m_type == Type::Dynamic)
-            Util::Abort(INFO, "elastic.type=dynamic is not GPU-safe: dynamic mechanics uses host BC polymorphism inside device kernels");
-#endif
         if (value.m_type == Type::Disable) return;
 
         value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
         value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
-        // Keep the constitutive nodal stress as the internal mechanics field.
-        // Conservative solves write a separately derived face-consistent field,
-        // preventing plot semantics from feeding back into material advancement
-        // or integrated-traction diagnostics.
-        const bool separate_static_stress_output =
-            value.m_type == Type::Static && value.plot_stress;
-        value.RegisterGeneralFab(value.stress_mf, 1, 2,
-            value.plot_stress && !separate_static_stress_output,
-            "stress", value.m_time_evolving);
-        if (separate_static_stress_output)
-            value.RegisterGeneralFab(value.output_stress_mf, 1, 0, true, "stress", false);
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
         value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_strain, "strain", value.m_time_evolving);
 
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
+
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]), "disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[1]), "disp_xhi_y");
@@ -189,9 +163,10 @@ public:
         value.RegisterIntegratedVariable(&(value.trac_hi[1].data()[1]), "trac_yhi_y");
 
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf, 1, 2, "res", false);
+
     }
 
-public:
+protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
@@ -199,8 +174,6 @@ public:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
-        if (m_type == Type::Static && plot_stress)
-            output_stress_mf[lev]->setVal(Set::Matrix::Zero());
         //disp_old_mf[lev]->setVal(Set::Vector::Zero());
 
         if (m_type == Type::Dynamic)
@@ -243,48 +216,26 @@ public:
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
         IO::ParmParse pp("elasticop");
+
+        // Elastic operator
         pp.queryclass(elastic_op);
 
         solver.Define(elastic_op);
-        Util::Message(INFO, "ELASTIC SOLVE: t=", a_time, " step=", a_step, " m_type=", (int)m_type);
         if (psi_on) solver.setPsi(psi_mf);
 
         for (int lev = 0; lev <= finest_level; ++lev)
             if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
 
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
-        if (m_print_residual) solver.compResidual(res_mf, disp_mf, rhs_mf, model_mf);
+        if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
 
-        // elastic_op is a local that is about to go out of scope and free its
-        // internal per-AMR/MG-level buffers (m_ddw_mf, m_psi_mf, coefficient
-        // caches, ...) used throughout the whole V-cycle. Without a full-device
-        // sync here, a straggler kernel from deep in the MLMG solve (any level,
-        // any stream in AMReX's per-MFIter stream pool) can still be in flight
-        // when that memory is freed -- it then gets immediately reused by the
-        // *next* timestep's freshly-constructed elastic_op, causing intermittent
-        // CUDA-700 / host segfaults far from the actual race. Same UAF family as
-        // the dsol_mf fix in Solver::Nonlocal::Newton::solve(), but at the
-        // broader elastic_op lifetime boundary rather than one buffer.
-        amrex::Gpu::streamSynchronizeAll();
-
-        const bool use_face_consistent_output = solver.usesConservativeFaceFlux();
-        const auto output_stress_symmetry_lo = m_output_stress_symmetry_lo;
-        const auto output_stress_symmetry_hi = m_output_stress_symmetry_hi;
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
-            const amrex::Dim3 lo = amrex::lbound(domain);
-            const amrex::Dim3 hi = amrex::ubound(domain);
-            amrex::GpuArray<int, AMREX_SPACEDIM> output_periodic;
-            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
-                output_periodic[dir] = geom[lev].isPeriodic(dir);
 
-            // Device-safe cell size: DX is a Set::Vector copied into the device
-            // closure; DX.data() is valid on device (a raw Geom().CellSize()
-            // host pointer would fault when dereferenced in the kernel).
-            Set::Vector DX(geom[lev].CellSize());
+            const amrex::Real* DX = geom[lev].CellSize();
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
@@ -301,80 +252,22 @@ public:
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
                     {
-                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX.data(), sten);
+                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX, sten);
                         stress(i, j, k) = model(i, j, k).DW(F);
                         strain(i, j, k) = F;
                     }
                     else
                     {
-                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX.data(), sten);
+                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
                         stress(i, j, k) = model(i, j, k).DW(gradu);
                         strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
                     }
                 });
-
-                if (plot_stress)
-                {
-                    const amrex::Box plot_bx = mfi.nodaltilebox() & domain;
-                    amrex::Array4<const MODEL> const& plot_model = model_mf[lev]->const_array(mfi);
-                    amrex::Array4<const Set::Matrix> const& nodal_stress = stress_mf[lev]->const_array(mfi);
-                    amrex::Array4<Set::Matrix> const& output_stress = output_stress_mf[lev]->array(mfi);
-
-                    amrex::ParallelFor(plot_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                    {
-                        const bool on_boundary = AMREX_D_TERM(
-                            (!output_periodic[0] && (i == lo.x || i == hi.x)),
-                            || (!output_periodic[1] && (j == lo.y || j == hi.y)),
-                            || (!output_periodic[2] && (k == lo.z || k == hi.z)));
-                        const bool on_symmetry = AMREX_D_TERM(
-                            (!output_periodic[0]
-                                && ((i == lo.x && output_stress_symmetry_lo[0])
-                                    || (i == hi.x && output_stress_symmetry_hi[0]))),
-                            || (!output_periodic[1]
-                                && ((j == lo.y && output_stress_symmetry_lo[1])
-                                    || (j == hi.y && output_stress_symmetry_hi[1]))),
-                            || (!output_periodic[2]
-                                && ((k == lo.z && output_stress_symmetry_lo[2])
-                                    || (k == hi.z && output_stress_symmetry_hi[2]))));
-                        const bool on_non_symmetry_boundary = AMREX_D_TERM(
-                            (!output_periodic[0]
-                                && ((i == lo.x && !output_stress_symmetry_lo[0])
-                                    || (i == hi.x && !output_stress_symmetry_hi[0]))),
-                            || (!output_periodic[1]
-                                && ((j == lo.y && !output_stress_symmetry_lo[1])
-                                    || (j == hi.y && !output_stress_symmetry_hi[1]))),
-                            || (!output_periodic[2]
-                                && ((k == lo.z && !output_stress_symmetry_lo[2])
-                                    || (k == hi.z && !output_stress_symmetry_hi[2]))));
-                        if (use_face_consistent_output
-                            && (!on_boundary || (on_symmetry && !on_non_symmetry_boundary)))
-                        {
-                            output_stress(i, j, k) = on_symmetry
-                                ? Solver::Nonlocal::Detail::NodalStressFromSymmetryFaces(
-                                    plot_model, disp, i, j, k, DX.data(), lo, hi,
-                                    output_stress_symmetry_lo, output_stress_symmetry_hi)
-                                : Solver::Nonlocal::Detail::NodalStressFromFaces(
-                                    plot_model, disp, i, j, k, DX.data());
-                        }
-                        else
-                        {
-                            // The conservative operator applies its BC directly
-                            // on physical-boundary rows, where the centered face
-                            // tangential stencil is not defined outside the domain.
-                            output_stress(i, j, k) = nodal_stress(i, j, k);
-                        }
-                    });
-                }
             }
             stress_mf[lev]->setMultiGhost(true);
             stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
             strain_mf[lev]->setMultiGhost(true);
             strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
-            if (plot_stress)
-            {
-                output_stress_mf[lev]->setMultiGhost(true);
-                output_stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
-            }
         }
     }
 
@@ -382,7 +275,7 @@ public:
     {
         BL_PROFILE("Integrator::Base::Mechanics::Advance");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
-        Set::Vector DX(geom[lev].CellSize()); // device-safe cell size (copied into device closure)
+        const amrex::Real* DX = geom[lev].CellSize();
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
@@ -394,10 +287,6 @@ public:
             std::swap(*disp_mf[lev], *disp_old_mf[lev]);
             std::swap(*vel_mf[lev], *vel_old_mf[lev]);
 
-            auto bc = this->bc;
-            auto mu_newton = this->mu_newton;
-            auto mu_dashpot = this->mu_dashpot;
-            auto rho = this->rho;
 
             for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -413,10 +302,10 @@ public:
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
-                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX.data(),sten);
+                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
                     //ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
                 });
@@ -430,7 +319,7 @@ public:
 
                     if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                     {
-                        auto sten = Numeric::GetStencil(i,j,k,domain);
+                        auto sten = Numeric::GetStencil(i,j,k,domain);                        
 
                         auto bctype = bc->getType(i,j,k,domain);
 
@@ -442,12 +331,12 @@ public:
                             }
                             else if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Traction)
                             {
-
+                                
                                 Set::Vector N = Set::Normal(AMREX_D_DECL(xmin,ymin,zmin),
                                                             AMREX_D_DECL(xmax,ymax,zmax));
-
-                                auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX.data(),sten);
-
+                                
+                                auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX,sten);
+                                
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
                                 Set::Matrix DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
@@ -464,7 +353,7 @@ public:
 
                                                 rhs(p) -= ddw(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
                                             }
-
+                                        
                                         rhs(p) -= DW_F0(p,q)*N(q);
                                     }
                                 Set::Vector delta_u = (A.inverse() * rhs);
@@ -482,9 +371,9 @@ public:
                     {
                         //Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX);
                         //Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
-
+                        
                         //Set::Vector f = ddw(i,j,k)*gradgradu;
-                        Set::Vector f = Numeric::Divergence(sig, i, j, k, DX.data());
+                        Set::Vector f = Numeric::Divergence(sig, i, j, k, DX);
 
                         //MATRIX4 AMREX_D_DECL(
                         //    Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
@@ -494,10 +383,10 @@ public:
                         //f += AMREX_D_TERM(  ( Cgrad1*gradu).col(0),
                         //                    +(Cgrad2*gradu).col(1),
                         //                    +(Cgrad3*gradu).col(2));
-
-                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX.data());
+                        
+                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
                         f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
-
+                        
                         Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
@@ -517,10 +406,9 @@ public:
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
-
+        
         model_mf[lev]->setMultiGhost(true);
         model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
-
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
@@ -537,13 +425,11 @@ public:
         }
 
         const amrex::Real* DX = geom[amrlev].CellSize();
-        const amrex::Box& cell_domain = geom[amrlev].Domain();
-        const Dim3 cell_hi = amrex::ubound(cell_domain);
+        amrex::Box domain = geom[amrlev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
 
-        // Integrate over the disjoint, uncovered cell boxes supplied by
-        // IntegrateVariables. Converting those boxes to nodal first makes
-        // adjacent boxes overlap and double-counts AMR boundary segments.
-        const amrex::Box& box = a_box;
+        amrex::Box box = a_box;
+        box.convert(amrex::IntVect::TheNodeVector());
 
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
@@ -554,120 +440,33 @@ public:
         Set::Vector da(DX[1] * DX[2], 0, 0);
 #endif
 
+        const Dim3 /*lo= amrex::lbound(domain),*/ hi = amrex::ubound(domain);
+        const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
+
         amrex::Array4<const Set::Matrix> const& stress = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Vector> const& disp = (*disp_mf[amrlev]).array(mfi);
-
-        // GPU: trac_hi / disp_hi are host-resident members.  Accumulating into them
-        // directly inside a ParallelFor dereferences a host pointer on the device
-        // (CUDA illegal memory access -- error 700) and races between nodes.  Mirror
-        // the sum-reduction pattern used in Flame::Integrate: compute per-box partial
-        // sums on the device, then add them to the host members afterwards.  These are
-        // "extensive" integrated variables, so IntegrateVariables zeroes them and sums
-        // them across ranks.  The trac contribution is a genuine face integral (sum);
-        // the disp diagnostic samples the last face node (matching the prior CPU
-        // serial-loop "last write wins" for a single box) but anchored to the
-        // global domain so multi-box face splits do not add one sample per box.
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
 #if AMREX_SPACEDIM == 2
-        {
-            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
-                            amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
-            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
-            using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(box, reduce_data,
-                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
-                {
-                    Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
-                    if (i == cell_hi.x)
-                    {
-                        Set::Vector t = (0.5 * (stress(i + 1, j, k)
-                            + stress(i + 1, j + 1, k)) * da0);
-                        tx = t(0); ty = t(1);
-                        if (j == cell_hi.y)
-                        {
-                            dx = disp(i + 1, j, k)(0);
-                            dy = disp(i + 1, j, k)(1);
-                        }
-                    }
-                    return {tx, ty, dx, dy};
-                });
-            ReduceTuple hv = reduce_data.value(reduce_op);
-            trac_hi[0](0) += amrex::get<0>(hv);
-            trac_hi[0](1) += amrex::get<1>(hv);
-            disp_hi[0](0) += amrex::get<2>(hv);
-            disp_hi[0](1) += amrex::get<3>(hv);
-        }
-        {
-            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
-                            amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
-            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
-            using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(box, reduce_data,
-                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
-                {
-                    Set::Scalar tx = 0.0, ty = 0.0, dx = 0.0, dy = 0.0;
-                    if (j == cell_hi.y)
-                    {
-                        Set::Vector t = (0.5 * (stress(i, j + 1, k)
-                            + stress(i + 1, j + 1, k)) * da1);
-                        tx = t(0); ty = t(1);
-                        if (i == cell_hi.x)
-                        {
-                            dx = disp(i, j + 1, k)(0);
-                            dy = disp(i, j + 1, k)(1);
-                        }
-                    }
-                    return {tx, ty, dx, dy};
-                });
-            ReduceTuple hv = reduce_data.value(reduce_op);
-            trac_hi[1](0) += amrex::get<0>(hv);
-            trac_hi[1](1) += amrex::get<1>(hv);
-            disp_hi[1](0) += amrex::get<2>(hv);
-            disp_hi[1](1) += amrex::get<3>(hv);
-        }
+            if (i == hi.x && j < boxhi.y)
+            {
+                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
+                disp_hi[0] = disp(i, j, k);
+            }
+            if (j == hi.y && i < boxhi.x)
+            {
+                trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+                disp_hi[1] = disp(i, j, k);
+            }
 #elif AMREX_SPACEDIM == 3
-        {
-            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
-            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
-            using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(box, reduce_data,
-                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
-                {
-                    Set::Scalar tx = 0.0, ty = 0.0, tz = 0.0;
-                    if (i == cell_hi.x)
-                    {
-                        Set::Vector t = (0.25 * (stress(i + 1, j, k)
-                            + stress(i + 1, j + 1, k)
-                            + stress(i + 1, j, k + 1)
-                            + stress(i + 1, j + 1, k + 1)) * da);
-                        tx = t(0); ty = t(1); tz = t(2);
-                    }
-                    return {tx, ty, tz};
-                });
-            ReduceTuple hv = reduce_data.value(reduce_op);
-            trac_hi[0](0) += amrex::get<0>(hv);
-            trac_hi[0](1) += amrex::get<1>(hv);
-            trac_hi[0](2) += amrex::get<2>(hv);
-        }
-        {
-            amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
-            amrex::ReduceData<Set::Scalar, Set::Scalar> reduce_data(reduce_op);
-            using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(box, reduce_data,
-                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
-                {
-                    Set::Scalar dx = 0.0, dy = 0.0;
-                    if (i == cell_hi.x && j == cell_hi.y && k == cell_hi.z)
-                    {
-                        dx = disp(i + 1, j, k)(0);
-                        dy = disp(i + 1, j, k)(1);
-                    }
-                    return {dx, dy};
-                });
-            ReduceTuple hv = reduce_data.value(reduce_op);
-            disp_hi[0](0) += amrex::get<0>(hv);
-            disp_hi[0](1) += amrex::get<1>(hv);
-        }
+            if (i == hi.x && (j < boxhi.y && k < boxhi.z))
+            {
+                trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
+                    + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
+                disp_hi[0] = disp(i, j, k);
+            }
 #endif
+        });
 
     }
 
@@ -675,8 +474,6 @@ public:
     {
         BL_PROFILE("Integrator::Base::Mechanics::TagCellsForRefinement");
         if (m_type == Type::Disable) return;
-
-        auto m_elastic_ref_threshold = this->m_elastic_ref_threshold;
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
@@ -709,10 +506,7 @@ protected:
     Set::Field<Set::Vector> rhs_mf;
     Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
-    Set::Field<Set::Matrix> output_stress_mf;
     Set::Field<Set::Matrix> strain_mf;
-    amrex::GpuArray<int, AMREX_SPACEDIM> m_output_stress_symmetry_lo{};
-    amrex::GpuArray<int, AMREX_SPACEDIM> m_output_stress_symmetry_hi{};
 
     // Only use these if using the "dynamics" option
     Set::Field<Set::Vector> disp_old_mf;
@@ -742,6 +536,7 @@ protected:
     int m_max_coarsening_level = -1;
 
     bool m_zero_out_displacement = false;
+
     bool plot_disp = true;
     bool plot_stress = true;
     bool plot_strain = true;
