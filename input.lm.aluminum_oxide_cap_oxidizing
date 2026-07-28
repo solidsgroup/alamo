@@ -1,5 +1,6 @@
 # Standalone coupled validation for an already-agglomerated molten aluminum
-# droplet, a mobile liquid-alumina cap, and AP_gas/Mono-fed surface oxidation.
+# droplet, a mobile liquid-alumina cap, and an AP_gas/Mono-fed interphase
+# reaction.
 
 plot_file = output.lm.aluminum_oxide_cap_oxidizing
 amr.plot_dt = 2.0e-5
@@ -58,18 +59,18 @@ liquid.surface_tension.Al_liquid_Al2O3_liquid = 0.30_J/m^2
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
-mechanisms.names = Al_surface_oxidation
-Al_surface_oxidation.type = surface_oxidation
-Al_surface_oxidation.surface_oxidation.in = Al_liquid
-Al_surface_oxidation.surface_oxidation.out.liquid = Al2O3_liquid
-Al_surface_oxidation.surface_oxidation.out.gas = Al2O3_gas
-Al_surface_oxidation.surface_oxidation.oxidizers = AP_gas Mono
-Al_surface_oxidation.surface_oxidation.oxidizers.available_mass_fractions = 0.25 0.40
-Al_surface_oxidation.surface_oxidation.aluminum_mass_flux = 0.05_kg/m^2/s
-Al_surface_oxidation.surface_oxidation.gas_product_fraction = 0.30
-Al_surface_oxidation.surface_oxidation.temperature_cutoff = 1200.0_K
-Al_surface_oxidation.surface_oxidation.heat_release.liquid = 0.0_J/kg
-Al_surface_oxidation.surface_oxidation.heat_release.gas = 0.0_J/kg
+mechanisms.names = Al_interphase_reaction
+Al_interphase_reaction.type = interphase_reaction
+Al_interphase_reaction.interphase_reaction.reactants.primary = Al_liquid
+Al_interphase_reaction.interphase_reaction.reactants.secondary = AP_gas Mono
+Al_interphase_reaction.interphase_reaction.reactants.secondary.available_mass_fractions = 0.25 0.40
+# Al2O3 stoichiometry: 0.8894415 kg oxygen per kg aluminum.
+Al_interphase_reaction.interphase_reaction.reactants.secondary.mass_ratio = 0.889441497192608
+Al_interphase_reaction.interphase_reaction.products = Al2O3_liquid Al2O3_gas
+Al_interphase_reaction.interphase_reaction.products.mass_fractions = 0.70 0.30
+Al_interphase_reaction.interphase_reaction.products.heat_release = 0.0_J/kg 0.0_J/kg
+Al_interphase_reaction.interphase_reaction.mass_flux = 0.05_kg/m^2/s
+Al_interphase_reaction.interphase_reaction.temperature_cutoff = 1200.0_K
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
