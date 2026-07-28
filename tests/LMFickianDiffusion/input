@@ -4,7 +4,7 @@
 #@ timeout = 240
 #@ check-file = reference/fickian-diffusion-analytic.csv
 
-plot_file = tests/LowMachFickianDiffusion/output
+plot_file = tests/LMFickianDiffusion/output
 amr.plot_dt = 0.05
 amr.max_level = 0
 amr.max_grid_size = 256

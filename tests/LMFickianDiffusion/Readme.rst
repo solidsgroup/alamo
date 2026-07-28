@@ -13,7 +13,7 @@ Run the case with::
     ./configure --dim=2
     make -j bin/lowmach
     PATH=/path/to/python-with-yt/bin:$PATH \
-        ./scripts/runtests.py tests/LowMachFickianDiffusion --serial --dim=2
+        ./scripts/runtests.py tests/LMFickianDiffusion --serial --dim=2
 
 The check compares ``mole_fraction_left`` along the centerline with the hydro
 test's analytic reference.  It also verifies mass-fraction closure and that the

@@ -18,7 +18,7 @@
 #@ args=amr.plot_int=1
 
 # Static diffuse droplet used to validate the face-balanced capillary force.
-plot_file = tests/LowMachLiquidCapillary/output
+plot_file = tests/LMLiquidCapillary/output
 amr.plot_int = 8
 amr.plot_dt = -1
 amr.max_level = 0

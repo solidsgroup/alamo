@@ -36,7 +36,7 @@ def particle_moments(path):
 outdir = sys.argv[1]
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) < 2:
-    raise RuntimeError("LowMachFreeRigidParticle requires initial and final plotfiles")
+    raise RuntimeError("LMFreeRigidParticle requires initial and final plotfiles")
 
 initial = particle_moments(plotfiles[0])
 final = particle_moments(plotfiles[-1])

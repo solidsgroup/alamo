@@ -10,7 +10,7 @@ outdir = sys.argv[1]
 reference = sys.argv[2]
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) < 2:
-    raise RuntimeError("LowMachFickianDiffusion requires initial and final plotfiles")
+    raise RuntimeError("LMFickianDiffusion requires initial and final plotfiles")
 
 testlib.validate(
     path=plotfiles[-1],

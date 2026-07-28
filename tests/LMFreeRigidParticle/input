@@ -30,7 +30,7 @@
 
 # A dense aluminum disk starts at rest in a periodic moving gas.  Its velocity
 # is not prescribed: viscous and pressure coupling must accelerate it.
-plot_file = tests/LowMachFreeRigidParticle/output
+plot_file = tests/LMFreeRigidParticle/output
 amr.plot_int = 100
 amr.max_grid_size = 24
 amr.blocking_factor = 4
@@ -76,8 +76,8 @@ chemistry.solver.type = forward_euler
 
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
-Al_sublimation.phase_change.in = Al_solid
-Al_sublimation.phase_change.out = Al_vapor
+Al_sublimation.phase_change.phase0 = Al_solid
+Al_sublimation.phase_change.phase1 = Al_vapor
 Al_sublimation.phase_change.prescribed_speed = 0.0_m/s
 Al_sublimation.phase_change.phase_field.type = allencahn
 
