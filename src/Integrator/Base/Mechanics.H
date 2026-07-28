@@ -277,13 +277,19 @@ protected:
                 Set::Patch<Set::Matrix>       sig   = stress_mf.Patch(lev,mfi);
                 //Set::Patch<MATRIX4>           ddw   = ddw_mf.Patch(lev,mfi);
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> psi = psi_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
-                    sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
+
+                    Set::Scalar psi_val = 1.0;
+                    if (psi_on) psi_val = psi(i,j,k,0);
+                    Set::Matrix sig_intact = model(i,j,k).DW(eps(i,j,k));
+
+                    sig(i, j, k) = psi_val * sig_intact;
                     //ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
                 });
 
@@ -316,8 +322,12 @@ protected:
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
-                                Set::Matrix DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
-                                MATRIX4 ddw = model(i,j,k).DDW(eps(i,j,k));
+
+                                Set::Scalar psi_val = 1.0;
+                                if (psi_on) psi_val = psi(i,j,k,0);
+
+                                Set::Matrix DW_F0 = psi_val * model(i,j,k).DW(Set::Matrix::Zero());
+                                MATRIX4 ddw = psi_val * model(i,j,k).DDW(eps(i,j,k));
                                 //Util::Message(INFO,b(i,j,k).transpose());
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)

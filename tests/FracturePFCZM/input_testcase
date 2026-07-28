@@ -13,7 +13,7 @@ system.length = m
 timestep = 5e-7
 stop_time = 0.6
 
-plot_file = tests/FracturePFCZM/output
+plot_file = tests/FracturePFCZM/output_testcase
 amr.plot_int = 100
 amr.max_level = 4
 amr.n_cell = 128 128
@@ -28,8 +28,8 @@ amr.cell.all = 1
 viscous.mu_newton = 0.001
 mechanics.rho = 3000
 
-geometry.prob_lo = -0.125_m -0.125_m
-geometry.prob_hi = 0.125_m 0.125_m
+geometry.prob_lo = -0.05_m -0.02_m    
+geometry.prob_hi =  0.05_m  0.02_m
 geometry.is_periodic = 0 0
 
 crack.refinement_threshold = 0.1
@@ -52,10 +52,10 @@ crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
 crack.ic.type = notch
-crack.ic.notch.center = -0.125_m 0.0
+crack.ic.notch.center = -0.025_m 0_m       
 crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.125_m
-crack.ic.notch.thickness = 8.e-3_m
+crack.ic.notch.length = 0.05_m             
+crack.ic.notch.thickness = 5.e-4_m
 
 crack.ic.notch.eps = 1.e-3
 crack.ic.notch.mollifier = erf
