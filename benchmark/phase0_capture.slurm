@@ -40,12 +40,16 @@
 #            NVTX range rather than kernel name -- AMReX kernels all present as
 #            `launch_global`, which is why a name-based filter returns nothing.
 #            Skipped automatically if counters are barred (ERR_NVGPUCTRPERM).
+#   smooth   MLMG pre/post-smoothing A/B (4/4 vs 2/2) at production cadence,
+#            reporting MLMG ITERATION COUNTS alongside wall. Not in the default
+#            leg set -- run it on the deck whose smoothing question is open.
 #
 # USAGE
-#   sbatch --gres=gpu:a100:1 benchmark/phase0_capture.slurm
-#   DIM=3 GPU_TYPE=h200 sbatch --gres=gpu:h200:1 benchmark/phase0_capture.slurm
+#   DECK=input_copy sbatch --gres=gpu:a100:1 benchmark/phase0_capture.slurm
+#   DECK=input_3d_centre_bore_128_a2 sbatch --gres=gpu:a100:1 benchmark/phase0_capture.slurm
 #   DRYRUN=1 bash benchmark/phase0_capture.slurm      # print every command, run none
-#   LEGS="env nsys" sbatch --gres=gpu:a100:1 benchmark/phase0_capture.slurm
+#   LEGS="env nsys" DECK=input sbatch --gres=gpu:a100:1 benchmark/phase0_capture.slurm
+#   LEGS=smooth SMOOTH_STEP=800 DECK=input_copy sbatch --gres=gpu:a100:1 ...
 #
 # Build first (BOTH variants -- timing needs the non-profile binary):
 #   VARIANTS="profile plain" DIMS="2 3" sh benchmark/build_alamo_nova.sh
@@ -54,31 +58,53 @@ set -uo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 # --- Selectors --------------------------------------------------------------
-DIM="${DIM:-2}"
+# DECK is the primary selector; DIM is derived from it. One job per deck.
+DECK="${DECK:-input_copy}"
 GPU_TYPE="${GPU_TYPE:-a100}"
 LEGS="${LEGS:-env timing flip nsys ncu}"
 DRYRUN="${DRYRUN:-0}"
-MAX_STEP="${MAX_STEP:-10}"          # timing horizon; 2-step decks are smokes, not evidence
-TRACE_STEP="${TRACE_STEP:-3}"       # nsys horizon: enough for steady state, small trace
 NCU_LAUNCHES="${NCU_LAUNCHES:-3}"   # ncu serializes; a handful of launches is plenty
 MGS="${MGS:-64}"                    # NOVA-like multi-box layout
 ARENA_FRAC="${ARENA_FRAC:-0.5}"     # fraction of device memory claimed up front, per rank
 
-case "${DIM}" in 2|3) ;; *) echo "DIM must be 2 or 3"; exit 2 ;; esac
+# --- Per-deck horizons ------------------------------------------------------
+#
+# CRITICAL: elastic is ~95% of GPU wall, and every production deck fires it on an
+# interval (40-50 steps) after a tstart delay. A 3- or 10-step capture therefore
+# contains ZERO elastic work and measures nothing that matters. Horizons below are
+# set so each capture spans at least TWO elastic solves at PRODUCTION cadence --
+# no elastic.interval override, because overriding it measures a configuration
+# nobody runs.
+#
+#   deck                        dt      tstart   interval  first solve  2nd solve
+#   input_copy                  2.5e-4  0.01 s   40        step ~40     step ~80
+#   input                       1.0e-4  0.5e-4   50        step ~50     step ~100
+#   input_3d_centre_bore_128_a2 1.0e-4  0.5e-4   50        step ~50     step ~100
+case "${DECK}" in
+  input_copy)
+    DIM=2; DEF_MAX_STEP=90;  DEF_TRACE_STEP=90 ;;
+  input)
+    DIM=2; DEF_MAX_STEP=110; DEF_TRACE_STEP=110 ;;
+  input_3d_centre_bore_128_a2)
+    DIM=3; DEF_MAX_STEP=110; DEF_TRACE_STEP=110 ;;
+  *)
+    echo "Unknown DECK='${DECK}'. Add its dt/tstart/interval to the table above"
+    echo "and set a horizon that spans two elastic solves -- do not guess."
+    exit 2 ;;
+esac
+MAX_STEP="${MAX_STEP:-${DEF_MAX_STEP}}"
+TRACE_STEP="${TRACE_STEP:-${DEF_TRACE_STEP}}"
+
 case "${GPU_TYPE}" in
   a100) ARCH=80 ;;
   h200) ARCH=90 ;;
   *) echo "Unknown GPU_TYPE=${GPU_TYPE} (a100|h200)"; exit 2 ;;
 esac
 
-if [ "${DIM}" = 2 ]; then
-  INPUT="${INPUT:-input}"
-else
-  INPUT="${INPUT:-input_3d_centre_bore_128_a2}"
-fi
+INPUT="${DECK}"
 
 JOB="${SLURM_JOB_ID:-dryrun}"
-OUT="${OUT:-$PWD/benchmark/_phase0_${DIM}d_${GPU_TYPE}_${JOB}}"
+OUT="${OUT:-$PWD/benchmark/_phase0_${DECK}_${GPU_TYPE}_${JOB}}"
 
 # --- Modules: PINNED. Campaign §2 -- verify spellings once per cluster change.
 # Verified on nova-login-2, 2026-07-27: cuda/12.8.1 ships nsys 2024.6.2.225 and
@@ -120,8 +146,9 @@ run () {  # echo then run (or just echo under DRYRUN)
 }
 have_leg () { case " ${LEGS} " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
-say "phase0_capture  DIM=${DIM} GPU=${GPU_TYPE}(sm_${ARCH}) job=${JOB}"
-echo "  input=${INPUT}  legs='${LEGS}'  out=${OUT}"
+say "phase0_capture  DECK=${DECK} (${DIM}D) GPU=${GPU_TYPE}(sm_${ARCH}) job=${JOB}"
+echo "  legs='${LEGS}'  out=${OUT}"
+echo "  horizons: timing=${MAX_STEP} trace=${TRACE_STEP} steps (>=2 elastic solves, production cadence)"
 echo "  profile binary=${PROF_BIN}"
 echo "  plain   binary=${PLAIN_BIN}"
 
@@ -295,6 +322,72 @@ if have_leg ncu; then
       fi
     done
   fi
+fi
+
+# ------------------------------------------------------------- leg: smooth ---
+# The open question both prior tasks refused to close.
+#
+#   docs/agent_plans/20260721-fapply-runtime-optimization/results/RESULT.md
+#     retains 2/2: -12.79% wall 2D, -21.05% 3D, A100 -16.56% wall / -22.54% MLMG.
+#     Says twice: "not a longer-evolution stability claim". 3D final residual
+#     9.72181e-09 against a 1e-08 gate -- clearing convergence by 3% on a
+#     TWO-STEP deck.
+#   docs/agent_plans/20260727-gpu-optimization-investigation/results/RESULT.md
+#     R1: 2/2 "costs 5-41% more MLMG iterations", declines to apply it because
+#     "the longest validation run here was 125 steps, and production runs to
+#     stop_time = 6.5_s ... that margin is exactly what gets consumed."
+#
+# Both asked for a long-horizon run on one geometry. This is that run. It is
+# NOT a timing leg: the deliverable is ITERATION COUNT and whether the solve
+# survives, with wall as secondary.
+#
+# Note elastic.solver.verbose is deliberately NOT zeroed here -- MLMG's
+# iteration/residual lines are the measurement. Everywhere else verbose=0.
+if have_leg smooth; then
+  SMOOTH_STEP="${SMOOTH_STEP:-800}"   # >> the 125-step longest prior validation
+  say "LEG smooth -- 4/4 vs 2/2 at production cadence, ${SMOOTH_STEP} steps"
+  echo "  deliverable = MLMG iteration counts + survival, NOT wall"
+  for arm in 4 2; do
+    L="${OUT}/smooth/${arm}x${arm}"; mkdir -p "${L}"
+    ARM=( "elastic.solver.pre_smooth=${arm}" "elastic.solver.post_smooth=${arm}"
+          "elastic.solver.verbose=4" )
+    if [ "${DRYRUN}" = 1 ]; then
+      echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ./${PLAIN_BIN} ${INPUT} ... ${ARM[*]} max_step=${SMOOTH_STEP}"
+      continue
+    fi
+    T0=$(date +%s.%N)
+    srun --mpi=pmix -n1 --gpus-per-task=1 \
+      "./${PLAIN_BIN}" "${INPUT}" \
+      amr.plot_int=-1 amr.thermo.plot_int=1 amr.thermo.int=1 \
+      "amr.max_grid_size=${MGS}" elastic.print_model=0 \
+      amrex.abort_on_out_of_gpu_memory=1 "${MANAGED[@]}" "${ARM[@]}" \
+      max_step="${SMOOTH_STEP}" stop_time=1e99_s \
+      plot_file="${L}/plot" > "${L}/run.log" 2>&1
+    RC=$?; T1=$(date +%s.%N)
+    WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
+    # MLMG prints one "Final Iter." line per solve at verbose>=1; count them and
+    # summarise, rather than trusting a single end-of-run number.
+    ITERS=$(grep -oE "Final Iter\.? +[0-9]+" "${L}/run.log" 2>/dev/null | grep -oE "[0-9]+$" | tr '\n' ' ')
+    NSOLVE=$(grep -c "Final Iter" "${L}/run.log" 2>/dev/null)
+    FAILED=$(grep -ciE "MLMG failed|Abort|did not converge|illegal" "${L}/run.log" 2>/dev/null)
+    {
+      echo "arm=${arm}/${arm}"
+      echo "rc=${RC} wall_s=${WALL} steps=${SMOOTH_STEP}"
+      echo "elastic_solves=${NSOLVE}"
+      echo "failure_lines=${FAILED}"
+      echo "mlmg_iters_per_solve=${ITERS}"
+      echo "${ITERS}" | tr ' ' '\n' | awk 'NF{n++;s+=$1;if($1>m)m=$1} END{if(n)printf "mlmg_iters_mean=%.2f\nmlmg_iters_max=%d\n",s/n,m}'
+    } > "${L}/summary.txt"
+    cat "${L}/summary.txt"
+    if [ "${FAILED}" -gt 0 ] 2>/dev/null; then
+      echo "  --- first failure line:"
+      grep -inE "MLMG failed|Abort|did not converge|illegal" "${L}/run.log" | head -3
+    fi
+  done
+  echo "VERDICT INPUT: compare mlmg_iters_mean/max and survival between arms."
+  echo "  2/2 winning wall while iters stay bounded  -> the prior claim extends."
+  echo "  2/2 iters climbing toward max_iter, or failing -> it does not, and"
+  echo "  the two-step measurements were sampling an easy conditioning state."
 fi
 
 say "phase0_capture done -- artifacts under ${OUT}"

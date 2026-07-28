@@ -71,6 +71,10 @@ case "${ACTION}" in
       --exclude 'benchmark/_a100_gate_*' --exclude 'benchmark/baseline_runs' \
       ./benchmark ./src ./input* ./configure ./Makefile \
       "${HOST}:${REMOTE_DIR}/"
+    # Deck assets. input_copy's eta IC is blur5_rod_and_tube.bmp, which is
+    # untracked locally and was NOT on NOVA -- the deck aborts at InitData
+    # without it. Push every BMP rather than tracking the dependency by hand.
+    rsync -az --info=stats1 ./*.bmp "${HOST}:${REMOTE_DIR}/" 2>/dev/null || true
     echo "--- provenance pushed:"; cat benchmark/_pushed_rev.txt
     echo "NOTE: bin/ and ext/ are deliberately not pushed -- build on NOVA."
     ;;
@@ -88,11 +92,14 @@ case "${ACTION}" in
     ;;
 
   submit)
-    DIMS=("$@"); [ "${#DIMS[@]}" -eq 0 ] && DIMS=(2 3)
-    for d in "${DIMS[@]}"; do
-      echo "=== submit DIM=${d} GPU_TYPE=${GPU_TYPE}"
+    # Decks, primary first. input_copy is the production-condition deck (user
+    # ruling 2026-07-27); input and the 3D centre-bore case are kept alongside.
+    DECKS=("$@")
+    [ "${#DECKS[@]}" -eq 0 ] && DECKS=(input_copy input input_3d_centre_bore_128_a2)
+    for d in "${DECKS[@]}"; do
+      echo "=== submit DECK=${d} GPU_TYPE=${GPU_TYPE} LEGS='${LEGS:-default}'"
       ssh_nova "cd ${REMOTE_DIR} && sbatch --parsable --gres=gpu:${GPU_TYPE}:1 \
-                  --export=ALL,DIM=${d},GPU_TYPE=${GPU_TYPE} \
+                  --export=ALL,DECK=${d},GPU_TYPE=${GPU_TYPE}${LEGS:+,LEGS='${LEGS}'}${SMOOTH_STEP:+,SMOOTH_STEP=${SMOOTH_STEP}} \
                   benchmark/phase0_capture.slurm"
     done
     echo "Record the job ids. Do not block on the queue (campaign §2)."
