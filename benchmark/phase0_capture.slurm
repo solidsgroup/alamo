@@ -180,6 +180,9 @@ if have_leg env; then
     echo "--- GPU-aware MPI verdict (Phase 0.5 §2 carry-over):"
     ompi_info --parsable --all 2>/dev/null | grep -E 'mpi_built_with_cuda_support' || echo "  (no ompi_info cuda line; not Open MPI?)"
     ompi_info --parsable --all 2>/dev/null | grep -iE 'accelerator|smcuda' | head -5
+    echo "--- GPU visibility on the BATCH step (srun steps may differ)"
+    echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
+    echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS:-<unset>}  SLURM_STEP_GPUS=${SLURM_STEP_GPUS:-<unset>}"
     echo "--- arena sizing input"
     echo "device_total_MiB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)"
   } > "${L}/inventory.txt" 2>&1
@@ -191,13 +194,28 @@ if have_leg env; then
   if [ "${DRYRUN}" = 1 ]; then
     echo "+ ncu --target-processes all --launch-count 1 --section SpeedOfLight -o ${L}/ncu_probe ${PLAIN_BIN} ${INPUT} max_step=1 ..."
   else
-    ncu --target-processes all --launch-count 1 --section SpeedOfLight \
+    # Run under srun like every other GPU step. The batch step does not reliably
+    # hold the job's GRES -- job 11772151 aborted here with `CUDA error 3 ...
+    # initialization error` while nvidia-smi still listed the A100, because
+    # nvidia-smi queries without allocating and CUDA init does not.
+    srun --mpi=pmix -n1 --gpus-per-task=1 \
+      ncu --target-processes all --launch-count 1 --section SpeedOfLight \
         -o "${L}/ncu_probe" --force-overwrite \
         "./${PLAIN_BIN}" "${COMMON[@]}" "${MANAGED[@]}" max_step=1 stop_time=1e99_s \
         plot_file="${L}/probe_plot" > "${L}/ncu_probe.log" 2>&1
+    PROBE_RC=$?
+    # Three outcomes, not two. The old logic treated "no permission string" as
+    # success, so a CUDA-init abort was recorded as `counters permitted` and the
+    # ncu leg then ran anyway and failed.
     if grep -qi "ERR_NVGPUCTRPERM\|The user does not have permission" "${L}/ncu_probe.log"; then
       echo "  ncu counters BARRED on this node (ERR_NVGPUCTRPERM) -- ncu leg will be skipped."
       echo "  Substitute: benchmark/res_usage.sh (root-free register/occupancy proxy)."
+      NCU_OK=0
+    elif [ "${PROBE_RC}" -ne 0 ]; then
+      echo "  ncu probe FAILED rc=${PROBE_RC} for a reason other than permissions."
+      echo "  Counters are UNVERIFIED; skipping the ncu leg rather than guessing."
+      grep -iE "error|abort" "${L}/ncu_probe.log" | head -3
+      NCU_OK=0
     else
       NCU_OK=1; echo "  ncu counters permitted."
     fi
@@ -296,7 +314,8 @@ if have_leg ncu; then
   L="${OUT}/ncu"; mkdir -p "${L}"
   NCU_OK_FILE="${OUT}/env/ncu_ok"
   if [ "${DRYRUN}" != 1 ] && [ -f "${NCU_OK_FILE}" ] && [ "$(cat "${NCU_OK_FILE}")" != "1" ]; then
-    echo "  SKIPPED: counters barred on this node (see env leg). Use benchmark/res_usage.sh."
+    echo "  SKIPPED: counters unavailable or unverified on this node (see env leg)."
+    echo "  Use benchmark/res_usage.sh as the root-free substitute."
   else
     # Select by NVTX range, not kernel name: AMReX launches all appear as
     # `launch_global`, which is why a --kernel-name filter comes back empty

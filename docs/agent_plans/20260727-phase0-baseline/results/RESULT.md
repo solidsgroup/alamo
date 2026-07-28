@@ -187,15 +187,90 @@ Independent confirmation that the CPU side is the fixed point:
 **The gpu_strict leg is now trustworthy. Campaign §6's prerequisite and NOTES.md
 N4 are both discharged.** Phase 1 may rely on it.
 
-## §L5 NOVA batch — composed, awaiting pre-submit checkpoint
+## §L5 NOVA batch — SUBMITTED 2026-07-27
 
-See `benchmark/phase0_capture.slurm` and the `--dry-run` output recorded in
-`results/l5_dryrun.txt`. Nothing has been submitted (campaign §2: compose and
-dry-run first; PLAN checkpoint 2).
+Pre-submit checkpoint cleared by the user. Build job `11772112` COMPLETED
+(00:15:37), producing all four binaries on sm_80:
+`alamo_gpu-{2d,3d}-cuda80-g++` (timing) and `alamo_gpu-{2d,3d}-profile-cuda80-g++`
+(diagnostic). These are the first non-profile NOVA binaries this repo has had —
+`build_alamo_nova.sh` previously built only `--profile`.
+
+### Capture jobs
+
+| Job | Deck | Legs | Purpose |
+|---|---|---|---|
+| 11772151 | `input_copy` | env timing flip nsys ncu | **Primary.** Production-condition deck |
+| 11772152 | `input` | env timing flip nsys ncu | Prior 2D baseline, kept for continuity |
+| 11772153 | `input_3d_centre_bore_128_a2` | env timing flip nsys ncu | 3D (Fapply-compute-bound regime) |
+| 11772154 | `input_copy` | smooth | 4/4 vs 2/2 A/B, 800 steps |
+
+### Two design corrections made before submitting
+
+**1. The original horizons measured nothing.** Elastic is ~95% of GPU wall, and
+every production deck fires it on an interval after a `tstart` delay:
+
+| deck | dt | tstart | interval | 1st solve | 2nd solve |
+|---|---|---|---|---|---|
+| `input_copy` | 2.5e-4 | 0.01 s | 40 | step ~40 | step ~80 |
+| `input` | 1.0e-4 | 0.5e-4 | 50 | step ~50 | step ~100 |
+| `input_3d_centre_bore_128_a2` | 1.0e-4 | 0.5e-4 | 50 | step ~50 | step ~100 |
+
+The first draft used `MAX_STEP=10` and `TRACE_STEP=3`, which contain **zero
+elastic solves** on every one of these decks. That baseline would have been
+confidently wrong — it would have profiled the phase-field/thermal steps and
+missed the entire dominant cost. Horizons are now per-deck (90/110 steps) and
+sized to span two solves at **production cadence**. Deliberately *not* fixed by
+overriding `elastic.interval=1`, which measures a configuration nobody runs.
+
+**2. `input_copy` would have aborted at `InitData` on NOVA.** Its eta IC is
+`blur5_rod_and_tube.bmp`, untracked locally and absent on the remote. `push` now
+ships `*.bmp`.
+
+## §L6 Smoothing A/B — the experiment two prior tasks declined to run
+
+User report 2026-07-27: 2/2 pre/post smoothing causes MLMG divergence in
+production runs, against perf studies recommending it. Both studies located, and
+**both predict this**:
+
+- `docs/agent_plans/20260721-fapply-runtime-optimization/results/RESULT.md`
+  retains 2/2 on measured gains (2D wall −12.79%, 3D −21.05%; A100 wall −16.56%,
+  MLMG solve −22.54%, FApply −23.30%) and states **twice** that it is "not a
+  longer-evolution stability claim". The tell: the 3D final residual is
+  `9.72181e-09` against a `1e-08` gate — clearing convergence by 3% on a
+  **two-step** deck.
+- `docs/agent_plans/20260727-gpu-optimization-investigation/results/RESULT.md`
+  R1 measures 2/2 costing **5-41% more MLMG iterations** and explicitly refuses
+  to apply it: *"the longest validation run here was 125 steps, and production
+  runs to `stop_time = 6.5_s`… that margin is exactly what gets consumed."*
+
+Mechanism: 2/2 buys wall by doing less work per V-cycle and repays it in
+iteration count. On short horizons the saving exceeds the repayment. `input_copy`
+runs ~6,000 steps (`stop_time=1.5_s` at `dt=2.5e-4`) with ~150 elastic solves at
+`interval=40`, and sets `tol_abs=1e-8` — the exact gate 2/2 cleared by 3%. The
+divergence is the predicted outcome of an unvalidated extrapolation, not a
+contradiction of the measurements.
+
+Job `11772154` runs both arms at 800 steps (vs the 125-step prior maximum),
+reporting **MLMG iteration counts and survival**, wall secondary.
+
+### Unrelated defect found in the same deck
+
+`input_copy:175` sets `elastic.solver.bottom_solver = bigcstab` — transposed
+letters. `src/Solver/Nonlocal/Linear.H:286-288` matches only `cg`, `bicgstab`,
+`smoother`, with **no `else` branch**, so an unrecognized value is silently
+discarded. Inert here by luck: `MLLinOp::getDefaultBottomSolver()`
+(`AMReX_MLLinOp.H:264`) returns `bicgstab` and Elastic does not override it, so
+the deck gets what it meant. The hazard is the next one — `smoother` is the
+documented fix for the Mode-B high-contrast failure, and a typo there would
+silently no-op while the deck reads as though it were set. Logged, not fixed.
 
 ## §N1-N5, decision gate
 
-Pending.
+Decision gate **answered 2026-07-27** (campaign PLAN §17): proceed, targeting
+Flame + Elastic. Chamber/Ballistic needs no work; Hydro deferred to a follow-on
+port (campaign PLAN §18).
+
+N1-N5 pending job completion.
 
 ---
 
