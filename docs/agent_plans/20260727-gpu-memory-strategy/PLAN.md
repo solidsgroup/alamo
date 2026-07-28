@@ -1,77 +1,45 @@
-# TASK: gpu-memory-strategy
-# Folder: docs/agent_plans/20260727-gpu-memory-strategy/
-
 # chamber-gpu-mem: Memory Strategy Migration Plan
 
-**Branch:** `chamber-gpu-mem` (branched from `chamber-gpu` @ cc22ff9ee, 2026-07-27)
-**Objective:** Move from "runs on GPU" to "device-resident by construction."
-**Character:** Campaign strategy. This document is the campaign spine, not a
-single task. Each phase spawns its own `docs/agent_plans/YYYYMMDD-<phase>/PLAN.md`
-from `docs/llm/TASK_TEMPLATE.md` before any `src/` edit, per CLAUDE.md.
-
-## Header (this document only)
-
-| Field         | Value                                                       |
-|---------------|-------------------------------------------------------------|
-| Risk tier     | 0 — docs only; no `src/` change is authorized by this file  |
-| Model         | opus (campaign design); per-phase folders route their own   |
-| Verification  | judgment (strategy doc); per-phase folders carry oracles    |
-| Est. scope    | this PLAN.md + NOTES.md; per-phase folders spawned later    |
-| Parallel-safe | yes — docs only, disjoint from all `src/` work              |
-
-Per-phase task folders inherit the template's **Operating rules** verbatim.
-Restated here because the campaign spans many sessions:
-
-1. Read only what the phase's Context budget lists. `docs/archive/` is forbidden.
-2. Every step's VERIFY passes before acting. On failure: STOP, report, wait.
-3. One commit per step. Message: `<area>: <what> (<task-folder>)`.
-4. No scope expansion — new ideas go to `NOTES.md`, not into code. The §1
-   glaring-defect exception is the *only* carve-out, and it routes through a new
-   task folder rather than an inline edit.
-5. Missing knowledge → ask. Do not wing it.
-6. Tier ≥ 2 → stop at each checkpoint and print the checklist.
-
-## Context budget (campaign level)
-
-Read first: `benchmark/status.sh` output, this PLAN.md
-Read: `docs/llm/PLAN.md`, `docs/llm/BUG_PATTERNS.md`,
-`benchmark/NOVA_SLURM_RUNBOOK.md`, `ext/AMReX-Codes/amrex/Docs/**/GPU.rst`
-Reference only if a step names it: `src/Integrator/Flame.{cpp,H}`,
-`src/Integrator/Integrator.cpp`, `src/Solver/Nonlocal/Newton.H`,
-`src/Operator/Elastic.*`
-Forbidden: `docs/archive/*`, unrelated task folders, the ~/Desktop sweep campaign
-
-## Oracle (campaign level)
-
-Command: `benchmark/status.sh` — all three gates green (device-lint,
-golden-compare, a100-sanitizer), run **solo** (see §2 concurrency warning).
-Covers: CPU golden correctness, device-pattern lint, runtime-strict smoke.
-Does NOT cover: T1-T7 (NOVA measurement only), gpu_strict leg while the
-`rod_and_tube_step2` reference is stale, multi-rank correctness (Phase 0.5).
-
-## Closeout (campaign level)
-
-- [ ] Every phase folder has `results/DONE`
-- [ ] Metrics ledger populated for all phase boundaries (§12)
-- [ ] Patterns exported to `gpu_manual` (§13)
-- [ ] `results/RESULT.md` here; `changelog/` appended (never edited in place)
-- [ ] One `docs/llm/SESSION_LOG.tsv` line per session
+**Version:** 2.0
+**Branch:** `chamber-gpu-mem` (from `chamber-gpu`; Flame solver, ALAMO/AMReX)
+**Status:** Phase 0 blocked. Target set revised. Decision gate reopened.
+**Character:** Strategy and scope. Execution detail deferred to per-phase work items.
 
 ---
 
-## 0. Corrections applied to the source draft
+## 0. Changelog from v1.0
 
-Recorded so the deltas stay visible rather than being silently absorbed.
+v1.0 was rejected by hostile review. The rejection was substantially correct. Changes:
 
-| # | Draft said | Corrected to | Basis |
+| Change | Origin |
+|---|---|
+| **T0 wall-time non-regression added as blocking gate** | Omission: campaign could pass every target and ship slower production |
+| **T1, T3, T4, T5, T6 redefined** | Metrics were structurally incapable of detecting their own pathologies |
+| **False-pass analysis now mandatory per target** | Generalized fix for the above; the meta-defect |
+| **Phase 1 split into 1a (mechanical) and 1b (lifetime redesign)** | Review correctly rejected "Phase 1 is mechanical" as a whole-phase claim |
+| **T6 split; idle-fraction gate moved to Phase 3** | Phase 2 could not exit on a gate whose fix was scheduled for Phase 3 |
+| **Ballistic scope contradiction escalated to explicit decision** | Plan declared Ballistic out of scope while requiring device-side pressure |
+| **Sync inventory now mechanically derived, not authored** | Authored inventory missed the largest contributors |
+| **`AbortIfDeviceError` measurement promoted to early Phase 0** | Cheap, removable, may reshape the idle profile everything else is scoped against |
+| **Benchmark methodology section rewritten** | No repetitions, startup included, horizon shorter than the startup transient |
+| **Reproducibility requirements added to capture** | Baseline captured from a 574-file dirty tree with no manifest or hashes |
+| **Oracle integrity requirements added** | Main gate ran a managed-memory smoke while reporting sanitizer coverage |
+| **Decision gate reopened** | Cost estimate moved materially; prior answer was against the old cost |
+
+### The v1 root defect
+
+v1 stated that arena pools recycle after warmup, then selected metrics that pooling defeats. The same error repeated across four targets:
+
+| Target | v1 measured | Pathology lives in | Defeated by |
 |---|---|---|---|
-| C1 | Branch `chamber-gpu` | Branch `chamber-gpu-mem` | This campaign's branch |
-| C2 | "Elastic/MLMG solver work" out of scope | **Algorithmic redesign** of Elastic/MLMG out of scope; memory residency, arena, and sync work inside them is **in scope**. Glaring algorithmic defects surfaced in Flame/Elastic/MLMG get fixed, not ignored | User ruling; elastic is 95% of GPU wall and excluding it entirely would scope the campaign to ~5% of runtime |
-| C3 | Kernel temporaries → `The_Async_Arena()` | Evidence-gated, not default. Already A/B'd on this repo and **rejected**: +2.2% 2D / +4.0% 3D | `gpu_amrex_guide_audit_20260727` |
-| C4 | T1 (managed off) is a Phase 1 exit gate | T1 is **NOVA/A100-only**. Local A1000 (8 GB) keeps managed; it cannot validate T1 | A1000 needs managed at 8 GB; `the_arena_init_size` default already OOMs intermittently at init |
-| C5 | §14 open questions 1-5 all open | Q1-Q3 partly answered from source (§14). Q4 answered. Q5 answered | Source read 2026-07-27, this session |
-| C6 | Testing implicitly local | Explicit access + scheduling model added (§2) | User ruling: `ssh -MN` tunnel, agent-authorized runs, SLURM-bound |
-| C7 | "chamber" used throughout to mean the whole simulation | **"Chamber" = `Model/Chamber/Ballistic.H`, the ballistic chamber model, and it needs no work.** The targets are **Flame, Hydro, Elastic** and whatever they depend on | User ruling 2026-07-27, answering the §6 decision gate. See §17 |
+| T1 | "runs clean, managed off" | managed arena as a separate pool | pool separation |
+| T3 | bytes per step | transfer count, blocking calls | small payloads |
+| T4 | `cudaMalloc` calls | arena request count | pool recycling |
+| T5 | high-water mark | per-step churn | pool recycling |
+
+System-level symptoms were used to certify application-level properties. Pooling, batching, and caching sit between the layers and hide exactly what was claimed to be detected.
+
+**Structural remedy, Section 3.1:** no target enters the set without a written false-pass scenario and a demonstration that the metric catches it.
 
 ---
 
@@ -80,299 +48,249 @@ Recorded so the deltas stay visible rather than being silently absorbed.
 ### In scope
 
 - Memory residency and arena discipline for the chamber timestep loop
-- Elimination of per-step host/device synchronization, **including inside
-  Elastic/MLMG** — sync and residency are memory-strategy questions wherever
-  they occur
+- Allocation lifetime redesign where Phase 0 evidence shows per-step churn
+- Elimination and reduction of per-step host/device synchronization
 - Launch configuration and kernel shape, to the extent memory traffic drives it
-- Multi-GPU *structural* decisions only (see §10)
-- A repeatable profiling harness with a fixed figure set
+- Multi-GPU *structural* decisions only (Section 11)
+- A repeatable, reproducible profiling harness with a fixed figure set
 
 ### Out of scope
 
 - Algorithmic changes to the Flame solver
-- **Algorithmic redesign** of the Elastic/MLMG solver — smoother choice, cycle
-  structure, coarsening strategy, Newton formulation. Separate thread.
-- `multicomponent/FMA` porting (this plan generates patterns for it, does not
-  touch it)
+- Elastic/MLMG solver algorithm work (separate thread)
+- `multicomponent/FMA` porting (this plan generates patterns for it)
 - Multi-GPU performance tuning, halo overlap, load balance
-- The propellant parameter-sweep campaign (~/Desktop, sims 030-085) — CLAUDE.md
-  hard exclusion
 
-### Glaring-defect exception (C2)
+### Scope items pending decision
 
-If work under this plan surfaces an obvious algorithmic defect in Flame,
-Elastic, or MLMG — wrong reduction scope, a stale hierarchy, a convergence test
-that cannot converge, an O(n²) walk where O(n) is available — **fix it**, do not
-route around it. Conditions:
-
-1. Log it in `NOTES.md` in this folder with evidence before touching code.
-2. It gets its own tier-3 task folder from the template. No inline drive-by edits.
-3. Correctness gate is mandatory and non-negotiable: device lint + golden
-   compare + compute-sanitizer.
-
-"Glaring" means demonstrable from evidence in hand. A suspicion that an
-algorithm could be better is scope creep and goes to `NOTES.md` only.
+- **Ballistic** — declared out of scope in v1 while the design required device-side pressure. Unresolved contradiction. See Section 9.2.
+- **Newton convergence policy** — check-every-N is not an algorithmic change; fixed-iteration-count is. See Section 9.3.
 
 ### Governing rule
 
-> Device owns field data permanently. Host copies are transient, explicit,
-> created for I/O, and destroyed immediately. No field crosses the bus inside a
-> timestep.
+> Device owns field data permanently. Host copies are transient, explicit, created for I/O, and destroyed immediately. No field crosses the bus inside a timestep.
 
-Every phase below is a consequence of this rule. When a decision is ambiguous,
-resolve it against this sentence.
+Resolve ambiguity against this sentence. Note that it is a *goal*, not a gate — the gates are Section 3, and the v1 failure was assuming a plausible gate followed from a clear goal.
 
 ---
 
-## 2. Access and scheduling model
+## 2. Blocking preconditions
 
-**Local (kermit, A1000 sm_86, 8 GB, shared and 50 W-capped):**
-correctness only — device lint, CPU golden compare, compute-sanitizer,
-`res_usage.sh`. Managed arena stays on locally. **Local timing numbers are not
-admissible for T5-T7**; the card is shared and power-capped, and HMM masks
-host-pointer defects.
+None of Phases 1-3 may begin until all four clear.
 
-**NOVA (A100/H200, SLURM):** all load-bearing measurement. Access is via the
-`ssh -MN` ControlMaster tunnel (`~/.ssh/config` Host `nova`, `ControlPath
-~/.ssh/cm-%C`, `ControlPersist 12h`). The agent is authorized to submit and
-collect jobs over that tunnel.
-
-**Scheduling discipline.** GPU access is queued, not interactive. Therefore:
-
-- **Batch by phase boundary.** One submission campaign per boundary, capturing
-  the entire figure set F1-F10 in a single job where the tooling allows, not one
-  job per figure.
-- **Compose before submitting.** Every deck, flag, and capture command is
-  dry-run locally or on the login node first. A job that dies on a typo costs a
-  queue slot and hours.
-- **Never block on the queue.** Submit, record the job id, do local work, poll.
-  `benchmark/slurm_pending_reason.sh` explains a stuck job.
-- **Pin the toolkit version** in the harness and verify flag spellings once per
-  cluster change (`NOVA_SLURM_RUNBOOK.md` inventory list).
-- Existing entry points: `benchmark/build_alamo_nova{,_3d}.sh`,
-  `benchmark/nova_flame_gpu{,_3d,_3d_multi,_3d_diag}.slurm`,
-  `benchmark/select_nova_resources.sh`.
-
-**Gate concurrency warning.** `benchmark/status.sh` and
-`benchmark/ci_golden_compare.sh` are **not** concurrency-safe: they share one
-log path, one `benchmark/baseline_runs/` tree, and one `bin/alamo-2d-g++`. Two
-overlapping runs produced a spurious RED on 2026-07-27 (`canonical_step1/cpu
-failed with 131` = SIGQUIT, binary swapped by a concurrent `make` under a live
-`mpiexec`). Run one at a time. If a gate goes red, re-run solo before believing it.
+| # | Precondition | Why blocking |
+|---|---|---|
+| P1 | Target set v2 complete with false-pass analysis (Section 3) | Better measurement of wrong targets is wasted work |
+| P2 | Capture reproducibility fixed (Section 5.1) | Ledger keyed on commit SHA cannot identify a dirty-tree measurement |
+| P3 | Oracle integrity fixed (Section 5.2) | Agent self-certification against an inadequate oracle already occurred |
+| P4 | Decision gate re-run at revised cost (Section 6) | Prior answer was against a materially lower cost estimate |
 
 ---
 
-## 3. Target definition
+## 3. Target definition, v2
 
-The end state is falsifiable. These are the acceptance criteria for the whole
-effort.
+### 3.1 Meta-gate: false-pass analysis
 
-| # | Target | Measurement | Threshold | Where measurable |
+Every target carries a written false-pass scenario: a concrete way the pathology exists while the metric reports PASS. The target is admitted only when the metric demonstrably catches that scenario.
+
+Where a known instance of the false-pass already exists in the tree, the metric is validated against it directly before the target is used for certification.
+
+This gate applies to the target set itself and is checked before Phase 1.
+
+### 3.2 Targets
+
+| # | Target | Measurement | Gate at | Threshold |
 |---|---|---|---|---|
-| T1 | No managed allocations | Runs clean with device arena, managed disabled | Binary | **NOVA only** (C4) |
-| T2 | No page-fault migration | nsys unified-memory counters | 0 events | NOVA |
-| T3 | Field data does not cross the bus per step | nsys memcpy size summary / steps | Tens of bytes, scalars only | NOVA |
-| T4 | No steady-state device allocation | `cudaMalloc` count after warmup | 0 | NOVA; local indicative |
-| T5 | Arena footprint stable | High-water mark between regrids | Flat | NOVA |
-| T6 | No per-step pipeline drain | Timeline idle fraction inside step loop | Under ~5% | NOVA |
-| T7 | Memory-bound kernels near roof | Achieved DRAM bandwidth, top kernels | Band set at Phase 0 | NOVA |
+| **T0** | **Production wall time does not regress** | Steady-state step time, production deck, repetitions with uncertainty | **Every phase exit** | No regression outside uncertainty |
+| T1 | No managed allocations | Static call-site inventory + allocation trace by arena | 1a | Zero bytes from managed pool in steady state |
+| T2 | No page-fault migration | nsys unified-memory counters | 1a | 0 events |
+| T3a | Field data does not cross bus per step | Bytes per step, by direction | 2 | Scalars only |
+| T3b | Transfer count bounded | Transfer count per step | 2 | Bounded, each justified |
+| T3c | Blocking transfer calls bounded | Synchronizing API call count per step | 2 | Bounded, each justified |
+| T4 | No unjustified per-step allocation | **Arena-level** alloc/free request count per step | 1b | Bounded, each individually justified |
+| T5a | Device footprint stable | Arena high-water between regrids | 1a | Flat |
+| T5b | Live allocation count stable | Arena live-allocation count per step | 1b | Flat |
+| T5c | Host footprint stable | Host-side container growth per step | 1b | Bounded |
+| T6a | Synchronizing operations bounded | Count per step vs mechanical inventory | 2 | Bounded, each justified |
+| T6b | GPU idle fraction | Timeline idle inside step loop, coarse-NVTX build | **3** | Threshold set at Phase 0 |
+| T7 | Kernels near their applicable roof | Per-kernel, classified by limiter | 3 | Per-class, set at Phase 0 |
 
-T7 has no absolute number until the Phase 0 baseline exists. Set it then, from
-the measured roofline, not from a guess.
+### 3.3 False-pass analysis per target
 
-**Known T6 starting point:** 2D is already characterized as launch-latency
-bound — GPU idle 45.6%, median inter-kernel gap 6.3 µs. 3D is Fapply-compute-
-bound (86% of GPU time). The two dimensions will not hit T6 by the same route.
+**T0** — Passes on a small case while production regresses. *Catch:* production deck, production-length horizon, startup excluded, uncertainty estimated. Small-case timing is not admissible for T0.
 
-### Explicitly not targets
+**T1** — v1 form ("runs clean with device arena") fails three ways: `The_Managed_Arena()` persists as a separate pool when the default arena is device-only; the vendored AMReX already defaults `the_arena_is_managed=false`, so the v1 "flip" proves nothing about the code; and a successful run does not distinguish "no managed allocations" from "managed allocations that happen to work." *Catch:* static inventory of managed-arena call sites plus an allocation trace attributing bytes to pools.
 
-Zero bus traffic is the wrong goal. Three transfers are legitimate and stay:
+*Definitional prerequisite:* "current state" must be pinned to one of AMReX defaults, benchmark `MODE=bench`, or production launch practice. v1 left this undefined and Phase 0 consequently manufactured a managed baseline that does not correspond to how the code is run.
 
-- Plotfile and checkpoint writes (bulk, amortized, async, pinned)
-- Regrid redistribution (infrequent, device-to-device)
-- Convergence and diagnostic scalars (few doubles, batched)
+**T2** — Meaningless if managed was never enabled. Report alongside the T1 definitional answer or not at all.
 
-The distinction is not *whether* data moves but whether the movement is
-scheduled, explicit, visible in source, and outside the inner loop.
+**T3a alone** — Thousands of tiny scalar transfers pass a bytes-per-step threshold. This pathology is already visible in the local trace. *Catch:* T3b and T3c. Count and blocking behavior carry their own thresholds.
+
+*Multi-rank caveat:* T3 cannot pass while GPU-aware MPI is inactive, since ghost exchange and device-buffer collectives may stage field data through host. Single-rank measurement does not license a device-residency claim.
+
+**T4** — v1 measured post-warmup `cudaMalloc`. AMReX arenas cache and reuse backing allocations, so unbounded application-level churn produces zero `cudaMalloc` calls. *Known instances in tree:* MLMG operator and solver constructed and destroyed per elastic solve; `FieldNorm0` allocating composite MultiFabs per call including line-search backtracks; per-step device error flag allocating a `DeviceScalar` with H2D and D2H round trip. *Catch:* instrument at the arena request layer, not the CUDA API. Validate the instrumentation against these three before use.
+
+**T5a** — Same defeat as T4: pooling holds high-water flat under arbitrary churn. Retained as necessary-not-sufficient; a *growing* high-water is still a real signal. *Catch:* T5b.
+
+**T5c** — Device-side metrics watch the wrong side of the machine for host-side growth. `Ballistic::Advance` appending to a host `std::vector` every step is unbounded growth invisible to every other target here.
+
+**T6a vs T6b** — v1 gated Phase 2 on under-5% idle while stating that 2D is 45.6% idle and launch-latency bound, with launch work deferred to Phase 3. Unsatisfiable by construction. Split: T6a counts synchronizing operations, which Phase 2 controls; T6b measures idle fraction, gated at Phase 3, threshold derived from the measured launch-bound floor rather than assumed.
+
+*Measurement integrity:* a build emitting 16,000+ NVTX ranges in a two-step run perturbs the launch gaps T6b measures. Two-build policy, Section 12.2.
+
+**T7** — v1 assumed the HBM roof applies. Fapply history points at register pressure, spill, and occupancy limits. A kernel can sit far from the HBM roof and be correctly optimized. *Catch:* classify each top kernel by actual limiter first; assign the target appropriate to its class. "Near the roof" is not a universal target.
+
+### 3.4 Explicitly not targets
+
+Zero bus traffic is wrong. Three transfers are legitimate: plotfile and checkpoint writes (bulk, amortized, async, pinned); regrid redistribution (infrequent, device-to-device); convergence and diagnostic scalars (few, batched, counted under T3b/T3c).
+
+The distinction is not whether data moves but whether it is scheduled, explicit, visible in source, counted, and outside the inner loop.
 
 ---
 
 ## 4. Phase overview
 
-| Phase | Name | Character | Gate to exit |
+| Phase | Name | Character | Exit gates |
 |---|---|---|---|
-| 0.5 | Two-rank correctness probe | Correctness | Multi-rank result matches single-rank |
-| 0 | Baseline and gap table | Measurement | Gap table complete, T7 threshold set |
-| 1 | Arena hygiene | Mechanical | T1, T4, T5 |
-| 2 | Sync elimination | Design | T2, T3, T6 |
-| 3 | Launch config and kernel shape | Tuning | T7 |
+| 0.5 | Two-rank correctness probe | Correctness | Multi-rank matches single-rank |
+| 0 | Baseline, inventory, target validation | Measurement | Gap table; T6b/T7 thresholds set; P1-P4 clear |
+| 1a | Arena hygiene | Mechanical | T0, T1, T2, T5a |
+| 1b | Allocation lifetime redesign | Refactor, evidence-scoped | T0, T4, T5b, T5c |
+| 2 | Sync elimination | Design | T0, T3a-c, T6a |
+| 3 | Launch config and kernel shape | Tuning | T0, T6b, T7, **re-check T4/T5** |
 | 4 | Multi-GPU | Deferred | Out of scope here |
 
-Phases 1 through 3 are strictly ordered. Tuning launch configuration before
-removing synchronization tunes around a defect scheduled for removal.
+Ordering 1a to 1b to 2 to 3 is strict. T0 gates every phase exit, not just the last.
+
+T4 and T5 are re-checked at Phase 3 exit: fusion work can reintroduce a step-loop allocation and silently undo Phase 1b.
 
 ---
 
-## 5. Phase 0.5 — Two-rank correctness probe
+## 5. Phase 0 — Baseline, inventory, target validation
 
-**Runs first. Not a performance activity.**
+### 5.1 Capture reproducibility (P2)
 
-The chamber model reduces regression rate over the burning surface to drive a
-scalar pressure ODE. That reduction is inherently global. If it reduces
-rank-locally, multi-rank chamber results are already wrong, and the error is
-physical rather than numerical.
+The existing capture records HEAD plus a dirty-file count. With 574 dirty files including `Flame.*`, a ledger row keyed on commit SHA cannot identify the measured source, and the branch cannot bisect or reproduce.
 
-### Source pre-answer (2026-07-27) — downgrades this risk
+Requirements:
 
-Read of the actual call chain:
+- Capture refuses to run on a dirty tree, **or** records a full diff plus per-file content hashes and a manifest of every copied artifact including untracked inputs
+- Ledger key becomes `(commit_sha, tree_hash, case, n_ranks, device, build_config)`
+- Results absent locally (`results/figures/`, metrics ledger) are produced or the run is not admissible
 
-- `Integrator.cpp:1187-1190` — `IntegrateVariables(...)` then
-  `TimeStepComplete(...)`, in that order.
-- `Integrator.cpp:1224-1275` — `IntegrateVariables` runs per-box `Integrate`,
-  then **`ParallelDescriptor::ReduceRealSum` across ranks** for every
-  `thermo.extensives[i]`.
-- `Flame.cpp:1113-1130` — per-box `ReduceOps` sum of `(dvol, darea, dmdot)`,
-  accumulated host-side into `chamber.{volume,area,mdot}`.
-- `Flame.cpp:706` — `chamber.model.Advance(timestep, chamber.mdot,
-  chamber.volume, chamber.pressure)` inside `TimeStepComplete`, i.e. **after**
-  the MPI reduction.
+No measurement taken before this is fixed enters the ledger.
 
-**Conclusion: the reduction is structurally global, not rank-local.** The
-draft's headline risk is most likely already handled. Phase 0.5 therefore
-shrinks to confirmation, not investigation.
+### 5.2 Oracle integrity (P3)
 
-### Remaining questions
+The main gate reported three green labels while its sanitizer leg forced `TIERS=1` — a managed-memory pre-elastic smoke, neither compute-sanitizer nor elastic. The load-bearing sanitizer is Tier 2. The golden leg defaults to CPU rather than `gpu_strict`.
 
-1. Confirm `thermo.extensives[]` is actually true for `volume`, `area`, and
-   `mass_flux` — the registration at `Flame.cpp:195-197` and `233-235` must set
-   the extensive flag, or the allreduce is skipped and the pre-answer above
-   collapses.
-2. Does the port survive domain decomposition — ghost fill and BC application
-   at rank boundaries?
-3. Is GPU-aware MPI actually active at runtime? **Prior evidence says no** — the
-   multi-GPU loss was root-caused to blocking comm + no GPU-aware MPI +
-   `regrid_int=2` + managed arena. Confirm at runtime rather than assume;
-   silent host staging of every ghost cell violates the governing rule and
-   pollutes the Phase 0 baseline.
+This is the predicted failure mode, confirmed: an agent self-certified correctly against an inadequate oracle.
 
-### Exit gate
+Requirements:
 
-Two-rank run reproduces single-rank chamber pressure history to solver
-tolerance. If it does not, that defect is fixed before Phase 1 — not deferred to
-Phase 4.
+- Sanitizer leg runs Tier 2
+- Golden leg defaults `gpu_strict`
+- Label text matches what the leg actually executes
+- **Coverage requirements are explicit:** pressure history over enough steps to diverge, at least one regrid, two ranks, at least one checkpoint/restart cycle
 
----
+Harness coverage defines what agent-produced code can be trusted to be. It is designed deliberately, not inherited from whatever small case existed.
 
-## 6. Phase 0 — Baseline and gap table
+### 5.3 Early cheap measurement
 
-**Purpose:** Establish what is actually true, so Phases 1-3 are scoped by
-evidence rather than by an assumption that the port has typical defects.
+**Before scoping Phase 2 or 3.**
 
-### Prerequisites
+`AbortIfDeviceError` costs two unconditional full-stream synchronizations per Flame level per step and is a debug facility. If it compiles out, the effort is near zero and the idle profile may change substantially.
 
-- **Regression harness exists and is green.** Answered: `benchmark/baseline_suite.py`
-  covers `canonical_step1`, `canonical_step2`, `eta_expression_step1`,
-  `rod_and_tube_step2`, gated by `benchmark/ci_golden_compare.sh` (cpu +
-  gpu_strict legs). Verified green on this branch 2026-07-27, `EXIT=0`.
-  **Known gap:** the `rod_and_tube_step2` GPU golden reference is stale
-  (pre-existing, unfixed). Fix or quarantine it before Phase 1 relies on the
-  gpu_strict leg.
-- **NVTX annotation of the step loop.** An unannotated nsys timeline of a
-  multiphysics code is unreadable. Named regions per physics stage convert the
-  timeline from a screenshot into a diagnostic. Highest-leverage QOL investment
-  in the plan. AMReX `BL_PROFILE` regions can emit NVTX given the right build
-  configuration — verify the flag name against the **vendored** AMReX
-  (`ext/AMReX-Codes/amrex`, 26.06), not the website and not `ext/amrex` (CPU 25.07).
+Measure with it disabled first. Scoping Phase 2 against an idle profile dominated by a removable debug sync wastes the scoping.
 
-### Activities
+### 5.4 Mechanical sync inventory
 
-1. Capture baseline nsys profile, managed memory in its current state
-2. Flip to device arena on NOVA, capture the crash set (do not fix yet — inventory it)
-3. Capture Nsight Compute detail on the top kernels by time
-4. Compute the footprint budget (§7)
-5. Populate the gap table against T1-T7
-6. Set the T7 threshold from the measured roofline
+v1 described its authored inventory as confirmed. It missed the two largest contributors.
 
-### Gap table
+The Phase 0 deliverable is a **mechanically derived** inventory: enumerate synchronizing call sites from source, tag each with call frequency per step, and rank by measured cost. Authored lists are not accepted.
 
-| Target | Current | Gap | Phase | Est. effort |
-|---|---|---|---|---|
-| T1 managed off | | | 1 | |
-| T2 zero page faults | | | 1-2 | |
-| T3 per-step bytes | | | 2 | |
-| T4 steady-state alloc | | | 1 | |
-| T5 stable high-water | | | 1 | |
-| T6 idle fraction | 2D: 45.6% idle, 6.3 µs median gap | | 2 | |
-| T7 bandwidth vs roof | | | 3 | |
+Known omissions from the v1 list, to be included and not treated as exhaustive:
 
-### Decision gate — is chamber the right target?
+- `AbortIfDeviceError` full-stream syncs, per level per step
+- Explicit `streamSynchronizeAll()` in Newton and its line search
+- Per-box reduction landings in `HasNonFinite`
+- Elastic-operator lifetime synchronization
+- Full-MultiFab copies and refluxing inside every `FieldNorm0`
 
-Phase 0 is also the point to ask whether this work should proceed at all.
+These may outweigh the chamber scalar path. Phase 2 scope follows the inventory, not the reverse.
 
-Optimize chamber if it gates simulation throughput. If chamber-gpu already turns
-around the runs the SRM paper needs, the marginal value of a 2× speedup is low
-and `multicomponent/FMA` is the better claim on the time. Readiness is not a
-reason.
+### 5.5 Footprint budget
 
-Answer before Phase 1. Cheap here, expensive later.
+```
+resident = cells * components * (1 + ghost_overhead) * sizeof(Real) * n_multifab_copies
+```
+
+Summed across levels and solver working copies, compared against device capacity divided by ranks-per-GPU.
+
+Device-arena success established on single-rank 80 GB A100 does not test the 40 GB budget. Test it explicitly.
+
+If the budget clears capacity, FP32 storage becomes structural rather than optional, and that changes what Phases 1-3 build. On a bandwidth-bound code, storage precision is a memory-strategy decision: it halves footprint and halves traffic, the same lever twice.
+
+### 5.6 Threshold derivation
+
+Phase 0 sets, from measurement rather than assumption:
+
+- **T0** baseline and uncertainty band
+- **T6b** idle threshold, from the measured launch-bound floor
+- **T7** per-class targets, after classifying top kernels by actual limiter
+
+### 5.7 Deliverables
+
+1. Reproducible baseline capture (5.1)
+2. Fixed oracle with stated coverage (5.2)
+3. `AbortIfDeviceError` disabled comparison (5.3)
+4. Mechanical sync inventory (5.4)
+5. Footprint budget including 40 GB case (5.5)
+6. T0/T6b/T7 thresholds (5.6)
+7. Target set v2 with false-pass analysis validated against known in-tree instances (3.1, 3.3)
+8. Gap table
+9. Revised cost estimate for the decision gate (Section 6)
 
 ---
 
-## 7. Phase 1 — Arena hygiene
+## 6. Decision gate — reopened
 
-**Character:** Mechanical, low-risk, high-certainty. Do this regardless of what
-the gap table says.
+v1's gate was marked answered by a scope clarification while its evidence items remained incomplete. That is a process failure. The substantive failure matters more:
 
-### Arena assignment
+**Phase 1 moved from "mechanical, low-risk" to "mechanical plus lifetime redesign."** Reaching genuinely allocation-free steady state requires operator lifetime restructuring and `FieldNorm0` rework — a real refactor with correctness risk. The campaign cost estimate moved materially.
+
+The gate asked whether chamber optimization is worth doing *at the v1 cost*. That answer does not carry to the v2 cost.
+
+Re-run it with:
+
+- Revised Phase 1a + 1b + 2 estimate
+- Ballistic scope decision resolved (9.2), since it changes Phase 2 cost
+- Honest statement of whether chamber currently gates SRM paper throughput
+
+If chamber-gpu already turns around the runs the paper needs, `multicomponent/FMA` is the better claim on the time. Readiness is not a reason.
+
+---
+
+## 7. Phase 1a — Arena hygiene
+
+**Character:** Mechanical, low-risk. Unconditional.
 
 | Data class | Arena | Rationale |
 |---|---|---|
 | MultiFab field data | `The_Arena()`, device, non-managed | Governing rule |
-| Kernel temporaries | **`The_Async_Arena()` — evidence-gated, see below** | Stream-ordered free, no sync on destruction |
-| I/O staging, reduction landing | `The_Pinned_Arena()` | DMA-direct; pageable D2H forces a synchronous driver staging copy |
+| Kernel temporaries | `The_Async_Arena()` | Stream-ordered free, no sync on destruction |
+| I/O staging, reduction landing | `The_Pinned_Arena()` | DMA-direct; pageable D2H forces a synchronous staging copy |
 | MPI buffers (non-GPU-aware path) | `The_Comms_Arena()` | Isolation from field pool |
-| Managed | Nothing (NOVA); required locally on A1000 | Unless individually justified in writing |
+| Managed | Nothing | Each exception justified in writing and recorded under T1 |
 
-**Async arena caveat (C3).** `The_Async_Arena()` was already A/B'd on this repo
-and **rejected**: +2.2% 2D, +4.0% 3D. Do not re-adopt it as a default on the
-strength of the general argument. Re-test only after Phase 2 removes the
-per-step drain — the earlier measurement was taken against a sync-bound
-baseline, so the result may not survive, but that is a hypothesis to test, not a
-reason to assume.
+Configuration: device arena permanent; `the_arena_init_size` as a **fraction of device memory divided by ranks-per-GPU**, never a hardcoded byte count; `abort_on_out_of_gpu_memory=1`.
 
-### Configuration
+Parameter names and defaults move between AMReX versions. Verify against the vendored version. Note in particular that the vendored version already defaults `the_arena_is_managed=false`, which changes what this phase is actually doing relative to v1's description.
 
-- `amrex.the_arena_is_managed=0` — permanent on NOVA, not a debug toggle. Local
-  A1000 stays managed (C4).
-- `amrex.the_arena_init_size` — claim the pool up front to kill fragmentation
-  and mid-run allocation stalls. **Express as a fraction of device memory
-  divided by ranks-per-GPU, not a hardcoded byte count.** Currently pinned by
-  hand locally because the default (3/4 of 8 GB) intermittently OOMs at init —
-  that hand-pin is exactly the hardcode this policy replaces.
-- `amrex.abort_on_out_of_gpu_memory=1` — guardrail
+**Method:** flip per subsystem, one commit per subsystem. Porting everything then flipping yields simultaneous segfaults with no attribution.
 
-Parameter names and defaults have moved across AMReX versions. Verify against
-the **vendored** 26.06 tree.
-
-### Method — flip per subsystem
-
-Flip the arena after each subsystem, not once at the end. Porting everything and
-then flipping produces fifty simultaneous segfaults with no attribution and
-unknown coupling.
-
-Managed memory during porting is a scaffold, not a strategy: it keeps unported
-code correct-but-slow so the regression harness stays green throughout. Its cost
-is that a forgotten host touch is a silent 10-100× penalty with no signal.
-Flipping converts an invisible performance bug into a loud correctness bug with
-a line number. That conversion is the entire value.
-
-Note the local wrinkle: because the A1000 must stay managed, the flip is only
-observable on NOVA. Budget queue turnaround into the per-subsystem cadence, or
-the "loud correctness bug with a line number" arrives a day late.
-
-### Triage of resulting crashes
-
-Not every crash is a missing kernel port. Classify before fixing:
+**Crash triage — classify before fixing:**
 
 | Crash site | Fix |
 |---|---|
@@ -381,506 +299,303 @@ Not every crash is a missing kernel port. Classify before fixing:
 | Checkpoint / plotfile | Explicit staged copy, async |
 | Debug leftovers | Delete |
 
-Common hiding places: `mf[mfi](i,j,k)` in diagnostic code, hand-rolled host
-reduction loops, unported BC fill, `MFIter` loops with plain C++ bodies. See
-`docs/llm/BUG_PATTERNS.md` for the device bug classes this branch has already
-paid for.
+Classification is a required step, not advice. The default agent response to a segfault is to port the kernel, which is wrong for three of the four rows.
 
-### Exit gate
-
-T1, T4, T5 pass on NOVA. Regression harness green. Device lint clean.
+**Exit:** T0, T1, T2, T5a. Harness green including the 5.2 coverage requirements.
 
 ---
 
-## 8. Footprint budget
+## 8. Phase 1b — Allocation lifetime redesign
 
-**Do this arithmetic during Phase 0, before committing to Phase 1's `init_size`
-policy.**
+**Character:** Refactor. Correctness risk. Evidence-scoped — content determined by the Phase 0 gap table and arena-level instrumentation.
 
-```
-resident = cells * components * (1 + ghost_overhead) * sizeof(Real) * n_multifab_copies
-```
+This phase exists because T4 was redefined. Under the v1 metric it was invisible.
 
-Sum across levels and across the solver's working copies. Compare against 40 GB
-(A100) or 64 GB (MI210), divided by ranks-per-GPU. **Also run it against 8 GB**
-— that number decides which decks remain runnable locally at all, which sets how
-much correctness work can happen off-queue.
+### Known candidates
 
-Two consequences:
+| Site | Behavior | Direction |
+|---|---|---|
+| MLMG operator and solver | Constructed and destroyed per elastic solve | Hoist lifetime above the solve loop |
+| `FieldNorm0` | Full composite MultiFabs per call, including line-search backtracks | Persistent scratch; remove copies and refluxing from the norm path |
+| Per-step device error flag | `DeviceScalar` alloc, H2D, D2H, free each step | Persistent device-resident flag |
+| `Ballistic` history | Host `std::vector` append per step, unbounded | Bounded or externalized (T5c) |
 
-- If the budget clears device memory, FP32 storage stops being an optimization
-  and becomes a structural requirement — and that changes what Phases 1-3 build.
-  Better known now than discovered as an OOM mid-Phase 1.
-- On a bandwidth-bound code, storage precision is a *memory strategy* decision,
-  not an arithmetic one. FP32 halves resident footprint and halves traffic: the
-  same lever pulled twice.
+Each candidate is admitted on measured per-step request count, not on the list above.
 
-Chamber is likely comfortable. Run the number anyway — the same calculation is a
-hard input for `multicomponent/FMA`, where species count multiplies field count.
+**Risk:** lifetime changes are correctness-sensitive in ways arena hygiene is not. Hoisted operator lifetime interacts with regrid. Persistent scratch interacts with level count changes. Both need explicit regrid coverage in the harness.
+
+**Exit:** T0, T4, T5b, T5c. Per-step allocation set bounded and each entry individually justified in writing.
 
 ---
 
 ## 9. Phase 2 — Sync elimination
 
-**Character:** Design work. The chamber-specific phase, and probably the largest
-win.
+**Character:** Design. Scoped by the Section 5.4 mechanical inventory, not by the chamber scalar path alone.
 
-### The chamber feedback loop
+### 9.1 Scope follows the inventory
 
-```
-reduce regression rate over burning surface
-  -> mass flux
-  -> scalar ODE for chamber pressure
-  -> pressure feeds Arrhenius mobility and burn rate law
-  -> next step
-```
+v1 scoped this phase against the chamber feedback loop. The mechanical inventory may rank `AbortIfDeviceError`, Newton line-search syncs, `HasNonFinite` reductions, and `FieldNorm0` above it. Scope after the inventory exists and after the 5.3 measurement.
 
-The naive implementation is `reduce -> D2H -> host ODE -> H2D -> next kernel`.
-That is a full pipeline drain every timestep, and it does not appear as a slow
-kernel. It appears as dead timeline — which is why the NVTX-annotated timeline
-from Phase 0 is the diagnostic that finds it.
+### 9.2 Chamber feedback loop — scope contradiction, requires decision
 
-### Confirmed sync sites (source read, 2026-07-27)
+The chamber model is a per-step scalar round trip: reduce regression rate over burning surface, mass flux, scalar ODE for pressure, pressure feeds Arrhenius mobility and burn rate. Host-side implementation drains the pipeline every step and appears as dead timeline, not as a slow kernel.
 
-Concrete Phase 2 inventory, already located:
+The v1 target — pressure resident on device, updated by a one-thread kernel — **contradicts the v1 scope declaration that Ballistic is out of scope.** `Ballistic::Advance` is host-only, appends to a host `std::vector`, and its pressure feeds host-side Propellant state and elastic traction.
 
-| Site | What it costs |
+Three options, all with costs:
+
+| Option | Cost |
 |---|---|
-| `Flame.cpp:1127` `reduce_data.value(reduce_op)` | Device sync **per box, per level**, inside the `MFIter` loop — not once per step. Lands the reduction on the host to accumulate into `chamber.*`. Prime T3/T6 target. |
-| `Flame.cpp:664-701` | A second `ReduceOps` block plus **five** `ParallelDescriptor::ReduceReal{Max,Min}` calls (`thermo_max_temp`, `thermo_mdot_max`, `thermo_heatflux_max`, `thermo_L_max`, `thermo_eta_min`) — five separate allreduces where one batched call would do. |
-| `Integrator.cpp:1271-1275` | Per-variable `ReduceRealSum` loop over `thermo.extensives` — batchable. |
-| `Solver/Nonlocal/Newton.H` ~419, ~572, `FieldNorm0` ~816 | `norm0` per level × per component, each a device reduction + stream sync + MPI allreduce, multiplied by line-search backtracks. **Already tracked as PLAN.md backlog item 3.I** — adopt it into this phase rather than duplicating it. |
+| Port Ballistic | In-scope expansion; changes its history and diagnostic contract |
+| Duplicate the formula in Flame | Maintenance trap; two sources of truth for the pressure law |
+| Keep host update | Fails the target; Phase 2 exits with a known per-step drain |
 
-### Target shape
+**Additional obstacle:** `ReduceData::devicePtr()` holds block partials. The finalized value comes from `.value()`, which lands on host. A true device-result reduction needs additional reduction machinery beyond what v1 assumed. This raises the cost of options 1 and 2.
 
-Chamber pressure lives permanently in a one-element device array. Reduction
-lands on device. The scalar update is a single-thread kernel, or folded into the
-head of the following kernel. Host observes pressure only when diagnostics print.
+**Decision required before Phase 2 scoping, and it feeds Section 6.**
 
-A one-thread kernel is a strange-looking object. It costs roughly 5 µs. It
-replaces a full drain.
+### 9.3 Global reduction shape
 
-### Build the reduction Allreduce-shaped now
+The burning-surface reduction is global. Multi-rank, the scalar update is an `MPI_Allreduce`, not a local reduce.
 
-The one multi-GPU decision that cannot be cleanly deferred.
+Build as `device-local reduce -> device-buffer Allreduce -> device scalar update`. Single-rank the Allreduce is a no-op. Cost now is nil; correctness later is by construction.
 
-The burning-surface reduction is global (confirmed, §5). Multi-rank, the scalar
-update is an `MPI_Allreduce`, not a local reduction. Building Phase 2 as
-`device-local reduce -> one-thread kernel` produces a design that is *replaced*,
-not extended, at Phase 4.
+This must be specified explicitly in any implementation spec. Device-local reduce is the dominant pattern in training data, works single-rank, and passes the harness. It is the predicted agent failure for this phase.
 
-Build instead: `device-local reduce -> device-buffer Allreduce -> device scalar
-update`. On one rank the Allreduce is a no-op. Cost single-GPU is nil;
-correctness multi-GPU is by construction.
+### 9.4 Newton convergence
 
-Caveat: this is only a device-buffer Allreduce if GPU-aware MPI is active. Phase
-0.5 Q3 says it currently is not. Either enable it or accept a staged path and
-mark it as debt — do not write "device-buffer Allreduce" in the source and let
-it silently stage through host.
+If the Newton convergence test is a host-side comparison on a reduced residual, that is a sync per Newton iteration stacked on the per-step drain. Confirm whether the earlier CPU stall fix left a host-side branch in place — correct CPU design, serious GPU defect, survives review unremarked.
 
-### Newton solver convergence check
+**Scope clarification:** check-every-N is *not* an algorithmic change provided it only ever adds iterations past convergence — the converged answer is identical to tolerance. Fixed-iteration-count *is* an algorithmic change and remains out of scope.
 
-If the Newton convergence test is a host-side comparison on a reduced residual,
-that is an additional sync *per Newton iteration*, stacked on the per-step drain.
+**Honest limit:** device-side convergence testing does not remove the host control dependency on whether to continue or terminate. Some sync survives. T6a is a bounded-and-justified target, not a zero target, for this reason.
 
-Options: fixed iteration count with a check every N iterations, or batch
-residual norms and test on device.
-
-Confirm whether the CPU Newton damping / line-search work left a host-side
-branch in place. A host-side convergence branch is a reasonable CPU design and a
-serious GPU defect; exactly the kind of thing that survives a port unexamined.
-**Convergence-semantics-critical: tier 3, CPU golden compare + budget gate.**
-
-### Prior art to fold in, not rediscover
-
-`ALAMO_MLMG_NOSYNC` (default-off: `Gpu::NoSyncRegion` + `max_gpu_streams=1`)
-already measures **-12.1% 2D / -1.5% 3D** with bit-identical traces, and is
-retained but unshipped. It is a Phase 2 deliverable that already exists —
-validate and promote it rather than re-deriving it. Its 2D/3D asymmetry is
-itself the T6 story.
-
-### Exit gate
-
-T2, T3, T6 pass. Per-step bus traffic is scalars only. Timeline shows no drain
-inside the step loop.
+**Exit:** T0, T3a, T3b, T3c, T6a. Idle fraction is *not* a Phase 2 gate.
 
 ---
 
 ## 10. Phase 3 — Launch configuration and kernel shape
 
-**Character:** Tuning. Deliberately last — the bottleneck relocates after Phase
-2, so anything tuned earlier is tuned against a defect.
+**Character:** Tuning. Last, because the bottleneck relocates after Phase 2.
 
-### Levers
+**Box size.** `max_grid_size` up from CPU-tuned values; 128+ typical. Confirm `TilingIfNotGPU()` throughout. *Constraint:* box count is decomposition granularity — choose against a target rank count or accept a Phase 4 retune.
 
-**Box size.** `max_grid_size` up from CPU-tuned values (32³ is launch-bound on
-GPU); 128 or higher is the usual landing zone. Confirm `TilingIfNotGPU()`
-throughout — CPU tiling on GPU is pure overhead. **Known lead:**
-`Integrator.cpp:1246` and `:1263` construct `MFIter mfi(grids[...], dmap[...],
-true)` with tiling hardcoded true, in the integrate path. Check whether that is
-`TilingIfNotGPU()`-guarded; if not, it is a defect, not a tuning knob.
+**Fusion.** Fuse when it removes a field read/write cycle; split when registers spill. Verify with `-Xptxas -v` or `--resource-usage`.
 
-*Constraint:* box count is the domain decomposition granularity. Tuning to 256
-on a 512³ domain yields 8 boxes — adequate on 8 ranks, poorly balanced on 6,
-unusable on 12. Choose box size against a target rank count, or accept a retune
-at Phase 4.
+**Occupancy limiter.** Identify the actual cap — registers, shared memory, block count — before adjusting.
 
-*Prior evidence:* wide-shallow AMR beats deep AMR on GPU here.
+**Framing.** Phase-field and stencil physics are memory-bound: optimize bytes moved; FP32 gains come from bandwidth; hardware selection is an HBM bandwidth question. But per T7, verify this per kernel rather than assuming it. Fapply history suggests some kernels are register- and occupancy-limited, and those need different treatment.
 
-**Fusion.** Fuse when it removes a full field read/write cycle. Split when
-registers spill. Verify with `-Xptxas -v`, or `benchmark/res_usage.sh` as the
-root-free `ncu` substitute. A large fused multiphysics kernel is elegant and
-frequently occupies a fraction of the SM.
-
-*Prior evidence:* Fapply is 252 regs in 3D vs 94 in 2D. **2D cannot show
-register wins** — run register experiments in 3D or they measure nothing.
-Non-RDC 252→248 regs produced no occupancy change and was rejected.
-
-**Occupancy limiter.** Identify what actually caps occupancy — registers, shared
-memory, or block count — before adjusting anything. Nsight Compute reports this
-directly. Note that on this code the historical Fapply wins came from
-spill/replay reduction at **flat occupancy** (~12%), so "raise occupancy" is not
-automatically the objective.
-
-### Framing
-
-Phase-field and stencil physics are memory-bound. Consequences:
-
-- Optimize bytes moved, not floating-point operations
-- FP32 gains come from bandwidth, not ALU throughput
-- Fusion pays because it removes traffic
-- Hardware selection is an HBM bandwidth question, not a TFLOP question
-
-### Exit gate
-
-T7 pass, against the threshold set at Phase 0.
+**Exit:** T0, T6b, T7, **plus re-check of T4, T5a, T5b**. Fusion can reintroduce step-loop allocation and silently undo Phase 1b.
 
 ---
 
 ## 11. Phase 4 — Multi-GPU (deferred)
 
-Deferred content:
+Deferred: halo overlap and comm hiding; load balance and regrid distribution; scaling studies. All require an optimized single-GPU baseline to be measurable.
 
-- Halo exchange overlap and communication hiding
-- Load balance and regrid distribution strategy
-- Scaling studies, strong and weak
+Carried forward: Allreduce-shaped reduction (9.3); rank-aware `init_size` (Section 7); box size against target rank count (Section 10); GPU-aware MPI confirmed active (Section 13).
 
-All three require an optimized single-GPU baseline to be measurable.
-
-Carried forward from earlier phases:
-
-- Global Allreduce-shaped chamber reduction (built at Phase 2)
-- Rank-aware `init_size` policy (set at Phase 1)
-- Box size chosen against target rank count (Phase 3)
-- GPU-aware MPI confirmed active (verified at Phase 0.5 — currently believed inactive)
-
-Known starting point: multi-GPU is presently a **loss** (5.3% efficiency), root
--caused to blocking comm + no GPU-aware MPI + `regrid_int=2` + managed arena.
-Three of those four are addressed by Phases 1-2, which is the argument for
-deferring Phase 4 rather than attacking it now.
+Scope depends on hardware. Two cards in a workstation and a cluster allocation are different projects.
 
 ---
 
-## 12. Instrumentation and man-in-the-loop tooling
+## 12. Benchmark methodology
 
-A human looks at a fixed figure set at each phase boundary and can see what
-moved. Regenerating figures must be one command, or it will not happen
-consistently.
+v1 had no methodology section. The Phase 0 results correctly recorded themselves as inadmissible.
 
-### Prerequisite — NVTX annotation
+### 12.1 Timing
 
-Annotate the step loop by physics stage. Without it the timeline is unreadable
-and the highest-value diagnostic in this plan is unavailable. Verify the AMReX
-NVTX build flag against the **vendored** 26.06 tree.
+- **Repetitions with uncertainty estimate.** One managed run and one device run, unrepeated, is not a measurement.
+- **Interleaved and randomized order** across configurations to absorb machine drift.
+- **Startup excluded.** Calibration derived up front, not deferred to later analysis.
+- **Horizon exceeds the startup transient.** Two elastic solves cannot characterize steady state when the first three are transient. Set the horizon from the measured transient length.
+- **Production-length stability run** for T5, separate from timing runs.
 
-### Standing capture
+### 12.2 Build policy
 
-| Tool | Purpose | Scope |
+Two builds, both in the ledger:
+
+| Build | NVTX | Used for |
 |---|---|---|
-| Nsight Systems | Timeline, transfers, syncs, page faults, idle gaps | Whole run, few steps |
-| Nsight Compute | Per-kernel roofline, occupancy, achieved bandwidth, registers | Top kernels by time only |
+| Coarse | Stage-level ranges only | T0, T6b, all timing |
+| Fine | Full annotation | Diagnosis, F1 reading |
 
-Nsight Compute serializes and instruments heavily — restrict it to the top few
-kernels and a handful of invocations. Locally `ncu` counters may be barred
-(`ERR_NVGPUCTRPERM`); `benchmark/res_usage.sh` is the root-free substitute. On
-NOVA, confirm counter permission before budgeting a job around `ncu`.
+Never measure T0 or T6b on the fine build. 16,000+ ranges in a two-step run perturbs exactly the launch gaps being measured.
 
-Trace domains: CUDA, NVTX, MPI, OS runtime, unified-memory page-fault counters,
-CUDA memory usage. Pin the tool version in the harness and verify flag spellings
-once.
+### 12.3 Deck matrix
 
-### Figure set
+Present: thermal-on, variable-pressure-on, static elastic. Missing, and required:
 
-Regenerate all of these at every phase boundary. Consistency across phases is
-what makes them useful.
-
-| # | Figure | Reads on | Phase relevance |
-|---|---|---|---|
-| F1 | Annotated timeline, one full timestep | T6 | 0, 2 — primary sync diagnostic |
-| F2 | Memcpy summary, bytes and count by direction per step | T3 | 0, 2 |
-| F3 | Unified-memory page-fault count | T2 | 0, 1 |
-| F4 | Kernel time Pareto, top 10 with cumulative % | Targeting | 0, 3 |
-| F5 | Roofline, top kernels vs HBM roof | T7 | 0, 3 |
-| F6 | Achieved DRAM bandwidth as % of peak, per kernel | T7 | 3 |
-| F7 | Occupancy with limiting resource identified | T7 | 3 |
-| F8 | Arena high-water mark over steps | T5 | 1 |
-| F9 | GPU idle fraction inside the step loop | T6 | 2 |
-| F10 | Wall time per step, phase over phase | Headline | All |
-
-F1 is the one to read first at every phase boundary. Human pattern recognition
-on a timeline outperforms any aggregate metric at answering "why is there a gap
-here."
-
-F5 and F6 are the pair that matter at Phase 3: for a bandwidth-bound code,
-distance from the HBM roof is the target, and compute-side metrics are largely
-decorative.
-
-**Capture every figure in both 2D and 3D.** The two are bound by different
-things (2D launch-latency, 3D Fapply-compute) and a single-dimension figure set
-will mislead.
-
-### Metrics ledger
-
-One CSV, appended at every phase boundary. Keyed by `(phase, commit_sha,
-case_name, n_ranks, device)`. Columns: T1-T7 measurements plus wall time per step.
-
-Purpose is regression detection. Phase 3 tuning can quietly undo a Phase 1
-property — a fusion change that reintroduces a temporary allocation in the step
-loop — and without a ledger this is invisible until much later.
-
-Reuse the existing path-keyed ledger machinery rather than building new.
-
-### Automation
-
-Target: one command produces the full figure set plus the ledger row.
-
-```
-make profile CASE=chamber_small PHASE=1
-```
-
-Given the SLURM constraint (§2), the realistic shape is *one command composes and
-submits a job; a second collects and renders on return*. Hand-running the
-profiler at each boundary is the failure mode where the figure set gets captured
-twice and then abandoned. Build the automation during Phase 0, when the harness
-is being set up anyway.
+- Thermal-off
+- Constant-pressure
+- Checkpoint / restart cycle
+- Per-field multi-rank comparison
+- Multi-GPU device arena
+- 40 GB capacity case
+- Production-length memory stability
 
 ---
 
-## 13. Pattern capture
+## 13. Phase 0.5 — Two-rank correctness probe
 
-This campaign is also template generation for the ports that follow it —
-`multicomponent/FMA`, and now the **Hydro/SFI port** (§18), which is explicitly
-scoped as "a future project that will learn from this one". Capture as work
-proceeds rather than reconstructing afterward:
+**Runs first. Not a performance activity.**
+
+The burning-surface reduction is inherently global. If implemented rank-locally, multi-rank chamber results are already wrong — each rank integrates its own pressure from a partial surface. Physics error, not numerics.
+
+Questions:
+
+1. Is the reduction global or rank-local?
+2. Does the port survive domain decomposition — ghost fill and BC at rank boundaries?
+3. Is GPU-aware MPI actually active, or silently staging halos through host?
+
+Question 3 matters now, not at Phase 4: silent host staging violates the governing rule, pollutes the baseline, and makes multi-rank T3 unpassable.
+
+**Note:** the claim that local hardware cannot run device arena is contradicted by this probe — with a smaller `init_size` it omits the managed override and exercises the AMReX device default successfully. Local HMM still limits some defect detection, but device-arena testing is not categorically unavailable locally.
+
+**Exit:** two-rank run reproduces single-rank pressure history to solver tolerance. Failure is fixed before Phase 1a, not deferred.
+
+---
+
+## 14. Instrumentation and figure set
+
+### 14.1 Figure set
+
+| # | Figure | Reads on | Status |
+|---|---|---|---|
+| F1 | Annotated timeline, one full timestep | T6a, T6b | Missing |
+| F2 | Memcpy summary: bytes, **count**, **blocking calls**, by direction | T3a-c | Missing; v1 lacked count and blocking columns |
+| F3 | Unified-memory page-fault count | T2 | Missing |
+| F4 | Kernel time Pareto, **discovered** top 10 | Targeting | Present but hardcoded to three ranges; must be discovered |
+| F5 | Roofline, top kernels, **annotated with actual limiter** | T7 | 3D missing |
+| F6 | Achieved bandwidth vs applicable roof, per kernel class | T7 | Pending T7 redefinition |
+| F7 | Occupancy with limiting resource identified | T7 | |
+| F8 | **Arena live allocations and high-water** over steps | T4, T5a, T5b | Missing; `--cuda-memory-usage` sees CUDA backing allocations, not live arena allocations — needs arena-level instrumentation |
+| F9 | GPU idle fraction inside step loop | T6b | Not computed by the script |
+| F10 | Wall time per step, phase over phase | **T0** | Promoted from figure to gate |
+
+F1 is read first at every phase boundary. Human pattern recognition on a timeline outperforms aggregate metrics at "why is there a gap here."
+
+### 14.2 Ledger
+
+One CSV, appended at every phase boundary, keyed `(phase, commit_sha, tree_hash, case, n_ranks, device, build_config)`. Columns: T0 through T7 plus wall time.
+
+Purpose is regression detection across phases. Reuse the existing path-keyed ledger machinery.
+
+### 14.3 Automation
+
+Target: one command emits the full figure set plus the ledger row.
+
+```
+make profile CASE=<deck> PHASE=<n> BUILD=<coarse|fine>
+```
+
+This is not QOL. It gates whether Phases 1-3 can be agent-driven at all: if T3, T4, and T6 emerge as ledger numbers, agents self-certify and humans review at boundaries. If not, humans are in the loop on every check.
+
+Build it during Phase 0.
+
+---
+
+## 15. Execution model
+
+### 15.1 Phase tractability
+
+| Phase | Agent fit | Human load | Note |
+|---|---|---|---|
+| 0.5 | Low | Low | Run, look, verdict |
+| 0 | High to build, low to interpret | Medium | Automation is ideal agent work; reading F1 is not |
+| 1a | Highest in plan | Medium volume, low stakes | Mechanical, pattern-referenced, hard oracle |
+| 1b | Medium | Medium | Lifetime changes are correctness-sensitive; regrid interaction needs human review |
+| 2 | **Lowest in plan** | Low volume, highest stakes | Coupled design; not decomposable |
+| 3 | High to sweep, low to restructure | Low | Parameter search is agent work; fusion calls are not |
+
+### 15.2 Review posture
+
+Phase 1a is skim-for-pattern-violation on high volume. Phase 2 is line-by-line on a small diff. Different postures; do not conflate.
+
+### 15.3 Predicted agent failures
+
+| Failure | Phase | Countermeasure |
+|---|---|---|
+| Device-local reduce instead of Allreduce-shaped | 2 | Specify shape explicitly in the spec, not the goal |
+| Over-porting during crash triage | 1a | Triage table as required classification step |
+| Newton host branch judged correct | 2 | Explicit audit item, not general instruction |
+| Fusion undoes Phase 1b | 3 | T4/T5 re-check as Phase 3 exit gate |
+| Self-certification against inadequate oracle | All | Section 5.2; **already occurred** |
+
+### 15.4 Human decisions
+
+1. Chamber vs `multicomponent/FMA` at revised cost (Section 6)
+2. Ballistic scope resolution (9.2)
+3. Newton convergence policy (9.3)
+4. T6b and T7 thresholds (5.6)
+5. Multi-rank correctness verdict (Section 13)
+6. Box size vs target rank count (Section 10)
+7. Definition of "current state" for T1 (3.3)
+
+Everything else is supervision.
+
+### 15.5 Branch mechanics
+
+- One commit per subsystem flip in Phase 1a, so bisect works when the harness reddens
+- Tag at each phase exit; the ledger keys on `commit_sha` and tags make phase-over-phase comparison navigable
+- Phase 2 on a child branch — the one redesign that may need abandoning
+- **Decide now:** does `chamber-gpu` survive as fallback, or does `chamber-gpu-mem` become trunk? Determines whether Phase 1a edits must stay cherry-pickable
+- Captures refuse to run on a dirty tree (5.1)
+
+---
+
+## 16. Pattern capture
+
+Chamber work is also template generation for `multicomponent/FMA`. Capture as work proceeds:
 
 | Pattern | Destination |
 |---|---|
 | Arena assignment by data class | `gpu_manual` |
-| Async arena discipline for temporaries (incl. the rejection result) | `gpu_manual` |
+| Async arena discipline for temporaries | `gpu_manual` |
+| Allocation lifetime patterns (operator hoisting, persistent scratch) | `gpu_manual` |
 | Device-resident scalar with Allreduce-shaped reduction | `gpu_manual` |
-| Sync inventory and elimination checklist | `gpu_manual` |
-| Flip-per-subsystem migration method | `gpu_manual` |
-| Gap table and figure set | `CHAMBER_GPU_MASTER_REPORT.md`, new section |
-| **Curated-closure method** (`IntegratorPolicy.mk` + a per-integrator main) as the way to bring a new integrator onto the GPU incrementally | `gpu_manual`; direct input to the Hydro port |
-
-The multicomponent port should then be a mechanical pass against a pattern set
-rather than a fresh design exercise. Genuinely new work there is confined to the
-advection kernels and to whatever register pressure the species arrays introduce.
-
-The Hydro port inherits less directly — it has to clear nvcc-cleanliness before
-any of the residency patterns apply — but the closure method, the correctness
-gate, and the flip-per-subsystem discipline transfer whole.
+| Arena-level allocation instrumentation | `gpu_manual` |
+| False-pass analysis method for target sets | `gpu_manual` — generalizes beyond this campaign |
+| Mechanical sync inventory procedure | `gpu_manual` |
+| Gap table, figure set, revised targets | `CHAMBER_GPU_MASTER_REPORT.md`, new section |
 
 ---
 
-## 14. Open questions — status
-
-| # | Question | Status |
-|---|---|---|
-| 1 | Does chamber pressure update host-side, and where does the reduction land? | **Answered.** Host-side. Per-box device reduce at `Flame.cpp:1113-1125`, `.value()` sync at `:1127`, host accumulate at `:1128-1130`, MPI sum at `Integrator.cpp:1271-1275`, ODE advance at `Flame.cpp:706`. |
-| 2 | Is the burning-surface reduction global or rank-local? | **Answered: global** — `ReduceRealSum` runs before `TimeStepComplete`. One residual check: confirm the `extensives` flag is set for volume/area/mass_flux. |
-| 3 | Single rank or multi-rank in current use? | Single-rank is the working configuration; multi-GPU is a measured loss (5.3% eff). Multi-rank correctness still gets probed at 0.5. |
-| 4 | Available hardware? | **Answered.** Local A1000 8 GB (shared, 50 W-capped, correctness only) + NOVA A100/H200 via SLURM over `ssh -MN` tunnel. Phase 4 is testable on NOVA multi-GPU nodes; scope depends on allocation, not procurement. |
-| 5 | Does the regression harness cover chamber? | **Answered: yes** — `baseline_suite.py`, 4 cases, gated by `ci_golden_compare.sh`, green on this branch. Gap: stale `rod_and_tube_step2` gpu_strict reference. |
-
-Q1-Q3 were the ones collapsing the Phase 2 scope estimate. With them answered,
-Phase 2's target list is the concrete site inventory in §9, not an open search.
-
----
-
-## 15. Risk register
+## 17. Risk register
 
 | Risk | Phase | Response |
 |---|---|---|
-| `extensives` flag unset → reduction silently rank-local after all | 0.5 | One-line source check; cheapest item in the plan |
-| Footprint exceeds device memory under device arena | 0-1 | Compute budget at Phase 0; FP32 storage becomes structural |
-| GPU-aware MPI silently inactive | 0.5 | Believed inactive; verify at runtime, otherwise baseline is polluted and the Phase 2 "device-buffer Allreduce" is a fiction |
-| Newton host-side convergence branch survives from CPU design | 2 | Audit explicitly; do not assume the port caught it. Tier 3. |
-| Phase 3 tuning silently undoes a Phase 1 property | 3 | Metrics ledger; re-check T4/T5 at Phase 3 exit |
-| Box size retune required at Phase 4 | 3 | Choose against target rank count now |
-| Chamber is not the throughput bottleneck | 0 | Decision gate before Phase 1 |
-| **SLURM turnaround throttles the per-subsystem flip cadence** | 1 | Batch subsystem flips; accept coarser attribution rather than serializing on the queue |
-| **Local A1000 cannot validate T1-T7** | all | Local runs are correctness-only by policy; no timing claim ships from kermit |
-| **Concurrent gate runs produce spurious RED** | all | One gate at a time; re-run solo before believing a failure |
-| Glaring-defect exception becomes scope creep | all | Evidence in `NOTES.md` first, own tier-3 task folder second, no inline edits |
+| **Metrics structurally blind to their pathology** | All | Section 3.1 meta-gate; validate against known in-tree instances |
+| Campaign passes all targets, production slower | All | T0 blocking at every phase exit |
+| Reduction is rank-local; existing multi-rank results invalid | 0.5 | Probe first; physics bug; fix before proceeding |
+| Baseline not reproducible from dirty tree | 0 | 5.1; no dirty-tree measurement enters the ledger |
+| Agent self-certifies against weak oracle | All | 5.2; already occurred once |
+| Ballistic scope contradiction unresolved | 2 | Forced decision, 9.2; feeds Section 6 |
+| Phase 1b lifetime changes break regrid | 1b | Explicit regrid coverage in harness |
+| Idle profile dominated by removable debug sync | 0 | 5.3 measurement before scoping 2 and 3 |
+| Fine-NVTX build perturbs T0/T6b | 0, 3 | 12.2 two-build policy |
+| Footprint exceeds 40 GB under device arena | 0 | 5.5; FP32 storage becomes structural |
+| GPU-aware MPI silently inactive | 0.5 | Verify at runtime; multi-rank T3 unpassable otherwise |
+| Phase 3 undoes Phase 1b | 3 | T4/T5 re-check as exit gate |
+| Chamber is not the throughput bottleneck | 0 | Section 6, reopened |
 
 ---
 
-## 16. Ship rule
+## 18. Open questions
 
-CLAUDE.md hard rule, restated because this campaign is entirely perf work:
-
-> No kernel/perf optimization ships without a correctness pass — device lint,
-> golden compare, compute-sanitizer on A1000.
-
-Tier-2 gate ignores mid-run aborts; supplement with a converging-deck memcheck.
+1. Does chamber pressure currently update host-side, and where does the reduction land?
+2. Is the burning-surface reduction global or rank-local?
+3. Ballistic scope — which of the three options in 9.2?
+4. What does "current state" mean for T1: AMReX defaults, `MODE=bench`, or production launch practice?
+5. Available hardware — determines how much of Phase 4 is testable, and whether the 40 GB budget is the operative one
+6. Does `chamber-gpu` survive as fallback branch?
+7. Does the harness cover pressure divergence, regrid, two ranks, and restart, or does 5.2 require building it?
 
 ---
-
-## 17. Target correction — decision gate answered 2026-07-27
-
-The §6 decision gate ("is chamber the right target?") is **answered: proceed, but
-not on chamber.**
-
-User ruling, verbatim in substance: *"chamber specifically is fine. When I say
-chamber I mean the actual code which handles the chamber, ballistic. What I need
-is work done on flame, hydro, elastic, and any of the other files which flame,
-hydro, and elastic need to run."*
-
-This document, and the branch name, used "chamber" as shorthand for the whole
-simulation. That was wrong. Corrections:
-
-| Was | Is |
-|---|---|
-| Optimize "the chamber timestep loop" | Optimize **Flame, Hydro, Elastic** and their dependencies |
-| `Model/Chamber/Ballistic.H` implicitly in scope | Ballistic **needs no work** — out of scope |
-| §9 headline = "the chamber feedback loop" | §9 headline = **sync elimination in the Flame/Elastic step loop**; the chamber loop is one instance, not the point |
-
-### What this changes, concretely
-
-1. **§9 keeps its site inventory but loses its headline framing.** The
-   device-resident-pressure-scalar design (one-element device array, one-thread
-   update kernel, Allreduce-shaped reduction) was justified as a *chamber*
-   improvement. Chamber is fine. That work now has to stand on **sync removal
-   alone**: `Flame.cpp:1127` is a device sync per box per complement-piece per
-   level inside `Flame::Integrate`, and that cost is Flame's, not Ballistic's.
-   It stays a Phase 2 target on those grounds. Do not carry the chamber-physics
-   justification forward — it is no longer load-bearing.
-2. **Hydro enters scope and has never been assessed.** See §18.
-3. **Elastic keeps its C2 status**: memory residency, arena, and sync work is in
-   scope; algorithmic redesign is not.
-4. The branch name `chamber-gpu-mem` is now a misnomer. Not worth a rename
-   mid-campaign; recorded here so the name is not read as scope.
-
-## 18. Hydro — assessed, then DEFERRED out of this campaign (2026-07-27)
-
-**Final disposition, user ruling 2026-07-27:** *"Hydro will be a future project
-that will learn from this one. For this project, we're worried about Flame,
-Elastic, and parts of code they each depend on."*
-
-So this campaign's scope is settled: **Flame + Elastic + their dependency
-closure** — which is exactly `ALAMO_GPU_SOURCES_flame` in
-`src/GPU/IntegratorPolicy.mk`. Hydro gets its own port project later, and this
-campaign is one of its inputs (see §13).
-
-Two consequences worth stating so they are not rediscovered:
-
-1. **The Phase 0 decks are already correct.** `input` and
-   `input_3d_centre_bore_128_a2` exercise Flame + Elastic and nothing else. An
-   earlier concern that the baseline would measure two thirds of the target
-   dissolves — the target *is* what the decks measure.
-2. **The assessment below is not wasted.** It is the scoping document the Hydro
-   port starts from, and it is why that port is a port rather than a tuning pass.
-
-The assessment as run, kept for that project:
-
-### Assessment (2026-07-27)
-
-Nothing in this campaign's Phases 0-4 was written with Hydro in mind. Facts
-established from source on 2026-07-27, before any judgment:
-
-- `src/Integrator/Hydro.{H,cpp}`, entry point `src/hydro.cc`. Coupled to the
-  phase-field side through `src/Integrator/SFI.H`
-  (`SFI<PF> : virtual PF, virtual Hydro`), instantiated for `flame`,
-  `allencahn`, and `dendrite` in `src/sfi.cc`. **`SFI.H` is `#if
-  AMREX_SPACEDIM==2` only** — there is no 3D Flame+Hydro coupling today.
-- Hydro is **device-shaped already**: `amrex::ParallelFor` with
-  `AMREX_GPU_DEVICE` lambdas in `Mix`, `Advance`, `RHS`, `TagCellsForRefinement`
-  and others. It is not a from-scratch port.
-- **Zero tiling guards.** All 10 `MFIter` constructions in `Hydro.cpp` hardcode
-  `true`/`false`; `TilingIfNotGPU()` appears 0 times. For comparison:
-  `Elastic.cpp` 8 of 13, `Flame.cpp` 1 of 10, `Integrator.cpp` 0 of 3. CPU tiling
-  on a GPU is pure overhead (§10), so this is the same defect class as NOTES N3
-  and it is systemic rather than isolated.
-- **No GPU Hydro binary has ever been built in this repo.** `bin/` carries
-  `hydro-2d-g++` and `sfi-2d-g++`, both CPU. `build_alamo_nova.sh` builds only
-  `bin/alamo_gpu`. Whether `hydro`/`sfi` even *compile* under `--cuda` is
-  unknown and untested.
-- Hydro is inside the device-lint scan scope (`SCAN_DIRS` includes
-  `src/Integrator`) and currently lints clean — but that lint enforces three bug
-  patterns, not device-readiness.
-
-### Answered 2026-07-27: Hydro is a PORTING target, not a memory-strategy target
-
-The discriminator was run locally (`configure --dim 2 --cuda 86`, then
-`make bin/sfi bin/hydro`). Result: **neither builds.**
-
-**1. The CUDA build closure is an explicit allowlist, and it contains only
-Flame.** `src/GPU/IntegratorPolicy.mk`:
-
-```make
-ALAMO_GPU_SUPPORTED_INTEGRATORS := flame
-ALAMO_GPU_SOURCES_flame := BC/BC.cpp BC/Constant.cpp IO/FileNameParse.cpp
-    IO/ParmParse.cpp IO/WriteMetaData.cpp Integrator/Flame.cpp
-    Integrator/Integrator.cpp Operator/Elastic.cpp Operator/Operator.cpp
-    Set/Set.cpp Util/Util.cpp
-```
-`Makefile:70-76` swaps `SRC`/`SRC_MAIN` for these under any `cuda` postfix, and
-`src/alamo_gpu.cc` is the matching curated main ("several [integrators] have
-never been made nvcc-clean"). **`Integrator/Hydro.cpp` is not in the list.** The
-policy file's own instruction: *"Add a new integrator here only after its entry
-point and dependency closure are nvcc-clean."*
-
-**2. `bin/hydro` under CUDA: compiles, fails to link.**
-```
-/usr/bin/ld: obj/obj-2d-cuda86-g++/hydro.cc.o: undefined reference to
-  `Integrator::Hydro::Hydro(IO::ParmParse&)'
-```
-So `Hydro.H` is nvcc-parseable, but `Hydro.cpp` has **never been compiled by
-nvcc** — it is outside the closure, so its device-cleanliness is untested, not
-established.
-
-**3. `bin/sfi` under CUDA: 11 compile errors**, in two nvcc classes:
-
-| Class | Sites |
-|---|---|
-| extended `__device__` lambda in a private/protected member function | `AllenCahn.H:145,190`, `Dendrite.H:123,184`, `SFI.H:91` (`UpdateEta`) |
-| implicit capture of `this` in an extended lambda | `IC/Sphere.H:87`, `AllenCahn.H:152,197`, `Dendrite.H:128,192` |
-
-Most of those come from `src/sfi.cc` including AllenCahn and Dendrite alongside
-Flame; a curated SFI-only main would drop them, the way `alamo_gpu.cc` drops the
-CPU launcher's integrator zoo. What would remain is `SFI.H:91` plus whatever
-Hydro and its ICs turn out to need. The second class is
-`docs/llm/BUG_PATTERNS.md` #2 — a bug this branch has already paid for
-elsewhere.
-
-**Starting point for the future Hydro project** (not this campaign's work): make
-`SFI.H` + `Hydro.{H,cpp}` nvcc-clean, add a curated `sfi` main and an
-`ALAMO_GPU_SOURCES_sfi` closure to `IntegratorPolicy.mk`, then bring it under the
-existing correctness gate (device lint + golden compare + compute-sanitizer)
-before any residency work. Open questions for whoever picks it up: standalone
-`Hydro` first or coupled `SFI<Flame>`, and whether 2D-only suffices — `SFI.H` is
-`#if AMREX_SPACEDIM==2`, so a GPU SFI has no 3D story today.
 
 ## Note on specifics
 
-Configuration parameter names, AMReX NVTX integration, and Nsight command-line
-flags shift between versions. Treat every such name here as a pointer to verify
-against the **vendored** AMReX (`ext/AMReX-Codes/amrex`, 26.06) and the
-installed toolkit, not as a literal. Strategy, phase ordering, and target
-definitions are version-independent.
+Configuration parameter names, AMReX NVTX integration, arena API surface, and Nsight flags shift between versions. Treat every such name as a pointer to verify against the vendored AMReX and installed toolkit, not as a literal.
 
-**Confidence:** ~90% on strategy, phase ordering, and target set. ~70% on exact
-parameter and flag spellings. Source pre-answers in §5, §9, and §14 are
-file:line-cited reads from 2026-07-27 and carry higher confidence than the
-draft's assumptions, but were not empirically probed — Phase 0.5 still runs.
+**Confidence:** ~90% on strategy, phase ordering, and the v2 target set. ~70% on parameter and flag spellings. The v1 target set was authored at similar stated confidence and was wrong in four places for a single structural reason — Section 3.1 exists so that confidence is earned by adversarial test rather than asserted.
