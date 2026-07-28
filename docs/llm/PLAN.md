@@ -51,51 +51,33 @@ correctness smokes, not speed evidence.
    All decks already set 4/4, so nothing shipped and nothing needs reverting.
    Original text follows.
 
-   Retain configuration-only 2/2 pre/post smoothing: on A1000 it reduced
-   external wall by 12.8%/21.0% and MLMG solve by 24.0%/23.4% in the frozen
-   2D-conservative/3D-psi two-step cases. Step 3 conservative specialization
-   and Step 4 sequential Cgrad were measured and reverted; psi caching failed
-   the memory gate; the target case already has one FApply launch per call, so
-   multi-box launch fusion was not justified. Fresh review is clear. Evidence:
+   Superseded detail: the 2/2 gains were real on the frozen two-step cases
+   (A1000 wall -12.8%/-21.0%, MLMG -24.0%/-23.4%; A100 wall -16.56%, MLMG
+   -22.54%, FApply -23.30%) and no source change was retained. Step 3
+   conservative specialization and Step 4 sequential Cgrad were measured and
+   reverted; psi caching failed the memory gate. Full record:
    `docs/agent_plans/20260721-fapply-runtime-optimization/results/RESULT.md`.
-   NOVA/A100 confirmed the retained configuration: external wall -16.56%, MLMG
-   solve -22.54%, and FApply -23.30%, with physics gate PASS. No source change
-   is retained; the claim remains limited to the frozen two-step horizon.
 
 2. **3.2 / v3 task 3.F — Launch-bounds sweep on `Fapply`/`Diagonal`.**
-   Sweep `__launch_bounds__(256, {1,2,3,4})` on the elastic kernels on A100:
-   wall/step + ncu achieved-occupancy + budget gate per point. Rationale:
-   occupancy stayed flat (~12%) through both 3.1 and 3.2b — still 1 block/SM.
-   **LOCAL LEG DONE 2026-07-13** — helper `src/Operator/ElasticLaunch.H`
-   (`launch_global<MT, min_blocks>`, knob `ALAMO_ELASTIC_MIN_BLOCKS`, default
-   off = bit-identical), 3 sites wired (Fapply/Diagonal/Fsmooth), CPU golden
-   bit-exact, verifier CONFIRMED: commits 4d5289e67+532a757e3 on branch
-   `launch-bounds-sweep`; sm_80 ptxas table in
-   docs/agent_plans/20260713-launch-bounds-sweep/results/. Fapply spills hard
-   at min_blocks>=2 (128-reg cap vs 254 live). REMAINING: A100 wall/ncu sweep
-   (4 arms) + verdict + merge.
+   Sweep `__launch_bounds__(256, {1,2,3,4})` on A100: wall/step + ncu
+   occupancy + budget gate per point. Occupancy stayed flat (~12%) through 3.1
+   and 3.2b — still 1 block/SM. **LOCAL LEG DONE 2026-07-13**: helper
+   `src/Operator/ElasticLaunch.H`, knob `ALAMO_ELASTIC_MIN_BLOCKS` (default off
+   = bit-identical), 3 sites wired, verifier CONFIRMED, branch
+   `launch-bounds-sweep`. Fapply spills hard at min_blocks>=2 (128-reg cap vs
+   254 live). REMAINING: A100 wall/ncu sweep (4 arms) + verdict + merge.
 
 3. **3.2b / v3 task 3.D — Fapply/Diagonal kernel surgery. DONE 2026-07-13.**
-   Merged to chamber-gpu (cc520b4f8) after A100 judgment PASS
-   (docs/agent_plans/20260713-fapply-322b-a100/): Fapply exclusive wall
-   -14.5% (299.0->255.7 s), MLMG::solve -10.6%, Fapply/launch -22-23%,
-   occupancy flat (win = spill/replay reduction, registers 255->254).
-   Parity: cell fields bit-identical; node fields within FP-reorder noise
-   (strain_zx/zy 2.06e-6 rel = ~5e-9 abs on near-zero shear, adjudicated
-   noise). Includes Fsmooth 4D launch fusion (MLMG-inclusive -10.6%).
+   Merged cc520b4f8: Fapply exclusive wall -14.5%, MLMG::solve -10.6%,
+   occupancy flat (win = spill/replay reduction). Includes Fsmooth 4D launch
+   fusion. Record: `docs/agent_plans/20260713-fapply-322b-a100/`.
 
 4. **GPU manual v3 — hostile transferability repair.**
    Active plan: `docs/agent_plans/20260721-gpu-manual-hostile-review/PLAN.md`.
-   Separate invariant semantics, port contracts, and corpus examples; add
-   reusable scope/closure/inspection/validation/efficiency/harvest templates,
-   single-home architecture policies, a stateful advisory scanner, and
-   cross-family status. The hostile pass adds revision-bound per-port coverage,
-   shape rather than identifier recognizers, a generalized value-dispatch
-   contract, host-only numerical-kernel work, and mandatory layout/kernel/
-   transfer/resource evidence before baseline efficiency. Current evidence is
-   only 2/26 file-verified transforms, with zero transfer-verified; the first
-   non-Flame contract instantiation remains an authorized pilot.
-   This is docs/scripts-only and authorizes no source or numerical changes.
+   Separates invariant semantics, port contracts, and corpus examples; adds
+   reusable templates, a stateful advisory scanner, and revision-bound per-port
+   coverage. Current evidence is only 2/26 file-verified transforms, zero
+   transfer-verified. Docs/scripts only; authorizes no source change.
 
 ## Backlog (post next-3)
 
