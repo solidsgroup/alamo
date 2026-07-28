@@ -1049,6 +1049,8 @@ public:
 
         pp_query("line_search", value.m_line_search);
 
+        pp_query("conservative_face_flux", value.m_conservative_face_flux);
+
         if (!std::isfinite(value.m_nrtolerance) || value.m_nrtolerance < 0.0)
             Util::Abort(INFO, "solver.nrtolerance must be finite and nonnegative");
     }

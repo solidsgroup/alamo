@@ -127,7 +127,7 @@ protected:
     bool useQuadraticAmrInterpolation() const override
     { return m_conservative_face_flux; }
     bool retainCoarseFineResidualRow() const override
-    { return m_conservative_face_flux; }
+    { return false; }
     bool relaxCoarseFineGhostRows() const override
     { return !m_conservative_face_flux; }
     virtual void prepareForSolve () override

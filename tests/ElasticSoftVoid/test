@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import math
+import re
+import sys
+from pathlib import Path
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def metadata(path):
+    values = {}
+    for line in path.read_text().splitlines():
+        if " = " in line:
+            key, value = line.split(" = ", 1)
+            values[key.strip()] = value.strip()
+    return values
+
+
+require(len(sys.argv) == 2, "usage: test OUTPUT_DIRECTORY")
+outdir = Path(sys.argv[1])
+stdout = (outdir / "stdout").read_text()
+
+require("MLMG failed" not in stdout and "Failed to converge" not in stdout,
+        "the linear solver reported non-convergence")
+require(not re.search(r"\b(?:abort|nan|infinity)\b", stdout, re.IGNORECASE),
+        "solver output contains an abort or non-finite value")
+require("MLMG: # of AMR levels: 2" in stdout,
+        "the solve did not exercise two AMR levels")
+
+linear = re.findall(
+    r"MLMG: Final Iter\.\s+\d+\s+resid, resid/(?:bnorm|resid0)"
+    r"\s+=\s+([^,\s]+),\s+([^,\s]+)",
+    stdout,
+)
+require(linear, "no final MLMG residual was reported")
+for absolute, relative in linear:
+    absolute, relative = float(absolute), float(relative)
+    require(math.isfinite(absolute) and math.isfinite(relative),
+            "linear residual is non-finite")
+    require(relative <= 2.2e-5 or absolute <= 1.2e-8,
+            f"linear residual {absolute:g}, {relative:g} exceeds both targets")
+
+iterations = re.findall(
+    r"NR iteration\s+\d+,\s*alpha\s*=\s*([^,\s]+),\s*"
+    r"max norm\(ddisp\)\s*=\s*([^\s]+)",
+    stdout,
+)
+require(len(iterations) == 3, "the fixed-iteration Newton path was not exercised")
+updates = []
+for alpha, update in iterations:
+    alpha, update = float(alpha), float(update)
+    require(math.isfinite(alpha) and 0.0 < alpha <= 1.0,
+            f"invalid line-search alpha {alpha:g}")
+    require(math.isfinite(update), "Newton update is non-finite")
+    updates.append(update)
+require(max(updates) > 1.0e-8, "the elastic displacement update is trivially zero")
+
+meta = metadata(outdir / "metadata")
+require(meta.get("Status", "").lower().startswith("complete"),
+        "simulation status is not complete")
+require(float(meta["solver.conservative_face_flux"]) == 1.0,
+        "the conservative face operator was not enabled")
+require(float(meta["solver.line_search"]) == 1.0,
+        "the Newton line search was not enabled")
+
+soft_mu = float(meta["model1.mu"])
+solid_mu = float(meta["model2.mu"])
+require(soft_mu > 0.0, "the soft material is not finite")
+require(solid_mu / soft_mu >= 25000.0,
+        "the model does not contain the intended soft/solid contrast")
