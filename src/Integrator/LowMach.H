@@ -20,7 +20,7 @@
 #include "Model/Chemistry/Rocfire_Aluminized.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
-#include "Model/Mechanism/SurfaceOxidation.H"
+#include "Model/Mechanism/InterphaseReaction.H"
 #include "Model/PhaseField/MultLiquid.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
@@ -176,7 +176,7 @@ protected:
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<
         Model::Mechanism::PhaseChange,
-        Model::Mechanism::SurfaceOxidation>;
+        Model::Mechanism::InterphaseReaction>;
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;

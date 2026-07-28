@@ -306,7 +306,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
         pp.select<Model::Mechanism::PhaseChange,
-                Model::Mechanism::SurfaceOxidation>(
+                Model::Mechanism::InterphaseReaction>(
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
                             value.rigid_solid_species,
