@@ -284,6 +284,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             "heat_source.ic", value.heat_source_ic, value.geom,
             Unit::Power() / Unit::Volume());
     pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, value.geom);
+    // Optional laser ignition source (volumetric heat source, W/m^3). Absent
+    // unless the user supplies laser.ic.*; when present it is re-evaluated
+    // every timestep (see TimeStepBegin) so time-limited pulses work.
+    value.laser_on = pp.contains("laser.ic");
+    if (value.laser_on)
+        pp.select_default<IC::Constant,IC::Expression>(
+            "laser.ic", value.laser_ic, value.geom, Unit::Power()/Unit::Volume());
     if (value.deformable_solid_species >= 0)
     {
         pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("xi.bc", value.xi_bc, AMREX_SPACEDIM);
@@ -325,6 +332,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             value.rigid_solid_species.size(), 1, "rigid_species_eta",
             true, false, rigid_species_suffix);
     }
+    if (value.laser_on)
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.laser_mf, &value.bc_nothing, 1, 0, "laser", true, false);
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
@@ -1285,7 +1294,7 @@ LowMach::ComputeThermochemicalSource(
     Set::Patch<const Set::Scalar> component_density,
     Set::Patch<const Set::Scalar> T,
     int i, int j, int k, const Set::Scalar* DX, Set::Scalar dt,
-    bool include_reaction) const
+    bool include_reaction, Set::Scalar laser_source) const
 {
     // return values
     Model::Chemistry::SpeciesArray species{};
@@ -1471,6 +1480,15 @@ LowMach::ComputeThermochemicalSource(
             (reacting_volume_fraction * reaction.second + enthalpy_diffusion) /
             heat_capacity;
 
+    // Optional laser ignition source: a volumetric heat source (W/m^3) that
+    // can push the local temperature above Model::PhaseField::FullFeedback's
+    // temperature_bound to start regression from a cold state, mirroring the
+    // legacy Flame integrator's laser. Folded into `temperature` here (rather
+    // than only in T_rhs) so the corresponding thermal expansion below also
+    // reaches the pressure projection via `dilatation`.
+    if (heat_capacity > 0.0)
+        temperature += laser_source / heat_capacity;
+
     if (T(i,j,k) > 0.0)
         dilatation += gas_volume_fraction * temperature / T(i,j,k);
     if (molar_density > 0.0)
@@ -1588,15 +1606,20 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 diffusion_dilatation = diffusion_dilatation_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> laser;
+            if (laser_on)
+                laser = laser_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
             const Set::Scalar inverse_dt = 1.0 / dt;
+            const bool laser_active = laser_on;
 
             amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
             {
+                const Set::Scalar laser_source = laser_active ? laser(i,j,k) : 0.0;
                 auto [species,temperature,dilatation] = ComputeThermochemicalSource(
-                    component_density, T, i, j, k, DX, dt, !split_chemistry);
+                    component_density, T, i, j, k, DX, dt, !split_chemistry, laser_source);
 
                 rhs(i,j,k) += dilatation;
                 if (split_chemistry)
@@ -1725,6 +1748,8 @@ LowMach::Initialize(int lev)
         xi_ic->Initialize(lev, xi_old_mf, 0.0);
     }
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
+    if (laser_on)
+        laser_ic->Initialize(lev, laser_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
     if (!rigid_solid_species.empty() && !mechanisms.empty())
         phase_change_dilatation_mf[lev]->setVal(0.0);
@@ -1970,14 +1995,19 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         const int ngas = ngas_species;
         const int solid = deformable_solid_species;
         const bool advect_T = advect_temperature;
+        Set::Patch<const Set::Scalar> laser;
+        if (laser_on)
+            laser = laser_mf.Patch(lev,mfi);
+        const bool laser_active = laser_on;
 
         amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Vector vel(AMREX_D_DECL(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2)));
 
+            const Set::Scalar laser_source = laser_active ? laser(i,j,k) : 0.0;
             auto [species,temperature,dilatation] =
-                ComputeThermochemicalSource(component_density, T, i, j, k, DX, dt, !split_chemistry);
+                ComputeThermochemicalSource(component_density, T, i, j, k, DX, dt, !split_chemistry, laser_source);
             (void)dilatation; // ignore unused
 
             T_rhs(i,j,k) = 0.0;
@@ -2158,8 +2188,12 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 // Calculate dynamic timestep
 //
 void
-LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
 {
+    if (laser_on)
+        for (int lev = 0; lev <= finest_level; ++lev)
+            laser_ic->Initialize(lev, laser_mf, time);
+
     if (!dynamictimestep.on) return;
 
     Set::Scalar advmax = 0.0;
