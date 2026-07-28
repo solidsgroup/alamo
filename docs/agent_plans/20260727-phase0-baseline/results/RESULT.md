@@ -373,11 +373,22 @@ uses any 3D number.
 Grep pattern was `illegal|CUDA error|Abort|out of memory|segmentation` over the
 full run log. Zero hits on any deck, all three running their full horizon.
 
-**T1 passes, and the finding is that there is nothing to triage.** Campaign §7's
+**The finding is that there is nothing to triage.** The crash-triage
 classification table (timestep loop / diagnostic / checkpoint / debug leftover)
 has no rows to fill, because no host-pointer dereference or arena exhaustion
 occurred. Phase 1 was budgeted around triaging a device-arena crash set that does
 not exist on these decks at these horizons.
+
+> **T1 claim WITHDRAWN 2026-07-28.** This section originally read "T1 passes."
+> It does not follow. `ext/AMReX-Codes/amrex/Src/Base/AMReX_Arena.cpp:59` sets
+> `the_arena_is_managed = false` by default, so the device arm is what the code
+> does anyway and the *managed* arm was the synthetic one. Per campaign PLAN
+> v2 §3.3, a clean run cannot distinguish "no managed allocations" from
+> "managed allocations that happen to work", and `The_Managed_Arena()` persists
+> as a separate pool regardless of this flag. T1 under v2 requires a static
+> call-site inventory plus an allocation trace attributed by pool. The
+> measurement below stands as a measurement; the conclusion drawn from it does
+> not. First cut at the inventory: NOTES.md N9.
 
 Scope of the claim, stated honestly:
 
