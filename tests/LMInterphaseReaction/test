@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def integrated_state(path):
+    data = testlib.yt.load(path).all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+
+    def mass(name):
+        density = data[f"component_density_{name}"].to_ndarray()
+        return (density * volume).sum(), density.min()
+
+    values = {}
+    minimum = 0.0
+    for name in [
+            "donor_A", "donor_B", "ambient_gas", "gas_product",
+            "primary_liquid", "condensed_product"]:
+        values[name], species_minimum = mass(name)
+        minimum = min(minimum, species_minimum)
+    values["total"] = sum(values.values())
+    values["minimum"] = minimum
+    return values
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMInterphaseReaction requires initial and final plotfiles")
+
+initial = integrated_state(plotfiles[0])
+final = integrated_state(plotfiles[-1])
+primary_consumed = initial["primary_liquid"] - final["primary_liquid"]
+donor_a_consumed = initial["donor_A"] - final["donor_A"]
+donor_b_consumed = initial["donor_B"] - final["donor_B"]
+secondary_consumed = donor_a_consumed + donor_b_consumed
+condensed_produced = (
+    final["condensed_product"] - initial["condensed_product"])
+gas_produced = final["gas_product"] - initial["gas_product"]
+product_produced = condensed_produced + gas_produced
+
+if primary_consumed <= 1.0e-4 * initial["primary_liquid"]:
+    raise RuntimeError("Interphase reaction did not consume primary reactant")
+if abs(secondary_consumed / primary_consumed - 0.50) > 5.0e-3:
+    raise RuntimeError("Secondary-reactant mass ratio is not 0.50")
+if abs(donor_a_consumed / secondary_consumed - 1.0 / 3.0) > 5.0e-3:
+    raise RuntimeError("Secondary pool did not follow local availability")
+if abs(product_produced / primary_consumed - 1.50) > 5.0e-3:
+    raise RuntimeError("Products do not contain combined reactant mass")
+if abs(condensed_produced / product_produced - 0.60) > 5.0e-3:
+    raise RuntimeError("Condensed product mass fraction is not 0.60")
+if abs(gas_produced / product_produced - 0.40) > 5.0e-3:
+    raise RuntimeError("Gas product mass fraction is not 0.40")
+
+relative_mass_error = abs(final["total"] - initial["total"]) / initial["total"]
+if relative_mass_error > 5.0e-5:
+    raise RuntimeError(
+        f"Interphase reaction altered total mass by {relative_mass_error:.3e}")
+if final["minimum"] < -1.0e-9:
+    raise RuntimeError(
+        f"Interphase reaction produced negative density "
+        f"{final['minimum']:.3e}")
+
+print("LowMach interphase-reaction regression passed")

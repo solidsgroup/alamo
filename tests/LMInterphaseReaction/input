@@ -1,0 +1,139 @@
+#@ [2d-secondary-pool-and-mixed-products]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+
+plot_file = tests/LMInterphaseReaction/output
+allow_unused = True
+amr.plot_int = 100
+amr.max_level = 0
+amr.max_grid_size = 48
+amr.blocking_factor = 8
+amr.n_cell = 48 48
+
+timestep = 1.0e-4
+stop_time = 2.0e-3
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol 28.0_kg/kmol 28.0_kg/kmol 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K 28000.0_J/kmol/K 28000.0_J/kmol/K 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol 0.0_J/kmol 0.0_J/kmol 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K 0.0_J/kmol/K 0.0_J/kmol/K 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K 300.0_K 300.0_K 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s 2.0e-5_Pa*s 2.0e-5_Pa*s 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K 0.02_W/m/K 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = donor_A donor_B ambient_gas gas_product primary_liquid condensed_product
+donor_A.mechanics = fluid
+donor_B.mechanics = fluid
+ambient_gas.mechanics = fluid
+gas_product.mechanics = fluid
+primary_liquid.mechanics = liquid
+primary_liquid.reference_density = 2.0_kg/m^3
+primary_liquid.dynamic_viscosity = 1.0e-2_Pa*s
+primary_liquid.specific_heat = 1000.0_J/kg/K
+primary_liquid.thermal_conductivity = 0.1_W/m/K
+condensed_product.mechanics = liquid
+condensed_product.reference_density = 2.5_kg/m^3
+condensed_product.dynamic_viscosity = 2.0e-2_Pa*s
+condensed_product.specific_heat = 1000.0_J/kg/K
+condensed_product.thermal_conductivity = 0.1_W/m/K
+
+liquid.interface_thickness = 0.04_m
+liquid.surface_tension.primary_liquid_gas = 0.01_J/m^2
+liquid.surface_tension.condensed_product_gas = 0.01_J/m^2
+liquid.surface_tension.primary_liquid_condensed_product = 0.01_J/m^2
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+mechanisms.names = generic_reaction
+generic_reaction.type = interphase_reaction
+generic_reaction.interphase_reaction.reactants.primary = primary_liquid
+generic_reaction.interphase_reaction.reactants.secondary = donor_A donor_B
+generic_reaction.interphase_reaction.reactants.secondary.available_mass_fractions = 0.25 0.50
+generic_reaction.interphase_reaction.reactants.secondary.mass_ratio = 0.50
+generic_reaction.interphase_reaction.products = condensed_product gas_product
+generic_reaction.interphase_reaction.products.mass_fractions = 0.60 0.40
+generic_reaction.interphase_reaction.products.heat_release = 0.0_J/kg 0.0_J/kg
+generic_reaction.interphase_reaction.mass_flux = 0.50_kg/m^2/s
+generic_reaction.interphase_reaction.activation_temperature = 100.0_K
+generic_reaction.interphase_reaction.temperature_cutoff = 250.0_K
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+
+donor_A.density.ic.type = expression
+donor_A.density.ic.expression.constant.rhog = 1.12254198039921
+donor_A.density.ic.expression.constant.x0 = 0.5
+donor_A.density.ic.expression.constant.y0 = 0.5
+donor_A.density.ic.expression.constant.R = 0.20
+donor_A.density.ic.expression.constant.eps = 0.04
+donor_A.density.ic.expression.region0 = "0.5*rhog*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+donor_B.density.ic.type = expression
+donor_B.density.ic.expression.constant.rhog = 1.12254198039921
+donor_B.density.ic.expression.constant.x0 = 0.5
+donor_B.density.ic.expression.constant.y0 = 0.5
+donor_B.density.ic.expression.constant.R = 0.20
+donor_B.density.ic.expression.constant.eps = 0.04
+donor_B.density.ic.expression.region0 = "0.5*rhog*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 0.0
+gas_product.density.ic.type = constant
+gas_product.density.ic.constant.value = 0.0
+primary_liquid.density.ic.type = expression
+primary_liquid.density.ic.expression.constant.rho = 2.0
+primary_liquid.density.ic.expression.constant.x0 = 0.5
+primary_liquid.density.ic.expression.constant.y0 = 0.5
+primary_liquid.density.ic.expression.constant.R = 0.20
+primary_liquid.density.ic.expression.constant.eps = 0.04
+primary_liquid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+condensed_product.density.ic.type = constant
+condensed_product.density.ic.constant.value = 0.0
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = periodic
+component_density.bc.constant.type.yhi = periodic
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = periodic
+velocity.bc.constant.type.yhi = periodic
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
