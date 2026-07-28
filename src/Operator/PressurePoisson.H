@@ -28,9 +28,18 @@ public:
 
     amrex::MultiFab& RHS(int lev) { return *rhs[lev]; }
     amrex::MultiFab& Coefficient(int lev) { return *coefficient[lev]; }
+    const amrex::MultiFab& FaceCoefficient(int lev, int direction) const
+    {
+        return face_coefficient[lev][direction];
+    }
     const amrex::MultiFab& Solution(int lev) const { return *solution[lev]; }
 
-    void PrepareRHS(int lev, const amrex::MultiFab& velocity, Set::Scalar dt);
+    using FaceField =
+        amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>;
+
+    void PrepareCoefficients(Set::Scalar time);
+    void PrepareRHS(int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
+                    const FaceField* face_acceleration = nullptr);
     void Solve(Set::Scalar time, const amrex::BCRec& pressure_bc);
     void ApplyCorrection(int lev, amrex::MultiFab& velocity, Set::Scalar dt);
 
@@ -48,6 +57,7 @@ private:
     Set::Field<Set::Scalar> rhs;
     Set::Field<Set::Scalar> coefficient;
     Set::Field<Set::Scalar> divergence;
+    Set::Field<Set::Scalar> cell_velocity_predictor;
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_coefficient;
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_velocity;
 };

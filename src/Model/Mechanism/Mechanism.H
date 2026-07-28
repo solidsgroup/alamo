@@ -20,6 +20,7 @@ struct State
     amrex::Array4<const Set::Scalar> rigid_eta;
     Set::Scalar temperature;
     Set::Scalar pressure;
+    Set::Scalar dt;
 };
 
 template<typename... OBJ>
@@ -61,6 +62,23 @@ public:
             return;
         }
         Util::Abort(INFO, selected);
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar HeatSource(const State& state,
+                            const int i, const int j, const int k,
+                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).HeatSource(
+                    state, i, j, k, DX);
+            return HeatSource<I + 1>(state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
     }
 
     template<int I = 0>

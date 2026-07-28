@@ -65,6 +65,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
     value.condensed_inverse_reference_density.fill(NAN);
+    value.condensed_dynamic_viscosity.fill(NAN);
+    value.liquid_inverse_reference_density.fill(0.0);
     if (value.nspecies > Model::Chemistry::MAX_SPECIES)
         Util::Exception(INFO, "LowMach supports at most ",
                         Model::Chemistry::MAX_SPECIES, " total species");
@@ -98,6 +100,22 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
         else if (mechanics == "rigid_solid")
             value.rigid_solid_species.push_back(n);
+        else if (mechanics == "liquid")
+        {
+            value.liquid_species.push_back(n);
+            pp.query_required(name + ".reference_density",
+                            value.reference_density[n], Unit::Density());
+            pp.query_required(name + ".dynamic_viscosity",
+                            value.condensed_dynamic_viscosity[n],
+                            Unit::Pressure() * Unit::Time());
+            if (!(value.reference_density[n] > 0.0) ||
+                !(value.condensed_dynamic_viscosity[n] > 0.0))
+                Util::Exception(INFO, name,
+                    " liquid density and dynamic viscosity must be positive");
+            value.liquid_reference_density_min = Util::Min(
+                value.liquid_reference_density_min,
+                value.reference_density[n]);
+        }
         else
             Util::Exception(INFO, mechanics,
                             " is not a valid mechanics type for species ", name);
@@ -220,6 +238,52 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                     "rigid.free.picard_tolerance must be positive");
         }
     }
+    if (!value.liquid_species.empty())
+    {
+        if (value.liquid_species.size() != 2)
+            Util::Exception(INFO,
+                "LowMach surface-tension support currently requires exactly "
+                "two liquid species");
+        pp.query_required("liquid.interface_thickness",
+                        value.liquid_interface_thickness, Unit::Length());
+        pp.query_required("liquid.regularization_speed",
+                        value.liquid_regularization_speed, Unit::Velocity());
+        pp.query_default("liquid.smooth_curvature",
+                        value.liquid_smooth_curvature, true);
+        if (!(value.liquid_interface_thickness > 0.0) ||
+            value.liquid_regularization_speed < 0.0)
+            Util::Exception(INFO,
+                "liquid interface thickness must be positive and "
+                "regularization speed must be nonnegative");
+
+        const std::string& a = value.species_names[value.liquid_species[0]];
+        const std::string& b = value.species_names[value.liquid_species[1]];
+        Set::Scalar sigma_ag = NAN, sigma_bg = NAN, sigma_ab = NAN;
+        pp.query_required("liquid.surface_tension." + a + "_gas",
+                        sigma_ag, Unit::Energy() / Unit::Area());
+        pp.query_required("liquid.surface_tension." + b + "_gas",
+                        sigma_bg, Unit::Energy() / Unit::Area());
+        pp.query_required("liquid.surface_tension." + a + "_" + b,
+                        sigma_ab, Unit::Energy() / Unit::Area());
+        if (!(sigma_ag > 0.0) || !(sigma_bg > 0.0) || !(sigma_ab > 0.0))
+            Util::Exception(INFO, "liquid surface tensions must be positive");
+        if (sigma_ag + sigma_bg < sigma_ab ||
+            sigma_ag + sigma_ab < sigma_bg ||
+            sigma_bg + sigma_ab < sigma_ag)
+            Util::Exception(INFO,
+                "liquid surface tensions must satisfy the triangle inequalities");
+        value.liquid_surface_energy[0] =
+            0.5 * (sigma_ag + sigma_ab - sigma_bg);
+        value.liquid_surface_energy[1] =
+            0.5 * (sigma_bg + sigma_ab - sigma_ag);
+        value.liquid_surface_energy[2] =
+            0.5 * (sigma_ag + sigma_bg - sigma_ab);
+        value.liquid_surface_tension_max =
+            Util::Max(sigma_ab, Util::Max(sigma_ag, sigma_bg));
+        for (const int n : value.liquid_species)
+            value.liquid_inverse_reference_density[n] =
+                1.0 / value.reference_density[n];
+    }
 
     for (int n = value.ngas_species; n < value.nspecies; ++n)
     {
@@ -252,7 +316,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         for (int m = 0; m < n; ++m)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
-        pp.select<Model::Mechanism::PhaseChange>(
+        pp.select<Model::Mechanism::PhaseChange,
+                Model::Mechanism::SurfaceOxidation>(
             id, value.mechanisms[n], value.species_names, value.ngas_species,
             value.rigid_solid_species, value.reference_density, value.gas.MW,
             value.gas.Rg);
@@ -270,7 +335,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
-    if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
+    if (value.deformable_solid_species >= 0 ||
+        !value.rigid_solid_species.empty() || !value.liquid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
     pp.query_default("amr.reinitialize_condensed_composition",
                     value.reinitialize_condensed_composition, false);
@@ -336,6 +402,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.fixed_rigid_eta_mf, &value.bc_nothing, 1, 1, "fixed_rigid_eta", true, false);
     if (value.free_rigid_solid_species >= 0)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.free_rigid_eta_mf, &value.bc_nothing, 1, 1, "free_rigid_eta", true, false);
+    if (!value.liquid_species.empty())
+    {
+        std::vector<std::string> liquid_suffix;
+        for (const int n : value.liquid_species)
+            liquid_suffix.push_back("_" + value.species_names[n]);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.liquid_eta_mf,
+            &value.bc_nothing, value.liquid_species.size(), nghost,
+            "liquid_eta", true, false, liquid_suffix);
+    }
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
@@ -418,7 +493,7 @@ LowMach::UpdateSolidStress(int lev,
         Set::Patch<Set::Matrix> F_field;
         if (write_diagnostics) F_field = deformation_gradient_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix F = Set::Matrix::Identity();
@@ -488,10 +563,12 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     const bool rigid_solid = !rigid_solid_species.empty();
     const bool fixed_rigid_solid = !fixed_rigid_solid_species.empty();
     const bool free_rigid_solid = free_rigid_solid_species >= 0;
+    const bool liquid = !liquid_species.empty();
     if (deformable_solid) eta_mf[lev]->setVal(0.0);
     if (rigid_solid) rigid_eta_mf[lev]->setVal(0.0);
     if (fixed_rigid_solid) fixed_rigid_eta_mf[lev]->setVal(0.0);
     if (free_rigid_solid) free_rigid_eta_mf[lev]->setVal(0.0);
+    if (liquid) liquid_eta_mf[lev]->setVal(0.0);
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->setVal(0.0);
@@ -577,6 +654,19 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
             1.0 / reference_density[free_rigid_solid_species], 0, 1, 1);
         free_rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
+    if (liquid)
+    {
+        for (int m = 0; m < static_cast<int>(liquid_species.size()); ++m)
+        {
+            const int n = liquid_species[m];
+            amrex::MultiFab::Copy(*liquid_eta_mf[lev], component_density_mf,
+                                n, m, 1, liquid_eta_mf[lev]->nGrow());
+            liquid_eta_mf[lev]->mult(
+                1.0 / reference_density[n], m, 1,
+                liquid_eta_mf[lev]->nGrow());
+        }
+        liquid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -637,7 +727,8 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             Set::Matrix grad_u = Numeric::Gradient(u, i, j, k, DX, sten);
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
 
-            mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+            mu(i,j,k) = ComputeViscosity(
+                component_density, T(i,j,k), i, j, k);
             auto [thermal_gas_volume_fraction, gas_heat_capacity,
                 heat_capacity, conductivity, cp] = ComputeThermalState(
                     component_density, T(i,j,k), i, j, k);
@@ -829,6 +920,34 @@ LowMach::ComputeThermalState(
     }
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
             conductivity, cp};
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+Set::Scalar
+LowMach::ComputeViscosity(
+    Set::Patch<const Set::Scalar> component_density,
+    Set::Scalar temperature, int i, int j, int k) const
+{
+    const Model::Gas::MoleFraction X =
+        gas.MoleFractions(component_density, i, j, k);
+    const Set::Scalar gas_viscosity =
+        gas.dynamic_viscosity(temperature, X, i, j, k);
+    Set::Scalar liquid_volume = 0.0;
+    for (int n = ngas_species; n < nspecies; ++n)
+        liquid_volume += Util::Max(component_density(i,j,k,n), 0.0) *
+            liquid_inverse_reference_density[n];
+    if (!(liquid_volume > 0.0)) return gas_viscosity;
+
+    const Set::Scalar liquid_fraction = Model::PhaseField::H(liquid_volume);
+    const Set::Scalar scale = liquid_fraction / liquid_volume;
+    Set::Scalar viscosity = (1.0 - liquid_fraction) * gas_viscosity;
+    for (int n = ngas_species; n < nspecies; ++n)
+        if (liquid_inverse_reference_density[n] > 0.0)
+            viscosity += scale *
+                Util::Max(component_density(i,j,k,n), 0.0) *
+                liquid_inverse_reference_density[n] *
+                condensed_dynamic_viscosity[n];
+    return viscosity;
 }
 
 void
@@ -1055,11 +1174,9 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                     Set::Scalar density = 0.0;
                     for (int n = 0; n < number_of_species; ++n)
                         density += component_density(i,j,k,n);
-                    const Model::Gas::MoleFraction X =
-                        gas.MoleFractions(component_density, i, j, k);
                     a(i,j,k) = Util::Max(density, rho_floor);
-                    b(i,j,k) =
-                        gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+                    b(i,j,k) = ComputeViscosity(
+                        component_density, T(i,j,k), i, j, k);
                 });
             }
         }
@@ -1245,7 +1362,7 @@ LowMach::ComputeThermochemicalSource(
                 (mass_fraction_at(ia,ja,ka,n) + mass_fraction_at(ib,jb,kb,n));
             return raw_flux - face_fraction * total_flux;
         };
-        auto conservative_species_flux = [=] AMREX_GPU_DEVICE(
+        auto conservative_species_flux = [=,this] AMREX_GPU_DEVICE(
             int ia, int ja, int ka, int ib, int jb, int kb,
             int d, int n)
         {
@@ -1490,7 +1607,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const bool rigid_solid = !rigid_solid_species.empty();
     const bool fixed_rigid_solid = !fixed_rigid_solid_species.empty();
     const bool free_rigid_solid = free_rigid_solid_species >= 0;
-    const bool mixed_phase = deformable_solid || rigid_solid;
+    const bool liquid = !liquid_species.empty();
+    const bool mixed_phase = deformable_solid || rigid_solid || liquid;
     const bool split_chemistry = chemistry.Split();
     const bool split_diffusion =
         implicit_thermal_diffusion || implicit_species_diffusion;
@@ -1575,7 +1693,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     const Model::Mechanism::State state = {
-                        component_density, rigid_eta, T(i,j,k), p_reference};
+                        component_density, rigid_eta, T(i,j,k), p_reference,
+                        dt};
                     rhs(i,j,k) += mechanism.VolumeSource(state, i, j, k, DX);
                 });
             }
@@ -1620,6 +1739,11 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                         gas.R(X, i, j, k) * T(i,j,k) / p_reference;
                     if (deformable_solid) volume_fraction += eta(i,j,k);
                     if (rigid_solid) volume_fraction += rigid_eta(i,j,k);
+                    if (liquid)
+                        for (int n = ngas; n < nspecies; ++n)
+                            volume_fraction += Util::Max(
+                                component_density(i,j,k,n), 0.0) *
+                                liquid_inverse_reference_density[n];
 
                     // Correct splitting and collocated-flux drift in the
                     // mixture volume constraint over one flow step.
@@ -1661,6 +1785,200 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 pressure_poisson.RHS(lev).DistributionMap(), 1, 0);
             amrex::MultiFab::Copy(*projection_source[lev],
                 pressure_poisson.RHS(lev), 0, 0, 1, 0);
+        }
+    }
+
+    // Surface tension and pressure must use the same face gradient and the
+    // same face mobility.  Otherwise a nominally static capillary pressure
+    // jump leaves a grid-scale residual in the cell-centered predictor.
+    pressure_poisson.PrepareCoefficients(time);
+    using OwnedFaceField =
+        amrex::Array<std::unique_ptr<amrex::MultiFab>, AMREX_SPACEDIM>;
+    amrex::Vector<OwnedFaceField> capillary_face_acceleration(nlev);
+    if (liquid)
+    {
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            const Set::Scalar* DX = geom[lev].CellSize();
+            const amrex::Box domain = geom[lev].Domain();
+            amrex::MultiFab curvature(
+                velocity_mf[lev]->boxArray(),
+                velocity_mf[lev]->DistributionMap(), 3, 1);
+            amrex::MultiFab curvature_weight(
+                velocity_mf[lev]->boxArray(),
+                velocity_mf[lev]->DistributionMap(), 3, 1);
+            curvature.setVal(0.0);
+            curvature_weight.setVal(0.0);
+
+            for (amrex::MFIter mfi(curvature, false); mfi.isValid(); ++mfi)
+            {
+                // Curvature is needed in one fine-level ghost cell at patch
+                // boundaries.  Evaluate those cells from the already
+                // fill-patched phase field; FillBoundary alone cannot supply
+                // a curvature value where no neighboring fine patch exists.
+                const amrex::Box bx = mfi.fabbox() & domain;
+                Set::Patch<const Set::Scalar> eta =
+                    liquid_eta_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> kappa = curvature.array(mfi);
+                Set::Patch<Set::Scalar> weight =
+                    curvature_weight.array(mfi);
+                const Set::Scalar gradient_floor =
+                    small / liquid_interface_thickness;
+
+                amrex::ParallelFor(
+                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
+                        const Set::Vector grad0 = Numeric::Gradient(
+                            eta, i, j, k, 0, DX, sten);
+                        const Set::Vector grad1 = Numeric::Gradient(
+                            eta, i, j, k, 1, DX, sten);
+                        const Set::Matrix hess0 = Numeric::Hessian(
+                            eta, i, j, k, 0, DX, sten);
+                        const Set::Matrix hess1 = Numeric::Hessian(
+                            eta, i, j, k, 1, DX, sten);
+                        for (int phase = 0; phase < 3; ++phase)
+                        {
+                            const Set::Vector grad = phase == 0 ? grad0 :
+                                (phase == 1 ? grad1 : -(grad0 + grad1));
+                            const Set::Matrix hess = phase == 0 ? hess0 :
+                                (phase == 1 ? hess1 : -(hess0 + hess1));
+                            const Set::Scalar grad_norm = grad.norm();
+                            weight(i,j,k,phase) = grad_norm;
+                            kappa(i,j,k,phase) = grad_norm > gradient_floor ?
+                                -(hess.trace() / grad_norm -
+                                  grad.dot(hess * grad) /
+                                    (grad_norm * grad_norm * grad_norm)) : 0.0;
+                        }
+                    });
+            }
+            curvature.FillBoundary(geom[lev].periodicity());
+            curvature_weight.FillBoundary(geom[lev].periodicity());
+
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                amrex::BoxArray face_grids = velocity_mf[lev]->boxArray();
+                face_grids.surroundingNodes(d);
+                capillary_face_acceleration[lev][d] =
+                    std::make_unique<amrex::MultiFab>(
+                        face_grids, velocity_mf[lev]->DistributionMap(), 1, 0);
+                amrex::MultiFab& acceleration =
+                    *capillary_face_acceleration[lev][d];
+                const amrex::MultiFab& beta =
+                    pressure_poisson.FaceCoefficient(lev, d);
+                const int di = d == 0;
+                const int dj = d == 1;
+                const int dk = d == 2;
+                const int domain_face_lo = domain.smallEnd(d);
+                const int domain_face_hi = domain.bigEnd(d) + 1;
+                const bool periodic = geom[lev].isPeriodic(d);
+                amrex::GpuArray<int, AMREX_SPACEDIM> domain_lo;
+                amrex::GpuArray<int, AMREX_SPACEDIM> domain_hi;
+                amrex::GpuArray<int, AMREX_SPACEDIM> is_periodic;
+                for (int direction = 0; direction < AMREX_SPACEDIM;
+                    ++direction)
+                {
+                    domain_lo[direction] = domain.smallEnd(direction);
+                    domain_hi[direction] = domain.bigEnd(direction);
+                    is_periodic[direction] = geom[lev].isPeriodic(direction);
+                }
+                const bool smooth_curvature = liquid_smooth_curvature;
+                const Set::Scalar gamma0 = liquid_surface_energy[0];
+                const Set::Scalar gamma1 = liquid_surface_energy[1];
+                const Set::Scalar gamma2 = liquid_surface_energy[2];
+
+                for (amrex::MFIter mfi(acceleration,
+                        amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    const amrex::Box& bx = mfi.tilebox();
+                    Set::Patch<const Set::Scalar> eta =
+                        liquid_eta_mf.Patch(lev,mfi);
+                    Set::Patch<const Set::Scalar> kappa =
+                        curvature.const_array(mfi);
+                    Set::Patch<const Set::Scalar> curvature_gradient_weight =
+                        curvature_weight.const_array(mfi);
+                    Set::Patch<const Set::Scalar> face_beta =
+                        beta.const_array(mfi);
+                    Set::Patch<Set::Scalar> face_acceleration =
+                        acceleration.array(mfi);
+
+                    amrex::ParallelFor(
+                        bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            const int face_index =
+                                d == 0 ? i : (d == 1 ? j : k);
+                            if (!periodic && (face_index == domain_face_lo ||
+                                             face_index == domain_face_hi))
+                            {
+                                face_acceleration(i,j,k) = 0.0;
+                                return;
+                            }
+
+                            Set::Scalar force = 0.0;
+                            for (int phase = 0; phase < 3; ++phase)
+                            {
+                                const Set::Scalar eta_lo = phase == 0 ?
+                                    eta(i-di,j-dj,k-dk,0) :
+                                    (phase == 1 ? eta(i-di,j-dj,k-dk,1) :
+                                     1.0 - eta(i-di,j-dj,k-dk,0) -
+                                           eta(i-di,j-dj,k-dk,1));
+                                const Set::Scalar eta_hi = phase == 0 ?
+                                    eta(i,j,k,0) :
+                                    (phase == 1 ? eta(i,j,k,1) :
+                                     1.0 - eta(i,j,k,0) - eta(i,j,k,1));
+                                Set::Scalar kappa_face = 0.5 *
+                                    (kappa(i-di,j-dj,k-dk,phase) +
+                                     kappa(i,j,k,phase));
+                                if (smooth_curvature)
+                                {
+                                    Set::Scalar weighted_curvature = 0.0;
+                                    Set::Scalar total_weight = 0.0;
+                                    for (int side = 0; side < 2; ++side)
+                                    for (int oi = -1; oi <= 1; ++oi)
+                                    for (int oj = -1; oj <= 1; ++oj)
+                                    for (int ok = AMREX_SPACEDIM == 3 ? -1 : 0;
+                                        ok <= (AMREX_SPACEDIM == 3 ? 1 : 0); ++ok)
+                                    {
+                                        // Average only tangentially and across
+                                        // the two cells adjacent to this face.
+                                        if ((d == 0 && oi != 0) ||
+                                            (d == 1 && oj != 0) ||
+                                            (d == 2 && ok != 0)) continue;
+                                        const int ii = i - side * di + oi;
+                                        const int jj = j - side * dj + oj;
+                                        const int kk = k - side * dk + ok;
+                                        const bool outside =
+                                            (!is_periodic[0] &&
+                                             (ii < domain_lo[0] || ii > domain_hi[0])) ||
+                                            (!is_periodic[1] &&
+                                             (jj < domain_lo[1] || jj > domain_hi[1]))
+#if AMREX_SPACEDIM == 3
+                                            || (!is_periodic[2] &&
+                                             (kk < domain_lo[2] || kk > domain_hi[2]))
+#endif
+                                            ;
+                                        if (outside) continue;
+                                        const Set::Scalar local_weight =
+                                            curvature_gradient_weight(
+                                                ii,jj,kk,phase);
+                                        weighted_curvature += local_weight *
+                                            kappa(ii,jj,kk,phase);
+                                        total_weight += local_weight;
+                                    }
+                                    if (total_weight > 0.0)
+                                        kappa_face =
+                                            weighted_curvature / total_weight;
+                                }
+                                const Set::Scalar gamma = phase == 0 ? gamma0 :
+                                    (phase == 1 ? gamma1 : gamma2);
+                                force += gamma * kappa_face *
+                                    (eta_hi - eta_lo) / DX[d];
+                            }
+                            face_acceleration(i,j,k) =
+                                face_beta(i,j,k) * force;
+                        });
+                }
+            }
         }
     }
 
@@ -1809,7 +2127,17 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             if (free_rigid_solid)
                 amrex::MultiFab::Copy(pressure_poisson.RHS(lev),
                     *projection_source[lev], 0, 0, 1, 0);
-            pressure_poisson.PrepareRHS(lev, *velocity_mf[lev], dt);
+            Operator::PressurePoisson::FaceField capillary_acceleration;
+            const Operator::PressurePoisson::FaceField* acceleration = nullptr;
+            if (liquid)
+            {
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    capillary_acceleration[d] =
+                        capillary_face_acceleration[lev][d].get();
+                acceleration = &capillary_acceleration;
+            }
+            pressure_poisson.PrepareRHS(
+                lev, *velocity_mf[lev], dt, acceleration);
         }
         pressure_poisson.Solve(time, pressure_bc->GetBCRec());
 
@@ -2008,7 +2336,7 @@ LowMach::Regrid(int lev, Set::Scalar time)
         Set::Patch<Set::Scalar> density = component_density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> density_ic = initial_density.array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = 0.0;
             Set::Scalar eta_ic = 0.0;
@@ -2076,14 +2404,12 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             solid_deviatoric_stress_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const Model::Gas::MoleFraction X =
-                gas.MoleFractions(component_density, i, j, k);
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), density_floor);
             Set::Scalar mu = include_viscosity && !implicit_momentum_diffusion ?
-                gas.dynamic_viscosity(T(i,j,k), X, i, j, k) : 0.0;
+                ComputeViscosity(component_density, T(i,j,k), i, j, k) : 0.0;
 
             Set::Vector div_sigma = Set::Vector::Zero();
             if (deformable_solid)
@@ -2123,12 +2449,23 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
             Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
+            Set::Patch<Set::Scalar> T_rhs = T_rhs_mf.array(mfi);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 const Model::Mechanism::State state = {
-                    component_density, rigid_eta, T(i,j,k), p_reference};
+                    component_density, rigid_eta, T(i,j,k), p_reference, dt};
                 mechanism.Apply(component_density_rhs, state, i, j, k, DX);
+                auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
+                    conductivity, cp] = ComputeThermalState(
+                        component_density, T(i,j,k), i, j, k);
+                (void)gas_volume_fraction;
+                (void)gas_heat_capacity;
+                (void)conductivity;
+                (void)cp;
+                if (heat_capacity > 0.0)
+                    T_rhs(i,j,k) += mechanism.HeatSource(
+                        state, i, j, k, DX) / heat_capacity;
             });
         }
     }
@@ -2168,7 +2505,8 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 ComputeThermochemicalSource(component_density, T, i, j, k, DX, dt, !split_chemistry);
             (void)dilatation; // ignore unused
 
-            T_rhs(i,j,k) = 0.0;
+            const Set::Scalar mechanism_temperature_source = T_rhs(i,j,k);
+            T_rhs(i,j,k) = mechanism_temperature_source;
             if (advect_T)
             {
                 auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
@@ -2196,12 +2534,64 @@ LowMach::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 // Prescribed/fixed rigid phases keep their existing spatial
                 // profiles.  Their mechanism source was assembled above;
                 // only deformable and freely moving phases are transported.
-                if (n != deformable_component && n != free_rigid_component)
+                const bool liquid_component =
+                    liquid_inverse_reference_density[n] > 0.0;
+                if (n != deformable_component && n != free_rigid_component &&
+                    !liquid_component)
                     continue;
                 const Set::Scalar mechanism_source = component_density_rhs(i,j,k,n);
                 component_density_rhs(i,j,k,n) =
                     advect(component_density, u, i, j, k, n, DX,
                             {Numeric::Advect::Form::Conservative}, sten) + mechanism_source;
+                if (liquid_component && liquid_regularization_speed > 0.0)
+                {
+                    const Set::Scalar inverse_reference_density =
+                        liquid_inverse_reference_density[n];
+                    const Set::Scalar reference_density =
+                        1.0 / inverse_reference_density;
+                    auto eta_at = [=] AMREX_GPU_DEVICE(
+                        int ii, int jj, int kk)
+                    {
+                        return Util::Clamp(component_density(ii,jj,kk,n) *
+                            inverse_reference_density, 0.0, 1.0);
+                    };
+                    auto regularization_flux = [=,this] AMREX_GPU_DEVICE(
+                        int ia, int ja, int ka, int ib, int jb, int kb,
+                        int d)
+                    {
+                        Set::Vector grad_a = Numeric::Gradient(
+                            component_density, ia, ja, ka, n, DX) *
+                            inverse_reference_density;
+                        Set::Vector grad_b = Numeric::Gradient(
+                            component_density, ib, jb, kb, n, DX) *
+                            inverse_reference_density;
+                        Set::Vector grad = 0.5 * (grad_a + grad_b);
+                        const Set::Scalar eta_a = eta_at(ia,ja,ka);
+                        const Set::Scalar eta_b = eta_at(ib,jb,kb);
+                        grad(d) = (eta_b - eta_a) / DX[d];
+                        const Set::Scalar norm = grad.norm();
+                        const Set::Scalar normal = norm > 0.0 ?
+                            grad(d) / norm : 0.0;
+                        const Set::Scalar eta_face = 0.5 * (eta_a + eta_b);
+                        return liquid_regularization_speed *
+                            (liquid_interface_thickness * grad(d) -
+                            eta_face * (1.0 - eta_face) * normal);
+                    };
+                    Set::Scalar divergence = 0.0;
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    {
+                        const int di = d == 0;
+                        const int dj = d == 1;
+                        const int dk = d == 2;
+                        const Set::Scalar flux_hi = regularization_flux(
+                            i,j,k,i+di,j+dj,k+dk,d);
+                        const Set::Scalar flux_lo = regularization_flux(
+                            i-di,j-dj,k-dk,i,j,k,d);
+                        divergence += (flux_hi - flux_lo) / DX[d];
+                    }
+                    component_density_rhs(i,j,k,n) +=
+                        reference_density * divergence;
+                }
             }
             if (deformable_solid)
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -2347,6 +2737,8 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
     Set::Scalar viscmax = 0.0;
     Set::Scalar elasticmax = 0.0;
     Set::Scalar phasefieldmax = 0.0;
+    Set::Scalar capillarymax = 0.0;
+    Set::Scalar regularizationmax = 0.0;
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool explicit_solid_deviatoric_stress = deformable_solid &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
@@ -2355,6 +2747,16 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         Set::Scalar dxmin = std::min(DX[0], DX[1]);
+        if (!liquid_species.empty())
+        {
+            capillarymax = std::max(capillarymax,
+                std::sqrt(liquid_surface_tension_max /
+                    (liquid_reference_density_min * dxmin * dxmin * dxmin)));
+            regularizationmax = std::max(regularizationmax,
+                liquid_regularization_speed *
+                    (1.0 / dxmin + 2.0 * AMREX_SPACEDIM *
+                        liquid_interface_thickness / (dxmin * dxmin)));
+        }
         Set::Scalar temperaturemax = 0.0;
 
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -2364,7 +2766,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
             amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+            reduce_op.eval(bx, reduce_data, [=,this] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
                 Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
                 return {speed / dxmin};
@@ -2400,13 +2802,14 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                             amrex::ReduceOpMax> reduce_op;
             amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
-            reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+            reduce_op.eval(bx, reduce_data, [=,this] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
                 const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
                 Set::Scalar nu = 0.0;
                 if (viscous)
                 {
-                    Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+                    Set::Scalar mu = ComputeViscosity(
+                        component_density, T(i,j,k), i, j, k);
                     nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
                 if (conductive)
@@ -2444,13 +2847,19 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);
     amrex::ParallelDescriptor::ReduceRealMax(elasticmax);
     amrex::ParallelDescriptor::ReduceRealMax(phasefieldmax);
+    amrex::ParallelDescriptor::ReduceRealMax(capillarymax);
+    amrex::ParallelDescriptor::ReduceRealMax(regularizationmax);
 
     Set::Scalar adv_dt = cfl_v;
     if (advmax > 0.0) adv_dt = cfl / advmax;
     Set::Scalar visc_dt = viscmax > 0.0 ? 0.5 * cfl / viscmax : cfl_v;
     Set::Scalar elastic_dt = elasticmax > 0.0 ? cfl / elasticmax : cfl_v;
     Set::Scalar phasefield_dt = phasefieldmax > 0.0 ? cfl / phasefieldmax : cfl_v;
-    DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt}));
+    Set::Scalar capillary_dt = capillarymax > 0.0 ? cfl / capillarymax : cfl_v;
+    Set::Scalar regularization_dt = regularizationmax > 0.0 ?
+        cfl / regularizationmax : cfl_v;
+    DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt,
+        phasefield_dt, capillary_dt, regularization_dt}));
     DynamicTimestep_Update();
 }
 
@@ -2608,6 +3017,8 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     Set::Scalar dr = std::sqrt(DX[0] * DX[0] + DX[1] * DX[1]);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
+    const bool liquid = !liquid_species.empty();
+    const int nliquid = static_cast<int>(liquid_species.size());
 
     for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -2618,6 +3029,7 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
         Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> liquid_eta = liquid_eta_mf.Patch(lev,mfi);
         const Set::Scalar vcrit = velocity_refinement_criterion;
         const Set::Scalar pcrit = pressure_refinement_criterion;
         const Set::Scalar Tcrit = temperature_refinement_criterion;
@@ -2645,6 +3057,16 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                 refine_eta = refine_eta || grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
                             (eta_val > etacrit && eta_val < 1.0 - etacrit);
             }
+            if (liquid)
+                for (int n = 0; n < nliquid; ++n)
+                {
+                    Set::Vector grad_eta = Numeric::Gradient(
+                        liquid_eta, i, j, k, n, DX, sten);
+                    const Set::Scalar eta_val = liquid_eta(i,j,k,n);
+                    refine_eta = refine_eta ||
+                        grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
+                        (eta_val > etacrit && eta_val < 1.0 - etacrit);
+                }
             if (grad_u.norm() * dr > vcrit ||
                 grad_p.lpNorm<2>() * dr > pcrit ||
                 grad_T.lpNorm<2>() * dr > Tcrit ||

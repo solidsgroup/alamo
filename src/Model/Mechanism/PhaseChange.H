@@ -140,6 +140,14 @@ public:
             component_density_rhs(i,j,k,products[n]) -= mass_fractions[n] * source;
     }
 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar HeatSource(const State& /*state*/,
+                            const int /*i*/, const int /*j*/, const int /*k*/,
+                            const Set::Scalar /*DX*/[AMREX_SPACEDIM]) const
+    {
+        return 0.0;
+    }
+
     Set::Scalar StabilityRate(const Set::Scalar dx,
                             const Set::Scalar temperature) const
     {

@@ -62,6 +62,8 @@ PressurePoisson::SetLayout(
     rhs.Define(nlevels, grids, distribution_mapping, 1, 0);
     coefficient.Define(nlevels, grids, distribution_mapping, 1, 1);
     divergence.Define(nlevels, grids, distribution_mapping, 1, 0);
+    cell_velocity_predictor.Define(
+        nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 2);
     face_coefficient.resize(nlevels);
     face_velocity.resize(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
@@ -77,57 +79,14 @@ PressurePoisson::SetLayout(
             face_coefficient[lev][d].define(
                 face_grids, distribution_mapping[lev], 1, 0);
             face_velocity[lev][d].define(
-                face_grids, distribution_mapping[lev], 1, 0);
+                face_grids, distribution_mapping[lev], 1, 1);
         }
     }
 }
 
 void
-PressurePoisson::PrepareRHS(
-    int lev, const amrex::MultiFab& velocity, Set::Scalar dt)
+PressurePoisson::PrepareCoefficients(Set::Scalar time)
 {
-    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_velocity_const_ptr;
-    for (int d = 0; d < AMREX_SPACEDIM; ++d)
-    {
-        face_velocity_const_ptr[d] = &face_velocity[lev][d];
-        const int di = d == 0;
-        const int dj = d == 1;
-        const int dk = d == 2;
-        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
-            mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.tilebox();
-            const auto u = velocity.const_array(mfi);
-            const auto face = face_velocity[lev][d].array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                face(i,j,k) = 0.5 *
-                    (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
-            });
-        }
-    }
-    amrex::computeDivergence(
-        *divergence[lev], face_velocity_const_ptr, geometry[lev]);
-
-    const Set::Scalar inv_dt = 1.0 / dt;
-    for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        const auto source = rhs[lev]->const_array(mfi);
-        const auto div = divergence[lev]->const_array(mfi);
-        const auto projection_rhs = rhs[lev]->array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            projection_rhs(i,j,k) = (div(i,j,k) - source(i,j,k)) * inv_dt;
-        });
-    }
-}
-
-void
-PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
-{
-    BL_PROFILE("Operator::PressurePoisson::Solve");
-
     BC::Constant::ZeroNeumann coefficient_bc(1);
     for (int lev = 0; lev < nlevels; ++lev)
     {
@@ -147,22 +106,80 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
             amrex::FillPatchTwoLevels(
                 *coefficient[lev], time, coarse, coarse_time, fine, fine_time,
                 0, 0, 1, geometry[lev - 1], geometry[lev],
-                coefficient_bc, 0, coefficient_bc, 0, refinement_ratio[lev - 1],
-                &amrex::cell_cons_interp, bcs, 0);
+                coefficient_bc, 0, coefficient_bc, 0,
+                refinement_ratio[lev - 1], &amrex::cell_cons_interp, bcs, 0);
         }
     }
 
-    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> face_coefficient_ptr(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> face_ptr;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-        {
             face_ptr[d] = &face_coefficient[lev][d];
-            face_coefficient_ptr[lev][d] = &face_coefficient[lev][d];
-        }
         amrex::average_cellcenter_to_face(
             face_ptr, *coefficient[lev], geometry[lev], 1, true, 0);
+    }
+}
+
+void
+PressurePoisson::PrepareRHS(
+    int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
+    const FaceField* face_acceleration)
+{
+    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_velocity_const_ptr;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        face_velocity_const_ptr[d] = &face_velocity[lev][d];
+        const int di = d == 0;
+        const int dj = d == 1;
+        const int dk = d == 2;
+        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            const auto u = velocity.const_array(mfi);
+            const auto face = face_velocity[lev][d].array(mfi);
+            amrex::Array4<const Set::Scalar> acceleration;
+            const bool has_acceleration = face_acceleration != nullptr;
+            if (has_acceleration)
+                acceleration = (*face_acceleration)[d]->const_array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                face(i,j,k) = 0.5 *
+                    (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
+                if (has_acceleration)
+                    face(i,j,k) += dt * acceleration(i,j,k);
+            });
+        }
+        face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());
+    }
+    amrex::computeDivergence(
+        *divergence[lev], face_velocity_const_ptr, geometry[lev]);
+
+    const Set::Scalar inv_dt = 1.0 / dt;
+    for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        const auto source = rhs[lev]->const_array(mfi);
+        const auto div = divergence[lev]->const_array(mfi);
+        const auto projection_rhs = rhs[lev]->array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            projection_rhs(i,j,k) = (div(i,j,k) - source(i,j,k)) * inv_dt;
+        });
+    }
+}
+
+void
+PressurePoisson::Solve(Set::Scalar /*time*/, const amrex::BCRec& pressure_bc)
+{
+    BL_PROFILE("Operator::PressurePoisson::Solve");
+
+    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> face_coefficient_ptr(nlevels);
+    for (int lev = 0; lev < nlevels; ++lev)
+    {
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            face_coefficient_ptr[lev][d] = &face_coefficient[lev][d];
     }
 
     amrex::LPInfo info;
@@ -229,19 +246,29 @@ PressurePoisson::ApplyCorrection(
             const auto face = face_velocity[lev][d].array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                face(i,j,k) = -dt * beta(i,j,k) *
+                face(i,j,k) -= dt * beta(i,j,k) *
                     (phi(i,j,k) - phi(i-di,j-dj,k-dk)) / dx[d];
             });
         }
+        face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());
     }
 
+    // Retain the pre-projection cell field.  Filtering this field, rather
+    // than deconvolving corrected faces with a wide stencil, is important on
+    // AMR levels: every valid cell has two adjacent valid faces, whereas a
+    // fine face two indices away may lie outside the fine-grid patch.
+    amrex::MultiFab& predictor = *cell_velocity_predictor[lev];
+    amrex::MultiFab::Copy(
+        predictor, velocity, 0, 0, AMREX_SPACEDIM, 2);
     for (amrex::MFIter mfi(velocity, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
         const auto u = velocity.array(mfi);
-        amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM> correction;
+        const auto u_predictor = predictor.const_array(mfi);
+        amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM>
+            projected_face;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            correction[d] = face_velocity[lev][d].const_array(mfi);
+            projected_face[d] = face_velocity[lev][d].const_array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -249,8 +276,32 @@ PressurePoisson::ApplyCorrection(
                 const int di = d == 0;
                 const int dj = d == 1;
                 const int dk = d == 2;
-                u(i,j,k,d) += 0.5 *
-                    (correction[d](i,j,k) + correction[d](i+di,j+dj,k+dk));
+                const Set::Scalar fourth_difference =
+                    u_predictor(i-2*di,j-2*dj,k-2*dk,d) -
+                    4.0 * u_predictor(i-di,j-dj,k-dk,d) +
+                    6.0 * u_predictor(i,j,k,d) -
+                    4.0 * u_predictor(i+di,j+dj,k+dk,d) +
+                    u_predictor(i+2*di,j+2*dj,k+2*dk,d);
+                const Set::Scalar filtered_predictor =
+                    u_predictor(i,j,k,d) - fourth_difference / 16.0;
+
+                const Set::Scalar predictor_face_lo = 0.5 *
+                    (u_predictor(i-di,j-dj,k-dk,d) +
+                     u_predictor(i,j,k,d));
+                const Set::Scalar predictor_face_hi = 0.5 *
+                    (u_predictor(i,j,k,d) +
+                     u_predictor(i+di,j+dj,k+dk,d));
+                const Set::Scalar face_increment = 0.5 *
+                    ((projected_face[d](i,j,k) - predictor_face_lo) +
+                     (projected_face[d](i+di,j+dj,k+dk) -
+                      predictor_face_hi));
+
+                // The compact fourth-difference filter has transfer function
+                // 1-sin(k*dx/2)^4.  It leaves smooth predictor modes unchanged
+                // through O(dx^4) and removes the face-invisible alternating
+                // cell mode, while the pressure/capillary correction retains
+                // the original local two-face interpolation.
+                u(i,j,k,d) = filtered_predictor + face_increment;
             }
         });
     }

@@ -19,6 +19,7 @@
 #include "Model/Chemistry/Rocfire_Aluminized.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
+#include "Model/Mechanism/SurfaceOxidation.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -87,6 +88,11 @@ protected:
         Set::Scalar temperature, int i, int j, int k) const;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar ComputeViscosity(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k) const;
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(
         Set::Patch<const Set::Scalar> component_density,
@@ -115,6 +121,7 @@ protected:
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
+    Set::Field<Set::Scalar> liquid_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -156,19 +163,24 @@ protected:
         Model::Chemistry::Rocfire_Aluminized>;
     Chemistry chemistry;
     Model::Solid::Finite::NeoHookean finite_solid_model;
-    using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
+    using Mechanism = Model::Mechanism::Mechanism<
+        Model::Mechanism::PhaseChange,
+        Model::Mechanism::SurfaceOxidation>;
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
+    Model::Chemistry::SpeciesArray condensed_dynamic_viscosity;
+    Model::Chemistry::SpeciesArray liquid_inverse_reference_density;
     int ngas_species = 0;
     int nspecies = 0;
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
     std::vector<int> fixed_rigid_solid_species;
     int free_rigid_solid_species = -1;
+    std::vector<int> liquid_species;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -201,6 +213,12 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
+    Set::Scalar liquid_interface_thickness = 0.0;
+    Set::Scalar liquid_regularization_speed = 0.0;
+    bool liquid_smooth_curvature = true;
+    Set::Scalar liquid_surface_energy[3] = {0.0, 0.0, 0.0};
+    Set::Scalar liquid_surface_tension_max = 0.0;
+    Set::Scalar liquid_reference_density_min = 1.0e100;
     Set::Scalar rigid_relaxation_time = 1.0;
     Set::Vector rigid_velocity = Set::Vector::Zero();
     int free_rigid_picard_iterations = 1;
