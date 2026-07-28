@@ -67,7 +67,19 @@ module list 2>&1 | sed 's/^/    /' || true
 mkdir -p "${ALAMO_DIR}"
 ALAMO_DIR="$(cd "${ALAMO_DIR}" && pwd)"   # absolutize
 echo -e "${YELLOW}Building in ${ALAMO_DIR}${NC}"
-if [ -d "${ALAMO_DIR}/.git" ]; then
+if [ "${SKIP_GIT:-0}" = 1 ]; then
+  # The working tree was placed here by an rsync push (benchmark/phase0_capture.sh
+  # push) and IS the thing to build. Pulling would fight it: a dirty local branch
+  # makes `pull --ff-only` abort, and if it did succeed it would silently discard
+  # the pushed source. Provenance for what is actually here lives in
+  # benchmark/_pushed_rev.txt, not in this checkout's git metadata.
+  echo -e "${YELLOW}SKIP_GIT=1 -- building the tree as-is, no fetch/checkout/pull${NC}"
+  if [ -f "${ALAMO_DIR}/benchmark/_pushed_rev.txt" ]; then
+    sed 's/^/    /' "${ALAMO_DIR}/benchmark/_pushed_rev.txt"
+  else
+    echo -e "${RED}  WARNING: no benchmark/_pushed_rev.txt -- no trustworthy source provenance${NC}"
+  fi
+elif [ -d "${ALAMO_DIR}/.git" ]; then
   echo -e "${YELLOW}Updating existing checkout in place...${NC}"
   git -C "${ALAMO_DIR}" fetch origin "${BRANCH}"
   git -C "${ALAMO_DIR}" checkout "${BRANCH}"

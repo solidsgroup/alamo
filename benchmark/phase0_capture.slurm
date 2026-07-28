@@ -137,6 +137,9 @@ if have_leg env; then
   L="${OUT}/env"; mkdir -p "${L}"
   {
     echo "host=$(hostname)  date=$(date -Is)"
+    echo "--- source provenance (written by phase0_capture.sh push; the remote"
+    echo "    checkout's own git metadata does NOT describe the pushed tree)"
+    cat benchmark/_pushed_rev.txt 2>/dev/null || echo "  MISSING benchmark/_pushed_rev.txt -- ledger row will have no trustworthy sha"
     echo "--- nvidia-smi"; nvidia-smi 2>&1 | head -20
     echo "--- compute cap / mem"
     nvidia-smi --query-gpu=name,compute_cap,memory.total,driver_version --format=csv 2>&1

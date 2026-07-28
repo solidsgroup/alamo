@@ -50,18 +50,41 @@ case "${ACTION}" in
     ;;
 
   push)
+    # Provenance: the remote checkout's own git metadata describes whatever was
+    # cloned there, NOT the working tree being pushed over it. The metrics ledger
+    # is keyed on commit_sha (campaign §12), so stamp the real source revision
+    # into a file that travels with the code and gets read back by the env leg.
+    {
+      echo "pushed_from_host=$(hostname)"
+      echo "pushed_at=$(date -Is)"
+      echo "local_branch=$(git rev-parse --abbrev-ref HEAD)"
+      echo "local_head=$(git rev-parse HEAD)"
+      echo "local_dirty_files=$(git status --porcelain | wc -l)"
+      echo "# A nonzero dirty count means the captured binary does NOT correspond"
+      echo "# to local_head alone. Record that in the ledger row rather than"
+      echo "# pretending the sha is sufficient."
+    } > benchmark/_pushed_rev.txt
     echo "=== rsync -> ${HOST}:${REMOTE_DIR}"
     rsync -az --info=stats1 \
       --exclude '.git' --exclude 'bin' --exclude 'ext' --exclude '__pycache__' \
-      --exclude 'benchmark/_*' --exclude 'benchmark/baseline_runs' \
+      --exclude 'benchmark/_phase0_*' --exclude 'benchmark/_two_rank_probe_*' \
+      --exclude 'benchmark/_a100_gate_*' --exclude 'benchmark/baseline_runs' \
       ./benchmark ./src ./input* ./configure ./Makefile \
       "${HOST}:${REMOTE_DIR}/"
+    echo "--- provenance pushed:"; cat benchmark/_pushed_rev.txt
     echo "NOTE: bin/ and ext/ are deliberately not pushed -- build on NOVA."
     ;;
 
   build)
-    echo "=== submitting NOVA build (both variants, both dims)"
-    ssh_nova "cd ${REMOTE_DIR} && VARIANTS='profile plain' DIMS='2 3' ARCHES='80 90' sh benchmark/build_alamo_nova.sh"
+    # ARCHES defaults to 80 (A100) only. Each (dim x arch x variant) is a full
+    # nvcc build and build_alamo_nova.sh's job carries a 4 h limit, so building
+    # sm_90 as well doubles the work for a GPU this round does not target.
+    BUILD_ARCHES="${ARCHES:-80}"
+    BUILD_DIMS="${DIMS:-2 3}"
+    BUILD_VARIANTS="${VARIANTS:-profile plain}"
+    echo "=== submitting NOVA build: dims='${BUILD_DIMS}' arches='${BUILD_ARCHES}' variants='${BUILD_VARIANTS}'"
+    # SKIP_GIT=1: the pushed tree is authoritative. See build_alamo_nova.sh.
+    ssh_nova "cd ${REMOTE_DIR} && SKIP_GIT=1 VARIANTS='${BUILD_VARIANTS}' DIMS='${BUILD_DIMS}' ARCHES='${BUILD_ARCHES}' sh benchmark/build_alamo_nova.sh"
     ;;
 
   submit)
