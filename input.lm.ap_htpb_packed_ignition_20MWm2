@@ -1,7 +1,7 @@
-# Localized ignition of the 3 MPa AP/HTPB Miller-packed bed at 10 MW/m^2.
+# Localized ignition of the 3 MPa AP/HTPB Miller-packed bed at 20 MW/m^2.
 # Run in either dimension:
-#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed_ignition_10MWm2
-#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed_ignition_10MWm2
+#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed_ignition_20MWm2
+#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed_ignition_20MWm2
 #
 # The XYZR file contains 659 AP spheres from a mechanically contracted Miller
 # packing. The 3D case uses the spheres directly; the 2D case uses their z=0
@@ -11,7 +11,7 @@
 # smoothly on the condensed side of the interface; the 300 K initial state keeps
 # the remainder of the surface below the phase-change activation cutoff.
 
-plot_file = output.lm.ap_htpb_packed_ignition_10MWm2_%DD_%Y%m%d_%H%M%S
+plot_file = output.lm.ap_htpb_packed_ignition_20MWm2_%DD_%Y%m%d_%H%M%S
 amr.plot_dt = 1.0e-4_s
 amr.max_level = 4
 amr.n_cell = 40 40 16
@@ -192,7 +192,7 @@ pressure.ic.constant.value = 3000000.0
 # integral through y.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
-heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.qflux = 2.0e7_W/m^2
 heat_source.ic.expression.constant.radius = 100.0_um
 heat_source.ic.expression.constant.width = 6.25e-6_m
 heat_source.ic.expression.constant.norm = 1.772453850905516

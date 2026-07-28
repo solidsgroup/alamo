@@ -7,8 +7,9 @@
 # packing. The 3D case uses the spheres directly; the 2D case uses their z=0
 # cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
 # the 2D slice. AP and HTPB partial volume fractions are exact complements.
-# A 100 um Gaussian ignition spot is centered at x=z=0. The 300 K initial state
-# keeps the remainder of the surface below the phase-change activation cutoff.
+# A 100 um Gaussian ignition spot is centered at x=z=0. The flux is deposited
+# smoothly on the condensed side of the interface; the 300 K initial state keeps
+# the remainder of the surface below the phase-change activation cutoff.
 
 plot_file = output.lm.ap_htpb_packed_ignition_30MWm2_%DD_%Y%m%d_%H%M%S
 amr.plot_dt = 1.0e-4_s
@@ -186,7 +187,9 @@ pressure.ic.type = constant
 pressure.ic.constant.value = 3000000.0
 
 # Apply a transient ignition flux localized in x-z. In 2D, z=0 and this becomes
-# a localized strip; in 3D it is a circular spot.
+# a localized strip; in 3D it is a circular spot. The smooth y weight restricts
+# deposition to the condensed side. Its factor of two preserves qflux as the
+# integral through y.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
 heat_source.ic.expression.constant.qflux = 3.0e7_W/m^2
@@ -195,7 +198,7 @@ heat_source.ic.expression.constant.width = 6.25e-6_m
 heat_source.ic.expression.constant.norm = 1.772453850905516
 heat_source.ic.expression.constant.toff = 2.5e-4_s
 heat_source.ic.expression.constant.tramp = 1.0e-5_s
-heat_source.ic.expression.region0 = "qflux*exp(-(x*x+z*z)/(radius*radius))*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+heat_source.ic.expression.region0 = "2.0*qflux*exp(-(x*x+z*z)/(radius*radius))*exp(-(y/width)^2)/(norm*width)*(0.5-0.5*tanh(y/width))*0.5*(1.0-tanh((t-toff)/tramp))"
 
 component_density.bc.type = constant
 component_density.bc.constant.type.xlo = neumann
