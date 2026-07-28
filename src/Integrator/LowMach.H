@@ -183,6 +183,10 @@ protected:
     struct {
         Set::Scalar traction  = 0.0;
         Set::Scalar etacutoff = 0.0;
+        // When nonzero, the local fluid pressure is applied as an additional
+        // interfacial traction (rhs -= pressure * grad_eta) on top of the
+        // constant elastic.traction term.
+        Set::Scalar apply_fluid_pressure = 0.0;
     } elastic;
 
     Set::Vector g = Set::Vector::Zero();

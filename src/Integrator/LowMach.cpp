@@ -370,6 +370,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.query_default("elastic.traction", value.elastic.traction, "0.0", Unit::Pressure());
         // Solid fraction below which no interface traction is applied
         pp.query_default("elastic.etacutoff", value.elastic.etacutoff, "0.0", Unit::Less());
+        // When true, add the local fluid pressure to the interfacial traction
+        // (rhs -= pressure * grad_eta), on top of the constant elastic.traction.
+        pp.query_default("elastic.apply_fluid_pressure", value.elastic.apply_fluid_pressure, "0.0", Unit::Less());
 
         pp.queryclass<Base::Mechanics<elastic_model_type>>("elastic", value);
 
@@ -2198,9 +2201,13 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 //   inside the solid; outside the solid the model is masked out by psi =
 //   rigid_eta_mf, so its value there is irrelevant).
 // - rhs_mf is set to a constant traction acting normal to the solid/fluid
-//   interface: rhs = elastic.traction * grad(rigid_eta). This is a stand-in
-//   for the local fluid pressure and will be replaced by a real two-way
-//   coupling in a follow-on change.
+//   interface, plus (when elastic.apply_fluid_pressure is set) the local
+//   fluid pressure: rhs = elastic.traction * grad(rigid_eta)
+//   - pressure * grad(rigid_eta). The minus sign is needed because
+//   grad(rigid_eta) points from fluid into solid, so a positive
+//   (compressive) fluid pressure must push back against that gradient.
+//   This is still one-way (fluid -> solid): the resulting displacement/
+//   stress is not yet fed back into the momentum equation.
 //
 void
 LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
@@ -2223,6 +2230,7 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         rigid_species_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+        pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
 
         for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
@@ -2233,12 +2241,18 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<Set::Vector>        rhs   = rhs_mf.Patch(lev, mfi);
             Set::Patch<const Set::Scalar>  rigid_eta   = rigid_eta_mf.Patch(lev, mfi);
             Set::Patch<const Set::Scalar>  species_eta = rigid_species_eta_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar>  pressure    = pressure_mf.Patch(lev, mfi);
 
             const Set::Scalar traction  = elastic.traction;
             const Set::Scalar etacutoff = elastic.etacutoff;
             const Set::Scalar eta_small = small;
+            const bool use_fluid_pressure = (elastic.apply_fluid_pressure != 0.0);
 
-            // Interfacial body force (constant traction for now)
+            // Interfacial body force: a constant traction plus, optionally,
+            // the local fluid pressure. grad_eta points from fluid into the
+            // solid, so a positive (compressive) fluid pressure must push
+            // back against that gradient -- hence the minus sign, matching
+            // Flame::UpdateModel's chamber-pressure term.
             amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector grad_eta =
@@ -2246,7 +2260,12 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 Set::Scalar eta_node =
                     Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0);
                 if (eta_node > etacutoff)
-                    rhs(i,j,k) = traction * grad_eta;
+                {
+                    Set::Scalar p_node = use_fluid_pressure
+                        ? Numeric::Interpolate::CellToNodeAverage(pressure, i, j, k, 0)
+                        : 0.0;
+                    rhs(i,j,k) = traction * grad_eta - p_node * grad_eta;
+                }
                 else
                     rhs(i,j,k) = Set::Vector::Zero();
             });
