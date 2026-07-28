@@ -204,6 +204,9 @@ Pre-submit checkpoint cleared by the user. Build job `11772112` COMPLETED
 | 11772153 | `input_3d_centre_bore_128_a2` | env timing flip nsys ncu | 3D (Fapply-compute-bound regime) |
 | 11772154 | `input_copy` | smooth | 4/4 vs 2/2 A/B, 800 steps |
 
+`11772151` and its retry `11772159` both landed on `nova21-gpu-10` and died at
+CUDA init; `11772161` is the `input_copy` capture that ran. Outcomes in §N1.
+
 ### Two design corrections made before submitting
 
 **1. The original horizons measured nothing.** Elastic is ~95% of GPU wall, and
@@ -250,8 +253,56 @@ runs ~6,000 steps (`stop_time=1.5_s` at `dt=2.5e-4`) with ~150 elastic solves at
 divergence is the predicted outcome of an unvalidated extrapolation, not a
 contradiction of the measurements.
 
-Job `11772154` runs both arms at 800 steps (vs the 125-step prior maximum),
+Job `11772154` ran both arms at 800 steps (vs the 125-step prior maximum),
 reporting **MLMG iteration counts and survival**, wall secondary.
+
+### Verdict — 2/2 REFUTED at production horizon
+
+Node `nova22-amp-5`, deck `input_copy`, A100-SXM4-80GB. The two arms differ in
+`elastic.solver.pre_smooth` / `post_smooth` and nothing else
+(`benchmark/phase0_capture.slurm`, leg `smooth`).
+
+| arm | rc | wall_s | elastic solves | MLMG iters mean | max |
+|---|---:|---:|---:|---:|---:|
+| 4/4 | 0 | 431.264 | 37 | 157.41 | 289 |
+| 2/2 | 6 | 6.482 | 0 | — | — |
+
+2/2 does not cost iterations. **It diverges on the first elastic solve.** The
+residual grows monotonically by ~4.4× per iteration from the outset:
+
+```
+MLMG: Iteration   7 Fine resid/bnorm = 11.48471813
+MLMG: Iteration  20 Fine resid/bnorm = 2394726743
+MLMG: Iteration  37 Fine resid/bnorm = 1.735000728e+20
+MLMG: Failing to converge after 37 iterations. resid, resid/bnorm = 5.388825455e+27, 1.735000728e+20
+amrex::Abort::0::MLMG failing so lets stop here !!!
+```
+
+Dead at 6.5 s of an expected 431 s, before completing one solve. Evidence:
+`smooth/{4x4,2x2}/summary.txt` and `smooth/2x2/run.log`.
+
+**This is stronger than the mechanism proposed above.** The pre-run reasoning —
+2/2 repays wall in iteration count and eventually consumes a 3% convergence
+margin — predicts gradual degradation. What happens is immediate divergence: the
+first production-cadence solve never converges at all. The 20260727 study's
+measured "5-41% more MLMG iterations" was taken on solves that still converged;
+that regime does not extend to `input_copy` at `interval=40`.
+
+**Consequences.**
+
+1. Keep 4/4. No deck should be changed; none currently is (all decks already set
+   4/4, so nothing shipped and nothing needs reverting).
+2. `docs/llm/PLAN.md:26-36` next-task item 1 (3.3) reads "Retain
+   configuration-only 2/2 pre/post smoothing". That recommendation is now
+   refuted at production horizon and must be annotated — not deleted, since its
+   own two-step measurements stand and it explicitly bounded itself to that
+   horizon. **Out of scope for this tier-1 task; raised for the campaign.**
+3. Both prior tasks were right to refuse to apply it. The open question was
+   never whether 2/2 is faster on a short deck; it is, measurably. It is that
+   the short deck cannot see the failure mode.
+4. The 4/4 arm's own profile is worth carrying into Phase 1: solves 1-3 cost
+   124/289/273 iterations before settling into a stable ~138-162 band. The
+   startup transient is ~2× the steady state.
 
 ### Unrelated defect found in the same deck
 
@@ -264,13 +315,199 @@ the deck gets what it meant. The hazard is the next one — `smoother` is the
 documented fix for the Mode-B high-contrast failure, and a typo there would
 silently no-op while the deck reads as though it were set. Logged, not fixed.
 
-## §N1-N5, decision gate
+## Decision gate
 
 Decision gate **answered 2026-07-27** (campaign PLAN §17): proceed, targeting
 Flame + Elastic. Chamber/Ballistic needs no work; Hydro deferred to a follow-on
 port (campaign PLAN §18).
 
-N1-N5 pending job completion.
+## §N1 Baseline capture — PARTIAL
+
+All four jobs reached `COMPLETED` at the job level; two legs failed inside them.
+
+| Job | Deck | env | timing | flip | nsys | ncu |
+|---|---|---|---|---|---|---|
+| 11772152 | `input` (2D) | ok | ok | ok | **DEAD** | 3/3 |
+| 11772153 | `input_3d_centre_bore_128_a2` | ok | ok | ok | **DEAD** | **0/3 OOM** |
+| 11772161 | `input_copy` (2D) | ok | ok | ok | **DEAD** | 2/3 |
+
+Job `11772151` and `11772159` are the `nova21-gpu-10` casualties (see §L5); both
+re-ran elsewhere. **F1, F2, F3, F8, F9 are not captured for any deck** — those
+five come from nsys, and nsys produced no `trace.nsys-rep` anywhere. F4-F7 exist
+for 2D only. Root causes and fixes in §H below.
+
+### F10 — wall/step, non-profile binary (NOT yet admissible)
+
+| deck | steps | managed | device | Δ |
+|---|---:|---:|---:|---:|
+| `input` (2D) | 110 | 12.803 s / 0.1164 per step | 13.278 s / 0.1207 per step | device **+3.7%** |
+| `input_copy` (2D) | 90 | 33.581 s / 0.3731 per step | 31.726 s / 0.3525 per step | device **−5.5%** |
+| `input_3d_centre_bore_128_a2` | 110 | 12.772 s / 0.1161 per step | 12.453 s / 0.1132 per step | device **−2.5%** |
+
+**These are not yet a result.** Campaign PLAN and `docs/llm/PLAN.md:18-22` both
+require a startup calibration alongside wall/step; none was run. Every number
+above includes CUDA context creation and `InitData`, which at 12-13 s totals is a
+large fraction. Run `max_step=1` per deck before quoting any of this.
+
+Sign of the arena effect flips by deck (+3.7% / −5.5% / −2.5%), which is what an
+uncalibrated ~2-6% measurement looks like. Do not conclude "device arena wins" or
+"loses" from this table.
+
+**Open question for the re-capture:** the 3D deck costs the same per step as 2D
+`input` (0.1132 vs 0.1207 s). If elastic is ~95% of GPU wall, a 3D case should
+not match a 2D one. Either the 3D deck is far smaller than assumed or its elastic
+solves are not landing inside the 110-step horizon. Verify before the gap table
+uses any 3D number.
+
+## §N2 Device-arena flip inventory — DONE. The crash set is empty.
+
+`amrex.the_arena_is_managed=0` plus `amrex.abort_on_out_of_gpu_memory=1`,
+`the_arena_init_size` pinned to 0.5 × 81920 MiB = 42949672960 B per rank.
+
+| deck | rc | failures.txt |
+|---|---:|---|
+| `input` (2D) | 0 | empty (0 lines) |
+| `input_copy` (2D) | 0 | empty (0 lines) |
+| `input_3d_centre_bore_128_a2` | 0 | empty (0 lines) |
+
+Grep pattern was `illegal|CUDA error|Abort|out of memory|segmentation` over the
+full run log. Zero hits on any deck, all three running their full horizon.
+
+**T1 passes, and the finding is that there is nothing to triage.** Campaign §7's
+classification table (timestep loop / diagnostic / checkpoint / debug leftover)
+has no rows to fill, because no host-pointer dereference or arena exhaustion
+occurred. Phase 1 was budgeted around triaging a device-arena crash set that does
+not exist on these decks at these horizons.
+
+Scope of the claim, stated honestly:
+
+- Three decks, 90-110 steps, **single rank**, one GPU, 80 GB. Multi-rank
+  device-arena behaviour is untested here.
+- 0.5 × 80 GB per rank is a generous arena. It does not probe the capacity edge,
+  which is the other thing `abort_on_out_of_gpu_memory` is for.
+- Horizons span two elastic solves but no checkpoint/restart. The known restart
+  temp-fab crash (`elastic-void-recovery` memory) is outside this window, so
+  "checkpoint" as a crash class remains genuinely unprobed.
+
+## §N3 Nsight Compute — PARTIAL
+
+Counter permission **granted** on NOVA (`ncu counters permitted.` from a real
+capture, not a `nvidia-smi` inference). This retires the `ERR_NVGPUCTRPERM`
+risk that Step N3's VERIFY was gating on, and means `benchmark/res_usage.sh` is
+not needed as a substitute here.
+
+Captured, 2D only: `Operator::Elastic::Fapply()` and `Operator::Fsmooth()` on
+both `input` and `input_copy`, with `.ncu-rep` + details CSV. `MLMG::mgVcycle()`
+succeeded on `input`, OOM-killed on `input_copy`. All three 3D ranges OOM-killed.
+F5/F6/F7 therefore exist for 2D and not for 3D — and 3D is the
+Fapply-compute-bound regime, so the roofline that sets the T7 band is exactly the
+one still missing.
+
+## §N4 GPU-aware MPI — DONE. Inactive on NOVA. Campaign §9 is debt.
+
+Compute node `nova21-gpu-12`, inside the allocation:
+
+```
+mca:mpi:base:param:mpi_built_with_cuda_support:value:false
+mca:mpi:base:param:mpi_built_with_cuda_support:source:default
+```
+
+Combined with Phase 0.5 §2 (same verdict on kermit), GPU-aware MPI is inactive on
+**both** machines. Campaign §9's "device-buffer Allreduce" cannot be implemented
+as written and must ship as acknowledged debt, not as a planned optimization.
+Any device buffer handed to `MPI_Allreduce` will be staged through the host
+regardless of what the call site looks like.
+
+### The probe was reading the wrong MPI
+
+The env leg loaded `MPI_MOD=openmpi/4.1.8-lctrfpx` and reported *that*
+`ompi_info`. `ldd bin/alamo_gpu-2d-cuda80-g++` resolves `libmpi.so.40` to
+**openmpi-5.0.8** (`.../openmpi-5.0.8-mybw4ysihjo77xmjcknse5my7koichix/lib`) via
+RPATH — a different implementation behind the same soname. The nsys crash
+backtrace independently confirms 5.0.8 and UCX 1.18.1 are what actually load at
+runtime.
+
+Re-checked the linked build directly, 2026-07-28:
+
+```
+mca:opal:base:param:opal_built_with_cuda_support:value:false
+mca:opal:base:param:opal_cuda_support:value:false
+mca:accelerator:null:version:"component:5.0.8"
+```
+
+**Verdict unchanged** — 5.0.8 is also built without CUDA support, and its
+`accelerator` framework resolves to the `null` component. But the evidence in
+`11772152/env/inventory.txt` cites a library the run never used, and a future
+capture would have re-recorded the same wrong provenance. Probe fixed in §H.
+
+Both builds export `libmpi.so.40`, so the 4.1.8 module could in principle shadow
+the 5.0.8 the binary was built against. Tested on NOVA 2026-07-28 with
+`MPI_MOD` loaded exactly as the job does: `ldd` still resolves 5.0.8, so RPATH
+wins and the mismatch is inert. `MPI_MOD` is therefore left at 4.1.8 — changing
+it without evidence risks breaking a working capture — but the probe now prints
+a `MISMATCH` line so the next reader is not misled the way this one was.
+
+## §N5 Gap table and T7 threshold — BLOCKED
+
+Cannot be populated. N5 needs F2/F3 (bus traffic, nsys) and the 3D roofline
+(F5, ncu), and neither exists. Step N5's CHECK — "no gap-table cell is empty;
+T7 has a number and a derivation" — is unreachable until the re-capture lands.
+No partial gap table is written here, because a half-populated one invites
+exactly the assumption-driven scoping the task exists to prevent.
+
+## §H Harness defects found and fixed (2026-07-28)
+
+Three, all in `benchmark/phase0_capture.slurm`. No `src/` change; tier 1 holds.
+
+### H1 — nsys traced MPI and died before the first timestep
+
+`-t cuda,nvtx,osrt,mpi`. nsys 2024.6.2's `libToolsInjection64.so` segfaults
+inside `ompi_mpi_init` → `opal_common_ucx_mca_register` against Open MPI 5.0.8 /
+UCX 1.18.1:
+
+```
+libToolsInjection64.so(+0x2b445a)
+libopen-pal.so.80(opal_common_ucx_mca_register+0x4f)
+libmpi.so.40(ompi_mpi_init+0x98)
+```
+
+`nsys rc=137` on all three jobs, no `trace.nsys-rep` written. **Fix:** dropped
+`mpi` from `-t`. Every run in this harness is `-n1`, so MPI tracing was never
+load-bearing.
+
+### H2 — the harness then misreported H1 as a version quirk
+
+With no trace file, all eight `nsys stats` calls failed, and the loop printed
+`stats MISSING in this nsys version: <report>` eight times — which reads as
+"this nsys is old" rather than "the capture is dead". `stats.log` held the real
+answer (`ERROR: Specified input file ... does not exist`) but nothing surfaced
+it. **Fix:** guard on `trace.nsys-rep` existence; on absence, print an explicit
+`CAPTURE FAILED`, name the affected figures, and drop a `CAPTURE_FAILED`
+marker file instead of running the loop.
+
+### H3 — ncu profiled 3 launches, then let the app run 80 more steps
+
+`ncu --kill` defaults to `0` (verified against NOVA's ncu 2025.1.1:
+`--kill arg (=0)`). Without it, ncu takes its `--launch-count 3` matches at the
+first elastic solve and then follows the app to the end of the horizon with NVTX
+collection still attached, retaining range state for every `BL_PROFILE` push/pop
+(~16,304 `Fapply` ranges per 2D step, per §L1). `MLMGmgVcycle.log` shows the app
+reaching **step 81** before the SLURM OOM killer fired:
+
+```
+==ERROR== The application returned an error code (9).
+error: Detected 1 oom_kill event in StepId=11772161.7. Some of the step tasks have been OOM Killed.
+```
+
+The two ranges that survived still wrote 173 MB reports for 3 profiled launches.
+**Fix:** `--kill yes` (spelling verified on the NOVA module: valid choices are
+`on|off`, `yes|no`, `1|0`, `true|false`), plus `--mem` raised 64G → 128G for
+headroom. Note rc is now expected to be nonzero on this leg — ncu terminates the
+target by design — so the leg is judged by the `.ncu-rep`, not by rc. The echo
+line comments record this so the next reader does not "fix" it back.
+
+**Not yet re-run.** These fixes are unvalidated on hardware; the next submission
+is the test.
 
 ---
 
