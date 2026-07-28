@@ -35,6 +35,12 @@ cd "${ROOT}"
 HOST="${HOST:-nova}"
 REMOTE_DIR="${REMOTE_DIR:-/work/brunnels/jackplum/alamo}"
 GPU_TYPE="${GPU_TYPE:-a100}"
+# Nodes known to fail CUDA init. nova21-gpu-10 aborted two independent jobs
+# (11772151, 11772159) at AMReX_GpuDevice.cpp:270 with `CUDA error 3 ...
+# initialization error` while nvidia-smi reported a free, idle A100; jobs on
+# gpu-12 and gpu-14 ran the same decks and binaries cleanly. Node fault, not a
+# deck or script fault. Clear this if the node is repaired.
+EXCLUDE_NODES="${EXCLUDE_NODES:-nova21-gpu-10}"
 LOCAL_RESULTS="${LOCAL_RESULTS:-${ROOT}/docs/agent_plans/20260727-phase0-baseline/results/figures}"
 
 usage () { sed -n '2,32p' "${BASH_SOURCE[0]}"; exit "${1:-0}"; }
@@ -99,6 +105,7 @@ case "${ACTION}" in
     for d in "${DECKS[@]}"; do
       echo "=== submit DECK=${d} GPU_TYPE=${GPU_TYPE} LEGS='${LEGS:-default}'"
       ssh_nova "cd ${REMOTE_DIR} && sbatch --parsable --gres=gpu:${GPU_TYPE}:1 \
+                  ${EXCLUDE_NODES:+--exclude=${EXCLUDE_NODES}} \
                   --export=ALL,DECK=${d},GPU_TYPE=${GPU_TYPE}${LEGS:+,LEGS='${LEGS}'}${SMOOTH_STEP:+,SMOOTH_STEP=${SMOOTH_STEP}} \
                   benchmark/phase0_capture.slurm"
     done
