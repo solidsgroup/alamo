@@ -242,6 +242,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
     if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
+    // rigid_eta sums all rigid solid species together, so a compositional
+    // boundary between two rigid solids (e.g. AP/HTPB sandwich interfaces)
+    // carries no rigid_eta gradient and is otherwise never tagged for
+    // refinement. This criterion (in the same density units as
+    // reference_density) tags cells where any single rigid solid species'
+    // component density gradient is steep, independent of the combined eta.
+    if (value.rigid_solid_species.size() > 1)
+        pp.query_default("component_density_refinement_criterion",
+                        value.component_density_refinement_criterion, 1.0e100);
     pp.query_default("amr.reinitialize_condensed_composition",
                     value.reinitialize_condensed_composition, false);
     if (value.reinitialize_condensed_composition)
@@ -2327,6 +2336,38 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                 refine_eta)
                 tag(i,j,k) = amrex::TagBox::SET;
         });
+    }
+
+    // rigid_eta sums all rigid solid species, so it carries no gradient at a
+    // boundary between two different rigid solids (e.g. the AP/HTPB
+    // compositional interface in a sandwich case) -- only at a solid/gas
+    // boundary. Tag on each individual rigid solid species' own component
+    // density gradient too, so solid-solid interfaces get resolved the same
+    // way solid-gas ones already are.
+    if (rigid_solid_species.size() > 1 &&
+        component_density_refinement_criterion < 1.0e100)
+    {
+        const Set::Scalar rhocrit = component_density_refinement_criterion;
+        amrex::Box domain = geom[lev].Domain();
+        for (const int n : rigid_solid_species)
+        {
+            for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<char> tag = tags.array(mfi);
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    auto sten = Numeric::GetStencil(i, j, k, domain);
+                    Set::Vector grad_rho_n =
+                        Numeric::Gradient(component_density, i, j, k, n, DX, sten);
+                    if (grad_rho_n.lpNorm<2>() * dr > rhocrit)
+                        tag(i,j,k) = amrex::TagBox::SET;
+                });
+            }
+        }
     }
 }
 

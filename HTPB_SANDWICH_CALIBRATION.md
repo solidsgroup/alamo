@@ -79,6 +79,75 @@ down at 0.2-1.5 MPa is an extrapolation below its own calibration floor, on
 top of the usual sandwich-vs-monopropellant modeling gap. Treat the
 resulting HTPB fit as approximate for this reason.
 
+## Second dataset: internal-group 100 um HTPB laminate
+
+`HTPB_sandwich_reg_rate_group_100um.csv` adds a second, independent
+AP/HTPB sandwich dataset from prior work in this group: an HTPB laminate of
+thickness `1.0e-4 m` (100 um) embedded in an AP matrix, 0.8-4.0 MPa. Source:
+a "Sandwich - Experiment" vs. "Sandwich - Model" plot from that prior work
+(the "Model" curve is that earlier study's own fit, not used here -- only
+the "Experiment" curve was digitized). The 7 points were read directly off
+the plot's gridlines (no markers on the experiment curve to pixel-lock onto,
+so this is an approximate reading, not a pixel-precise digitization like the
+Chorpening CSV above):
+
+```
+Pressure (MPa), Reg Rate (mm/s)
+0.8, 2.00
+1.0, 2.20
+1.5, 2.68
+2.0, 3.00
+2.5, 3.50
+3.0, 4.00
+4.0, 5.00
+```
+
+This is a **different physical geometry** from the Chorpening-fit case
+above: 100 um total HTPB lamina vs. that case's ~200 um. Rather than
+stretching one template across two lamina widths, there is a second input
+deck, `input.lm.ap_htpb_fullfeedback_100um.template`, resized for this:
+
+- `geometry.prob_lo/hi.x` narrowed from +-0.3 mm to +-0.25 mm, which (with
+  the AP/HTPB partition unchanged at `|x|<0.2 mm`) halves each periodic
+  HTPB strip from 0.1 mm to 0.05 mm -- joined into one 0.1 mm (100 um)
+  lamina across the periodic boundary, same convention as the base
+  template. AP's central width (0.4 mm) was left unchanged -- there is no
+  independently reported AP matrix width for this dataset, so only HTPB's
+  width was resized to match what *is* specified. Revisit if the real AP
+  matrix width becomes available.
+- `fullfeedback.epsilon` (both mechanisms) reduced from 80 um to 20 um: 80
+  um is already close to the *base* template's 100 um HTPB strip width, and
+  would exceed half the strip width here (50 um), risking the AP-HTPB and
+  HTPB-gas diffuse interfaces overlapping. 20 um matches the AP
+  monopropellant calibration's interface width and is well within this
+  case's existing mesh resolution (`max_level=2` already resolves ~4.7 um
+  cells here, the same interface-to-cell ratio validated in that case).
+
+This deck was smoke-tested this session (see "Verification already done"
+below) -- it runs stably and reaches a steady combined-front regression
+rate of the right order of magnitude at 1.5 MPa with an arbitrary initial
+guess. It has **not** been run through the real optimizer yet.
+
+To fit against this dataset instead of Chorpening's, point
+`optimize_htpb_fullfeedback.py` at both the new data and template:
+
+```bash
+python scripts/optimize_htpb_fullfeedback.py \
+    --workdir /path/to/htpb_100um_calib_run \
+    --data HTPB_sandwich_reg_rate_group_100um.csv \
+    --template input.lm.ap_htpb_fullfeedback_100um.template \
+    --fit-pressures 0.8 1.0 1.5 2.0 2.5 3.0 4.0
+```
+
+This produces an independent `(htpb_pre_exponential,
+htpb_activation_temperature)` fit from the Chorpening one -- the two
+datasets are **not** combined into a single fit, since they correspond to
+different physical geometries (lamina width) that the model does not
+otherwise parameterize. Compare the two resulting fits once both have been
+run; a large discrepancy would suggest the model's width-independence
+assumption (inherited from Chorpening's own finding that rate is
+binder-width-independent above ~100 um) doesn't hold as well down at 100 um.
+
 ## Pieces
 
 - `input.lm.ap_htpb_fullfeedback.template` -- the AP/HTPB sandwich input
@@ -207,11 +276,26 @@ Progress streams to stdout and to `<workdir>/iterations.jsonl` as it goes.
 - `render_htpb_sandwich_input.py`, `optimize_htpb_fullfeedback.py` pass
   `python3 -m py_compile`; `run_htpb_sandwich_pressure_sweep.sh` passes
   `bash -n`.
-- **Not done**: no `lowmach` binary was built or run this session (per
-  instruction) -- the smoke test in the "Before running for real" section
-  above has not been executed, so there is no confirmation yet that the
-  template actually runs, reaches steady state, or that `stop_time`/mesh
-  choices are adequate. Do that first.
+- **Not done** (Chorpening-geometry template, `input.lm.ap_htpb_fullfeedback.template`):
+  the smoke test in the "Before running for real" section above has not
+  been executed against this exact template, so there is no confirmation
+  yet that `stop_time`/mesh choices are adequate for its ~200 um lamina. Do
+  that first, following the same pattern used below for the 100 um deck.
+- **Done** (100 um-lamina template, `input.lm.ap_htpb_fullfeedback_100um.template`):
+  built `lowmach-2d-hdf5-clang++` with real AMReX HDF5 support (see
+  `FULLFEEDBACK_CALIBRATION.md`'s build notes) and ran two short smoke
+  tests at 1.5 MPa with the untuned initial guess
+  (`htpb_pre_exponential=0.001`, `htpb_activation_temperature=4000`): a
+  truncated `stop_time=2.0e-4_s` run to confirm no crash, then a longer
+  `stop_time=2.0e-3_s`/`amr.plot_dt=2.5e-4_s` run to check front motion.
+  Both completed with a stable timestep (no dynamictimestep collapse). The
+  combined `rigid_eta` front reached a "steady" classification from
+  `regression_rate.py` at 2.39 mm/s -- the right order of magnitude versus
+  both HTPB datasets' ~2.1-2.7 mm/s near 1.5 MPa, for parameters that were
+  never fit. Not yet run through the real optimizer, and per-species
+  (AP-only vs. HTPB-only) front motion was not independently verified
+  beyond the combined rate -- `regression_rate.py` only tracks the summed
+  `rigid_eta` field, not per-species fronts.
 
 ## If the linear-pressure model can't match the curve shape
 

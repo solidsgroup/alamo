@@ -1,8 +1,43 @@
-# Templated version of input.lm.ap_htpb_fullfeedback for calibrating the
-# HTPB_pyrolysis fullfeedback (pre_exponential, activation_temperature) against
-# the pure-AP/pure-HTPB sandwich burning-rate data in
-# HTPB_sandwich_reg_rate_chorpening2000_summary.csv (digitized from Chorpening,
-# Knott & Brewster, Proc. Combust. Inst. 28:847-853 (2000), 0.2-3.2 MPa).
+# Variant of input.lm.ap_htpb_fullfeedback.template resized for a 1.0e-4 m
+# (100 um) total HTPB lamina, to match an internal-group AP/HTPB sandwich
+# dataset (HTPB_sandwich_reg_rate_group_100um.csv) rather than Chorpening et
+# al.'s ~200 um lamina. Changes from the base template, all load-bearing
+# for this thinner geometry:
+#   - geometry.prob_lo/hi.x narrowed from +-0.3 mm to +-0.25 mm, which (with
+#     the AP/HTPB partition unchanged at |x|<0.2 mm) halves each periodic
+#     HTPB strip from 0.1 mm to 0.05 mm -- combined into one 0.1 mm lamina
+#     across the periodic boundary, same convention as the base template.
+#     AP's central width (0.4 mm) and the y-geometry are untouched -- there
+#     is no independently reported AP matrix width for this dataset, so the
+#     base template's proportions were kept and only HTPB's width was
+#     resized to match what *is* specified. Revisit if you have the real AP
+#     matrix width.
+#   - fullfeedback.epsilon (both mechanisms) reduced from 80 um to 20 um: the
+#     base template's 80 um diffuse interface is already close to its own
+#     100 um HTPB strip width, and would be larger than half the strip width
+#     here (50 um), likely blending the two solid/gas interfaces together
+#     unphysically. 20 um matches the AP monopropellant calibration's
+#     interface width and is well within this case's existing mesh
+#     resolution (max_level=2 on this domain already resolves ~4.7 um
+#     cells, the same interface-to-cell ratio validated there).
+#   - gas.thermo/transport/eos.type switched to rocfire (faster than the
+#     base template's chemistry-agnostic EOS).
+#   - Domain cut in half in x (0 to +0.25 mm instead of -0.25 to +0.25 mm),
+#     exploiting mirror symmetry: every x-dependent IC here is a function of
+#     abs(x) only, so the field is even about x=0. Because it's also
+#     periodic with period 0.5 mm, it's automatically even about x=+0.25 mm
+#     too (f(L/2+t) = f(-(L/2+t)) = f(L/2-t) via evenness then periodicity),
+#     i.e. x=0.25 mm is also a mirror plane, not just the old periodic wrap
+#     point. So both x faces become reflecting (Neumann-type) symmetry
+#     boundaries instead of periodic: REFLECT_EVEN for scalars and the
+#     tangential (y) velocity component, REFLECT_ODD for the normal (x)
+#     velocity component. amr.n_cell.x halved from 32 to 16 to keep the same
+#     cell size (~15.6 um at max_level=0) on the halved domain.
+# Not yet smoke-tested against a real sim -- do that before trusting this
+# geometry (see HTPB_SANDWICH_CALIBRATION.md).
+#
+# HTPB_pyrolysis fullfeedback (pre_exponential, activation_temperature) is
+# calibrated against the sandwich burning-rate data above.
 #
 # AP_decomposition's fullfeedback parameters are HELD FIXED at the values
 # already calibrated against pure AP monopropellant self-deflagration data
@@ -28,7 +63,7 @@
 plot_file = output.lm.ap_htpb_fullfeedback
 amr.plot_dt = 5.0e-4_s
 amr.max_level = 3
-amr.n_cell = 32 32
+amr.n_cell = 16 32
 amr.max_grid_size = 16
 amr.blocking_factor = 4
 amr.regrid_int = 5
@@ -42,11 +77,13 @@ temperature_refinement_criterion = 500.0
 # This tags that boundary too, on each species' own component density
 # gradient (see LowMach::TagCellsForRefinement). Without it the AP/HTPB
 # interface sits at ~1 cell of resolution (base grid only) instead of the
-# finest AMR level, which reliably crashed this case's MLMG solver.
+# finest AMR level, which reliably crashed the base (200 um) case's MLMG
+# solver -- the same risk applies here even though this deck wasn't the one
+# observed crashing.
 component_density_refinement_criterion = 20.0
 
 timestep = 2.5e-6_s
-stop_time = 8.0e-2_s
+stop_time = 3.0e-2_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -55,9 +92,9 @@ dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.0003_m -0.0001_m 0.0
-geometry.prob_hi =  0.0003_m  0.0005_m 0.0
-geometry.is_periodic = 1 0 0
+geometry.prob_lo =  0.0_m     -0.0001_m 0.0
+geometry.prob_hi =  0.00025_m  0.0005_m 0.0
+geometry.is_periodic = 0 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
 # AP, binder, monopropellant, premixed, primary-flame, final-flame products.
@@ -120,7 +157,7 @@ AP_decomposition.phase_change.phase_field.fullfeedback.pressure_dependence = 1
 AP_decomposition.phase_change.phase_field.fullfeedback.reference_pressure = 1.0_MPa
 AP_decomposition.phase_change.phase_field.fullfeedback.temperature_bound = 500.0_K
 AP_decomposition.phase_change.phase_field.fullfeedback.sigma = 0.001_J/m^2
-AP_decomposition.phase_change.phase_field.fullfeedback.epsilon = 80.0_um
+AP_decomposition.phase_change.phase_field.fullfeedback.epsilon = 20.0_um
 AP_decomposition.phase_change.phase_field.fullfeedback.driving_force = 200.0_Pa
 
 # HTPB regresses through the same fullfeedback functional form as AP (rather
@@ -142,7 +179,7 @@ HTPB_pyrolysis.phase_change.phase_field.fullfeedback.pressure_dependence = 1
 HTPB_pyrolysis.phase_change.phase_field.fullfeedback.reference_pressure = 1.0_MPa
 HTPB_pyrolysis.phase_change.phase_field.fullfeedback.temperature_bound = 500.0_K
 HTPB_pyrolysis.phase_change.phase_field.fullfeedback.sigma = 0.001_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.fullfeedback.epsilon = 80.0_um
+HTPB_pyrolysis.phase_change.phase_field.fullfeedback.epsilon = 20.0_um
 HTPB_pyrolysis.phase_change.phase_field.fullfeedback.driving_force = 200.0_Pa
 
 rigid.relaxation_time = 1.0e-8_s
@@ -166,13 +203,14 @@ diffusion.verbose = 0
 #diagnostics.interval = 100
 diagnostics.extended_fields = 0
 
-# The solid occupies y<0. AP is the central 0.4 mm strip and HTPB occupies
-# the two outer strips (0.1 mm each, joined across the periodic boundary into
-# one continuous 0.2 mm HTPB lamina -- within the paper's 100-450 um range
-# where burning rate is reported to be roughly binder-width independent). The
-# vertical factor is the equilibrium profile for the Allen-Cahn/fullfeedback
-# sigma/epsilon parameterization. Partial densities encode both composition
-# and volume.
+# The solid occupies y<0. This domain is one quarter of the full periodic
+# cell (see the REFLECT_EVEN/REFLECT_ODD x BCs above): x in [0, 0.2] mm is
+# half of the 0.4 mm central AP strip, and x in [0.2, 0.25] mm is half of the
+# 0.1 mm (100 um) HTPB lamina -- mirrored at both x faces, this reconstructs
+# the full AP-strip/HTPB-lamina/AP-strip period, matching
+# HTPB_sandwich_reg_rate_group_100um.csv. The vertical factor is the
+# equilibrium profile for the Allen-Cahn/fullfeedback sigma/epsilon
+# parameterization. Partial densities encode both composition and volume.
 AP_solid.density.ic.type = expression
 AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((abs(x)-0.0002)/10.0e-6)))"
 HTPB_solid.density.ic.type = expression
@@ -191,28 +229,31 @@ pressure.ic.type = constant
 pressure.ic.constant.value = @PRESSURE@
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic
-component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.xlo = REFLECT_EVEN
+component_density.bc.constant.type.xhi = REFLECT_EVEN
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = dirichlet
 component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 @PRODUCT_DENSITY@ 0.0 0.0
 
+# velocity has 2 components (x, y): the x face is a mirror plane, so the
+# normal (x) component is odd (REFLECT_ODD) and the tangential (y) component
+# is even (REFLECT_EVEN) across it.
 velocity.bc.type = constant
-velocity.bc.constant.type.xlo = periodic
-velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN
 velocity.bc.constant.type.ylo = dirichlet
 velocity.bc.constant.type.yhi = neumann
 velocity.bc.constant.val.ylo = 0.0 0.0
 
 temperature.bc.type = constant
-temperature.bc.constant.type.xlo = periodic
-temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.xlo = REFLECT_EVEN
+temperature.bc.constant.type.xhi = REFLECT_EVEN
 temperature.bc.constant.type.ylo = neumann
 temperature.bc.constant.type.yhi = neumann
 
 pressure.bc.type = constant
-pressure.bc.constant.type.xlo = periodic
-pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.xlo = REFLECT_EVEN
+pressure.bc.constant.type.xhi = REFLECT_EVEN
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
 pressure.bc.constant.val.yhi = @PRESSURE@

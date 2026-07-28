@@ -21,6 +21,8 @@
 #                 run before measuring the regression rate, to skip the
 #                 startup transient (default: 0.0, no exclusion; passed
 #                 straight to regression_rate.py --min-time)
+#   MPI_NP        MPI ranks per sim (default: 2, the locally-validated value;
+#                 HPC callers with more cores available per job can raise this)
 #
 # Writes <results_csv> with header "pressure_mpa,reg_rate_mm_s" and one row
 # per requested pressure (reg_rate_mm_s is empty if that run never reached a
@@ -41,6 +43,7 @@ LOWMACH_BIN="${LOWMACH_BIN:-/home/mungerct/research/alamo/bin/lowmach-2d-hdf5-cl
 TEMPLATE="${TEMPLATE:-${REPO_ROOT}/input.lm.ap_htpb_fullfeedback.template}"
 KEEP_OUTPUT="${KEEP_OUTPUT:-0}"
 MIN_TIME="${MIN_TIME:-0.0}"
+MPI_NP="${MPI_NP:-2}"
 
 if [[ $# -lt 5 ]]; then
     echo "usage: $0 <htpb_pre_exponential> <htpb_activation_temperature_K> <workdir> <results_csv> <pressure_MPa> [<pressure_MPa> ...]" >&2
@@ -81,7 +84,7 @@ for p in "${PRESSURES[@]}"; do
 
     (
         cd "${run_dir}"
-        mpirun -np 2 "${LOWMACH_BIN}" input "plot_file=${run_dir}/output" \
+        mpirun -np "${MPI_NP}" "${LOWMACH_BIN}" input "plot_file=${run_dir}/output" \
             > "${run_dir}/run.log" 2>&1
     ) &
     pids+=($!)

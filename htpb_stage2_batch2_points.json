@@ -1,0 +1,142 @@
+[
+  {
+    "pre_exponential": 0.0015105550141151084,
+    "activation_temperature": 4714.319925106328
+  },
+  {
+    "pre_exponential": 0.0007225653429530991,
+    "activation_temperature": 3651.0687516555927
+  },
+  {
+    "pre_exponential": 0.000382848537641177,
+    "activation_temperature": 3208.6352818000396
+  },
+  {
+    "pre_exponential": 0.000567960390173188,
+    "activation_temperature": 4217.411788764843
+  },
+  {
+    "pre_exponential": 0.00013900093471396315,
+    "activation_temperature": 2963.3383176932048
+  },
+  {
+    "pre_exponential": 0.0012061235360511624,
+    "activation_temperature": 5314.079429584849
+  },
+  {
+    "pre_exponential": 0.0001357121869836115,
+    "activation_temperature": 3168.5785369039195
+  },
+  {
+    "pre_exponential": 0.0013349173081894118,
+    "activation_temperature": 4595.418558992483
+  },
+  {
+    "pre_exponential": 0.00215541143097424,
+    "activation_temperature": 4765.813561360206
+  },
+  {
+    "pre_exponential": 0.0009014879893781985,
+    "activation_temperature": 5194.252116029875
+  },
+  {
+    "pre_exponential": 0.0017299371265008141,
+    "activation_temperature": 4657.120079925206
+  },
+  {
+    "pre_exponential": 0.002464577605883064,
+    "activation_temperature": 4992.1295939307165
+  },
+  {
+    "pre_exponential": 0.00023694895871870494,
+    "activation_temperature": 3667.8572373768548
+  },
+  {
+    "pre_exponential": 0.0005941991643646524,
+    "activation_temperature": 4051.2907966262856
+  },
+  {
+    "pre_exponential": 0.0020271613960269365,
+    "activation_temperature": 4858.857613982708
+  },
+  {
+    "pre_exponential": 0.0006441328050828915,
+    "activation_temperature": 4373.357509105473
+  },
+  {
+    "pre_exponential": 0.00015489366229458478,
+    "activation_temperature": 3069.8153789379826
+  },
+  {
+    "pre_exponential": 7.489109092607836e-05,
+    "activation_temperature": 3218.837743092096
+  },
+  {
+    "pre_exponential": 0.0034267689427235626,
+    "activation_temperature": 5106.163026771097
+  },
+  {
+    "pre_exponential": 0.0011273203402138495,
+    "activation_temperature": 5164.654402276994
+  },
+  {
+    "pre_exponential": 0.00024476285907668374,
+    "activation_temperature": 3548.9228523252796
+  },
+  {
+    "pre_exponential": 0.0007433878574017773,
+    "activation_temperature": 3597.04472926999
+  },
+  {
+    "pre_exponential": 0.0016875154415882214,
+    "activation_temperature": 5569.089910991997
+  },
+  {
+    "pre_exponential": 0.0012314082118924925,
+    "activation_temperature": 5628.303041060988
+  },
+  {
+    "pre_exponential": 5.964292829904502e-05,
+    "activation_temperature": 3010.30501881207
+  },
+  {
+    "pre_exponential": 0.0028172468268781443,
+    "activation_temperature": 4951.004326900145
+  },
+  {
+    "pre_exponential": 0.003465242757269919,
+    "activation_temperature": 5414.7752550492605
+  },
+  {
+    "pre_exponential": 0.0030124488610530843,
+    "activation_temperature": 5270.568203331518
+  },
+  {
+    "pre_exponential": 0.0001227354110655464,
+    "activation_temperature": 3370.9696412439093
+  },
+  {
+    "pre_exponential": 0.001510608546042465,
+    "activation_temperature": 4616.834774954074
+  },
+  {
+    "pre_exponential": 0.0024786390768550934,
+    "activation_temperature": 5845.0490398747515
+  },
+  {
+    "pre_exponential": 0.003986896862334916,
+    "activation_temperature": 5773.772212454185
+  },
+  {
+    "pre_exponential": 0.0030230803788966858,
+    "activation_temperature": 5681.808905835614
+  },
+  {
+    "pre_exponential": 0.0015992123681965993,
+    "activation_temperature": 5855.9556727479885
+  },
+  {
+    "pre_exponential": 0.004905553644284816,
+    "activation_temperature": 5589.302625939426
+  }
+]

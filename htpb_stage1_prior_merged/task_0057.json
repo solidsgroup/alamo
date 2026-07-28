@@ -1,0 +1,12 @@
+{
+  "pre_exponential": 0.0003,
+  "activation_temperature": 7000.0,
+  "rates_mm_s": {
+    "group_100um": {
+      "0.8": 0.4804106,
+      "4.0": 4.890361
+    }
+  },
+  "residual_norm": 0.7601110540973142,
+  "task_id": 57
+}
