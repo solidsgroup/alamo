@@ -76,12 +76,10 @@ public:
         value.nspecies = value.MW.size();
 
         // thermo model
-        pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire>(
-            "thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant,Thermo::NASA7,Thermo::Rocfire>("thermo", value.thermo, pp.forward_args(value.nspecies));
 
         // transport model
-        pp.select<Transport::Mixture_Averaged,Transport::Rocfire>(
-            "transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged,Transport::Rocfire>("transport", value.transport, pp.forward_args(value.nspecies, value.MW, value.thermo));
 
         // eos model
         pp.select<EOS::CPG,EOS::TPG>("eos", value.eos);

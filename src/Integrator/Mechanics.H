@@ -129,10 +129,6 @@ public:
 
         pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
-        Util::Assert(INFO,   TEST((int)nmodels == (int)value.models.size()), 
-                        "nmodels does not match the # of specified models");
-
-        Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
@@ -145,7 +141,7 @@ public:
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             // Select the initial condition for eta
-            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead,IC::PointList>("ic",value.ic_eta,value.geom);
+            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead,IC::PointList>("ic",value.ic_eta,pp.forward_args(value.geom));
 
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
@@ -158,7 +154,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             // Select initial condition for psi field
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead,IC::PNG,IC::PointList>("psi.ic",value.ic_psi,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead,IC::PNG,IC::PointList>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
 
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);
@@ -174,7 +170,7 @@ public:
         if (pp.contains("trac_normal.ic.type"))
         {
             // Read in IC for the "normal traction" field (applied at diffuse boundaries)
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom); 
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,pp.forward_args(value.geom));
 
             if (value.ic_trac_normal)
             {
@@ -182,8 +178,12 @@ public:
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
             }
         }
-        Util::Message(INFO);
 
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        Util::Assert(INFO,   TEST((int)nmodels == (int)value.models.size()), 
+                        "nmodels does not match the # of specified models");
+        Util::Assert(INFO, TEST(value.models.size() > 0));
     }
 
     void Initialize(int lev) override
