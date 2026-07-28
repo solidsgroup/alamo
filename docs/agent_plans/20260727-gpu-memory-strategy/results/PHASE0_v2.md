@@ -10,7 +10,7 @@ superseded — this file tracks the v2 set, which is a different and larger set.
 | 2 | Fixed oracle with stated coverage | 5.2 | **PARTIAL** — §B |
 | 3 | `AbortIfDeviceError` disabled comparison | 5.3 | NOT DONE — §C |
 | 4 | Mechanical sync inventory | 5.4 | **ENUMERATED, unranked** — §D |
-| 5 | Footprint budget including 40 GB | 5.5 | PARTIAL — §E |
+| 5 | Footprint budget including 40 GB | 5.5 | **DONE (model); high-water pending** — §E |
 | 6 | T0/T6b/T7 thresholds | 5.6 | BLOCKED on re-capture |
 | 7 | Target set v2 false-pass validated in-tree | 3.1/3.3 | **PARTIAL** — §F |
 | 8 | Gap table | — | BLOCKED on 1, 6 |
@@ -134,18 +134,47 @@ error §5.4 warns about, in the opposite direction.
 including every sync above — is unattributed in the NVTX timeline. F1 cannot
 show where Newton time goes. Adding regions is a tier-2 edit; logged, not made.
 
-## §E Footprint budget — PARTIAL
+## §E Footprint budget — 40 GB clears on arithmetic; measurement pending
 
-Local anchor stands: 350-380 B per resident cell (2D, elastic, FP64), ~267 MiB
-fixed CUDA context. The 8 GB and 80 GB cases are covered.
+Local anchor: 350-380 B per resident cell (2D, elastic, FP64), ~267 MiB fixed
+CUDA context.
 
-**The 40 GB case is still untested** and is the one §5.5 names, because the
-hardware in hand is an A100-SXM4-**80** GB. It can be forced with
-`the_arena_init_size` at half of device memory, which the capture already
-parameterizes via `ARENA_FRAC`. Not yet run.
+Deck geometry, from the decks themselves:
 
-FP32-is-structural remains answered NO on the 8/80 GB evidence; that answer is
-provisional until the 40 GB case runs.
+| deck | dim | base `n_cell` | `max_level` | base cells |
+|---|---|---|---|---:|
+| `input` | 2D | 64 64 (64) | 3 | 4,096 |
+| `input_copy` | 2D | 128 128 | 1 | 16,384 |
+| `input_3d_centre_bore_128_a2` | 3D | 128 128 64 | 1 | 1,048,576 |
+
+Worst case is every level fully covered at `ref_ratio` 2, i.e. ×4 cells per level
+in 2D and ×8 in 3D:
+
+| deck | fully-refined cells | × 380 B | + context |
+|---|---:|---:|---:|
+| `input` | 348,160 | 132 MB | ~400 MB |
+| `input_copy` | 81,920 | 31 MB | ~300 MB |
+| `input_3d_centre_bore_128_a2` | 9,437,184 | 3.59 GB | ~3.9 GB |
+
+**The 40 GB budget clears by an order of magnitude on every current deck**, and
+would still clear at 3× the per-cell cost (3D worst case → ~10.8 GB).
+
+Two honest caveats:
+
+1. 350-380 B/cell was measured in **2D**. 3D carries a third displacement
+   component, a larger `Matrix4` model, and bigger ghost volumes, so the true 3D
+   per-cell figure is higher — unmeasured, and the ×3 sensitivity above is a
+   guard, not a measurement.
+2. This is the *model*, not a high-water. §5.5 prefers a measured arena
+   high-water where one exists. It does not yet; the re-capture supplies it.
+
+**FP32 storage is not structural** — the answer v1 gave, now supported at 40 GB
+rather than only at 8/80 GB. The binding constraint is future decks, not these.
+
+Note the earlier flip leg ran `the_arena_init_size` at 0.5 × 80 GB = 40 GiB, but
+that is an *initial* size on an 80 GB card, not a cap, so it did not test the
+budget. AMReX exposes no hard arena ceiling; the high-water measurement is the
+real test.
 
 ## §F False-pass validation — PARTIAL
 
@@ -156,11 +185,20 @@ in-tree instance. T4's three named instances:
 |---|---|
 | MLMG operator + solver constructed per elastic solve | **CONFIRMED** — `Base/Mechanics.H:211` constructs `Operator::Elastic<MODEL::sym> elastic_op(...)` inside `TimeStepBegin`, destroyed at scope exit |
 | Per-step device error flag: `DeviceScalar` alloc + H2D + D2H | **CONFIRMED** — `Util/Util.H:77` wraps `amrex::Gpu::DeviceScalar<int>`; constructed unguarded at `Flame.cpp:747` |
-| `FieldNorm0` allocating composite MultiFabs per call | **NOT VERIFIED** — `Newton.H:1349`; called at `:741, :822, :855, :1382` |
+| `FieldNorm0` allocating composite MultiFabs per call | **CONFIRMED** — `Newton.H:1351-1358` allocates a full `MultiFab` **per level** (`make_unique`, full `nComp` and `nGrowVect`) and `MultiFab::Copy`s every level into it, then refluxes (`:1362-1365`). Called at `:741, :822, :855, :1382`, including inside the line-search backtrack loop |
 
-The instrumentation that must catch these does not exist yet: arena-level
-request counting, not `cudaMalloc` counting. Until it exists T4 is defined but
-not validated, and P1 does not clear.
+All three named instances exist. **The metric still does not.** Catching them
+requires arena-level request counting, not `cudaMalloc` counting — which is the
+whole point of the T4 redefinition, since AMReX arenas cache and reuse backing
+allocations and would report zero `cudaMalloc` for all three. Until that
+instrumentation exists, T4 is defined but unvalidated and **P1 does not clear**.
+
+`FieldNorm0` is the worst of the three by inspection: it copies the entire
+solution field, at every level, per norm evaluation, and the line-search path
+evaluates it per backtrack. That is a per-call allocation proportional to the
+whole field, not a scalar. It also carries the `Reflux` call, so it is not a
+pure norm — removing the copies is a correctness-sensitive change, not a
+cleanup.
 
 ---
 
