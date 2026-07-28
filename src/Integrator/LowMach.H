@@ -21,6 +21,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Mechanism/SurfaceOxidation.H"
+#include "Model/PhaseField/MultLiquid.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -77,6 +78,7 @@ protected:
                             const amrex::MultiFab& xi_mf,
                             bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
+    void UpdateLiquidChemicalPotential(int lev);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
@@ -127,6 +129,7 @@ protected:
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> liquid_eta_mf;
+    Set::Field<Set::Scalar> liquid_chemical_potential_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -188,6 +191,7 @@ protected:
     std::vector<int> fixed_rigid_solid_species;
     int free_rigid_solid_species = -1;
     std::vector<int> liquid_species;
+    Model::PhaseField::MultLiquid liquid_phase_model;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -221,11 +225,6 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
-    Set::Scalar liquid_interface_thickness = 0.0;
-    Set::Scalar liquid_regularization_speed = 0.0;
-    bool liquid_smooth_curvature = true;
-    Set::Scalar liquid_surface_energy[3] = {0.0, 0.0, 0.0};
-    Set::Scalar liquid_surface_tension_max = 0.0;
     Set::Scalar liquid_reference_density_min = 1.0e100;
     Set::Scalar rigid_relaxation_time = 1.0;
     Set::Vector rigid_velocity = Set::Vector::Zero();
