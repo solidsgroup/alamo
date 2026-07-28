@@ -97,11 +97,19 @@ case "${ACTION}" in
     } 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null \
       | awk '{print $1"\t"$2}' > benchmark/_pushed_manifest.tsv
 
-    # tree_hash: HEAD + the diff + the manifest. Any source change moves it.
+    # tree_hash: HEAD + the diff + the manifest. Any change to anything shipped
+    # moves it, harness included.
     TREE_HASH=$( { git rev-parse HEAD
                    sha256sum benchmark/_pushed_tree.diff | cut -d' ' -f1
                    sha256sum benchmark/_pushed_manifest.tsv | cut -d' ' -f1
                  } | sha256sum | cut -c1-16 )
+    # src_hash: the ./src subset of the manifest only. This is what identifies a
+    # BINARY. Editing the harness moves tree_hash but not src_hash, so a capture
+    # whose slurm script changed after the build is still traceable to the
+    # source it actually ran -- without which every harness tweak would look
+    # like it invalidated the binaries.
+    SRC_HASH=$(awk -F'\t' '$2 ~ /^\.\/src\//' benchmark/_pushed_manifest.tsv \
+               | sha256sum | cut -c1-16)
     {
       echo "pushed_from_host=$(hostname)"
       echo "pushed_at=$(date -Is)"
@@ -109,6 +117,7 @@ case "${ACTION}" in
       echo "local_head=$(git rev-parse HEAD)"
       echo "local_dirty_files=${DIRTY_N}"
       echo "tree_hash=${TREE_HASH}"
+      echo "src_hash=${SRC_HASH}"
       echo "manifest_files=$(wc -l < benchmark/_pushed_manifest.tsv)"
       echo "# tree_hash = sha256(HEAD + sha256(_pushed_tree.diff) +"
       echo "#                    sha256(_pushed_manifest.tsv)), first 16 hex."
