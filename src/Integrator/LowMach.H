@@ -139,6 +139,7 @@ protected:
     Set::Field<Set::Scalar> pressure_correction_mf;
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
+    Set::Field<Set::Scalar> phase_change_heat_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;

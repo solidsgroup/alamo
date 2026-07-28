@@ -200,6 +200,7 @@ public:
     Set::Scalar ApplyImplicitChange(
         const amrex::Array4<Set::Scalar>& /*component_density*/,
         const State& /*state*/, const Set::Scalar /*eta_change*/,
+        Set::Scalar& /*integrated_heat*/,
         const int /*i*/, const int /*j*/, const int /*k*/) const
     {
         return 0.0;

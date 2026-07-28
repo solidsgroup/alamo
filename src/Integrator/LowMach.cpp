@@ -438,9 +438,14 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.chemistry_dilatation_mf,
             &value.bc_nothing, 1, 0, "chemistry_dilatation", false, false);
     if (!value.rigid_solid_species.empty() && !value.mechanisms.empty())
+    {
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_dilatation_mf, &value.bc_nothing, 1, 0,
             "phase_change_dilatation", false, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
+            "phase_change_heat", false, false);
+    }
     if (value.implicit_thermal_diffusion || value.implicit_species_diffusion)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
             &value.bc_nothing, 1, 0, "diffusion_dilatation", false, false);
@@ -1078,7 +1083,10 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
 
     const int nlev = finest_level + 1;
     for (int lev = 0; lev < nlev; ++lev)
+    {
         phase_change_dilatation_mf[lev]->setVal(0.0);
+        phase_change_heat_mf[lev]->setVal(0.0);
+    }
     diffusion.SetLayout(geom, refRatio(), rigid_species_eta_mf, nlev, 1);
     diffusion.FillBoundary(
         component_density_mf, *component_density_bc, time, nspecies);
@@ -1213,6 +1221,8 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     temperature_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation =
                     phase_change_dilatation_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> integrated_heat =
+                    phase_change_heat_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1237,10 +1247,13 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                             (mechanism.LocalRate(state, i, j, k) +
                              mechanism.GradientCoefficient(
                                 state, i, j, k) * laplacian);
+                        Set::Scalar mechanism_heat = 0.0;
                         integrated_dilatation(i,j,k) +=
                             mechanism.ApplyImplicitChange(
                                 component_density, state,
-                                mechanism_eta_change, i, j, k);
+                                mechanism_eta_change, mechanism_heat,
+                                i, j, k);
+                        integrated_heat(i,j,k) += mechanism_heat;
                     });
             }
         }
@@ -1248,10 +1261,44 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
 
     diffusion.Synchronize(component_density_mf, nspecies);
     diffusion.Synchronize(phase_change_dilatation_mf, 1);
+    diffusion.Synchronize(phase_change_heat_mf, 1);
     diffusion.FillBoundary(
         component_density_mf, *component_density_bc, time, nspecies);
     for (int lev = 0; lev < nlev; ++lev)
+    {
         UpdateComponentState(lev, *component_density_mf[lev]);
+        for (amrex::MFIter mfi(*temperature_mf[lev],
+                                amrex::TilingIfNotGPU());
+             mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<const Set::Scalar> component_density =
+                component_density_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> temperature =
+                temperature_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> integrated_heat =
+                phase_change_heat_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(
+                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    auto [gas_volume_fraction, gas_heat_capacity,
+                        heat_capacity, conductivity, cp] =
+                        ComputeThermalState(component_density,
+                            temperature(i,j,k), i, j, k);
+                    (void)gas_volume_fraction;
+                    (void)gas_heat_capacity;
+                    (void)conductivity;
+                    (void)cp;
+                    if (heat_capacity > 0.0)
+                        temperature(i,j,k) +=
+                            integrated_heat(i,j,k) / heat_capacity;
+                });
+        }
+        temperature_bc->FillBoundary(
+            *temperature_mf[lev], 0, 1, time, 0);
+        temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
 }
 
 void
@@ -2447,7 +2494,10 @@ LowMach::Initialize(int lev)
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
     if (!rigid_solid_species.empty() && !mechanisms.empty())
+    {
         phase_change_dilatation_mf[lev]->setVal(0.0);
+        phase_change_heat_mf[lev]->setVal(0.0);
+    }
     if (lev == 0 && !(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());

@@ -132,15 +132,18 @@ public:
     Set::Scalar ApplyImplicitChange(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
+        Set::Scalar& integrated_heat,
         const int i, const int j, const int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).ApplyImplicitChange(
-                    component_density, state, eta_change, i, j, k);
+                    component_density, state, eta_change, integrated_heat,
+                    i, j, k);
             return ApplyImplicitChange<I + 1>(
-                component_density, state, eta_change, i, j, k);
+                component_density, state, eta_change, integrated_heat,
+                i, j, k);
         }
         Util::Abort(INFO, selected);
         return NAN;
