@@ -791,11 +791,60 @@ established from source on 2026-07-27, before any judgment:
   `src/Integrator`) and currently lints clean — but that lint enforces three bug
   patterns, not device-readiness.
 
-**Open question, needs a decision before Phase 1 planning is final:** is Hydro a
-*memory-strategy* target (like Flame/Elastic: ported, works, now optimize
-residency) or a *porting* target (does not run on GPU yet)? Those are different
-campaigns. The cheap discriminator is a single `configure --cuda && make bin/sfi`
-plus a short run — do that before folding Hydro into any phase.
+### Answered 2026-07-27: Hydro is a PORTING target, not a memory-strategy target
+
+The discriminator was run locally (`configure --dim 2 --cuda 86`, then
+`make bin/sfi bin/hydro`). Result: **neither builds.**
+
+**1. The CUDA build closure is an explicit allowlist, and it contains only
+Flame.** `src/GPU/IntegratorPolicy.mk`:
+
+```make
+ALAMO_GPU_SUPPORTED_INTEGRATORS := flame
+ALAMO_GPU_SOURCES_flame := BC/BC.cpp BC/Constant.cpp IO/FileNameParse.cpp
+    IO/ParmParse.cpp IO/WriteMetaData.cpp Integrator/Flame.cpp
+    Integrator/Integrator.cpp Operator/Elastic.cpp Operator/Operator.cpp
+    Set/Set.cpp Util/Util.cpp
+```
+`Makefile:70-76` swaps `SRC`/`SRC_MAIN` for these under any `cuda` postfix, and
+`src/alamo_gpu.cc` is the matching curated main ("several [integrators] have
+never been made nvcc-clean"). **`Integrator/Hydro.cpp` is not in the list.** The
+policy file's own instruction: *"Add a new integrator here only after its entry
+point and dependency closure are nvcc-clean."*
+
+**2. `bin/hydro` under CUDA: compiles, fails to link.**
+```
+/usr/bin/ld: obj/obj-2d-cuda86-g++/hydro.cc.o: undefined reference to
+  `Integrator::Hydro::Hydro(IO::ParmParse&)'
+```
+So `Hydro.H` is nvcc-parseable, but `Hydro.cpp` has **never been compiled by
+nvcc** — it is outside the closure, so its device-cleanliness is untested, not
+established.
+
+**3. `bin/sfi` under CUDA: 11 compile errors**, in two nvcc classes:
+
+| Class | Sites |
+|---|---|
+| extended `__device__` lambda in a private/protected member function | `AllenCahn.H:145,190`, `Dendrite.H:123,184`, `SFI.H:91` (`UpdateEta`) |
+| implicit capture of `this` in an extended lambda | `IC/Sphere.H:87`, `AllenCahn.H:152,197`, `Dendrite.H:128,192` |
+
+Most of those come from `src/sfi.cc` including AllenCahn and Dendrite alongside
+Flame; a curated SFI-only main would drop them, the way `alamo_gpu.cc` drops the
+CPU launcher's integrator zoo. What would remain is `SFI.H:91` plus whatever
+Hydro and its ICs turn out to need. The second class is
+`docs/llm/BUG_PATTERNS.md` #2 — a bug this branch has already paid for
+elsewhere.
+
+**Consequence for this campaign.** Hydro cannot be a phase of a memory-strategy
+plan, because there is nothing on the GPU to optimize yet. It needs its own port
+task: make `SFI.H` + `Hydro.{H,cpp}` nvcc-clean, add a curated `sfi` main and an
+`ALAMO_GPU_SOURCES_sfi` closure to `IntegratorPolicy.mk`, then bring it under the
+existing correctness gate (device lint + golden compare + compute-sanitizer)
+before any residency work. Only after that does Hydro become a Phase 1-3 subject.
+
+This campaign therefore covers **Flame + Elastic**. Hydro is tracked here as a
+dependency of the user's actual target set and is handed to a separate port
+folder. Note also that `SFI.H` is 2D-only, so a GPU SFI has no 3D story yet.
 
 ## Note on specifics
 
