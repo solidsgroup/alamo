@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --time=08:00:00
 #SBATCH --output=phase0_capture.%j.out
 #SBATCH --error=phase0_capture.%j.err
@@ -33,9 +33,9 @@
 #   flip     N2. Device arena + abort_on_out_of_gpu_memory=1. INVENTORY ONLY --
 #            a crash here is the deliverable, not a failure. Never fix in-job.
 #   nsys     F1,F2,F3,F8,F9. Profile binary (BL_PROFILE regions emit NVTX under
-#            CUDA), CUDA+NVTX+OSRT+MPI trace, CUDA memory usage, and unified-
-#            memory page-fault counters. Exports stats CSVs so collection is
-#            small files, not just a .nsys-rep.
+#            CUDA), CUDA+NVTX+OSRT trace (NOT mpi -- see the leg), CUDA memory
+#            usage, and unified-memory page-fault counters. Exports stats CSVs
+#            so collection is small files, not just a .nsys-rep.
 #   ncu      F4,F5,F6,F7. Top kernels only, a few launches each, selected by
 #            NVTX range rather than kernel name -- AMReX kernels all present as
 #            `launch_global`, which is why a name-based filter returns nothing.
@@ -173,13 +173,34 @@ if have_leg env; then
     echo "--- toolkit"
     which nvcc nsys ncu 2>&1; nvcc --version 2>&1 | tail -2
     nsys --version 2>&1 | head -1; ncu --version 2>&1 | grep -i version | head -1
-    echo "--- MPI"
+    echo "--- MPI (module/PATH view -- NOT necessarily what the binary runs)"
     which mpiexec srun 2>&1
     echo "MPICH_GPU_SUPPORT_ENABLED=${MPICH_GPU_SUPPORT_ENABLED:-<unset>}"
+    echo "MPI_MOD=${MPI_MOD}"
     ompi_info --version 2>&1 | head -1
-    echo "--- GPU-aware MPI verdict (Phase 0.5 §2 carry-over):"
-    ompi_info --parsable --all 2>/dev/null | grep -E 'mpi_built_with_cuda_support' || echo "  (no ompi_info cuda line; not Open MPI?)"
-    ompi_info --parsable --all 2>/dev/null | grep -iE 'accelerator|smcuda' | head -5
+    # The N4 verdict MUST come from the MPI the binary actually loads. Job
+    # 11772152 loaded MPI_MOD=openmpi/4.1.8 and reported its ompi_info, while
+    # ldd showed the binary resolving libmpi.so.40 to openmpi-5.0.8 via RPATH
+    # -- two different implementations behind the same soname. Ask ldd, then
+    # ask THAT tree's ompi_info.
+    echo "--- MPI actually linked by ${PLAIN_BIN} (authoritative for N4)"
+    LINKED_MPI_LIB=$(ldd "${PLAIN_BIN}" 2>/dev/null | awk '/libmpi\.so/ {print $3; exit}')
+    echo "linked_libmpi=${LINKED_MPI_LIB:-<none>}"
+    LINKED_OMPI_INFO=""
+    if [ -n "${LINKED_MPI_LIB}" ]; then
+      LINKED_OMPI_INFO="$(dirname "$(dirname "${LINKED_MPI_LIB}")")/bin/ompi_info"
+      echo "linked_ompi_info=${LINKED_OMPI_INFO}"
+      [ -x "${LINKED_OMPI_INFO}" ] || echo "  WARNING: no ompi_info beside the linked libmpi; verdict below is the PATH one"
+    fi
+    [ -x "${LINKED_OMPI_INFO}" ] || LINKED_OMPI_INFO="ompi_info"
+    "${LINKED_OMPI_INFO}" --version 2>&1 | head -1
+    if ! "${LINKED_OMPI_INFO}" --version 2>/dev/null | head -1 | grep -qF "$(ompi_info --version 2>/dev/null | head -1 | grep -oE 'v[0-9.]+')"; then
+      echo "  MISMATCH: the loaded module and the linked library are different Open MPI builds."
+      echo "  Trust the linked one. Consider setting MPI_MOD to match the build."
+    fi
+    echo "--- GPU-aware MPI verdict (Phase 0.5 §2 carry-over), from the LINKED MPI:"
+    "${LINKED_OMPI_INFO}" --parsable --all 2>/dev/null | grep -E 'mpi_built_with_cuda_support' || echo "  (no ompi_info cuda line; not Open MPI?)"
+    "${LINKED_OMPI_INFO}" --parsable --all 2>/dev/null | grep -iE 'accelerator|smcuda' | head -5
     echo "--- GPU visibility on the BATCH step (srun steps may differ)"
     echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
     echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS:-<unset>}  SLURM_STEP_GPUS=${SLURM_STEP_GPUS:-<unset>}"
@@ -276,8 +297,14 @@ fi
 if have_leg nsys; then
   say "LEG nsys -- F1,F2,F3,F8,F9 (profile binary: BL_PROFILE regions emit NVTX)"
   L="${OUT}/nsys"; mkdir -p "${L}"
+  # NO `mpi` IN -t. nsys 2024.6.2's libToolsInjection64.so segfaults inside
+  # ompi_mpi_init -> opal_common_ucx_mca_register against the Open MPI 5.0.8 /
+  # UCX 1.18.1 this binary links; jobs 11772152/11772153/11772161 all died at
+  # rc=137 before the first timestep and produced no trace.nsys-rep at all.
+  # Every run here is -n1, so MPI tracing buys nothing anyway. Do not re-add it
+  # without first re-testing on a newer nsys.
   NSYS_ARGS=( profile
-    -t cuda,nvtx,osrt,mpi
+    -t cuda,nvtx,osrt
     --cuda-memory-usage=true
     --cuda-um-cpu-page-faults=true
     --cuda-um-gpu-page-faults=true
@@ -291,18 +318,30 @@ if have_leg nsys; then
       nsys "${NSYS_ARGS[@]}" \
       "./${PROF_BIN}" "${COMMON[@]}" "${MANAGED[@]}" max_step="${TRACE_STEP}" \
       stop_time=1e99_s plot_file="${L}/plot" > "${L}/run.log" 2>&1
-    echo "  nsys rc=$?"
-    # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
-    # vary across nsys versions -- try each, record which ones existed.
-    for rep in nvtx_sum cuda_gpu_kern_sum cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum \
-               cuda_api_sum cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
-      if nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
-           "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1; then
-        echo "  stats ok: ${rep}"
-      else
-        echo "  stats MISSING in this nsys version: ${rep}" | tee -a "${L}/stats_missing.txt"
-      fi
-    done
+    NSYS_RC=$?
+    echo "  nsys rc=${NSYS_RC}"
+    # Distinguish "nsys produced nothing" from "this nsys lacks that report".
+    # The old loop reported eight MISSING reports when the real fault was an
+    # absent trace, which reads as a version quirk instead of a dead capture.
+    if [ ! -f "${L}/trace.nsys-rep" ]; then
+      echo "  CAPTURE FAILED: no ${L}/trace.nsys-rep (nsys rc=${NSYS_RC})."
+      echo "  F1,F2,F3,F8,F9 are NOT captured for this deck. Read ${L}/run.log;"
+      echo "  rc=137 with a libToolsInjection64.so frame means the -t list is at"
+      echo "  fault, not the deck. Do not read the stats CSVs -- there are none."
+      echo "no trace.nsys-rep produced; nsys rc=${NSYS_RC}" > "${L}/CAPTURE_FAILED"
+    else
+      # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
+      # vary across nsys versions -- try each, record which ones existed.
+      for rep in nvtx_sum cuda_gpu_kern_sum cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum \
+                 cuda_api_sum cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
+        if nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
+             "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1; then
+          echo "  stats ok: ${rep}"
+        else
+          echo "  stats MISSING in this nsys version: ${rep}" | tee -a "${L}/stats_missing.txt"
+        fi
+      done
+    fi
   fi
   echo "  F1 is read first at every phase boundary (campaign §12). Open trace.nsys-rep,"
   echo "  collapse to one timestep, and look at the gaps before reading any aggregate."
@@ -328,14 +367,25 @@ if have_leg ncu; then
     for range in "Operator::Elastic::Fapply()" "Operator::Fsmooth()" "MLMG::mgVcycle()"; do
       tag=$(echo "${range}" | tr -cd '[:alnum:]')
       if [ "${DRYRUN}" = 1 ]; then
-        echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ncu --nvtx --nvtx-include \"${range}/\" --launch-count ${NCU_LAUNCHES} ${SECTIONS[*]} -o ${L}/${tag} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
+        echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ncu --nvtx --nvtx-include \"${range}/\" --launch-count ${NCU_LAUNCHES} --kill yes ${SECTIONS[*]} -o ${L}/${tag} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
       else
+        # --kill yes is load-bearing, not tidiness. Without it ncu collects its
+        # NCU_LAUNCHES matches at the FIRST elastic solve and then lets the app
+        # run the whole horizon with NVTX collection still attached, retaining
+        # range state for every BL_PROFILE push/pop (~16k Fapply ranges per 2D
+        # step). Job 11772161 reached step 81 that way and was OOM-killed at
+        # 64 GB host RAM on MLMG::mgVcycle(); the 3D job 11772153 lost all
+        # three ranges the same way. The two survivors still wrote 173 MB
+        # reports for 3 profiled launches.
         srun --mpi=pmix -n1 --gpus-per-task=1 \
           ncu --nvtx --nvtx-include "${range}/" --launch-count "${NCU_LAUNCHES}" \
+              --kill yes \
               "${SECTIONS[@]}" -o "${L}/${tag}" --force-overwrite \
           "./${PROF_BIN}" "${COMMON[@]}" "${MANAGED[@]}" max_step="${TRACE_STEP}" \
           stop_time=1e99_s plot_file="${L}/plot_${tag}" > "${L}/${tag}.log" 2>&1
-        echo "  ${range} rc=$? -> ${L}/${tag}.ncu-rep"
+        # rc is EXPECTED to be nonzero under --kill yes: ncu terminates the app
+        # once it has its launches, so judge this leg by the .ncu-rep, not rc.
+        echo "  ${range} rc=$? (nonzero is normal under --kill yes) -> ${L}/${tag}.ncu-rep"
         ncu --import "${L}/${tag}.ncu-rep" --csv --page details > "${L}/${tag}.csv" 2>>"${L}/${tag}.log" \
           && echo "    csv exported"
       fi
