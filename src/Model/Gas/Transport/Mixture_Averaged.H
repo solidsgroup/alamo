@@ -79,6 +79,7 @@ public:
                     pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
                     // Thermal conductivity if type=constant
                     pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+                    pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
                 }},
                 {"LJ", [&]() {
                     value.type = "LJ";
