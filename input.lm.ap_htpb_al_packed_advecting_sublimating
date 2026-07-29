@@ -24,14 +24,15 @@ amr.nsubsteps = 1
 amr.reinitialize_condensed_composition = 0
 
 eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 500.0
+temperature_refinement_criterion = 10.0
+velocity_refinement_criterion = 10.0
 
 # Time integration
-timestep = 2.5e-6_s
+timestep = 1.0e-7_s
 stop_time = 25_ms
 dynamictimestep.on = 1
-dynamictimestep.min = 1.0e-6
-dynamictimestep.max = 2.5e-5
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-4
 dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
@@ -86,64 +87,79 @@ chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3
 chemistry.model.gross_model_aluminized.pressure_exponent = 1.6 1.7 1.7 1.7
 chemistry.model.gross_model_aluminized.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
 chemistry.model.gross_model_aluminized.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
-chemistry.model.gross_model_aluminized.qsolid = -100.0_cal/g -300.0_cal/g
 chemistry.model.gross_model_aluminized.pressure_reference = 1.0_bar
 chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.nsubsteps = 1
 chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
 # Rigid-body mechanics
-rigid.relaxation_time = 1.0e-8_s
-rigid.velocity = 0.0 0.0
 AP_solid.rigid.motion = fixed
+AP_solid.rigid.relaxation_time = 1.0e-8_s
+AP_solid.rigid.velocity = 0.0 0.0
 HTPB_solid.rigid.motion = fixed
+HTPB_solid.rigid.relaxation_time = 1.0e-8_s
+HTPB_solid.rigid.velocity = 0.0 0.0
 Al_solid.rigid.motion = free
-# One coupled projection per step is the inexpensive default.  Increase this
-# only when a tighter flow/body fixed point is needed; each iteration adds one
-# composite pressure solve but restarts from the same provisional velocity.
-rigid.free.picard_iterations = 1
-rigid.free.picard_tolerance = 1.0e-5
+Al_solid.rigid.relaxation_time = 1.0e-8_s
+# Retain the fresh provisional body momentum and predict the pressure impulse
+# from the preceding step. Anderson corrections are used only when that cheap
+# predictor misses the requested coupling tolerance.
+Al_solid.rigid.coupling = anderson
+Al_solid.rigid.max_iterations = 3
+Al_solid.rigid.relative_tolerance = 1.0e-3
+Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
 
 mechanisms.names = AP_decomposition HTPB_pyrolysis Al_sublimation
 
+# Use the AP and HTPB PhaseChange configurations from input.lm.ap_htpb_packed.
+# The phase-field gradient terms are integrated implicitly.
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.phase0 = AP_solid
 AP_decomposition.phase_change.phase1 = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2450.0
+AP_decomposition.phase_change.latent_heat = 100.0_cal/g
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 500.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-AP_decomposition.phase_change.phase_field.allencahn.epsilon = 80.0_um
-AP_decomposition.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
 HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
-HTPB_pyrolysis.phase_change.rate_multiplier = 2.333333333333333e5
-HTPB_pyrolysis.phase_change.activation_temperature = 7500.0_K
-HTPB_pyrolysis.phase_change.temperature_cutoff = 500.0_K
+HTPB_pyrolysis.phase_change.latent_heat = 300.0_cal/g
+HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
-HTPB_pyrolysis.phase_change.phase_field.allencahn.epsilon = 80.0_um
-HTPB_pyrolysis.phase_change.phase_field.allencahn.driving_force = 200.0_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
 
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_gas
+Al_sublimation.phase_change.reversible = false
 # This deliberately elevated 0.5 mm/s regression speed shrinks the nominal
 # 75 um particle radius by 12.5 um over the 25 ms simulation.
 Al_sublimation.phase_change.prescribed_speed = 0.5_mm/s
-Al_sublimation.phase_change.temperature_cutoff = 1000.0_K
+Al_sublimation.phase_change.temperature_cutoff = 500.0_K
 Al_sublimation.phase_change.phase_field.type = allencahn
 
 # Flow, projection, and diffusion
 advection.type = muscl
 advection.muscl.limiter.type = minmod
-cfl = 0.6
+cfl = 0.8
+phase_field.cfl = 1.5
 include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
@@ -159,35 +175,46 @@ diffusion.verbose = 0
 
 # Initial conditions
 
-# The common diffuse condensed/gas surface is y=0. The repeated minimum below
-# is the signed distance to the nearest AP particle, including periodic x
-# images. Its strict sign test gives a sharp AP/HTPB interface.
+# The common diffuse condensed/gas surface is 100 um above the domain bottom.
+# All packed-bed coordinates below are relative to surface_y, so translating
+# the surface preserves the AP/HTPB geometry. The repeated minimum is the
+# signed distance to the nearest AP particle, including periodic x images. Its
+# strict sign test gives a sharp AP/HTPB interface.
 AP_solid.density.ic.type = expression
 AP_solid.density.ic.expression.constant.lx = 0.0006_m
+AP_solid.density.ic.expression.constant.surface_y = -0.0003_m
 AP_solid.density.ic.expression.constant.surface_eps = 20.0_um
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/surface_eps))*(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+(y+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+(y+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+(y+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+(y+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+(y-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+(y+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+(y+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+(y-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+(y-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+(y+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+(y+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+(y+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+(y+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+(y+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+(y-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+(y+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+(y+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+(y-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+(y+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+(y+0.000394822)^2)-0.000047122)<0.0))"
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*(y-surface_y)/surface_eps))*(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+((y-surface_y)+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+((y-surface_y)+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+((y-surface_y)+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+((y-surface_y)+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+((y-surface_y)-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+((y-surface_y)+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+((y-surface_y)+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+((y-surface_y)-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+((y-surface_y)-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+((y-surface_y)+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+((y-surface_y)+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+((y-surface_y)+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+((y-surface_y)+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+((y-surface_y)+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+((y-surface_y)-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+((y-surface_y)+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+((y-surface_y)+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+((y-surface_y)-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+((y-surface_y)+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+((y-surface_y)+0.000394822)^2)-0.000047122)<0.0))"
 
 HTPB_solid.density.ic.type = expression
 HTPB_solid.density.ic.expression.constant.lx = 0.0006_m
+HTPB_solid.density.ic.expression.constant.surface_y = -0.0003_m
 HTPB_solid.density.ic.expression.constant.surface_eps = 20.0_um
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/surface_eps))*(1.0-(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+(y+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+(y+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+(y+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+(y+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+(y-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+(y+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+(y+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+(y-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+(y-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+(y+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+(y+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+(y+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+(y+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+(y+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+(y-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+(y+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+(y+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+(y-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+(y+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+(y+0.000394822)^2)-0.000047122)<0.0)))"
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*(y-surface_y)/surface_eps))*(1.0-(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000212027),lx-abs(x-0.000212027))^2+((y-surface_y)+0.000245644)^2)-0.000090469,sqrt(min(abs(x+0.000186936),lx-abs(x+0.000186936))^2+((y-surface_y)+0.000388514)^2)-0.000054547),sqrt(min(abs(x-0.000150453),lx-abs(x-0.000150453))^2+((y-surface_y)+0.000093352)^2)-0.000070068),sqrt(min(abs(x-0.000070208),lx-abs(x-0.000070208))^2+((y-surface_y)+0.000209450)^2)-0.000053770),sqrt(min(abs(x-0.000143329),lx-abs(x-0.000143329))^2+((y-surface_y)-0.000012354)^2)-0.000024986),sqrt(min(abs(x-0.000031362),lx-abs(x-0.000031362))^2+((y-surface_y)+0.000107995)^2)-0.000038929),sqrt(min(abs(x-0.000230716),lx-abs(x-0.000230716))^2+((y-surface_y)+0.000456106)^2)-0.000081700),sqrt(min(abs(x-0.000058581),lx-abs(x-0.000058581))^2+((y-surface_y)-0.000029289)^2)-0.000060200),sqrt(min(abs(x+0.000048469),lx-abs(x+0.000048469))^2+((y-surface_y)-0.000024128)^2)-0.000044095),sqrt(min(abs(x+0.000212179),lx-abs(x+0.000212179))^2+((y-surface_y)+0.000230820)^2)-0.000053568),sqrt(min(abs(x+0.000189514),lx-abs(x+0.000189514))^2+((y-surface_y)+0.000306588)^2)-0.000019553),sqrt(min(abs(x+0.000107792),lx-abs(x+0.000107792))^2+((y-surface_y)+0.000097680)^2)-0.000074271),sqrt(min(abs(x+0.000047578),lx-abs(x+0.000047578))^2+((y-surface_y)+0.000231102)^2)-0.000046028),sqrt(min(abs(x+0.000039162),lx-abs(x+0.000039162))^2+((y-surface_y)+0.000305670)^2)-0.000018794),sqrt(min(abs(x+0.000215391),lx-abs(x+0.000215391))^2+((y-surface_y)-0.000061670)^2)-0.000077416),sqrt(min(abs(x+0.000114102),lx-abs(x+0.000114102))^2+((y-surface_y)+0.000290286)^2)-0.000041517),sqrt(min(abs(x-0.000067205),lx-abs(x-0.000067205))^2+((y-surface_y)+0.000361096)^2)-0.000090053),sqrt(min(abs(x+0.000127409),lx-abs(x+0.000127409))^2+((y-surface_y)-0.000008924)^2)-0.000019393),sqrt(min(abs(x+0.000129299),lx-abs(x+0.000129299))^2+((y-surface_y)+0.000199588)^2)-0.000026344),sqrt(min(abs(x+0.000077346),lx-abs(x+0.000077346))^2+((y-surface_y)+0.000394822)^2)-0.000047122)<0.0)))"
 
 # Aluminum occupies the gas-side circle. Multiplying by the gas-side
 # complement of the bed profile prevents overlap with the propellant.
 Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.surface_y = -0.0003_m
 Al_solid.density.ic.expression.constant.surface_eps = 20.0_um
-Al_solid.density.ic.expression.constant.al_y = 0.00025_m
-Al_solid.density.ic.expression.constant.al_r = 75.0_um
+Al_solid.density.ic.expression.constant.al_height = 0.00025_m
+Al_solid.density.ic.expression.constant.al_r = 70.0_um
 Al_solid.density.ic.expression.constant.al_eps = 20.0_um
-Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*y/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt(x*x+(y-al_y)^2)-al_r)/al_eps)))"
+Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps)))"
 
 # Final products fill the space outside both condensed regions.
 Final.density.ic.type = expression
+Final.density.ic.expression.constant.surface_y = -0.0003_m
 Final.density.ic.expression.constant.surface_eps = 20.0_um
-Final.density.ic.expression.constant.al_y = 0.00025_m
-Final.density.ic.expression.constant.al_r = 75.0_um
+Final.density.ic.expression.constant.al_height = 0.00025_m
+Final.density.ic.expression.constant.al_r = 70.0_um
 Final.density.ic.expression.constant.al_eps = 20.0_um
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-al_y)^2)-al_r)/al_eps))*3000000.0/(319.787*700.0))"
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas))))"
 
 Al_gas.density.ic.type = constant
 Al_gas.density.ic.constant.value = 0.0_kg/m^3
@@ -199,17 +226,37 @@ Al2O3_gas.density.ic.constant.value = 0.0_kg/m^3
 # rotation are obtained from the flow-derived rigid-body momentum projection.
 velocity.ic.type = expression
 velocity.ic.expression.constant.U = 0.01_m/s
+velocity.ic.expression.constant.surface_y = -0.0003_m
 velocity.ic.expression.constant.surface_eps = 20.0_um
-velocity.ic.expression.constant.al_y = 0.00025_m
-velocity.ic.expression.constant.al_r = 75.0_um
+velocity.ic.expression.constant.al_height = 0.00025_m
+velocity.ic.expression.constant.al_r = 70.0_um
 velocity.ic.expression.constant.al_eps = 20.0_um
 velocity.ic.expression.region0 = "0.0"
-velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*y/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-al_y)^2)-al_r)/al_eps))"
+velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))"
 
-temperature.ic.type = constant
-temperature.ic.constant.value = 700.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.surface_y = -0.0003_m
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+# Condensed species inherit this global field unless temperature_override is
+# positive.
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas)"
 pressure.ic.type = constant
 pressure.ic.constant.value = 3000000.0
+
+# Apply the packed-case transient ignition flux at the translated propellant
+# surface. The source turns off smoothly after 250 us.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.surface_y = -0.0003_m
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-((y-surface_y)/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
 
 # Boundary conditions
 component_density.bc.type = constant
@@ -217,9 +264,9 @@ component_density.bc.constant.type.xlo = periodic
 component_density.bc.constant.type.xhi = periodic
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = dirichlet
-# Eleven component values in the new ordering. Final products retain the outlet
-# state from the base case and both aluminum gases have zero exterior values.
-component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 13.401777701139464 0.0 0.0 0.0 0.0 0.0
+# Eleven component values in the new ordering. Final products retain the 3 MPa,
+# 300 K ambient state and both aluminum gases have zero exterior values.
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 31.2708146359921 0.0 0.0 0.0 0.0 0.0
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic
