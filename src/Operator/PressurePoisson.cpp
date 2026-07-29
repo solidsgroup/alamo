@@ -63,7 +63,7 @@ PressurePoisson::SetLayout(
     coefficient.Define(nlevels, grids, distribution_mapping, 1, 1);
     divergence.Define(nlevels, grids, distribution_mapping, 1, 0);
     cell_velocity_predictor.Define(
-        nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 2);
+        nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 1);
     face_coefficient.resize(nlevels);
     face_velocity.resize(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
@@ -253,13 +253,11 @@ PressurePoisson::ApplyCorrection(
         face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());
     }
 
-    // Retain the pre-projection cell field.  Filtering this field, rather
-    // than deconvolving corrected faces with a wide stencil, is important on
-    // AMR levels: every valid cell has two adjacent valid faces, whereas a
-    // fine face two indices away may lie outside the fine-grid patch.
+    // Retain the pre-projection cell field so the pressure-induced face
+    // increment can be applied without modifying the predictor itself.
     amrex::MultiFab& predictor = *cell_velocity_predictor[lev];
     amrex::MultiFab::Copy(
-        predictor, velocity, 0, 0, AMREX_SPACEDIM, 2);
+        predictor, velocity, 0, 0, AMREX_SPACEDIM, 1);
     for (amrex::MFIter mfi(velocity, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -276,15 +274,6 @@ PressurePoisson::ApplyCorrection(
                 const int di = d == 0;
                 const int dj = d == 1;
                 const int dk = d == 2;
-                const Set::Scalar fourth_difference =
-                    u_predictor(i-2*di,j-2*dj,k-2*dk,d) -
-                    4.0 * u_predictor(i-di,j-dj,k-dk,d) +
-                    6.0 * u_predictor(i,j,k,d) -
-                    4.0 * u_predictor(i+di,j+dj,k+dk,d) +
-                    u_predictor(i+2*di,j+2*dj,k+2*dk,d);
-                const Set::Scalar filtered_predictor =
-                    u_predictor(i,j,k,d) - fourth_difference / 16.0;
-
                 const Set::Scalar predictor_face_lo = 0.5 *
                     (u_predictor(i-di,j-dj,k-dk,d) +
                      u_predictor(i,j,k,d));
@@ -296,12 +285,7 @@ PressurePoisson::ApplyCorrection(
                      (projected_face[d](i+di,j+dj,k+dk) -
                       predictor_face_hi));
 
-                // The compact fourth-difference filter has transfer function
-                // 1-sin(k*dx/2)^4.  It leaves smooth predictor modes unchanged
-                // through O(dx^4) and removes the face-invisible alternating
-                // cell mode, while the pressure/capillary correction retains
-                // the original local two-face interpolation.
-                u(i,j,k,d) = filtered_predictor + face_increment;
+                u(i,j,k,d) = u_predictor(i,j,k,d) + face_increment;
             }
         });
     }
