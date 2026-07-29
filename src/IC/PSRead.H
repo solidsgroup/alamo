@@ -48,9 +48,9 @@ public:
         const auto prob_lo = geom[lev].ProbLoArray();
         const auto cell_size = geom[lev].CellSizeArray();
         const amrex::GpuArray<int, AMREX_SPACEDIM> periodic = {
-            AMREX_D_DECL(geom[0].isPeriodic(0),
-                         geom[0].isPeriodic(1),
-                         geom[0].isPeriodic(2))};
+            AMREX_D_DECL(   geom[0].isPeriodic(0),
+                            geom[0].isPeriodic(1),
+                            geom[0].isPeriodic(2))};
         std::vector<Set::Scalar> coordinates(
             X.size() * AMREX_SPACEDIM);
         for (int n = 0; n < static_cast<int>(X.size()); ++n)
@@ -86,8 +86,8 @@ public:
                     Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
 
                     Set::Vector center;
-                    for (int direction = 0;
-                         direction < AMREX_SPACEDIM; ++direction)
+                    for (   int direction = 0;
+                            direction < AMREX_SPACEDIM; ++direction)
                         center(direction) =
                             X[n * AMREX_SPACEDIM + direction];
                     d = (x - center).lpNorm<2>();
