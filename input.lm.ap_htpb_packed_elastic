@@ -1,0 +1,324 @@
+# 3 MPa AP/HTPB Miller-packed regression and Rocfire gas-phase combustion,
+# with the LowMach elastic FSI solve enabled (elastic.apply_fluid_pressure,
+# see tests/LowMachElasticPressure) so the condensed phase deforms under the
+# local gas pressure as the bed regresses. Otherwise identical to
+# input.lm.ap_htpb_packed -- diff against that file for the combustion setup.
+# Run in either dimension:
+#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed_elastic
+#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed_elastic
+#
+# The XYZR file contains 659 AP spheres from a mechanically contracted Miller
+# packing. The 3D case uses the spheres directly; the 2D case uses their z=0
+# cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
+# the 2D slice. AP and HTPB partial volume fractions are exact complements.
+#
+# WARNING -- elastic solver conditioning: Solid.elastic.model.mu/kappa below
+# are literal SI moduli (~1e9-1e10 Pa for AP, ~1e6-1e8 Pa for HTPB), unlike
+# the nondimensional-style O(100) values used in tests/LowMachElastic and
+# tests/LowMachElasticPressure specifically to keep the MLMG V-cycle
+# well-conditioned (see tests/LowMachElastic/input's commentary on
+# modulus/dx^2). At this file's finest-level spacing (dx ~ 2mm/40/2^4 =
+# 3.1um), modulus/dx^2 for AP is ~1e21 -- many orders of magnitude past
+# anything validated so far. Tolerance-based solving (elastic.tol_rel/
+# tol_abs, set explicitly below rather than left at default) is used instead
+# of a fixed iteration count so a non-converged solve is visible rather than
+# silently accepted, but expect to need to revisit this (coarser levels only,
+# a different preconditioner, or scaling the moduli down) if MLMG fails to
+# converge or converges absurdly slowly.
+
+plot_file = output.lm.ap_htpb_packed_elastic
+amr.plot_dt = 1.0e-5_s
+amr.max_level = 2
+amr.n_cell = 40 40 16
+amr.max_grid_size = 20
+amr.blocking_factor = 2
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.nsubsteps = 1
+amr.reinitialize_condensed_composition = 1
+amr.reinitialize_condensed_composition_eta_min = 0.99
+# Elastic fields (disp/stress/strain) are nodal; mirror them into the *cell*
+# plotfiles too so they can be sampled the same way as the scalar fields.
+amr.cell.all = 1
+amr.node.any = 0
+
+# Resolve the condensed/gas interface through level 3. Level 4 remains
+# available for flame and flow structure selected by the criteria below.
+eta_refinement_criterion = 0.5
+temperature_refinement_criterion = 1.0
+velocity_refinement_criterion = 1.0
+
+timestep = 1.0e-7_s
+stop_time = 25_ms
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-6
+dynamictimestep.verbose = 0
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = -0.25_mm -0.25_mm -0.25_mm
+geometry.prob_hi =  0.25_mm  0.25_mm  0.25_mm
+geometry.is_periodic = 0 0 0
+
+# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
+# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
+system.amount = kmol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
+
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+AP_solid.reference_density = 1950.0_kg/m^3
+HTPB_solid.reference_density = 920.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+HTPB_solid.specific_heat = 2418.29_J/kg/K
+HTPB_solid.thermal_conductivity = 0.1300_W/m/K
+
+# Elastic constants, converted from representative literature isotropic
+# (E, nu) values via mu = E/(2*(1+nu)), kappa = E/(3*(1-2*nu)):
+#   AP crystal:    E ~ 21.6 GPa, nu ~ 0.14  -> mu ~ 9.47 GPa,  kappa ~ 10.0 GPa
+#   HTPB binder:   E ~ 5.0 MPa,  nu ~ 0.499 (near-incompressible rubber)
+#                                            -> mu ~ 1.67 MPa, kappa ~ 833 MPa
+# These are representative orders of magnitude for the pure phases, not a fit
+# to this specific formulation -- replace with measured/calibrated values if
+# available. See the WARNING above regarding solver conditioning at these
+# magnitudes.
+AP_solid.elastic.model.mu    = 9.47e2 # 9.47e9
+AP_solid.elastic.model.kappa = 1.00e4 # 1.00e10
+HTPB_solid.elastic.model.mu    = 1.67e2 # 1.67e6
+HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
+
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
+
+# AP uses the 1-6 MPa monopropellant calibration from LMRFMonoAP. HTPB uses the
+# approximately 4 mm/s calibration from the 3 MPa sandwich configuration.
+# The phase-field gradient terms are integrated implicitly.
+mechanisms.names = AP_decomposition HTPB_pyrolysis
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.in = AP_solid
+AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
+AP_decomposition.phase_change.phase_field.type = allencahn
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+HTPB_pyrolysis.type = phase_change
+HTPB_pyrolysis.phase_change.in = HTPB_solid
+HTPB_pyrolysis.phase_change.out = HTPB_gas
+HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
+HTPB_pyrolysis.phase_change.phase_field.type = allencahn
+HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+#diagnostics.interval = 100
+diagnostics.extended_fields = 0
+
+# The common diffuse condensed/gas surface is y=0. Both species read the same
+# packing; inversion makes HTPB the exact complement of AP inside the bed.
+AP_solid.density.ic.type = psread
+AP_solid.density.ic.psread.file.name = input.lm.ap_htpb_packed.xyzr
+AP_solid.density.ic.psread.file.unit = mm
+AP_solid.density.ic.psread.slice.z = 0.0_mm
+AP_solid.density.ic.psread.eps = 10.0_um
+AP_solid.density.ic.psread.value = 1950.0_kg/m^3
+AP_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
+AP_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
+AP_solid.density.ic.psread.plane.eps = 20.0_um
+
+HTPB_solid.density.ic.type = psread
+HTPB_solid.density.ic.psread.file.name = input.lm.ap_htpb_packed.xyzr
+HTPB_solid.density.ic.psread.file.unit = mm
+HTPB_solid.density.ic.psread.slice.z = 0.0_mm
+HTPB_solid.density.ic.psread.eps = 10.0_um
+HTPB_solid.density.ic.psread.value = 920.0_kg/m^3
+HTPB_solid.density.ic.psread.invert = 1
+HTPB_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
+HTPB_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
+HTPB_solid.density.ic.psread.plane.eps = 20.0_um
+
+# The gas initially contains final products above the packed bed. Initialize
+# the gas consistently with the thermal penetration profile so that pressure
+# is uniform at startup.
+Final.density.ic.type = expression
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas))))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 3000000.0
+
+# Apply the transient ignition flux used by the AP/HTPB sandwich case.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.type.zlo = neumann
+component_density.bc.constant.type.zhi = neumann
+
+velocity.bc.type = constant
+# Slip walls: reflect the wall-normal component oddly and tangential
+# components evenly. The z walls are the 3D analogues of the x walls.
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.type.zlo = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.type.zhi = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.val.ylo = 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.type.zlo = neumann
+temperature.bc.constant.type.zhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.type.zlo = neumann
+pressure.bc.constant.type.zhi = neumann
+pressure.bc.constant.val.yhi = 3000000.0
+
+# Elastic solve over the condensed (rigid_solid) phase, driven purely by the
+# local gas pressure (elastic.traction = 0, elastic.apply_fluid_pressure = 1
+# -- see LowMach::UpdateModel and tests/LowMachElasticPressure). The bed
+# regresses (mechanisms.names above), so rigid_eta moves and the elastic
+# solve must be re-run periodically to track it; elastic.interval throttles
+# this against the ~1e-7-5e-6s advective/chemistry timestep so the 1-Newton-
+# iteration MLMG solve (default elastic.nriters = 1, see
+# Base::Mechanics::Register) does not dominate runtime.
+elastic.type = static
+elastic.interval = 10
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.verbose = 4
+# Tolerance-based (not elastic.solver.fixed_iter): a stalled/non-converged
+# solve should be visible rather than silently accepted at these moduli --
+# see the WARNING at the top of this file.
+elastic.tol_rel = 1.0e-8
+elastic.tol_abs = 1.0e-8
+
+# BCs mirror the velocity slip-wall/open-top setup above, per component
+# (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear
+# traction-free, matching REFLECT_ODD/REFLECT_EVEN); ylo (solid substrate) is
+# fully clamped; yhi (open gas boundary) is fully traction-free. Edges and
+# corners take the per-component intersection of their adjacent faces
+# (displacement wins over traction where they conflict) -- see the
+# consistency warning in BC/Operator/Elastic/Constant.H.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp trac trac
+elastic.bc.constant.type.xhi = disp trac trac
+elastic.bc.constant.type.ylo = disp disp disp
+elastic.bc.constant.type.yhi = trac trac trac
+elastic.bc.constant.type.zlo = trac trac disp
+elastic.bc.constant.type.zhi = trac trac disp
+# 3D edges / 2D corners
+elastic.bc.constant.type.xloylo = disp disp disp
+elastic.bc.constant.type.xhiylo = disp disp disp
+elastic.bc.constant.type.xloyhi = disp trac trac
+elastic.bc.constant.type.xhiyhi = disp trac trac
+elastic.bc.constant.type.ylozlo = disp disp disp
+elastic.bc.constant.type.ylozhi = disp disp disp
+elastic.bc.constant.type.yhizlo = trac trac disp
+elastic.bc.constant.type.yhizhi = trac trac disp
+elastic.bc.constant.type.zloxlo = disp trac disp
+elastic.bc.constant.type.zloxhi = disp trac disp
+elastic.bc.constant.type.zhixlo = disp trac disp
+elastic.bc.constant.type.zhixhi = disp trac disp
+# 3D corners
+elastic.bc.constant.type.xloylozlo = disp disp disp
+elastic.bc.constant.type.xloylozhi = disp disp disp
+elastic.bc.constant.type.xhiylozlo = disp disp disp
+elastic.bc.constant.type.xhiylozhi = disp disp disp
+elastic.bc.constant.type.xloyhizlo = disp trac disp
+elastic.bc.constant.type.xloyhizhi = disp trac disp
+elastic.bc.constant.type.xhiyhizlo = disp trac disp
+elastic.bc.constant.type.xhiyhizhi = disp trac disp
