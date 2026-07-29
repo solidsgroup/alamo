@@ -65,7 +65,9 @@ public:
             const amrex::Box& box = mfi.tilebox();
             amrex::Box grown_box = box;
             grown_box.grow(mf.nGrow());
-            if (m_geom.Domain().contains(grown_box)) continue;
+            const amrex::Box domain =
+                amrex::convert(m_geom.Domain(), box.ixType());
+            if (domain.contains(grown_box)) continue;
             amrex::BaseFab<T>& in = mf[mfi];
             FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
         }
@@ -99,7 +101,9 @@ public:
             const amrex::Box& box = mfi.tilebox();
             amrex::Box grown_box = box;
             grown_box.grow(mf.nGrow());
-            if (m_geom.Domain().contains(grown_box)) continue;
+            const amrex::Box domain =
+                amrex::convert(m_geom.Domain(), box.ixType());
+            if (domain.contains(grown_box)) continue;
             amrex::BaseFab<T>& in = mf[mfi];
             FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
         }
