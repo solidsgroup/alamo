@@ -190,8 +190,15 @@ protected:
     int nspecies = 0;
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
+    std::vector<Set::Scalar> rigid_relaxation_time;
+    std::vector<Set::Vector> rigid_velocity;
+    std::vector<bool> rigid_anderson_coupling;
+    std::vector<int> rigid_coupling_max_iterations;
+    std::vector<Set::Scalar> rigid_coupling_relative_tolerance;
+    std::vector<Set::Scalar> rigid_coupling_absolute_tolerance;
     std::vector<int> fixed_rigid_solid_species;
     int free_rigid_solid_species = -1;
+    int free_rigid_solid_component = -1;
     std::vector<int> liquid_species;
     Model::PhaseField::MultLiquid liquid_phase_model;
 
@@ -228,12 +235,8 @@ protected:
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
     Set::Scalar liquid_reference_density_min = 1.0e100;
-    Set::Scalar rigid_relaxation_time = 1.0;
-    Set::Vector rigid_velocity = Set::Vector::Zero();
-    int free_rigid_picard_iterations = 1;
-    Set::Scalar free_rigid_picard_tolerance = 1.0e-6;
-    int last_free_rigid_picard_iterations = 0;
-    Set::Scalar last_free_rigid_picard_residual = 0.0;
+    int last_free_rigid_coupling_iterations = 0;
+    Set::Scalar last_free_rigid_coupling_residual = 0.0;
     Set::Scalar previous_free_rigid_dt = NAN;
 
     struct FreeRigidBodyState
@@ -247,7 +250,7 @@ protected:
         bool valid = false;
     };
     FreeRigidBodyState free_rigid_body;
-    FreeRigidBodyState previous_free_rigid_body;
+    FreeRigidBodyState previous_free_rigid_projection_increment;
 
     Numeric::Advect::Advect<Numeric::Advect::MUSCL,
                             Numeric::Advect::Upwind,

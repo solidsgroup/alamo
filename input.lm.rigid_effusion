@@ -54,7 +54,7 @@ Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_gas
 Al_sublimation.phase_change.phase_field.type = allencahn
 
-rigid.relaxation_time = 5.0e-5_s
+Al_solid.rigid.relaxation_time = 5.0e-5_s
 
 Al_sublimation.phase_change.phase_field.allencahn.mobility = 20.0_1/Pa/s
 Al_sublimation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2

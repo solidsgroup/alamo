@@ -13,8 +13,10 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=rigid.free.picard_iterations=2
-#@ args=rigid.free.picard_tolerance=1.0e-8
+#@ args=Al_solid.rigid.coupling=picard
+#@ args=Al_solid.rigid.max_iterations=2
+#@ args=Al_solid.rigid.relative_tolerance=1.0e-8
+#@ args=Al_solid.rigid.absolute_tolerance=1.0e-10_m/s
 #@ args=stop_time=0.04
 #@ args=amr.plot_int=100
 #@
@@ -81,11 +83,15 @@ Al_sublimation.phase_change.phase1 = Al_vapor
 Al_sublimation.phase_change.prescribed_speed = 0.0_m/s
 Al_sublimation.phase_change.phase_field.type = allencahn
 
-rigid.relaxation_time = 1.0e-5_s
-# One is the single-projection default.  Values above one enable restart-based
-# fixed-point corrections of the body target without accumulating projections.
-rigid.free.picard_iterations = 1
-rigid.free.picard_tolerance = 1.0e-6
+Al_solid.rigid.relaxation_time = 1.0e-5_s
+# The provisional body momentum plus the preceding projection impulse is the
+# primary predictor. Anderson acceleration adds corrections only until this
+# combined absolute/relative tolerance is met. Picard remains available as a
+# reference coupling method.
+Al_solid.rigid.coupling = anderson
+Al_solid.rigid.max_iterations = 3
+Al_solid.rigid.relative_tolerance = 1.0e-3
+Al_solid.rigid.absolute_tolerance = 1.0e-6_m/s
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod

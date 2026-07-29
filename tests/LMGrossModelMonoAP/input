@@ -115,8 +115,8 @@ AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
 AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
 AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
 
-rigid.relaxation_time = 1.0e-8_s
-rigid.velocity = 0.0 0.0
+AP_solid.rigid.relaxation_time = 1.0e-8_s
+AP_solid.rigid.velocity = 0.0 0.0
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod

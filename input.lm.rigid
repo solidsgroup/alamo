@@ -40,8 +40,8 @@ ambient_gas.mechanics = fluid
 rigid_solid.mechanics = rigid_solid
 rigid_solid.reference_density = 10.0_kg/m^3
 
-rigid.relaxation_time = 2.0e-4_s
-rigid.velocity = 0.0 0.0
+rigid_solid.rigid.relaxation_time = 2.0e-4_s
+rigid_solid.rigid.velocity = 0.0 0.0
 
 advection.type = weno5
 cfl = 0.25

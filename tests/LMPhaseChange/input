@@ -117,7 +117,8 @@ Al_condensation.phase_change.phase_field.allencahn.w0 = 10.0
 Al_condensation.phase_change.phase_field.allencahn.w12 = 11.0
 Al_condensation.phase_change.phase_field.allencahn.w1 = 0.0
 
-rigid.relaxation_time = 1.0e-4_s
+Al_solid.rigid.relaxation_time = 1.0e-4_s
+Al_solid.rigid.velocity = 0.0 0.0
 diffusion.verbose = 0
 diffusion.tol_rel = 1.0e-10
 diffusion.tol_abs = 1.0e-12

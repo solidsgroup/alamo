@@ -202,48 +202,78 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     {
         if (!value.projection_enabled)
             Util::Exception(INFO, "Rigid solid mechanics requires projection.enabled=1");
-        pp.query_required("rigid.relaxation_time",
-                        value.rigid_relaxation_time, Unit::Time());
-        pp.queryarr_default("rigid.velocity", value.rigid_velocity, Set::Vector::Zero());
-        if (value.rigid_relaxation_time <= 0.0)
-            Util::Exception(INFO, "rigid.relaxation_time must be positive");
-        for (const int n : value.rigid_solid_species)
+        const int nrigid = static_cast<int>(value.rigid_solid_species.size());
+        value.rigid_relaxation_time.resize(nrigid);
+        value.rigid_velocity.resize(nrigid, Set::Vector::Zero());
+        value.rigid_anderson_coupling.resize(nrigid, true);
+        value.rigid_coupling_max_iterations.resize(nrigid, 3);
+        value.rigid_coupling_relative_tolerance.resize(nrigid, 1.0e-3);
+        value.rigid_coupling_absolute_tolerance.resize(nrigid, 1.0e-6);
+        for (int m = 0;
+             m < nrigid; ++m)
         {
+            const int n = value.rigid_solid_species[m];
+            const std::string prefix = value.species_names[n] + ".rigid";
             pp.query_required(value.species_names[n] + ".reference_density",
                             value.reference_density[n], Unit::Density());
             if (value.reference_density[n] <= 0.0)
                 Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
 
+            pp.query_required(prefix + ".relaxation_time",
+                            value.rigid_relaxation_time[m], Unit::Time());
+            if (!(value.rigid_relaxation_time[m] > 0.0))
+                Util::Exception(INFO, prefix,
+                    ".relaxation_time must be positive");
+
             std::string motion;
-            pp.query_default(value.species_names[n] + ".rigid.motion",
-                            motion, "fixed");
+            pp.query_default(prefix + ".motion", motion, "fixed");
             if (motion == "fixed")
+            {
+                pp.queryarr_required(prefix + ".velocity",
+                                    value.rigid_velocity[m], Unit::Velocity());
                 value.fixed_rigid_solid_species.push_back(n);
+            }
             else if (motion == "free")
             {
                 if (value.free_rigid_solid_species >= 0)
                     Util::Exception(INFO,
                         "LowMach currently supports one freely moving rigid species");
                 value.free_rigid_solid_species = n;
+                value.free_rigid_solid_component = m;
+
+                std::string coupling;
+                pp.query_default(prefix + ".coupling", coupling, "anderson");
+                if (coupling == "anderson")
+                    value.rigid_anderson_coupling[m] = true;
+                else if (coupling == "picard")
+                    value.rigid_anderson_coupling[m] = false;
+                else
+                    Util::Exception(INFO, prefix,
+                        ".coupling must be anderson or picard");
+
+                pp.query_default(prefix + ".max_iterations",
+                                value.rigid_coupling_max_iterations[m], 3);
+                pp.query_default(prefix + ".relative_tolerance",
+                                value.rigid_coupling_relative_tolerance[m],
+                                1.0e-3);
+                pp.query_default(prefix + ".absolute_tolerance",
+                                value.rigid_coupling_absolute_tolerance[m],
+                                "1.0e-6_m/s", Unit::Velocity());
+                if (value.rigid_coupling_max_iterations[m] < 1)
+                    Util::Exception(INFO, prefix,
+                        ".max_iterations must be at least one");
+                if (value.rigid_coupling_relative_tolerance[m] < 0.0 ||
+                    value.rigid_coupling_absolute_tolerance[m] < 0.0 ||
+                    !(value.rigid_coupling_relative_tolerance[m] > 0.0 ||
+                      value.rigid_coupling_absolute_tolerance[m] > 0.0))
+                    Util::Exception(INFO, prefix,
+                        " coupling tolerances must be nonnegative and at "
+                        "least one must be positive");
             }
             else
-                Util::Exception(INFO, motion,
-                    " is not a valid rigid motion for species ",
-                    value.species_names[n], "; expected fixed or free");
-        }
-        if (value.free_rigid_solid_species >= 0)
-        {
-            pp.query_default("rigid.free.picard_iterations",
-                            value.free_rigid_picard_iterations, 1);
-            pp.query_default("rigid.free.picard_tolerance",
-                            value.free_rigid_picard_tolerance, 1.0e-6);
-            if (value.free_rigid_picard_iterations < 1)
-                Util::Exception(INFO,
-                    "rigid.free.picard_iterations must be at least one");
-            if (!(value.free_rigid_picard_tolerance > 0.0))
-                Util::Exception(INFO,
-                    "rigid.free.picard_tolerance must be positive");
+                Util::Exception(INFO, prefix,
+                    ".motion must be fixed or free");
         }
     }
     if (!value.liquid_species.empty())
@@ -1967,7 +1997,6 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const int nlev = finest_level + 1;
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
-    const bool fixed_rigid_solid = !fixed_rigid_solid_species.empty();
     const bool free_rigid_solid = free_rigid_solid_species >= 0;
     const bool liquid = !liquid_species.empty();
     const bool mixed_phase = deformable_solid || rigid_solid || liquid;
@@ -1976,6 +2005,18 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         implicit_thermal_diffusion || implicit_species_diffusion;
     const bool split_phase_change =
         rigid_solid && !mechanisms.empty();
+    const int nrigid = static_cast<int>(rigid_solid_species.size());
+    Model::Chemistry::SpeciesArray rigid_inverse_relaxation_time{};
+    std::array<Model::Chemistry::SpeciesArray, AMREX_SPACEDIM>
+        rigid_prescribed_velocity{};
+    for (int m = 0; m < nrigid; ++m)
+    {
+        rigid_inverse_relaxation_time[m] =
+            1.0 / rigid_relaxation_time[m];
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            rigid_prescribed_velocity[d][m] =
+                rigid_velocity[m](d);
+    }
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
@@ -1991,34 +2032,48 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         UpdateComponentState(lev, *component_density_mf[lev]);
     }
 
-    // The body's position and inertia come from the current phase field.  Its
-    // velocity is predicted from pressure-corrected states so that the
-    // Brinkman update can be included in the one primary projection.
-    FreeRigidBodyState projected_body_state = free_rigid_body;
+    // Preserve the momentum already accumulated by advection and diffusion,
+    // then predict only the missing pressure/constraint impulse from the
+    // preceding step.  This is substantially more accurate than extrapolating
+    // old final velocities because the fresh provisional state is retained.
+    FreeRigidBodyState provisional_body_state;
     FreeRigidBodyState target_body;
     if (free_rigid_solid)
     {
         UpdateFreeRigidBodyState();
-        target_body = free_rigid_body;
-        if (target_body.valid && projected_body_state.valid)
+        provisional_body_state = free_rigid_body;
+        target_body = provisional_body_state;
+        if (target_body.valid &&
+            previous_free_rigid_projection_increment.valid &&
+            previous_free_rigid_dt > 0.0)
         {
-            target_body.velocity = projected_body_state.velocity;
-            target_body.angular_velocity =
-                projected_body_state.angular_velocity;
-            if (previous_free_rigid_body.valid)
+            const Set::Scalar step_ratio = dt / previous_free_rigid_dt;
+            const Set::Scalar mass_scale = Util::Max(
+                Util::Max(target_body.mass,
+                    previous_free_rigid_projection_increment.mass),
+                density_floor);
+            const Set::Scalar radius_scale = Util::Max(
+                Util::Max(target_body.radius_of_gyration,
+                    previous_free_rigid_projection_increment.radius_of_gyration),
+                1.0e-12);
+            const bool compatible_history =
+                step_ratio >= 0.25 && step_ratio <= 4.0 &&
+                Util::Abs(target_body.mass -
+                    previous_free_rigid_projection_increment.mass) <=
+                    0.25 * mass_scale &&
+                Util::Abs(target_body.radius_of_gyration -
+                    previous_free_rigid_projection_increment.radius_of_gyration) <=
+                    0.25 * radius_scale;
+            if (compatible_history)
             {
-                const Set::Scalar extrapolation = previous_free_rigid_dt > 0.0 ?
-                    dt / previous_free_rigid_dt : 1.0;
-                target_body.velocity += extrapolation *
-                    (projected_body_state.velocity -
-                    previous_free_rigid_body.velocity);
-                target_body.angular_velocity += extrapolation *
-                    (projected_body_state.angular_velocity -
-                    previous_free_rigid_body.angular_velocity);
+                target_body.velocity += step_ratio *
+                    previous_free_rigid_projection_increment.velocity;
+                target_body.angular_velocity += step_ratio *
+                    previous_free_rigid_projection_increment.angular_velocity;
             }
         }
 
-        if (free_rigid_picard_iterations > 1)
+        if (rigid_coupling_max_iterations[free_rigid_solid_component] > 1)
         {
             for (int lev = 0; lev < nlev; ++lev)
             {
@@ -2038,8 +2093,6 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::MultiFab& beta_mf = pressure_poisson.Coefficient(lev);
         const Set::Scalar rho_floor = density_floor;
-        const Set::Scalar inverse_relaxation_time = rigid_solid ?
-            1.0 / rigid_relaxation_time : 0.0;
 
         pressure_poisson.RHS(lev).setVal(0.0);
         for (const auto& configured_mechanism : mechanisms)
@@ -2129,24 +2182,22 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> fixed_rigid_eta;
-            if (fixed_rigid_solid)
-                fixed_rigid_eta = fixed_rigid_eta_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> free_rigid_eta;
-            if (free_rigid_solid)
-                free_rigid_eta = free_rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rigid_species_eta;
+            if (rigid_solid)
+                rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Scalar weight = 0.0;
-                if (fixed_rigid_solid)
-                    weight += Model::PhaseField::H(Util::Clamp(
-                        fixed_rigid_eta(i,j,k), 0.0, 1.0));
-                if (free_rigid_solid)
-                    weight += Model::PhaseField::H(Util::Clamp(
-                        free_rigid_eta(i,j,k), 0.0, 1.0));
-                const Set::Scalar mobility = 1.0 / (1.0 + dt * weight * inverse_relaxation_time);
+                Set::Scalar penalty_rate = 0.0;
+                for (int m = 0; m < nrigid; ++m)
+                {
+                    const Set::Scalar weight = Model::PhaseField::H(
+                        Util::Clamp(rigid_species_eta(i,j,k,m), 0.0, 1.0));
+                    penalty_rate += weight * rigid_inverse_relaxation_time[m];
+                }
+                const Set::Scalar mobility =
+                    1.0 / (1.0 + dt * penalty_rate);
                 beta(i,j,k) = mobility / Util::Max(rho(i,j,k), rho_floor);
             });
         }
@@ -2241,73 +2292,73 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
     auto ApplyRigidPenalty = [&](const FreeRigidBodyState& body)
     {
-        const Set::Scalar inverse_relaxation_time =
-            1.0 / rigid_relaxation_time;
         for (int lev = 0; lev < nlev; ++lev)
         {
             const bool active_free_rigid = free_rigid_solid && body.valid;
             const auto prob_lo = geom[lev].ProbLoArray();
             const auto dx = geom[lev].CellSizeArray();
-            const Set::Vector fixed_translation = rigid_velocity;
             const Set::Vector center = body.center;
             const Set::Vector free_translation = body.velocity;
             const Set::Vector rotation = body.angular_velocity;
+            const int free_component = free_rigid_solid_component;
             for (amrex::MFIter mfi(*velocity_mf[lev],
                     amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
                 Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> fixed_eta;
-                if (fixed_rigid_solid)
-                    fixed_eta = fixed_rigid_eta_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> free_eta;
-                if (active_free_rigid)
-                    free_eta =
-                        free_rigid_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_species_eta =
+                    rigid_species_eta_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(bx,
                     [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar total_weight = 0.0;
+                    Set::Scalar total_penalty_rate = 0.0;
                     Set::Scalar weighted_target[AMREX_SPACEDIM] = {0.0};
-                    if (fixed_rigid_solid)
+                    for (int m = 0; m < nrigid; ++m)
                     {
                         const Set::Scalar weight = Model::PhaseField::H(
-                            Util::Clamp(fixed_eta(i,j,k), 0.0, 1.0));
-                        total_weight += weight;
-                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                            weighted_target[d] += weight *
-                                fixed_translation(d);
-                    }
-                    if (active_free_rigid)
-                    {
-                        const Set::Scalar weight = Model::PhaseField::H(
-                            Util::Clamp(free_eta(i,j,k), 0.0, 1.0));
-                        total_weight += weight;
+                            Util::Clamp(
+                                rigid_species_eta(i,j,k,m), 0.0, 1.0));
+                        if (!(weight > 0.0) ||
+                            (m == free_component && !active_free_rigid))
+                            continue;
+                        const Set::Scalar penalty_rate = weight *
+                            rigid_inverse_relaxation_time[m];
+                        total_penalty_rate += penalty_rate;
                         Set::Scalar target[AMREX_SPACEDIM];
                         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                            target[d] = free_translation(d);
+                            target[d] = m == free_component ?
+                                free_translation(d) :
+                                rigid_prescribed_velocity[d][m];
+                        if (m == free_component)
+                        {
 #if AMREX_SPACEDIM == 2
-                        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
-                        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
-                        target[0] -= rotation(0) * y;
-                        target[1] += rotation(0) * x;
+                            const Set::Scalar x = prob_lo[0] +
+                                (i + 0.5) * dx[0] - center(0);
+                            const Set::Scalar y = prob_lo[1] +
+                                (j + 0.5) * dx[1] - center(1);
+                            target[0] -= rotation(0) * y;
+                            target[1] += rotation(0) * x;
 #elif AMREX_SPACEDIM == 3
-                        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
-                        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
-                        const Set::Scalar z = prob_lo[2] + (k + 0.5) * dx[2] - center(2);
-                        target[0] += rotation(1) * z - rotation(2) * y;
-                        target[1] += rotation(2) * x - rotation(0) * z;
-                        target[2] += rotation(0) * y - rotation(1) * x;
+                            const Set::Scalar x = prob_lo[0] +
+                                (i + 0.5) * dx[0] - center(0);
+                            const Set::Scalar y = prob_lo[1] +
+                                (j + 0.5) * dx[1] - center(1);
+                            const Set::Scalar z = prob_lo[2] +
+                                (k + 0.5) * dx[2] - center(2);
+                            target[0] += rotation(1) * z - rotation(2) * y;
+                            target[1] += rotation(2) * x - rotation(0) * z;
+                            target[2] += rotation(0) * y - rotation(1) * x;
 #endif
+                        }
                         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                            weighted_target[d] += weight * target[d];
+                            weighted_target[d] += penalty_rate * target[d];
                     }
                     const Set::Scalar mobility = 1.0 /
-                        (1.0 + dt * total_weight * inverse_relaxation_time);
+                        (1.0 + dt * total_penalty_rate);
                     for (int d = 0; d < AMREX_SPACEDIM; ++d)
                         u(i,j,k,d) = mobility * (u(i,j,k,d) + dt *
-                            inverse_relaxation_time * weighted_target[d]);
+                            weighted_target[d]);
                 });
             }
 
@@ -2335,42 +2386,37 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         }
     };
 
-    auto RigidBodyResidual = [](const FreeRigidBodyState& a,
-                                const FreeRigidBodyState& b)
+    auto RigidBodyMagnitude = [](const FreeRigidBodyState& body,
+                                 Set::Scalar radius)
     {
-        if (!a.valid && !b.valid) return Set::Scalar(0.0);
-        if (!a.valid || !b.valid) return Set::Scalar(1.0e100);
-        const Set::Scalar radius = Util::Max(
-            Util::Max(a.radius_of_gyration, b.radius_of_gyration), 1.0e-12);
-        Set::Scalar delta_squared = 0.0;
-        Set::Scalar a_squared = 0.0;
-        Set::Scalar b_squared = 0.0;
+        if (!body.valid) return Set::Scalar(0.0);
+        Set::Scalar magnitude_squared = 0.0;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-        {
-            const Set::Scalar delta_velocity = a.velocity(d) - b.velocity(d);
-            const Set::Scalar delta_rotation = radius *
-                (a.angular_velocity(d) - b.angular_velocity(d));
-            delta_squared += delta_velocity * delta_velocity +
-                delta_rotation * delta_rotation;
-            a_squared += a.velocity(d) * a.velocity(d) + radius * radius *
-                a.angular_velocity(d) * a.angular_velocity(d);
-            b_squared += b.velocity(d) * b.velocity(d) + radius * radius *
-                b.angular_velocity(d) * b.angular_velocity(d);
-        }
-        const Set::Scalar scale = Util::Max(
-            Util::Max(std::sqrt(a_squared), std::sqrt(b_squared)), 1.0e-12);
-        return std::sqrt(delta_squared) / scale;
+            magnitude_squared += body.velocity(d) * body.velocity(d) +
+                radius * radius * body.angular_velocity(d) *
+                body.angular_velocity(d);
+        return std::sqrt(magnitude_squared);
     };
 
     const int projection_iterations = free_rigid_solid ?
-        free_rigid_picard_iterations : 1;
-    last_free_rigid_picard_iterations = 0;
-    last_free_rigid_picard_residual = 0.0;
+        rigid_coupling_max_iterations[free_rigid_solid_component] : 1;
+    const Set::Scalar coupling_relative_tolerance = free_rigid_solid ?
+        rigid_coupling_relative_tolerance[free_rigid_solid_component] : 0.0;
+    const Set::Scalar coupling_absolute_tolerance = free_rigid_solid ?
+        rigid_coupling_absolute_tolerance[free_rigid_solid_component] : 0.0;
+    const bool anderson_coupling = free_rigid_solid &&
+        rigid_anderson_coupling[free_rigid_solid_component];
+    last_free_rigid_coupling_iterations = 0;
+    last_free_rigid_coupling_residual = 0.0;
+    FreeRigidBodyState previous_coupling_output;
+    Set::Vector previous_residual_velocity = Set::Vector::Zero();
+    Set::Vector previous_residual_rotation = Set::Vector::Zero();
+    bool have_previous_coupling_residual = false;
     for (int iteration = 0; iteration < projection_iterations; ++iteration)
     {
-        // Picard corrections are alternative coupled solutions of the same
-        // step.  Always restart from u* instead of projecting an already
-        // corrected velocity again.
+        // Coupling corrections are alternative solutions of the same step.
+        // Always restart from u* rather than projecting an already corrected
+        // velocity a second time.
         if (iteration > 0)
             for (int lev = 0; lev < nlev; ++lev)
                 amrex::MultiFab::Copy(*velocity_mf[lev],
@@ -2414,17 +2460,75 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         if (!free_rigid_solid) break;
 
         UpdateFreeRigidBodyState();
-        last_free_rigid_picard_iterations = iteration + 1;
-        last_free_rigid_picard_residual =
-            RigidBodyResidual(free_rigid_body, target_body);
-        if (last_free_rigid_picard_residual <=
-                free_rigid_picard_tolerance ||
+        const Set::Scalar residual_radius = Util::Max(
+            Util::Max(free_rigid_body.radius_of_gyration,
+                target_body.radius_of_gyration), 1.0e-12);
+        Set::Vector residual_velocity = Set::Vector::Zero();
+        Set::Vector residual_rotation = Set::Vector::Zero();
+        Set::Scalar residual_squared = 0.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            residual_velocity(d) = free_rigid_body.velocity(d) -
+                target_body.velocity(d);
+            residual_rotation(d) = free_rigid_body.angular_velocity(d) -
+                target_body.angular_velocity(d);
+            residual_squared += residual_velocity(d) * residual_velocity(d) +
+                residual_radius * residual_radius *
+                residual_rotation(d) * residual_rotation(d);
+        }
+        const Set::Scalar residual = std::sqrt(residual_squared);
+        const Set::Scalar residual_scale = Util::Max(
+            RigidBodyMagnitude(free_rigid_body, residual_radius),
+            RigidBodyMagnitude(target_body, residual_radius));
+        last_free_rigid_coupling_iterations = iteration + 1;
+        last_free_rigid_coupling_residual = residual / Util::Max(
+            residual_scale, coupling_absolute_tolerance);
+        if (residual <= coupling_absolute_tolerance +
+                coupling_relative_tolerance * residual_scale ||
             iteration + 1 == projection_iterations)
             break;
-        target_body = free_rigid_body;
+
+        if (anderson_coupling && have_previous_coupling_residual)
+        {
+            Set::Scalar numerator = 0.0;
+            Set::Scalar denominator = 0.0;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const Set::Scalar delta_velocity = residual_velocity(d) -
+                    previous_residual_velocity(d);
+                const Set::Scalar delta_rotation = residual_radius *
+                    (residual_rotation(d) - previous_residual_rotation(d));
+                numerator += previous_residual_velocity(d) * delta_velocity +
+                    residual_radius * previous_residual_rotation(d) *
+                    delta_rotation;
+                denominator += delta_velocity * delta_velocity +
+                    delta_rotation * delta_rotation;
+            }
+            if (denominator > 1.0e-24)
+            {
+                const Set::Scalar weight = Util::Clamp(
+                    -numerator / denominator, 0.0, 5.0);
+                target_body = previous_coupling_output;
+                target_body.velocity += weight *
+                    (free_rigid_body.velocity -
+                    previous_coupling_output.velocity);
+                target_body.angular_velocity += weight *
+                    (free_rigid_body.angular_velocity -
+                    previous_coupling_output.angular_velocity);
+            }
+            else
+                target_body = free_rigid_body;
+        }
+        else
+            target_body = free_rigid_body;
+
+        previous_coupling_output = free_rigid_body;
+        previous_residual_velocity = residual_velocity;
+        previous_residual_rotation = residual_rotation;
+        have_previous_coupling_residual = true;
     }
 
-    // Only the final Picard candidate contributes a pressure correction.
+    // Only the final coupling candidate contributes a pressure correction.
     for (int lev = 0; lev < nlev; ++lev)
     {
         amrex::MultiFab::Copy(*pressure_correction_mf[lev],
@@ -2456,14 +2560,19 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
     if (free_rigid_solid)
     {
-        if (free_rigid_body.valid && projected_body_state.valid)
+        if (free_rigid_body.valid && provisional_body_state.valid)
         {
-            previous_free_rigid_body = projected_body_state;
+            previous_free_rigid_projection_increment = provisional_body_state;
+            previous_free_rigid_projection_increment.velocity =
+                free_rigid_body.velocity - provisional_body_state.velocity;
+            previous_free_rigid_projection_increment.angular_velocity =
+                free_rigid_body.angular_velocity -
+                provisional_body_state.angular_velocity;
             previous_free_rigid_dt = dt;
         }
         else
         {
-            previous_free_rigid_body = FreeRigidBodyState{};
+            previous_free_rigid_projection_increment = FreeRigidBodyState{};
             previous_free_rigid_dt = NAN;
         }
     }
@@ -3316,10 +3425,10 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
 #endif
         amrex::Print() << " free_rigid_radius_of_gyration "
                         << free_rigid_body.radius_of_gyration
-                        << " free_rigid_picard_iterations "
-                        << last_free_rigid_picard_iterations
-                        << " free_rigid_picard_residual "
-                        << last_free_rigid_picard_residual;
+                        << " free_rigid_coupling_iterations "
+                        << last_free_rigid_coupling_iterations
+                        << " free_rigid_coupling_residual "
+                        << last_free_rigid_coupling_residual;
     }
     if (amrex::ParallelDescriptor::IOProcessor()) amrex::Print() << "\n";
 }
