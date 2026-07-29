@@ -51,6 +51,7 @@ public:
         amrex::Array4<T> const& finearr = fine.array();
         amrex::Array4<T> const& slopearr = slopefab.array();
 
+        // AMReX's launch macro uses RunOn and Gpu without namespace qualifiers.
         using namespace amrex;
 
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(runon, cslope_bx, tbx,

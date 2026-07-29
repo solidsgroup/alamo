@@ -459,10 +459,12 @@ def test(testdir):
                 cuda_arch = args.cuda
                 if cuda_arch == "auto":
                     result = subprocess.run(
-                        ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+                        ["nvidia-smi", "--query-gpu=compute_cap",
+                         "--format=csv,noheader"],
                         capture_output=True, text=True, check=True,
                     )
-                    cuda_arch = result.stdout.splitlines()[0].strip().replace(".", "")
+                    cuda_arch = (
+                        result.stdout.splitlines()[0].strip().replace(".", ""))
                 exestr += f"-cuda{cuda_arch}"
             exestr += "-"+args.comp
             
