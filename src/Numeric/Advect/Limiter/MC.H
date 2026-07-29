@@ -15,6 +15,7 @@ class MC
 {
 public:
     static constexpr const char* name = "mc";
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar operator() (Set::Scalar lo, Set::Scalar mid, Set::Scalar hi) const
     {
         double dl = mid - lo;

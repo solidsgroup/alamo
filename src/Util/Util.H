@@ -51,12 +51,15 @@ void Finalize ();
 
 void Terminate(const char * msg, int signal, bool backtrace);
 
+AMREX_GPU_HOST_DEVICE
 void Abort (const char * msg);
 
 template<typename... Args>
 AMREX_FORCE_INLINE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Assert (const char *file, const char *func, int line, const char *smt, bool pass, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (pass) return;
 
     std::ostringstream infostream;
@@ -77,12 +80,17 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    if (!pass) amrex::Abort();
+#endif
 }
 
 
 template<typename... Args>
-void Abort (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Abort (const char *file, const char *func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -101,6 +109,9 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
         std::cout << info << message << std::endl;
     }
     Abort("Fatal Error");
+#else
+    amrex::Abort();
+#endif
 }
 
 template<typename... Args>
