@@ -61,4 +61,4 @@ alamo
 setup.py
 alamo.py
 .alamo
-
+docs/source*
