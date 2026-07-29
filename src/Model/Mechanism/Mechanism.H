@@ -21,6 +21,11 @@ struct State
     amrex::Array4<const Set::Scalar> rigid_species_eta;
     Set::Scalar temperature;
     Set::Scalar pressure;
+    // Multiplicative gate in [0,1] for permanently-inert regions (e.g. a
+    // pre-existing void or embedded filler that should not react even once a
+    // real front reaches it, until released -- see PhaseChange::LocalRate,
+    // GradientCoefficient, MassSource). 1.0 = mechanism fully active.
+    Set::Scalar gate = 1.0;
 };
 
 template<typename... OBJ>

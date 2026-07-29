@@ -176,7 +176,7 @@ public:
         if (activation_temperature > 0.0)
             rate *= std::exp(
                 -activation_temperature / state.temperature);
-        return rate_multiplier * rate;
+        return state.gate * rate_multiplier * rate;
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -197,7 +197,7 @@ public:
         const Set::Scalar temperature_factor =
             activation_temperature > 0.0 ?
                 std::exp(-activation_temperature / state.temperature) : 1.0;
-        return composition * rate_multiplier * temperature_factor *
+        return state.gate * composition * rate_multiplier * temperature_factor *
             model.GradientCoefficient();
     }
 
@@ -256,7 +256,7 @@ private:
         }
         if (activation_temperature > 0.0)
             eta_dot *= std::exp(-activation_temperature / state.temperature);
-        return rate_multiplier * reference_density * eta_dot;
+        return state.gate * rate_multiplier * reference_density * eta_dot;
     }
 
     Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn> model;

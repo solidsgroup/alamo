@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+numpy = testlib.numpy
+yt = testlib.yt
+
+# Void geometry from tests/LowMachVoidMerge/input: a circular void of radius
+# 40um centered at (xc, yc) = (90um, -90um), carved out of a solid AP domain
+# whose burning surface starts at y=0. By the end of the run the real
+# regressing front should have consumed all of the solid between the void and
+# the surface, merging the void with the open headspace above.
+XC = 90.0e-6
+HALF_RHO = 1950.0 / 2.0
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachVoidMerge requires initial and final plotfiles")
+
+
+def ap_solid_mass(ds):
+    ad = ds.all_data()
+    rho = ad["component_density_AP_solid"].to_ndarray()
+    if not numpy.all(numpy.isfinite(rho)):
+        raise RuntimeError(f"non-finite AP_solid density at t={float(ds.current_time)}")
+    return float(rho.sum())
+
+
+def crossing_count(ds, x_target=XC, half_width=3.0e-6, threshold=HALF_RHO):
+    # Count how many times component_density_AP_solid crosses `threshold`
+    # along a vertical line at x=x_target, ordered from low y to high y.
+    # Two separated solid regions (solid / void / solid / gas) give three
+    # crossings; a merged single solid region (solid / gas) gives one.
+    ad = ds.all_data()
+    x = ad[("index", "x")].to_ndarray()
+    y = ad[("index", "y")].to_ndarray()
+    rho = ad["component_density_AP_solid"].to_ndarray()
+    mask = numpy.abs(x - x_target) < half_width
+    if mask.sum() < 4:
+        raise RuntimeError("too few cells along the void-center vertical line")
+    order = numpy.argsort(y[mask])
+    above = rho[mask][order] > threshold
+    return int(numpy.sum(above[:-1] != above[1:]))
+
+
+# 1. All fields finite, and AP_solid mass is monotonically nonincreasing
+# across every saved frame (regression only consumes solid, never creates
+# it) -- checked over the whole run, not just first/last.
+masses = []
+for path in plotfiles:
+    ds = yt.load(path)
+    masses.append(ap_solid_mass(ds))
+for prev, cur, path in zip(masses[:-1], masses[1:], plotfiles[1:]):
+    if cur > prev * (1.0 + 1.0e-6):
+        raise RuntimeError(
+            f"AP_solid mass increased at {path}: {prev} -> {cur}")
+
+# 2. Merge detection: at t=0 the void is a separate pocket (solid / void /
+# solid / gas along the vertical line through its center -- three crossings
+# of the half-max threshold); by the final frame the front should have
+# consumed the intervening solid, merging the void into the open headspace
+# (solid / gas -- one crossing).
+initial_ds = yt.load(plotfiles[0])
+final_ds = yt.load(plotfiles[-1])
+initial_crossings = crossing_count(initial_ds)
+final_crossings = crossing_count(final_ds)
+if initial_crossings < 3:
+    raise RuntimeError(
+        f"initial condition does not show a separate void pocket "
+        f"(expected >=3 crossings, got {initial_crossings})")
+if final_crossings > 1:
+    raise RuntimeError(
+        f"void has not merged with the front by the final frame "
+        f"(expected 1 crossing, got {final_crossings})")
+
+print("LowMach void-merge regression passed "
+      f"(AP_solid mass {masses[0]:.3e} -> {masses[-1]:.3e}, "
+      f"crossings {initial_crossings} -> {final_crossings})")

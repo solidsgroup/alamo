@@ -9,12 +9,25 @@
 // as selected by the per-polygon invert list). The void field is inverted (zero inside, one outside the
 // void polygons) and multiplied into the solid field, punching holes wherever a void polygon overlaps it.
 // invert_all is then applied once at the end to flip the whole finished field if desired.
+//
+// When used to carve a void into a phase-field-coupled solid (e.g. LowMach's
+// AP_decomposition mechanism), the polygon's local radius of curvature at
+// every vertex/edge must exceed the phase-field model's natural interface
+// width delta = 2*sqrt(kappa/(lambda*w''(0))) (see input.lm.ap_void for the
+// derivation), or the phase field will be far out of equilibrium there and
+// can destabilize the pressure projection. `eps` should also be sized to
+// match delta: eps = delta/sqrt(2), since this class smooths with
+// tanh(d/(sqrt(2)*eps)) while phase-field IC formulas conventionally use
+// tanh(d/delta). Sharp corners are locally near-infinite curvature and are
+// strictly worse than a smooth curve of the same size -- round them to at
+// least delta.
 
 #ifndef IC_POINTLIST_H_
 #define IC_POINTLIST_H_
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "Unit/Unit.H"
 #include "Util/Util.H"
 using namespace std;
 #include <iostream>
@@ -40,6 +53,11 @@ public:
     PointList(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
 
     PointList(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    {
+        pp.queryclass(name, *this);
+    }
+    PointList(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit,
+              IO::ParmParse& pp, std::string name) : IC(_geom), field_unit(a_unit)
     {
         pp.queryclass(name, *this);
     }
@@ -236,6 +254,27 @@ public:
                 });
             }
         }
+
+        {
+            // Scale the finished 0-1 indicator field by field_value (in field_unit,
+            // e.g. a density) so this IC can be used directly for physical fields,
+            // not just dimensionless masks.
+            const Set::Scalar value = field_value;
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx;
+                amrex::IndexType type = a_phi[lev]->ixType();
+                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+                else Util::Abort(INFO, "Unkonwn index type");
+                amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    phi(i,j,k) *= value;
+                });
+            }
+        }
     }
 
     static void Parse(PointList& value, IO::ParmParse& pp)
@@ -257,6 +296,9 @@ public:
 
         // Whether to invert the finished field as a whole (make IC 1 outside of solid instead of inside solid)
         pp.query_default("invert_all",value.invert_all,false);
+
+        // Value assigned inside the finished (solid, non-void) region, in field_unit
+        pp.query_default("value", value.field_value, "1.0", value.field_unit);
 
         // X-offsed, applied after the rotation
         pp.queryarr_default("x0",value.x0,"0.0 0.0 0.0", Unit::Length());
@@ -356,6 +398,8 @@ private:
     std::vector<std::vector<Set::Vector>> polygons; // Each entry is the ordered list of vertices for one closed polygon
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
+    Unit field_unit = Unit::Less();
+    Set::Scalar field_value = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
     Set::Field<Set::Scalar> phi_temp;
     Set::Field<Set::Scalar> phi_void;

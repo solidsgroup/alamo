@@ -1,6 +1,8 @@
 #ifndef INTEGRATOR_LOWMACH_H
 #define INTEGRATOR_LOWMACH_H
 
+#include <limits>
+
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
 
@@ -11,6 +13,8 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PNG.H"
+#include "IC/PointList.H"
 #include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -53,6 +57,7 @@ public:
         delete velocity_ic;
         delete temperature_ic;
         delete heat_source_ic;
+        delete psi_mechanism_ic;
         for (auto* ic : component_density_ic)
             delete ic;
         delete pressure_ic;
@@ -116,6 +121,7 @@ protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> rigid_species_eta_mf;
+    Set::Field<Set::Scalar> psi_mechanism_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -150,6 +156,11 @@ protected:
     std::vector<IC::IC<Set::Scalar>*> component_density_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
+    IC::IC<Set::Scalar>* psi_mechanism_ic = nullptr;
+    bool psi_mechanism_on = false;
+    Set::Scalar psi_release_temperature = std::numeric_limits<Set::Scalar>::max();
+    Set::Scalar psi_release_eta_threshold = 0.01;
+    void UpdateMechanismGate();
 
     Model::Gas::Gas gas;
     using Chemistry = Model::Chemistry::Chemistry<

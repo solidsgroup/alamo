@@ -135,7 +135,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
+            pp.select<IC::Constant,IC::Expression,IC::PSRead,IC::PointList,IC::PNG>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
     }
@@ -279,12 +279,30 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, pp.forward_args(1));
 
     pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, pp.forward_args(value.geom));
-    pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Constant,IC::Expression,IC::PointList,IC::PNG>("temperature.ic", value.temperature_ic, pp.forward_args(value.geom));
     if (pp.contains("heat_source.ic.type"))
         pp.select<IC::Constant,IC::Expression>(
             "heat_source.ic", value.heat_source_ic,
             pp.forward_args(value.geom,Unit::Power() / Unit::Volume()));
     pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, pp.forward_args(value.geom));
+    if (pp.contains("psi.ic.type"))
+    {
+        // psi_mechanism: an optional, evolving [0,1] gate on all
+        // rigid_solid phase-change mechanisms (1 = active). Regions
+        // initialized at 0 stay permanently inert (e.g. an embedded filler
+        // particle) until a real front both heats them past
+        // release_temperature *and* measurably consumes neighboring
+        // solid mass -- see UpdateMechanismGate. Regions initialized at 1
+        // (the default background, e.g. via IC::Expression) are always
+        // fully active and never gated, matching pre-existing behavior.
+        pp.select<IC::Constant,IC::Expression,IC::PointList,IC::PNG>(
+            "psi.ic", value.psi_mechanism_ic, pp.forward_args(value.geom));
+        value.psi_mechanism_on = true;
+        pp.query_default("psi.release_temperature",
+            value.psi_release_temperature, "1.0e30_K", Unit::Temperature());
+        pp.query_default("psi.release_eta_threshold",
+            value.psi_release_eta_threshold, 0.01);
+    }
     if (value.deformable_solid_species >= 0)
     {
         pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("xi.bc", value.xi_bc, pp.forward_args(AMREX_SPACEDIM));
@@ -307,6 +325,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.heat_source_mf, &value.bc_nothing, 1, 0,
             "heat_source", false, false);
+    if (value.psi_mechanism_on)
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.psi_mechanism_mf, &value.bc_nothing, 1, 1,
+            "psi_mechanism", true, true);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.nspecies, nghost, "component_density",     true,  true, species_suffix);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.nspecies, nghost, "component_density_old", false, true, species_suffix);
     if (value.deformable_solid_species >= 0)
@@ -877,13 +899,18 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     diffusion.Mass(lev, 1).array(mfi);
                 Set::Patch<Set::Scalar> local_rate =
                     diffusion.Source(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> psi;
+                if (psi_mechanism_on)
+                    psi = psi_mechanism_mf.Patch(lev,mfi);
+                const bool gated = psi_mechanism_on;
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         const Model::Mechanism::State state = {
                             component_density, rigid_eta, rigid_species_eta,
-                            T(i,j,k), p_reference};
+                            T(i,j,k), p_reference,
+                            gated ? psi(i,j,k) : 1.0};
                         coefficient(i,j,k) +=
                             mechanism.GradientCoefficient(state, i, j, k);
                         local_rate(i,j,k) +=
@@ -965,6 +992,10 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     temperature_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation =
                     phase_change_dilatation_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> psi;
+                if (psi_mechanism_on)
+                    psi = psi_mechanism_mf.Patch(lev,mfi);
+                const bool gated = psi_mechanism_on;
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -972,7 +1003,8 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                         const Model::Mechanism::State state = {
                             component_density_state, rigid_eta,
                             rigid_species_eta,
-                            T(i,j,k), p_reference};
+                            T(i,j,k), p_reference,
+                            gated ? psi(i,j,k) : 1.0};
                         const Set::Scalar aggregate_coefficient =
                             1.0 / inverse_coefficient(i,j,k);
                         if (!(aggregate_coefficient > coefficient_floor))
@@ -1562,12 +1594,17 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
+                Set::Patch<const Set::Scalar> psi;
+                if (psi_mechanism_on)
+                    psi = psi_mechanism_mf.Patch(lev,mfi);
+                const bool gated = psi_mechanism_on;
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     const Model::Mechanism::State state = {
                         component_density, rigid_eta, rigid_species_eta,
-                        T(i,j,k), p_reference};
+                        T(i,j,k), p_reference,
+                        gated ? psi(i,j,k) : 1.0};
                     rhs(i,j,k) += mechanism.VolumeSource(state, i, j, k, DX);
                 });
             }
@@ -1592,7 +1629,6 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
-            const Set::Scalar inverse_dt = 1.0 / dt;
 
             amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -1621,7 +1657,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
                     // Correct splitting and collocated-flux drift in the
                     // mixture volume constraint over one flow step.
-                    rhs(i,j,k) += (volume_fraction - 1.0) * inverse_dt /
+                    rhs(i,j,k) += (volume_fraction - 1.0) /
                         Util::Max(volume_fraction, 0.1);
                 }
             });
@@ -1726,6 +1762,8 @@ LowMach::Initialize(int lev)
         xi_ic->Initialize(lev, xi_old_mf, 0.0);
     }
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
+    if (psi_mechanism_on)
+        psi_mechanism_ic->Initialize(lev, psi_mechanism_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
     if (!rigid_solid_species.empty() && !mechanisms.empty())
         phase_change_dilatation_mf[lev]->setVal(0.0);
@@ -1934,12 +1972,17 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Patch<const Set::Scalar> rigid_species_eta =
                 rigid_species_eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
+            Set::Patch<const Set::Scalar> psi;
+            if (psi_mechanism_on)
+                psi = psi_mechanism_mf.Patch(lev,mfi);
+            const bool gated = psi_mechanism_on;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 const Model::Mechanism::State state = {
                     component_density, rigid_eta, rigid_species_eta,
-                    T(i,j,k), p_reference};
+                    T(i,j,k), p_reference,
+                    gated ? psi(i,j,k) : 1.0};
                 mechanism.Apply(component_density_rhs, state, i, j, k, DX);
             });
         }
@@ -2382,10 +2425,59 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
 void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
+    UpdateMechanismGate();
     ApplyImplicitDiffusion(time + dt[0], dt[0]);
     ApplyImplicitPhaseChange(time + dt[0], dt[0]);
     ProjectVelocity(time + dt[0], dt[0]);
     PrintDiagnostics(time, iter);
+}
+
+void
+LowMach::UpdateMechanismGate()
+{
+    // Latches psi_mechanism from 0 (inert) towards 1 (active) wherever a real
+    // front has genuinely arrived, so a permanently-inert region (Tier 3
+    // "hard void"/filler use case) releases correctly instead of staying
+    // stuck once regression reaches it. Two signals are required together:
+    // local temperature past release_temperature (a necessary but not
+    // sufficient condition on its own, since conduction can heat a region
+    // well before any front has physically consumed neighboring mass) AND a
+    // neighboring cell's rigid_eta showing measurable mass consumption. The
+    // update is monotone (max with the previous value), so once released a
+    // region cannot re-freeze on cooling.
+    if (!psi_mechanism_on) return;
+    if (rigid_solid_species.empty()) return;
+
+    const int nlev = finest_level + 1;
+    for (int lev = 0; lev < nlev; ++lev)
+    {
+        UpdateComponentState(lev, *component_density_mf[lev]);
+        amrex::Box domain = geom[lev].Domain();
+        const Set::Scalar T_release = psi_release_temperature;
+        const Set::Scalar eps_release = psi_release_eta_threshold;
+
+        for (amrex::MFIter mfi(*psi_mechanism_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> psi = psi_mechanism_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                const int im = amrex::max(i - 1, domain.smallEnd(0));
+                const int ip = amrex::min(i + 1, domain.bigEnd(0));
+                const int jm = amrex::max(j - 1, domain.smallEnd(1));
+                const int jp = amrex::min(j + 1, domain.bigEnd(1));
+                const Set::Scalar neighbor_min_eta = Util::Min(
+                    Util::Min(rigid_eta(im,j,k), rigid_eta(ip,j,k)),
+                    Util::Min(rigid_eta(i,jm,k), rigid_eta(i,jp,k)));
+                const bool arrived = (T(i,j,k) > T_release) &&
+                    (neighbor_min_eta < 1.0 - eps_release);
+                if (arrived) psi(i,j,k) = 1.0;
+            });
+        }
+    }
 }
 
 void

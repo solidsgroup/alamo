@@ -1,0 +1,293 @@
+# AP regression with a circular void in the solid, and Rocfire gas-phase
+# combustion in LowMach.
+# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_void
+#
+# This is a variant of input.lm.ap_htpb used to test void handling: the
+# condensed domain is pure AP (no HTPB laminate), and a circular void is
+# carved out of the middle of the solid. The void is initialized at ambient
+# temperature and filled with Final (final-products) gas to emulate a
+# pre-existing gas-filled cavity in the propellant.
+#
+# The domain is shrunk well below the full sandwich geometry (200 um wide,
+# 200 um of solid AP + 60 um of gas headspace) since this is a void-handling
+# test, not a regression-rate study. Level-0 cells are 5 um (vs 15.625 um in
+# input.lm.ap_htpb) and max_level is dropped from 3 to 2, giving a finest
+# resolution of 1.25 um -- still fine enough to resolve the void and the
+# solid/gas interface -- over a domain with far fewer total cells.
+# stop_time is cut to 0.1 s to match the much shorter solid depth.
+#
+# Void sizing (wvoid, Rvoid): the void's smoothing width `wvoid` is set to
+# the Allen-Cahn model's own natural interface width, not an arbitrary guess.
+# For the quartic well built from (w0,w12,w1)=(0,2,1), a2=-11*w0+16*w12-5*w1=27,
+# so w''(0)=2*a2=54, and the profile equation kappa*eta''=lambda*w'(eta) gives
+# a natural width delta = 2*sqrt(kappa/(lambda*w''(0)))
+#           = 2*sqrt(1.0e-8/(8.333333*54)) = 9.4 um =~ 10 um.
+# That matches the width already used (and known to work) for the real y=0
+# solid/gas interface below, tanh(2*y/20e-6) = tanh(y/10e-6), i.e. delta=10um
+# exactly -- the confirming cross-check for the formula. A void carved with a
+# much narrower wvoid (2um, under-resolved on the 5um level-0 grid and far
+# from the model's equilibrium profile) leaves the phase field further out of
+# equilibrium at t=0, so it's still good practice to keep wvoid/Rvoid matched
+# to the model this way even though (see below) it wasn't the deciding factor
+# for solver stability. Rvoid is set to 4*wvoid so the void interior reaches a
+# clean gas plateau (99.97% gas fraction at the center, vs only 98.2% at
+# 2*wvoid) and to keep curvature-driven relaxation of the circular interface
+# gentle.
+#
+# projection.tol_rel: this is the actual fix for the "MLMG failed" abort seen
+# with the original 1.0e-11 value. That tolerance is unreachably tight given
+# this problem's RHS dynamic range: a nonzero AP_decomposition phase-change
+# rate (needed physically -- the y=0 solid/gas interface's own IC is already
+# above the 360 K reaction cutoff at t=0) gets divided by the initial, very
+# small `timestep` in the pressure projection's RHS assembly (by design, see
+# src/Operator/PressurePoisson.cpp PrepareRHS), giving a very large ||RHS||.
+# With projection.verbose=1 this was confirmed to be a genuine MLMG *stall*
+# (relative residual plateaus around 1.0e-10 for ~70 iterations, not a
+# divergence) one order of magnitude short of the requested 1.0e-11 -- not
+# something more iterations fix. Controls confirm this is the real cause and
+# is independent of the void geometry: (a) disabling AP_decomposition entirely
+# still failed at the old tolerance despite a much smaller RHS, and stopped
+# failing once tol_rel was relaxed; (b) relaxing tol_rel alone, keeping the
+# original narrow/small void (wvoid=2um, Rvoid=20um, 100um-wide domain), ran
+# stably for 4000+ steps. 1.0e-8 leaves a full order of magnitude of margin
+# above the observed ~1.3e-10 stall floor and is still far tighter than the
+# accuracy this problem actually needs.
+
+#plot_file = output.lm.ap_void
+amr.plot_dt = 1.0e-4_s
+amr.max_level = 2
+amr.n_cell = 40 52
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.nsubsteps = 1
+amr.reinitialize_condensed_composition = 1
+amr.reinitialize_condensed_composition_eta_min = 0.99
+
+eta_refinement_criterion = 0.01
+temperature_refinement_criterion = 500.0
+
+timestep = 1.0e-7_s
+stop_time = 1.0e-1_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-6
+dynamictimestep.verbose = 0
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m     -200.0e-6_m 0.0
+geometry.prob_hi = 200.0e-6_m  60.0e-6_m 0.0
+geometry.is_periodic = 0 0 0
+
+# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
+# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
+system.amount = kmol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
+
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+AP_solid.reference_density = 1950.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
+
+# AP uses the calibrated LMRFMonoAP parameters and the calibrated aggregate-eta
+# interface energy; the phase-field gradient terms are integrated implicitly.
+mechanisms.names = AP_decomposition
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.in = AP_solid
+AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
+AP_decomposition.phase_change.phase_field.type = allencahn
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-8
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+#diagnostics.interval = 100
+diagnostics.extended_fields = 0
+
+# Select one pressure block. Comment the active block before uncommenting
+# another. The experimental pressure points plotted in Meier et al. are
+# 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, and 4.0 MPa; 3 MPa is active by default.
+#
+# --- 0.8 MPa ---
+#Final.density.ic.expression.constant.P = 0.8e6
+#pressure.ic.constant.value = 0.8e6
+#pressure.bc.constant.val.yhi = 0.8e6
+#plot_file = output.lm.ap_void_0.8MPa
+#
+#
+# --- 1.0 MPa ---
+#Final.density.ic.expression.constant.P = 1.0e6
+#pressure.ic.constant.value = 1.0e6
+#pressure.bc.constant.val.yhi = 1.0e6
+#plot_file = output.lm.ap_void_1.0MPa
+#
+#
+# --- 1.5 MPa ---
+#Final.density.ic.expression.constant.P = 1.5e6
+#pressure.ic.constant.value = 1.5e6
+#pressure.bc.constant.val.yhi = 1.5e6
+#plot_file = output.lm.ap_void_1.5MPa
+#
+#
+# --- 2.0 MPa ---
+#Final.density.ic.expression.constant.P = 2.0e6
+#pressure.ic.constant.value = 2.0e6
+#pressure.bc.constant.val.yhi = 2.0e6
+#plot_file = output.lm.ap_void_2.0MPa
+#
+#
+# --- 2.5 MPa ---
+#Final.density.ic.expression.constant.P = 2.5e6
+#pressure.ic.constant.value = 2.5e6
+#pressure.bc.constant.val.yhi = 2.5e6
+#plot_file = output.lm.ap_void_2.5MPa
+#
+#
+# --- 3.0 MPa (active) ---
+#Final.density.ic.expression.constant.P = 3.0e6
+#pressure.ic.constant.value = 3.0e6
+#pressure.bc.constant.val.yhi = 3.0e6
+#plot_file = output.lm.ap_void_3.0MPa
+#
+# --- 4.0 MPa ---
+Final.density.ic.expression.constant.P = 4.0e6
+pressure.ic.constant.value = 4.0e6
+pressure.bc.constant.val.yhi = 4.0e6
+plot_file = output.lm.ap_void_4.0MPa
+
+# The solid (y<0) is pure AP across the full width. A circular void of radius
+# Rvoid centered at (xc,yc), well inside the solid, is carved out of the AP
+# by multiplying the solid indicator by a smoothed outside-the-void mask
+# voidmask_out = 0.5+0.5*tanh((r-Rvoid)/wvoid), which is ~0 inside the void
+# and ~1 outside it (r is the distance from the void center).
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.xc = 100.0_um
+AP_solid.density.ic.expression.constant.yc = -100.0_um
+AP_solid.density.ic.expression.constant.Rvoid = 40.0_um
+AP_solid.density.ic.expression.constant.wvoid = 10.0_um
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*tanh((sqrt((x-xc)^2+(y-yc)^2)-Rvoid)/wvoid)))"
+
+# The gas initially contains final products, both above the regressing AP
+# surface (y>0) and inside the void (r<Rvoid). Its density uses the preheated
+# temperature profile below so that the ignition state is initially isobaric
+# away from the void; inside the void the same voidmask_out factor zeroes out
+# the preheat term so the void sits at ambient temperature. AP reactant enters
+# only through regression at the true solid/gas interface.
+Final.density.ic.type = expression
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.constant.xc = 100.0_um
+Final.density.ic.expression.constant.yc = -100.0_um
+Final.density.ic.expression.constant.Rvoid = 40.0_um
+Final.density.ic.expression.constant.wvoid = 10.0_um
+Final.density.ic.expression.region0 = "max(0.0,((0.5+0.5*tanh(2.0*y/20.0e-6))+(0.5-0.5*tanh((sqrt((x-xc)^2+(y-yc)^2)-Rvoid)/wvoid)))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)*(0.5+0.5*tanh((sqrt((x-xc)^2+(y-yc)^2)-Rvoid)/wvoid)))))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+# Initialize the solid and gas with a mildly preheated thermal penetration
+# profile, except inside the void where the same voidmask_out factor forces
+# the initial temperature down to ambient.
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.constant.xc = 100.0_um
+temperature.ic.expression.constant.yc = -100.0_um
+temperature.ic.expression.constant.Rvoid = 40.0_um
+temperature.ic.expression.constant.wvoid = 10.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)*(0.5+0.5*tanh((sqrt((x-xc)^2+(y-yc)^2)-Rvoid)/wvoid))"
+pressure.ic.type = constant
+
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
