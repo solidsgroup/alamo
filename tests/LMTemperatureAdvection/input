@@ -1,0 +1,91 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+
+# Bounded passive-temperature advection through the LowMach advection
+# dispatcher.  The pulse remains away from the periodic wrap point.
+
+plot_file = tests/LMTemperatureAdvection/output
+amr.plot_dt = 0.25_s
+amr.max_level = 0
+amr.max_grid_size = 128
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.n_cell = 128 8
+
+timestep = 2.0e-3_s
+stop_time = 0.25_s
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 1.0_m 0.0625_m 0.0_m
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0_J/mol
+gas.thermo.cpconstant.s0 = 0.0_J/mol/K
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.0e-12_Pa*s
+gas.transport.mixture_averaged.k = 1.0e-12_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient_gas
+ambient_gas.mechanics = fluid
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 1
+projection.enabled = 0
+diagnostics.interval = 0
+diagnostics.extended_fields = 1
+
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 1.0_kg/m^3
+velocity.ic.type = constant
+velocity.ic.constant.value = 1.0 0.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.base = 300.0_K
+temperature.ic.expression.constant.jump = 700.0_K
+temperature.ic.expression.constant.left = 0.15_m
+temperature.ic.expression.constant.right = 0.35_m
+temperature.ic.expression.constant.width = 0.01_m
+temperature.ic.expression.region0 = "base+0.5*jump*(tanh((x-left)/width)-tanh((x-right)/width))"
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e5
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = periodic
+component_density.bc.constant.type.yhi = periodic
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic

@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMTemperatureAdvection requires initial and final plotfiles")
+
+
+def state(path):
+    data = testlib.yt.load(path).all_data()
+    temperature = data["temperature"].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    excess_heat = testlib.numpy.maximum(temperature - 300.0, 0.0) * volume
+    return {
+        "minimum": temperature.min(),
+        "maximum": temperature.max(),
+        "center": (excess_heat * x).sum() / excess_heat.sum(),
+    }
+
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+if final["minimum"] < initial["minimum"] - 1.0e-8:
+    raise RuntimeError(
+        f"Temperature advection undershot: {initial['minimum']:.12g} -> "
+        f"{final['minimum']:.12g}")
+if final["maximum"] > initial["maximum"] + 1.0e-8:
+    raise RuntimeError(
+        f"Temperature advection overshot: {initial['maximum']:.12g} -> "
+        f"{final['maximum']:.12g}")
+
+displacement = final["center"] - initial["center"]
+testlib.numpy.testing.assert_allclose(displacement, 0.25, atol=1.0e-3)
+
+print("LowMach bounded temperature-advection regression passed")

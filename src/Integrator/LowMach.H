@@ -183,6 +183,7 @@ protected:
     Model::Chemistry::SpeciesArray condensed_specific_heat;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
+    Model::Chemistry::SpeciesArray condensed_temperature_override;
     Model::Chemistry::SpeciesArray condensed_dynamic_viscosity;
     Model::Chemistry::SpeciesArray liquid_inverse_reference_density;
     int ngas_species = 0;

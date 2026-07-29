@@ -69,6 +69,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
     value.condensed_inverse_reference_density.fill(NAN);
+    value.condensed_temperature_override.fill(-1.0);
     value.condensed_dynamic_viscosity.fill(NAN);
     value.liquid_inverse_reference_density.fill(0.0);
     if (value.nspecies > Model::Chemistry::MAX_SPECIES)
@@ -129,6 +130,13 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         if (mechanics != "fluid")
         {
+            pp.query_default(name + ".temperature_override",
+                value.condensed_temperature_override[n], "-1.0",
+                Unit::Temperature());
+            if (value.condensed_temperature_override[n] == 0.0)
+                Util::Exception(INFO, name,
+                    ".temperature_override must be negative or positive");
+
             const bool has_specific_heat =
                 pp.contains(name + ".specific_heat");
             const bool has_thermal_conductivity =
@@ -872,26 +880,25 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
                 rhoY[n] = Util::Max(component_density(i,j,k,n), 0.0);
                 gas_density += rhoY[n];
             }
-            Set::Scalar gas_volume_fraction = 0.0;
+            Set::Scalar raw_gas_volume_fraction = 0.0;
             if (gas_density > density_floor && T(i,j,k) > 0.0 &&
                 pressure_reference > 0.0)
-                gas_volume_fraction = Util::Clamp(
+                raw_gas_volume_fraction = Util::Max(
                     gas_density * gas.R(X, i, j, k) * T(i,j,k) /
-                        pressure_reference, 0.0, 1.0);
-            const Set::Scalar intrinsic_gas_volume_fraction =
-                gas_volume_fraction;
+                        pressure_reference, 0.0);
             Set::Scalar condensed_volume_fraction = 0.0;
             for (int n = ngas_species; n < nspecies; ++n)
                 condensed_volume_fraction += Util::Max(
                     component_density(i,j,k,n), 0.0) *
                     condensed_inverse_reference_density[n];
-            gas_volume_fraction = Util::Min(gas_volume_fraction,
+            const Set::Scalar gas_volume_fraction = Util::Min(
+                raw_gas_volume_fraction,
                 1.0 - Model::PhaseField::H(condensed_volume_fraction));
             if (gas_volume_fraction > 0.0 &&
-                intrinsic_gas_volume_fraction > 0.0)
+                raw_gas_volume_fraction > 0.0)
             {
                 for (int n = 0; n < ngas_species; ++n)
-                    rhoY[n] /= intrinsic_gas_volume_fraction;
+                    rhoY[n] /= raw_gas_volume_fraction;
                 const Model::Chemistry::Source reaction =
                     chemistry.ComputeChemistrySources(
                         pressure_reference, T(i,j,k), rhoY, 0.0, &gas);
@@ -939,9 +946,12 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 
             const Model::Gas::MoleFraction X =
                 gas.MoleFractions(component_density, i, j, k);
-            const Set::Scalar raw_gas_volume_fraction = Util::Clamp(
+            // Keep the EOS volume unbounded here.  If the transported state is
+            // temporarily overfilled, clipping it before time weighting would
+            // multiply the chemistry heat release by the overfill ratio.
+            const Set::Scalar raw_gas_volume_fraction = Util::Max(
                 gas_density * gas.R(X, i, j, k) * T(i,j,k) /
-                    pressure_reference, 0.0, 1.0);
+                    pressure_reference, 0.0);
             Set::Scalar condensed_volume_fraction = 0.0;
             for (int n = ngas_species; n < nspecies; ++n)
                 condensed_volume_fraction += Util::Max(
@@ -949,10 +959,12 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
                     condensed_inverse_reference_density[n];
             const Set::Scalar gas_accessibility =
                 1.0 - Model::PhaseField::H(condensed_volume_fraction);
+            const Set::Scalar reacting_volume_fraction = Util::Min(
+                raw_gas_volume_fraction, gas_accessibility);
             const Set::Scalar chemistry_weight =
-                raw_gas_volume_fraction > 0.0 ? Util::Min(
-                    1.0, gas_accessibility /
-                        raw_gas_volume_fraction) : 0.0;
+                raw_gas_volume_fraction > 0.0 ?
+                    reacting_volume_fraction /
+                        raw_gas_volume_fraction : 0.0;
             if (!(chemistry_weight > 0.0)) return;
 
             Set::Scalar temperature = T(i,j,k);
@@ -1395,9 +1407,9 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             gas_density += component_density(i,j,k,n);
                         const Model::Gas::MoleFraction X =
                             gas.MoleFractions(component_density, i, j, k);
-                        const Set::Scalar gas_volume_fraction = Util::Clamp(
+                        const Set::Scalar raw_gas_volume_fraction = Util::Max(
                             gas_density * gas.R(X, i, j, k) * T(i,j,k) /
-                                pressure_reference, 0.0, 1.0);
+                                pressure_reference, 0.0);
                         Set::Scalar condensed_volume_fraction = 0.0;
                         for (int n = ngas_species; n < nspecies; ++n)
                             condensed_volume_fraction += Util::Max(
@@ -1407,9 +1419,9 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             1.0 - Model::PhaseField::H(
                                 condensed_volume_fraction);
                         const Set::Scalar diffusion_weight =
-                            gas_volume_fraction > 0.0 ? Util::Min(
+                            raw_gas_volume_fraction > 0.0 ? Util::Min(
                                 1.0, gas_accessibility /
-                                    gas_volume_fraction) : 0.0;
+                                    raw_gas_volume_fraction) : 0.0;
                         a(i,j,k) = Util::Max(gas_density, density_floor);
                         b(i,j,k) = diffusion_weight * gas_density *
                             gas.diffusion_coefficient(
@@ -1598,13 +1610,15 @@ LowMach::ComputeThermochemicalSource(
         molar_density += rhoY[n] / gas.MW[n];
     }
 
-    // Calculate and sanitize gas volume fractions
+    // The raw EOS volume converts extrinsic partial densities to intrinsic
+    // gas densities.  Only the occupied/reacting volume is bounded by the
+    // space available outside condensed phases.
     const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
-    Set::Scalar gas_volume_fraction = 0.0;
+    Set::Scalar raw_gas_volume_fraction = 0.0;
     if (gas_density > density_floor && T(i,j,k) > 0.0 && pressure_reference > 0.0)
-        gas_volume_fraction = Util::Clamp(
+        raw_gas_volume_fraction = Util::Max(
             gas_density * gas.R(X, i, j, k) * T(i,j,k) / pressure_reference,
-            0.0, 1.0);
+            0.0);
     Set::Scalar condensed_volume_fraction = 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
         condensed_volume_fraction += Util::Max(
@@ -1612,16 +1626,17 @@ LowMach::ComputeThermochemicalSource(
             condensed_inverse_reference_density[n];
     const Set::Scalar gas_accessibility =
         1.0 - Model::PhaseField::H(condensed_volume_fraction);
-    const Set::Scalar reacting_volume_fraction =
-        Util::Min(gas_volume_fraction, gas_accessibility);
-    const Set::Scalar chemistry_weight = gas_volume_fraction > 0.0 ?
-        reacting_volume_fraction / gas_volume_fraction : 0.0;
+    const Set::Scalar gas_volume_fraction =
+        Util::Min(raw_gas_volume_fraction, gas_accessibility);
+    const Set::Scalar reacting_volume_fraction = gas_volume_fraction;
+    const Set::Scalar chemistry_weight = raw_gas_volume_fraction > 0.0 ?
+        reacting_volume_fraction / raw_gas_volume_fraction : 0.0;
 
     // Calculate relative density with respect to the gas volume fraction
     Model::Chemistry::SpeciesArray intrinsic_rhoY{};
-    if (gas_volume_fraction > 0.0)
+    if (raw_gas_volume_fraction > 0.0)
         for (int n = 0; n < ngas_species; ++n)
-            intrinsic_rhoY[n] = rhoY[n] / gas_volume_fraction;
+            intrinsic_rhoY[n] = rhoY[n] / raw_gas_volume_fraction;
 
     Model::Chemistry::Source reaction{};
     if (include_reaction && reacting_volume_fraction > 0.0)
@@ -1657,9 +1672,9 @@ LowMach::ComputeThermochemicalSource(
                 gas_density_at(ii,jj,kk);
             const Model::Gas::MoleFraction local_X =
                 gas.MoleFractions(component_density, ii, jj, kk);
-            const Set::Scalar local_gas_volume_fraction = Util::Clamp(
+            const Set::Scalar local_raw_gas_volume_fraction = Util::Max(
                 local_gas_density * gas.R(local_X, ii, jj, kk) *
-                    T(ii,jj,kk) / pressure_reference, 0.0, 1.0);
+                    T(ii,jj,kk) / pressure_reference, 0.0);
             Set::Scalar local_condensed_volume_fraction = 0.0;
             for (int m = ngas_species; m < nspecies; ++m)
                 local_condensed_volume_fraction += Util::Max(
@@ -1668,9 +1683,9 @@ LowMach::ComputeThermochemicalSource(
             const Set::Scalar local_accessibility =
                 1.0 - Model::PhaseField::H(
                     local_condensed_volume_fraction);
-            const Set::Scalar weight = local_gas_volume_fraction > 0.0 ?
+            const Set::Scalar weight = local_raw_gas_volume_fraction > 0.0 ?
                 Util::Min(1.0, local_accessibility /
-                    local_gas_volume_fraction) : 0.0;
+                    local_raw_gas_volume_fraction) : 0.0;
             return weight * local_gas_density *
                 gas.diffusion_coefficient(T(ii,jj,kk), pressure_reference,
                     local_X, ii, jj, kk, n);
@@ -2486,12 +2501,88 @@ LowMach::Initialize(int lev)
             *component_density_mf[lev], amrex::MakeType::make_alias, n, 1);
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
     }
+    pressure_ic->Initialize(lev, pressure_mf, 0.0);
+
+    bool has_temperature_override = false;
+    for (int n = ngas_species; n < nspecies; ++n)
+        if (condensed_temperature_override[n] >= 0.0)
+            has_temperature_override = true;
+    if (has_temperature_override)
+    {
+        const auto inverse_reference_density =
+            condensed_inverse_reference_density;
+        const auto temperature_override = condensed_temperature_override;
+        const int first_condensed = ngas_species;
+        const int number_of_species = nspecies;
+        const int number_of_gas_species = ngas_species;
+        for (amrex::MFIter mfi(*temperature_mf[lev],
+                                amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> temperature =
+                temperature_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> component_density =
+                component_density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> pressure =
+                pressure_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(
+                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar override_volume = 0.0;
+                    Set::Scalar override_temperature = 0.0;
+                    Set::Scalar condensed_volume = 0.0;
+                    for (int n = first_condensed;
+                         n < number_of_species; ++n)
+                    {
+                        const Set::Scalar volume = Util::Max(
+                            component_density(i,j,k,n), 0.0) *
+                            inverse_reference_density[n];
+                        condensed_volume += volume;
+                        if (temperature_override[n] >= 0.0)
+                        {
+                            override_volume += volume;
+                            override_temperature +=
+                                volume * temperature_override[n];
+                        }
+                    }
+                    if (!(override_volume > 0.0)) return;
+
+                    const Set::Scalar override_scale =
+                        override_volume > 1.0 ?
+                        1.0 / override_volume : 1.0;
+                    const Set::Scalar weight = Util::Min(
+                        override_volume, 1.0);
+                    temperature(i,j,k) =
+                        (1.0 - weight) * temperature(i,j,k) +
+                        override_scale * override_temperature;
+
+                    if (!(pressure(i,j,k) > 0.0) ||
+                        !(temperature(i,j,k) > 0.0)) return;
+                    Set::Scalar gas_molar_density = 0.0;
+                    for (int n = 0; n < number_of_gas_species; ++n)
+                        gas_molar_density += Util::Max(
+                            component_density(i,j,k,n), 0.0) / gas.MW[n];
+                    const Set::Scalar gas_volume = gas_molar_density *
+                        Set::Constant::Rg * temperature(i,j,k) /
+                        pressure(i,j,k);
+                    const Set::Scalar available_volume =
+                        Util::Max(1.0 - condensed_volume, 0.0);
+                    if (gas_volume > 0.0)
+                    {
+                        const Set::Scalar scale =
+                            available_volume / gas_volume;
+                        for (int n = 0; n < number_of_gas_species; ++n)
+                            component_density(i,j,k,n) *= scale;
+                    }
+                });
+        }
+    }
     if (deformable_solid)
     {
         xi_ic->Initialize(lev, xi_mf, 0.0);
         xi_ic->Initialize(lev, xi_old_mf, 0.0);
     }
-    pressure_ic->Initialize(lev, pressure_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
     if (!rigid_solid_species.empty() && !mechanisms.empty())
     {
@@ -2517,6 +2608,8 @@ LowMach::Initialize(int lev)
     component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
     amrex::MultiFab::Copy(*component_density_old_mf[lev], *component_density_mf[lev],
                         0, 0, nspecies, component_density_mf[lev]->nGrow());
+    amrex::MultiFab::Copy(*temperature_old_mf[lev], *temperature_mf[lev],
+                        0, 0, 1, temperature_mf[lev]->nGrow());
     UpdateComponentState(lev, *component_density_mf[lev]);
 
     if (deformable_solid)
@@ -2755,7 +2848,6 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         amrex::ParallelFor(bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
-            Set::Vector vel(AMREX_D_DECL(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2)));
 
             auto [species,temperature,dilatation] =
                 ComputeThermochemicalSource(component_density, T, i, j, k, DX, dt, !split_chemistry);
@@ -2771,10 +2863,39 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 (void)gas_volume_fraction;
                 (void)conductivity;
                 (void)cp;
-                Set::Vector grad_T = Numeric::Gradient(T, i, j, k, 0, DX, sten);
                 if (heat_capacity > 0.0)
-                    T_rhs(i,j,k) -=
-                        gas_heat_capacity / heat_capacity * vel.dot(grad_T);
+                {
+                    Set::Scalar advected_heat_capacity = gas_heat_capacity;
+                    if (condensed_thermal_transport)
+                    {
+                        Set::Scalar condensed_volume = 0.0;
+                        for (int n = ngas_species; n < nspecies; ++n)
+                            condensed_volume += Util::Max(
+                                component_density(i,j,k,n), 0.0) *
+                                condensed_inverse_reference_density[n];
+                        const Set::Scalar solid_fraction =
+                            Model::PhaseField::H(condensed_volume);
+                        const Set::Scalar solid_scale =
+                            condensed_volume > 0.0 ?
+                            solid_fraction / condensed_volume : 0.0;
+                        for (int n = ngas_species; n < nspecies; ++n)
+                        {
+                            const bool moving_condensed_phase =
+                                n == deformable_solid_species ||
+                                n == free_rigid_solid_species ||
+                                liquid_inverse_reference_density[n] > 0.0;
+                            if (moving_condensed_phase)
+                                advected_heat_capacity += solid_scale *
+                                    Util::Max(
+                                        component_density(i,j,k,n), 0.0) *
+                            condensed_specific_heat[n];
+                        }
+                    }
+                    T_rhs(i,j,k) += advected_heat_capacity /
+                        heat_capacity * advect(
+                            T, u, i, j, k, 0, DX,
+                            {Numeric::Advect::Form::Advective}, sten);
+                }
             }
             T_rhs(i,j,k) += temperature;
             if (external_heat_source)
