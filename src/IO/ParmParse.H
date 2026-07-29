@@ -2194,8 +2194,12 @@ public:
     void select(std::string name, CLASS& value,
                 const std::source_location &location = std::source_location::current())
     {
+#if !AMREX_DEVICE_COMPILE
         auto args = forward_args();
         select<OBJ...>(std::move(name), value, args, location);
+#else
+        Util::IgnoreUnused(name, value, location);
+#endif
     }
 
     template <typename... OBJ, typename CLASS, typename... Args>
@@ -2203,6 +2207,7 @@ public:
     void select(std::string name, CLASS& value, ForwardArgs<Args...> args,
                 const std::source_location &location = std::source_location::current())
     {
+#if !AMREX_DEVICE_COMPILE
         pushPrefix(name);
         if (InTraversalMode())
         {
@@ -2227,6 +2232,9 @@ public:
         else
             static_polymorphism_parser<CLASS, 0, OBJ...>(value, args);
         popPrefix();
+#else
+        Util::IgnoreUnused(name, value, args, location);
+#endif
     }
 
 private:

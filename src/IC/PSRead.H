@@ -8,6 +8,7 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "AMReX_GpuAsyncArray.H"
 #include "Util/Util.H"
 using namespace std;
 #include <iostream>
@@ -42,8 +43,27 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
-        Set::Vector size = Set::Size(geom[lev]);
-        int ncomp = a_phi[lev]->nComp();
+        const Set::Vector size = Set::Size(geom[lev]);
+        const int ncomp = a_phi[lev]->nComp();
+        const auto prob_lo = geom[lev].ProbLoArray();
+        const auto cell_size = geom[lev].CellSizeArray();
+        const amrex::GpuArray<int, AMREX_SPACEDIM> periodic = {
+            AMREX_D_DECL(   geom[0].isPeriodic(0),
+                            geom[0].isPeriodic(1),
+                            geom[0].isPeriodic(2))};
+        std::vector<Set::Scalar> coordinates(
+            X.size() * AMREX_SPACEDIM);
+        for (int n = 0; n < static_cast<int>(X.size()); ++n)
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                coordinates[n * AMREX_SPACEDIM + d] = X[n](d);
+        amrex::Gpu::AsyncArray<Set::Scalar> X_device(
+            coordinates.data(), coordinates.size());
+        amrex::Gpu::AsyncArray<Set::Scalar> R_device(R.data(), R.size());
+        const Set::Scalar* X = X_device.data();
+        const Set::Scalar* R = R_device.data();
+        const int sphere_count = static_cast<int>(this->X.size());
+        const Set::Scalar eps = this->eps;
+        const bool invert = this->invert;
 
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -56,33 +76,39 @@ public:
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                Set::Vector x =
+                    Set::Position(i, j, k, prob_lo, cell_size, type);
                 Set::Scalar min_grain_id = 0;
 
-                for (unsigned int n = 0; n < X.size(); n++)
+                for (int n = 0; n < sphere_count; n++)
                 {
                     Set::Scalar d;
                     Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
 
-                    d = (x - X[n]).lpNorm<2>();
+                    Set::Vector center;
+                    for (   int direction = 0;
+                            direction < AMREX_SPACEDIM; ++direction)
+                        center(direction) =
+                            X[n * AMREX_SPACEDIM + direction];
+                    d = (x - center).lpNorm<2>();
 
-                    if (geom[0].isPeriodic(0))
+                    if (periodic[0])
                     {
-                        d1 = std::min((x - X[n] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - X[n] - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
+                        d1 = std::min((x - center + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
+                            (x - center - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
                     }
 #if AMREX_SPACEDIM > 1
-                    if (geom[0].isPeriodic(1))
+                    if (periodic[1])
                     {
-                        d1 = std::min((x - X[n] + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - X[n] - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
+                        d1 = std::min((x - center + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
+                            (x - center - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
                     }
 #endif
 #if AMREX_SPACEDIM > 2
-                    if (geom[0].isPeriodic(2))
+                    if (periodic[2])
                     {
-                        d1 = std::min((x - X[n] + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - X[n] - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
+                        d1 = std::min((x - center + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
+                            (x - center - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
                     }
 #endif
 
