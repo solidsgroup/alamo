@@ -2,7 +2,7 @@
 # Run with: ./bin/lowmach-2d-clang++ input.lm.ap_monopropellant
 
 plot_file = output.lm.ap_monopropellant
-amr.plot_dt = 2.0e-3_s
+amr.plot_dt = 2.0e-4_s
 amr.max_level = 1
 amr.n_cell = 4 128
 amr.max_grid_size = 128
@@ -73,7 +73,7 @@ AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
 AP_decomposition.phase_change.rate_multiplier = 2450.0
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 640.0_K
+AP_decomposition.phase_change.temperature_cutoff = 500.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
 AP_decomposition.phase_change.phase_field.allencahn.sigma = 0.001_J/m^2
