@@ -100,10 +100,6 @@ public:
         if (Util::Abs(sum - 1.0) > 1.0e-12)
             Util::Exception(INFO, pp.full("out.mass_fractions"), " must sum to one");
 
-        pp.query_default("latent_heat", value.latent_heat,
-                        "0.0_J/kg", Unit::Energy() / Unit::Mass());
-        if (!std::isfinite(value.latent_heat))
-            Util::Exception(INFO, "latent_heat must be finite");
         pp.query_default("rate_multiplier", value.rate_multiplier, 1.0);
         if (value.rate_multiplier < 0.0)
             Util::Exception(INFO, "rate_multiplier must be nonnegative");
@@ -146,14 +142,6 @@ public:
         component_density_rhs(i,j,k,input) += source;
         for (int n = 0; n < nproducts; ++n)
             component_density_rhs(i,j,k,products[n]) -= mass_fractions[n] * source;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar HeatSource(const State& state,
-                            const int i, const int j, const int k,
-                            const Set::Scalar DX[AMREX_SPACEDIM]) const
-    {
-        return latent_heat * MassSource(state, i, j, k, DX);
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx,
@@ -219,7 +207,6 @@ public:
     Set::Scalar ApplyImplicitChange(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
-        Set::Scalar& integrated_heat,
         const int i, const int j, const int k) const
     {
         const Set::Scalar mass_change = reference_density * eta_change;
@@ -227,7 +214,6 @@ public:
         for (int n = 0; n < nproducts; ++n)
             component_density(i,j,k,products[n]) -=
                 mass_fractions[n] * mass_change;
-        integrated_heat += latent_heat * mass_change;
 
         const Set::Scalar product_specific_volume =
             product_gas_constant * state.temperature / state.pressure;
@@ -281,7 +267,6 @@ private:
     std::array<Set::Scalar, max_products> mass_fractions{};
     Set::Scalar reference_density = NAN;
     Set::Scalar product_gas_constant = 0.0;
-    Set::Scalar latent_heat = 0.0;
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
