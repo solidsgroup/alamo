@@ -4,7 +4,6 @@
 #@ timeout=120
 
 plot_file = tests/LMInterphaseReaction/output
-allow_unused = True
 amr.plot_int = 100
 amr.max_level = 0
 amr.max_grid_size = 48
