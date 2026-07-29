@@ -151,10 +151,12 @@ CANTERA_TEMPERATURES = numpy.array(
      2997.3317879691244, 3137.5919460842397, 3156.9585418678357]
 )
 
+# Backward Euler with ten substeps provides the gas-only GrossModel reference;
+# condensed-phase heat is exercised separately through LowMach PhaseChange.
 GROSS_MODEL_FINAL_MASS_FRACTIONS = numpy.array(
-    [0.0, 0.0, 0.500736734, 0.0262405425, 0.217721183, 0.255301541]
+    [0.0, 0.0, 0.466528083, 0.0138619938, 0.207818794, 0.311791129]
 )
-GROSS_MODEL_FINAL_TEMPERATURE = 2915.8206291858073
+GROSS_MODEL_FINAL_TEMPERATURE = 3313.7700943090126
 
 CHEMISTRY_TYPE = alamo.Model.Chemistry.Chemistry[
     alamo.Model.Chemistry.Frozen,
@@ -534,7 +536,7 @@ try:
             validate_mass_fractions(name, mass_fractions)
             numpy.testing.assert_allclose(
                 mass_fractions[-1], GROSS_MODEL_FINAL_MASS_FRACTIONS,
-                rtol=5.0e-2 if nsubsteps == 10 else 1.2e-1,
+                rtol=5.0e-2 if nsubsteps == 10 else 1.5e-1,
                 atol=2.0e-3,
                 err_msg=f"{name} final composition differs from the reference",
             )

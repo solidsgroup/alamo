@@ -50,9 +50,10 @@ struct GrossModel
     std::array<Set::Scalar, nreactions> pressure_exponent = {{1.6, 1.7, 1.7, 1.7}};
     std::array<Set::Scalar, nreactions> activation_energy =
         {{15.9 * 4184.0, 14.5 * 4184.0, 11.3 * 4184.0, 14.5 * 4184.0}};
+    // Homogeneous gas-reaction heat only. Condensed-phase energy belongs to
+    // the separately configured phase-change mechanisms.
     std::array<Set::Scalar, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
-    std::array<Set::Scalar, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
     Set::Scalar pressure_reference = 100000.0;
     int nsubsteps = 1;
     int max_iter = 100;
@@ -132,8 +133,8 @@ struct GrossModel
         wdot[Final]    += (gamma + 1.0) * progress[3];
 
         const Set::Scalar qdot =
-            (qgas[0] + qsolid[0]) * progress[0]
-            + (qgas[1] + qsolid[1]) * progress[1]
+            qgas[0] * progress[0]
+            + qgas[1] * progress[1]
             + /*(beta + 1.0) * */qgas[2] * progress[2]
             + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
@@ -397,7 +398,6 @@ struct GrossModel
         std::vector<Set::Scalar> pressure_exponent;
         std::vector<Set::Scalar> activation_energy;
         std::vector<Set::Scalar> qgas;
-        std::vector<Set::Scalar> qsolid;
 
         std::string integration_type = "explicit";
         pp.query("integration", integration_type);
@@ -420,9 +420,6 @@ struct GrossModel
         pp.queryarr_default("qgas", qgas,
             {"430.0_cal/g", "447.0_cal/g", "8365.0_cal/g", "2127.0_cal/g"},
             Unit::Energy() / Unit::Mass());
-        pp.queryarr_default("qsolid", qsolid,
-            {"-100.0_cal/g", "-300.0_cal/g"},
-            Unit::Energy() / Unit::Mass());
         // Reference pressure (default is 1 bar)
         pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
         // Number of explicit chemistry substeps
@@ -441,7 +438,6 @@ struct GrossModel
         Util::Assert(INFO, TEST(activation_energy.size() == nreactions),
             "chemistry.model.gross_model.activation_energy must have 4 entries.");
         Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.model.gross_model.qgas must have 4 entries.");
-        Util::Assert(INFO, TEST(qsolid.size() == 2), "chemistry.model.gross_model.qsolid must have 2 entries.");
         Util::Assert(INFO, TEST(value.pressure_reference > 0.0),
             "chemistry.model.gross_model.pressure_reference must be positive.");
         Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.model.gross_model.nsubsteps must be > 0.");
@@ -457,7 +453,6 @@ struct GrossModel
         std::copy(pressure_exponent.begin(), pressure_exponent.end(), value.pressure_exponent.begin());
         std::copy(activation_energy.begin(), activation_energy.end(), value.activation_energy.begin());
         std::copy(qgas.begin(), qgas.end(), value.qgas.begin());
-        std::copy(qsolid.begin(), qsolid.end(), value.qsolid.begin());
     }
 
 };
