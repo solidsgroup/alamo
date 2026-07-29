@@ -40,6 +40,16 @@
 #@ args = component_density.bc.expression.constant.P=6.0e6
 #@ args = pressure.ic.constant.value=6.0e6
 #@ args = pressure.bc.constant.val.yhi=6.0e6
+#@
+#@ [2d-cuda-smoke]
+#@ exe = lowmach
+#@ dim = 2
+#@ cuda = true
+#@ check = false
+#@ timeout = 300
+#@ args = max_step=10
+#@ args = amr.plot_int=-1
+#@ args = amrex.the_arena_init_size=268435456
 
 # Effectively one-dimensional Rocfire AP monopropellant regression. The
 # pressure cases share all phase-field and mechanism parameters.
@@ -56,7 +66,9 @@ timestep = 1.0e-7_s
 stop_time = 1.5e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 2.5e-6
+# Resolve the coupled thermal/chemistry split closely enough for rate
+# validation.
+dynamictimestep.max = 1.0e-6
 integration.type = RungeKutta
 integration.rk.type = 3
 

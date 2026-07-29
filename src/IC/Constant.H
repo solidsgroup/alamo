@@ -45,9 +45,13 @@ public:
             const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
+            {
+                const Set::Scalar value =
+                    m_value.size() == 1 ? m_value[0] : m_value[m];
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                field(i,j,k,m) += m_value.size() == 1 ? m_value[0] : m_value[m];
-            });  
+                    field(i,j,k,m) += value;
+                });
+            }
         }
     }
 
@@ -59,9 +63,13 @@ public:
             const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
+            {
+                const Set::Scalar value =
+                    m_value.size() == 1 ? m_value[0] : m_value[m];
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    field(i,j,k)(m) += m_value.size() == 1 ? m_value[0] : m_value[m];
-            });  
+                    field(i,j,k)(m) += value;
+                });
+            }
         }
     }
 

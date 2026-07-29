@@ -79,6 +79,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar LocalStabilityRate() const
     {
         if constexpr (I < sizeof...(OBJ))
@@ -92,6 +93,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar StabilityRate(const Set::Scalar dx) const
     {
         if constexpr (I < sizeof...(OBJ))

@@ -180,6 +180,28 @@ public:
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalStabilityRate(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if (!input_is_rigid || use_prescribed_speed ||
+            !(state.temperature > temperature_cutoff))
+            return 0.0;
+
+        const Set::Scalar eta =
+            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+        if (!(eta > 0.0) || !(eta < 1.0)) return 0.0;
+        const Set::Scalar input_eta = Util::Clamp(
+            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
+        const Set::Scalar composition =
+            Model::PhaseField::H(input_eta / eta);
+        const Set::Scalar temperature_factor =
+            activation_temperature > 0.0 ?
+                std::exp(-activation_temperature / state.temperature) : 1.0;
+        return composition * rate_multiplier * temperature_factor *
+            model.LocalStabilityRate();
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar GradientCoefficient(
         const State& state, const int i, const int j, const int k) const
     {
@@ -201,7 +223,11 @@ public:
             model.GradientCoefficient();
     }
 
-    int RigidComponent() const { return rigid_component; }
+    int RigidComponent() const
+    {
+        return input_is_rigid && !use_prescribed_speed ?
+            rigid_component : -1;
+    }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar ApplyImplicitChange(

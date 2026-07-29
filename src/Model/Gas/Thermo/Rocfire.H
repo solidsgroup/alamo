@@ -55,6 +55,11 @@ public:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(mw, cp_mass, Tref);
+    }
+
     template<class Composition>
     Set::Scalar cp_mol(Set::Scalar /*T*/, const Composition& X, int i, int j, int k) const
     {

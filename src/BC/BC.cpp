@@ -30,7 +30,7 @@ int ReadString(std::string bcstring)
         bcstring == "periodic")         return (int)amrex::LinOpBCType::Periodic;
     return 0;
 }
-bool IsPeriodic(int bctype)
+AMREX_GPU_HOST_DEVICE bool IsPeriodic(int bctype)
 {
     ///\todo We need to clean up these operators
     if (bctype == (int)amrex::BCType::mathematicalBndryTypes::int_dir) return true;
@@ -38,25 +38,25 @@ bool IsPeriodic(int bctype)
     if (bctype == (int)amrex::LinOpBCType::Periodic) return true;
     else return false;
 }
-bool IsNeumann(int bctype)
+AMREX_GPU_HOST_DEVICE bool IsNeumann(int bctype)
 {
     //if (bctype == INT_DIR) return true;
     //if (bctype == Interior) return true;
     if (bctype == (int)amrex::LinOpBCType::Neumann) return true;
     else return false;
 }
-bool IsDirichlet(int bctype)
+AMREX_GPU_HOST_DEVICE bool IsDirichlet(int bctype)
 {
     if (bctype == (int)amrex::BCType::mathematicalBndryTypes::ext_dir) return true;
     if (bctype == (int)amrex::LinOpBCType::Dirichlet) return true;
     else return false;
 }
-bool IsReflectEven(int bctype)
+AMREX_GPU_HOST_DEVICE bool IsReflectEven(int bctype)
 {
     if (bctype ==  (int)amrex::BCType::mathematicalBndryTypes::reflect_even) return true;
     else return false;
 }
-bool IsReflectOdd(int bctype)
+AMREX_GPU_HOST_DEVICE bool IsReflectOdd(int bctype)
 {
     if (bctype == (int)amrex::BCType::mathematicalBndryTypes::reflect_odd) return true;
     else return false;

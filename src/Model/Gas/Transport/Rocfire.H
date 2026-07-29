@@ -70,6 +70,11 @@ public:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(lewis, prandtl, lambda_a, lambda_b);
+    }
+
     template<class Composition>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar mixture_mw(const Composition& X, int i, int j, int k) const

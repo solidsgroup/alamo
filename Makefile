@@ -52,7 +52,11 @@ endif
 # Apple's ld64, and -lstdc++fs is a pre-GCC-9 std::filesystem shim that
 # doesn't exist in libc++ (used by Apple Clang and Homebrew LLVM).
 ifneq ($(shell uname -s),Darwin)
+ifeq ($(CUDA),TRUE)
+LINKER_FLAGS += -Xlinker -Bsymbolic-functions -lstdc++fs
+else
 LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
+endif
 endif
 
 #CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
@@ -131,6 +135,10 @@ info:
 
 -include .make/Makefile.post.conf
 
+LINK_CMD ?= $(CC)
+COMP_CMD ?= $(CC) -c
+DEP_CMD ?= $(CC)
+
 bin/%: bin/%-$(POSTFIX) ;
 
 bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
@@ -139,7 +147,38 @@ bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@printf '%9s' "($(CTR_EXE)/$(NUM_EXE)) " 
 	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
-	$(QUIET)$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
+	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
+
+ifeq ($(CUDA),TRUE)
+LOWMACH_CUDA_SRC = \
+	src/BC/BC.cpp \
+	src/BC/Constant.cpp \
+	src/BC/Expression.cpp \
+	src/IO/CanteraYamlParse.cpp \
+	src/IO/FileNameParse.cpp \
+	src/IO/InputScraper.cpp \
+	src/IO/ParmParse.cpp \
+	src/IO/WriteMetaData.cpp \
+	src/Integrator/Integrator.cpp \
+	src/Integrator/LowMach.cpp \
+	src/Model/Gas/Gas.cpp \
+	src/Numeric/ReferenceMap/Reconstruction.cpp \
+	src/Operator/Diagonal.cpp \
+	src/Operator/Diffusion.cpp \
+	src/Operator/Implicit/Implicit.cpp \
+	src/Operator/Operator.cpp \
+	src/Operator/PressurePoisson.cpp \
+	src/Set/Set.cpp \
+	src/Util/Debug.cpp \
+	src/Util/Util.cpp
+LOWMACH_CUDA_OBJ = $(subst src/,obj/obj-$(POSTFIX)/,$(LOWMACH_CUDA_SRC:.cpp=.cpp.o))
+
+bin/lowmach-$(POSTFIX): $(LOWMACH_CUDA_OBJ) obj/obj-$(POSTFIX)/lowmach.cc.o
+	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     "
+	@printf "$(RESET)$@\n"
+	@mkdir -p bin/
+	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB} ${MPI_LIB} ${LINKER_FLAGS}
+endif
 
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
@@ -148,7 +187,7 @@ obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(COMP_CMD) $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -156,7 +195,7 @@ obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(COMP_CMD) $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 obj/obj-$(POSTFIX)/%.cpp.o: 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -164,7 +203,7 @@ obj/obj-$(POSTFIX)/%.cpp.o:
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(COMP_CMD) $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
@@ -172,7 +211,7 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}-MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	$(QUIET)$(DEP_CMD) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
@@ -180,7 +219,7 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	$(QUIET)$(DEP_CMD) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARGET} | ${DEP_DIFF}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -188,7 +227,7 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARG
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(COMP_CMD) ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 .PHONY: .FORCE input-builders
 

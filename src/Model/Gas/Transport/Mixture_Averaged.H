@@ -79,6 +79,7 @@ public:
                     pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
                     // Thermal conductivity if type=constant
                     pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+                    pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
                 }},
                 {"LJ", [&]() {
                     value.type = "LJ";
@@ -113,6 +114,11 @@ private:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(type, val1, val2, d_fact, P_1atm, L_1ang, A_1cmsq);
+    }
+
     template<class Composition>
     double dynamic_viscosity(double T, const Composition& X, int i, int j, int k) const
     {

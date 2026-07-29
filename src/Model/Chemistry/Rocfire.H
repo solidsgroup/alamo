@@ -63,6 +63,7 @@ struct Rocfire
     Set::Scalar abstol = 1.0e-12;
     Set::Scalar beta = 7.974;
     Set::Scalar gamma = 3.19;
+    Set::Scalar gas_constant = 0.0;
 
     Rocfire() = default;
 
@@ -103,7 +104,7 @@ struct Rocfire
         for (int r = 0; r < nreactions; ++r)
         {
             k[r] = A[r] * std::pow(P / pressure_reference, pressure_exponent[r])
-                * std::exp(-activation_energy[r] / (Set::Constant::Rg * T));
+                * std::exp(-activation_energy[r] / (gas_constant * T));
         }
 
         progress[0] = k[0] * Y[AP];
@@ -143,7 +144,6 @@ struct Rocfire
         return {wdot, qdot};
     }
 
-    template<typename Gas>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     bool ComputeODEJacobian(
         const Set::Scalar* state,
@@ -154,13 +154,15 @@ struct Rocfire
         int ode_size,
         int dependent_species,
         Set::Scalar temperature_scale,
-        const Gas* gas) const
+        const Model::Gas::Gas::DeviceData* gas) const
     {
         if (gas == nullptr || ode_size != 6 || nspecies != 6 ||
             dependent_species < 0 || dependent_species >= nspecies ||
             !(pressure > 0.0) || !(mixture_density > 0.0) ||
             !(gas_density > 0.0) || !(temperature_scale > 0.0) ||
-            !(pressure_reference > 0.0) || !(gas->Rg > 0.0)) return false;
+            !(pressure_reference > 0.0) ||
+            !(Model::Gas::Gas::UniversalGasConstant(*gas) > 0.0))
+            return false;
 
         SpeciesArray Y{};
         int independent_species[5]{};
@@ -186,11 +188,14 @@ struct Rocfire
         Set::Scalar dcp_species_dT[6]{};
         for (int n = 0; n < nspecies; ++n)
         {
-            if (!(gas->MW[n] > 0.0)) return false;
-            cp_species[n] = gas->cp_mol_species(temperature, n) / gas->MW[n];
+            const Set::Scalar molecular_weight =
+                Model::Gas::Gas::MolecularWeight(*gas, n);
+            if (!(molecular_weight > 0.0)) return false;
+            cp_species[n] =
+                Model::Gas::Gas::CpMassSpecies(*gas, temperature, n);
             dcp_species_dT[n] =
-                gas->dcp_mol_species_dT(temperature, n) / gas->MW[n];
-            inverse_mw += Y[n] / gas->MW[n];
+                Model::Gas::Gas::DCpMassSpeciesDT(*gas, temperature, n);
+            inverse_mw += Y[n] / molecular_weight;
             cp += Y[n] * cp_species[n];
         }
         if (!(inverse_mw > 0.0) || !(cp > 0.0)) return false;
@@ -201,7 +206,7 @@ struct Rocfire
             rate_constant[r] = A[r] *
                 std::pow(pressure / pressure_reference, pressure_exponent[r]) *
                 std::exp(-activation_energy[r] /
-                    (Set::Constant::Rg * temperature));
+                    (gas_constant * temperature));
 
         progress[0] = rate_constant[0] * Y[AP];
         progress[1] = rate_constant[1] * Y[Binder];
@@ -210,7 +215,8 @@ struct Rocfire
         const auto source = source_from_progress(progress);
 
         const Set::Scalar inverse_density =
-            gas->Rg * inverse_mw * temperature / pressure;
+            Model::Gas::Gas::UniversalGasConstant(*gas) *
+            inverse_mw * temperature / pressure;
         const Set::Scalar temperature_prefactor =
             gas_density / (mixture_density * temperature_scale);
 
@@ -228,7 +234,7 @@ struct Rocfire
 
             std::array<Set::Scalar, nreactions> dprogress{};
             const Set::Scalar temperature_factor = dtemperature /
-                (Set::Constant::Rg * temperature * temperature);
+                (gas_constant * temperature * temperature);
             dprogress[0] = rate_constant[0] * dY[AP] +
                 progress[0] * activation_energy[0] * temperature_factor;
             dprogress[1] = rate_constant[1] * dY[Binder] +
@@ -245,11 +251,13 @@ struct Rocfire
             Set::Scalar dcp = 0.0;
             for (int n = 0; n < nspecies; ++n)
             {
-                dinverse_mw += dY[n] / gas->MW[n];
+                dinverse_mw += dY[n] /
+                    Model::Gas::Gas::MolecularWeight(*gas, n);
                 dcp += dY[n] * cp_species[n] +
                     Y[n] * dcp_species_dT[n] * dtemperature;
             }
-            const Set::Scalar dinverse_density = gas->Rg / pressure *
+            const Set::Scalar dinverse_density =
+                Model::Gas::Gas::UniversalGasConstant(*gas) / pressure *
                 (temperature * dinverse_mw + inverse_mw * dtemperature);
 
             for (int row = 0; row < nspecies - 1; ++row)
@@ -269,6 +277,202 @@ struct Rocfire
         for (int n = 0; n < nspecies * nspecies; ++n)
             if (!std::isfinite(derivative[n])) return false;
         return true;
+    }
+
+    template<typename ODESolver>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Model::Chemistry::Advance::Result
+    Advance(
+        const Set::Scalar dt,
+        const Set::Scalar pressure,
+        const Set::Scalar mixture_density,
+        SpeciesArray& rhoY,
+        Set::Scalar& temperature,
+        const Model::Gas::Gas::DeviceData& gas,
+        const ODESolver& solver) const
+    {
+        Model::Chemistry::Advance::Result advance;
+        if (!(dt > 0.0)) return advance;
+        if (nspecies != 6 || !(pressure > 0.0) ||
+            !(mixture_density > 0.0) || !(temperature > 0.0))
+        {
+            advance.converged = false;
+            advance.residual_norm =
+                std::numeric_limits<Set::Scalar>::infinity();
+            return advance;
+        }
+
+        SpeciesArray mass_fraction{};
+        Set::Scalar gas_density = 0.0;
+        int dependent_species = 0;
+        for (int n = 0; n < nspecies; ++n)
+        {
+            rhoY[n] = rhoY[n] > 0.0 ? rhoY[n] : 0.0;
+            gas_density += rhoY[n];
+            if (rhoY[n] > rhoY[dependent_species]) dependent_species = n;
+        }
+        if (!(gas_density > 0.0))
+        {
+            advance.converged = false;
+            advance.residual_norm =
+                std::numeric_limits<Set::Scalar>::infinity();
+            return advance;
+        }
+
+        Set::Scalar independent_mass_fraction = 0.0;
+        for (int n = 0; n < nspecies; ++n)
+        {
+            mass_fraction[n] = rhoY[n] / gas_density;
+            if (n != dependent_species)
+                independent_mass_fraction += mass_fraction[n];
+        }
+        mass_fraction[dependent_species] = 1.0 - independent_mass_fraction;
+
+        Set::Scalar inverse_mw = 0.0;
+        for (int n = 0; n < nspecies; ++n)
+            inverse_mw += mass_fraction[n] /
+                Model::Gas::Gas::MolecularWeight(gas, n);
+        const Set::Scalar gas_constant =
+            Model::Gas::Gas::UniversalGasConstant(gas);
+        Set::Scalar rho_eos =
+            pressure / (gas_constant * inverse_mw * temperature);
+        Set::Scalar remaining = dt;
+        Set::Scalar chemistry_dt = dt;
+        int rejected_steps = 0;
+        const Rocfire model = *this;
+        const auto* gas_view = &gas;
+
+        while (remaining > 0.0)
+        {
+            const SpeciesArray mass_fraction_old = mass_fraction;
+            const Set::Scalar temperature_old = temperature;
+            const Set::Scalar rho_eos_old = rho_eos;
+            const Set::Scalar temperature_scale =
+                temperature_old > 1.0 ? temperature_old : 1.0;
+            Set::Scalar state[6]{};
+            for (int n = 0; n < nspecies - 1; ++n)
+            {
+                const int species = n < dependent_species ? n : n + 1;
+                state[n] = mass_fraction_old[species];
+            }
+            state[nspecies - 1] = temperature_old / temperature_scale;
+
+            auto rhs = [=] AMREX_GPU_HOST_DEVICE(
+                const Set::Scalar* z, Set::Scalar* rate)
+            {
+                SpeciesArray Y{};
+                Set::Scalar sum = 0.0;
+                for (int n = 0; n < 5; ++n)
+                {
+                    const int species =
+                        n < dependent_species ? n : n + 1;
+                    Y[species] = z[n];
+                    if (!(Y[species] >= 0.0) ||
+                        !std::isfinite(Y[species])) return false;
+                    sum += Y[species];
+                }
+                Y[dependent_species] = 1.0 - sum;
+                if (!(Y[dependent_species] >= 0.0) ||
+                    !std::isfinite(Y[dependent_species])) return false;
+
+                const Set::Scalar trial_temperature =
+                    z[5] * temperature_scale;
+                if (!(trial_temperature > 0.0) ||
+                    !std::isfinite(trial_temperature)) return false;
+
+                Set::Scalar trial_inverse_mw = 0.0;
+                Set::Scalar cp = 0.0;
+                for (int n = 0; n < 6; ++n)
+                {
+                    trial_inverse_mw += Y[n] /
+                        Model::Gas::Gas::MolecularWeight(*gas_view, n);
+                    cp += Y[n] * Model::Gas::Gas::CpMassSpecies(
+                        *gas_view, trial_temperature, n);
+                }
+                if (!(trial_inverse_mw > 0.0) || !(cp > 0.0))
+                    return false;
+
+                const Set::Scalar rho_state = pressure /
+                    (gas_constant * trial_inverse_mw * trial_temperature);
+                SpeciesArray intrinsic_rhoY{};
+                for (int n = 0; n < 6; ++n)
+                    intrinsic_rhoY[n] = rho_state * Y[n];
+                const Source source = model.ComputeChemistrySources(
+                    pressure, trial_temperature, intrinsic_rhoY, 0.0,
+                    nullptr);
+
+                for (int n = 0; n < 5; ++n)
+                {
+                    const int species =
+                        n < dependent_species ? n : n + 1;
+                    rate[n] = source.first[species] / rho_state;
+                }
+                rate[5] = gas_density * source.second /
+                    (rho_state * mixture_density * cp * temperature_scale);
+
+                for (int n = 0; n < 6; ++n)
+                    if (!std::isfinite(rate[n])) return false;
+                return true;
+            };
+
+            auto jacobian = [=] AMREX_GPU_HOST_DEVICE(
+                const Set::Scalar* z, Set::Scalar* derivative)
+            {
+                return model.ComputeODEJacobian(
+                    z, derivative, pressure, mixture_density, gas_density,
+                    6, dependent_species, temperature_scale, gas_view);
+            };
+
+            const Solver::Local::ODE::Advance::Result result =
+                solver.template Advance<6>(
+                    state, 6, chemistry_dt, rhs, jacobian,
+                    solver.SupportsJacobian());
+            if (!result.converged)
+            {
+                chemistry_dt *= 0.5;
+                ++rejected_steps;
+                if (rejected_steps > 40 ||
+                    !(chemistry_dt > dt *
+                        std::numeric_limits<Set::Scalar>::epsilon()))
+                {
+                    advance.converged = false;
+                    advance.failed_dt = chemistry_dt;
+                    advance.residual_norm = result.residual_norm;
+                    return advance;
+                }
+                continue;
+            }
+
+            Set::Scalar sum = 0.0;
+            for (int n = 0; n < 5; ++n)
+            {
+                const int species =
+                    n < dependent_species ? n : n + 1;
+                mass_fraction[species] = state[n];
+                sum += state[n];
+            }
+            mass_fraction[dependent_species] = 1.0 - sum;
+            temperature = state[5] * temperature_scale;
+            inverse_mw = 0.0;
+            for (int n = 0; n < 6; ++n)
+                inverse_mw += mass_fraction[n] /
+                    Model::Gas::Gas::MolecularWeight(gas, n);
+            rho_eos =
+                pressure / (gas_constant * inverse_mw * temperature);
+            advance.volume_fraction_change +=
+                gas_density * (1.0 / rho_eos - 1.0 / rho_eos_old);
+
+            remaining -= chemistry_dt;
+            if (remaining <= dt * 1.0e-14) break;
+            chemistry_dt =
+                2.0 * chemistry_dt < remaining ?
+                    2.0 * chemistry_dt : remaining;
+            rejected_steps = 0;
+        }
+
+        for (int n = 0; n < 6; ++n)
+            rhoY[n] = gas_density * mass_fraction[n];
+        return advance;
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -392,6 +596,7 @@ struct Rocfire
     static void Parse(Rocfire& value, IO::ParmParse& pp, int a_nspecies)
     {
         value.nspecies = a_nspecies;
+        value.gas_constant = Set::Constant::Rg;
         Util::Message(INFO, pp.getPrefix());
         Util::Assert(INFO, TEST(value.nspecies == 6),
             "Rocfire chemistry requires six gas species.");

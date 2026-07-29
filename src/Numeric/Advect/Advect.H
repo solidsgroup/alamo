@@ -46,7 +46,7 @@ public:
                             int comp,
                             const Set::Scalar* DX,
                             Options options = {},
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -70,7 +70,7 @@ public:
                         int comp,
                         const Set::Scalar* DX,
                         Options options = {},
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         return this->template operator()<I>(phi, velocity, i, j, k, comp, DX, options, stencil);
     }
@@ -83,7 +83,7 @@ public:
                         int comp,
                         const Set::Scalar* DX,
                         Options options = {},
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         Set::Vector ret = Set::Vector::Zero();
         for (int d = 0; d < AMREX_SPACEDIM; ++d)

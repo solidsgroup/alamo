@@ -37,6 +37,10 @@ class LowMach : virtual public Integrator
 {
 public:
     static constexpr const char* name = "lowmach";
+    using Chemistry = Model::Chemistry::Chemistry<
+        Model::Chemistry::Frozen,
+        Model::Chemistry::FiniteRate,
+        Model::Chemistry::Rocfire>;
 
     LowMach() {};
     LowMach(IO::ParmParse& pp);
@@ -59,7 +63,8 @@ public:
         delete xi_ic;
     }
 
-protected:
+public:
+    // NVCC requires enclosing functions for extended device lambdas to be public.
     void Initialize(int lev) override;
     void Regrid(int lev, Set::Scalar time) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
@@ -79,21 +84,35 @@ protected:
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
     void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
+    void ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
-    ComputeThermalState(
-        Set::Patch<const Set::Scalar> component_density,
-        Set::Scalar temperature, int i, int j, int k) const;
+    using ThermalData = amrex::GpuTuple<
+        Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
+        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*>;
+    using ChemistryData = amrex::GpuTuple<
+        bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
+        const Chemistry*, const Model::Gas::Gas*>;
+    using ThermochemicalData = amrex::GpuTuple<
+        ThermalData, ChemistryData, bool, bool, bool>;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
+    static amrex::GpuTuple<
+        Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+    ComputeThermalState(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k,
+        const ThermalData& data);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static
+    amrex::GpuTuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(
         Set::Patch<const Set::Scalar> component_density,
         Set::Patch<const Set::Scalar> temperature,
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
-        bool include_reaction = true) const;
+        const ThermochemicalData& data,
+        bool include_reaction = true);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
@@ -105,6 +124,7 @@ protected:
             const amrex::MultiFab& component_density_mf,
             const amrex::MultiFab* xi_mf);
 
+protected:
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> velocity_old_mf;
     Set::Field<Set::Scalar> temperature_mf;
@@ -152,11 +172,13 @@ protected:
     IC::IC<Set::Scalar>* xi_ic = nullptr;
 
     Model::Gas::Gas gas;
-    using Chemistry = Model::Chemistry::Chemistry<
-        Model::Chemistry::Frozen,
-        Model::Chemistry::FiniteRate,
-        Model::Chemistry::Rocfire>;
+    amrex::Gpu::DeviceVector<Set::Scalar> gas_device_storage;
+    amrex::Gpu::DeviceVector<Set::Scalar> thermal_device_storage;
+    Model::Gas::Gas::DeviceData gas_device_data;
+    ThermalData thermal_data;
     Chemistry chemistry;
+    ChemistryData chemistry_device_data;
+    ThermochemicalData thermochemical_data;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;
