@@ -1038,20 +1038,11 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                             (mechanism.LocalRate(state, i, j, k) +
                              mechanism.GradientCoefficient(
                                 state, i, j, k) * laplacian);
-                        // Phase change (solid decomposition) is
-                        // irreversible: the curvature/diffusion term
-                        // recovered above can locally push a mechanism's
-                        // share of the aggregate change positive (eta
-                        // increasing) even though the reaction itself only
-                        // consumes solid. Forbid that -- this mechanism may
-                        // only ever shrink its rigid solid, never regrow it.
-                        const Set::Scalar irreversible_eta_change =
-                            Util::Min(mechanism_eta_change, 0.0);
                         Set::Scalar integrated_heat = 0.0;
                         integrated_dilatation(i,j,k) +=
                             mechanism.ApplyImplicitChange(
                                 component_density, state,
-                                irreversible_eta_change, integrated_heat,
+                                mechanism_eta_change, integrated_heat,
                                 i, j, k);
                         if (integrated_heat != 0.0)
                         {
