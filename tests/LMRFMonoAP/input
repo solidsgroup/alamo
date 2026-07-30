@@ -56,14 +56,14 @@
 
 plot_file = tests/LMRFMonoAP/output
 amr.plot_dt = 1.0e-4_s
-amr.max_level = 1
+amr.max_level = 0
 amr.n_cell = 2 64
 amr.max_grid_size = 64
 amr.blocking_factor = 2
 amr.regrid_int = -1
 
 timestep = 1.0e-7_s
-stop_time = 1.5e-2_s
+stop_time = 2.5e-2_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 # Resolve the coupled thermal/chemistry split closely enough for rate
@@ -118,8 +118,8 @@ mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2.75e6
-AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.rate_multiplier = 1.109867e6
+AP_decomposition.phase_change.activation_temperature = 2748.73_K
 AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s

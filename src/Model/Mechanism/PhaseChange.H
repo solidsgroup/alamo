@@ -113,6 +113,12 @@ public:
                         "0.0_K", Unit::Temperature());
         if (value.activation_temperature < 0.0 || value.temperature_cutoff < 0.0)
             Util::Exception(INFO, "phase-change temperatures must be nonnegative");
+        // Optional (P/pressure_reference)^pressure_exponent factor applied
+        // alongside the Arrhenius temperature_factor below; pressure_exponent
+        // defaults to 0 (factor == 1, no effect).
+        pp.query_default("pressure_exponent", value.pressure_exponent, 0.0);
+        pp.query_default("pressure_reference", value.pressure_reference,
+                        "1.0e6_Pa", Unit::Pressure());
         value.use_prescribed_speed = pp.contains("prescribed_speed");
         if (value.use_prescribed_speed)
         {
@@ -188,6 +194,9 @@ public:
         if (activation_temperature > 0.0)
             rate *= std::exp(
                 -activation_temperature / state.temperature);
+        if (pressure_exponent != 0.0)
+            rate *= std::pow(state.pressure / pressure_reference,
+                            pressure_exponent);
         return rate_multiplier * rate;
     }
 
@@ -209,8 +218,11 @@ public:
         const Set::Scalar temperature_factor =
             activation_temperature > 0.0 ?
                 std::exp(-activation_temperature / state.temperature) : 1.0;
+        const Set::Scalar pressure_factor = pressure_exponent != 0.0 ?
+            std::pow(state.pressure / pressure_reference,
+                    pressure_exponent) : 1.0;
         return composition * rate_multiplier * temperature_factor *
-            model.LocalStabilityRate();
+            pressure_factor * model.LocalStabilityRate();
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -231,8 +243,11 @@ public:
         const Set::Scalar temperature_factor =
             activation_temperature > 0.0 ?
                 std::exp(-activation_temperature / state.temperature) : 1.0;
+        const Set::Scalar pressure_factor = pressure_exponent != 0.0 ?
+            std::pow(state.pressure / pressure_reference,
+                    pressure_exponent) : 1.0;
         return composition * rate_multiplier * temperature_factor *
-            model.GradientCoefficient();
+            pressure_factor * model.GradientCoefficient();
     }
 
     int RigidComponent() const
@@ -296,6 +311,9 @@ private:
         }
         if (activation_temperature > 0.0)
             eta_dot *= std::exp(-activation_temperature / state.temperature);
+        if (pressure_exponent != 0.0)
+            eta_dot *= std::pow(state.pressure / pressure_reference,
+                                pressure_exponent);
         return rate_multiplier * reference_density * eta_dot;
     }
 
@@ -311,6 +329,8 @@ private:
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
+    Set::Scalar pressure_exponent = 0.0;
+    Set::Scalar pressure_reference = 1.0e6;
     Set::Scalar prescribed_speed = 0.0;
     bool input_is_rigid = false;
     bool use_prescribed_speed = false;
