@@ -740,15 +740,14 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             mu(i,j,k) = Model::Gas::Gas::DynamicViscosity(
                 gas_data, T(i,j,k), component_density, i, j, k);
             auto [thermal_gas_volume_fraction, gas_heat_capacity,
-                heat_capacity, conductivity, cp, conductivity_perp,
-                heat_capacity_perp] = ComputeThermalState(
+                heat_capacity, conductivity, cp, conductivity_perp] =
+                ComputeThermalState(
                     component_density, T(i,j,k), i, j, k, thermal);
             (void)thermal_gas_volume_fraction;
             (void)gas_heat_capacity;
             (void)heat_capacity;
             (void)cp;
             (void)conductivity_perp;
-            (void)heat_capacity_perp;
             kappa(i,j,k) = conductivity;
             for (int n = 0; n < ngas; ++n)
                 diffusion(i,j,k,n) =
@@ -867,14 +866,12 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 
             Set::Scalar temperature = T(i,j,k);
             auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                conductivity, cp, conductivity_perp,
-                heat_capacity_perp] = ComputeThermalState(
+                conductivity, cp, conductivity_perp] = ComputeThermalState(
                     component_density, temperature, i, j, k, thermal);
             (void)thermal_gas_volume_fraction;
             (void)gas_heat_capacity;
             (void)conductivity;
             (void)conductivity_perp;
-            (void)heat_capacity_perp;
             const Set::Scalar mixture_density = cp > 0.0 ?
                 heat_capacity / cp : gas_density;
 
@@ -904,7 +901,7 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 amrex::GpuTuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar,
-    Set::Scalar, Set::Scalar>
+    Set::Scalar>
 LowMach::ComputeThermalState(
     Set::Patch<const Set::Scalar> component_density,
     Set::Scalar temperature, int i, int j, int k,
@@ -936,7 +933,7 @@ LowMach::ComputeThermalState(
 
     if (!condensed_thermal_transport)
         return {gas_volume_fraction, density * cp, density * cp,
-                gas_conductivity, cp, gas_conductivity, density * cp};
+                gas_conductivity, cp, gas_conductivity};
 
     Set::Scalar condensed_volume_fraction = 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
@@ -963,19 +960,13 @@ LowMach::ComputeThermalState(
     // Inverse/harmonic (series) mixing rule: correct for flux normal to the
     // diffuse interface, where the phases present the same heat current and
     // their thermal resistances (1/k) add. See Ettrich et al. 2014, eq 28.
-    Set::Scalar inverse_conductivity_perp = gas_volume_fraction > 0.0 ?
+    // Volumetric heat capacity has no harmonic counterpart -- it is not a
+    // resistance, so the transient (mass) coefficient of the diffusion
+    // equation is always the arithmetic `heat_capacity` below, regardless of
+    // flux direction (see LowMach.H's ComputeThermalState doc comment).
+    Set::Scalar inverse_conductivity_perp = gas_volume_fraction > 0.0 &&
+        gas_heat_capacity > 0.0 ?
         gas_volume_fraction / gas_conductivity : 0.0;
-    // Inverse/harmonic mixing rule for the volumetric heat capacity
-    // (transient/mass coefficient), paired with conductivity_perp below.
-    // Using the harmonic conductivity together with an *arithmetic* heat
-    // capacity creates a diffusivity (k/C_V) "barrier" in the diffuse
-    // interface that can nearly insulate the two phases -- see Ettrich et
-    // al. 2014, eq 10 and the fig 5 discussion. gas_heat_capacity is the
-    // intrinsic (pure-phase) gas volumetric heat capacity already scaled by
-    // gas_volume_fraction, so dividing it back out recovers the pure-phase
-    // value used as the harmonic denominator.
-    Set::Scalar inverse_heat_capacity_perp = gas_volume_fraction > 0.0 ?
-        gas_volume_fraction * gas_volume_fraction / gas_heat_capacity : 0.0;
     const Set::Scalar solid_scale = condensed_volume_fraction > 0.0 ?
         solid_fraction / condensed_volume_fraction : 0.0;
     for (int n = ngas_species; n < nspecies; ++n)
@@ -989,22 +980,13 @@ LowMach::ComputeThermalState(
         conductivity += species_volume_weight *
             condensed_thermal_conductivity[n];
         if (species_volume_weight > 0.0)
-        {
             inverse_conductivity_perp += species_volume_weight /
                 condensed_thermal_conductivity[n];
-            // Pure-phase volumetric heat capacity of species n is
-            // specific_heat / condensed_inverse_reference_density.
-            inverse_heat_capacity_perp += species_volume_weight *
-                condensed_inverse_reference_density[n] /
-                condensed_specific_heat[n];
-        }
     }
     const Set::Scalar conductivity_perp = inverse_conductivity_perp > 0.0 ?
         1.0 / inverse_conductivity_perp : conductivity;
-    const Set::Scalar heat_capacity_perp = inverse_heat_capacity_perp > 0.0 ?
-        1.0 / inverse_heat_capacity_perp : heat_capacity;
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
-            conductivity, cp, conductivity_perp, heat_capacity_perp};
+            conductivity, cp, conductivity_perp};
 }
 
 void
@@ -1244,30 +1226,31 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         // only ever shrink its rigid solid, never regrow it.
                         const Set::Scalar irreversible_eta_change =
                             Util::Min(mechanism_eta_change, 0.0);
+                        // Capture heat_capacity from the pre-update
+                        // composition -- ApplyImplicitChange below mutates
+                        // component_density in place, and
+                        // component_density_state aliases the same array, so
+                        // computing this afterwards would use a
+                        // half-updated composition.
+                        const auto [gas_volume_fraction, gas_heat_capacity,
+                            heat_capacity, conductivity, cp,
+                            conductivity_perp] = ComputeThermalState(
+                                component_density_state, T(i,j,k),
+                                i, j, k, thermal);
+                        (void)gas_volume_fraction;
+                        (void)gas_heat_capacity;
+                        (void)conductivity;
+                        (void)cp;
+                        (void)conductivity_perp;
                         Set::Scalar integrated_heat = 0.0;
                         integrated_dilatation(i,j,k) +=
                             mechanism.ApplyImplicitChange(
                                 component_density, state,
                                 irreversible_eta_change, integrated_heat,
                                 i, j, k);
-                        if (integrated_heat != 0.0)
-                        {
-                            const auto [gas_volume_fraction,
-                                gas_heat_capacity, heat_capacity,
-                                conductivity, cp, conductivity_perp,
-                                heat_capacity_perp] = ComputeThermalState(
-                                    component_density_state, T(i,j,k),
-                                    i, j, k, thermal);
-                            (void)gas_volume_fraction;
-                            (void)gas_heat_capacity;
-                            (void)conductivity;
-                            (void)cp;
-                            (void)conductivity_perp;
-                            (void)heat_capacity_perp;
-                            if (heat_capacity > 0.0)
-                                temperature(i,j,k) +=
-                                    integrated_heat / heat_capacity;
-                        }
+                        if (integrated_heat != 0.0 && heat_capacity > 0.0)
+                            temperature(i,j,k) +=
+                                integrated_heat / heat_capacity;
                     });
             }
         }
@@ -1499,20 +1482,17 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto [gas_volume_fraction, gas_heat_capacity,
-                        heat_capacity, conductivity, cp, conductivity_perp,
-                        heat_capacity_perp] = ComputeThermalState(
+                        heat_capacity, conductivity, cp, conductivity_perp] =
+                        ComputeThermalState(
                             component_density, T(i,j,k), i, j, k, thermal);
                     (void)gas_volume_fraction;
                     (void)gas_heat_capacity;
-                    // Use the harmonic-mixed heat capacity as the transient
-                    // (mass) coefficient wherever the harmonic conductivity
-                    // also applies (i.e. wherever a solid interface exists);
-                    // pairing harmonic k with arithmetic C_V would create a
-                    // spurious diffusivity "barrier" at the interface (see
+                    // The transient (mass) coefficient is always the
+                    // arithmetic heat_capacity: volumetric heat capacity is
+                    // not a resistance, so it has no harmonic/series
+                    // counterpart, unlike conductivity (see
                     // ComputeThermalState).
-                    const Set::Scalar mass_coefficient =
-                        has_interface ? heat_capacity_perp : heat_capacity;
-                    a(i,j,k) = Util::Max(mass_coefficient, rho_floor * cp);
+                    a(i,j,k) = Util::Max(heat_capacity, rho_floor * cp);
                     b(i,j,k) = conductivity;
 
                     if (has_interface)
@@ -1825,14 +1805,12 @@ LowMach::ComputeThermochemicalSource(
     }
 
     auto [thermal_gas_volume_fraction, gas_heat_capacity, heat_capacity,
-        conductivity, cp, conductivity_perp,
-        heat_capacity_perp] = ComputeThermalState(
+        conductivity, cp, conductivity_perp] = ComputeThermalState(
             component_density, T(i,j,k), i, j, k, thermal);
     (void)thermal_gas_volume_fraction;
     (void)gas_heat_capacity;
     (void)cp;
     (void)conductivity_perp;
-    (void)heat_capacity_perp;
     if (include_conduction && !implicit_thermal_diffusion &&
         heat_capacity > 0.0)
     {
@@ -2415,14 +2393,13 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             if (advect_T)
             {
                 auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                    conductivity, cp, conductivity_perp,
-                    heat_capacity_perp] = ComputeThermalState(
+                    conductivity, cp, conductivity_perp] =
+                    ComputeThermalState(
                         component_density, T(i,j,k), i, j, k, thermal);
                 (void)gas_volume_fraction;
                 (void)conductivity;
                 (void)cp;
                 (void)conductivity_perp;
-                (void)heat_capacity_perp;
                 Set::Vector grad_T =
                     Numeric::Gradient(
                         T, i, j, k, 0, dx.data(), sten);
@@ -2434,30 +2411,28 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             if (mechanism_heat_rhs(i,j,k) != 0.0)
             {
                 auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                    conductivity, cp, conductivity_perp,
-                    heat_capacity_perp] = ComputeThermalState(
+                    conductivity, cp, conductivity_perp] =
+                    ComputeThermalState(
                         component_density, T(i,j,k), i, j, k, thermal);
                 (void)gas_volume_fraction;
                 (void)gas_heat_capacity;
                 (void)conductivity;
                 (void)cp;
                 (void)conductivity_perp;
-                (void)heat_capacity_perp;
                 if (heat_capacity > 0.0)
                     T_rhs(i,j,k) += mechanism_heat_rhs(i,j,k) / heat_capacity;
             }
             if (external_heat_source)
             {
                 auto [gas_volume_fraction, gas_heat_capacity, heat_capacity,
-                    conductivity, cp, conductivity_perp,
-                    heat_capacity_perp] = ComputeThermalState(
+                    conductivity, cp, conductivity_perp] =
+                    ComputeThermalState(
                         component_density, T(i,j,k), i, j, k, thermal);
                 (void)gas_volume_fraction;
                 (void)gas_heat_capacity;
                 (void)conductivity;
                 (void)cp;
                 (void)conductivity_perp;
-                (void)heat_capacity_perp;
                 if (heat_capacity > 0.0)
                     T_rhs(i,j,k) += heat_source(i,j,k) / heat_capacity;
             }

@@ -23,11 +23,14 @@ assumptions exactly:
   (and hence the interface) never moves.
 
 This exercises ``LowMach::ComputeThermalState``'s harmonic (series)
-conductivity and heat-capacity mixing rules and the tensorial mobility path
-in ``Operator::Diffusion``, which is used because heat flux is normal to a
+conductivity mixing rule and the tensorial mobility path in
+``Operator::Diffusion``, which is used because heat flux is normal to a
 diffuse interface that is not aligned with a single grid direction only by
 coincidence of this 1D setup -- the same code path applies for curved
-interfaces in 2D/3D problems.
+interfaces in 2D/3D problems. The transient (mass) coefficient uses the
+arithmetic (parallel) heat-capacity mixing rule regardless of flux direction
+-- volumetric heat capacity is not a resistance, so unlike conductivity it has
+no harmonic counterpart.
 
 The fluid's conductivity and reference pressure are chosen to give a large
 but numerically tractable conductivity/heat-capacity contrast with the
