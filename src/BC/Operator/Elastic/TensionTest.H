@@ -17,6 +17,7 @@
 
 // #include "Operator/Elastic.H"
 #include "Constant.H"
+#include "IO/ParmParse.H"
 
 namespace BC
 {
@@ -57,18 +58,21 @@ public:
         LoadingMode mode;
 
         // Tension test type.
-        pp_query_validate("type",type,{"uniaxial_stress_clamp","uniaxial_kolsky","uniaxial_stress","uniaxial_strain"});
+        pp.query_validate("type",type,{"uniaxial_stress_clamp","uniaxial_kolsky","uniaxial_stress","uniaxial_strain"});
         
+        pp.query("disp",disp); // Applied displacement (can be interpolator)
+        pp.query("trac",trac); // Applied traction (can be interpolator)
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
         if (pp.contains("trac") && pp.contains("disp")) 
             Util::Abort(INFO,"Cannot specify both trac and disp");
         else if (pp.contains("disp"))
         {
-            pp_query("disp",disp); // Applied displacement (can be interpolator)
             mode = LoadingMode::DISP;
         }
         else if (pp.contains("trac"))
         {
-            pp_query("trac",trac); // Applied traction (can be interpolator)
             mode = LoadingMode::TRAC;
         }
         else

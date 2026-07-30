@@ -7,7 +7,6 @@
 #define IC_CONSTANT_H_
 
 #include "AMReX_Config.H"
-#include "AMReX_Loop.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
@@ -18,6 +17,9 @@ namespace IC
 class Constant : public IC<Set::Scalar>, public IC<Set::Vector>
 {
 public:
+    class Zero;
+    class One;
+
     static constexpr const char* name = "constant";
 
     virtual ~Constant() = default;
@@ -44,8 +46,9 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
             {
-                Set::Scalar value = m_value.size() == 1 ? m_value[0] : m_value[m];
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                const Set::Scalar value =
+                    m_value.size() == 1 ? m_value[0] : m_value[m];
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     field(i,j,k,m) += value;
                 });
             }
@@ -61,9 +64,9 @@ public:
             amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
             {
-                Set::Scalar value = m_value.size() == 1 ? m_value[0] : m_value[m];
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE (int i, int j, int k)
-                {
+                const Set::Scalar value =
+                    m_value.size() == 1 ? m_value[0] : m_value[m];
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     field(i,j,k)(m) += value;
                 });
             }
@@ -78,9 +81,29 @@ public:
         // Value (or values if multicomponent) to set field to 
         pp.queryarr_required("value", value.m_value, value.unit); 
     }
-private:
+protected:
     std::vector<Set::Scalar> m_value;
     Unit unit;
+};
+
+class Constant::Zero : public Constant
+{
+public:
+    explicit Zero(amrex::Vector<amrex::Geometry> &_geom) :
+        Constant(_geom)
+    {
+        m_value = {0.0};
+    }
+};
+
+class Constant::One : public Constant
+{
+public:
+    explicit One(amrex::Vector<amrex::Geometry> &_geom) :
+        Constant(_geom)
+    {
+        m_value = {1.0};
+    }
 };
 }
 #endif

@@ -183,6 +183,22 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
 AMREX_FORCE_INLINE
 AMREX_GPU_HOST_DEVICE
 Vector Position(const int &i, const int &j, const int &k,
+                const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> &prob_lo,
+                const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> &cell_size,
+                const amrex::IndexType &ixType)
+{
+    (void)k;
+    const amrex::Real offset =
+        ixType == amrex::IndexType::TheNodeType() ? 0.0 : 0.5;
+    return Vector(AMREX_D_DECL(
+        prob_lo[0] + (amrex::Real(i) + offset) * cell_size[0],
+        prob_lo[1] + (amrex::Real(j) + offset) * cell_size[1],
+        prob_lo[2] + (amrex::Real(k) + offset) * cell_size[2]));
+}
+
+AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
+Vector Position(const int &i, const int &j, const int &k,
                 const Set::Vector &prob_lo,
                 const Set::Vector &cell_size,
                 const amrex::IndexType &ixType)

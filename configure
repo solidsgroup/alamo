@@ -548,7 +548,8 @@ if args.buildamrex and not args.amrex:
             message("Amrex make.local",'\n'.join(amrex_make_local))
 
     f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD)\n") # --output-sync=target
+    amrex_make_args = " USE_CUDA_FAST_MATH=FALSE" if args.cuda else ""
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD){amrex_make_args}\n") # --output-sync=target
     f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
     f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
@@ -596,7 +597,7 @@ elif (args.amrex != ""):
 
     message("AMReX Directory", args.amrex)
     if githash: message("AMReX Git commit", githash)
-    f.write("AMREX = " + args.amrex + "\n")
+    f.write("AMREX_TARGET = " + args.amrex + "\n")
 else:
     warning("AMReX path not specified. This may cause compile errors.")
 
@@ -809,6 +810,7 @@ if mpidist == "openmpi":
             ompicc =   f"export OMPI_CXX={args.comp} && {CUDA_NVCC} -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++20  -std=c++20' --std=c++20 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc} -c "
             ompilink = f"export OMPI_CXX={args.comp} && {CUDA_NVCC} {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++20  -std=c++20' --std=c++20"
 
+        ompidep = f"export OMPI_CXX={args.comp} && {CUDA_NVCC} -ccbin=mpicxx --std=c++20 {generalopts} -x cu {('-isystem ' + CUDA_INCLUDE) if CUDA_INCLUDE else ''} {compmpiinc}"
         f.write(f"CXX_COMPILE_FLAGS = \n")
         cuda_runtime_dirs = " ".join(f"-L{path} -Wl,-rpath,{path}" for path in CUDA_LIBDIRS)
         cuda_stub_dirs = " ".join(f"-L{path}" for path in CUDA_STUBDIRS)
@@ -816,6 +818,7 @@ if mpidist == "openmpi":
         f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} {cuda_link_dirs} -lcuda -lcudart -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
         f.write(f"CC = {ompicc} \n")
         f.write(f"COMP_CMD = {ompicc} -c\n")
+        f.write(f"DEP_CMD = {ompidep}\n")
         f.write(f"LINK_CMD = {ompilink} \n")
         
     else:

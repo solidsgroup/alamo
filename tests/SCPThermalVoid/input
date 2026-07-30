@@ -158,8 +158,6 @@ chamber.pressure = 1.0_MPa  ## [MPa]
 # Disable NAN checking
 amr.abort_on_nan = 1
 
-# Disable elasticity
-elastic.type = disable
 
 
 

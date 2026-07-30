@@ -86,12 +86,39 @@ public:
         // How many laminates (MUST be greater than or equal to 1).
         pp_query_default("number_of_inclusions", value.number_of_inclusions, 1);
 
-        if (value.number_of_inclusions < 1)
-            Util::Abort(INFO, "Number of inclusions must be at least 1. Aborting.");
-
         amrex::Vector<Set::Scalar> a_center;
         // (x,y,[z]) values for the center point of the laminate
-        if (pp.contains("center")) pp.queryarr("center", a_center, Unit::Length());
+        pp.queryarr("center", a_center, Unit::Length());
+
+        amrex::Vector<Set::Scalar> a_thickness;
+        // thickness of the laminate
+        pp.queryarr("thickness", a_thickness,Unit::Length());
+
+        amrex::Vector<Set::Scalar> a_orientation;
+        // Vector normal to the interface of the laminate
+        pp_queryarr("orientation", a_orientation);
+
+        amrex::Vector<Set::Scalar> a_eps;
+        // Diffuse thickness
+        pp.queryarr("eps", a_eps, Unit::Length());
+
+        std::string mollifier;
+        // Type of mollifer to use (options: dirac, [gaussian])
+        pp.query_switch("mollifier", {
+                {"dirac",    [&]() {value.moll = Mollifier::Dirac;    }},
+                {"gaussian", [&]() {value.moll = Mollifier::Gaussian; }}
+            });
+
+        // Switch to mode where only one component is used.
+        pp.query_default("singlefab", value.singlefab,false);
+
+        // Take the complement of the laminate
+        pp.query_default("invert", value.invert,false);
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        if (value.number_of_inclusions < 1)
+            Util::Abort(INFO, "Number of inclusions must be at least 1. Aborting.");
 
         if (a_center.size() != value.number_of_inclusions * AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
         else
@@ -100,9 +127,6 @@ public:
                 value.center.push_back(Set::Vector(AMREX_D_DECL(a_center[i], a_center[i + 1], a_center[i + 2])));
         }
 
-        amrex::Vector<Set::Scalar> a_thickness;
-        // thickness of the laminate
-        if (pp.contains("thickness")) pp_queryarr("thickness", a_thickness,Unit::Length());
 
         if (a_thickness.size() != value.number_of_inclusions && a_thickness.size() != 1)
             Util::Abort(INFO, "Thickness of each inclusion must be specified");
@@ -122,9 +146,6 @@ public:
             }
         }
 
-        amrex::Vector<Set::Scalar> a_orientation;
-        // Vector normal to the interface of the laminate
-        pp_queryarr("orientation", a_orientation);
 
         if (a_orientation.size() != value.number_of_inclusions * AMREX_SPACEDIM && a_orientation.size() != AMREX_SPACEDIM)
             Util::Abort(INFO, "Orientation of each inclusion must be specified");
@@ -161,9 +182,6 @@ public:
             }
         }
 
-        amrex::Vector<Set::Scalar> a_eps;
-        // Diffuse thickness
-        pp.queryarr("eps", a_eps, Unit::Length());
 
         if (a_eps.size() < 1)
             for (int i = 0; i < value.number_of_inclusions; i++)
@@ -184,19 +202,6 @@ public:
                 value.eps.push_back(a_eps[i]);
         }
 
-        std::string mollifier;
-        // Type of mollifer to use (options: dirac, [gaussian])
-        pp.query_validate("mollifier", mollifier, {"dirac","gaussian"}); 
-        if (mollifier == "Dirac" || mollifier == "dirac")
-            value.moll = Mollifier::Dirac;
-        else
-            value.moll = Mollifier::Gaussian;
-
-        // Switch to mode where only one component is used.
-        pp_query("singlefab", value.singlefab);
-
-        // Take the complement of the laminate
-        pp_query("invert", value.invert);
     }
 };
 }

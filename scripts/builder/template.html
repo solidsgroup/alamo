@@ -1,0 +1,2742 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__TITLE__</title>
+  <style>
+    :root {
+      --c0: #1f77b4;
+      --c1: #ff7f0e;
+      --c2: #2ca02c;
+      --c3: #d62728;
+      --c4: #9467bd;
+      --c5: #8c564b;
+      --c6: #e377c2;
+      --c7: #7f7f7f;
+      --c8: #bcbd22;
+      --c9: #17becf;
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-subtle: #f8f8f8;
+      --line: #d9d9d9;
+      --line-strong: #bdbdbd;
+      --text: #262626;
+      --muted: #666666;
+      --accent: var(--c0);
+      --accent-soft: #eaf2f8;
+      --accent-line: #8fbbd7;
+      --conditional: var(--c0);
+      --conditional-soft: var(--accent-soft);
+      --success: var(--c2);
+      --red: var(--c3);
+      --red-soft: #fceeee;
+      --group: var(--c4);
+      --group-soft: #f5f0f8;
+      --group-line: #c9b4da;
+      --focus: var(--c0);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      padding: 6px 11px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--focus); }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid rgba(31, 119, 180, 0.28);
+      outline-offset: 1px;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    button.danger {
+      border-color: #e6a3a4;
+      color: var(--red);
+    }
+
+    input[type="text"],
+    input[type="search"],
+    select,
+    textarea {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 7px 9px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    input[data-default-placeholder]::placeholder {
+      color: #778079;
+      font-style: italic;
+      opacity: 0.68;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 64px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 22px;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 680;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .actions,
+    .toolbar,
+    .view-tabs,
+    .status-summary,
+    .switch-options {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .actions { gap: 8px; }
+
+    .builder-switcher {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .builder-switcher select {
+      width: min(280px, 30vw);
+      min-height: 34px;
+      padding-top: 5px;
+      padding-bottom: 5px;
+      color: var(--text);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .traversal-notice {
+      margin-top: 6px;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .workspace {
+      max-width: 1660px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 170px minmax(560px, 1fr) minmax(320px, 350px);
+      gap: 24px;
+      align-items: start;
+      padding: 20px 22px 36px;
+    }
+
+    .section-nav {
+      position: sticky;
+      top: 84px;
+      min-width: 0;
+      max-height: calc(100vh - 104px);
+      overflow-y: auto;
+    }
+
+    .nav-title,
+    .panel-title,
+    .toolbar-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .nav-title { padding: 0 8px 8px; }
+
+    .nav-list { display: grid; gap: 2px; }
+
+    .nav-link {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      border: 0;
+      border-radius: 4px;
+      padding: 5px 8px;
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .nav-link:hover,
+    .nav-link.current {
+      background: var(--accent-soft);
+      color: var(--text);
+    }
+
+    .nav-link-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-count {
+      min-width: 22px;
+      color: var(--c7);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .nav-link.has-errors .nav-count {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .form-column { min-width: 0; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 9px;
+      margin-bottom: 16px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .search-wrap { min-width: 0; }
+
+    .view-tabs { gap: 0; }
+
+    .view-tab {
+      min-height: 36px;
+      border-radius: 0;
+      border-right-width: 0;
+      color: var(--muted);
+    }
+
+    .view-tab:first-child { border-radius: 5px 0 0 5px; }
+
+    .view-tab:last-child {
+      border-right-width: 1px;
+      border-radius: 0 5px 5px 0;
+    }
+
+    .view-tab.active {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 650;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 28px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-summary { flex: 0 0 auto; gap: 7px; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .status-summary.has-errors { color: var(--red); }
+    .status-summary.has-errors .status-dot { background: var(--red); }
+
+    .active-decisions {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .input-list {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+
+    .form-section + .form-section,
+    .loose-fields + .form-section,
+    .form-section + .loose-fields {
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 46px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      padding: 9px 14px;
+      background: rgba(247, 248, 247, 0.97);
+      text-align: left;
+    }
+
+    .section-heading:hover {
+      border-color: var(--line);
+      background: #f0f3f0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .section-name {
+      color: var(--text);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .section-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .section-caret {
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 5px solid currentColor;
+      transition: transform 120ms ease;
+    }
+
+    .section-heading[aria-expanded="true"] .section-caret { transform: rotate(90deg); }
+
+    .section-body,
+    .scope-body { min-width: 0; }
+
+    .subsection { border-top: 1px solid #e8e8e8; }
+
+    .subsection-heading {
+      padding: 12px 14px 6px;
+      color: #4d4d4d;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .conditional-group {
+      border-top: 1px solid var(--accent-line);
+      border-left: 3px solid var(--conditional);
+      background: var(--conditional-soft);
+    }
+
+    .flow-branch {
+      border-top-color: var(--branch-line);
+      border-left-color: var(--branch-color);
+      background: var(--branch-soft);
+    }
+
+    .flow-branch.nesting-level-0,
+    .switch-tab-group.nesting-level-0,
+    .branch-controller.nesting-level-0 {
+      --branch-color: var(--c0);
+      --branch-line: #8fbbd7;
+      --branch-soft: #eaf2f8;
+    }
+
+    .flow-branch.nesting-level-1,
+    .switch-tab-group.nesting-level-1,
+    .branch-controller.nesting-level-1 {
+      --branch-color: var(--c1);
+      --branch-line: #f2c79f;
+      --branch-soft: #fff5eb;
+    }
+
+    .flow-branch.nesting-level-2,
+    .switch-tab-group.nesting-level-2,
+    .branch-controller.nesting-level-2 {
+      --branch-color: var(--c2);
+      --branch-line: #a9d7a9;
+      --branch-soft: #eef8ee;
+    }
+
+    .flow-branch.nesting-level-3,
+    .switch-tab-group.nesting-level-3,
+    .branch-controller.nesting-level-3 {
+      --branch-color: var(--c4);
+      --branch-line: #c9b4da;
+      --branch-soft: #f5f0f8;
+    }
+
+    .flow-branch.nesting-level-4,
+    .switch-tab-group.nesting-level-4,
+    .branch-controller.nesting-level-4 {
+      --branch-color: var(--c5);
+      --branch-line: #d7bbb0;
+      --branch-soft: #f8f1ef;
+    }
+
+    .flow-branch.nesting-level-5,
+    .switch-tab-group.nesting-level-5,
+    .branch-controller.nesting-level-5 {
+      --branch-color: var(--c6);
+      --branch-line: #f0b8d9;
+      --branch-soft: #fcf1f7;
+    }
+
+    .flow-branch.nesting-level-6,
+    .switch-tab-group.nesting-level-6,
+    .branch-controller.nesting-level-6 {
+      --branch-color: var(--c7);
+      --branch-line: #c9c9c9;
+      --branch-soft: #f4f4f4;
+    }
+
+    .flow-branch.nesting-level-7,
+    .switch-tab-group.nesting-level-7,
+    .branch-controller.nesting-level-7 {
+      --branch-color: var(--c8);
+      --branch-line: #dada8a;
+      --branch-soft: #fbfbe9;
+    }
+
+    .flow-branch.nesting-level-8,
+    .switch-tab-group.nesting-level-8,
+    .branch-controller.nesting-level-8 {
+      --branch-color: var(--c9);
+      --branch-line: #9ad8df;
+      --branch-soft: #eafafa;
+    }
+
+    .flow-branch > .scope-body {
+      margin-left: 12px;
+    }
+
+    .branch-block > .branch-controller {
+      border-top: 0;
+      border-left: 3px solid var(--branch-color);
+      padding-left: 11px;
+    }
+
+    .branch-block > .conditional-heading {
+      padding-top: 4px;
+      padding-left: 13px;
+      padding-bottom: 8px;
+      border-left: 3px solid var(--branch-color);
+      background: transparent;
+    }
+
+    .branch-block {
+      border-left: 0;
+      box-shadow: inset 0 2px 0 var(--branch-color);
+    }
+
+    .branch-block > .scope-body {
+      margin-left: 0;
+      border-left: 3px solid var(--branch-color);
+      padding-left: 12px;
+    }
+
+    .flow-section-heading {
+      border-top: 1px solid #e8e8e8;
+      padding: 9px 14px 5px;
+      color: #4d4d4d;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .switch-tab-panel > .flow-section:first-child > .flow-section-heading {
+      border-top: 0;
+    }
+
+    button.flow-section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 0;
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .flow-section-heading::before {
+      width: 6px;
+      height: 6px;
+      margin: -3px 2px 0 1px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      content: "";
+      transform: rotate(45deg);
+    }
+
+    .flow-section-heading[aria-expanded="false"]::before {
+      transform: rotate(-45deg);
+    }
+
+    .conditional-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      padding: 10px 13px 6px;
+      border-bottom: 1px solid var(--branch-line, var(--accent-line));
+      background: rgba(255, 255, 255, 0.32);
+      color: var(--branch-color, var(--accent));
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .conditional-heading::before {
+      width: 7px;
+      height: 7px;
+      margin: -3px 2px 0 1px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      content: "";
+      transform: rotate(45deg);
+    }
+
+    .conditional-heading code {
+      color: #4d4d4d;
+      font-weight: 650;
+    }
+
+    button.conditional-heading {
+      width: 100%;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .conditional-heading[aria-expanded="false"]::before {
+      transform: rotate(-45deg);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(210px, 310px);
+      gap: 22px;
+      align-items: center;
+      min-height: 62px;
+      border-top: 1px solid #e8e8e8;
+      padding: 10px 14px;
+      background: transparent;
+    }
+
+    .section-body > .field-row:first-child,
+    .scope-body > .field-row:first-child { border-top: 0; }
+
+    .field-row:hover { background: #fafbfa; }
+
+    .field-row.configured input[type="text"],
+    .field-row.configured select {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
+    .field-row.missing-required .input-label,
+    .required-mark { color: var(--red); }
+
+    .field-row.missing-required input[type="text"],
+    .field-row.missing-required select {
+      border-color: #e08081;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .field-row.missing-required input[type="text"]::placeholder {
+      color: var(--red);
+      opacity: 0.72;
+    }
+
+    .input-name,
+    .field-control { min-width: 0; }
+
+    .input-title {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .input-label,
+    #outputText {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .input-source-link {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .input-source-link:hover {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    .input-source-link:focus-visible {
+      border-radius: 2px;
+      outline: 2px solid rgba(31, 119, 180, 0.28);
+      outline-offset: 2px;
+    }
+
+    .required-mark {
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .input-unit {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .input-doc {
+      max-width: 720px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .switch-row {
+      grid-template-columns: 1fr;
+      gap: 9px;
+      background: #f7faff;
+    }
+
+    .field-row.branch-controller {
+      border-top-color: var(--branch-line);
+      border-left: 3px solid var(--branch-color);
+      padding-left: 11px;
+      background: var(--branch-soft);
+    }
+
+    .field-row.branch-controller:hover { background: var(--branch-soft); }
+
+    .switch-tab-group.query-if-group:not(.query-if-enabled) {
+      border-top-left-radius: 0;
+      background: transparent;
+    }
+
+    .switch-tab-panel > .query-if-group:not(.query-if-enabled) {
+      margin-top: 0;
+    }
+
+    .section-body > .query-if-group:first-child:not(.query-if-enabled) > .field-row,
+    .scope-body > .query-if-group:first-child:not(.query-if-enabled) > .field-row {
+      border-top: 0;
+    }
+
+    .query-if-group.query-if-enabled > .field-row.branch-controller {
+      border-left: 0;
+      border-top-left-radius: 6px;
+      padding-left: 14px;
+    }
+
+    .branch-controller .input-label { color: var(--branch-color); }
+
+    .branch-controller .switch-option.selected {
+      border-color: var(--branch-color);
+      background: var(--branch-soft);
+      color: var(--branch-color);
+    }
+
+    .branch-controller .boolean-toggle.enabled {
+      border-color: var(--branch-color);
+      background: var(--branch-soft);
+      color: var(--branch-color);
+    }
+
+    .branch-controller .boolean-toggle.enabled .boolean-indicator {
+      background: var(--branch-color);
+    }
+
+    .boolean-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 6px 9px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .boolean-indicator {
+      position: relative;
+      width: 30px;
+      height: 16px;
+      border-radius: 999px;
+      background: #a9b0aa;
+      transition: background 120ms ease;
+    }
+
+    .boolean-indicator::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      transition: transform 120ms ease;
+    }
+
+    .boolean-toggle.enabled {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .boolean-toggle.enabled .boolean-indicator {
+      background: var(--accent);
+    }
+
+    .boolean-toggle.enabled .boolean-indicator::after {
+      transform: translateX(14px);
+    }
+
+    .switch-options { align-items: stretch; gap: 0; }
+
+    .switch-option {
+      min-width: 0;
+      min-height: 34px;
+      border-radius: 0;
+      border-right-width: 0;
+      padding: 5px 11px;
+      background: var(--surface);
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .switch-option:first-child { border-radius: 5px 0 0 5px; }
+
+    .switch-option:last-child {
+      border-right-width: 1px;
+      border-radius: 0 5px 5px 0;
+    }
+
+    .switch-option.selected {
+      position: relative;
+      z-index: 1;
+      border-color: var(--accent-line);
+      border-right-width: 1px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .switch-option.selected + .switch-option { border-left-width: 0; }
+
+    .switch-tab-group {
+      border-top-left-radius: 6px;
+      background: var(--branch-soft);
+    }
+
+    .switch-tab-panel > .switch-tab-group {
+      margin-top: 6px;
+    }
+
+    .switch-tab-group > .switch-tab-header {
+      border-top: 0;
+      border-left: 0;
+      border-top-left-radius: 6px;
+      padding: 9px 13px 0;
+    }
+
+    .switch-tab-group .switch-options {
+      align-items: flex-end;
+      flex-wrap: nowrap;
+      margin-top: 2px;
+      overflow-x: auto;
+      scrollbar-color: var(--line-strong) transparent;
+      scrollbar-width: thin;
+    }
+
+    .switch-tab-group .switch-options::-webkit-scrollbar { height: 4px; }
+    .switch-tab-group .switch-options::-webkit-scrollbar-thumb {
+      border-radius: 4px;
+      background: var(--line-strong);
+    }
+
+    .switch-tab-group .switch-option,
+    .switch-tab-group .switch-option:first-child,
+    .switch-tab-group .switch-option:last-child {
+      position: relative;
+      z-index: 0;
+      margin-right: 3px;
+      border-width: 1px;
+      border-radius: 5px 5px 0 0;
+      background: rgba(255, 255, 255, 0.48);
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .switch-tab-group .switch-option:last-child { margin-right: 0; }
+
+    .switch-tab-group .switch-option.tab-option.selected {
+      z-index: 2;
+      border-color: var(--branch-color);
+      border-bottom: 0;
+      padding-bottom: 6px;
+      background: var(--surface);
+      color: var(--branch-color);
+    }
+
+    .switch-tab-group .switch-option.tab-option.selected::after {
+      position: absolute;
+      right: 1px;
+      bottom: 0;
+      left: 1px;
+      height: 3px;
+      background: var(--surface);
+      content: "";
+    }
+
+    .switch-tab-group .switch-option.tab-option.selected + .switch-option {
+      border-left-width: 1px;
+    }
+
+    .switch-tab-panel {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      margin-top: -3px;
+      border-top: 3px solid var(--branch-color);
+      border-bottom: 3px solid var(--branch-color);
+      border-left: 3px solid var(--branch-color);
+      border-bottom-left-radius: 6px;
+      padding-left: 12px;
+      background: var(--surface);
+    }
+
+    .switch-tab-panel:empty {
+      min-height: 3px;
+      padding-left: 0;
+    }
+
+    .sequence-content {
+      display: grid;
+      gap: 9px;
+    }
+
+    .sequence-entry {
+      position: relative;
+    }
+
+    .sequence-entry input { padding-left: 42px; }
+
+    .sequence-key {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      left: 1px;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 31px;
+      border-right: 1px solid var(--line);
+      border-radius: 4px 0 0 4px;
+      background: #f2f4f6;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      font-weight: 650;
+      pointer-events: none;
+    }
+
+    .sequence-row { align-items: start; }
+
+    .field-row.configured .sequence-entry.pending input[type="text"] {
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    .field-row.configured .sequence-entry.invalid input[type="text"],
+    .sequence-entry.invalid input[type="text"] {
+      border-color: #e08081;
+      background: #fffdfd;
+      padding-right: 34px;
+    }
+
+    .sequence-entry.invalid .sequence-key {
+      border-right-color: #e08081;
+      background: #fff3f3;
+      color: var(--red);
+    }
+
+    .sequence-delete {
+      position: absolute;
+      top: 50%;
+      right: 5px;
+      z-index: 2;
+      display: none;
+      min-width: 20px;
+      min-height: 20px;
+      transform: translateY(-50%);
+      border-color: #e6a3a4;
+      border-radius: 4px;
+      padding: 0 4px;
+      background: #fff;
+      color: var(--red);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .sequence-entry.invalid .sequence-delete { display: inline-flex; }
+
+    .class-sequence {
+      border-top: 1px solid #e8e8e8;
+    }
+
+    .class-sequence-header {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(210px, 310px);
+      gap: 22px;
+      align-items: start;
+      padding: 12px 14px;
+      background: #fafbfc;
+    }
+
+    .class-sequence-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .class-sequence-tabs {
+      display: flex;
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .class-sequence-tab {
+      min-width: 38px;
+      min-height: 34px;
+      border-radius: 0;
+      border-right-width: 0;
+      padding: 5px 10px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .class-sequence-tab:first-child { border-radius: 5px 0 0 5px; }
+
+    .class-sequence-tab:last-child {
+      border-right-width: 1px;
+      border-radius: 0 5px 5px 0;
+    }
+
+    .class-sequence-tab.active {
+      position: relative;
+      z-index: 1;
+      border-color: var(--accent-line);
+      border-right-width: 1px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .class-sequence-tab.active + .class-sequence-tab { border-left-width: 0; }
+
+    .class-sequence-add,
+    .class-sequence-remove {
+      flex: 0 0 auto;
+      min-width: 34px;
+      min-height: 34px;
+      border-radius: 5px;
+      padding: 4px 9px;
+      background: var(--surface);
+    }
+
+    .class-sequence-add {
+      border-color: var(--accent-line);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .class-sequence-remove {
+      border-color: #e6a3a4;
+      color: var(--red);
+      font-size: 17px;
+    }
+
+    .class-sequence-body {
+      border-top: 2px solid var(--accent);
+      border-bottom: 3px solid var(--accent);
+      border-left: 3px solid var(--accent);
+      border-bottom-left-radius: 6px;
+      padding-left: 12px;
+    }
+
+    .class-sequence-empty {
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .constraint-note {
+      margin: 10px 14px;
+      border-left: 3px solid var(--line-strong);
+      padding: 8px 10px;
+      background: var(--surface-subtle);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .constraint-note.invalid {
+      border-left-color: var(--red);
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .constraint-note.valid { border-left-color: var(--success); }
+
+    .exactly-group {
+      margin: 10px 12px;
+      overflow: hidden;
+      border: 1px solid var(--group-line);
+      border-left: 3px solid var(--group);
+      border-radius: 5px;
+      background: var(--surface);
+    }
+
+    .exactly-group.invalid { border-color: #e08081; }
+
+    .exactly-group-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--group-soft);
+    }
+
+    .exactly-group-title {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .exactly-group-status {
+      flex: 0 0 auto;
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .exactly-group-status.valid { color: var(--success); }
+
+    .exactly-members .field-row:first-child { border-top: 0; }
+
+    .exactly-members .field-row { padding-left: 12px; padding-right: 12px; }
+
+    .empty {
+      padding: 36px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .output-pane {
+      position: sticky;
+      top: 84px;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 11px;
+      background: var(--surface-subtle);
+    }
+
+    .output-pane .panel-title {
+      color: var(--text);
+      text-transform: none;
+    }
+
+    #outputText {
+      display: block;
+      min-height: calc(100vh - 150px);
+      border: 0;
+      border-radius: 0;
+      padding: 12px;
+      resize: vertical;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    @media (max-width: 1260px) {
+      .workspace { grid-template-columns: minmax(560px, 1fr) minmax(320px, 380px); }
+      .section-nav { display: none; }
+    }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; }
+      .output-pane { position: static; }
+      #outputText { min-height: 300px; max-height: 55vh; }
+    }
+
+    @media (max-width: 680px) {
+      .topbar {
+        position: static;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 14px;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .actions button {
+        min-width: 0;
+        padding-left: 5px;
+        padding-right: 5px;
+        font-size: 12px;
+      }
+
+      .builder-switcher {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+      }
+
+      .builder-switcher select { width: min(300px, 76vw); }
+      .workspace { padding: 12px 0 28px; }
+      .controls { padding: 0 12px; }
+      .toolbar { grid-template-columns: 1fr; align-items: stretch; }
+      .view-tabs { width: 100%; }
+
+      .view-tab {
+        flex: 1 1 0;
+        min-width: 0;
+        padding-left: 5px;
+        padding-right: 5px;
+        font-size: 12px;
+      }
+
+      .input-list,
+      .output-pane {
+        border-left: 0;
+        border-right: 0;
+        border-radius: 0;
+      }
+
+      .field-row { grid-template-columns: 1fr; gap: 8px; }
+      .class-sequence-header { grid-template-columns: 1fr; gap: 9px; }
+      .class-sequence-controls { justify-content: flex-start; }
+      .active-decisions { display: none; }
+      .flow-branch > .scope-body { margin-left: 6px; }
+
+      .switch-option,
+      .switch-option:first-child,
+      .switch-option:last-child {
+        flex: 1 1 auto;
+        border-width: 1px;
+        border-radius: 4px;
+        margin: 2px;
+      }
+
+      .switch-tab-group .switch-option,
+      .switch-tab-group .switch-option:first-child,
+      .switch-tab-group .switch-option:last-child {
+        flex: 0 0 auto;
+        margin: 0 3px 0 0;
+        border-radius: 5px 5px 0 0;
+      }
+
+      .switch-tab-panel { padding-left: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <script id="schema-data" type="application/json">__SCHEMA_JSON__</script>
+  <script id="doxygen-source-data" type="application/json">__DOXYGEN_SOURCES_JSON__</script>
+
+  <header class="topbar">
+    <div>
+      <h1>__TITLE__</h1>
+      <div class="subtle" id="schemaSummary"></div>
+      <div class="traversal-notice" id="traversalNotice" hidden></div>
+    </div>
+    <div class="actions">
+      <label class="builder-switcher" for="builderSelect">
+        <span>Executable</span>
+        <select id="builderSelect" aria-label="Switch input builder">
+          __BUILDER_OPTIONS__
+        </select>
+      </label>
+      <button id="resetButton" type="button">Reset</button>
+      <button id="copyButton" type="button">Copy input</button>
+      <button id="downloadButton" class="primary" type="button">Download input</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <nav class="section-nav" aria-label="Input sections">
+      <h2 class="nav-title">Sections</h2>
+      <div class="nav-list" id="sectionNav"></div>
+    </nav>
+
+    <section class="form-column">
+      <div class="controls">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <input id="searchInput" type="search" placeholder="Search inputs" aria-label="Search inputs">
+          </div>
+          <div class="view-tabs" role="group" aria-label="Input view">
+            <button class="view-tab active" type="button" data-view="all">All</button>
+            <button class="view-tab" type="button" data-view="required">Required</button>
+            <button class="view-tab" type="button" data-view="configured">Configured</button>
+          </div>
+        </div>
+        <div class="status-line">
+          <div class="status-summary" id="statusSummary"></div>
+          <div class="active-decisions" id="activeDecisions"></div>
+        </div>
+      </div>
+      <div class="input-list" id="builderList"></div>
+    </section>
+
+    <aside class="output-pane">
+      <div class="output-header">
+        <h2 class="panel-title">Generated input file</h2>
+        <span class="subtle" id="lineCount"></span>
+      </div>
+      <textarea id="outputText" readonly spellcheck="false" aria-label="Generated input file"></textarea>
+    </aside>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const envelope = JSON.parse(document.getElementById("schema-data").textContent);
+      const doxygenSources = JSON.parse(document.getElementById("doxygen-source-data").textContent);
+      const root = envelope.root || envelope;
+      const flow = Array.isArray(envelope.flow) ? envelope.flow : null;
+      const traversalIgnored = Array.isArray(envelope.traversal_ignored)
+        ? envelope.traversal_ignored
+        : [];
+      const flat = [];
+      const switchNodes = [];
+      const constraints = [];
+      const nodeByPath = new Map();
+      const virtualNodeByPath = new Map();
+      const classSequenceInstances = new Map();
+      const unitsByPath = new Map();
+      const state = {
+        switches: Object.create(null),
+        values: Object.create(null),
+        sequenceRows: Object.create(null),
+        classSequenceCounts: Object.create(null),
+        classSequenceActive: Object.create(null),
+        collapsed: Object.create(null),
+        prefixCollapsed: Object.create(null),
+        search: "",
+        view: "all",
+        currentSection: ""
+      };
+
+      const builderList = document.getElementById("builderList");
+      const sectionNav = document.getElementById("sectionNav");
+      const searchInput = document.getElementById("searchInput");
+      const outputText = document.getElementById("outputText");
+      const lineCount = document.getElementById("lineCount");
+      const statusSummary = document.getElementById("statusSummary");
+      const activeDecisions = document.getElementById("activeDecisions");
+      const traversalNotice = document.getElementById("traversalNotice");
+      const persistenceKey = "alamo.input-builder.v1:" + window.location.pathname;
+      const restoredLocation = { scrollY: 0, sectionNavScrollTop: 0 };
+      let persistenceReady = false;
+      let persistenceFrame = null;
+
+      function restoreMap(target, source) {
+        if (!source || typeof source !== "object" || Array.isArray(source)) return;
+        Object.entries(source).forEach(([key, value]) => {
+          target[key] = value;
+        });
+      }
+
+      function restorePersistedState() {
+        try {
+          const payload = JSON.parse(window.localStorage.getItem(persistenceKey));
+          if (!payload || payload.version !== 1 || !payload.state) return;
+          const saved = payload.state;
+          restoreMap(state.switches, saved.switches);
+          restoreMap(state.values, saved.values);
+          restoreMap(state.sequenceRows, saved.sequenceRows);
+          restoreMap(state.classSequenceCounts, saved.classSequenceCounts);
+          restoreMap(state.classSequenceActive, saved.classSequenceActive);
+          restoreMap(state.collapsed, saved.collapsed);
+          restoreMap(state.prefixCollapsed, saved.prefixCollapsed);
+          state.search = typeof saved.search === "string" ? saved.search : "";
+          state.view = ["all", "required", "configured"].includes(saved.view) ? saved.view : "all";
+          state.currentSection = typeof saved.currentSection === "string" ? saved.currentSection : "";
+
+          const savedLocation = payload.location || {};
+          if (Number.isFinite(savedLocation.scrollY))
+            restoredLocation.scrollY = Math.max(0, savedLocation.scrollY);
+          if (Number.isFinite(savedLocation.sectionNavScrollTop))
+            restoredLocation.sectionNavScrollTop = Math.max(0, savedLocation.sectionNavScrollTop);
+        } catch (error) {
+          // localStorage may be unavailable when the standalone builder is opened directly.
+        }
+      }
+
+      function persistState() {
+        if (!persistenceReady) return;
+        try {
+          window.localStorage.setItem(persistenceKey, JSON.stringify({
+            version: 1,
+            state: state,
+            location: {
+              scrollY: window.scrollY,
+              sectionNavScrollTop: sectionNav.scrollTop
+            }
+          }));
+        } catch (error) {
+          // Persistence is optional; the builder remains usable without storage access.
+        }
+      }
+
+      function schedulePersistence() {
+        if (!persistenceReady || persistenceFrame !== null) return;
+        persistenceFrame = window.requestAnimationFrame(() => {
+          persistenceFrame = null;
+          persistState();
+        });
+      }
+
+      function setScrollPosition(scrollY) {
+        const scrollBehavior = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        window.scrollTo(0, scrollY);
+        document.documentElement.style.scrollBehavior = scrollBehavior;
+      }
+
+      restorePersistedState();
+
+      function pathFor(node, parentPath) {
+        if (node.path !== undefined && node.path !== null) return String(node.path);
+        if (node.full_name) return String(node.full_name);
+        if (parentPath && node.name) return parentPath + "." + node.name;
+        return node.name ? String(node.name) : "";
+      }
+
+      function walk(node, depth, parentPath, parent) {
+        node._path = pathFor(node, parentPath);
+        node._depth = depth;
+        node._id = flat.length;
+        node._parent = parent || null;
+        flat.push(node);
+        if (node._path) nodeByPath.set(node._path, node);
+        if (node.kind === "switch") switchNodes.push(node);
+        (node.constraints || []).forEach((constraint) => {
+          constraints.push({ id: constraints.length, owner: node, constraint: constraint });
+        });
+        (node.children || []).forEach((child) => walk(child, depth + 1, node._path, node));
+      }
+
+      walk(root, 0, "", null);
+
+      function scopeForConstraint(item) {
+        const members = item.constraint.members || [];
+        const candidates = flat.filter((node) => {
+          return node.kind === "scope" && members.length && members.every((member) => {
+            return !node._path || member === node._path || member.startsWith(node._path + ".");
+          });
+        });
+        candidates.sort((a, b) => b._path.length - a._path.length);
+        item.scopePath = candidates.length ? candidates[0]._path : "";
+      }
+
+      constraints.forEach(scopeForConstraint);
+      constraints.forEach((item) => {
+        (item.constraint.members || []).forEach((member, index) => {
+          const unit = (item.constraint.units || [])[index];
+          if (unit) unitsByPath.set(member, String(unit));
+        });
+      });
+
+      function esc(value) {
+        return String(value === undefined || value === null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function nodeDoc(node) {
+        return String(node.description || node.doc || node.documentation || "").trim();
+      }
+
+      function renderDoc(node) {
+        const doc = nodeDoc(node);
+        if (!doc) return "";
+        let html = esc(doc);
+        html = html.replace(/:code:`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/:math:`([^`]+)`/g, "<span class=\"math\">$1</span>");
+        return '<div class="input-doc">' + html + '</div>';
+      }
+
+      function conditionsActive(conditions) {
+        return (conditions || []).every((condition) => {
+          return String(state.switches[condition.path]) === String(condition.value);
+        });
+      }
+
+      function activeContext(node) {
+        return (node.contexts || []).find((context) => !context || !context.length || conditionsActive(context)) || null;
+      }
+
+      function nodeActive(node) {
+        return !node.contexts || !node.contexts.length || activeContext(node) !== null;
+      }
+
+      function constraintActive(item) {
+        return nodeActive(item.owner) && conditionsActive(item.constraint.conditions || []);
+      }
+
+      function optionValues(node) {
+        const options = (node.options || []).map((option) => String(option));
+        if (node.has_unnamed_default && !options.includes("")) options.unshift("");
+        return options;
+      }
+
+      function isClassSequence(node) {
+        return Boolean(node && node.kind === "sequence" &&
+          (node.directive === "queryclass_enumerate" || node.directive === "select_enumerate") &&
+          (node.children || []).length);
+      }
+
+      function classSequenceOwner(node) {
+        let parent = node ? node._parent : null;
+        while (parent) {
+          if (isClassSequence(parent)) return parent;
+          parent = parent._parent;
+        }
+        return null;
+      }
+
+      function nodeForPath(path) {
+        return virtualNodeByPath.get(path) || nodeByPath.get(path);
+      }
+
+      function nodeForFlow(flowNode) {
+        const node = nodeForPath(flowNode.input);
+        if (!node || !flowNode.source) return node;
+        const occurrence = { source: flowNode.source };
+        occurrence.has_unnamed_default = Boolean(flowNode.has_unnamed_default);
+        if (flowNode.doc !== undefined) occurrence.doc = flowNode.doc;
+        if (flowNode.description !== undefined) occurrence.description = flowNode.description;
+        return Object.assign({}, node, occurrence);
+      }
+
+      function replacePathPrefix(path, sourcePrefix, targetPrefix) {
+        const value = String(path || "");
+        if (value === sourcePrefix) return targetPrefix;
+        if (value.startsWith(sourcePrefix + ".")) return targetPrefix + value.slice(sourcePrefix.length);
+        return value;
+      }
+
+      function cloneConditions(conditions, sourcePrefix, targetPrefix) {
+        return (conditions || []).map((condition) => {
+          return Object.assign({}, condition, {
+            path: replacePathPrefix(condition.path, sourcePrefix, targetPrefix)
+          });
+        });
+      }
+
+      function initializeVirtualNode(node) {
+        if (!node._path) return;
+        if (node.kind === "parameter" && state.values[node._path] === undefined) {
+          state.values[node._path] = "";
+        }
+        if (node.kind === "sequence" && !isClassSequence(node) && !Array.isArray(state.sequenceRows[node._path])) {
+          state.sequenceRows[node._path] = [];
+        }
+        if (isClassSequence(node) && state.classSequenceCounts[node._path] === undefined) {
+          state.classSequenceCounts[node._path] = 0;
+          state.classSequenceActive[node._path] = 0;
+        }
+        if (node.kind === "switch" && state.switches[node._path] === undefined) {
+          const options = optionValues(node);
+          const preferred = String(node.default_value === undefined ? "" : node.default_value);
+          state.switches[node._path] = options.includes(preferred) ? preferred : (options[0] || "");
+        }
+      }
+
+      function instantiateTemplate(template, targetPrefix) {
+        const sourcePrefix = template._path;
+        const cloneNode = (source, parent) => {
+          const clone = Object.assign({}, source);
+          clone._path = replacePathPrefix(source._path, sourcePrefix, targetPrefix);
+          clone.path = clone._path;
+          clone.full_name = clone._path;
+          clone._parent = parent || null;
+          clone.contexts = (source.contexts || []).map((context) => {
+            return cloneConditions(context, sourcePrefix, targetPrefix);
+          });
+          clone.constraints = (source.constraints || []).map((constraint) => {
+            const copy = Object.assign({}, constraint);
+            copy.members = (constraint.members || []).map((member) => {
+              return replacePathPrefix(member, sourcePrefix, targetPrefix);
+            });
+            copy.conditions = cloneConditions(constraint.conditions, sourcePrefix, targetPrefix);
+            return copy;
+          });
+          clone.children = (source.children || []).map((child) => cloneNode(child, clone));
+          virtualNodeByPath.set(clone._path, clone);
+          initializeVirtualNode(clone);
+          return clone;
+        };
+        return cloneNode(template, null);
+      }
+
+      function instancesForClassSequence(node) {
+        if (classSequenceInstances.has(node._path)) return classSequenceInstances.get(node._path);
+        const count = Number(state.classSequenceCounts[node._path] || 0);
+        const template = (node.children || []).find(nodeActive) || (node.children || [])[0];
+        const instances = [];
+        if (template) {
+          for (let index = 0; index < count; index += 1) {
+            const instance = instantiateTemplate(template, node._path + index);
+            instances.push(instance);
+            const visit = (child) => {
+              if (isClassSequence(child)) instancesForClassSequence(child);
+              else (child.children || []).forEach(visit);
+            };
+            (instance.children || []).forEach(visit);
+          }
+        }
+        classSequenceInstances.set(node._path, instances);
+        return instances;
+      }
+
+      function instantiateFlow(nodes, sourcePrefix, targetPrefix) {
+        return (nodes || []).map((source) => {
+          const clone = Object.assign({}, source);
+          clone.input = replacePathPrefix(source.input, sourcePrefix, targetPrefix);
+          clone.branches = (source.branches || []).map((branch) => {
+            return Object.assign({}, branch, {
+              children: instantiateFlow(branch.children, sourcePrefix, targetPrefix)
+            });
+          });
+          clone.children = instantiateFlow(source.children, sourcePrefix, targetPrefix);
+          return clone;
+        });
+      }
+
+      function reconcileSwitches() {
+        if (flow) {
+          let changed = true;
+          let guard = 0;
+          while (changed && guard < 40) {
+            changed = false;
+            guard += 1;
+            const visit = (nodes) => {
+              (nodes || []).forEach((flowNode) => {
+                if (flowNode.kind !== "switch") return;
+                const options = (flowNode.branches || []).map((branch) => String(branch.value));
+                if (!options.length) return;
+                if (!options.includes(state.switches[flowNode.input])) {
+                  const node = nodeForPath(flowNode.input);
+                  const preferred = String(node && node.default_value !== undefined ? node.default_value : "");
+                  state.switches[flowNode.input] = options.includes(preferred) ? preferred : options[0];
+                  changed = true;
+                }
+                const selected = (flowNode.branches || []).find((branch) => {
+                  return String(branch.value) === String(state.switches[flowNode.input]);
+                });
+                if (selected) visit(selected.children);
+              });
+            };
+            visit(flow);
+          }
+          return;
+        }
+
+        let changed = true;
+        let guard = 0;
+        while (changed && guard < 40) {
+          changed = false;
+          guard += 1;
+          switchNodes.forEach((node) => {
+            if (!nodeActive(node)) return;
+            const options = optionValues(node);
+            if (!options.length) return;
+            if (!options.includes(state.switches[node._path])) {
+              const preferred = String(node.default_value === undefined ? "" : node.default_value);
+              state.switches[node._path] = options.includes(preferred) ? preferred : options[0];
+              changed = true;
+            }
+          });
+        }
+      }
+
+      function ensureState() {
+        flat.forEach((node) => {
+          if (!node._path) return;
+          if (node.kind === "parameter" && state.values[node._path] === undefined) {
+            state.values[node._path] = "";
+          }
+          if (node.kind === "sequence" && !Array.isArray(state.sequenceRows[node._path])) {
+            state.sequenceRows[node._path] = [];
+          }
+          if (isClassSequence(node) && state.classSequenceCounts[node._path] === undefined) {
+            state.classSequenceCounts[node._path] = 0;
+            state.classSequenceActive[node._path] = 0;
+          }
+        });
+      }
+
+      function defaultPlaceholder(node) {
+        if (!node.has_default) return null;
+        if (node.default_value !== undefined && node.default_value !== null) return String(node.default_value);
+        if (node.default !== undefined && node.default !== null) return String(node.default);
+        return null;
+      }
+
+      function configured(node) {
+        if (node.kind === "parameter") return String(state.values[node._path] || "").trim() !== "";
+        if (isClassSequence(node)) return Number(state.classSequenceCounts[node._path] || 0) > 0;
+        if (node.kind === "sequence") return (state.sequenceRows[node._path] || []).length > 0;
+        if (node.kind === "switch") {
+          const options = optionValues(node);
+          if (!options.length) return false;
+          const preferred = node.has_unnamed_default
+            ? ""
+            : String(node.default_value === undefined ? "" : node.default_value);
+          const defaultValue = options.includes(preferred) ? preferred : options[0];
+          return String(state.switches[node._path]) !== defaultValue;
+        }
+        return false;
+      }
+
+      function missingRequired(node) {
+        return Boolean(node.required && nodeActive(node) && !configured(node));
+      }
+
+      function searchableText(node) {
+        return [node._path, node.name, node.kind, node.directive, nodeDoc(node), (node.options || []).join(" ")]
+          .filter(Boolean).join(" ").toLowerCase();
+      }
+
+      function nodeMatchesView(node, includeInactive) {
+        if (!includeInactive && !nodeActive(node)) return false;
+        if (state.view === "required" && !node.required) return false;
+        if (state.view === "configured" && !configured(node)) return false;
+        if (state.search && !searchableText(node).includes(state.search)) return false;
+        return node.kind === "parameter" || node.kind === "switch" || node.kind === "sequence";
+      }
+
+      function flowBranchMatchesSearch(branch) {
+        if (!state.search) return true;
+        if (String(branch.value).toLowerCase().includes(state.search)) return true;
+        return flowNodesMatchSearch(branch.children);
+      }
+
+      function flowNodesMatchSearch(nodes) {
+        return (nodes || []).some((flowNode) => {
+          const node = nodeForFlow(flowNode);
+          if (node && nodeMatchesView(node, true)) return true;
+          if (flowNode.kind === "switch" &&
+              (flowNode.branches || []).some(flowBranchMatchesSearch)) return true;
+          return flowNodesMatchSearch(flowNode.children);
+        });
+      }
+
+      function hasVisibleDescendant(node) {
+        if (isClassSequence(node)) return false;
+        return (node.children || []).some((child) => {
+          return nodeMatchesView(child) || hasVisibleDescendant(child);
+        });
+      }
+
+      function inputVisible(node) {
+        return nodeMatchesView(node) || (node.kind === "switch" && hasVisibleDescendant(node));
+      }
+
+      function scopeHasVisible(node) {
+        return (node.children || []).some((child) => inputVisible(child) || hasVisibleDescendant(child));
+      }
+
+      function activeItems(node) {
+        let count = 0;
+        (node.children || []).forEach((child) => {
+          if (inputVisible(child)) count += 1;
+          if (!isClassSequence(child)) count += activeItems(child);
+        });
+        return count;
+      }
+
+      function constraintEvaluation(item) {
+        const constraint = item.constraint;
+        const members = constraint.members || [];
+        const chosen = members.filter((member) => {
+          const node = nodeByPath.get(member);
+          return (!node || nodeActive(node)) && String(state.values[member] || "").trim() !== "";
+        });
+        const expected = Number(constraint.count || 0);
+        return { chosen: chosen, expected: expected, valid: chosen.length === expected };
+      }
+
+      function validationIssues() {
+        const issues = [];
+        flat.forEach((node) => {
+          if (classSequenceOwner(node)) return;
+          if (node.kind === "parameter" && missingRequired(node)) {
+            issues.push({ path: node._path, message: "Required value missing" });
+          }
+        });
+        const validatedVirtualPaths = new Set();
+        classSequenceInstances.forEach((instances) => {
+          const visit = (node) => {
+            if (validatedVirtualPaths.has(node._path)) return;
+            validatedVirtualPaths.add(node._path);
+            if (node.kind === "parameter" && missingRequired(node)) {
+              issues.push({ path: node._path, message: "Required value missing" });
+            }
+            (node.children || []).forEach(visit);
+          };
+          instances.forEach(visit);
+        });
+        constraints.forEach((item) => {
+          if (classSequenceOwner(item.owner)) return;
+          if (!constraintActive(item) || item.constraint.kind !== "exactly") return;
+          const result = constraintEvaluation(item);
+          if (!result.valid) {
+            issues.push({
+              path: item.scopePath,
+              message: "Choose exactly " + result.expected + " of " + (item.constraint.members || []).join(", ")
+            });
+          }
+        });
+        return issues;
+      }
+
+      function sectionIssueCount(node) {
+        const prefix = node._path ? node._path + "." : "";
+        return validationIssues().filter((issue) => issue.path === node._path || issue.path.startsWith(prefix)).length;
+      }
+
+      function renderInputName(node, includeDoc) {
+        const required = node.required ? '<span class="required-mark">Required</span>' : "";
+        const unit = unitsByPath.has(node._path) ? '<span class="input-unit">' + esc(unitsByPath.get(node._path)) + '</span>' : "";
+        const source = node.source || {};
+        const sourceFile = String(source.file || "").replace(/\\/g, "/").replace(/^\.\//, "");
+        const sourcePage = doxygenSources[sourceFile];
+        const sourceLine = Number(source.line) || 0;
+        const sourceUrl = sourcePage
+          ? "../../doxygen/" + encodeURIComponent(sourcePage) + (sourceLine ? "#l" + String(sourceLine).padStart(5, "0") : "")
+          : "";
+        const label = sourceUrl
+          ? '<a class="input-label input-source-link" href="' + esc(sourceUrl) + '" target="_blank" rel="noopener" title="View ' +
+            esc(sourceFile + (sourceLine ? ":" + sourceLine : "")) + '">' + esc(node._path) + '</a>'
+          : '<span class="input-label">' + esc(node._path) + '</span>';
+        return (
+          '<div class="input-name">' +
+            '<div class="input-title">' + label + required + unit + '</div>' +
+            (includeDoc === false ? "" : renderDoc(node)) +
+          '</div>'
+        );
+      }
+
+      function renderValueControl(node) {
+        const value = state.values[node._path] || "";
+        const options = node.directive === "query_exactly" ? [] : optionValues(node);
+        if (options.length) {
+          const optionHtml = ['<option value="">Choose a value</option>'].concat(options.map((option) => {
+            return '<option value="' + esc(option) + '"' + (option === value ? " selected" : "") + '>' + esc(option) + '</option>';
+          })).join("");
+          return '<select data-value-path="' + esc(node._path) + '">' + optionHtml + '</select>';
+        }
+        const fallback = defaultPlaceholder(node);
+        const placeholder = fallback === null ? "Enter a value" : fallback;
+        const defaultAttr = fallback === null ? "" : ' data-default-placeholder="' + esc(fallback) + '"';
+        return '<input type="text" data-value-path="' + esc(node._path) + '" value="' + esc(value) + '" placeholder="' + esc(placeholder) + '"' + defaultAttr + '>';
+      }
+
+      function renderParameter(node, includeDoc) {
+        const classes = ["field-row", "parameter-row"];
+        if (missingRequired(node)) classes.push("missing-required");
+        if (configured(node)) classes.push("configured");
+        return (
+          '<div class="' + classes.join(" ") + '" data-node-path="' + esc(node._path) + '">' +
+            renderInputName(node, includeDoc) +
+            '<div class="field-control">' + renderValueControl(node) + '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderSwitch(node, flowOptions, nestingDepth, asTabs, tabOptions, displayedValue) {
+        const current = displayedValue === undefined
+          ? state.switches[node._path]
+          : String(displayedValue);
+        const tabValues = new Set((tabOptions || []).map(String));
+        const queryIfDisabled = node.directive === "query_if" && String(current) !== "1";
+        const controllerClass = nestingDepth === undefined || queryIfDisabled
+          ? ""
+          : " branch-controller nesting-level-" + (nestingDepth % 9);
+        const options = (flowOptions || optionValues(node)).map((option) => {
+          const selected = option === current;
+          const optionIsTab = asTabs && tabValues.has(String(option));
+          const label = option === "" && node.has_unnamed_default ? "Default" : option;
+          return (
+            '<button type="button" class="switch-option' +
+              (optionIsTab ? " tab-option" : "") +
+              (selected ? " selected" : "") + '" ' +
+              'data-switch-path="' + esc(node._path) + '" data-switch-value="' + esc(option) + '" ' +
+              (optionIsTab
+                ? 'role="tab" aria-selected="' + (selected ? "true" : "false") + '" tabindex="' + (selected ? "0" : "-1") + '" '
+                : 'aria-pressed="' + (selected ? "true" : "false") + '" ') +
+              '>' + esc(label) + '</button>'
+          );
+        }).join("");
+        const booleanOptions = flowOptions || optionValues(node);
+        if (booleanOptions.length === 2 &&
+            String(booleanOptions[0]) === "0" && String(booleanOptions[1]) === "1") {
+          const offValue = booleanOptions[0];
+          const onValue = booleanOptions[1];
+          const enabled = String(current) === String(onValue);
+          return (
+            '<div class="field-row' + controllerClass + '" data-node-path="' + esc(node._path) + '">' +
+              renderInputName(node) +
+              '<div class="field-control"><button type="button" class="boolean-toggle' + (enabled ? " enabled" : "") + '" ' +
+                'data-switch-path="' + esc(node._path) + '" data-switch-value="' + esc(enabled ? offValue : onValue) + '" ' +
+                'role="switch" aria-checked="' + (enabled ? "true" : "false") + '">' +
+                '<span>' + (enabled ? "On" : "Off") + '</span><span class="boolean-indicator" aria-hidden="true"></span></button></div>' +
+            '</div>'
+          );
+        }
+        return (
+          '<div class="field-row switch-row' + controllerClass + (asTabs ? " switch-tab-header" : "") +
+            '" data-node-path="' + esc(node._path) + '">' +
+            renderInputName(node) +
+            '<div class="switch-options" role="' + (asTabs ? "tablist" : "group") +
+              '" aria-label="Options for ' + esc(node._path) + '">' + options + '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderSequenceEntry(node, row, index, pending) {
+        const inputPath = node._path + index;
+        const invalid = !pending && String(row.value || "").trim() === "";
+        return (
+          '<div class="sequence-entry' + (pending ? ' pending' : '') + (invalid ? ' invalid' : '') + '">' +
+            '<label class="sequence-key" for="sequence-' + esc(node._path) + '-' + index + '">' + index + '</label>' +
+            '<input id="sequence-' + esc(node._path) + '-' + index + '" type="text" data-seq-value="' + esc(node._path) +
+              '" data-row="' + index + '" value="' + esc(row.value || "") + '" aria-label="Value for ' + esc(inputPath) + '" placeholder="Enter a value">' +
+            '<button class="sequence-delete" type="button" data-seq-delete="' + esc(node._path) + '" data-row="' + index +
+              '" aria-label="Delete ' + esc(inputPath) + '" title="Delete and renumber later entries">&times;</button>' +
+          '</div>'
+        );
+      }
+
+      function renderSequence(node) {
+        const rows = state.sequenceRows[node._path] || [];
+        const entries = rows.concat([{ value: "" }]).map((row, index) => {
+          return renderSequenceEntry(node, row, index, index === rows.length);
+        }).join("");
+        return (
+          '<div class="field-row sequence-row' + (rows.length ? " configured" : "") + '" data-node-path="' + esc(node._path) + '">' +
+            renderInputName(node) +
+            '<div class="field-control sequence-content">' + entries + '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderClassSequence(node, templateFlow, nestingDepth, parentBranchKey) {
+        const count = Number(state.classSequenceCounts[node._path] || 0);
+        const active = Math.min(Math.max(Number(state.classSequenceActive[node._path] || 0), 0), Math.max(0, count - 1));
+        state.classSequenceActive[node._path] = active;
+        const template = (node.children || []).find(nodeActive) || (node.children || [])[0];
+        const instances = instancesForClassSequence(node);
+
+        const tabs = instances.map((instance, index) => {
+          return '<button type="button" class="class-sequence-tab' + (index === active ? " active" : "") +
+            '" data-class-tab="' + esc(node._path) + '" data-index="' + index + '" aria-pressed="' +
+            (index === active ? "true" : "false") + '">' + index + '</button>';
+        }).join("");
+        const controls =
+          '<div class="class-sequence-controls">' +
+            (tabs ? '<div class="class-sequence-tabs" role="tablist" aria-label="' + esc(node._path) + ' entries">' + tabs + '</div>' : "") +
+            '<button type="button" class="class-sequence-add" data-class-add="' + esc(node._path) +
+              '" aria-label="Add ' + esc(node._path) + ' entry" title="Add entry">+</button>' +
+            (count ? '<button type="button" class="class-sequence-remove" data-class-remove="' + esc(node._path) +
+              '" data-index="' + active + '" aria-label="Delete ' + esc(node._path + active) +
+              '" title="Delete this entry">&times;</button>' : "") +
+          '</div>';
+
+        let body = "";
+        if (instances.length) {
+          const instance = instances[active];
+          const instanceFlow = instantiateFlow(templateFlow, template._path, instance._path);
+          body = renderFlowNodes(
+            instanceFlow,
+            (nestingDepth || 0) + 1,
+            (parentBranchKey || "") + "|" + node._path + active
+          );
+          if (!body) body = renderChildren(instance);
+        }
+        return (
+          '<section class="class-sequence' + (count ? " configured" : "") + '" data-node-path="' + esc(node._path) + '">' +
+            '<div class="class-sequence-header">' + renderInputName(node) + controls + '</div>' +
+            (count
+              ? '<div class="class-sequence-body">' + body + '</div>'
+              : '<div class="class-sequence-empty">No entries configured.</div>') +
+          '</section>'
+        );
+      }
+
+      function renderInput(node, sequenceFlow, nestingDepth, parentBranchKey) {
+        if (node.kind === "parameter") return renderParameter(node);
+        if (node.kind === "switch") return renderSwitch(node);
+        if (isClassSequence(node)) return renderClassSequence(node, sequenceFlow, nestingDepth, parentBranchKey);
+        if (node.kind === "sequence") return renderSequence(node);
+        return "";
+      }
+
+      function extraCondition(node) {
+        const context = activeContext(node) || [];
+        const parentContext = node._parent ? (activeContext(node._parent) || []) : [];
+        return context.slice().reverse().find((condition) => {
+          return switchNodes.some((item) => item._path === condition.path) &&
+            !parentContext.some((parentCondition) => parentCondition.path === condition.path && String(parentCondition.value) === String(condition.value));
+        }) || null;
+      }
+
+      function renderConditionalBody(condition, body, isFlowBranch, nestingDepth) {
+        const depthClass = isFlowBranch
+          ? " flow-branch nesting-level-" + ((nestingDepth || 0) % 9)
+          : "";
+        return (
+          '<div class="conditional-group' + depthClass + '">' +
+            '<div class="conditional-heading"><span>Shown for</span><code>' + esc(condition.path) + ' = ' + esc(condition.value) + '</code></div>' +
+            '<div class="scope-body">' + body + '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderSwitchTabs(controller, body, nestingDepth, path, value, showPanel, queryIfEnabled) {
+        const depthClass = " nesting-level-" + (nestingDepth % 9);
+        const queryIfClass = queryIfEnabled === undefined
+          ? ""
+          : " query-if-group" + (queryIfEnabled ? " query-if-enabled" : "");
+        return (
+          '<section class="switch-tab-group' + depthClass + queryIfClass + '">' +
+            controller +
+            (showPanel
+              ? '<div class="scope-body switch-tab-panel" role="tabpanel" aria-label="' +
+                esc(path + " = " + value) + '">' + body + '</div>'
+              : "") +
+          '</section>'
+        );
+      }
+
+      function renderConstraint(item) {
+        const result = constraintEvaluation(item);
+        const members = item.constraint.members || [];
+        const remaining = Math.max(0, result.expected - result.chosen.length);
+        let detail;
+        if (result.valid) {
+          detail = "Complete: " + result.chosen.join(", ");
+        } else if (remaining > 0) {
+          detail = "Choose " + remaining + " more.";
+        } else {
+          detail = "Remove " + (result.chosen.length - result.expected) + ".";
+        }
+        return (
+          '<div class="constraint-note ' + (result.valid ? "valid" : "invalid") + '" data-constraint-id="' + item.id + '">' +
+            'Exactly ' + result.expected + ' of <strong>' + esc(members.join(", ")) + '</strong> must be set. ' + esc(detail) +
+          '</div>'
+        );
+      }
+
+      function renderExactlyStatus(item) {
+        const result = constraintEvaluation(item);
+        const text = result.valid
+          ? result.expected + " of " + result.expected + " selected"
+          : result.chosen.length + " of " + result.expected + " selected";
+        return '<span class="exactly-group-status' + (result.valid ? " valid" : "") + '" data-constraint-status-id="' + item.id + '">' + esc(text) + '</span>';
+      }
+
+      function renderExactlyGroup(item, nodes) {
+        const result = constraintEvaluation(item);
+        return (
+          '<section class="exactly-group' + (result.valid ? " valid" : " invalid") + '">' +
+            '<div class="exactly-group-header">' +
+              '<div><div class="exactly-group-title">Choose exactly ' + result.expected + ' values</div>' + renderDoc(item.constraint) + '</div>' +
+              renderExactlyStatus(item) +
+            '</div>' +
+            '<div class="exactly-members">' + nodes.map((node) => renderParameter(node, false)).join("") + '</div>' +
+          '</section>'
+        );
+      }
+
+      function renderConstraintsFor(scope) {
+        return constraints.filter((item) => item.scopePath === scope._path && constraintActive(item)).map(renderConstraint).join("");
+      }
+
+      function renderConstraintsBefore(path) {
+        return constraints.filter((item) => {
+          return constraintActive(item) && (item.constraint.members || [])[0] === path;
+        }).map(renderConstraint).join("");
+      }
+
+      function flowGroup(path) {
+        const dot = String(path || "").indexOf(".");
+        return dot < 0 ? "" : String(path).slice(0, dot);
+      }
+
+      function renderFlowNodes(nodes, nestingDepth, parentBranchKey) {
+        nestingDepth = nestingDepth || 0;
+        parentBranchKey = parentBranchKey || "";
+        const orderedNodes = [...(nodes || [])].sort((left, right) => {
+          return String(left.input).localeCompare(String(right.input));
+        });
+        let html = "";
+        let run = [];
+        let runGroup = null;
+        const consumedExactlyMembers = new Set();
+        const flowInputs = new Set(orderedNodes.map((node) => node.input));
+        const prefixGroups = new Set(orderedNodes.map((flowNode) => {
+          const node = nodeForFlow(flowNode);
+          return node && (node.kind === "parameter" || node.kind === "sequence") &&
+            nodeMatchesView(node, Boolean(state.search))
+            ? flowGroup(flowNode.input)
+            : "";
+        }).filter(Boolean));
+        const showNestedPrefixHeading = !parentBranchKey || prefixGroups.size > 1;
+
+        const flushRun = () => {
+          if (!run.length) return;
+          const body = run.map(({ flowNode, node }) => {
+            return renderConstraintsBefore(flowNode.input) +
+              renderInput(node, flowNode.children, nestingDepth, parentBranchKey);
+          }).join("");
+          if (runGroup && run.length > 1 && showNestedPrefixHeading) {
+            const prefixKey = parentBranchKey + "|prefix:" + runGroup;
+            const collapsed = Boolean(state.prefixCollapsed[prefixKey]) && !state.search;
+            html +=
+              '<section class="flow-section">' +
+                '<button type="button" class="flow-section-heading" data-prefix-toggle="' + esc(prefixKey) +
+                  '" aria-expanded="' + (collapsed ? "false" : "true") + '">' + esc(runGroup) + '</button>' +
+                (collapsed ? "" : body) +
+              '</section>';
+          } else html += body;
+          run = [];
+          runGroup = null;
+        };
+
+        orderedNodes.forEach((flowNode) => {
+          const node = nodeForFlow(flowNode);
+          if (!node) return;
+
+          if (consumedExactlyMembers.has(flowNode.input)) return;
+
+          const exactly = constraints.find((item) => {
+            const members = item.constraint.members || [];
+            const firstMember = orderedNodes.find((candidate) => members.includes(candidate.input));
+            return item.constraint.kind === "exactly" && constraintActive(item) &&
+              firstMember && firstMember.input === flowNode.input &&
+              members.every((member) => flowInputs.has(member));
+          });
+          if (exactly) {
+            flushRun();
+            const memberNodes = (exactly.constraint.members || []).map((member) => {
+              const memberFlow = orderedNodes.find((candidate) => candidate.input === member);
+              return memberFlow ? nodeForFlow(memberFlow) : nodeForPath(member);
+            })
+              .filter((member) => member && member.kind === "parameter" && nodeMatchesView(member))
+              .sort((left, right) => left._path.localeCompare(right._path));
+            (exactly.constraint.members || []).forEach((member) => consumedExactlyMembers.add(member));
+            if (memberNodes.length) html += renderExactlyGroup(exactly, memberNodes);
+            return;
+          }
+
+          if (flowNode.kind === "switch") {
+            flushRun();
+            const branches = flowNode.branches || [];
+            const nodeVisible = nodeMatchesView(node, Boolean(state.search));
+            const matchingBranches = state.search
+              ? branches.filter(flowBranchMatchesSearch)
+              : branches;
+            const visibleBranches = state.search && !matchingBranches.length && nodeVisible
+              ? branches
+              : matchingBranches;
+            if (!visibleBranches.length && !nodeVisible) return;
+
+            const configuredValue = state.switches[flowNode.input];
+            const selected = visibleBranches.find((branch) => {
+              return String(branch.value) === String(configuredValue);
+            }) || visibleBranches[0];
+            const selectedValue = selected === undefined ? configuredValue : String(selected.value);
+            const options = visibleBranches.map((branch) => String(branch.value));
+            const branchKey = parentBranchKey + "|" + flowNode.input + "=" + selectedValue;
+            const childHtml = selected
+              ? renderFlowNodes(selected.children, nestingDepth + 1, branchKey)
+              : "";
+            const hasBranchContent = branches.some((branch) => {
+              return Array.isArray(branch.children) && branch.children.length > 0;
+            });
+            if (nodeVisible || childHtml) {
+              const tabOptions = visibleBranches.filter((branch) => {
+                return Array.isArray(branch.children) && branch.children.length > 0;
+              }).map((branch) => String(branch.value));
+              const selectedHasChildren = Boolean(
+                selected && Array.isArray(selected.children) && selected.children.length > 0
+              );
+              const controller = renderSwitch(
+                node,
+                options,
+                hasBranchContent ? nestingDepth : undefined,
+                hasBranchContent,
+                tabOptions,
+                selectedValue
+              );
+              if (hasBranchContent) {
+                const queryIfEnabled = node.directive === "query_if"
+                  ? String(selectedValue) === "1"
+                  : node.directive === "query_if_else"
+                    ? true
+                    : undefined;
+                html += renderSwitchTabs(
+                  controller, childHtml, nestingDepth, flowNode.input, selectedValue,
+                  selectedHasChildren, queryIfEnabled);
+              } else html += controller;
+            }
+            return;
+          }
+
+          if ((node.kind !== "parameter" && node.kind !== "sequence") ||
+              !nodeMatchesView(node, Boolean(state.search))) {
+            return;
+          }
+          const group = flowGroup(flowNode.input);
+          if (run.length && group !== runGroup) flushRun();
+          if (!run.length) runGroup = group;
+          run.push({ flowNode: flowNode, node: node });
+        });
+        flushRun();
+        return html;
+      }
+
+      function renderChildren(scope) {
+        let html = renderConstraintsFor(scope);
+        (scope.children || []).forEach((child) => {
+          if (child.kind === "scope") {
+            html += renderNestedScope(child);
+          } else {
+            let childHtml = inputVisible(child) ? renderInput(child) : "";
+            if (hasVisibleDescendant(child)) childHtml += renderChildren(child);
+            const condition = child.kind === "switch" ? extraCondition(child) : null;
+            html += condition && childHtml ? renderConditionalBody(condition, childHtml) : childHtml;
+          }
+        });
+        return html;
+      }
+
+      function renderNestedScope(node) {
+        if (!nodeActive(node) || !scopeHasVisible(node)) return "";
+        const body = renderChildren(node);
+        const condition = extraCondition(node);
+        if (condition) {
+          return renderConditionalBody(condition, body);
+        }
+        if (activeItems(node) > 1) {
+          return '<div class="subsection"><div class="subsection-heading">' + esc(node._path) + '</div><div class="scope-body">' + body + '</div></div>';
+        }
+        return '<div class="scope-body">' + body + '</div>';
+      }
+
+      function renderSection(node) {
+        if (!nodeActive(node) || !scopeHasVisible(node)) return "";
+        const collapsed = Boolean(state.collapsed[node._path]) && !state.search;
+        const count = activeItems(node);
+        const issues = sectionIssueCount(node);
+        const issueText = issues ? '<span class="required-mark">' + issues + ' need attention</span>' : "";
+        return (
+          '<section class="form-section" id="section-' + node._id + '" data-section-path="' + esc(node._path) + '">' +
+            '<button class="section-heading" type="button" data-section-toggle="' + node._id + '" aria-expanded="' + (collapsed ? "false" : "true") + '">' +
+              '<span class="section-title"><span class="section-name">' + esc(node._path) + '</span><span class="section-count">' + count + ' inputs</span>' + issueText + '</span>' +
+              '<span class="section-caret"></span>' +
+            '</button>' +
+            (collapsed ? "" : '<div class="section-body">' + renderChildren(node) + '</div>') +
+          '</section>'
+        );
+      }
+
+      function renderBuilder() {
+        virtualNodeByPath.clear();
+        classSequenceInstances.clear();
+        flat.forEach((node) => {
+          if (isClassSequence(node) && !classSequenceOwner(node) && nodeActive(node)) {
+            instancesForClassSequence(node);
+          }
+        });
+        if (flow) {
+          const html = renderFlowNodes(flow);
+          builderList.innerHTML = html || '<div class="empty">No active inputs match this view.</div>';
+          bindBuilderEvents();
+          schedulePersistence();
+          return;
+        }
+
+        let html = "";
+        let loose = "";
+        function flushLoose() {
+          if (!loose) return;
+          html += '<div class="loose-fields">' + loose + '</div>';
+          loose = "";
+        }
+        (root.children || []).forEach((node) => {
+          if (node.kind === "scope") {
+            flushLoose();
+            html += renderSection(node);
+          } else if (inputVisible(node)) {
+            loose += renderInput(node);
+            if (hasVisibleDescendant(node)) loose += renderChildren(node);
+          }
+        });
+        flushLoose();
+        builderList.innerHTML = html || '<div class="empty">No active inputs match this view.</div>';
+        bindBuilderEvents();
+        schedulePersistence();
+      }
+
+      function renderNavigation() {
+        const links = (root.children || []).filter((node) => node.kind === "scope" && nodeActive(node) && scopeHasVisible(node)).map((node) => {
+          const issues = sectionIssueCount(node);
+          return (
+            '<button type="button" class="nav-link' + (issues ? " has-errors" : "") + (state.currentSection === node._path ? " current" : "") + '" data-nav-id="' + node._id + '">' +
+              '<span class="nav-link-label">' + esc(node._path) + '</span>' +
+          '<span class="nav-count">' + (issues ? issues : activeItems(node)) + '</span>' +
+            '</button>'
+          );
+        }).join("");
+        sectionNav.innerHTML = links || '<div class="subtle">No sections</div>';
+        sectionNav.querySelectorAll("[data-nav-id]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const node = flat[Number(event.currentTarget.dataset.navId)];
+            if (flow) {
+              state.currentSection = node._path;
+              renderNavigation();
+              schedulePersistence();
+              const target = Array.from(builderList.querySelectorAll("[data-node-path]")).find((element) => {
+                const path = element.dataset.nodePath || "";
+                return path === node._path || path.startsWith(node._path + ".");
+              });
+              if (target) target.scrollIntoView({ block: "start" });
+              return;
+            }
+            delete state.collapsed[node._path];
+            state.currentSection = node._path;
+            renderBuilder();
+            renderNavigation();
+            schedulePersistence();
+            const target = document.getElementById("section-" + node._id);
+            if (target) target.scrollIntoView({ block: "start" });
+          });
+        });
+      }
+
+      function bindDefaultPlaceholders() {
+        builderList.querySelectorAll("[data-default-placeholder]").forEach((input) => {
+          input.addEventListener("focus", (event) => {
+            if (!event.currentTarget.value) event.currentTarget.placeholder = "";
+          });
+          input.addEventListener("blur", (event) => {
+            if (!event.currentTarget.value) event.currentTarget.placeholder = event.currentTarget.dataset.defaultPlaceholder;
+          });
+        });
+      }
+
+      function syncField(node) {
+        const row = builderList.querySelector('[data-node-path="' + CSS.escape(node._path) + '"]');
+        if (!row) return;
+        row.classList.toggle("missing-required", missingRequired(node));
+        row.classList.toggle("configured", configured(node));
+      }
+
+      function refreshConstraintNotes() {
+        builderList.querySelectorAll("[data-constraint-id]").forEach((element) => {
+          const item = constraints[Number(element.dataset.constraintId)];
+          const replacement = document.createElement("div");
+          replacement.innerHTML = renderConstraint(item);
+          element.replaceWith(replacement.firstElementChild);
+        });
+        builderList.querySelectorAll("[data-constraint-status-id]").forEach((element) => {
+          const item = constraints[Number(element.dataset.constraintStatusId)];
+          const group = element.closest(".exactly-group");
+          const replacement = document.createElement("div");
+          replacement.innerHTML = renderExactlyStatus(item);
+          element.replaceWith(replacement.firstElementChild);
+          if (group) group.classList.toggle("invalid", !constraintEvaluation(item).valid);
+          if (group) group.classList.toggle("valid", constraintEvaluation(item).valid);
+        });
+      }
+
+      function refreshAfterValue(node) {
+        syncField(node);
+        refreshConstraintNotes();
+        renderNavigation();
+        renderStatus();
+        renderOutput();
+        schedulePersistence();
+      }
+
+      function renderSequenceContent(node, content) {
+        const rows = state.sequenceRows[node._path] || [];
+        content.innerHTML = rows.concat([{ value: "" }]).map((row, index) => {
+          return renderSequenceEntry(node, row, index, index === rows.length);
+        }).join("");
+        content.querySelectorAll("[data-seq-value]").forEach(bindSequenceValueInput);
+        content.querySelectorAll("[data-seq-delete]").forEach(bindSequenceDeleteButton);
+      }
+
+      function bindSequenceValueInput(input) {
+        input.addEventListener("input", (event) => {
+          const node = nodeForPath(event.currentTarget.dataset.seqValue);
+          const rows = state.sequenceRows[node._path] || [];
+          const index = Number(event.currentTarget.dataset.row);
+          const value = event.currentTarget.value;
+          const entry = event.currentTarget.closest(".sequence-entry");
+          const content = event.currentTarget.closest(".sequence-content");
+
+          if (index === rows.length && value.trim() !== "") {
+            rows.push({ value: value });
+            entry.classList.remove("pending");
+            content.insertAdjacentHTML("beforeend", renderSequenceEntry(node, { value: "" }, index + 1, true));
+            bindSequenceValueInput(content.lastElementChild.querySelector("[data-seq-value]"));
+            bindSequenceDeleteButton(content.lastElementChild.querySelector("[data-seq-delete]"));
+          } else if (index < rows.length) {
+            rows[index].value = value;
+            if (value.trim() !== "") {
+              entry.classList.remove("invalid");
+              refreshAfterValue(node);
+              return;
+            }
+            if (index === rows.length - 1) {
+              rows.pop();
+              renderSequenceContent(node, content);
+              content.querySelector('[data-seq-value][data-row="' + index + '"]').focus();
+            } else entry.classList.add("invalid");
+          }
+          refreshAfterValue(node);
+        });
+      }
+
+      function bindSequenceDeleteButton(button) {
+        button.addEventListener("click", (event) => {
+          const node = nodeForPath(event.currentTarget.dataset.seqDelete);
+          const rows = state.sequenceRows[node._path] || [];
+          const index = Number(event.currentTarget.dataset.row);
+          const content = event.currentTarget.closest(".sequence-content");
+          rows.splice(index, 1);
+          renderSequenceContent(node, content);
+          refreshAfterValue(node);
+        });
+      }
+
+      function stateMapsWithPaths() {
+        return [
+          state.switches,
+          state.values,
+          state.sequenceRows,
+          state.classSequenceCounts,
+          state.classSequenceActive
+        ];
+      }
+
+      function keysBelow(map, prefix) {
+        return Object.keys(map).filter((key) => key === prefix || key.startsWith(prefix + "."));
+      }
+
+      function removeStatePrefix(prefix) {
+        stateMapsWithPaths().forEach((map) => {
+          keysBelow(map, prefix).forEach((key) => delete map[key]);
+        });
+      }
+
+      function moveStatePrefix(sourcePrefix, targetPrefix) {
+        stateMapsWithPaths().forEach((map) => {
+          const entries = keysBelow(map, sourcePrefix).map((key) => {
+            return [targetPrefix + key.slice(sourcePrefix.length), map[key]];
+          });
+          keysBelow(map, sourcePrefix).forEach((key) => delete map[key]);
+          entries.forEach(([key, value]) => { map[key] = value; });
+        });
+      }
+
+      function bindBuilderEvents() {
+        bindDefaultPlaceholders();
+        builderList.querySelectorAll("[data-prefix-toggle]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const key = event.currentTarget.dataset.prefixToggle;
+            if (state.prefixCollapsed[key]) delete state.prefixCollapsed[key];
+            else state.prefixCollapsed[key] = true;
+            renderBuilder();
+          });
+        });
+        builderList.querySelectorAll("[data-section-toggle]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const node = flat[Number(event.currentTarget.dataset.sectionToggle)];
+            if (state.collapsed[node._path]) delete state.collapsed[node._path];
+            else state.collapsed[node._path] = true;
+            renderBuilder();
+          });
+        });
+        builderList.querySelectorAll("[data-switch-path]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const node = nodeForPath(event.currentTarget.dataset.switchPath);
+            state.switches[node._path] = event.currentTarget.dataset.switchValue;
+            renderAll();
+          });
+          if (button.getAttribute("role") === "tab") {
+            button.addEventListener("keydown", (event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const tabs = Array.from(event.currentTarget.parentElement.querySelectorAll('[role="tab"]'));
+              const current = tabs.indexOf(event.currentTarget);
+              let next = current;
+              if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+              if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+              if (event.key === "Home") next = 0;
+              if (event.key === "End") next = tabs.length - 1;
+              const path = tabs[next].dataset.switchPath;
+              const value = tabs[next].dataset.switchValue;
+              state.switches[path] = value;
+              renderAll();
+              requestAnimationFrame(() => {
+                Array.from(builderList.querySelectorAll('[role="tab"][data-switch-path]'))
+                  .find((tab) => tab.dataset.switchPath === path && tab.dataset.switchValue === value)
+                  ?.focus();
+              });
+            });
+          }
+        });
+        builderList.querySelectorAll("[data-value-path]").forEach((control) => {
+          const eventName = control.tagName === "SELECT" ? "change" : "input";
+          control.addEventListener(eventName, (event) => {
+            const node = nodeForPath(event.currentTarget.dataset.valuePath);
+            state.values[node._path] = event.currentTarget.value;
+            refreshAfterValue(node);
+          });
+        });
+        builderList.querySelectorAll("[data-seq-value]").forEach(bindSequenceValueInput);
+        builderList.querySelectorAll("[data-seq-delete]").forEach(bindSequenceDeleteButton);
+        builderList.querySelectorAll("[data-class-add]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const path = event.currentTarget.dataset.classAdd;
+            const count = Number(state.classSequenceCounts[path] || 0);
+            state.classSequenceCounts[path] = count + 1;
+            state.classSequenceActive[path] = count;
+            renderAll();
+          });
+        });
+        builderList.querySelectorAll("[data-class-tab]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            state.classSequenceActive[event.currentTarget.dataset.classTab] =
+              Number(event.currentTarget.dataset.index);
+            renderAll();
+          });
+        });
+        builderList.querySelectorAll("[data-class-remove]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            const path = event.currentTarget.dataset.classRemove;
+            const index = Number(event.currentTarget.dataset.index);
+            const count = Number(state.classSequenceCounts[path] || 0);
+            removeStatePrefix(path + index);
+            for (let next = index + 1; next < count; next += 1) {
+              moveStatePrefix(path + next, path + (next - 1));
+            }
+            state.classSequenceCounts[path] = Math.max(0, count - 1);
+            state.classSequenceActive[path] = Math.min(index, Math.max(0, count - 2));
+            renderAll();
+          });
+        });
+      }
+
+      function outputLines() {
+        const lines = ["# Generated by the Alamo input builder", "# Schema source: __SCHEMA_SOURCE__", ""];
+        const appendInstance = (node) => {
+          if (!node._path || !nodeActive(node)) return;
+          if (node.kind === "switch") {
+            const value = state.switches[node._path];
+            if (value !== undefined && value !== "") lines.push(node._path + " = " + value);
+          } else if (isClassSequence(node)) {
+            instancesForClassSequence(node).forEach(appendInstance);
+            return;
+          } else if (node.kind === "sequence") {
+            (state.sequenceRows[node._path] || []).forEach((row, index) => {
+              const value = String(row.value || "").trim();
+              if (value) lines.push(node._path + index + " = " + value);
+            });
+          } else if (node.kind === "parameter") {
+            const value = String(state.values[node._path] || "").trim();
+            if (value) lines.push(node._path + " = " + value);
+            else if (node.required) lines.push("# " + node._path + " = <value>");
+          }
+          (node.children || []).forEach(appendInstance);
+        };
+        flat.forEach((node) => {
+          if (classSequenceOwner(node)) return;
+          if (!node._path || !nodeActive(node)) return;
+          if (node.kind === "switch") {
+            const value = state.switches[node._path];
+            if (value !== undefined && value !== "") lines.push(node._path + " = " + value);
+            return;
+          }
+          if (node.kind === "sequence") {
+            if (isClassSequence(node)) {
+              instancesForClassSequence(node).forEach(appendInstance);
+              return;
+            }
+            (state.sequenceRows[node._path] || []).forEach((row, index) => {
+              const value = String(row.value || "").trim();
+              if (value) lines.push(node._path + index + " = " + value);
+            });
+            return;
+          }
+          if (node.kind !== "parameter") return;
+          const value = String(state.values[node._path] || "").trim();
+          if (value) lines.push(node._path + " = " + value);
+          else if (node.required) lines.push("# " + node._path + " = <value>");
+        });
+        return lines;
+      }
+
+      function renderOutput() {
+        const lines = outputLines();
+        outputText.value = lines.join("\n").replace(/\n{3,}/g, "\n\n");
+        lineCount.textContent = lines.length + " lines";
+      }
+
+      function renderStatus() {
+        const issues = validationIssues();
+        statusSummary.classList.toggle("has-errors", issues.length > 0);
+        statusSummary.innerHTML = '<span class="status-dot"></span><span>' + (
+          issues.length ? issues.length + " items need attention" : "Current configuration is complete"
+        ) + '</span>';
+        const decisions = switchNodes.filter(nodeActive).map((node) => {
+          const value = state.switches[node._path];
+          return node._path + " = " + (value === "" ? "Default" : value);
+        });
+        activeDecisions.textContent = decisions.join("  /  ");
+        activeDecisions.title = decisions.join("\n");
+      }
+
+      function renderAll() {
+        reconcileSwitches();
+        ensureState();
+        renderBuilder();
+        renderNavigation();
+        renderStatus();
+        renderOutput();
+        schedulePersistence();
+      }
+
+      function resetState() {
+        try {
+          window.localStorage.removeItem(persistenceKey);
+        } catch (error) {
+          // Ignore unavailable storage and still reset the in-memory builder.
+        }
+        Object.keys(state.switches).forEach((key) => delete state.switches[key]);
+        Object.keys(state.values).forEach((key) => delete state.values[key]);
+        Object.keys(state.sequenceRows).forEach((key) => delete state.sequenceRows[key]);
+        Object.keys(state.classSequenceCounts).forEach((key) => delete state.classSequenceCounts[key]);
+        Object.keys(state.classSequenceActive).forEach((key) => delete state.classSequenceActive[key]);
+        Object.keys(state.collapsed).forEach((key) => delete state.collapsed[key]);
+        Object.keys(state.prefixCollapsed).forEach((key) => delete state.prefixCollapsed[key]);
+        state.search = "";
+        state.view = "all";
+        state.currentSection = "";
+        searchInput.value = "";
+        document.querySelectorAll("[data-view]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.view === "all");
+        });
+        renderAll();
+        setScrollPosition(0);
+        sectionNav.scrollTop = 0;
+      }
+
+      searchInput.addEventListener("input", (event) => {
+        state.search = event.currentTarget.value.trim().toLowerCase();
+        renderAll();
+      });
+
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          state.view = event.currentTarget.dataset.view;
+          document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item === event.currentTarget));
+          renderAll();
+        });
+      });
+
+      document.getElementById("resetButton").addEventListener("click", resetState);
+      document.getElementById("builderSelect").addEventListener("change", (event) => {
+        persistState();
+        window.location.href = event.currentTarget.value;
+      });
+      document.getElementById("copyButton").addEventListener("click", () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(outputText.value);
+        else {
+          outputText.focus();
+          outputText.select();
+          document.execCommand("copy");
+        }
+      });
+      document.getElementById("downloadButton").addEventListener("click", () => {
+        const blob = new Blob([outputText.value + "\n"], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "alamo-inputs.in";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      document.getElementById("schemaSummary").textContent =
+        flat.filter((node) => node.kind === "parameter").length + " parameters  /  " +
+        switchNodes.length + " decisions  /  " +
+        flat.filter((node) => node.kind === "sequence").length + " repeatable inputs";
+
+      if (traversalIgnored.length) {
+        const sources = traversalIgnored.map((item) => {
+          const source = item.source || {};
+          const location = source.file ? source.file + ":" + (source.line || "?") : "legacy parser";
+          const note = item.note || "Its inputs are not fully documented.";
+          return location + ": " + note;
+        });
+        traversalNotice.hidden = false;
+        traversalNotice.textContent = "Legacy input parser skipped during documentation traversal. " + sources.join(" ");
+      }
+
+      searchInput.value = state.search;
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.view === state.view);
+      });
+      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+      window.addEventListener("scroll", schedulePersistence, { passive: true });
+      sectionNav.addEventListener("scroll", schedulePersistence, { passive: true });
+      window.addEventListener("pagehide", persistState);
+      renderAll();
+      window.requestAnimationFrame(() => {
+        persistenceReady = true;
+        setScrollPosition(restoredLocation.scrollY);
+        sectionNav.scrollTop = restoredLocation.sectionNavScrollTop;
+      });
+    }());
+  </script>
+</body>
+</html>

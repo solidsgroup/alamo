@@ -40,6 +40,9 @@ ic.ellipse.a   = 1.0 0.75 0.5  # ellipse radii
 ic.ellipse.x0  = 0 0 0 # location of ellipse center
 ic.ellipse.eps = 0.1 # diffuse boundary
 
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0
+
 # elastic moduli
 nmodels = 2
 model1.E = 210 

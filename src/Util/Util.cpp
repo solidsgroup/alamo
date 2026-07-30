@@ -7,7 +7,10 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
@@ -15,10 +18,97 @@
 #include "IO/ParmParse.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
+#include "IO/OutputLog.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
 #include "Util/MPI.H"
 #include <mpi.h>
+
+namespace
+{
+void
+ParseArgsError(const std::string &message)
+{
+    std::cerr << "ERROR: " << message << std::endl;
+    std::exit(EXIT_FAILURE);
+}
+
+bool
+IsInputDefinition(const std::string &arg)
+{
+    return arg == "input" || arg.rfind("input=", 0) == 0;
+}
+
+void
+RejectParseArgsInputFiles(const std::vector<char*> &argv)
+{
+    for (std::size_t i = 1; i < argv.size(); ++i)
+    {
+        const std::string arg(argv[i]);
+
+        if (arg == "--") break;
+
+        if (IsInputDefinition(arg))
+        {
+            ParseArgsError("--parse-args does not accept input-file directives: " + arg);
+        }
+
+        if (arg == "=") continue;
+        if (!arg.empty() && arg[0] == '-') continue;
+        if (arg.find('=') != std::string::npos) continue;
+        if (i + 1 < argv.size() && std::string(argv[i + 1]) == "=") continue;
+        if (i > 1 && std::string(argv[i - 1]) == "=") continue;
+
+        ParseArgsError("--parse-args does not accept input files or positional arguments: " + arg);
+    }
+}
+
+void
+InjectParseArgsDefaults()
+{
+    {
+        amrex::ParmParse pp("amr");
+
+        int max_level = 0;
+        pp.queryAdd("max_level", max_level);
+
+        std::vector<int> n_cell(AMREX_SPACEDIM, 1);
+        pp.queryAdd("n_cell", n_cell);
+
+        int max_grid_size = 1;
+        pp.queryAdd("max_grid_size", max_grid_size);
+
+        int blocking_factor = 1;
+        pp.queryAdd("blocking_factor", blocking_factor);
+    }
+
+    {
+        amrex::ParmParse pp("geometry");
+
+        std::vector<double> prob_lo(AMREX_SPACEDIM, 0.0);
+        pp.queryAdd("prob_lo", prob_lo, AMREX_SPACEDIM);
+
+        if (!pp.contains("prob_hi") && !pp.contains("prob_extent"))
+        {
+            std::vector<double> prob_hi(AMREX_SPACEDIM, 1.0);
+            pp.addarr("prob_hi", prob_hi);
+        }
+
+        std::vector<int> is_periodic(AMREX_SPACEDIM, 0);
+        pp.queryAdd("is_periodic", is_periodic, AMREX_SPACEDIM);
+    }
+
+    {
+        amrex::ParmParse pp;
+
+        std::string stop_time = "1.0";
+        pp.queryAdd("stop_time", stop_time);
+
+        std::string timestep = "1.0";
+        pp.queryAdd("timestep", timestep);
+    }
+}
+}
 
 namespace Util
 {
@@ -28,28 +118,18 @@ std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
 bool initialized = false;
 bool finalized = false;
-bool warn_about_launch_region_temp_fix = true;
 
 std::string GetFileName()
 {
     if (filename == "")
     {
         IO::ParmParse pp;
-        IO::ParmParse pp_amr("amr");
 
-        if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
-            Util::Abort("plot_file specified in too many locations");
-        else if (pp_amr.contains("plot_file"))
-        {
-            if (amrex::ParallelDescriptor::IOProcessor())
-                amrex::Warning("amr.plot_file will be depricated; use plot_file instead");
-            pp_amr.query("plot_file", filename);
+        pp.forbid("amr.plot_file","Depricated");
 
-        }
-        else if (pp.contains("plot_file"))
-        {
-            pp_query("plot_file", filename); // Name of directory containing all output data
-        }
+        // Output file path
+        pp.query_default("plot_file", filename, "output"); // Name of directory containing all output data
+
         IO::FileNameParse(filename);
         // else
         // if (amrex::ParallelDescriptor::IOProcessor())
@@ -59,6 +139,8 @@ std::string GetFileName()
 }
 void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
 {
+    if (IO::ParmParse::InTraversalMode()) return;
+
     try
     {
         if (filename == "")
@@ -106,7 +188,8 @@ std::pair<std::string,std::string> GetOverwrittenFile()
 
 void SignalHandler(int s)
 {
-    if (amrex::ParallelDescriptor::IOProcessor())
+    if (!IO::ParmParse::InTraversalMode() &&
+        amrex::ParallelDescriptor::IOProcessor())
     {
         std::string filename = GetFileName();
         IO::Status status = IO::Status::Running;
@@ -139,16 +222,49 @@ void Initialize ()
     char **argv = nullptr;
     Initialize(argc,argv);
     initialized = true;
-    warn_about_launch_region_temp_fix = true;
 }
 void Initialize (int argc, char* argv[])
 {
+    IO::OutputLog::Initialize();
     srand (time(NULL));
 
-    amrex::Initialize(argc, argv);
+    bool parse_args = false;
+    std::string parse_args_output = "alamo-inputs.schema.json";
+    std::vector<char*> amrex_argv;
+    amrex_argv.reserve(argc > 0 ? argc : 0);
+    for (int i = 0; i < argc; i++)
+    {
+        if (std::string(argv[i]) == "--parse-args")
+        {
+            parse_args = true;
+            continue;
+        }
+        if (std::string(argv[i]) == "--parse-args-output")
+        {
+            if (i + 1 >= argc)
+                ParseArgsError("--parse-args-output requires a file path");
+            parse_args_output = argv[++i];
+            continue;
+        }
+        amrex_argv.push_back(argv[i]);
+    }
 
-    IO::ParmParse pp_amrex("amrex");
-    pp_amrex.add("throw_exception",1);
+    if (parse_args) RejectParseArgsInputFiles(amrex_argv);
+
+    int amrex_argc = static_cast<int>(amrex_argv.size());
+    amrex_argv.push_back(nullptr);
+    char **amrex_argv_ptr = amrex_argc == 0 ? nullptr : amrex_argv.data();
+
+    IO::ParmParse::SetTraversalMode(parse_args);
+    if (parse_args)
+        IO::ParmParse::SetTraversalOutputFile(parse_args_output);
+
+    amrex::Initialize(amrex_argc, amrex_argv_ptr);
+
+    if (parse_args) InjectParseArgsDefaults();
+
+    IO::ParmParse pp;
+    pp.add("amrex.throw_exception",1);
     //amrex.throw_exception=1
 
     signal(SIGSEGV, Util::SignalHandler);
@@ -157,13 +273,24 @@ void Initialize (int argc, char* argv[])
 
     std::string filename = GetFileName();
 
-    if (amrex::ParallelDescriptor::IOProcessor() && filename != "")
+    if (!IO::ParmParse::InTraversalMode() && filename != "")
     {
-        file_overwrite = Util::CreateCleanDirectory(filename, false);
-        IO::WriteMetaData(filename);
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            file_overwrite = Util::CreateCleanDirectory(filename, false);
+            IO::OutputLog::Open(filename + "/out.log");
+            IO::WriteMetaData(filename);
+        }
+        else
+        {
+            IO::OutputLog::DisableFile();
+        }
+    }
+    else
+    {
+        IO::OutputLog::DisableFile();
     }
 
-    IO::ParmParse pp;
     std::string length, time, mass, temperature, current, amount, luminousintensity;
     // Set the system length unit
     pp.query_default("system.length",length,"m");
@@ -206,14 +333,14 @@ void Initialize (int argc, char* argv[])
     //
     {
         IO::ParmParse pp("geometry");
-        
-        if (pp.contains("prob_lo"))
+
+        if (IO::ParmParse::InTraversalMode() || pp.contains("prob_lo"))
         {
             std::vector<Set::Scalar> prob_lo, prob_hi;
             // Location of the lower+left+bottom corner
-            pp.queryarr("prob_lo", prob_lo, Unit::Length());
+            pp.queryarr_required("prob_lo", prob_lo, Unit::Length());
             // Location of the upper_right_top corner
-            pp.queryarr("prob_hi", prob_hi, Unit::Length());
+            pp.queryarr_required("prob_hi", prob_hi, Unit::Length());
             pp.remove("prob_lo");
             pp.remove("prob_hi");
 
@@ -257,19 +384,29 @@ void Initialize (int argc, char* argv[])
 
 void Finalize()
 {
-    std::string filename = GetFileName();
-    if (filename != "")
-        IO::WriteMetaData(filename,IO::Status::Complete);
+    if (IO::ParmParse::InTraversalMode())
+    {
+        IO::ParmParse::WriteInputTreeJsonFile(IO::ParmParse::TraversalOutputFile());
+    }
+    else
+    {
+        std::string filename = GetFileName();
+        if (filename != "")
+            IO::WriteMetaData(filename,IO::Status::Complete);
+    }
     amrex::Finalize();
+    IO::OutputLog::Finalize();
     finalized = true;
 }
 
 
 
+AMREX_GPU_HOST_DEVICE
 void
-Abort(const char *msg)
+Abort (const char * msg)
 {
-    AMREX_IF_ON_HOST( Terminate(msg, SIGABRT, true); )
+    AMREX_IF_ON_HOST((Terminate(msg, SIGABRT, true);))
+    AMREX_IF_ON_DEVICE((amrex::Abort();))
 }
 
 void

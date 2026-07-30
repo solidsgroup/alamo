@@ -123,7 +123,7 @@ public:
         // a nullptr. This should eventually be fixed - this is a stopgap.
         if (pp.contains("rhs.type"))
             // initial condition for right hand side (body force)
-            pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,value.geom);
+            pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,pp.forward_args(value.geom));
 
         // Timestep interval for elastic solves (default - solve every time)
         pp_query_default("interval", value.m_interval, 0);

@@ -118,7 +118,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query_default("pf.relax_steps", value.pf.relax_steps, 0);
 
     // Boundary conditions for phase field order params
-    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 );
+    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, pp.forward_args(1));
     // eta carries 3 ghost cells (not 2): the elastic model blend in UpdateModel
     // does CellToNodeAverage(eta) over the model's grown box, which reaches one
     // cell past a 2-ghost buffer at interior grid edges. eta_old_mf must match
@@ -139,7 +139,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.L_mf, value.bc_eta, 1, 0, "L", value.plot_field);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>("pf.eta.ic",value.ic_eta,value.geom);
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>("pf.eta.ic",value.ic_eta,pp.forward_args(value.geom));
 
 
     // Select reduced order model to capture heat feedback
@@ -163,7 +163,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // integration even when thermal transport is disabled.
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
-    pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
+    pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, pp.forward_args(1, Unit::Temperature()));
     value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", value.thermal.on && value.plot_field);
     value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false, false);
     value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
@@ -204,14 +204,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // laser initial condition
         pp.select_default<  IC::Constant,
                             IC::Expression  >
-            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
+            ("laser.ic",value.ic_laser, pp.forward_args(value.geom, Unit::Power()/Unit::Area()));
 
         // thermal initial condition
         pp.select_default<  IC::Constant,
                             IC::Expression,
                             IC::BMP,
                             IC::PNG  >
-            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
+            ("temp.ic",value.thermal.ic_temp,pp.forward_args(value.geom, Unit::Temperature()));
     }
 
 
@@ -256,14 +256,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Initial condition for $\phi$ field.
     pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
-        ("phi.ic",value.ic_phi,value.geom);
+        ("phi.ic",value.ic_phi,pp.forward_args(value.geom));
 
     pp.query_default("phi.cell_centered_mixing", value.phi_cell_centered_mixing, false);
     // phi is static geometry re-initialized from its IC in Regrid, so it is
     // registered non-evolving (no FillPatch / average-down churn).
     if (value.phi_cell_centered_mixing)
     {
-        pp.select_default<BC::Constant>("phi.bc", value.bc_phi, 1);
+        pp.select_default<BC::Constant>("phi.bc", value.bc_phi, pp.forward_args(1));
         // Match eta's mechanics path: a cell field with enough ghosts for
         // CellToNodeAverage over the model's grown nodal boxes.
         value.RegisterNewFab(value.phi_mf, value.bc_phi, 1, 3, "phi", true, false);
@@ -310,7 +310,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (pp.contains("casing_support.ic"))
     {
         pp.select<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
-            ("casing_support.ic", value.ic_casing_support, value.geom);
+            ("casing_support.ic", value.ic_casing_support, pp.forward_args(value.geom));
     }
     pp_query_default("elastic.plot_casing_support", value.elastic.plot_casing_support, false);
     pp_query_default("elastic.casing_support_refinement_criterion",

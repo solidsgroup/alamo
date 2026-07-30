@@ -369,8 +369,6 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     Util::Message(INFO,"U(i,j-1,k):     ",U(i,j-1,k,0)," ",U(i,j-1,k,1));
                     Util::Message(INFO,"U(i,j+1,k):     ",U(i,j+1,k,0)," ",U(i,j+1,k,1));
                     Util::Message(INFO,"gradu:        ",gradu);
-                    Util::Message(INFO,"gradgradu[0]: ",gradgradu[0]);
-                    Util::Message(INFO,"gradgradu[1]: ",gradgradu[1]);
                     Util::Message(INFO,"DDW (i  ,j  ): ",DDW(i,j,k));
                     Util::Message(INFO,"DDW (i-1,j  ): ",DDW(i-1,j,k));
                     Util::Message(INFO,"DDW (i+1,j  ): ",DDW(i+1,j,k));
