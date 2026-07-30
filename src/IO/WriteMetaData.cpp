@@ -46,13 +46,8 @@ const char* const slurm_environment_variables[] = {
     "SLURM_HET_SIZE"
 };
 
-void WriteSlurmDetails(std::ostream &metadatafile)
+void WriteSlurmVariables(std::ostream &metadatafile)
 {
-    if (std::getenv("SLURM_JOB_ID") == nullptr) return;
-
-    metadatafile << std::endl;
-    metadatafile << "# SLURM DETAILS" << std::endl;
-    metadatafile << "# =============" << std::endl;
     for (const char *variable : slurm_environment_variables)
     {
         const char *value = std::getenv(variable);
@@ -146,7 +141,7 @@ void WriteMetaData(std::string plot_file, Status status, int per)
             auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now_cr - starttime_cr);
             metadatafile << "Simulation_run_time = " << (float)milliseconds.count()/1000.0 << " " << std::endl;
 
-            WriteSlurmDetails(metadatafile);
+            WriteSlurmVariables(metadatafile);
 
             #ifdef GIT_DIFF_OUTPUT
             {
