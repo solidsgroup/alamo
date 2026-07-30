@@ -51,6 +51,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("include_viscosity", value.include_viscosity, true);
     pp.query_default("implicit_viscosity", value.implicit_momentum_diffusion, false);
     pp.query_default("include_conduction", value.include_conduction, true);
+    pp.query_default("conduction.interface_normal_harmonic",
+        value.interface_normal_harmonic, true);
     pp.query_default("advect_temperature", value.advect_temperature, true);
     if (value.implicit_momentum_diffusion && !value.include_viscosity)
         Util::Exception(INFO,
@@ -368,6 +370,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.vorticity_mf, &value.bc_nothing, 1, 1, "vorticity", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.viscosity_mf, &value.bc_nothing, 1, 1, "viscosity", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, 1, "thermal_conductivity_coeff", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.thermal_conductivity_perp_coeff_mf, &value.bc_nothing, 1, 1, "thermal_conductivity_perp_coeff", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_coeff_mf, &value.bc_nothing, value.ngas_species, 1, "diffusion_coeff", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.wdot_mf, &value.bc_nothing, value.ngas_species, 1, "wdot", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.qdot_mf, &value.bc_nothing, 1, 1, "qdot", true, false);
@@ -702,6 +705,7 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
     vorticity_mf[lev]->setVal(0.0);
     viscosity_mf[lev]->setVal(0.0);
     thermal_conductivity_coeff_mf[lev]->setVal(0.0);
+    thermal_conductivity_perp_coeff_mf[lev]->setVal(0.0);
     diffusion_coeff_mf[lev]->setVal(0.0);
     wdot_mf[lev]->setVal(0.0);
     qdot_mf[lev]->setVal(0.0);
@@ -719,6 +723,7 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
         Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> mu = viscosity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> kappa = thermal_conductivity_coeff_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> kappa_perp = thermal_conductivity_perp_coeff_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> diffusion = diffusion_coeff_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> wdot = wdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> qdot = qdot_mf.Patch(lev,mfi);
@@ -747,8 +752,8 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             (void)gas_heat_capacity;
             (void)heat_capacity;
             (void)cp;
-            (void)conductivity_perp;
             kappa(i,j,k) = conductivity;
+            kappa_perp(i,j,k) = conductivity_perp;
             for (int n = 0; n < ngas; ++n)
                 diffusion(i,j,k,n) =
                     Model::Gas::Gas::DiffusionCoefficient(
@@ -809,6 +814,7 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
     vorticity_mf[lev]->FillBoundary(geom[lev].periodicity());
     viscosity_mf[lev]->FillBoundary(geom[lev].periodicity());
     thermal_conductivity_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
+    thermal_conductivity_perp_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
     diffusion_coeff_mf[lev]->FillBoundary(geom[lev].periodicity());
     wdot_mf[lev]->FillBoundary(geom[lev].periodicity());
     qdot_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -964,8 +970,15 @@ LowMach::ComputeThermalState(
     // resistance, so the transient (mass) coefficient of the diffusion
     // equation is always the arithmetic `heat_capacity` below, regardless of
     // flux direction (see LowMach.H's ComputeThermalState doc comment).
+    // Gated on gas_conductivity (not gas_heat_capacity): the series
+    // resistance of the gas phase is well-defined whenever it has a
+    // conductivity, independent of whether its intrinsic density (and hence
+    // gas_heat_capacity) happens to be zero (e.g. gas_density <= density
+    // floor, or T <= 0). Gating on the heat capacity would silently drop the
+    // gas's resistance from the harmonic sum while it still contributes
+    // gas_volume_fraction*gas_conductivity to the arithmetic sum above.
     Set::Scalar inverse_conductivity_perp = gas_volume_fraction > 0.0 &&
-        gas_heat_capacity > 0.0 ?
+        gas_conductivity > 0.0 ?
         gas_volume_fraction / gas_conductivity : 0.0;
     const Set::Scalar solid_scale = condensed_volume_fraction > 0.0 ?
         solid_fraction / condensed_volume_fraction : 0.0;
@@ -1438,8 +1451,14 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         // on top of the scalar mobility b = k_par, with n = grad(eta)/|grad(eta)|
         // the local interface normal. In bulk regions k_perp == k_par, so the
         // tensor term vanishes and the operator reduces to the isotropic case.
-        const bool solid_interface_present =
-            deformable_solid_species >= 0 || !rigid_solid_species.empty();
+        // interface_normal_harmonic gates the tensor-mobility path itself:
+        // when false, the solve falls back to the isotropic scalar mobility
+        // b = conductivity (arithmetic), matching the conduction model used
+        // before the harmonic normal-direction mixing rule was added. This
+        // isolates the effect of that mixing rule from every other change
+        // made alongside it.
+        const bool solid_interface_present = interface_normal_harmonic &&
+            (deformable_solid_species >= 0 || !rigid_solid_species.empty());
         diffusion.SetLayout(geom, refRatio(), temperature_mf, nlev, 1);
         for (int lev = 0; lev < nlev; ++lev)
         {
