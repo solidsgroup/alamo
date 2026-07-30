@@ -2,11 +2,10 @@
 """Render a concrete LowMach input from the AP regression calibration template.
 
 Substitutes the operating pressure and the two fit parameters into
-``input.lm.ap_monopropellant.template`` and writes a runnable input file. The
-final-product density used by the gas-side initial condition and the inflow
-boundary is derived from the pressure as
-``P / (GAS_CONSTANT * INFLOW_TEMPERATURE)``, matching the original input's
-inflow value (13.401777701139464 at 3 MPa, 700 K).
+``input.lm.ap_monopropellant.template`` (or the _fine variant) and writes a
+runnable input file. The gas-side product density is computed inside the
+input itself (P / (319.787 * 300), matching tests/LMRFMonoAP/input's
+cold-start convention) rather than being precomputed here.
 
 Example
 -------
@@ -20,22 +19,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-# Final-product gas constant [J/kg/K] and inflow temperature [K] used to build
-# the gas-side density from pressure. These match the constants baked into the
-# original input.lm.ap_monopropellant.
-GAS_CONSTANT = 319.787
-INFLOW_TEMPERATURE = 700.0
-
-
-def product_density(pressure_pa: float) -> float:
-    return pressure_pa / (GAS_CONSTANT * INFLOW_TEMPERATURE)
-
 
 def render(template_text: str, pressure_pa: float, rate_multiplier: float,
            activation_temperature: float) -> str:
     replacements = {
         "@PRESSURE@": repr(float(pressure_pa)),
-        "@PRODUCT_DENSITY@": repr(product_density(pressure_pa)),
         "@RATE_MULTIPLIER@": repr(float(rate_multiplier)),
         "@ACT_TEMP@": repr(float(activation_temperature)),
     }
@@ -71,7 +59,6 @@ def main() -> None:
                   args.rate_multiplier, args.activation_temperature)
     args.out.write_text(text)
     print(f"Wrote {args.out} (P = {args.pressure_mpa} MPa, "
-          f"rho_product = {product_density(args.pressure_mpa * 1.0e6):.6f} kg/m^3, "
           f"rate_multiplier = {args.rate_multiplier}, "
           f"activation_temperature = {args.activation_temperature})")
 

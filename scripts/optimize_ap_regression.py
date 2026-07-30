@@ -1,35 +1,32 @@
 #!/usr/bin/env python3
 """Fit (rate_multiplier, activation_temperature) to AP_reg_rate.csv.
 
-Drives scripts/run_pressure_sweep.sh with scipy.optimize.least_squares to find
-a single AP_decomposition.phase_change (rate_multiplier, activation_temperature)
-pair whose simulated AP monopropellant regression rate best matches the
-experimental r(P) curve in AP_reg_rate.csv, across the whole fit-pressure
-range at once (not a per-pressure fit). No C++ change: pressure sensitivity
-comes entirely from the Rocfire gas-phase feedback already in
-input.lm.ap_monopropellant.template; allencahn.mobility stays fixed because
-only rate_multiplier * mobility is identifiable (see MassSource in
-src/Model/Mechanism/PhaseChange.H).
+Drives tests/LMRFMonoAP/input directly (the same input used by the
+LMRFMonoAP regression test) with command-line ParmParse overrides for
+pressure, rate_multiplier and activation_temperature, and measures the
+resulting regression rate with the same method as tests/LMRFMonoAP/test:
+track the rigid_eta = 0.5 interface position vs. time via yt, then fit a
+line to the back half of the run (back quarter for the 1 MPa case) to get
+a steady-state rate in mm/s. No template files, no custom HDF5 rate
+extractor -- this is exactly what the regression test itself checks,
+just without the pass/fail assertions and with variable coefficients.
 
-Each objective evaluation runs one pressure sweep (all pressures in parallel,
-via run_pressure_sweep.sh) and compares the resulting steady-state regression
-rates (mm/s) to the experimental values at the same pressures, using relative
-residuals. Experimental targets that are <= 0 (the 1.0 MPa deflagration-limit
-point in AP_reg_rate.csv) are dropped from the fit automatically -- a relative
-residual against a zero target is undefined, and 1 MPa is checked separately
-in the validation sweep as a pass/fail extinction check instead.
+scipy.optimize.least_squares searches x = [log10(rate_multiplier),
+activation_temperature] against the experimental r(P) curve in
+AP_reg_rate.csv (matches tests/LMRFMonoAP/reference.csv), across
+2-6 MPa at once. allencahn.mobility stays fixed at the test's value
+(0.01_1/Pa/s) because only rate_multiplier * mobility is identifiable
+(see MassSource in src/Model/Mechanism/PhaseChange.H). 1 MPa (the
+deflagration-limit point, rate = 0) is excluded from the fit residuals
+and checked separately in the validation sweep as a pass/fail extinction
+check.
 
-This is a *long-running, expensive* driver -- each sweep is several minutes.
-Run it as a background job; it logs every iteration's parameters and
-residual norm as it goes, and writes the best-fit input + a validation plot
-when it converges.
+Run as a background job; it logs every iteration's parameters and
+residual norm to <workdir>/iterations.jsonl as it goes, and writes
+<workdir>/best_fit.json plus a validation plot when it converges.
 
 Example
 -------
-Optimize using the default 5-pressure subset (2-6 MPa), then validate against
-every pressure in AP_reg_rate.csv (including the 1 MPa extinction check) and
-write ap_regression_fit.png::
-
     python scripts/optimize_ap_regression.py --workdir /tmp/ap_calib
 """
 
@@ -37,9 +34,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import json
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -47,17 +47,24 @@ from scipy.optimize import least_squares
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
+TEST_INPUT = REPO_ROOT / "tests" / "LMRFMonoAP" / "input"
+DEFAULT_LOWMACH_BIN = REPO_ROOT / "bin" / "lowmach-2d-clang++"
+
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+import testlib  # noqa: E402
 
 # All non-zero pressures in AP_reg_rate.csv (2-6 MPa); 1 MPa is the
 # deflagration-limit point (rate = 0) and is excluded from the fit.
 DEFAULT_FIT_PRESSURES = [2.0, 3.0, 4.0, 5.0, 6.0]
 
-# Initial guess: the coefficients currently in input.lm.ap_monopropellant.
-DEFAULT_RATE_MULTIPLIER0 = 2450.0
+# tests/LMRFMonoAP/input's own coefficients -- a reasonable starting point
+# since they already land within ~15-75% of the experimental rates at
+# 4-6 MPa (measured directly against tests/LMRFMonoAP/test's own rate
+# extraction), unlike earlier attempts that pushed rate_multiplier to
+# ~1e7-1e8 on a modified mesh and saturated the phase-field interface
+# velocity instead of moving it.
+DEFAULT_RATE_MULTIPLIER0 = 8.0e5
 DEFAULT_ACTIVATION_TEMPERATURE0 = 3145.0
-
-RATE_UNIT = "mm/s"
-RATE_UNIT_SUFFIX = "mm_s"
 
 PENALTY_RESIDUAL = 5.0  # relative-error stand-in for a failed/non-igniting sim
 
@@ -77,7 +84,6 @@ def load_experimental_data(csv_path: Path) -> dict[float, float]:
 
 
 def nearest_experimental(data: dict[float, float], pressures: list[float]) -> list[float]:
-    """Look up (or interpolate) experimental rates at the requested pressures."""
     known_p = np.array(sorted(data))
     known_r = np.array([data[p] for p in known_p])
     targets = []
@@ -89,60 +95,93 @@ def nearest_experimental(data: dict[float, float], pressures: list[float]) -> li
     return targets
 
 
+def run_case(pressure_mpa: float, rate_multiplier: float,
+             activation_temperature: float, outdir: Path,
+             lowmach_bin: Path) -> subprocess.Popen:
+    """Launch tests/LMRFMonoAP/input at the given pressure/coefficients.
+
+    Mirrors the per-pressure #@ args blocks in tests/LMRFMonoAP/input
+    (pressure substitution into the four ParmParse keys the test itself
+    overrides), plus the 1 MPa case's longer stop_time/coarser plot_dt so
+    its slower transient/extinction has time to show up.
+    """
+    outdir.mkdir(parents=True, exist_ok=True)
+    pressure_pa = pressure_mpa * 1.0e6
+    args = [
+        str(lowmach_bin), str(TEST_INPUT),
+        f"Final.density.ic.expression.constant.P={pressure_pa!r}",
+        f"component_density.bc.expression.constant.P={pressure_pa!r}",
+        f"pressure.ic.constant.value={pressure_pa!r}",
+        f"pressure.bc.constant.val.yhi={pressure_pa!r}",
+        f"AP_decomposition.phase_change.rate_multiplier={rate_multiplier!r}",
+        f"AP_decomposition.phase_change.activation_temperature={activation_temperature!r}_K",
+        f"plot_file={outdir}/output",
+    ]
+    if pressure_mpa == 1.0:
+        args += ["stop_time=3.0e-3", "amr.plot_dt=1.5e-4"]
+    log_path = outdir / "run.log"
+    with open(log_path, "w") as log_fh:
+        return subprocess.Popen(args, stdout=log_fh, stderr=subprocess.STDOUT,
+                                 cwd=str(REPO_ROOT))
+
+
+def measure_rate(outdir: Path, pressure_mpa: float) -> float | None:
+    """tests/LMRFMonoAP/test's own rate extraction, without the assertions."""
+    plotfiles = sorted(glob.glob(f"{outdir}/output/*cell/"))
+    if len(plotfiles) < 3:
+        return None
+    times, positions = [], []
+    for path in plotfiles:
+        try:
+            ds = testlib.yt.load(path)
+            data = ds.all_data().to_dataframe(
+                [("index", "y"), ("boxlib", "rigid_eta"),
+                 ("boxlib", "temperature")])
+        except Exception:
+            return None
+        if not testlib.numpy.all(testlib.numpy.isfinite(data["temperature"].to_numpy())):
+            return None
+        profile = data.groupby("y", as_index=False)["rigid_eta"].mean()
+        y = profile["y"].to_numpy()
+        eta = profile["rigid_eta"].to_numpy()
+        if not testlib.numpy.all(testlib.numpy.isfinite(eta)):
+            return None
+        crossing = testlib.numpy.flatnonzero((eta[:-1] >= 0.5) & (eta[1:] < 0.5))
+        if not len(crossing):
+            return None
+        n = crossing[-1]
+        position = y[n] + (0.5 - eta[n]) * (y[n + 1] - y[n]) / (eta[n + 1] - eta[n])
+        times.append(float(ds.current_time))
+        positions.append(position)
+
+    times = testlib.numpy.asarray(times)
+    positions = testlib.numpy.asarray(positions)
+    fit = times >= (0.75 if pressure_mpa == 1.0 else 0.5) * times[-1]
+    if fit.sum() < 2:
+        return None
+    slope = testlib.numpy.polyfit(times[fit], positions[fit], 1)[0]
+    return float(-1000.0 * slope)
+
+
 def run_sweep(rate_multiplier: float, activation_temperature: float,
               pressures: list[float], workdir: Path,
-              lowmach_bin: str | None, template: Path | None,
-              min_time_low: float = 0.0, min_time_high: float = 0.0
-              ) -> dict[float, float | None]:
-    results_csv = workdir / "results.csv"
-    import os
-    env = os.environ.copy()
-    if lowmach_bin:
-        env["LOWMACH_BIN"] = lowmach_bin
-    if template:
-        env["TEMPLATE"] = str(template)
-    env["RATE_UNIT"] = RATE_UNIT
-    if min_time_low:
-        env["MIN_TIME_LOW"] = repr(min_time_low)
-    if min_time_high:
-        env["MIN_TIME_HIGH"] = repr(min_time_high)
-    cmd = [
-        str(SCRIPT_DIR / "run_pressure_sweep.sh"),
-        repr(rate_multiplier), repr(activation_temperature),
-        str(workdir), str(results_csv),
-        *[repr(p) for p in pressures],
-    ]
-    subprocess.run(cmd, check=True, env=env)
+              lowmach_bin: Path) -> dict[float, float | None]:
+    """Run all pressures concurrently, then measure each one's rate."""
+    procs = {}
+    for p in pressures:
+        outdir = workdir / f"P{p:g}MPa"
+        procs[p] = (outdir, run_case(p, rate_multiplier, activation_temperature,
+                                      outdir, lowmach_bin))
     rates: dict[float, float | None] = {}
-    with open(results_csv) as fh:
-        reader = csv.DictReader(fh)
-        for row in reader:
-            p = float(row["pressure_mpa"])
-            r = row[f"reg_rate_{RATE_UNIT_SUFFIX}"]
-            rates[p] = float(r) if r else None
+    for p, (outdir, proc) in procs.items():
+        proc.wait()
+        rates[p] = measure_rate(outdir, p)
     return rates
 
 
 def make_fun_jac(pressures: list[float], targets: list[float], workdir: Path,
-                  lowmach_bin: str | None, template: Path | None, log_path: Path,
-                  min_time_low: float = 0.0, min_time_high: float = 0.0,
-                  stage: str = "full", diff_step: float = 0.05):
-    """Build (fun, jac) for least_squares that run independent sweeps concurrently.
-
-    Each gradient step needs the residual at x plus one forward-difference
-    perturbation per parameter -- 3 independent sweeps here (2 params). scipy
-    calls these one at a time by default; running all of them at once (each
-    on its own thread, since run_sweep just blocks on a subprocess) uses the
-    machine's idle cores instead of leaving them idle between sequential
-    sweeps. Evaluations are cached by parameter vector so repeated x's (e.g.
-    fun(x) then jac(x) at the same point) don't re-run a sweep.
-
-    Experimental targets that are <= 0 (the 1 MPa deflagration-limit point,
-    if present in `pressures`) are dropped before computing residuals.
-    """
-    import threading
-    from concurrent.futures import ThreadPoolExecutor
-
+                  lowmach_bin: Path, log_path: Path, stage: str = "full",
+                  diff_step: float = 0.05):
     fit_pairs = [(p, t) for p, t in zip(pressures, targets) if t > 0.0]
     dropped = [p for p, t in zip(pressures, targets) if t <= 0.0]
     if dropped:
@@ -166,8 +205,7 @@ def make_fun_jac(pressures: list[float], targets: list[float], workdir: Path,
         eval_dir = workdir / f"{stage}_iter_{idx:03d}"
         eval_dir.mkdir(parents=True, exist_ok=True)
         rates = run_sweep(rate_multiplier, activation_temperature, pressures,
-                           eval_dir, lowmach_bin, template,
-                           min_time_low, min_time_high)
+                           eval_dir, lowmach_bin)
 
         residuals = []
         for p, target in fit_pairs:
@@ -234,22 +272,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--activation-temperature0", type=float,
                          default=DEFAULT_ACTIVATION_TEMPERATURE0,
                          help="initial guess for activation_temperature [K]")
-    parser.add_argument("--lowmach-bin",
-                         help="override LOWMACH_BIN for run_pressure_sweep.sh")
-    parser.add_argument("--template", type=Path,
-                         help="override TEMPLATE for run_pressure_sweep.sh")
-    parser.add_argument("--min-time-low", type=float, default=0.0,
-                         help="seconds of simulated time to exclude from the start "
-                              "of the run at the lowest pressure in each sweep, to "
-                              "skip its startup transient (default: 0.0, no "
-                              "exclusion). Pressures between the lowest and highest "
-                              "in a given sweep get a --min-time linearly "
-                              "interpolated between --min-time-low and "
-                              "--min-time-high (forwarded via MIN_TIME_LOW/"
-                              "MIN_TIME_HIGH)")
-    parser.add_argument("--min-time-high", type=float, default=0.0,
-                         help="same as --min-time-low but for the highest pressure "
-                              "in each sweep (default: 0.0)")
+    parser.add_argument("--lowmach-bin", type=Path, default=DEFAULT_LOWMACH_BIN,
+                         help="lowmach binary to run")
     parser.add_argument("--xtol", type=float, default=1.0e-3,
                          help="least_squares xtol (default: 1e-3)")
     parser.add_argument("--max-nfev", type=int, default=30,
@@ -279,17 +303,12 @@ def main() -> None:
     bounds = ([-1.0, 0.0], [8.0, 10000.0])
 
     if args.bracket_stage and len(args.fit_pressures) > 2:
-        # Optimize against just the lowest and highest fit pressures first --
-        # two sims per iteration instead of the full set -- to get close to
-        # the right (rate_multiplier, activation_temperature) region cheaply
-        # before paying for every pressure.
         bracket_pressures = [min(args.fit_pressures), max(args.fit_pressures)]
         bracket_targets = nearest_experimental(data, bracket_pressures)
         print(f"\n=== Stage 1: bracket fit to {bracket_pressures} ===")
         bracket_fun, bracket_jac = make_fun_jac(
             bracket_pressures, bracket_targets, args.workdir,
-            args.lowmach_bin, args.template, log_path,
-            args.min_time_low, args.min_time_high, stage="bracket")
+            args.lowmach_bin, log_path, stage="bracket")
         bracket_result = least_squares(
             bracket_fun, x0, jac=bracket_jac, bounds=bounds, xtol=args.xtol,
             max_nfev=args.bracket_max_nfev)
@@ -300,8 +319,7 @@ def main() -> None:
 
     print(f"\n=== Stage 2: full fit to {args.fit_pressures} ===")
     fun, jac = make_fun_jac(args.fit_pressures, targets, args.workdir,
-                             args.lowmach_bin, args.template, log_path,
-                             args.min_time_low, args.min_time_high, stage="full")
+                             args.lowmach_bin, log_path, stage="full")
 
     result = least_squares(fun, x0, jac=jac, bounds=bounds, xtol=args.xtol,
                            max_nfev=args.max_nfev)
@@ -322,26 +340,12 @@ def main() -> None:
         json.dump(best, fh, indent=2)
     print(f"Wrote {args.workdir / 'best_fit.json'}")
 
-    # Final validation across every experimental pressure, including the
-    # 1 MPa deflagration-limit point (checked qualitatively, not fitted).
     print("\nRunning full validation sweep over all experimental pressures...")
     all_pressures = sorted(data)
     val_dir = args.workdir / "validation"
     val_dir.mkdir(parents=True, exist_ok=True)
     val_rates = run_sweep(rate_multiplier, activation_temperature, all_pressures,
-                          val_dir, args.lowmach_bin, args.template,
-                          args.min_time_low, args.min_time_high)
-
-    calibrated_input = args.workdir / "input.lm.ap_monopropellant"
-    render_cmd = [
-        sys.executable, str(SCRIPT_DIR / "render_input.py"),
-        "--template", str(args.template or REPO_ROOT / "input.lm.ap_monopropellant.template"),
-        "--pressure-mpa", "3.0",
-        "--rate-multiplier", repr(rate_multiplier),
-        "--activation-temperature", repr(activation_temperature),
-        "--out", str(calibrated_input),
-    ]
-    subprocess.run(render_cmd, check=True)
+                          val_dir, args.lowmach_bin)
 
     try:
         import matplotlib

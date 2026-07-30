@@ -2,7 +2,7 @@
 #@ exe = lowmach
 #@ dim = 2
 #@ timeout = 300
-#@
+#@ 
 #@ [2d-1MPa]
 #@ args = Final.density.ic.expression.constant.P=1.0e6
 #@ args = component_density.bc.expression.constant.P=1.0e6
@@ -46,14 +46,14 @@
 
 plot_file = tests/LMRFMonoAP/output
 amr.plot_dt = 1.0e-4_s
-amr.max_level = 0
+amr.max_level = 1
 amr.n_cell = 2 64
 amr.max_grid_size = 64
 amr.blocking_factor = 2
 amr.regrid_int = -1
 
 timestep = 1.0e-7_s
-stop_time = 1.5e-3_s
+stop_time = 1.5e-2_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
 dynamictimestep.max = 2.5e-6
@@ -95,7 +95,7 @@ chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3
 chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
 chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
 chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
-chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+#chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
 chemistry.model.rocfire.pressure_reference = 1.0_bar
 chemistry.solver.type = backward_euler
 chemistry.solver.backward_euler.max_iter = 100
@@ -116,6 +116,7 @@ AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
 AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
 AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
 AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+AP_decomposition.phase_change.latent_heat = 100.0_cal/g
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0
@@ -137,6 +138,10 @@ diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0
 diagnostics.interval = 0
 diagnostics.extended_fields = 1
+
+eta_refinement_criterion = 0.01
+temperature_refinement_criterion = 1.0
+velocity_refinement_criterion = 1.0
 
 AP_solid.density.ic.type = expression
 AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6)))"

@@ -10,7 +10,7 @@
 #
 # Environment:
 #   LOWMACH_BIN   path to the lowmach binary
-#                 (default: /home/mungerct/research/alamo/bin/lowmach-2d-hdf5-clang++)
+#                 (default: /home/mungerct/research/alamo/bin/lowmach-2d-clang++)
 #   TEMPLATE      path to the templated input
 #                 (default: input.lm.ap_monopropellant.template,
 #                 resolved relative to this script's repo root)
@@ -36,7 +36,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-LOWMACH_BIN="${LOWMACH_BIN:-/home/mungerct/research/alamo/bin/lowmach-2d-hdf5-clang++}"
+LOWMACH_BIN="${LOWMACH_BIN:-/home/mungerct/research/alamo/bin/lowmach-2d-clang++}"
 TEMPLATE="${TEMPLATE:-${REPO_ROOT}/input.lm.ap_monopropellant.template}"
 RATE_UNIT="${RATE_UNIT:-mm/s}"
 RATE_UNIT_SUFFIX="${RATE_UNIT//\//_}"
