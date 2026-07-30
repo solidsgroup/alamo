@@ -1,9 +1,67 @@
 #include "WriteMetaData.H"
+#include <cstdlib>
 #include <sstream>
 #include <functional>
 #include "Util/Util.H"
 
 /// \todo We need to update ParmParse so that the FORMATTED input file gets recorded permanently.
+
+namespace
+{
+
+const char* const slurm_environment_variables[] = {
+    "SLURM_JOB_ID",
+    "SLURM_JOB_NAME",
+    "SLURM_CLUSTER_NAME",
+    "SLURM_JOB_ACCOUNT",
+    "SLURM_JOB_PARTITION",
+    "SLURM_JOB_QOS",
+    "SLURM_JOB_RESERVATION",
+    "SLURM_ARRAY_JOB_ID",
+    "SLURM_ARRAY_TASK_ID",
+    "SLURM_ARRAY_TASK_COUNT",
+    "SLURM_SUBMIT_HOST",
+    "SLURM_SUBMIT_DIR",
+    "SLURM_JOB_NODELIST",
+    "SLURM_JOB_NUM_NODES",
+    "SLURM_NTASKS",
+    "SLURM_NTASKS_PER_NODE",
+    "SLURM_TASKS_PER_NODE",
+    "SLURM_DISTRIBUTION",
+    "SLURM_JOB_CPUS_PER_NODE",
+    "SLURM_CPUS_PER_TASK",
+    "SLURM_CPUS_ON_NODE",
+    "SLURM_MEM_PER_NODE",
+    "SLURM_MEM_PER_CPU",
+    "SLURM_GPUS",
+    "SLURM_GPUS_PER_NODE",
+    "SLURM_GPUS_PER_TASK",
+    "SLURM_JOB_GPUS",
+    "SLURM_TRES_PER_TASK",
+    "SLURM_STEP_ID",
+    "SLURM_STEP_NUM_TASKS",
+    "SLURM_RESTART_COUNT",
+    "SLURM_JOB_START_TIME",
+    "SLURM_JOB_END_TIME",
+    "SLURM_HET_SIZE"
+};
+
+void WriteSlurmDetails(std::ostream &metadatafile)
+{
+    if (std::getenv("SLURM_JOB_ID") == nullptr) return;
+
+    metadatafile << std::endl;
+    metadatafile << "# SLURM DETAILS" << std::endl;
+    metadatafile << "# =============" << std::endl;
+    for (const char *variable : slurm_environment_variables)
+    {
+        const char *value = std::getenv(variable);
+        if (value != nullptr && value[0] != '\0')
+            metadatafile << variable << " = " << value << std::endl;
+    }
+}
+
+}
 
 namespace IO
 {
@@ -87,6 +145,8 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 
             auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now_cr - starttime_cr);
             metadatafile << "Simulation_run_time = " << (float)milliseconds.count()/1000.0 << " " << std::endl;
+
+            WriteSlurmDetails(metadatafile);
 
             #ifdef GIT_DIFF_OUTPUT
             {
