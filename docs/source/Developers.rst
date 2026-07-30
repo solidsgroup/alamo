@@ -283,6 +283,17 @@ and it produced the following output.
         celloutput.visit
         nodeoutput.visit
         metadata
+        out.log
+
+The :code:`out.log` file contains the same rank-zero stdout and stderr that
+are written to the terminal, including AMReX initialization and finalization
+messages. This keeps the complete simulation log with its plotfiles even when
+the terminal is managed by a batch scheduler.
+
+When a simulation runs in a Slurm allocation, the :code:`metadata` file also
+contains a :code:`SLURM DETAILS` section. It records the available job,
+allocation, submission, task, CPU, memory, GPU, array, and restart environment
+variables supplied by Slurm.
     
 You may wish to *restart* the simulation without starting from the beginning.
 Perhaps the simulation was fine at :code:`00060` but became unstable at :code:`00070`, and you want to continue from that point with a different parameter value.
