@@ -126,6 +126,7 @@ public:
         pp.queryclass<Util::PNG>(value.png);
 
 #else
+        if (IO::ParmParse::InTraversalMode()) return;
         Util::Abort(INFO,"PNG is disabled");
 #endif
     }

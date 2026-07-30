@@ -147,9 +147,6 @@ laser.ic.constant.value = 1.0e6_W/m^2
 # Chamber pressure (used for regression model)
 chamber.pressure = 4.0_MPa  ## [MPa]
 
-# Disable elasticity
-elastic.type = disable
-
 # Disable plotting all extra fields
 plot_field = 1
 

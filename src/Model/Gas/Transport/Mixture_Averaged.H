@@ -72,26 +72,23 @@ public:
         value.thermo = a_thermo;
 
         // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
-        pp.query_validate("type", value.type, {"constant", "LJ"});
-        if (value.type == "constant")
-        {
-            // Dynamic viscosity if type=constant
-            pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
-            // Thermal conductivity if type=constant
-            pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
-            pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
-        }
-        else if (value.type == "LJ")
-        {
-            // Lennard-Jones diameter if type=LJ
-            pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
-            // Lennard-Jones well depth if type=LJ
-            pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
-        }
-        else
-        {
-            Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
-        }
+        pp.query_switch("type",{
+                {"constant", [&]() {
+                    value.type = "constant";
+                    // Dynamic viscosity if type=constant
+                    pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
+                    // Thermal conductivity if type=constant
+                    pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+                    pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
+                }},
+                {"LJ", [&]() {
+                    value.type = "LJ";
+                    // Lennard-Jones diameter if type=LJ
+                    pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
+                    // Lennard-Jones well depth if type=LJ
+                    pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
+                }}
+            });
         pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
         pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
         pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
@@ -117,6 +114,11 @@ private:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(type, val1, val2, d_fact, P_1atm, L_1ang, A_1cmsq);
+    }
+
     template<class Composition>
     double dynamic_viscosity(double T, const Composition& X, int i, int j, int k) const
     {

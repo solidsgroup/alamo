@@ -6,26 +6,29 @@
 # Thus 0 <= x <= 50 um is half of the HTPB laminate and 50 <= x <= 250 um is AP.
 # The lateral faces are impermeable slip walls rather than periodic boundaries.
 
-#plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-4_s
-amr.max_level = 3
+plot_file = output.lm.ap_htpb
+amr.plot_dt = 1.0e-3_s
+amr.max_level = 2
 amr.n_cell = 16 256
 amr.max_grid_size = 32
 amr.blocking_factor = 4
 amr.regrid_int = 5
 amr.grid_eff = 0.7
-amr.nsubsteps = 1
+amr.nsubsteps = 2
 amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
-eta_refinement_criterion = 0.01
+# Resolve the 20 um diffuse interface with approximately five cells. This also
+# avoids refining already-smooth gas temperature profiles below 3.9 um.
+eta_refinement_criterion = 0.7
+reaction_refinement_criterion = 3.0e4_1/s
 temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s
-stop_time = 50_ms
+stop_time = 1_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 5.0e-6
+dynamictimestep.max = 1.0e-6
 dynamictimestep.verbose = 0
 
 integration.type = RungeKutta
@@ -144,37 +147,48 @@ diagnostics.extended_fields = 0
 #Final.density.ic.expression.constant.P = 0.8e6
 #pressure.ic.constant.value = 0.8e6
 #pressure.bc.constant.val.yhi = 0.8e6
+#plot_file = output.lm.ap_htpb_1.0MPa
+#
 #
 # --- 1.0 MPa ---
 #Final.density.ic.expression.constant.P = 1.0e6
 #pressure.ic.constant.value = 1.0e6
 #pressure.bc.constant.val.yhi = 1.0e6
+#plot_file = output.lm.ap_htpb_1.0MPa
+#
 #
 # --- 1.5 MPa ---
 #Final.density.ic.expression.constant.P = 1.5e6
 #pressure.ic.constant.value = 1.5e6
 #pressure.bc.constant.val.yhi = 1.5e6
+#plot_file = output.lm.ap_htpb_1.5MPa
+#
 #
 # --- 2.0 MPa ---
 #Final.density.ic.expression.constant.P = 2.0e6
 #pressure.ic.constant.value = 2.0e6
 #pressure.bc.constant.val.yhi = 2.0e6
+#plot_file = output.lm.ap_htpb_2.0MPa
+#
 #
 # --- 2.5 MPa ---
 #Final.density.ic.expression.constant.P = 2.5e6
 #pressure.ic.constant.value = 2.5e6
 #pressure.bc.constant.val.yhi = 2.5e6
+#plot_file = output.lm.ap_htpb_2.5MPa
+#
 #
 # --- 3.0 MPa (active) ---
 #Final.density.ic.expression.constant.P = 3.0e6
 #pressure.ic.constant.value = 3.0e6
 #pressure.bc.constant.val.yhi = 3.0e6
+#plot_file = output.lm.ap_htpb_3.0MPa
 #
 # --- 4.0 MPa ---
 Final.density.ic.expression.constant.P = 4.0e6
 pressure.ic.constant.value = 4.0e6
 pressure.bc.constant.val.yhi = 4.0e6
-plot_file = output.lm.ap_htpb_4MPa
+plot_file = output.lm.ap_htpb_4.0MPa
 
 # The solid occupies y<0. The complementary expressions reconstruct one
 # common condensed/gas interface while placing the symmetry plane at the

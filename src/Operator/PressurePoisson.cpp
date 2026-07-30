@@ -214,7 +214,7 @@ void
 PressurePoisson::ApplyCorrection(
     int lev, amrex::MultiFab& velocity, Set::Scalar dt)
 {
-    const Set::Scalar* dx = geometry[lev].CellSize();
+    const auto dx = geometry[lev].CellSizeArray();
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
     {
         const int di = d == 0;

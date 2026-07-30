@@ -60,7 +60,7 @@ public:
                             int comp,
                             const Set::Scalar* DX,
                             Options options = {},
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         (void)stencil;
 
@@ -117,7 +117,7 @@ public:
                         int comp,
                         const Set::Scalar* DX,
                         Options options = {},
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         return (*this)(phi, velocity, i, j, k, comp, DX, options, stencil);
     }

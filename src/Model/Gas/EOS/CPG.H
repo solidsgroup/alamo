@@ -20,7 +20,7 @@ public:
 
 public:
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     double ComputeT(const GAS &gas, double density, double momentumx, double momentumy, double E, double Tguess,
                     const Composition& X, int i, int j, int k, double /*rtol=1e-12*/) const
     {
@@ -30,7 +30,7 @@ public:
     }
 
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     double ComputeE(const GAS &gas, double density, double momentumx, double momentumy, double T,
                     const Composition& X, int i, int j, int k) const
     {

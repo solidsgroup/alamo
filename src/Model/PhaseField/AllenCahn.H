@@ -128,11 +128,13 @@ public:
         return mobility * kappa;
     }
 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar LocalStabilityRate() const
     {
         return mobility * lambda * potential_curvature;
     }
 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar StabilityRate(const Set::Scalar dx) const
     {
         return LocalStabilityRate() +

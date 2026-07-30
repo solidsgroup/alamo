@@ -29,9 +29,9 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random>("eta.ic", value.ic, value.geom);
+    pp.select_default<IC::Random>("eta.ic", value.ic, pp.forward_args(value.geom));
     // boundary condition for :math:`\eta`
-    pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
+    pp.select_default<BC::Constant>("eta.bc", value.bc, pp.forward_args(1));
 
     // Which method to use - realspace or spectral method.
     pp.query_validate("method",value.method,{"realspace","spectral"});

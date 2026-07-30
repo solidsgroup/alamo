@@ -1,6 +1,9 @@
-Inputs.rst
 Tests
 Tests.rst
+Inputs.generated.rst
+InputsReference/
 InputsSearch.rst
 Builder.html
 InputIndex_*
+_static/input-builders/
+_static/input-schemas/

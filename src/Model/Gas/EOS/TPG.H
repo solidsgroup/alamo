@@ -37,7 +37,7 @@ public:
     static void Parse(TPG & /*value*/, IO::ParmParse & /*pp*/) {}
 
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
                     const Composition& X, int i, int j, int k, Set::Scalar rtol) const
     {
@@ -161,7 +161,7 @@ public:
     }
 
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
                     const Composition& X, int i, int j, int k, Set::Scalar rtol) const
     {
@@ -285,7 +285,7 @@ public:
     }
 
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
                     const Composition& X, int i, int j, int k) const
     {
@@ -299,7 +299,7 @@ public:
     }
 
     template<typename GAS, class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
                     const Composition& X, int i, int j, int k) const
     {
