@@ -16,6 +16,8 @@ ALAMO_GPU_SOURCES_flame := \
     src/BC/BC.cpp \
     src/BC/Constant.cpp \
     src/IO/FileNameParse.cpp \
+    src/IO/InputScraper.cpp \
+    src/IO/OutputLog.cpp \
     src/IO/ParmParse.cpp \
     src/IO/WriteMetaData.cpp \
     src/Integrator/Flame.cpp \

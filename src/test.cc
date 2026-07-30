@@ -6,6 +6,7 @@
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/BC/Constant.H"
+#include "Test/Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Test/Set/Matrix4.H"
 #include "Test/Solver/Nonlocal/Newton.H"
 
@@ -66,6 +67,21 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
+
+    Util::Test::Message("Model::Solid::Finite::NeoHookeanPredeformed focused tests");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage(
+            "Nonidentity F0 derivatives",
+            Test::Model::Solid::Finite::NeoHookeanPredeformedDerivatives(true));
+        subfailed += Util::Test::SubMessage(
+            "Free-expansion acceptance",
+            Test::Model::Solid::Finite::NeoHookeanPredeformedFreeExpansion(true));
+        subfailed += Util::Test::SubMessage(
+            "F0 field names",
+            Test::Model::Solid::Finite::NeoHookeanPredeformedFieldNames(true));
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
     
 
     Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>::Test();

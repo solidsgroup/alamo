@@ -26,12 +26,34 @@ public:
     AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix& F) const
     {
-        return NeoHookean::DW(RelativeF(F));
+        const Set::Matrix F0inv = InverseF0();
+        const Set::Matrix Fe = F * F0inv;
+        const Set::Matrix Pe = NeoHookean::DW(Fe);
+        const Set::Matrix F0invT = F0inv.transpose();
+        return Pe * F0invT;
     }
     AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const
     {
-        return NeoHookean::DDW(RelativeF(F));
+        const Set::Matrix F0inv = InverseF0();
+        const Set::Matrix Fe = F * F0inv;
+        const auto Ce = NeoHookean::DDW(Fe);
+        auto ret =
+            Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
+        for (int i = 0; i < AMREX_SPACEDIM; ++i)
+            for (int J = 0; J < AMREX_SPACEDIM; ++J)
+                for (int k = 0; k < AMREX_SPACEDIM; ++k)
+                    for (int L = 0; L < AMREX_SPACEDIM; ++L)
+                    {
+                        Set::Scalar value = 0.0;
+                        for (int Q = 0; Q < AMREX_SPACEDIM; ++Q)
+                            for (int R = 0; R < AMREX_SPACEDIM; ++R)
+                                value +=
+                                    Ce(i, Q, k, R)
+                                    * F0inv(J, Q) * F0inv(L, R);
+                        ret(i, J, k, L) = value;
+                    }
+        return ret;
     }
     AMREX_GPU_HOST_DEVICE
     void Print(std::ostream& out) const
@@ -44,7 +66,7 @@ public:
 
 private:
     AMREX_GPU_HOST_DEVICE
-    Set::Matrix RelativeF(const Set::Matrix& F) const
+    Set::Matrix InverseF0() const
     {
 #if AMREX_SPACEDIM==2
         const Set::Scalar det = F0(0, 0) * F0(1, 1) - F0(0, 1) * F0(1, 0);
@@ -53,15 +75,16 @@ private:
         F0inv(0, 1) = -F0(0, 1) / det;
         F0inv(1, 0) = -F0(1, 0) / det;
         F0inv(1, 1) =  F0(0, 0) / det;
-
-        Set::Matrix ret;
-        for (int i = 0; i < 2; ++i)
-            for (int j = 0; j < 2; ++j)
-                ret(i, j) = F(i, 0) * F0inv(0, j) + F(i, 1) * F0inv(1, j);
-        return ret;
+        return F0inv;
 #elif AMREX_SPACEDIM==3
-        return F * F0.inverse();
+        return F0.inverse();
 #endif
+    }
+    AMREX_GPU_HOST_DEVICE
+    Set::Matrix RelativeF(const Set::Matrix& F) const
+    {
+        const Set::Matrix F0inv = InverseF0();
+        return F * F0inv;
     }
 
 public:
@@ -71,10 +94,11 @@ public:
         ret.F0 = Set::Matrix::Zero();
         return ret;
     }
-    static NeoHookean Random()
+    static NeoHookeanPredeformed Random()
     {
         NeoHookeanPredeformed ret = NeoHookean::Random();
-        ret.F0 = Set::Matrix::Random();
+        ret.F0 =
+            Set::Matrix::Identity() + 0.1 * Set::Matrix::Random();
         return ret;
     }
     static void Parse(NeoHookeanPredeformed& value, IO::ParmParse& pp)
@@ -137,11 +161,15 @@ std::string Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Name(int i)
     if (i == 4) return name + "_F0yx";
     if (i == 5) return name + "_F0yy";
 #elif AMREX_SPACEDIM==3
-    //Util::Abort(INFO, "Not implemented yet");
     if (i == 2) return name + "_F0xx";
     if (i == 3) return name + "_F0xy";
-    if (i == 4) return name + "_F0yx";
-    if (i == 5) return name + "_F0yy";
+    if (i == 4) return name + "_F0xz";
+    if (i == 5) return name + "_F0yx";
+    if (i == 6) return name + "_F0yy";
+    if (i == 7) return name + "_F0yz";
+    if (i == 8) return name + "_F0zx";
+    if (i == 9) return name + "_F0zy";
+    if (i == 10) return name + "_F0zz";
 #endif
     return name;
 }
@@ -169,9 +197,13 @@ void Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Copy(int a_lev, am
 #elif AMREX_SPACEDIM==3
                 dst(i, j, k, a_dstcomp + 2) = src(i, j, k).F0(0, 0);
                 dst(i, j, k, a_dstcomp + 3) = src(i, j, k).F0(0, 1);
-                dst(i, j, k, a_dstcomp + 4) = src(i, j, k).F0(1, 0);
-                dst(i, j, k, a_dstcomp + 5) = src(i, j, k).F0(1, 1);
-                //Util::Abort(INFO, "Not implemented");
+                dst(i, j, k, a_dstcomp + 4) = src(i, j, k).F0(0, 2);
+                dst(i, j, k, a_dstcomp + 5) = src(i, j, k).F0(1, 0);
+                dst(i, j, k, a_dstcomp + 6) = src(i, j, k).F0(1, 1);
+                dst(i, j, k, a_dstcomp + 7) = src(i, j, k).F0(1, 2);
+                dst(i, j, k, a_dstcomp + 8) = src(i, j, k).F0(2, 0);
+                dst(i, j, k, a_dstcomp + 9) = src(i, j, k).F0(2, 1);
+                dst(i, j, k, a_dstcomp + 10) = src(i, j, k).F0(2, 2);
 #endif
 
                 //dst(i, j, k, a_dstcomp + 0) = src(i, j, k).ddw(0, 0, 0, 0);
