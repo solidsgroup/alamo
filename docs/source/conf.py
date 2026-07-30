@@ -22,6 +22,7 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Tests
+import FilenameParsing
 # -- Project information ----------------------------------------------------
 
 

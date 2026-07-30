@@ -2,6 +2,7 @@
 
 #include "Set/Matrix4.H"
 #include "Util/Util.H"
+#include "IO/FileNameParse.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Set/Matrix4.H"
