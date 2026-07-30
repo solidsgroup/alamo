@@ -732,6 +732,11 @@ if mpidist == "openmpi":
         mpi_link = shellmessage(
             "openmpi link flags", "mpicxx --showme:link"
         ).stdout.decode('utf-8').strip()
+        mpi_link = " ".join(
+            " ".join(f"-Xlinker {option}" for option in flag[4:].split(","))
+            if flag.startswith("-Wl,") else flag
+            for flag in mpi_link.split()
+        )
         cuda_flags = (
             f"-ccbin={args.comp} -std=c++20 -x cu "
             "--expt-relaxed-constexpr --expt-extended-lambda "

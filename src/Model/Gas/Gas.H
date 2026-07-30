@@ -256,7 +256,8 @@ public:
     static Set::Scalar UniversalGasConstant(const DeviceData& data)
     {
 #ifndef ALAMO_GPU
-        return amrex::get<18>(data)->Rg;
+        const Gas* gas = amrex::get<18>(data);
+        return gas == nullptr ? amrex::get<1>(data) : gas->Rg;
 #else
         return amrex::get<1>(data);
 #endif
@@ -267,7 +268,9 @@ public:
         const DeviceData& data, int species)
     {
 #ifndef ALAMO_GPU
-        return amrex::get<18>(data)->MW[species];
+        const Gas* gas = amrex::get<18>(data);
+        return gas == nullptr ?
+            amrex::get<2>(data)[species] : gas->MW[species];
 #else
         return amrex::get<2>(data)[species];
 #endif
@@ -279,8 +282,11 @@ public:
     {
 #ifndef ALAMO_GPU
         const Gas* gas = amrex::get<18>(data);
-        return gas->cp_mol_species(temperature, species) /
-            gas->MW[species];
+        if (gas != nullptr)
+            return gas->cp_mol_species(temperature, species) /
+                gas->MW[species];
+        Util::IgnoreUnused(temperature);
+        return amrex::get<3>(data)[species];
 #else
         Util::IgnoreUnused(temperature);
         return amrex::get<3>(data)[species];
@@ -293,8 +299,11 @@ public:
     {
 #ifndef ALAMO_GPU
         const Gas* gas = amrex::get<18>(data);
-        return gas->dcp_mol_species_dT(temperature, species) /
-            gas->MW[species];
+        if (gas != nullptr)
+            return gas->dcp_mol_species_dT(temperature, species) /
+                gas->MW[species];
+        Util::IgnoreUnused(data, temperature, species);
+        return 0.0;
 #else
         Util::IgnoreUnused(data, temperature, species);
         return 0.0;

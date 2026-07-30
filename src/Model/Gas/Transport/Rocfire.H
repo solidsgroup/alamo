@@ -76,7 +76,7 @@ public:
     }
 
     template<class Composition>
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
     Set::Scalar mixture_mw(const Composition& X, int i, int j, int k) const
     {
         Set::Scalar mw_mix = 0.0;

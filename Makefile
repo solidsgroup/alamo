@@ -69,8 +69,33 @@ LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
+ifeq ($(CUDA),TRUE)
+SRC = \
+	src/BC/BC.cpp \
+	src/BC/Constant.cpp \
+	src/BC/Expression.cpp \
+	src/IO/CanteraYamlParse.cpp \
+	src/IO/FileNameParse.cpp \
+	src/IO/InputScraper.cpp \
+	src/IO/ParmParse.cpp \
+	src/IO/WriteMetaData.cpp \
+	src/Integrator/Integrator.cpp \
+	src/Integrator/LowMach.cpp \
+	src/Model/Gas/Gas.cpp \
+	src/Numeric/ReferenceMap/Reconstruction.cpp \
+	src/Operator/Diagonal.cpp \
+	src/Operator/Diffusion.cpp \
+	src/Operator/Implicit/Implicit.cpp \
+	src/Operator/Operator.cpp \
+	src/Operator/PressurePoisson.cpp \
+	src/Set/Set.cpp \
+	src/Util/Debug.cpp \
+	src/Util/Util.cpp
+SRC_MAIN = src/lowmach.cc
+else
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
+endif
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
@@ -148,37 +173,6 @@ bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
 	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
-
-ifeq ($(CUDA),TRUE)
-LOWMACH_CUDA_SRC = \
-	src/BC/BC.cpp \
-	src/BC/Constant.cpp \
-	src/BC/Expression.cpp \
-	src/IO/CanteraYamlParse.cpp \
-	src/IO/FileNameParse.cpp \
-	src/IO/InputScraper.cpp \
-	src/IO/ParmParse.cpp \
-	src/IO/WriteMetaData.cpp \
-	src/Integrator/Integrator.cpp \
-	src/Integrator/LowMach.cpp \
-	src/Model/Gas/Gas.cpp \
-	src/Numeric/ReferenceMap/Reconstruction.cpp \
-	src/Operator/Diagonal.cpp \
-	src/Operator/Diffusion.cpp \
-	src/Operator/Implicit/Implicit.cpp \
-	src/Operator/Operator.cpp \
-	src/Operator/PressurePoisson.cpp \
-	src/Set/Set.cpp \
-	src/Util/Debug.cpp \
-	src/Util/Util.cpp
-LOWMACH_CUDA_OBJ = $(subst src/,obj/obj-$(POSTFIX)/,$(LOWMACH_CUDA_SRC:.cpp=.cpp.o))
-
-bin/lowmach-$(POSTFIX): $(LOWMACH_CUDA_OBJ) obj/obj-$(POSTFIX)/lowmach.cc.o
-	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     "
-	@printf "$(RESET)$@\n"
-	@mkdir -p bin/
-	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB} ${MPI_LIB} ${LINKER_FLAGS}
-endif
 
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
