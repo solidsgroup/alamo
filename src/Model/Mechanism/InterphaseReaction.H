@@ -298,6 +298,14 @@ public:
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalStabilityRate(
+        const State& /*state*/, const int /*i*/, const int /*j*/,
+        const int /*k*/) const
+    {
+        return 0.0;
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar GradientCoefficient(
         const State& /*state*/, const int /*i*/, const int /*j*/,
         const int /*k*/) const

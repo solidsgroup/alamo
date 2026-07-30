@@ -1123,12 +1123,108 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
     if (mechanisms.empty() || rigid_solid_species.empty() || !(dt > 0.0))
         return;
 
+    // The local Allen-Cahn potential is explicit, but it should constrain
+    // only the phase-change update rather than every LowMach operator.
+    Set::Scalar stability_rate = 0.0;
+    for (const auto& configured_mechanism : mechanisms)
+    {
+        const auto mechanism = configured_mechanism;
+        if (mechanism.RigidComponent() < 0) continue;
+        Set::Scalar mechanism_stability_rate = 0.0;
+        const Set::Scalar p_reference = pressure_reference;
+        for (int lev = 0; lev <= finest_level; ++lev)
+            for (amrex::MFIter mfi(*temperature_mf[lev],
+                                    amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<const Set::Scalar> component_density =
+                    component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_eta =
+                    rigid_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_species_eta =
+                    rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> temperature =
+                    temperature_mf.Patch(lev,mfi);
+                amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+                amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+                using ReduceTuple = typename decltype(reduce_data)::Type;
+                reduce_op.eval(
+                    bx, reduce_data,
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                    {
+                        const Model::Mechanism::State state = {
+                            component_density, rigid_eta, rigid_species_eta,
+                            temperature(i,j,k), p_reference, dt};
+                        return {
+                            mechanism.LocalStabilityRate(state, i, j, k)};
+                    });
+                mechanism_stability_rate = Util::Max(
+                    mechanism_stability_rate,
+                    amrex::get<0>(reduce_data.value()));
+            }
+        amrex::ParallelDescriptor::ReduceRealMax(mechanism_stability_rate);
+        stability_rate += mechanism_stability_rate;
+    }
+    int substeps = static_cast<int>(
+        std::ceil(dt * stability_rate / phase_field_cfl));
+    if (substeps < 1) substeps = 1;
+    const Set::Scalar subdt = dt / substeps;
+
     const int nlev = finest_level + 1;
     for (int lev = 0; lev < nlev; ++lev)
     {
         phase_change_dilatation_mf[lev]->setVal(0.0);
         phase_change_heat_mf[lev]->setVal(0.0);
     }
+    for (int n = 0; n < substeps; ++n)
+        ApplyImplicitPhaseChangeStep(
+            time - dt + (n + 1) * subdt, subdt);
+
+    // Apply latent heat once using the total mass transferred over all local
+    // phase substeps. This preserves the global operator splitting used by
+    // the generalized reversible and condensed-to-condensed mechanisms.
+    for (int lev = 0; lev < nlev; ++lev)
+    {
+        for (amrex::MFIter mfi(*temperature_mf[lev],
+                                amrex::TilingIfNotGPU());
+             mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<const Set::Scalar> component_density =
+                component_density_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> temperature =
+                temperature_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> integrated_heat =
+                phase_change_heat_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(
+                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    auto [gas_volume_fraction, gas_heat_capacity,
+                        heat_capacity, conductivity, cp] =
+                        ComputeThermalState(component_density,
+                            temperature(i,j,k), i, j, k);
+                    (void)gas_volume_fraction;
+                    (void)gas_heat_capacity;
+                    (void)conductivity;
+                    (void)cp;
+                    if (heat_capacity > 0.0)
+                        temperature(i,j,k) +=
+                            integrated_heat(i,j,k) / heat_capacity;
+                });
+        }
+        temperature_bc->FillBoundary(
+            *temperature_mf[lev], 0, 1, time, 0);
+        temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
+}
+
+void
+LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
+{
+    BL_PROFILE("Integrator::LowMach::ApplyImplicitPhaseChangeStep");
+    const int nlev = finest_level + 1;
     diffusion.SetLayout(geom, refRatio(), rigid_species_eta_mf, nlev, 1);
     diffusion.FillBoundary(
         component_density_mf, *component_density_bc, time, nspecies);
@@ -1307,40 +1403,7 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
     diffusion.FillBoundary(
         component_density_mf, *component_density_bc, time, nspecies);
     for (int lev = 0; lev < nlev; ++lev)
-    {
         UpdateComponentState(lev, *component_density_mf[lev]);
-        for (amrex::MFIter mfi(*temperature_mf[lev],
-                                amrex::TilingIfNotGPU());
-             mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.tilebox();
-            Set::Patch<const Set::Scalar> component_density =
-                component_density_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> temperature =
-                temperature_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> integrated_heat =
-                phase_change_heat_mf.Patch(lev,mfi);
-
-            amrex::ParallelFor(
-                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    auto [gas_volume_fraction, gas_heat_capacity,
-                        heat_capacity, conductivity, cp] =
-                        ComputeThermalState(component_density,
-                            temperature(i,j,k), i, j, k);
-                    (void)gas_volume_fraction;
-                    (void)gas_heat_capacity;
-                    (void)conductivity;
-                    (void)cp;
-                    if (heat_capacity > 0.0)
-                        temperature(i,j,k) +=
-                            integrated_heat(i,j,k) / heat_capacity;
-                });
-        }
-        temperature_bc->FillBoundary(
-            *temperature_mf[lev], 0, 1, time, 0);
-        temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
-    }
 }
 
 void
@@ -3284,9 +3347,10 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             temperaturemax = std::max(temperaturemax, amrex::get<2>(hv));
         }
         for (const auto& mechanism : mechanisms)
-            phasefieldmax = std::max(
-                phasefieldmax,
-                mechanism.StabilityRate(dxmin, temperaturemax));
+            if (mechanism.RigidComponent() < 0)
+                phasefieldmax = std::max(
+                    phasefieldmax,
+                    mechanism.StabilityRate(dxmin, temperaturemax));
     }
     amrex::ParallelDescriptor::ReduceRealMax(advmax);
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);

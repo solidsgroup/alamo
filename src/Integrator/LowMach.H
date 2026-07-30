@@ -83,6 +83,7 @@ protected:
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
     void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
+    void ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
     void UpdateFreeRigidBodyState();
 

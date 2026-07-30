@@ -113,6 +113,22 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalStabilityRate(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).LocalStabilityRate(
+                    state, i, j, k);
+            return LocalStabilityRate<I + 1>(state, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar GradientCoefficient(
         const State& state, const int i, const int j, const int k) const
     {
