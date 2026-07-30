@@ -35,26 +35,6 @@
 
 #include "Unit/Test.H"
 
-namespace
-{
-struct GrossModelJacobianTestGas
-{
-    Set::Scalar Rg = Set::Constant::Rg;
-    std::array<Set::Scalar, 6> MW = {{26.0, 28.0, 24.0, 30.0, 22.0, 32.0}};
-
-    Set::Scalar cp_mol_species(Set::Scalar temperature, int species) const
-    {
-        return MW[species] *
-            (800.0 + 20.0 * species + 0.02 * (species + 1) * temperature);
-    }
-
-    Set::Scalar dcp_mol_species_dT(Set::Scalar /*temperature*/, int species) const
-    {
-        return MW[species] * 0.02 * (species + 1);
-    }
-};
-}
-
 int main (int argc, char* argv[])
 {
     Util::Initialize(argc, argv);
@@ -242,8 +222,16 @@ int main (int argc, char* argv[])
         int subfailed = 0;
         Model::Chemistry::GrossModel chemistry;
         chemistry.nspecies = 6;
-        GrossModelJacobianTestGas gas;
+        chemistry.gas_constant = Set::Constant::Rg;
         constexpr int size = 6;
+        std::array<Set::Scalar, size> molecular_weight =
+            {{26.0, 28.0, 24.0, 30.0, 22.0, 32.0}};
+        std::array<Set::Scalar, size> cp_mass =
+            {{800.0, 820.0, 840.0, 860.0, 880.0, 900.0}};
+        Model::Gas::Gas::DeviceData gas = {
+            size, Set::Constant::Rg, molecular_weight.data(), cp_mass.data(),
+            nullptr, nullptr, 0, 0, nullptr, nullptr,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, nullptr};
         const int dependent_species = Model::Chemistry::GrossModel::Primary;
         const Set::Scalar pressure = 2.0e6;
         const Set::Scalar mixture_density = 1200.0;
@@ -270,11 +258,11 @@ int main (int argc, char* argv[])
             Set::Scalar cp = 0.0;
             for (int n = 0; n < size; ++n)
             {
-                inverse_mw += Y[n] / gas.MW[n];
-                cp += Y[n] * gas.cp_mol_species(temperature, n) / gas.MW[n];
+                inverse_mw += Y[n] / molecular_weight[n];
+                cp += Y[n] * cp_mass[n];
             }
             const Set::Scalar density = pressure /
-                (gas.Rg * inverse_mw * temperature);
+                (Set::Constant::Rg * inverse_mw * temperature);
             Model::Chemistry::SpeciesArray rhoY{};
             for (int n = 0; n < size; ++n) rhoY[n] = density * Y[n];
             const auto source = chemistry.ComputeChemistrySources(

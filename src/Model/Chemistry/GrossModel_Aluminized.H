@@ -102,7 +102,6 @@ struct GrossModel_Aluminized : public GrossModel
         return evaluate_source(pressure, temperature, valid_density, dt);
     }
 
-    template<typename Gas>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     bool ComputeODEJacobian(
         const Set::Scalar* state,
@@ -113,14 +112,15 @@ struct GrossModel_Aluminized : public GrossModel
         int ode_size,
         int dependent_species,
         Set::Scalar temperature_scale,
-        const Gas* gas) const
+        const Model::Gas::Gas::DeviceData* gas) const
     {
         if (gas == nullptr || ode_size != required_species ||
             nspecies != required_species || dependent_species < 0 ||
             dependent_species >= nspecies || !(pressure > 0.0) ||
             !(mixture_density > 0.0) || !(gas_density > 0.0) ||
             !(temperature_scale > 0.0) || !(pressure_reference > 0.0) ||
-            !(gas->Rg > 0.0)) return false;
+            !(Model::Gas::Gas::UniversalGasConstant(*gas) > 0.0))
+            return false;
 
         SpeciesArray mass_fraction{};
         int independent_species[MAX_SPECIES]{};
@@ -148,12 +148,15 @@ struct GrossModel_Aluminized : public GrossModel
         Set::Scalar species_heat_capacity_derivative[MAX_SPECIES]{};
         for (int n = 0; n < nspecies; ++n)
         {
-            if (!(gas->MW[n] > 0.0)) return false;
+            const Set::Scalar molecular_weight =
+                Model::Gas::Gas::MolecularWeight(*gas, n);
+            if (!(molecular_weight > 0.0)) return false;
             species_heat_capacity[n] =
-                gas->cp_mol_species(temperature, n) / gas->MW[n];
+                Model::Gas::Gas::CpMassSpecies(*gas, temperature, n);
             species_heat_capacity_derivative[n] =
-                gas->dcp_mol_species_dT(temperature, n) / gas->MW[n];
-            inverse_molecular_weight += mass_fraction[n] / gas->MW[n];
+                Model::Gas::Gas::DCpMassSpeciesDT(*gas, temperature, n);
+            inverse_molecular_weight +=
+                mass_fraction[n] / molecular_weight;
             heat_capacity += mass_fraction[n] * species_heat_capacity[n];
         }
         if (!(inverse_molecular_weight > 0.0) || !(heat_capacity > 0.0))
@@ -176,7 +179,8 @@ struct GrossModel_Aluminized : public GrossModel
             mass_fraction[Mono] * mass_fraction[Premixed];
         const auto chemistry_source = source_from_progress(progress);
 
-        const Set::Scalar inverse_density = gas->Rg *
+        const Set::Scalar inverse_density =
+            Model::Gas::Gas::UniversalGasConstant(*gas) *
             inverse_molecular_weight * temperature / pressure;
         const Set::Scalar temperature_prefactor =
             gas_density / (mixture_density * temperature_scale);
@@ -218,13 +222,15 @@ struct GrossModel_Aluminized : public GrossModel
             for (int n = 0; n < nspecies; ++n)
             {
                 inverse_molecular_weight_derivative +=
-                    mass_fraction_derivative[n] / gas->MW[n];
+                    mass_fraction_derivative[n] /
+                    Model::Gas::Gas::MolecularWeight(*gas, n);
                 heat_capacity_derivative +=
                     mass_fraction_derivative[n] * species_heat_capacity[n] +
                     mass_fraction[n] * species_heat_capacity_derivative[n] *
                         temperature_derivative;
             }
-            const Set::Scalar inverse_density_derivative = gas->Rg / pressure *
+            const Set::Scalar inverse_density_derivative =
+                Model::Gas::Gas::UniversalGasConstant(*gas) / pressure *
                 (temperature * inverse_molecular_weight_derivative +
                  inverse_molecular_weight * temperature_derivative);
 

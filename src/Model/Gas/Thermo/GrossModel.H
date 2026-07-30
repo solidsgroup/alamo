@@ -67,6 +67,11 @@ public:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(cp_mass_value, Tref);
+    }
+
     template<class Composition>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar cp_mol(Set::Scalar /*T*/, const Composition& X,

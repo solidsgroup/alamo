@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import lmrf_interface
+
+
+output_directory = sys.argv[1]
+history, rates = lmrf_interface.analyze(output_directory)
+
+times = np.asarray([row["time_s"] for row in history])
+extreme = np.asarray([row["extreme_position_m"] for row in history])
+mean = np.asarray([row["mean_position_m"] for row in history])
+maximum = np.asarray([row["maximum_position_m"] for row in history])
+width = np.asarray([row["median_width_m"] for row in history])
+
+if not np.all(np.diff(times) > 0.0):
+    raise AssertionError("Plotfile times are not strictly increasing")
+if not np.all(extreme <= mean):
+    raise AssertionError("Extreme interface position exceeds the lateral mean")
+if not np.all(mean <= maximum):
+    raise AssertionError("Lateral mean exceeds the maximum interface position")
+if extreme[-1] > extreme[0] + 1.0e-9:
+    raise AssertionError("The extreme interface advanced into the gas")
+if not np.isfinite(rates["extreme_burn_rate_mm_per_s"]):
+    raise AssertionError("The fitted extreme burn rate is not finite")
+np.testing.assert_allclose(width[-1], 20.0e-6, rtol=0.6)
+
+print(
+    "Calibration burn rate (extreme eta=0.5 position): "
+    f"{rates['extreme_burn_rate_mm_per_s']:.8g} mm/s")
+print(
+    "Lateral-mean diagnostic (do not calibrate): "
+    f"{rates['mean_burn_rate_mm_per_s']:.8g} mm/s")

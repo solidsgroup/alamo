@@ -103,6 +103,44 @@ message("Python",python_version)
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 
+def normalize_cuda_arch(cuda_arch):
+    """Normalize CUDA architecture strings like 7.5, sm_75, or compute_75 to 75."""
+    cuda_arch = str(cuda_arch).strip().lower()
+    for prefix in ("sm_", "compute_"):
+        if cuda_arch.startswith(prefix):
+            cuda_arch = cuda_arch[len(prefix):]
+    cuda_arch = cuda_arch.replace(".", "")
+    if not re.fullmatch(r"\d+", cuda_arch):
+        raise Exception(error(
+            f"CUDA architecture must be numeric, e.g. 75 or 80, but got {cuda_arch!r}"))
+    return cuda_arch
+
+def detect_cuda_arch():
+    """Detect the local NVIDIA GPU compute capability."""
+    nvidia_smi = shutil.which("nvidia-smi")
+    if not nvidia_smi:
+        raise Exception(error(
+            "Could not find nvidia-smi. Pass an explicit architecture, e.g. --cuda 75."))
+
+    result = subprocess.run(
+        [nvidia_smi, "--query-gpu=compute_cap", "--format=csv,noheader"],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise Exception(error(
+            "Could not detect the CUDA architecture. Pass it explicitly, e.g. --cuda 75."))
+
+    arches = sorted(set(
+        normalize_cuda_arch(line) for line in result.stdout.splitlines() if line.strip()
+    ))
+    if len(arches) != 1:
+        raise Exception(error(
+            "Expected one local CUDA architecture, found "
+            + (", ".join(arches) if arches else "none")
+            + ". Pass the desired architecture explicitly."
+        ))
+    return arches[0]
+
 CONFIG_FILE = ".alamo"
 preparser = argparse.ArgumentParser(add_help=False)
 preparser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
@@ -140,6 +178,8 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
+parser.add_argument('--cuda', const='auto', default=None, nargs='?', type=str,
+                    help="Compile with CUDA; optionally specify an architecture such as 75 or 8.0")
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
@@ -155,6 +195,14 @@ parser.set_defaults(**defaults)
 
 args=parser.parse_args()
 
+if args.cuda:
+    if args.cuda == "auto":
+        args.cuda = detect_cuda_arch()
+        message("CUDA Architecture", f"auto-detected sm_{args.cuda}")
+    else:
+        args.cuda = normalize_cuda_arch(args.cuda)
+        message("CUDA Architecture", f"using sm_{args.cuda}")
+
 # Accept a path or a versioned name (e.g. /spack/.../bin/g++-15) as --comp by
 # normalizing to the bare compiler name for type checks. Invocations still
 # use args.comp so the original path/binary is actually executed.
@@ -169,6 +217,13 @@ if args.memcheck and args.coverage:
     raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
 if args.memcheck and args.memcheck_tool == "msan" and not comp_basename=="clang++":
     raise(Exception(error("MSan only works with clang, use --comp=clang++")))
+if args.cuda and comp_basename != "g++":
+    raise(Exception(error("CUDA builds currently require --comp=g++")))
+if args.cuda and not shutil.which("nvcc"):
+    raise(Exception(error("CUDA was requested but nvcc was not found")))
+if args.cuda and (args.memcheck or args.coverage or args.omp):
+    raise(Exception(error(
+        "CUDA builds currently do not support memcheck, coverage, or OpenMP")))
 
 if pre_args.save:
     data = vars(args)
@@ -230,6 +285,7 @@ if args.profile: postfix += "-profile"
 if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
 if args.hdf5: postfix += "-hdf5"
+if args.cuda: postfix += f"-cuda{args.cuda}"
 postfix += "-" + comp_basename
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -243,6 +299,8 @@ shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 # DIMENSION
 #
 f.write("DIM = " + str(args.dim) + "\n")
+if args.cuda:
+    f.write("CUDA = TRUE\n")
 message("Dimension",str(args.dim))
 
 #
@@ -381,12 +439,14 @@ if args.buildamrex and not args.amrex:
     
     if args.fft: amrex_configure += " --enable-fft=yes"
     if args.hdf5: amrex_configure += " --enable-hdf5=yes"
+    if args.cuda: amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda}"
 
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
     
     f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD)\n") # --output-sync=target
+    amrex_make_args = " USE_CUDA_FAST_MATH=FALSE" if args.cuda else ""
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD){amrex_make_args}\n") # --output-sync=target
     f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
     f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
@@ -408,12 +468,14 @@ elif (args.amrex != ""):
     amrex_profiling = False
     amrex_debug = False
     amrex_omp = False
+    amrex_cuda = False
     for line in open(args.amrex + "/include/AMReX_Config.H"):
         if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
         if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
         if "USE_OMP 1" in line: amrex_omp = True
+        if "#define AMREX_USE_CUDA" in line: amrex_cuda = True
         if "PROFILING 1" in line: amrex_profiling = True
         githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','') if "AMREX_GIT_VERSION" in line else None
         
@@ -431,6 +493,9 @@ elif (args.amrex != ""):
         raise Exception(error() + "Alamo is compiled with OMP but AMReX is not. Try compiling AMReX with "+code("./configure --with-omp=yes") + " or compile Alamo without "+code("--omp"))
     if not args.omp and amrex_omp:
         raise Exception(error() + "Alamo is compiled without OMP but AMReX is. Try compiling AMReX with "+code("./configure --with-omp=no") + " or compile Alamo with " + code("--omp"))
+    if bool(args.cuda) != amrex_cuda:
+        raise Exception(error() +
+            "Alamo and the supplied AMReX installation disagree about CUDA support")
 
     message("AMReX Directory", args.amrex)
     if githash: message("AMReX Git commit", githash)
@@ -644,6 +709,8 @@ elif "mvapich" in mpidiststr.lower():
 elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
+if args.cuda and mpidist != "openmpi":
+    raise Exception(error("CUDA builds currently require OpenMPI"))
 
 if mpidist == "openmpi":
     compmpicmd = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
@@ -656,7 +723,44 @@ if mpidist == "openmpi":
     mpicomp = shellmessage("openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
     ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
     shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
-    f.write(f"CC = {ompicc} \n")
+    if args.cuda:
+        nvcc = os.path.realpath(shutil.which("nvcc"))
+        cuda_home = os.path.dirname(os.path.dirname(nvcc))
+        mpi_compile = shellmessage(
+            "openmpi compile flags", "mpicxx --showme:compile"
+        ).stdout.decode('utf-8').strip()
+        mpi_link = shellmessage(
+            "openmpi link flags", "mpicxx --showme:link"
+        ).stdout.decode('utf-8').strip()
+        mpi_link = " ".join(
+            " ".join(f"-Xlinker {option}" for option in flag[4:].split(","))
+            if flag.startswith("-Wl,") else flag
+            for flag in mpi_link.split()
+        )
+        cuda_flags = (
+            f"-ccbin={args.comp} -std=c++20 -x cu "
+            "--expt-relaxed-constexpr --expt-extended-lambda "
+            "--forward-unknown-to-host-compiler "
+            "--relocatable-device-code=true "
+            f"--generate-code arch=compute_{args.cuda},code=sm_{args.cuda} "
+            "-Xcudafe --diag_suppress=esa_on_defaulted_function_ignored "
+            "-Xcudafe --diag_suppress=implicit_return_from_non_void_function "
+            "--Werror cross-execution-space-call "
+            "--Werror ext-lambda-captures-this "
+            "-lineinfo -DALAMO_GPU"
+        )
+        f.write(f"CC = {nvcc} {cuda_flags}\n")
+        f.write(f"COMP_CMD = {nvcc} {cuda_flags} {mpi_compile} -dc\n")
+        f.write(f"DEP_CMD = {nvcc} {cuda_flags} {mpi_compile}\n")
+        f.write(
+            f"LINK_CMD = {nvcc} -ccbin={args.comp} -std=c++20 "
+            "--relocatable-device-code=true "
+            f"--generate-code arch=compute_{args.cuda},code=sm_{args.cuda}\n")
+        f.write(
+            f"LINKER_FLAGS += {mpi_link} -L{cuda_home}/lib64 "
+            "-lcudart -lcuda -lcurand -lcusparse\n")
+    else:
+        f.write(f"CC = {ompicc} \n")
 
     p = shellmessage("openmpi mpiexec", "mpiexec --version")
     pexecversion = p.stdout.decode('utf-8').replace('\n','').lower()
@@ -712,7 +816,10 @@ if args.perf:
 #         flags may cause linker to fail!
 #
 if comp_basename =='g++':
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.cuda:
+        f.write("CXX_COMPILE_FLAGS += -O3\n")
+    else:
+        f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
@@ -730,7 +837,7 @@ if comp_basename =='g++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    else:
+    elif not args.cuda:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
 if comp_basename =='clang++':
@@ -846,9 +953,52 @@ if not args.compile_commands:
         otherflags.extend(["-I./ext/yaml-cpp/include", "-DALAMO_YAML"])
 
     if args.amrex:
-        otherflags.append(f"-I{args.amrex}/include")
+        amrex_include = f"{args.amrex}/include"
     else:
-        otherflags.append(f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include")
+        amrex_include = f"./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+
+    if args.cuda:
+        clangd_dir = Path(".make/clangd")
+        clangd_dir.mkdir(parents=True, exist_ok=True)
+        amrex_config = Path(amrex_include) / "AMReX_Config.H"
+        clangd_config = clangd_dir / "AMReX_Config.H"
+        gpu_config_defines = (
+            "AMREX_USE_CUDA",
+            "AMREX_USE_GPU",
+            "AMREX_USE_GPU_RDC",
+            "AMREX_GPU_MAX_THREADS",
+            "BL_USE_CUDA",
+        )
+        if amrex_config.exists():
+            with open(amrex_config) as f_amrex_config:
+                amrex_config_lines = f_amrex_config.readlines()
+            clangd_config_lines = []
+            line_index = 0
+            while line_index < len(amrex_config_lines):
+                line = amrex_config_lines[line_index]
+                stripped_line = line.strip()
+                if any(
+                    stripped_line == f"#ifndef {define}"
+                    for define in gpu_config_defines
+                ):
+                    line_index += 1
+                    while line_index < len(amrex_config_lines):
+                        if amrex_config_lines[line_index].strip() == "#endif":
+                            line_index += 1
+                            break
+                        line_index += 1
+                    continue
+                clangd_config_lines.append(line)
+                line_index += 1
+            with open(clangd_config, "w") as f_clangd_config:
+                f_clangd_config.writelines(clangd_config_lines)
+            otherflags.append("-I.make/clangd")
+        else:
+            warning(
+                f"Could not find {amrex_config}; "
+                "compile_commands.json will use the CUDA AMReX_Config.H")
+
+    otherflags.append(f"-I{amrex_include}")
 
     for pth in os.environ.get("CPLUS_INCLUDE_PATH", "").split(os.pathsep):
         if pth:

@@ -48,6 +48,11 @@ public:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(cp_moles, h0, Tref);
+    }
+
     template<class Composition>
     double cp_mol(double /*T*/, const Composition& X, int i, int j, int k) const
     {

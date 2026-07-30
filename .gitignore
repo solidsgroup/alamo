@@ -31,6 +31,7 @@ Makefile.conf
 Makefile.amrex.conf
 Makefile.pre.conf
 Makefile.post.conf
+.make/
 *.so
 .vscode
 visitlog.py
@@ -61,4 +62,3 @@ alamo
 setup.py
 alamo.py
 .alamo
-

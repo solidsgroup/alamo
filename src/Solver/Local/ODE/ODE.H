@@ -63,6 +63,12 @@ public:
         return std::get<T>(obj);
     }
 
+    template<typename T>
+    const T& Get() const
+    {
+        return std::get<T>(obj);
+    }
+
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     bool Implicit() const

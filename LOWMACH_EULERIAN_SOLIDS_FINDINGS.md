@@ -1,6 +1,6 @@
 # LowMach Eulerian Solids Findings
 
-Last updated: 2026-07-22
+Last updated: 2026-07-28
 
 This file is a technical handoff for the current `eulerian-solids` LowMach
 implementation. It describes code active in the present branch, results
@@ -23,6 +23,7 @@ The most useful inputs are:
 
 - `tests/LMDrivenCavity/input`: pure-fluid AMR regression
 - `tests/LowMachChemistry/input`: finite-rate chemistry regression
+- `tests/LMRFSandwich/input`: ultralight AP/HTPB calibration cases
 - `input.lm.couette_solid`: compact deformable-solid mechanics case
 - `input.lm`: larger deformable-solid driven-cavity case
 - `input.lm.rigid`: fixed rigid inclusion
@@ -571,11 +572,80 @@ activation_temperature = 3145 K
 temperature_cutoff     = 360 K
 ```
 
-The resulting HTPB `eta=0.5` front regressed at 3.95 mm/s over 0.75--1.5 ms
-and 4.07 mm/s over 0.9--1.5 ms. The AP front moved at 5.71 mm/s over the latter
-window. This is an initial 3 MPa, short-time calibration for continuous binder
-supply; it is not yet a validation of long-time sandwich morphology or of the
-HTPB pressure response.
+The resulting HTPB `eta=0.5` front was originally reported as 3.95 mm/s over
+0.75--1.5 ms and 4.07 mm/s over 0.9--1.5 ms, with 5.71 mm/s reported for AP
+over the latter window. Those values were obtained from a laterally averaged
+interface position. They are not accepted calibration results: averaging hides
+the faster groove at the AP/HTPB junction and makes the inferred burn rate
+depend on the amount of far-field AP included in the domain. Consequently the
+checked-in `1.85e5` HTPB multiplier remains provisional.
+
+### Ultralight sandwich calibration
+
+`tests/LMRFSandwich/input` retains the chemistry, transport, phase-field,
+ignition, material junction, and mechanism parameters from `input.lm.ap_htpb`.
+It changes only the computational expense:
+
+```text
+domain              0 <= x <= 100 um, -100 <= y <= 50 um
+HTPB/AP junction    x = 50 um
+mesh                40 x 60, uniform dx = dy = 2.5 um
+AMR levels          0
+run time            1.5 ms (3.0 ms at 0.8 and 1.0 MPa)
+```
+
+The pressure-selectable sections cover 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, and
+4.0 MPa. On the current one-core 2D clang build, the 3 MPa case completed and
+passed its check in 59.83 seconds.
+
+Run one pressure or the complete sweep with
+
+```bash
+source .venv/bin/activate
+./scripts/runtests.py tests/LMRFSandwich \
+  --sections 2d-3MPa --comp clang++ --serial --no-clean
+./scripts/runtests.py tests/LMRFSandwich \
+  --comp clang++ --serial --no-clean
+```
+
+`scripts/lmrf_interface.py` reconstructs the finest available covering grid
+and finds the first downward `eta=0.5` crossing independently in every x
+column. The calibration position is the minimum y crossing, i.e. the deepest
+point connected to the solid below. It never averages eta profiles before
+locating the interface. The lateral mean and maximum are written only as
+diagnostics. Each run produces `interface-position.csv`,
+`interface-rates.json`, and `interface-position.png`.
+
+With the current provisional coefficients, the 3 MPa fit over the latter half
+of the 1.5 ms run gives
+
+```text
+extreme burn rate       7.533 mm/s
+lateral-mean rate       5.697 mm/s
+maximum-position rate   2.694 mm/s
+extreme/mean ratio      1.322
+extreme location        x = 68.75 um at the final output
+```
+
+Thus lateral averaging underestimates the calibration observable by 24.4% in
+this case. The present coefficients should be recalibrated against the extreme
+rate rather than interpreted through the older average-based result.
+
+Matched short runs established the reduced-case error:
+
+| Check | Extreme rate | Difference |
+| --- | ---: | ---: |
+| AP width 75 to 200 um, `dx=3.125 um`, 1.5 ms | 7.780 to 7.736 mm/s | 0.6% |
+| AP width 75 to 50 um, `dx=2.5 um`, 0.9 ms | 7.439 to 7.455 mm/s | 0.2% |
+| Solid depth 150 to 100 um, `dx=2.5 um`, 0.9 ms | 7.439 to 7.439 mm/s | <0.1% |
+| Gas height 50 to 100 um, `dx=2.5 um`, 0.9 ms | 7.439 to 7.489 mm/s | 0.7% |
+| `dx=3.125` to `2.5 um`, 0.9 ms | 7.669 to 7.439 mm/s | 3.1% |
+| `dx=2.5` to approximately `1.96 um`, 0.9 ms | 7.439 to 7.283 mm/s | 2.1% |
+
+The selected 2.5 micrometer mesh is therefore suitable for rapid coefficient
+sweeps, with a remaining short-window spatial bias of roughly two percent
+relative to the finer check. Final calibrated coefficients should still be
+confirmed once at the production interface resolution.
 
 The sweep also exposed a numerical issue in the implicit phase-field solve.
 Inactive cells had been assigned a very large artificial mass coefficient.

@@ -1,44 +1,74 @@
-# AP/HTPB sandwich regression and GrossModel gas-phase combustion in LowMach.
-# Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.ap_htpb
-#
-# This is one symmetric half of the standard sandwich specimen used in
-# meier2024finite: a 100 um HTPB laminate embedded in a 0.5 mm-wide AP matrix.
-# Thus 0 <= x <= 50 um is half of the HTPB laminate and 50 <= x <= 250 um is AP.
-# The lateral faces are impermeable slip walls rather than periodic boundaries.
+#@ [2d-*MPa]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@
+#@ [2d-0.8MPa]
+#@ args = Final.density.ic.expression.constant.P=0.8e6
+#@ args = pressure.ic.constant.value=0.8e6
+#@ args = pressure.bc.constant.val.yhi=0.8e6
+#@ args = stop_time=3.0e-3
+#@ args = amr.plot_dt=3.0e-4
+#@
+#@ [2d-1MPa]
+#@ args = Final.density.ic.expression.constant.P=1.0e6
+#@ args = pressure.ic.constant.value=1.0e6
+#@ args = pressure.bc.constant.val.yhi=1.0e6
+#@ args = stop_time=3.0e-3
+#@ args = amr.plot_dt=3.0e-4
+#@
+#@ [2d-1.5MPa]
+#@ args = Final.density.ic.expression.constant.P=1.5e6
+#@ args = pressure.ic.constant.value=1.5e6
+#@ args = pressure.bc.constant.val.yhi=1.5e6
+#@
+#@ [2d-2MPa]
+#@ args = Final.density.ic.expression.constant.P=2.0e6
+#@ args = pressure.ic.constant.value=2.0e6
+#@ args = pressure.bc.constant.val.yhi=2.0e6
+#@
+#@ [2d-2.5MPa]
+#@ args = Final.density.ic.expression.constant.P=2.5e6
+#@ args = pressure.ic.constant.value=2.5e6
+#@ args = pressure.bc.constant.val.yhi=2.5e6
+#@
+#@ [2d-3MPa]
+#@ args = Final.density.ic.expression.constant.P=3.0e6
+#@ args = pressure.ic.constant.value=3.0e6
+#@ args = pressure.bc.constant.val.yhi=3.0e6
+#@
+#@ [2d-4MPa]
+#@ args = Final.density.ic.expression.constant.P=4.0e6
+#@ args = pressure.ic.constant.value=4.0e6
+#@ args = pressure.bc.constant.val.yhi=4.0e6
 
-plot_file = output.lm.ap_htpb
-amr.plot_dt = 1.0e-3_s
-amr.max_level = 2
-amr.n_cell = 16 256
-amr.max_grid_size = 32
-amr.blocking_factor = 4
-amr.regrid_int = 5
-amr.grid_eff = 0.7
-amr.nsubsteps = 2
-amr.reinitialize_condensed_composition = 1
-amr.reinitialize_condensed_composition_eta_min = 0.99
+# Ultralight AP/HTPB half-sandwich for surface-kinetics calibration.
+# The 50 um HTPB half-laminate is unchanged. The AP region and vertical
+# extents are cropped after domain-convergence checks, and the mesh is uniform
+# so interface extraction never averages mixed AMR resolutions.
 
-# Resolve the 20 um diffuse interface with approximately five cells. This also
-# avoids refining already-smooth gas temperature profiles below 3.9 um.
-eta_refinement_criterion = 0.7
-temperature_refinement_criterion = 500.0
+plot_file = tests/LMRFSandwich/output
+amr.plot_dt = 1.5e-4_s
+amr.max_level = 0
+amr.n_cell = 40 60
+amr.max_grid_size = 60
+amr.blocking_factor = 2
+amr.regrid_int = -1
 
 timestep = 1.0e-7_s
-stop_time = 1_s
+stop_time = 1.5e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 1.0e-6
+dynamictimestep.max = 5.0e-6
 dynamictimestep.verbose = 0
 
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = 0.0_m     -3.0e-3_m 0.0
-geometry.prob_hi = 0.25e-3_m  1.0e-3_m 0.0
+geometry.prob_lo = 0.0_m     -1.0e-4_m 0.0
+geometry.prob_hi = 1.0e-4_m   5.0e-5_m 0.0
 geometry.is_periodic = 0 0 0
 
-# Gas species 0-5 retain the ordering required by the GrossModel mechanism:
-# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
 system.amount = kmol
 gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
 gas.thermo.type = gross_model
@@ -49,7 +79,7 @@ gas.transport.gross_model.prandtl = 0.69
 gas.transport.gross_model.lewis = 1.0
 gas.transport.gross_model.lambda_a = 2.13037e-7_cal/cm/s/K^2
 gas.transport.gross_model.lambda_b = 5.32743e-6_cal/cm/s/K
-gas.eos.type = gross_model
+gas.eos.type = tpg
 
 species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
 AP_gas.mechanics = fluid
@@ -78,10 +108,6 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# AP uses the calibrated LMGrossModelMonoAP parameters. The HTPB prefactor is calibrated
-# to approximately 4 mm/s regression in the 3 MPa sandwich configuration. Both
-# mechanisms use the calibrated aggregate-eta interface energy, and the
-# phase-field gradient terms are integrated implicitly.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.phase0 = AP_solid
@@ -134,72 +160,18 @@ projection.update_pressure = 1
 diffusion.tol_rel = 1.0e-11
 diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0
-#diagnostics.interval = 100
+diagnostics.interval = 0
 diagnostics.extended_fields = 0
 
-# Select one pressure block. Comment the active block before uncommenting
-# another. The experimental pressure points plotted in Meier et al. are
-# 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, and 4.0 MPa; 3 MPa is active by default.
-#
-# --- 0.8 MPa ---
-#Final.density.ic.expression.constant.P = 0.8e6
-#pressure.ic.constant.value = 0.8e6
-#pressure.bc.constant.val.yhi = 0.8e6
-#plot_file = output.lm.ap_htpb_1.0MPa
-#
-#
-# --- 1.0 MPa ---
-#Final.density.ic.expression.constant.P = 1.0e6
-#pressure.ic.constant.value = 1.0e6
-#pressure.bc.constant.val.yhi = 1.0e6
-#plot_file = output.lm.ap_htpb_1.0MPa
-#
-#
-# --- 1.5 MPa ---
-#Final.density.ic.expression.constant.P = 1.5e6
-#pressure.ic.constant.value = 1.5e6
-#pressure.bc.constant.val.yhi = 1.5e6
-#plot_file = output.lm.ap_htpb_1.5MPa
-#
-#
-# --- 2.0 MPa ---
-#Final.density.ic.expression.constant.P = 2.0e6
-#pressure.ic.constant.value = 2.0e6
-#pressure.bc.constant.val.yhi = 2.0e6
-#plot_file = output.lm.ap_htpb_2.0MPa
-#
-#
-# --- 2.5 MPa ---
-#Final.density.ic.expression.constant.P = 2.5e6
-#pressure.ic.constant.value = 2.5e6
-#pressure.bc.constant.val.yhi = 2.5e6
-#plot_file = output.lm.ap_htpb_2.5MPa
-#
-#
-# --- 3.0 MPa (active) ---
-#Final.density.ic.expression.constant.P = 3.0e6
-#pressure.ic.constant.value = 3.0e6
-#pressure.bc.constant.val.yhi = 3.0e6
-#plot_file = output.lm.ap_htpb_3.0MPa
-#
-# --- 4.0 MPa ---
-Final.density.ic.expression.constant.P = 4.0e6
-pressure.ic.constant.value = 4.0e6
-pressure.bc.constant.val.yhi = 4.0e6
-plot_file = output.lm.ap_htpb_4.0MPa
-
-# The solid occupies y<0. The complementary expressions reconstruct one
-# common condensed/gas interface while placing the symmetry plane at the
-# center of the 100 um HTPB laminate.
+# The complementary composition profiles make aggregate rigid_eta planar at
+# initialization while retaining the original 50 um material junction.
 AP_solid.density.ic.type = expression
 AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((x-50.0e-6)/10.0e-6)))"
 HTPB_solid.density.ic.type = expression
 HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((x-50.0e-6)/10.0e-6)))"
 
-# The gas initially contains final products. Its density uses the preheated
-# temperature profile below so that the ignition state is initially isobaric;
-# AP and HTPB reactants enter only through regression.
 Final.density.ic.type = expression
+Final.density.ic.expression.constant.P = 3.0e6
 Final.density.ic.expression.constant.Tambient = 300.0_K
 Final.density.ic.expression.constant.Tignite = 400.0_K
 Final.density.ic.expression.constant.Lsolid = 100.0_um
@@ -208,9 +180,6 @@ Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
-# Initialize the solid and gas with a mildly preheated thermal penetration
-# profile. A hotter initial interface drives the calibrated AP phase field far
-# above its steady regression rate before the gas flame has developed.
 temperature.ic.type = expression
 temperature.ic.expression.constant.Tambient = 300.0_K
 temperature.ic.expression.constant.Tignite = 400.0_K
@@ -218,6 +187,7 @@ temperature.ic.expression.constant.Lsolid = 100.0_um
 temperature.ic.expression.constant.Lgas = 250.0_um
 temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
 pressure.ic.type = constant
+pressure.ic.constant.value = 3.0e6
 
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
@@ -252,3 +222,4 @@ pressure.bc.constant.type.xlo = neumann
 pressure.bc.constant.type.xhi = neumann
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 3.0e6

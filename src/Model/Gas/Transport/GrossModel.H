@@ -81,6 +81,11 @@ public:
     }
 
 public:
+    auto DeviceData() const
+    {
+        return std::tie(lewis, prandtl, lambda_a, lambda_b);
+    }
+
     template<class Composition>
     Set::Scalar dynamic_viscosity(Set::Scalar T, const Composition& X, int i, int j, int k) const
     {

@@ -48,23 +48,40 @@ struct Advance
 template<typename... OBJ>
 class Chemistry
 {
+public:
+    using ODESolver = Solver::Local::ODE::ODE<
+        Solver::Local::ODE::ForwardEuler,
+        Solver::Local::ODE::BackwardEuler>;
+
 private:
     friend IO::ParmParse;
     std::tuple<OBJ...> obj;
     static constexpr const char* names[] = { OBJ::name... };
     int selected = -1;
-    using ODESolver = Solver::Local::ODE::ODE<
-        Solver::Local::ODE::ForwardEuler,
-        Solver::Local::ODE::BackwardEuler>;
     ODESolver solver;
     bool split_chemistry = false;
     int nspecies = 0;
 
 public:
+    const char* model_name() const
+    {
+        return names[selected];
+    }
 
     void Define(int a_nspecies)
     {
         nspecies = a_nspecies;
+    }
+
+    template<typename T>
+    const T& Get() const
+    {
+        return std::get<T>(obj);
+    }
+
+    const ODESolver& Solver() const
+    {
+        return solver;
     }
 
     static void Parse(Chemistry& value, IO::ParmParse& pp)
@@ -128,7 +145,7 @@ public:
         int nspecies,
         int dependent_species,
         Set::Scalar temperature_scale,
-        const Model::Gas::Gas* gas) const
+        const Model::Gas::Gas::DeviceData* gas) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
@@ -196,6 +213,12 @@ public:
         const Model::Gas::Gas* gas) const
     {
         Model::Chemistry::Advance::Result advance;
+#ifdef ALAMO_GPU
+        Util::IgnoreUnused(
+            dt, pressure, mixture_density, nspecies, rhoY, temperature, gas);
+        advance.converged = false;
+        return advance;
+#else
         if (!(dt > 0.0)) return advance;
         if (nspecies <= 0 || nspecies > MAX_SPECIES || gas == nullptr ||
             !(pressure > 0.0) || !(mixture_density > 0.0) ||
@@ -235,6 +258,9 @@ public:
         for (int n = 0; n < nspecies; ++n)
             inverse_mw += mass_fraction[n] / gas->MW[n];
         Set::Scalar rho_eos = pressure / (gas->Rg * inverse_mw * temperature);
+        amrex::Gpu::DeviceVector<Set::Scalar> gas_device_storage;
+        const Model::Gas::Gas::DeviceData gas_data =
+            gas->GetDeviceData(gas_device_storage);
         Set::Scalar remaining = dt;
         Set::Scalar chemistry_dt = dt;
         int rejected_steps = 0;
@@ -312,7 +338,8 @@ public:
             {
                 return ComputeODEJacobian(
                     z, derivative, pressure, mixture_density, gas_density,
-                    nspecies, dependent_species, temperature_scale, gas);
+                    nspecies, dependent_species, temperature_scale,
+                    &gas_data);
             };
 
             const Solver::Local::ODE::Advance::Result result =
@@ -361,6 +388,7 @@ public:
         for (int n = 0; n < nspecies; ++n)
             rhoY[n] = gas_density * mass_fraction[n];
         return advance;
+#endif
     }
 };
 }

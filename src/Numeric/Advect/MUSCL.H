@@ -57,6 +57,7 @@ public:
 
     static void Parse(MUSCL& value, IO::ParmParse& pp)
     {
+#if !AMREX_DEVICE_COMPILE
         // flux limiter
         pp.select<  Limiter::MC,
                     Limiter::MinMod,
@@ -65,6 +66,9 @@ public:
                     Limiter::VanAlbada,
                     Limiter::Koren,
                     Limiter::UMIST>("limiter",value.limiter);
+#else
+        Util::IgnoreUnused(value, pp);
+#endif
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -94,7 +98,7 @@ public:
                             int comp,
                             const Set::Scalar* DX,
                             Options options = {},
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         (void)stencil;
 
@@ -176,7 +180,7 @@ public:
                         int comp,
                         const Set::Scalar* DX,
                         Options options = {},
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType) const
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::DefaultType()) const
     {
         return (*this)(phi, velocity, i, j, k, comp, DX, options, stencil);
     }

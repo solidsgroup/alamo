@@ -233,7 +233,7 @@ public:
         }
     }
 
-private:
+public:
     void AverageDown(int alev)
     {
         for (int mglev = 1; mglev < m_num_mg_levels[alev]; ++mglev)

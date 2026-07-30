@@ -75,7 +75,7 @@ protected:
     //
     // Virtual: you SHOULD override these functions
     //
-protected:
+public:
     virtual void Diagonal (bool recompute=false);
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag);
     //
@@ -88,7 +88,7 @@ protected:
     //
     // Virtual: you CAN'T override these functions (they take care of AMReX business) and you SHOULDN'T
     //
-protected:
+public:
     virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
     virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
     virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs, const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
