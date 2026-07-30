@@ -23,9 +23,12 @@ amr.nsubsteps = 1
 # inappropriate once the aluminum profile moves away from its initial state.
 amr.reinitialize_condensed_composition = 0
 
+# Carry the moving condensed interfaces and active reaction layer to the
+# finest level without following smooth burned-gas temperature or velocity
+# structure downstream.
 eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 10.0
-velocity_refinement_criterion = 10.0
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
 
 # Time integration
 timestep = 1.0e-7_s
@@ -149,10 +152,10 @@ Al_sublimation.type = phase_change
 Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_gas
 Al_sublimation.phase_change.reversible = false
-# This deliberately elevated 0.5 mm/s regression speed shrinks the nominal
-# 75 um particle radius by 12.5 um over the 25 ms simulation.
-Al_sublimation.phase_change.prescribed_speed = 0.5_mm/s
-Al_sublimation.phase_change.temperature_cutoff = 500.0_K
+# This deliberately elevated 0.8 mm/s regression speed shrinks the nominal
+# 70 um particle radius by 20 um over the 25 ms simulation.
+Al_sublimation.phase_change.prescribed_speed = 0.8_mm/s
+Al_sublimation.phase_change.temperature_cutoff = 700.0_K
 Al_sublimation.phase_change.phase_field.type = allencahn
 
 # Flow, projection, and diffusion
@@ -197,7 +200,7 @@ HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*(y-s
 Al_solid.density.ic.type = expression
 Al_solid.density.ic.expression.constant.surface_y = -0.0003_m
 Al_solid.density.ic.expression.constant.surface_eps = 20.0_um
-Al_solid.density.ic.expression.constant.al_height = 0.00025_m
+Al_solid.density.ic.expression.constant.al_height = 0.00035_m
 Al_solid.density.ic.expression.constant.al_r = 70.0_um
 Al_solid.density.ic.expression.constant.al_eps = 20.0_um
 Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps)))"
@@ -206,12 +209,12 @@ Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-su
 Final.density.ic.type = expression
 Final.density.ic.expression.constant.surface_y = -0.0003_m
 Final.density.ic.expression.constant.surface_eps = 20.0_um
-Final.density.ic.expression.constant.al_height = 0.00025_m
+Final.density.ic.expression.constant.al_height = 0.00035_m
 Final.density.ic.expression.constant.al_r = 70.0_um
 Final.density.ic.expression.constant.al_eps = 20.0_um
 Final.density.ic.expression.constant.P = 3.0e6
 Final.density.ic.expression.constant.Tambient = 300.0_K
-Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Tignite = 300.0_K
 Final.density.ic.expression.constant.Lsolid = 100.0_um
 Final.density.ic.expression.constant.Lgas = 250.0_um
 Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas))))"
@@ -228,7 +231,7 @@ velocity.ic.type = expression
 velocity.ic.expression.constant.U = 0.01_m/s
 velocity.ic.expression.constant.surface_y = -0.0003_m
 velocity.ic.expression.constant.surface_eps = 20.0_um
-velocity.ic.expression.constant.al_height = 0.00025_m
+velocity.ic.expression.constant.al_height = 0.00035_m
 velocity.ic.expression.constant.al_r = 70.0_um
 velocity.ic.expression.constant.al_eps = 20.0_um
 velocity.ic.expression.region0 = "0.0"
@@ -237,7 +240,7 @@ velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps)
 temperature.ic.type = expression
 temperature.ic.expression.constant.surface_y = -0.0003_m
 temperature.ic.expression.constant.Tambient = 300.0_K
-temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Tignite = 300.0_K
 temperature.ic.expression.constant.Lsolid = 100.0_um
 temperature.ic.expression.constant.Lgas = 250.0_um
 # Condensed species inherit this global field unless temperature_override is
