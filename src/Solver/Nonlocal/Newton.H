@@ -1047,8 +1047,10 @@ public:
         // Tolerance to use for newton-raphson convergence
         pp_query("nrtolerance", value.m_nrtolerance); 
 
+        // Backtrack nonlinear updates until the residual decreases.
         pp_query("line_search", value.m_line_search);
 
+        // Discretize the elastic residual with coefficient-aware face fluxes.
         pp_query("conservative_face_flux", value.m_conservative_face_flux);
 
         if (!std::isfinite(value.m_nrtolerance) || value.m_nrtolerance < 0.0)

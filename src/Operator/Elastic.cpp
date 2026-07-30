@@ -34,6 +34,9 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
     Operator::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
     int model_nghost = 2;
+    // A cell-to-node average at the outer diagonal ghost row reaches one
+    // cell farther than the nodal coefficient stencil.
+    int psi_nghost = model_nghost + 1;
 
     m_ddw_mf.resize(m_num_amr_levels);
     m_psi_mf.resize(m_num_amr_levels);
@@ -47,7 +50,7 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
                 amrex::IntVect::TheNodeVector()),
                 m_dmap[amrlev][mglev], AMREX_SPACEDIM + 1, model_nghost));
             m_psi_mf[amrlev][mglev].reset(new MultiFab(m_grids[amrlev][mglev],
-                m_dmap[amrlev][mglev], 1, model_nghost));
+                m_dmap[amrlev][mglev], 1, psi_nghost));
 
             if (!m_psi_set) m_psi_mf[amrlev][mglev]->setVal(1.0);
         }
@@ -363,7 +366,11 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 {
     BL_PROFILE("Operator::Elastic::Diagonal()");
 
-    const amrex::IntVect diagonal_nghost = a_diag.nGrowVect();
+    // Conservative smoothing only consumes valid diagonal rows. Computing its
+    // ghost rows can cross into a neighboring coefficient FAB, where the local
+    // face data are not defined; FillBoundaryAndSync populates them below.
+    const amrex::IntVect diagonal_nghost = m_conservative_face_flux
+        ? amrex::IntVect::TheZeroVector() : a_diag.nGrowVect();
     amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(
         diagonal_nghost.max()));
     domain.convert(amrex::IntVect::TheNodeVector());
