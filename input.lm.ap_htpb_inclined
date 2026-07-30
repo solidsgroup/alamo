@@ -16,7 +16,8 @@ amr.grid_eff = 0.7
 amr.nsubsteps = 1
 
 eta_refinement_criterion = 0.01
-temperature_refinement_criterion = 100.0
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
 
 timestep = 2.5e-7_s
 stop_time = 3.0e-3_s

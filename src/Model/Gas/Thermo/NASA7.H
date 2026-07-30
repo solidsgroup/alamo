@@ -48,6 +48,8 @@ public:
         // declare if parameters are defined in a yaml file [yaml] or the alamo input file [input]
         pp.query_validate("type", type, {"yaml", "input"});
 
+        if (IO::ParmParse::InTraversalMode()) return;
+
         if (type == "yaml")
         {
 #ifdef ALAMO_YAML

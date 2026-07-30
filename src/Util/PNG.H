@@ -57,6 +57,13 @@ public:
                     pp.queryarr_required("coord.lo", value.coord_lo,Unit::Length());
                     // Upper-right coordinates of image in domain
                     pp.queryarr_required("coord.hi", value.coord_hi,Unit::Length());
+                    for (int d = 0; d < 2; ++d)
+                        if (!(value.coord_hi(d) > value.coord_lo(d)))
+                            Util::Exception(
+                                INFO,
+                                "PNG coord.hi must be greater than coord.lo "
+                                "in each direction; use flip.x or flip.y "
+                                "to reverse an image");
                 }}
             });
 
@@ -64,6 +71,15 @@ public:
         pp.query_default("min", value.min, 0.0  );
         // Desired maximum value to scale pixels by
         pp.query_default("max", value.max, 255.0);
+
+        // Clockwise rotation applied while sampling the image.
+        pp.query_default("rotation", value.rotation, 0);
+        if (value.rotation != 0 && value.rotation != 90 &&
+            value.rotation != 180 && value.rotation != 270)
+            Util::Exception(
+                INFO, "PNG rotation must be one of 0, 90, 180, or 270");
+        pp.query_default("flip.x", value.flip_x, false);
+        pp.query_default("flip.y", value.flip_y, false);
 
         if (IO::ParmParse::InTraversalMode()) return;
 
@@ -176,6 +192,12 @@ public:
         //Set::Scalar x, y;
         Set::Vector ximg;
 
+        const bool sideways = rotation == 90 || rotation == 270;
+        const Set::Scalar displayed_width =
+            sideways ? img_height : img_width;
+        const Set::Scalar displayed_height =
+            sideways ? img_width : img_height;
+
         if (fit == Fit::Stretch)
         {
             ximg(0) = (x(0) - domain_lo(0)) / (domain_hi(0) - domain_lo(0));
@@ -183,7 +205,7 @@ public:
         }
         else if (fit == Fit::FitWidth)
         {
-            Set::Scalar aspect_ratio = img_width / img_height;
+            Set::Scalar aspect_ratio = displayed_width / displayed_height;
             ximg(0) = (x(0) - domain_lo(0)) / (domain_hi(0) - domain_lo(0));
             ximg(1) = (x(1) - domain_lo(1)) / (domain_hi(1) - domain_lo(1));
             ximg(1) -= 0.5 - 0.5 / aspect_ratio;
@@ -191,7 +213,7 @@ public:
         }
         else if (fit == Fit::FitHeight)
         {
-            Set::Scalar aspect_ratio = img_height / img_width;
+            Set::Scalar aspect_ratio = displayed_height / displayed_width;
             ximg(0) = (x(0) - domain_lo(0)) / (domain_hi(0) - domain_lo(0));
             ximg(1) = (x(1) - domain_lo(1)) / (domain_hi(1) - domain_lo(1));
             ximg(0) -= 0.5 - 0.5 / aspect_ratio;
@@ -203,7 +225,25 @@ public:
             ximg(1) = (x(1) - coord_lo(1)) / (coord_hi(1) - coord_lo(1));
         }
 
+        if (flip_x) ximg(0) = 1.0 - ximg(0);
+        if (flip_y) ximg(1) = 1.0 - ximg(1);
 
+        const Set::Vector unrotated = ximg;
+        if (rotation == 90)
+        {
+            ximg(0) = unrotated(1);
+            ximg(1) = 1.0 - unrotated(0);
+        }
+        else if (rotation == 180)
+        {
+            ximg(0) = 1.0 - unrotated(0);
+            ximg(1) = 1.0 - unrotated(1);
+        }
+        else if (rotation == 270)
+        {
+            ximg(0) = 1.0 - unrotated(1);
+            ximg(1) = unrotated(0);
+        }
 
         ximg(0) = std::min(ximg(0), 1.0); ximg(1) = std::min(ximg(1), 1.0);
         ximg(0) = std::max(ximg(0), 0.0); ximg(1) = std::max(ximg(1), 0.0);
@@ -292,6 +332,9 @@ private:
     //Util::BMP bmp;
     Fit fit = Fit::Stretch;
     Set::Scalar min = NAN, max = NAN;
+    int rotation = 0;
+    bool flip_x = false;
+    bool flip_y = false;
 
     bool domain_defined = false;
     Set::Vector domain_lo = Set::Vector::Zero();

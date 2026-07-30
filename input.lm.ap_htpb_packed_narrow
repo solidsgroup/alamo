@@ -20,11 +20,12 @@ amr.nsubsteps = 1
 amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
-# The isotropic 31.25 um base mesh gives 3.90625 um cells at level 3. A fully
-# refined 3D hierarchy is approximately 128 x 384 x 64 cells.
-eta_refinement_criterion = 1.2
-temperature_refinement_criterion = 10.0
-velocity_refinement_criterion = 10.0
+# The isotropic 31.25 um base mesh gives 3.90625 um cells at level 3. Carry
+# the interface and active reaction layer to that level without following
+# smooth burned-gas temperature structure downstream.
+eta_refinement_criterion = 0.1
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s
 stop_time = 1_s

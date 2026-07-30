@@ -20,6 +20,7 @@ amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
 eta_refinement_criterion = 0.01
+reaction_refinement_criterion = 1.0e4_1/s
 temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s

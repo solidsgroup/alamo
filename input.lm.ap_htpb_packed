@@ -20,11 +20,11 @@ amr.nsubsteps = 1
 amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
-# Resolve the condensed/gas interface through level 3. Level 4 remains
-# available for flame and flow structure selected by the criteria below.
-eta_refinement_criterion = 1.2
-temperature_refinement_criterion = 10.0
-velocity_refinement_criterion = 10.0
+# Carry the condensed/gas interface and active reaction layer to the finest
+# level without following smooth burned-gas temperature structure downstream.
+eta_refinement_criterion = 0.1
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s
 stop_time = 1_s

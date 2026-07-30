@@ -1,4 +1,5 @@
 import csv
+import os
 from pathlib import Path
 
 import cppyy
@@ -9,6 +10,8 @@ import numpy
 
 alamo.include("Util/Util.H")
 alamo.include("IO/ParmParse.H")
+alamo.include("IO/OutputLog.H")
+alamo.include("IO/WriteMetaData.H")
 alamo.include("Model/Gas/Gas.H")
 
 cppyy.cppdef(
@@ -28,6 +31,12 @@ cppyy.cppdef(
 
         std::vector<Set::Scalar> values;
     };
+
+    void WriteOutputLogMarker(const std::string& marker)
+    {
+        std::cout << "stdout:" << marker << std::endl;
+        std::cerr << "stderr:" << marker << std::endl;
+    }
     }
     """
 )
@@ -149,6 +158,24 @@ def make_gas(pp, prefix, case):
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
+output = Path(__file__).with_name("output")
+output.mkdir(exist_ok=True)
+output_log_path = output / "out.log"
+alamo.IO.OutputLog.Initialize()
+alamo.AlamoGasMixturePropertiesTest.WriteOutputLogMarker("buffered")
+alamo.IO.OutputLog.Open(str(output_log_path))
+alamo.AlamoGasMixturePropertiesTest.WriteOutputLogMarker("open")
+output_log = output_log_path.read_text()
+for marker in (
+        "stdout:buffered",
+        "stderr:buffered",
+        "stdout:open",
+        "stderr:open",
+):
+    if marker not in output_log:
+        raise RuntimeError(f"{marker!r} is missing from the output log")
+alamo.IO.OutputLog.Finalize()
+
 alamo.Util.Initialize()
 try:
     # The reference data use kg/kmol and J/kmol, matching the original tests.
@@ -193,8 +220,6 @@ try:
         ):
             results.append((name, property_name, reference, value))
 
-    output = Path(__file__).with_name("output")
-    output.mkdir(exist_ok=True)
     rows = [
         {
             "case": name,
@@ -212,6 +237,22 @@ try:
         writer = csv.DictWriter(csv_file, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)
+
+    alamo.IO.WriteMetaData(str(output))
+    metadata = (output / "metadata").read_text()
+    for variable in (
+            "SLURM_JOB_ID",
+            "SLURM_JOB_NAME",
+            "SLURM_JOB_NODELIST",
+            "SLURM_JOB_NUM_NODES",
+            "SLURM_NTASKS",
+            "SLURM_CPUS_PER_TASK",
+            "SLURM_ARRAY_JOB_ID",
+            "SLURM_ARRAY_TASK_ID",
+    ):
+        value = os.environ.get(variable)
+        if value is not None and f"{variable} = {value}" not in metadata:
+            raise RuntimeError(f"{variable} is missing from Slurm metadata")
 
     print(f"CSV: {csv_path}")
     print("PASS: Gas mixture properties match the reference data")

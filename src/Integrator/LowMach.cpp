@@ -165,7 +165,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
+            pp.select<IC::Constant,IC::Expression,IC::PNG,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
     }
@@ -372,6 +372,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
+    pp.query_default("reaction_refinement_criterion",
+                    value.reaction_refinement_criterion,
+                    "1.0e100_1/s", 1.0 / Unit::Time());
     if (value.deformable_solid_species >= 0 ||
         !value.rigid_solid_species.empty() || !value.liquid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
@@ -3777,6 +3780,10 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     const bool rigid_solid = !rigid_solid_species.empty();
     const bool liquid = !liquid_species.empty();
     const int nliquid = static_cast<int>(liquid_species.size());
+    const int ngas = ngas_species;
+    const Set::Scalar rho_floor = density_floor;
+    const ThermochemicalData reaction_data = {
+        thermal_data, chemistry_device_data, true, false, true};
 
     for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -3785,12 +3792,15 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
         Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> component_density =
+            component_density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> liquid_eta = liquid_eta_mf.Patch(lev,mfi);
         const Set::Scalar vcrit = velocity_refinement_criterion;
         const Set::Scalar pcrit = pressure_refinement_criterion;
         const Set::Scalar Tcrit = temperature_refinement_criterion;
+        const Set::Scalar reaction_crit = reaction_refinement_criterion;
         const Set::Scalar etacrit = eta_refinement_criterion;
         amrex::Box domain = geom[lev].Domain();
 
@@ -3804,6 +3814,24 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                     pressure, i, j, k, 0, dx.data(), sten);
             Set::Vector grad_T =
                 Numeric::Gradient(T, i, j, k, 0, dx.data(), sten);
+            Set::Scalar reaction_rate = 0.0;
+            if (reaction_crit < 1.0e100)
+            {
+                Set::Scalar gas_density = 0.0;
+                for (int n = 0; n < ngas; ++n)
+                    gas_density +=
+                        Util::Max(component_density(i,j,k,n), 0.0);
+                if (gas_density > rho_floor)
+                {
+                    const auto source = ComputeThermochemicalSource(
+                        component_density, T, i, j, k, dx.data(), 0.0,
+                        reaction_data, true);
+                    const auto& species_source = amrex::get<0>(source);
+                    for (int n = 0; n < ngas; ++n)
+                        reaction_rate += Util::Abs(species_source[n]);
+                    reaction_rate /= gas_density;
+                }
+            }
             bool refine_eta = false;
             if (deformable_solid)
             {
@@ -3836,6 +3864,7 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
             if (grad_u.norm() * dr > vcrit ||
                 grad_p.lpNorm<2>() * dr > pcrit ||
                 grad_T.lpNorm<2>() * dr > Tcrit ||
+                reaction_rate > reaction_crit ||
                 refine_eta)
                 tag(i,j,k) = amrex::TagBox::SET;
         });
