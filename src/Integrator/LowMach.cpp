@@ -249,6 +249,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
     pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
+    pp.query_default("reaction_refinement_criterion",
+                    value.reaction_refinement_criterion,
+                    "1.0e100_1/s", 1.0 / Unit::Time());
     if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
     pp.query_default("amr.reinitialize_condensed_composition",
@@ -2671,6 +2674,14 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     dr = std::sqrt(dr);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool rigid_solid = !rigid_solid_species.empty();
+    const int ngas = ngas_species;
+    const int number_of_species = nspecies;
+    const Set::Scalar rho_floor = density_floor;
+    const Set::Scalar p_reference = pressure_reference;
+    const Set::Scalar* inverse_reference_density =
+        amrex::get<8>(thermal_data);
+    const auto gas_data = gas_device_data;
+    const auto chemistry_data = chemistry_device_data;
 
     for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -2679,11 +2690,14 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
         Set::Patch<const Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> component_density =
+            component_density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
         const Set::Scalar vcrit = velocity_refinement_criterion;
         const Set::Scalar pcrit = pressure_refinement_criterion;
         const Set::Scalar Tcrit = temperature_refinement_criterion;
+        const Set::Scalar reaction_crit = reaction_refinement_criterion;
         const Set::Scalar etacrit = eta_refinement_criterion;
         amrex::Box domain = geom[lev].Domain();
 
@@ -2697,6 +2711,65 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                     pressure, i, j, k, 0, dx.data(), sten);
             Set::Vector grad_T =
                 Numeric::Gradient(T, i, j, k, 0, dx.data(), sten);
+            Set::Scalar reaction_rate = 0.0;
+            if (reaction_crit < 1.0e100)
+            {
+                Model::Chemistry::SpeciesArray rhoY{};
+                Set::Scalar gas_density = 0.0;
+                Set::Scalar molar_density = 0.0;
+                for (int n = 0; n < ngas; ++n)
+                {
+                    rhoY[n] =
+                        Util::Max(component_density(i,j,k,n), 0.0);
+                    gas_density += rhoY[n];
+                    molar_density += rhoY[n] /
+                        Model::Gas::Gas::MolecularWeight(gas_data, n);
+                }
+                Set::Scalar gas_volume_fraction = 0.0;
+                if (gas_density > rho_floor && T(i,j,k) > 0.0 &&
+                    p_reference > 0.0)
+                    gas_volume_fraction = Util::Clamp(
+                        molar_density *
+                        Model::Gas::Gas::UniversalGasConstant(gas_data) *
+                        T(i,j,k) / p_reference, 0.0, 1.0);
+                Set::Scalar condensed_volume_fraction = 0.0;
+                for (int n = ngas; n < number_of_species; ++n)
+                    condensed_volume_fraction +=
+                        Util::Max(component_density(i,j,k,n), 0.0) *
+                        inverse_reference_density[n];
+                const Set::Scalar reacting_volume_fraction = Util::Min(
+                    gas_volume_fraction,
+                    1.0 - Model::PhaseField::H(
+                        condensed_volume_fraction));
+                if (reacting_volume_fraction > 0.0)
+                {
+                    for (int n = 0; n < ngas; ++n)
+                        rhoY[n] /= gas_volume_fraction;
+                    Model::Chemistry::Source reaction{};
+#ifdef ALAMO_GPU
+                    const auto& [rocfire, model, solver,
+                                host_chemistry, host_gas] =
+                        chemistry_data;
+                    Util::IgnoreUnused(
+                        solver, host_chemistry, host_gas);
+                    if (rocfire)
+                        reaction = model.ComputeChemistrySources(
+                            p_reference, T(i,j,k), rhoY, 0.0, nullptr);
+#else
+                    const auto& [rocfire, model, solver,
+                                host_chemistry, host_gas] =
+                        chemistry_data;
+                    Util::IgnoreUnused(rocfire, model, solver);
+                    reaction = host_chemistry->ComputeChemistrySources(
+                        p_reference, T(i,j,k), rhoY, 0.0, host_gas);
+#endif
+                    for (int n = 0; n < ngas; ++n)
+                        reaction_rate +=
+                            reacting_volume_fraction *
+                            Util::Abs(reaction.first[n]);
+                    reaction_rate /= gas_density;
+                }
+            }
             bool refine_eta = false;
             if (deformable_solid)
             {
@@ -2719,6 +2792,7 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
             if (grad_u.norm() * dr > vcrit ||
                 grad_p.lpNorm<2>() * dr > pcrit ||
                 grad_T.lpNorm<2>() * dr > Tcrit ||
+                reaction_rate > reaction_crit ||
                 refine_eta)
                 tag(i,j,k) = amrex::TagBox::SET;
         });

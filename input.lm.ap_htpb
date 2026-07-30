@@ -21,6 +21,7 @@ amr.reinitialize_condensed_composition_eta_min = 0.99
 # Resolve the 20 um diffuse interface with approximately five cells. This also
 # avoids refining already-smooth gas temperature profiles below 3.9 um.
 eta_refinement_criterion = 0.7
+reaction_refinement_criterion = 3.0e4_1/s
 temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s

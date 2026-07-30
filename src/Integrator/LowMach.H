@@ -204,6 +204,7 @@ protected:
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
+    Set::Scalar reaction_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
     Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
