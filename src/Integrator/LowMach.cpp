@@ -139,7 +139,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
+            pp.select<IC::Constant,IC::Expression,IC::PNG,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
     }
