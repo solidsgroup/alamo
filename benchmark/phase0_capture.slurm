@@ -454,7 +454,8 @@ if have_leg nsys; then
     -o "${L}/trace" )
   if [ "${DRYRUN}" = 1 ]; then
     echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 nsys ${NSYS_ARGS[*]} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
-    echo "+ nsys stats --report nvtx_sum,nvtx_gpu_proj_sum,nvtx_kern_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.nsys-rep"
+    echo "+ nsys stats --report nvtx_sum,nvtx_gpu_proj_sum,nvtx_gpu_proj_trace,nvtx_kern_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.nsys-rep"
+    echo "+ python3 benchmark/nsys_idle.py <cuda_gpu_trace.csv> <nvtx_gpu_proj_trace.csv> --output ${L}/gpu_idle_summary.tsv"
   else
     srun --mpi=pmix -n1 --gpus-per-task=1 \
       nsys "${NSYS_ARGS[@]}" \
@@ -484,7 +485,7 @@ if have_leg nsys; then
     else
       # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
       # vary across nsys versions -- try each, record which ones existed.
-      for rep in nvtx_sum nvtx_gpu_proj_sum nvtx_kern_sum cuda_gpu_kern_sum \
+      for rep in nvtx_sum nvtx_gpu_proj_sum nvtx_gpu_proj_trace nvtx_kern_sum cuda_gpu_kern_sum \
                  cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum cuda_api_sum \
                  cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
         nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
@@ -496,9 +497,20 @@ if have_leg nsys; then
         if [ -s "${OUTCSV:-/nonexistent}" ]; then
           echo "  stats ok: ${rep}"
       else
-        echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
+          echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
         fi
       done
+      CUDA_TRACE=$(ls "${L}/cuda_gpu_trace"*.csv 2>/dev/null | head -1)
+      NVTX_TRACE=$(ls "${L}/nvtx_gpu_proj_trace"*.csv 2>/dev/null | head -1)
+      if [ -s "${CUDA_TRACE:-/nonexistent}" ] && [ -s "${NVTX_TRACE:-/nonexistent}" ]; then
+        PYTHONDONTWRITEBYTECODE=1 python3 benchmark/nsys_idle.py \
+          "${CUDA_TRACE}" "${NVTX_TRACE}" \
+          --output "${L}/gpu_idle_summary.tsv" | tee "${L}/idle.log"
+      else
+        echo "idle analysis unavailable: detailed CUDA/NVTX trace missing" \
+          | tee "${L}/IDLE_FAILED"
+        CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+      fi
       KERNEL_SUMMARY=$(ls "${L}/cuda_gpu_kern_sum"*.csv 2>/dev/null | head -1)
       if [ -s "${KERNEL_SUMMARY:-/nonexistent}" ]; then
         PYTHONDONTWRITEBYTECODE=1 python3 benchmark/nsys_discover_targets.py \

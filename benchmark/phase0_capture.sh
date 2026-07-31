@@ -208,6 +208,7 @@ case "${ACTION}" in
       --exclude='*.ncu-rep'
       --exclude='*.sqlite'
       --exclude='cuda_gpu_trace*.csv'
+      --exclude='nvtx_gpu_proj_trace*.csv'
       --exclude='plot*/'
     )
     if [ "${RAW:-0}" = "1" ]; then

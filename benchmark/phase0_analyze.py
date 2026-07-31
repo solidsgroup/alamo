@@ -130,7 +130,12 @@ def nsys(d):
         for row in csv_rows(path)[:10]:
             api.append(f"{row.get('Name', '—')}: {row.get('Total Time (ns)', '—')} ns ({row.get('Num Calls', '—')} calls)")
     sync = [x for x in api if re.search(r"Synchronize|DeviceSynchronize|StreamSynchronize", x, re.I)]
-    return kr, mem, api, sync
+    idle = []
+    idle_path = nd / "gpu_idle_summary.tsv"
+    if idle_path.exists():
+        with idle_path.open(newline="", errors="replace") as handle:
+            idle = list(csv.DictReader(handle, delimiter="\t"))
+    return kr, mem, api, sync, idle
 
 
 def ncu(d):
@@ -169,12 +174,27 @@ def capture(d):
     failures += [p for p in d.rglob("failures.txt") if read(p).strip()]
     flip = read(d / "flip" / "failures.txt")
     lines += ["", f"Flip failures: **{len([x for x in flip.splitlines() if x.strip()]) if flip else 0}**"]
-    kr, mem, api, sync = nsys(d)
+    kr, mem, api, sync, idle = nsys(d)
     lines += ["", "### Nsight Systems", "", "Top kernels (top 10):"]
     lines += [f"- {x}" for x in kr] or ["- MISSING kernel summary"]
     lines += ["", "CUDA transfers:"] + ([f"- {x}" for x in mem] or ["- MISSING CUDA memory summary"])
     lines += ["", "CUDA API top rows:"] + ([f"- {x}" for x in api] or ["- MISSING CUDA API summary"])
     lines += [f"", f"Synchronization rows: {len(sync)}"]
+    lines += ["", "GPU idle fractions:"]
+    if idle:
+        lines += [
+            "",
+            "| NVTX range | Instances | Idle fraction | Median instance idle |",
+            "|---|---:|---:|---:|",
+        ]
+        lines += [
+            f"| {row.get('range', '—')} | {row.get('instances', '—')} | "
+            f"{row.get('idle_fraction', '—')} | "
+            f"{row.get('median_instance_idle_fraction', '—')} |"
+            for row in idle
+        ]
+    else:
+        lines += ["- MISSING idle summary"]
     metrics = ncu(d)
     lines += ["", "### NCU dynamic metrics", ""]
     lines += [f"- **{name}**: " + "; ".join(f"{k}={v}" for k, v in vals.items()) for name, vals in metrics] or ["MISSING NCU CSV metrics"]
@@ -185,12 +205,19 @@ def capture(d):
 
 def unit():
     with tempfile.TemporaryDirectory() as td:
-        d = Path(td) / "_phase0_fixture"; (d / "env").mkdir(parents=True); (d / "timing" / "managed").mkdir(parents=True)
+        d = Path(td) / "_phase0_fixture"
+        (d / "env").mkdir(parents=True)
+        (d / "timing" / "managed").mkdir(parents=True)
+        (d / "nsys").mkdir(parents=True)
         (d / "env" / "inventory.txt").write_text(
             "host=test date=2026-07-31T00:00:00-05:00\n"
             "local_head=abc tree_hash=def src_hash=123\n"
         )
         (d / "timing" / "managed" / "timing.txt").write_text("mode=managed wall_median_s=1.2 failed_reps=0\n")
+        (d / "nsys" / "gpu_idle_summary.tsv").write_text(
+            "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
+            ":test\t1\t0.125000\t0.125000\n"
+        )
         out = capture(d)
         assert all(
             expected in out
@@ -201,6 +228,7 @@ def unit():
                 "wall median 1.2",
                 "device",
                 "MISSING",
+                "| :test | 1 | 0.125000 | 0.125000 |",
             )
         )
     print("phase0_analyze: unit OK")
