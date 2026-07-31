@@ -7,14 +7,14 @@ superseded — this file tracks the v2 set, which is a different and larger set.
 | # | Deliverable | § | State |
 |---|---|---|---|
 | 1 | Reproducible baseline capture | 5.1 | **DONE** — §A below |
-| 2 | Fixed oracle with stated coverage | 5.2 | **PARTIAL** — §B |
-| 3 | `AbortIfDeviceError` disabled comparison | 5.3 | NOT DONE — §C |
-| 4 | Mechanical sync inventory | 5.4 | **ENUMERATED, unranked** — §D |
-| 5 | Footprint budget including 40 GB | 5.5 | **DONE (model); high-water pending** — §E |
-| 6 | T0/T6b/T7 thresholds | 5.6 | **T0 baseline+band DONE; T7 classified (register/occupancy, NOT bandwidth); T6b blocked on F1** — §G |
+| 2 | Fixed oracle with stated coverage | 5.2 | **BLOCKED, root cause diagnosed** — §H |
+| 3 | `AbortIfDeviceError` disabled comparison | 5.3 | **HUMAN CHECKPOINT** — §H |
+| 4 | Mechanical sync inventory | 5.4 | **ENUMERATED; aggregate cost measured; per-site ranking partial** — §H |
+| 5 | Footprint budget including 40 GB | 5.5 | **DONE, measured** — §H |
+| 6 | T0/T6b/T7 thresholds | 5.6 | **T0 DONE; T7 classified; T6b and numeric T7 pending human/instrumentation** — §H |
 | 7 | Target set v2 false-pass validated in-tree | 3.1/3.3 | **PARTIAL** — §F |
-| 8 | Gap table | — | BLOCKED on 1, 6 |
-| 9 | Revised cost estimate | 6 | BLOCKED — N11 moves it again |
+| 8 | Gap table | — | **DONE** — §H |
+| 9 | Revised cost estimate | 6 | **DONE; P4 decision pending** — §H |
 
 ---
 
@@ -337,9 +337,121 @@ Collect with `bash benchmark/phase0_capture.sh collect <remote_dir>`.
 
 ## Blocking summary
 
-- **N11** — live 3D OOB in `Elastic::Diagonal`, oracle RED. Blocks §B, and
-  every cost estimate downstream.
-- **NOVA re-capture** — build `11774784` running; captures not yet submitted.
-  Blocks §5.6 thresholds, the gap table, and F1-F9.
-- **P1** does not clear without arena-level instrumentation (§F).
-- **P4** is a human decision and is now against a cost that N11 has moved.
+- **P1:** request-layer instrumentation detects churn, but live allocation
+  count and direct `FieldNorm0` attribution are still missing.
+- **P3:** the two-rank restart oracle is red because required thermal history is
+  not checkpointed. The source repair is at the required human checkpoint.
+- **P4:** the revised decision gate below has not been answered.
+- **Local GPU availability:** the final rerun is blocked by CUDA error 803.
+  NOVA evidence is complete, but the local FULL gate cannot currently run.
+
+---
+
+## §H Authoritative 2026-07-31 addendum
+
+This section supersedes the earlier “submitted/pending” capture status. The
+full evidence and invalid-retry history are in
+`phase0-baseline/results/figures/PHASE0_CAPTURE_SUMMARY.md`; the concise
+measurement narrative is in `phase0-baseline/results/RESULT.md` H17-H21.
+
+### H.1 Configuration and provenance
+
+No metric below combines incompatible configurations:
+
+| Purpose | Runtime/build | Provenance |
+|---|---|---|
+| T0 | plain binary, paired short/long, balanced five-run order | `2057d3206 / 05fe0312f5798018` |
+| F1-F3/F9 | fine-NVTX profile binary, managed arena, 90/110-step trace | `ce3e47acf / 073ff4f513fbcf63` |
+| T4/T5a | profile binary, device arena, endpoint request tables | `ce3e47acf / 073ff4f513fbcf63` |
+| T5a production stability | profile binary, device arena, 6,000 steps | `1433d55a0 / 293f2d1b0e208804` |
+| NCU selector recovery | fine-NVTX profile binary, managed arena | supplemental captures, selector table retained per capture |
+
+All rows run binaries built from `src_hash=c88836ce414b44cc`.
+
+### H.2 T0 baseline
+
+| Case | Device median (s/step) | MAD (s/step) | Managed median | Paired arena verdict |
+|---|---:|---:|---:|---|
+| `input_copy` | **0.42729** | 0.00156 | 0.42750 | inconclusive |
+| `input` | **0.08290** | 0.00202 | 0.08512 | inconclusive |
+| 3D centre-bore | **0.09271** | 0.00076 | 0.09562 | inconclusive |
+
+These device medians/MADs are the Phase 0 T0 baseline and uncertainty band.
+None licenses an arena-speedup claim.
+
+### H.3 Target gap table
+
+| Target | Phase 0 observation | State | Closure |
+|---|---|---|---|
+| T0 | Balanced five-run medians above; all paired 2-MAD bands overlap zero | **BASELINED** | Compare every phase against device median + uncertainty |
+| T1 | Device-arena endpoints have zero application managed requests; production source has no managed call, while `src/Test/BC/Constant.H` does and diagnostic launchers intentionally enable managed | **HUMAN DEFINITION NEEDED** | Adopt production launch practice (`the_arena_is_managed=0`) as “current state,” recommended |
+| T2 | UM reports empty/unavailable, not zero | **NA/BLOCKED ON T1** | Re-capture only after T1 configuration is fixed |
+| T3a-c | Single-rank transfer bytes/counts measured; blocking memcpy count is zero; linked MPI has CUDA support disabled | **GAP** | Attribute small transfers; GPU-aware MPI build required before multi-rank pass |
+| T4 | Primary 6,000-step run: 19,829.974 device requests/step and 15,615.913 pinned requests/step; known flag/operator churn detected | **FAIL / P1 PARTIAL** | Directly attribute `FieldNorm0`, then justify or remove every steady request class |
+| T5a | Primary 135→138 MiB over 6,000 steps; 3D peak 26,569 MiB | **PASS** | Preserve through later phases; 40 GiB clears |
+| T5b | AMReX table emitted after teardown, no live endpoint count | **UNAVAILABLE / P1 BLOCKER** | Human-approved in-evolution memory endpoint probe |
+| T5c | `Ballistic::Advance` appends to unread `dpdt` vector every step | **FAIL** | Bound/remove history or expand Ballistic scope |
+| T6a | 7 explicit stream sync sites, 10 device-result landings, 11 blocking collectives; profile traces show 1,559-33,656 CUDA sync calls/step | **FAIL / PARTIALLY RANKED** | Abort A/B first; use coarse ranges to attribute remaining gaps |
+| T6b | Fine diagnostic idle is 65.9%, 60.9%, and 10.2% for the three decks | **NO GATE VALUE** | Fine NVTX is inadmissible; approve coarse instrumentation and threshold review |
+| T7 | 2D is launch/underfill-limited; 3D `Fapply` and `prepareForSolve` are register-limited; `SetModel`/`Fsmooth` are memory-dominant | **CLASSIFIED, NUMERIC GATE PENDING** | Human signs off per-class targets |
+
+### H.4 False-pass meta-gate
+
+Closed:
+
+- full payload provenance and source hashes;
+- failed required SLURM legs propagate;
+- missing scheduler/profile evidence differs from zero;
+- semantic NCU owner/arity validation catches the known wrong kernels;
+- legacy and unbalanced timing cannot enter T0;
+- Tier 2 requires both sanitizer cleanliness and application exit zero;
+- the top-level status script propagates FAIL and BLOCKED exit codes.
+
+Open:
+
+- T5b still cannot observe its claimed property;
+- `FieldNorm0` is not directly attributable at the request layer;
+- T6b has no admissible coarse capture;
+- the two-rank/regrid/restart oracle is red.
+
+P1 and P3 therefore remain blocking.
+
+### H.5 Revised cost estimate for P4
+
+These are engineering ranges, not elapsed cluster time:
+
+| Scope | Estimated effort | Main risk |
+|---|---:|---|
+| Finish Phase 0 (oracle, live endpoint, coarse NVTX, Abort A/B, reruns) | 2-4 days | checkpoint compatibility and human review |
+| Phase 1a arena hygiene | 1-3 days | launch/configuration coverage |
+| Phase 1b lifetime redesign | 6-10 days | operator lifetime across regrid; persistent `FieldNorm0` scratch |
+| Phase 2 without Ballistic port | 4-7 days | cannot fully clear T3/T5c |
+| Phase 2 with Ballistic/global-reduction path | 7-12 days | device-result reduction, Allreduce shape, diagnostic contract |
+| Phase 3 tuning | 4-8 days | register spilling, workload-dependent underfill |
+
+Full target compliance including Ballistic is therefore roughly **20-33
+engineer-days**, plus queue time and required human review. Omitting the
+Ballistic port is cheaper but knowingly leaves the governing residency target
+and T5c unmet; it is not an equivalent completion path.
+
+### H.6 Required human decisions
+
+Immediate correctness checkpoint:
+
+1. Approve persisting `temps` and `thermal.has_exceeded_Tcutoff`, plus an
+   explicit abort when an old checkpoint lacks a required current field.
+
+Before Phase 1:
+
+2. Decide chamber versus `multicomponent/FMA` at the 20-33 day estimate and
+   state whether chamber currently gates SRM paper throughput.
+3. Resolve Ballistic scope: port it, or explicitly accept that T3/T5c cannot
+   pass. Duplicating its formula in Flame is not recommended.
+4. Define T1 current state. Recommendation: production launch practice with
+   `amrex.the_arena_is_managed=0`; managed diagnostic launchers are not the
+   production state.
+5. Approve the scratch-only Abort A/B, the in-evolution T5b endpoint, and a
+   coarse-NVTX build/capture.
+6. Sign off T6b/T7 numeric thresholds after the admissible coarse capture.
+
+Until those checkpoints clear, **Phase 1 is not authorized**.

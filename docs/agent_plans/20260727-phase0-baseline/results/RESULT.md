@@ -3,8 +3,10 @@
 Campaign: `docs/agent_plans/20260727-gpu-memory-strategy/PLAN.md` §6.
 Branch: `chamber-gpu-mem`. Started 2026-07-27.
 
-Status: **IN PROGRESS** — local legs L1-L4 done; L5 (NOVA batch) composed and
-awaiting the pre-submit checkpoint; N1-N5 and the decision gate pending.
+Status: **IN PROGRESS / HUMAN CHECKPOINT** — the reproducible NOVA baseline,
+production-length stability run, gap table, and revised cost estimate now
+exist. Phase 0 does not exit: P1, P3, and P4 remain open, so Phase 1 has not
+started.
 
 ---
 
@@ -768,6 +770,146 @@ After a new content push (`local_head=ce3e47acf`,
 | `11825578` | `input` | full five-solve timing + diagnostic figures |
 | `11825579` | 3D | full five-solve timing + diagnostic figures |
 | `11825580` | `input_copy` | 6,000-step production-length arena endpoint |
+
+### H17 — final exact-source diagnostic capture
+
+The replacement suite completed with zero required-leg failures:
+
+| Job | Deck | Result |
+|---:|---|---|
+| `11825577` | `input_copy` | full diagnostic capture |
+| `11825578` | `input` | full diagnostic capture |
+| `11825579` | 3D centre-bore | full diagnostic capture |
+| `11826800` | `input_copy` | corrected 6,000-step arena endpoint |
+
+The three full captures use
+`local_head=ce3e47acf`, `tree_hash=073ff4f513fbcf63`; the long endpoint and
+supplemental recovery jobs use later harness keys. Every one runs the same
+application source, `src_hash=c88836ce414b44cc`. Profile reports and timing
+were deliberately kept as separate configurations: nsys/NCU use the
+fine-NVTX managed-arena diagnostic binary, while request/high-water captures
+use the device arena and T0 uses the non-profile binary.
+
+| Deck | Device high-water | Device / pinned request delta per step | CUDA transfers per trace step | CUDA sync calls and API time per step | Fine-NVTX `Evolve` idle |
+|---|---:|---:|---|---:|---:|
+| `input_copy` | 135 → 137 MiB (200 steps) | 15,362.472 / 11,418.372 | D2D 64.484 MiB / 5.244; H2D 0.673 / 428.633; D2H 0.455 / 7.956 | 33,656.133 / 245.467 ms | 0.658682 |
+| `input` | 161 → 181 MiB (250 steps) | 12,398.470 / 2,626.655 | D2D 779.187 MiB / 76.964; H2D 2.436 / 2,247.691; D2H 0.425 / 34.236 | 3,955.391 / 21.105 ms | 0.609286 |
+| 3D | 3,171 → 26,569 MiB (250 steps) | 635.096 / 246.590 | H2D 0.136 MiB / 68.827; D2H 0.001 / 7.091; D2D 0.0004 / 2.073 | 1,559.491 / 116.431 ms | 0.102001 |
+
+The blocking `cudaMemcpy*` count is zero in all three traces. Unified-memory
+reports are empty/unavailable, not observed zeros, and T2 therefore remains
+`NA` until T1's configuration is fixed. The linked Open MPI 5.0.8 reports
+`mpi_built_with_cuda_support=false`; multi-rank T3 cannot pass on this build.
+The idle fractions are diagnostic only: the fine-NVTX build is explicitly
+inadmissible for T6b.
+
+### H18 — production stability is flat; allocation churn is not
+
+Job `11826800` actually ran the production 6,000-step horizon
+(`00:60:38`, scheduler exit `0:0`):
+
+- device high-water: **135 → 138 MiB**;
+- reserved arena: 60,863 MiB at both endpoints;
+- managed requests: **0**;
+- device requests: 3,281 → 118,963,298, or **19,829.974 per added step**;
+- pinned requests: 1,258 → 93,681,119, or **15,615.913 per added step**.
+
+T5a is therefore stable on the primary production deck, and the measured 3D
+26,569 MiB high-water clears a 40 GiB device. This is not a T4/T5b pass:
+pooling keeps the high-water flat while request churn continues. AMReX prints
+the memory table after balanced teardown and exposes Nalloc/AvgMem/MaxMem, not
+the live allocation count at the in-evolution endpoint, so T5b is
+**UNAVAILABLE**.
+
+The request metric catches two known false-pass instances directly:
+
+- `Integrador::Flame::Advance` grows from 6 to 1,200 device requests over
+  200 `input_copy` steps: exactly six requests per coarse step around the
+  per-step device error flag.
+- `Integrator::Base::Mechanics::TimeStepBegin` and
+  `Operator::Elastic::define()` appear as large per-solve allocation regions,
+  exposing operator/solver reconstruction hidden by arena recycling.
+
+`FieldNorm0` still has no directly attributable memory-profile region. P1
+therefore remains open. T5c also fails statically:
+`Model/Chamber/Ballistic.H` appends `current_dpdt` to an otherwise unread host
+vector once per step.
+
+### H19 — NCU Pareto recovered without semantic false passes
+
+The original supplemental selectors produced two plausible but wrong reports:
+`input_copy` rank 3 captured `ResizeRandomSeed`, and `input` rank 6 captured
+`Mechanics::Advance`. Two reduction retries then captured LogicalOr and the
+four-component `ReduceOps<Sum,Sum,Sum,Sum>::value`. All four captures carry
+`SEMANTIC_VALIDATION_FAILED` and are excluded.
+
+The discovery/analyzer pair now preserves owner qualification and exact
+reduction arity. Recovery jobs `11827641` and `11827815` prove the selectors
+against `Integrator::Flame::Advance` and the scalar
+`ReduceOps<Sum>::value`, respectively. Job `11826790` is complete 4/4 for 3D.
+
+| Kernel | GPU-time rank/share | Grid | Registers/thread | Theoretical / achieved occupancy | DRAM / SM throughput | Classification |
+|---|---:|---:|---:|---:|---:|---|
+| 3D `Fapply` | 1 / 61.3% | 2,315 | 254 | 12.50 / 11.95% | 11.86 / 31.01% | register-limited |
+| 3D `SetModel` | 2 / 5.4% | 1,284 | 26 | 100 / 93.32% | 32.16 / 2.70% | memory/latency-dominant |
+| 3D `Fsmooth` | 3 / 5.3% | 1,284 | 55 | 50 / 43.77% | 48.49 / 26.96% | memory-dominant with register cap |
+| 3D `prepareForSolve` | 4 / 4.7% | 1,140 | 255 | 12.50 / 12.37% | 4.35 / 13.52% | register-limited |
+| 2D scalar Sum landing | 3 / 12.2% | 1 | 24 | 100 / 11.95% | 0.05 / 0.03% | launch/underfill |
+| 2D Flame `Advance` | 6 / 6.0% | 16 | 52 | 50 / 12.48% | 0.60 / 2.59% | launch/underfill |
+
+The other top 2D kernels have grids 1-35 and the same underfill signature.
+This establishes limiter classes, but it does not authorize numeric T7
+thresholds. Those remain a human decision, as does the coarse-NVTX work
+required to set T6b.
+
+### H20 — admissible five-run T0 baseline
+
+Job `11826791` demonstrated why independent random draws were insufficient: all
+five realized orders were managed-first. Its apparent device advantage is
+supporting evidence only. The harness now randomizes the starting arm and
+alternates thereafter, guaranteeing a 3:2 or 2:3 first-arm balance. The
+analyzer rejects legacy, incomplete-order, and unbalanced captures.
+
+Replacement jobs `11827999-11828001` all completed with zero failed
+repetitions and zero required-leg failures. Provenance is
+`local_head=2057d3206`, `tree_hash=05fe0312f5798018`,
+`src_hash=c88836ce414b44cc`.
+
+| Deck | Managed median ± MAD (s/step) | Device median ± MAD (s/step) | Paired device − managed median; MAD | Verdict |
+|---|---:|---:|---:|---|
+| `input_copy` | 0.42750 ± 0.00195 | **0.42729 ± 0.00156** | −0.00325; 0.00389 | inconclusive |
+| `input` | 0.08512 ± 0.00244 | **0.08290 ± 0.00202** | −0.00068; 0.00236 | inconclusive |
+| 3D | 0.09562 ± 0.00032 | **0.09271 ± 0.00076** | −0.00335; 0.00168 | inconclusive |
+
+The device medians and MADs are the T0 baseline/band for the production arena
+configuration. All paired 2-MAD intervals overlap zero; Phase 0 makes no claim
+that changing arenas improves wall time.
+
+### H21 — correctness gate is honestly red/blocked
+
+Two final false-pass paths were removed:
+
+1. Tier 2 now requires both `ERROR SUMMARY: 0 errors` and application exit 0.
+   The preserved N11 sanitizer run is memory-clean through the first elastic
+   diagonal but ends in `MLMG failed`; it can no longer report PASS.
+2. `benchmark/status.sh` now propagates failed and blocked legs through its
+   process exit code. CUDA error 803 / missing runtime is classified BLOCKED,
+   not as a source correctness failure.
+
+The current local driver became unavailable with CUDA error 803 during the
+final fast rerun, so the local GPU smoke is presently BLOCKED. Before that
+external-state change, device lint, CPU golden, and the pre-elastic smoke
+passed.
+
+P3 has a separate, reproduced correctness blocker. The strict two-rank C2
+continuous leg passes, but CPU and GPU restart legs fail because the thermal
+kernel reads `temps_mf` after restart even though that field is not
+checkpointed; `thermal.has_exceeded_Tcutoff` is adjacent uncheckpointed
+history. The proposed fix is to persist both fields and make a missing required
+checkpoint field an explicit compatibility error. Per the plan's correctness
+checkpoint, no application-source edit was made without human approval.
+
+**Phase 0 remains open. Phase 1 has not started.**
 
 ---
 
