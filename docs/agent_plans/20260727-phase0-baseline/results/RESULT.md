@@ -700,6 +700,28 @@ with `afterok` dependencies.  An optional initial `DEPENDENCY=<jobid>` can chain
 the first capture after a build or prerequisite.  The dirty-source final suite
 will use serial submission.
 
+### H14 — one command produces a reviewable capture summary
+
+`benchmark/phase0_analyze.py` reads one or more bounded collection directories
+and emits a combined Markdown summary of provenance, five-run timing, arena
+high-water/request tables, flip failures, the nsys kernel/transfer/API
+summaries, synchronization rows, and dynamically selected NCU metrics.  Missing
+artifacts and nonempty failure markers remain visible rather than becoming
+zeros.
+
+The analyzer is stdlib-only, has an in-memory `--unit` fixture, and was exercised
+against the valid exploratory 2D and 3D collections.  Its output correctly
+recovers the 3D 26,569 MiB high-water and the application allocation regions
+behind it while excluding the arena's 59 GiB reservation from the top-request
+list.
+
+The exact dirty source completed NOVA build job `11825501` in 13m14s.  After
+re-pushing the capture/reporting commits, its application source hash remained
+`c88836ce414b44cc`; the complete provenance key is
+`local_head=d984e41c8`, `tree_hash=ed21c64ba857352d`.  The final serialized
+suite is jobs `11825546` (`input_copy`), `11825547` (`input`), and `11825548`
+(`input_3d_centre_bore_128_a2`).
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
