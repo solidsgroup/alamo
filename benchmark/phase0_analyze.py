@@ -254,8 +254,14 @@ def nsys(d):
         um_status = "EMPTY/UNAVAILABLE (inspect stats.log before claiming zero)"
     else:
         um_status = "MISSING"
-    run_text = read(nd / "run.log")
+    run_log = nd / "run.log"
+    run_text = read(run_log)
     managed_rows = profile_memory_rows(run_text, "Managed Memory Usage:")
+    managed_status = (
+        "MISSING"
+        if not run_log.exists()
+        else ("ROWS" if managed_rows else "EMPTY")
+    )
     trace_steps = len(re.findall(
         r"^STEP\s+\d+\s+starts", run_text, re.MULTILINE
     ))
@@ -300,7 +306,17 @@ def nsys(d):
         )
         normalized["sync_calls_per_step"] = sync_calls / trace_steps
         normalized["sync_ms_per_step"] = sync_ns / trace_steps / 1.0e6
-    return kr, mem, api, sync, idle, um_status, normalized, managed_rows
+    return (
+        kr,
+        mem,
+        api,
+        sync,
+        idle,
+        um_status,
+        normalized,
+        managed_rows,
+        managed_status,
+    )
 
 
 def ncu_target_matches(target, kernel_name):
@@ -525,6 +541,7 @@ def capture(d):
         um_status,
         normalized,
         managed_rows,
+        managed_status,
     ) = nsys(d)
     lines += ["", "### Nsight Systems", "", "Top kernels (top 10):"]
     lines += [f"- {x}" for x in kr] or ["- MISSING kernel summary"]
@@ -553,7 +570,9 @@ def capture(d):
         ]
     lines += ["", f"Unified-memory page-fault reports: **{um_status}**"]
     lines += ["", "Managed-pool application requests (profile run):"]
-    if managed_rows:
+    if managed_status == "MISSING":
+        lines += ["- **MISSING** managed-memory profile log."]
+    elif managed_rows:
         lines += [
             "",
             "| Region | Nalloc | MaxMem |",
@@ -742,6 +761,10 @@ def unit():
                 "| explicit_stream_sync | src/probe.H:9 |",
             )
         )
+        (d / "nsys" / "run.log").unlink()
+        missing_out = capture(d)
+        assert "- **MISSING** managed-memory profile log." in missing_out
+        assert "No non-initialization managed-pool rows found" not in missing_out
     print("phase0_analyze: unit OK")
 
 
