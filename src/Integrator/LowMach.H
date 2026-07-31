@@ -237,6 +237,7 @@ protected:
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
     Operator::Diffusion diffusion;
     Operator::PressurePoisson pressure_poisson;
+    bool synchronize_restart_state = false;
 };
 }
 

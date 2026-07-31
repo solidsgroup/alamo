@@ -116,6 +116,7 @@ namespace Util
 std::string filename = "";
 std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
+bool restart_in_place = false;
 bool initialized = false;
 bool finalized = false;
 
@@ -163,9 +164,10 @@ void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
             else          destinationpath = filename+"/"+basefilename;
 
             // Copy the file where the file name is the absolute path, with / replaced with _
-            if (std::filesystem::exists(destinationpath))
+            if (std::filesystem::exists(destinationpath) && !restart_in_place)
                 Util::Exception(INFO,"Trying to copy ",destinationpath," but it already exists.");
-            std::filesystem::copy_file(a_path,destinationpath);
+            if (!std::filesystem::exists(destinationpath))
+                std::filesystem::copy_file(a_path,destinationpath);
         }
     }
     catch (std::filesystem::filesystem_error const& ex)
@@ -275,10 +277,14 @@ void Initialize (int argc, char* argv[])
 
     if (!IO::ParmParse::InTraversalMode() && filename != "")
     {
+        int restart_in_place = 0;
+        pp.query_default("restart.in_place", restart_in_place, false);
+        Util::restart_in_place = restart_in_place;
         if (amrex::ParallelDescriptor::IOProcessor())
         {
-            file_overwrite = Util::CreateCleanDirectory(filename, false);
-            IO::OutputLog::Open(filename + "/out.log");
+            if (!restart_in_place)
+                file_overwrite = Util::CreateCleanDirectory(filename, false);
+            IO::OutputLog::Open(filename + "/out.log", restart_in_place);
             IO::WriteMetaData(filename);
         }
         else
