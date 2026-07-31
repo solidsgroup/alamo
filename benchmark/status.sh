@@ -41,6 +41,8 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 FULL="${FULL:-0}"
+GATE_FAILURES=0
+GATE_BLOCKERS=0
 
 echo "== chamber-gpu status $(date -Is) =="
 echo "branch:  $(git branch --show-current)"
@@ -55,11 +57,27 @@ else
 fi
 
 run_gate () {
-  local name="$1"; shift
-  if [ ! -x "$1" ]; then echo "$name: MISSING ($1)"; return; fi
-  local log="benchmark/_gate_logs/$(basename "$1" .sh).log"
-  mkdir -p benchmark/_gate_logs
-  if "$@" >"$log" 2>&1; then echo "$name: PASS"; else echo "$name: FAIL (see $log)"; fi
+    local name="$1"; shift
+    if [ ! -x "$1" ]; then
+        echo "$name: MISSING ($1)"
+        GATE_BLOCKERS=$((GATE_BLOCKERS + 1))
+        return
+    fi
+    local log="benchmark/_gate_logs/$(basename "$1" .sh).log"
+    mkdir -p benchmark/_gate_logs
+    "$@" >"$log" 2>&1
+    local rc=$?
+    if [ "$rc" -eq 0 ]; then
+        echo "$name: PASS"
+    elif [ "$rc" -eq 2 ] || grep -qiE \
+        "CUDA error 803|unsupported display driver / cuda driver combination|no CUDA-capable device" \
+        "$log"; then
+        echo "$name: BLOCKED (see $log)"
+        GATE_BLOCKERS=$((GATE_BLOCKERS + 1))
+    else
+        echo "$name: FAIL (see $log)"
+        GATE_FAILURES=$((GATE_FAILURES + 1))
+    fi
 }
 
 run_gate "device-lint          " benchmark/lint_device_patterns.sh
@@ -83,6 +101,7 @@ if [ "${FULL}" = "1" ]; then
     run_gate "golden-gpu-strict    " benchmark/ci_golden_compare.sh
   else
     echo "golden-gpu-strict    : BLOCKED (nvcc not on PATH; leg did not run)"
+    GATE_BLOCKERS=$((GATE_BLOCKERS + 1))
   fi
   run_gate "a100-memcheck-tier2  " benchmark/local_a100_gate.sh
 else
@@ -102,3 +121,14 @@ echo "== open task folders =="
 ls -d docs/agent_plans/*/ 2>/dev/null | while read -r d; do
   if [ ! -f "${d}results/DONE" ]; then echo "OPEN: $d"; fi
 done
+
+echo
+if [ "${GATE_FAILURES}" -ne 0 ]; then
+  echo "status: FAIL (${GATE_FAILURES} failed gate(s), ${GATE_BLOCKERS} blocker(s))"
+  exit 1
+elif [ "${GATE_BLOCKERS}" -ne 0 ]; then
+  echo "status: BLOCKED (${GATE_BLOCKERS} gate(s) did not run)"
+  exit 2
+else
+  echo "status: PASS"
+fi
