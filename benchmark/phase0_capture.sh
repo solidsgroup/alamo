@@ -188,7 +188,26 @@ case "${ACTION}" in
     mkdir -p "${LOCAL_RESULTS}/${NAME}"
     echo "=== rsync ${HOST}:${REMOTE} -> ${LOCAL_RESULTS}/${NAME}"
     # Traces are large; CSVs and logs are what the figure set is built from.
-    rsync -az --info=stats1 "${HOST}:${REMOTE}/" "${LOCAL_RESULTS}/${NAME}/"
+    # Keep raw profiler reports and plot/checkpoint trees on NOVA unless the
+    # caller explicitly requests them.  The old command copied everything
+    # despite this comment, which can silently pull multi-gigabyte traces and
+    # dozens of repeated timing plot trees into the worktree.
+    COLLECT_FILTERS=(
+      --exclude='*.nsys-rep'
+      --exclude='*.ncu-rep'
+      --exclude='*.sqlite'
+      --exclude='cuda_gpu_trace*.csv'
+      --exclude='plot*/'
+    )
+    if [ "${RAW:-0}" = "1" ]; then
+      COLLECT_FILTERS=()
+    fi
+    rsync -az --info=stats1 "${COLLECT_FILTERS[@]}" \
+      "${HOST}:${REMOTE}/" "${LOCAL_RESULTS}/${NAME}/"
+    if [ "${RAW:-0}" != "1" ]; then
+      echo "=== raw profiler reports and plot trees retained at ${HOST}:${REMOTE}"
+      echo "    rerun with RAW=1 only when local raw artifacts are required"
+    fi
     echo "=== collected:"
     find "${LOCAL_RESULTS}/${NAME}" -maxdepth 2 -type f | head -40
     ;;

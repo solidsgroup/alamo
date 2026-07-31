@@ -625,9 +625,51 @@ source build:
 - unchanged binary source key `src_hash=27c2d8305f2d553c`;
 - replacement capture job `11825460`.
 
+Job `11825460` then supplied a second useful refusal: every simulation leg
+aborted because the clean binary does not recognize the production deck's
+`elastic.chi_refinement_criterion`.  That input belongs with the user's
+uncommitted Flame/thermoelastic source, so pairing it with the clean binary
+would not represent any runnable revision.  `11825460` is also excluded from
+the ledger.  The exact working source was pushed under
+`tree_hash=c055db44ec3a3a30`, `src_hash=c88836ce414b44cc`, and build job
+`11825501`.
+
 `bash -n` and dry runs for all three decks pass; each dry run prints its deck
 hash, cadence, and a horizon covering at least two intervals.  The fast status
 gate also remains green.
+
+### H10 — light collection must leave raw artifacts on NOVA by default
+
+The collect action claimed to move only CSVs and logs but actually rsynced
+everything.  One valid 3D capture contains roughly 570 MB of NCU reports, a
+67 MB sqlite database, a 22 MB nsys report, repeated plot/checkpoint trees, and
+a 118 MB detailed GPU trace CSV.  The 2D `input` GPU trace alone is 1.2 GB.
+
+Default collection now excludes raw NCU/nsys/sqlite reports, detailed
+`cuda_gpu_trace` CSVs, and plot trees, and prints the remote path retaining
+them.  `RAW=1` remains an explicit escape hatch.  The first bounded collection
+of job `11825424` moved 1.34 MB rather than hundreds of megabytes.
+
+### H11 — discover distinct NCU kernels from the nsys Pareto
+
+The first successful full 3D nsys capture (`11825424`) ranked raw kernels by
+GPU time:
+
+| Rank | Kernel family | GPU time |
+|---:|---|---:|
+| 1 | `Operator::Elastic::Fapply` | 59.4% |
+| 2 | `placementNew<Set::Matrix4>` | 6.3% |
+| 3 | `Operator::Elastic::SetModel` | 4.9% |
+| 4 | the actual `Operator::Fsmooth` kernel | 4.9% |
+
+`benchmark/nsys_discover_targets.py` now writes the complete top-10 table and
+derives demangled-name NCU selectors for the first four distinct functions.
+The NCU leg consumes those selectors.  This removes the nested-range false pass
+where `Fapply`, `Fsmooth`, and `mgVcycle` all captured `Fapply`.
+
+The parser has a stdlib-only unit test and was exercised against the collected
+3D CSV; `bash -n` and the capture dry run pass.  Hardware selector validation
+is pending the dirty-source rebuild/capture.
 
 ---
 

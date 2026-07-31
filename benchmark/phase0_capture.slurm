@@ -66,6 +66,7 @@ GPU_TYPE="${GPU_TYPE:-a100}"
 LEGS="${LEGS:-env timing flip arena nsys ncu}"
 DRYRUN="${DRYRUN:-0}"
 NCU_LAUNCHES="${NCU_LAUNCHES:-3}"   # ncu serializes; a handful of launches is plenty
+NCU_TARGETS="${NCU_TARGETS:-4}"      # distinct functions from nsys's top-10 table
 MGS="${MGS:-64}"                    # NOVA-like multi-box layout
 ARENA_FRAC="${ARENA_FRAC:-0.5}"     # fraction of device memory claimed up front, per rank
 
@@ -485,6 +486,17 @@ if have_leg nsys; then
           echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
         fi
       done
+      KERNEL_SUMMARY=$(ls "${L}/cuda_gpu_kern_sum"*.csv 2>/dev/null | head -1)
+      if [ -s "${KERNEL_SUMMARY:-/nonexistent}" ]; then
+        PYTHONDONTWRITEBYTECODE=1 python3 benchmark/nsys_discover_targets.py \
+          "${KERNEL_SUMMARY}" --top 10 --ncu-targets "${NCU_TARGETS}" \
+          --top-output "${L}/discovered_top10.tsv" \
+          --target-output "${L}/discovered_ncu_targets.tsv" \
+          | tee "${L}/discovery.log"
+      else
+        echo "kernel discovery unavailable: cuda_gpu_kern_sum is empty" \
+          | tee "${L}/DISCOVERY_FAILED"
+      fi
     fi
   fi
   echo "  F1 is read first at every phase boundary (campaign §12). Open trace.nsys-rep,"
@@ -500,19 +512,26 @@ if have_leg ncu; then
     echo "  SKIPPED: counters unavailable or unverified on this node (see env leg)."
     echo "  Use benchmark/res_usage.sh as the root-free substitute."
   else
-    # Select by NVTX range, not kernel name: AMReX launches all appear as
-    # `launch_global`, which is why a --kernel-name filter comes back empty
-    # (see the ncu-empty root-cause finding).
+    # The nsys leg ranks raw kernels by total GPU time and derives demangled-name
+    # selectors for the first distinct functions. This is load-bearing:
+    # Fapply is nested under Fsmooth and mgVcycle, so NVTX range filters profile
+    # Fapply three times while never measuring the actual Fsmooth kernel.
     SECTIONS=( --section SpeedOfLight
                --section SpeedOfLight_RooflineChart
                --section MemoryWorkloadAnalysis
                --section Occupancy
                --section LaunchStats )
-    for range in "Operator::Elastic::Fapply()" "Operator::Fsmooth()" "MLMG::mgVcycle()"; do
-      tag=$(echo "${range}" | tr -cd '[:alnum:]')
-      if [ "${DRYRUN}" = 1 ]; then
-        echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ncu --nvtx --nvtx-include \"${range}/\" --launch-count ${NCU_LAUNCHES} --kill yes ${SECTIONS[*]} -o ${L}/${tag} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
-      else
+    TARGETS_FILE="${OUT}/nsys/discovered_ncu_targets.tsv"
+    if [ "${DRYRUN}" = 1 ]; then
+      echo "+ python3 benchmark/nsys_discover_targets.py <cuda_gpu_kern_sum.csv> --top 10 --ncu-targets ${NCU_TARGETS} ..."
+      echo "+ for each discovered selector: srun ... ncu --kernel-name-base demangled --kernel-name <regex> --launch-count ${NCU_LAUNCHES} --kill yes ..."
+    elif [ ! -s "${TARGETS_FILE}" ]; then
+      echo "  SKIPPED: discovered targets missing (${TARGETS_FILE}); NCU cannot claim F4." \
+        | tee "${L}/DISCOVERY_FAILED"
+    else
+      while IFS=$'\t' read -r rank time_percent total_time_ms instances label selector; do
+        [ "${rank}" = "rank" ] && continue
+        tag=$(printf 'rank%s_%s' "${rank}" "${label}" | tr -cd '[:alnum:]_')
         # --kill yes is load-bearing, not tidiness. Without it ncu collects its
         # NCU_LAUNCHES matches at the FIRST elastic solve and then lets the app
         # run the whole horizon with NVTX collection still attached, retaining
@@ -522,18 +541,25 @@ if have_leg ncu; then
         # three ranges the same way. The two survivors still wrote 173 MB
         # reports for 3 profiled launches.
         srun --mpi=pmix -n1 --gpus-per-task=1 \
-          ncu --nvtx --nvtx-include "${range}/" --launch-count "${NCU_LAUNCHES}" \
+          ncu --kernel-name-base demangled --kernel-name "${selector}" \
+              --launch-count "${NCU_LAUNCHES}" \
               --kill yes \
               "${SECTIONS[@]}" -o "${L}/${tag}" --force-overwrite \
           "./${PROF_BIN}" "${COMMON[@]}" "${MANAGED[@]}" max_step="${TRACE_STEP}" \
           stop_time=1e99_s plot_file="${L}/plot_${tag}" > "${L}/${tag}.log" 2>&1
         # rc is EXPECTED to be nonzero under --kill yes: ncu terminates the app
         # once it has its launches, so judge this leg by the .ncu-rep, not rc.
-        echo "  ${range} rc=$? (nonzero is normal under --kill yes) -> ${L}/${tag}.ncu-rep"
-        ncu --import "${L}/${tag}.ncu-rep" --csv --page details > "${L}/${tag}.csv" 2>>"${L}/${tag}.log" \
-          && echo "    csv exported"
-      fi
-    done
+        NCU_RC=$?
+        echo "  rank=${rank} ${label} (${time_percent}% GPU, ${selector}) rc=${NCU_RC} -> ${L}/${tag}.ncu-rep"
+        if [ -s "${L}/${tag}.ncu-rep" ]; then
+          ncu --import "${L}/${tag}.ncu-rep" --csv --page details \
+            > "${L}/${tag}.csv" 2>>"${L}/${tag}.log" && echo "    csv exported"
+        else
+          echo "rank=${rank} label=${label} selector=${selector} produced no report" \
+            | tee "${L}/${tag}.CAPTURE_FAILED"
+        fi
+      done < "${TARGETS_FILE}"
+    fi
   fi
 fi
 
