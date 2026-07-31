@@ -1857,7 +1857,8 @@ LowMach::ComputeThermochemicalSource(
     Set::Patch<const Set::Scalar> component_density,
     Set::Patch<const Set::Scalar> T,
     int i, int j, int k, const Set::Scalar* DX, Set::Scalar dt,
-    const ThermochemicalData& data, bool include_reaction)
+    const ThermochemicalData& data, bool include_reaction,
+    bool project_negative_gas_density)
 {
     const auto& [thermal, chemistry_data, implicit_species_diffusion,
                  include_conduction, implicit_thermal_diffusion] = data;
@@ -1882,7 +1883,9 @@ LowMach::ComputeThermochemicalSource(
     // calculate density (and molar density) of gas species only
     for (int n = 0; n < ngas_species; ++n)
     {
-        rhoY[n] = component_density(i,j,k,n);
+        rhoY[n] = project_negative_gas_density ?
+            Util::Max(component_density(i,j,k,n), 0.0) :
+            component_density(i,j,k,n);
         gas_density += rhoY[n];
         molar_density += rhoY[n] /
             Model::Gas::Gas::MolecularWeight(gas_data, n);
@@ -3823,9 +3826,14 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                         Util::Max(component_density(i,j,k,n), 0.0);
                 if (gas_density > rho_floor)
                 {
+                    // Conservative transport can leave small negative species
+                    // undershoots where split chemistry is inactive.  Project
+                    // the diagnostic state just as AdvanceChemistry does; AMR
+                    // tagging must not turn those undershoots into a chemistry
+                    // model abort.
                     const auto source = ComputeThermochemicalSource(
                         component_density, T, i, j, k, dx.data(), 0.0,
-                        reaction_data, true);
+                        reaction_data, true, true);
                     const auto& species_source = amrex::get<0>(source);
                     for (int n = 0; n < ngas; ++n)
                         reaction_rate += Util::Abs(species_source[n]);

@@ -126,7 +126,8 @@ public:
         Set::Patch<const Set::Scalar> temperature,
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
         const ThermochemicalData& data,
-        bool include_reaction = true);
+        bool include_reaction = true,
+        bool project_negative_gas_density = false);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
