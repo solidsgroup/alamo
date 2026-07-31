@@ -548,6 +548,15 @@ the CUDA API calls needed for transfer and synchronization accounting; OSRT is
 not required by F1/F2/F3/F8/F9. Hardware validation still requires a full-horizon
 re-capture.
 
+### H5 — export the reports needed to discover targets
+
+The original stats loop exported aggregate NVTX and kernel summaries but not
+their mapping. It now also exports `nvtx_gpu_proj_sum` (GPU time projected into
+each named range) and `nvtx_kern_sum` (range-to-kernel attribution). These are
+the inputs required to replace the hardcoded NCU range list with a discovered
+Pareto after the full-horizon capture. Job 11825250 verified both report names
+against Nsight Systems 2024.6.2.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)

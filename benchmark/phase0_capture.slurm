@@ -356,7 +356,7 @@ if have_leg nsys; then
     -o "${L}/trace" )
   if [ "${DRYRUN}" = 1 ]; then
     echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 nsys ${NSYS_ARGS[*]} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
-    echo "+ nsys stats --report nvtx_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.nsys-rep"
+    echo "+ nsys stats --report nvtx_sum,nvtx_gpu_proj_sum,nvtx_kern_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.nsys-rep"
   else
     srun --mpi=pmix -n1 --gpus-per-task=1 \
       nsys "${NSYS_ARGS[@]}" \
@@ -383,8 +383,9 @@ if have_leg nsys; then
     else
       # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
       # vary across nsys versions -- try each, record which ones existed.
-      for rep in nvtx_sum cuda_gpu_kern_sum cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum \
-                 cuda_api_sum cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
+      for rep in nvtx_sum nvtx_gpu_proj_sum nvtx_kern_sum cuda_gpu_kern_sum \
+                 cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum cuda_api_sum \
+                 cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
         nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
              "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1
         # nsys stats exits 0 having written a 0-byte CSV when the sqlite export
