@@ -70,7 +70,17 @@ def selector_for(name: str, label: str) -> str:
     # unrelated early kernel before it reaches the ranked ReduceOps::value
     # launch.  Anchor this callable to its owning reduction type.
     if label == "value" and "::ReduceOps<" in name:
-        selector = r".*::ReduceOps.*::value.*"
+        operation = re.search(
+            r"::ReduceOps<[^>]*\b(ReduceOp[A-Za-z0-9_]+)[^>]*>::value",
+            name,
+        )
+        if operation:
+            selector = (
+                rf".*::ReduceOps.*{re.escape(operation.group(1))}"
+                r".*::value.*"
+            )
+        else:
+            selector = r".*::ReduceOps.*::value.*"
     if label == "placementNew":
         match = re.search(r"::placementNew<([A-Za-z_]\w*(?:::[A-Za-z_]\w*)+)", name)
         if match:
@@ -164,7 +174,7 @@ def unit_test() -> None:
     if selector_for(names[1], actual[1]) != r"regex:.*::placementNew.*Set::Matrix4.*":
         raise AssertionError("placementNew selector lost its discovered value type")
     value_selector = selector_for(names[4], actual[4])
-    if value_selector != r"regex:.*::ReduceOps.*::value.*":
+    if value_selector != r"regex:.*::ReduceOps.*ReduceOpSum.*::value.*":
         raise AssertionError("ReduceOps::value selector lost its owning type")
     unrelated = (
         "void amrex::launch_global<std::enable_if<"

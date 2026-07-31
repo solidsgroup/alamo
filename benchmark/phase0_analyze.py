@@ -307,7 +307,12 @@ def ncu_target_matches(target, kernel_name):
     selector = target.get("selector", "")
     label = target.get("label", "")
     if "ReduceOps" in selector and "::value" in selector:
-        return "ReduceOps" in kernel_name and "::value" in kernel_name
+        operation = re.search(r"(ReduceOp[A-Z][A-Za-z0-9_]*)", selector)
+        return (
+            "ReduceOps" in kernel_name
+            and "::value" in kernel_name
+            and (operation is None or operation.group(1) in kernel_name)
+        )
     return bool(label) and bool(
         re.search(rf"(?<![A-Za-z0-9_]){re.escape(label)}(?:<|\()", kernel_name)
     )
@@ -581,7 +586,7 @@ def capture(d):
 def unit():
     valid_reduce = {
         "label": "value",
-        "selector": r"regex:.*::ReduceOps.*::value.*",
+        "selector": r"regex:.*::ReduceOps.*ReduceOpSum.*::value.*",
     }
     assert ncu_target_matches(
         valid_reduce,
@@ -590,6 +595,10 @@ def unit():
     assert not ncu_target_matches(
         valid_reduce,
         "void amrex::MaybeDeviceRunnable<T, void>::value ResizeRandomSeed()",
+    )
+    assert not ncu_target_matches(
+        valid_reduce,
+        "void amrex::ReduceOps<amrex::ReduceOpLogicalOr>::value<T>()",
     )
     with tempfile.TemporaryDirectory() as td:
         d = Path(td) / "_phase0_fixture"
