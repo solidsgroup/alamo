@@ -303,12 +303,44 @@ def nsys(d):
     return kr, mem, api, sync, idle, um_status, normalized, managed_rows
 
 
+def ncu_target_matches(target, kernel_name):
+    selector = target.get("selector", "")
+    label = target.get("label", "")
+    if "ReduceOps" in selector and "::value" in selector:
+        return "ReduceOps" in kernel_name and "::value" in kernel_name
+    return bool(label) and bool(
+        re.search(rf"(?<![A-Za-z0-9_]){re.escape(label)}(?:<|\()", kernel_name)
+    )
+
+
 def ncu(d):
     result = []
+    targets = d / "nsys" / "discovered_ncu_targets.tsv"
+    if not targets.exists():
+        targets = d / "ncu" / "discovered_ncu_targets.tsv"
+    target_rows = []
+    if targets.exists():
+        target_rows = list(
+            csv.DictReader(io.StringIO(read(targets)), delimiter="\t")
+        )
+    targets_by_rank = {row.get("rank", ""): row for row in target_rows}
+    semantic_issues = []
     report_paths = sorted((d / "ncu").glob("rank*.csv"))
     for path in report_paths:
         rows = csv_rows(path)
-        metrics = {}
+        kernel_name = rows[0].get("Kernel Name", "").strip() if rows else ""
+        display_kernel = (
+            kernel_name
+            if len(kernel_name) <= 240
+            else kernel_name[:237] + "..."
+        )
+        metrics = {"Kernel": display_kernel or "MISSING"}
+        rank_match = re.match(r"rank(\d+)_", path.stem)
+        target = targets_by_rank.get(rank_match.group(1), {}) if rank_match else {}
+        if target and not ncu_target_matches(target, kernel_name):
+            semantic_issues.append(
+                f"{path.stem} expected {target.get('label', '?')}"
+            )
         for row in rows:
             name = row.get("Metric Name", "").strip()
             val = row.get("Metric Value", "").strip()
@@ -323,20 +355,14 @@ def ncu(d):
                 metrics.setdefault(name, f"{val} {unit}".strip())
         if metrics:
             result.append((path.stem, metrics))
-    targets = d / "nsys" / "discovered_ncu_targets.tsv"
-    if not targets.exists():
-        targets = d / "ncu" / "discovered_ncu_targets.tsv"
-    expected = sum(
-        1
-        for line in read(targets).splitlines()[1:]
-        if line.strip()
-    ) if targets.exists() else None
+    expected = len(target_rows) if targets.exists() else None
     produced = len(report_paths)
-    semantic_failures = list((d / "ncu").glob("*VALIDATION_FAILED*"))
-    if semantic_failures:
+    semantic_markers = list((d / "ncu").glob("*VALIDATION_FAILED*"))
+    if semantic_markers or semantic_issues:
+        detail = "; ".join(semantic_issues) or "validation marker present"
         coverage = (
             f"INVALID ({produced}/{expected if expected is not None else '?'} "
-            "files; semantic validation failed)"
+            f"files; semantic validation failed: {detail})"
         )
     elif expected is None:
         coverage = "UNAVAILABLE (discovery table missing)"
@@ -553,6 +579,18 @@ def capture(d):
 
 
 def unit():
+    valid_reduce = {
+        "label": "value",
+        "selector": r"regex:.*::ReduceOps.*::value.*",
+    }
+    assert ncu_target_matches(
+        valid_reduce,
+        "void amrex::ReduceOps<amrex::ReduceOpSum>::value<T>()",
+    )
+    assert not ncu_target_matches(
+        valid_reduce,
+        "void amrex::MaybeDeviceRunnable<T, void>::value ResizeRandomSeed()",
+    )
     with tempfile.TemporaryDirectory() as td:
         d = Path(td) / "_phase0_fixture"
         (d / "env").mkdir(parents=True)
