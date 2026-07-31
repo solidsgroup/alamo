@@ -104,8 +104,12 @@ tier2 () {
       amrex.the_arena_init_size="$ARENA_INIT_SIZE" \
       amrex.the_arena_is_managed=1 >"$log" 2>&1
   local rc=$?; local t1=$(date +%s)
-  if grep -q "ERROR SUMMARY: 0 errors" "$log"; then
+  if [ "$rc" -eq 0 ] && grep -q "ERROR SUMMARY: 0 errors" "$log"; then
     echo "  PASS  wall=$((t1-t0))s  -> $log"
+  elif grep -q "ERROR SUMMARY: 0 errors" "$log"; then
+    echo "  FAIL  memcheck clean but application exit=$rc wall=$((t1-t0))s  -> $log"
+    grep -iE "MLMG failed|Abort|SIGABRT|Backtrace" "$log" | head -8
+    FAIL=1
   else
     echo "  FAIL  exit=$rc wall=$((t1-t0))s  -> $log"
     grep -E "Invalid|out of bounds|ERROR SUMMARY|Mechanics.H|Flame.cpp" "$log" | head -8; FAIL=1
