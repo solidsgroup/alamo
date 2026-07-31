@@ -75,24 +75,29 @@ ARENA_FRAC="${ARENA_FRAC:-0.5}"     # fraction of device memory claimed up front
 # CRITICAL: elastic is ~95% of GPU wall, and every production deck fires it on an
 # interval (40-50 steps) after a tstart delay. A 3- or 10-step capture therefore
 # contains ZERO elastic work and measures nothing that matters. Horizons below are
-# set so each capture spans at least TWO elastic solves at PRODUCTION cadence --
-# no elastic.interval override, because overriding it measures a configuration
-# nobody runs.
+# set so timing spans the measured startup transient and diagnostic tracing spans
+# at least two solves at PRODUCTION cadence. There is no elastic.interval
+# override, because overriding it measures a configuration nobody runs.
 #
-#   deck                        dt      tstart   interval  first solve  2nd solve
-#   input_copy                  2.5e-4  0.01 s   40        step ~40     step ~80
-#   input                       1.0e-4  0.5e-4   50        step ~50     step ~100
-#   input_3d_centre_bore_128_a2 1.0e-4  0.5e-4   50        step ~50     step ~100
+# The 800-step stability run measured solves 1-3 at 124/289/273 iterations
+# before settling into a 138-162 band. Timing therefore spans FIVE elastic
+# intervals. A diagnostic trace still spans two intervals; it is not a T0
+# measurement and keeping it bounded avoids multi-gigabyte detailed CSVs.
+#
+#   deck                        interval  timing steps  trace steps
+#   input_copy                  40        200           90
+#   input                       50        250           110
+#   input_3d_centre_bore_128_a2 50        250           110
 case "${DECK}" in
   input_copy)
-    DIM=2; DEF_MAX_STEP=90;  DEF_TRACE_STEP=90 ;;
+    DIM=2; DEF_MAX_STEP=200; DEF_TRACE_STEP=90 ;;
   input)
-    DIM=2; DEF_MAX_STEP=110; DEF_TRACE_STEP=110 ;;
+    DIM=2; DEF_MAX_STEP=250; DEF_TRACE_STEP=110 ;;
   input_3d_centre_bore_128_a2)
-    DIM=3; DEF_MAX_STEP=110; DEF_TRACE_STEP=110 ;;
+    DIM=3; DEF_MAX_STEP=250; DEF_TRACE_STEP=110 ;;
   *)
     echo "Unknown DECK='${DECK}'. Add its dt/tstart/interval to the table above"
-    echo "and set a horizon that spans two elastic solves -- do not guess."
+    echo "and set timing/trace horizons from measured transient/cadence -- do not guess."
     exit 2 ;;
 esac
 MAX_STEP="${MAX_STEP:-${DEF_MAX_STEP}}"
@@ -113,10 +118,12 @@ if ! [[ "${ELASTIC_INTERVAL}" =~ ^[1-9][0-9]*$ ]]; then
   echo "Could not read a positive elastic.interval from ${DECK}; refusing a capture with an unknown elastic horizon." >&2
   exit 2
 fi
-MIN_ELASTIC_STEPS=$((2 * ELASTIC_INTERVAL))
-if [ "${MAX_STEP}" -lt "${MIN_ELASTIC_STEPS}" ] || [ "${TRACE_STEP}" -lt "${MIN_ELASTIC_STEPS}" ]; then
-  echo "Capture horizons do not span two elastic intervals for ${DECK}:" >&2
-  echo "  elastic.interval=${ELASTIC_INTERVAL} requires MAX_STEP and TRACE_STEP >= ${MIN_ELASTIC_STEPS}" >&2
+MIN_TIMING_STEPS=$((5 * ELASTIC_INTERVAL))
+MIN_TRACE_STEPS=$((2 * ELASTIC_INTERVAL))
+if [ "${MAX_STEP}" -lt "${MIN_TIMING_STEPS}" ] || [ "${TRACE_STEP}" -lt "${MIN_TRACE_STEPS}" ]; then
+  echo "Capture horizons do not span the measured transient/diagnostic windows for ${DECK}:" >&2
+  echo "  elastic.interval=${ELASTIC_INTERVAL} requires MAX_STEP >= ${MIN_TIMING_STEPS}" >&2
+  echo "  and TRACE_STEP >= ${MIN_TRACE_STEPS}" >&2
   echo "  got MAX_STEP=${MAX_STEP} TRACE_STEP=${TRACE_STEP}" >&2
   echo "Update the per-deck horizon or set explicit admissible overrides; do not profile an elastic-free prefix." >&2
   exit 2
@@ -176,7 +183,7 @@ have_leg () { case " ${LEGS} " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 say "phase0_capture  DECK=${DECK} (${DIM}D) GPU=${GPU_TYPE}(sm_${ARCH}) job=${JOB}"
 echo "  legs='${LEGS}'  out=${OUT}"
-echo "  horizons: timing=${MAX_STEP} trace=${TRACE_STEP} steps (>=2 elastic solves, production cadence)"
+echo "  horizons: timing=${MAX_STEP} (>=5 solves) trace=${TRACE_STEP} (>=2 solves), production cadence"
 echo "  deck sha256=$(sha256sum "${INPUT}" | awk '{print $1}')  elastic.interval=${ELASTIC_INTERVAL}"
 echo "  profile binary=${PROF_BIN}"
 echo "  plain   binary=${PLAIN_BIN}"
