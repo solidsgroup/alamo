@@ -244,6 +244,31 @@ This requires NVIDIA performance counter access. If `ncu` reports
 `ERR_NVGPUCTRPERM`, enable counter access on the host or run the capture on a
 permitted NOVA node.
 
+## Phase-0 memory capture
+
+The memory-strategy capture records a content-derived source key, runs
+five-solve timing and bounded diagnostic profiling, and keeps raw Nsight
+reports on NOVA by default:
+
+```bash
+HOST=nova REMOTE_DIR=/work/brunnels/jackplum/alamo \
+  bash benchmark/phase0_capture.sh push
+DRYRUN=1 DECK=input_copy bash benchmark/phase0_capture.slurm
+HOST=nova REMOTE_DIR=/work/brunnels/jackplum/alamo SERIAL=1 \
+  bash benchmark/phase0_capture.sh submit \
+  input_copy input input_3d_centre_bore_128_a2
+HOST=nova bash benchmark/phase0_capture.sh collect \
+  /work/brunnels/jackplum/alamo/benchmark/_phase0_<deck>_a100_<job>
+python3 benchmark/phase0_analyze.py \
+  "$CAPTURE_DIR_1" "$CAPTURE_DIR_2"
+```
+
+`phase0_analyze.py` reports provenance, repeated timing, arena request/high-water
+tables, transfers, synchronization, idle fractions, the discovered kernel
+Pareto, and NCU limiter metrics. `nsys_idle.py` reduces the large detailed
+CUDA/NVTX traces on NOVA; bounded collection moves only its compact summary.
+Use `RAW=1` with `collect` only when a local raw report is actually needed.
+
 ## Optimization knobs (making the GPU win big)
 
 - **Use `--cuda-fp strict` for correctness gates.** This omits `--use_fast_math`
