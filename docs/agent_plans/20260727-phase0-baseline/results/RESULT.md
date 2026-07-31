@@ -722,6 +722,26 @@ re-pushing the capture/reporting commits, its application source hash remained
 suite is jobs `11825546` (`input_copy`), `11825547` (`input`), and `11825548`
 (`input_3d_centre_bore_128_a2`).
 
+### H15 — two elastic solves are diagnostic, not steady state
+
+The horizon guard added in H9 prevented an elastic-free profile, but its
+two-interval minimum still failed campaign §12.1.  This report's own 800-step
+run measured the first three 4/4 solves at 124/289/273 iterations before the
+solver settled into a 138-162 band (§L6).  A 90/110-step timing run ends after
+solve two, inside that measured transient.
+
+Timing defaults now span five production-cadence elastic intervals:
+`input_copy` runs 200 steps and `input`/the 3D deck run 250.  Diagnostic traces
+remain at 90/110 steps because they need two solves to discover the kernel
+Pareto and already generate 100 MB-1 GB detailed CSVs.  The preflight enforces
+the two requirements separately.
+
+Consequently, jobs `11825546-11825548` remain admissible for nsys, NCU, the
+device-arena flip, and short-horizon allocation diagnosis, but their F10 rows
+will not enter the ledger.  A serialized timing/arena-only suite with the new
+five-solve horizon supplies T0, and a separate production-length arena endpoint
+supplies the stability check.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
