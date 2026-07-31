@@ -137,7 +137,7 @@ commit history contains only the plan, reviewed source pair, and closeout.
 ## Checkpoints
 
 - [x] After plan restatement: user accepted the selective-transplant and target-validation recommendation.
-- [ ] Before source transplant: target is clean and exact source diff is reviewed.
+- [x] Before source transplant: target is clean and exact source diff is reviewed.
 - [ ] Before final retention: strict gates, sanitizer, 800-step correctness, and performance evidence pass.
 - [ ] Before closeout commit: fresh adversarial review is adjudicated.
 
