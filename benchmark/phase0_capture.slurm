@@ -304,22 +304,34 @@ if have_leg timing; then
   # PLAN v2 §12.1: startup EXCLUDED. Each sample is a paired difference between
   # max_step=1 and the full horizon, not a long run minus one calibration taken
   # outside the repetition loop. CUDA context creation and InitData therefore
-  # cancel within every sample. Five repetitions satisfy the campaign protocol;
-  # randomized arm order makes machine drift land on both configurations.
+  # cancel within every sample. Five repetitions satisfy the campaign protocol.
+  # Randomize the starting arm, then alternate it: independent shuffles can
+  # legitimately draw the same order five times, which leaves machine drift
+  # entirely on one configuration despite claiming a randomized protocol.
   REPS="${REPS:-5}"
   for mode in managed device; do
     mkdir -p "${OUT}/timing/${mode}"
   done
   if [ "${DRYRUN}" = 1 ]; then
-    echo "+ [5 randomized/interleaved paired reps] srun ... managed ... max_step=1,${MAX_STEP}"
-    echo "+ [5 randomized/interleaved paired reps] srun ... device  ... max_step=1,${MAX_STEP}"
+    echo "+ [5 balanced randomized-start/interleaved paired reps] srun ... managed ... max_step=1,${MAX_STEP}"
+    echo "+ [5 balanced randomized-start/interleaved paired reps] srun ... device  ... max_step=1,${MAX_STEP}"
   else
     for mode in managed device; do
       : > "${OUT}/timing/${mode}/reps.txt"
     done
     : > "${OUT}/timing/order.tsv"
+    START_MODE=$(printf '%s\n' managed device | shuf | head -1)
+    if [ "${START_MODE}" = managed ]; then
+      OTHER_MODE=device
+    else
+      OTHER_MODE=managed
+    fi
     for rep in $(seq 1 "${REPS}"); do
-      RUN_ORDER=$(printf '%s\n' managed device | shuf | paste -sd' ' -)
+      if [ $((rep % 2)) -eq 1 ]; then
+        RUN_ORDER="${START_MODE} ${OTHER_MODE}"
+      else
+        RUN_ORDER="${OTHER_MODE} ${START_MODE}"
+      fi
       printf '%s\t%s\n' "${rep}" "${RUN_ORDER}" >> "${OUT}/timing/order.tsv"
       for mode in ${RUN_ORDER}; do
         L="${OUT}/timing/${mode}"
