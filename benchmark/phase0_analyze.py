@@ -305,17 +305,50 @@ def nsys(d):
 
 def ncu_target_matches(target, kernel_name):
     selector = target.get("selector", "")
-    label = target.get("label", "")
+    if not selector.startswith("regex:"):
+        return False
     if "ReduceOps" in selector and "::value" in selector:
-        operation = re.search(r"(ReduceOp[A-Z][A-Za-z0-9_]*)", selector)
-        return (
-            "ReduceOps" in kernel_name
-            and "::value" in kernel_name
-            and (operation is None or operation.group(1) in kernel_name)
+        expected = tuple(re.findall(r"ReduceOp[A-Z][A-Za-z0-9_]*", selector))
+        start = kernel_name.find("ReduceOps<")
+        if start < 0 or "::value" not in kernel_name:
+            return False
+        start += len("ReduceOps<")
+        depth = 1
+        cursor = start
+        while cursor < len(kernel_name) and depth:
+            if kernel_name[cursor] == "<":
+                depth += 1
+            elif kernel_name[cursor] == ">":
+                depth -= 1
+            cursor += 1
+        actual = tuple(
+            re.findall(
+                r"ReduceOp[A-Z][A-Za-z0-9_]*",
+                kernel_name[start : cursor - 1],
+            )
         )
-    return bool(label) and bool(
-        re.search(rf"(?<![A-Za-z0-9_]){re.escape(label)}(?:<|\()", kernel_name)
+        return bool(expected) and actual == expected
+    pattern = selector.removeprefix("regex:")
+    try:
+        if re.search(pattern, kernel_name):
+            return True
+    except re.error:
+        return False
+    # NCU's demangled-name export sometimes removes the owning namespace/type
+    # even though its kernel filter matched the full symbol (for example it
+    # emits `FillBoundary(...)` for `BC::Constant::FillBoundary`).  Accept that
+    # lossy form only when the callable itself still matches.  If NCU preserved
+    # an explicit owner, the full selector above must match it.
+    label = target.get("label", "")
+    if not label or not re.search(
+        rf"(?<![A-Za-z0-9_]){re.escape(label)}(?:<|\()", kernel_name
+    ):
+        return False
+    explicit_owner = re.search(
+        rf"[A-Za-z_][A-Za-z0-9_]*(?:<[^>]*>)?::{re.escape(label)}(?:<|\()",
+        kernel_name,
     )
+    return explicit_owner is None
 
 
 def ncu(d):
@@ -586,7 +619,9 @@ def capture(d):
 def unit():
     valid_reduce = {
         "label": "value",
-        "selector": r"regex:.*::ReduceOps.*ReduceOpSum.*::value.*",
+        "selector": (
+            r"regex:.*::ReduceOps<[^,>]*ReduceOpSum[^,>]*>::value.*"
+        ),
     }
     assert ncu_target_matches(
         valid_reduce,
@@ -599,6 +634,30 @@ def unit():
     assert not ncu_target_matches(
         valid_reduce,
         "void amrex::ReduceOps<amrex::ReduceOpLogicalOr>::value<T>()",
+    )
+    assert not ncu_target_matches(
+        valid_reduce,
+        "void amrex::ReduceOps<amrex::ReduceOpSum, "
+        "amrex::ReduceOpSum>::value<T>()",
+    )
+    flame_advance = {
+        "label": "Advance",
+        "selector": r"regex:.*::Flame.*::Advance.*",
+    }
+    assert ncu_target_matches(
+        flame_advance,
+        "void Integrator::Flame::Advance(int)::[lambda()]()",
+    )
+    assert not ncu_target_matches(
+        flame_advance,
+        "void Integrator::Base::Mechanics<Model>::Advance(int)::[lambda()]()",
+    )
+    assert ncu_target_matches(
+        {
+            "label": "FillBoundary",
+            "selector": r"regex:.*::Constant.*::FillBoundary.*",
+        },
+        "void launch_global<FillBoundary(BaseFab<double>&)::[lambda()]>()",
     )
     with tempfile.TemporaryDirectory() as td:
         d = Path(td) / "_phase0_fixture"

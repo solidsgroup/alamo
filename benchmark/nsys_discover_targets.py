@@ -62,23 +62,88 @@ def scoped_call_label(name: str) -> str:
     return labels[-1]
 
 
+def scoped_call_owner(name: str, label: str) -> str | None:
+    """Return the immediate type owning the selected scoped callable."""
+    prefix = name.split("::[lambda", 1)[0]
+    candidates: list[int] = []
+    needle = f"::{label}"
+    start = 0
+    while True:
+        position = prefix.find(needle, start)
+        if position < 0:
+            break
+        cursor = position + len(needle)
+        if cursor < len(prefix) and prefix[cursor] == "<":
+            depth = 0
+            while cursor < len(prefix):
+                if prefix[cursor] == "<":
+                    depth += 1
+                elif prefix[cursor] == ">":
+                    depth -= 1
+                    if depth == 0:
+                        cursor += 1
+                        break
+                cursor += 1
+        while cursor < len(prefix) and prefix[cursor].isspace():
+            cursor += 1
+        if cursor < len(prefix) and prefix[cursor] == "(":
+            candidates.append(position)
+        start = position + len(needle)
+
+    if not candidates:
+        return None
+    cursor = candidates[-1] - 1
+    if cursor >= 0 and prefix[cursor] == ">":
+        depth = 0
+        while cursor >= 0:
+            if prefix[cursor] == ">":
+                depth += 1
+            elif prefix[cursor] == "<":
+                depth -= 1
+                if depth == 0:
+                    cursor -= 1
+                    break
+            cursor -= 1
+    end = cursor + 1
+    while cursor >= 0 and (prefix[cursor].isalnum() or prefix[cursor] == "_"):
+        cursor -= 1
+    owner = prefix[cursor + 1 : end]
+    return owner or None
+
+
 def selector_for(name: str, label: str) -> str:
     """Build a demangled-name regex broad enough to survive tool formatting."""
     selector = rf".*::{re.escape(label)}.*"
+    owner = scoped_call_owner(name, label)
+    # A callable name alone can be ambiguous (for example Flame::Advance and
+    # Mechanics::Advance).  Preserve the immediate owning type when it is more
+    # specific than the top-level AMReX namespace.
+    if owner and owner != "amrex" and not re.fullmatch(r"T[0-9]*", owner):
+        selector = rf".*::{re.escape(owner)}.*::{re.escape(label)}.*"
     # A bare "::value" selector is poisonous: virtually every AMReX launch
     # contains the trait MaybeDeviceRunnable<...>::value, so NCU can match an
     # unrelated early kernel before it reaches the ranked ReduceOps::value
     # launch.  Anchor this callable to its owning reduction type.
     if label == "value" and "::ReduceOps<" in name:
-        operation = re.search(
-            r"::ReduceOps<[^>]*\b(ReduceOp[A-Za-z0-9_]+)[^>]*>::value",
-            name,
+        start = name.find("::ReduceOps<") + len("::ReduceOps<")
+        depth = 1
+        cursor = start
+        while cursor < len(name) and depth:
+            if name[cursor] == "<":
+                depth += 1
+            elif name[cursor] == ">":
+                depth -= 1
+            cursor += 1
+        operations = re.findall(
+            r"\b(ReduceOp[A-Za-z0-9_]+)\b",
+            name[start : cursor - 1],
         )
-        if operation:
-            selector = (
-                rf".*::ReduceOps.*{re.escape(operation.group(1))}"
-                r".*::value.*"
+        if operations:
+            exact_ops = ",".join(
+                rf"[^,>]*{re.escape(operation)}[^,>]*"
+                for operation in operations
             )
+            selector = rf".*::ReduceOps<{exact_ops}>::value.*"
         else:
             selector = r".*::ReduceOps.*::value.*"
     if label == "placementNew":
@@ -174,7 +239,9 @@ def unit_test() -> None:
     if selector_for(names[1], actual[1]) != r"regex:.*::placementNew.*Set::Matrix4.*":
         raise AssertionError("placementNew selector lost its discovered value type")
     value_selector = selector_for(names[4], actual[4])
-    if value_selector != r"regex:.*::ReduceOps.*ReduceOpSum.*::value.*":
+    if value_selector != (
+        r"regex:.*::ReduceOps<[^,>]*ReduceOpSum[^,>]*>::value.*"
+    ):
         raise AssertionError("ReduceOps::value selector lost its owning type")
     unrelated = (
         "void amrex::launch_global<std::enable_if<"
@@ -183,6 +250,25 @@ def unit_test() -> None:
     )
     if re.search(value_selector.removeprefix("regex:"), unrelated):
         raise AssertionError("ReduceOps::value selector matches an unrelated trait")
+    multi_sum = (
+        "void amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum, "
+        "amrex::ReduceOpSum, amrex::ReduceOpSum>::value<T>()"
+    )
+    if re.search(value_selector.removeprefix("regex:"), multi_sum):
+        raise AssertionError("scalar ReduceOps selector matches multi-operation value")
+    flame_advance = (
+        "void amrex::launch_global<Integrator::Flame::Advance(int, double, double)"
+        "::[lambda(int, int, int)]>()"
+    )
+    mechanics_advance = (
+        "void amrex::launch_global<Integrator::Base::Mechanics<Model>::Advance(int)"
+        "::[lambda(int, int, int)]>()"
+    )
+    advance_selector = selector_for(flame_advance, "Advance")
+    if advance_selector != r"regex:.*::Flame.*::Advance.*":
+        raise AssertionError("Advance selector lost its owning type")
+    if re.search(advance_selector.removeprefix("regex:"), mechanics_advance):
+        raise AssertionError("Flame::Advance selector matches Mechanics::Advance")
     print("nsys target discovery unit tests passed")
 
 
