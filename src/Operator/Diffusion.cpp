@@ -570,7 +570,7 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                                 scalar_cell(ilo,jlo,klo);
                             hi.diagonal().array() += scalar_cell(i,j,k);
                             const Set::Matrix face =
-                                2.0 * (lo.inverse() + hi.inverse()).inverse();
+                                0.5 * (lo + hi);
                             for (int e = 0; e < AMREX_SPACEDIM; ++e)
                                 tensor_face(i,j,k,e) = face(d,e);
                             diagonal_face(i,j,k) = face(d,d);
