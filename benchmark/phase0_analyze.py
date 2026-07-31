@@ -167,7 +167,8 @@ def nsys(d):
 
 def ncu(d):
     result = []
-    for path in sorted((d / "ncu").glob("*.csv")):
+    report_paths = sorted((d / "ncu").glob("rank*.csv"))
+    for path in report_paths:
         rows = csv_rows(path)
         metrics = {}
         for row in rows:
@@ -176,14 +177,30 @@ def ncu(d):
             unit = row.get("Metric Unit", "").strip()
             if name and val and re.search(
                 r"achieved|throughput|occupancy|dram|sm__|speed of light|"
-                r"register|block limit|duration",
+                r"register|block limit|block size|grid size|waves per sm|"
+                r"active warps|duration",
                 name,
                 re.I,
             ):
                 metrics.setdefault(name, f"{val} {unit}".strip())
         if metrics:
             result.append((path.stem, metrics))
-    return result
+    targets = d / "nsys" / "discovered_ncu_targets.tsv"
+    if not targets.exists():
+        targets = d / "ncu" / "discovered_ncu_targets.tsv"
+    expected = sum(
+        1
+        for line in read(targets).splitlines()[1:]
+        if line.strip()
+    ) if targets.exists() else None
+    produced = len(report_paths)
+    if expected is None:
+        coverage = "UNAVAILABLE (discovery table missing)"
+    elif produced == expected:
+        coverage = f"COMPLETE ({produced}/{expected})"
+    else:
+        coverage = f"INCOMPLETE ({produced}/{expected})"
+    return result, coverage
 
 
 def synchronization_inventory(d):
@@ -278,8 +295,9 @@ def capture(d):
         ]
     else:
         lines += ["- MISSING idle summary"]
-    metrics = ncu(d)
+    metrics, ncu_coverage = ncu(d)
     lines += ["", "### NCU dynamic metrics", ""]
+    lines += [f"Target coverage: **{ncu_coverage}**", ""]
     lines += [f"- **{name}**: " + "; ".join(f"{k}={v}" for k, v in vals.items()) for name, vals in metrics] or ["MISSING NCU CSV metrics"]
     inventory = synchronization_inventory(d)
     lines += ["", "### Mechanical synchronization inventory", ""]

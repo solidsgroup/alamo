@@ -40,9 +40,9 @@
 #            CUDA), CUDA+NVTX trace (NOT mpi/OSRT -- see the leg), CUDA memory
 #            usage, and unified-memory page-fault counters. Exports stats CSVs
 #            so collection is small files, not just a .nsys-rep.
-#   ncu      F4,F5,F6,F7. Top kernels only, a few launches each, selected by
-#            NVTX range rather than kernel name -- AMReX kernels all present as
-#            `launch_global`, which is why a name-based filter returns nothing.
+#   ncu      F4,F5,F6,F7. Top kernels only, a few launches each. Nsight Systems
+#            first ranks demangled kernels by total GPU time, then NCU receives
+#            regex selectors for the first distinct functions.
 #            Skipped automatically if counters are barred (ERR_NVGPUCTRPERM).
 #   smooth   MLMG pre/post-smoothing A/B (4/4 vs 2/2) at production cadence,
 #            reporting MLMG ITERATION COUNTS alongside wall. Not in the default
@@ -582,15 +582,22 @@ if have_leg ncu; then
                --section MemoryWorkloadAnalysis
                --section Occupancy
                --section LaunchStats )
-    TARGETS_FILE="${OUT}/nsys/discovered_ncu_targets.tsv"
+    # An explicit path supports a cheap NCU-only recovery job when the timeline
+    # already exists. This avoids repeating a multi-gigabyte nsys export merely
+    # to replay the discovered kernel selectors.
+    TARGETS_SOURCE="${NCU_TARGETS_PATH:-${OUT}/nsys/discovered_ncu_targets.tsv}"
     if [ "${DRYRUN}" = 1 ]; then
       echo "+ python3 benchmark/nsys_discover_targets.py <cuda_gpu_kern_sum.csv> --top 10 --ncu-targets ${NCU_TARGETS} ..."
       echo "+ for each discovered selector: srun ... ncu --kernel-name-base demangled --kernel-name <regex> --launch-count ${NCU_LAUNCHES} --kill yes ..."
-    elif [ ! -s "${TARGETS_FILE}" ]; then
-      echo "  SKIPPED: discovered targets missing (${TARGETS_FILE}); NCU cannot claim F4." \
+    elif [ ! -s "${TARGETS_SOURCE}" ]; then
+      echo "  SKIPPED: discovered targets missing (${TARGETS_SOURCE}); NCU cannot claim F4." \
         | tee "${L}/DISCOVERY_FAILED"
       CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
     else
+      # Retain the exact discovery input alongside a supplemental NCU-only
+      # result, even when the selectors came from another capture directory.
+      TARGETS_FILE="${L}/discovered_ncu_targets.tsv"
+      cp "${TARGETS_SOURCE}" "${TARGETS_FILE}"
       while IFS=$'\t' read -r rank time_percent total_time_ms instances label selector; do
         [ "${rank}" = "rank" ] && continue
         tag=$(printf 'rank%s_%s' "${rank}" "${label}" | tr -cd '[:alnum:]_')
@@ -608,20 +615,31 @@ if have_leg ncu; then
               --kill yes \
               "${SECTIONS[@]}" -o "${L}/${tag}" --force-overwrite \
           "./${PROF_BIN}" "${COMMON[@]}" "${MANAGED[@]}" max_step="${TRACE_STEP}" \
-          stop_time=1e99_s plot_file="${L}/plot_${tag}" > "${L}/${tag}.log" 2>&1
+          stop_time=1e99_s plot_file="${L}/plot_${tag}" \
+          < /dev/null > "${L}/${tag}.log" 2>&1
         # rc is EXPECTED to be nonzero under --kill yes: ncu terminates the app
         # once it has its launches, so judge this leg by the .ncu-rep, not rc.
         NCU_RC=$?
         echo "  rank=${rank} ${label} (${time_percent}% GPU, ${selector}) rc=${NCU_RC} -> ${L}/${tag}.ncu-rep"
         if [ -s "${L}/${tag}.ncu-rep" ]; then
           ncu --import "${L}/${tag}.ncu-rep" --csv --page details \
-            > "${L}/${tag}.csv" 2>>"${L}/${tag}.log" && echo "    csv exported"
+            < /dev/null > "${L}/${tag}.csv" 2>>"${L}/${tag}.log" \
+            && echo "    csv exported"
         else
           echo "rank=${rank} label=${label} selector=${selector} produced no report" \
             | tee "${L}/${tag}.CAPTURE_FAILED"
           CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
         fi
       done < "${TARGETS_FILE}"
+      EXPECTED_NCU=$(awk 'NR > 1 && NF {n++} END {print n+0}' "${TARGETS_FILE}")
+      PRODUCED_NCU=$(find "${L}" -maxdepth 1 -type f -name 'rank*.ncu-rep' -size +0c | wc -l)
+      if [ "${EXPECTED_NCU}" -eq 0 ] || [ "${PRODUCED_NCU}" -ne "${EXPECTED_NCU}" ]; then
+        echo "NCU target coverage incomplete: expected=${EXPECTED_NCU} produced=${PRODUCED_NCU}" \
+          | tee "${L}/TARGET_COVERAGE_FAILED"
+        CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+      else
+        echo "  NCU target coverage complete: ${PRODUCED_NCU}/${EXPECTED_NCU}"
+      fi
     fi
   fi
 fi
