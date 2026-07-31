@@ -602,6 +602,33 @@ retaining mean and sample standard deviation for the non-regression uncertainty
 gate. Nonzero run return codes are counted explicitly instead of disappearing
 inside a wall-time sample.
 
+### H9 — reject a staged deck whose elastic cadence outgrows the horizon
+
+Capture `11825422` exposed a deck/provenance mismatch before its numbers entered
+the ledger.  The clean committed `input_copy` has `elastic.interval=100`, while
+the current production-condition deck in the working tree has interval 40 and
+is the configuration the 90-step harness horizon describes.  The clean source
+staging unintentionally sent the older deck, so its 90-step run contained no
+elastic solve.  Job `11825422` is invalid campaign evidence even though SLURM
+reported `COMPLETED`.
+
+The SLURM harness now parses `elastic.interval` from the deck it will actually
+run and refuses both timing and trace horizons shorter than two intervals.  It
+also prints the staged deck's SHA-256 beside the parsed interval.  This turns a
+stale deck from a plausible elastic-free profile into a preflight failure.
+
+The current production deck was then staged by itself over the same clean
+source build:
+
+- deck SHA-256 `a21e70934f24275690744de4afb4bf4e30eeb90d43ed8f9a0b997e3328b944e3`;
+- `local_head=d5ea3f673`, `tree_hash=3d043bc4ef1eb7dd`;
+- unchanged binary source key `src_hash=27c2d8305f2d553c`;
+- replacement capture job `11825460`.
+
+`bash -n` and dry runs for all three decks pass; each dry run prints its deck
+hash, cadence, and a horizon covering at least two intervals.  The fast status
+gate also remains green.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)

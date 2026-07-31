@@ -96,6 +96,30 @@ case "${DECK}" in
 esac
 MAX_STEP="${MAX_STEP:-${DEF_MAX_STEP}}"
 TRACE_STEP="${TRACE_STEP:-${DEF_TRACE_STEP}}"
+ELASTIC_INTERVAL="$(awk -F= '
+  {
+    key=$1
+    gsub(/[[:space:]]/, "", key)
+    if (key == "elastic.interval") {
+      value=$2
+      sub(/#.*/, "", value)
+      gsub(/[[:space:]]/, "", value)
+      print value
+      exit
+    }
+  }' "${DECK}")"
+if ! [[ "${ELASTIC_INTERVAL}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Could not read a positive elastic.interval from ${DECK}; refusing a capture with an unknown elastic horizon." >&2
+  exit 2
+fi
+MIN_ELASTIC_STEPS=$((2 * ELASTIC_INTERVAL))
+if [ "${MAX_STEP}" -lt "${MIN_ELASTIC_STEPS}" ] || [ "${TRACE_STEP}" -lt "${MIN_ELASTIC_STEPS}" ]; then
+  echo "Capture horizons do not span two elastic intervals for ${DECK}:" >&2
+  echo "  elastic.interval=${ELASTIC_INTERVAL} requires MAX_STEP and TRACE_STEP >= ${MIN_ELASTIC_STEPS}" >&2
+  echo "  got MAX_STEP=${MAX_STEP} TRACE_STEP=${TRACE_STEP}" >&2
+  echo "Update the per-deck horizon or set explicit admissible overrides; do not profile an elastic-free prefix." >&2
+  exit 2
+fi
 
 case "${GPU_TYPE}" in
   a100) ARCH=80 ;;
@@ -151,6 +175,7 @@ have_leg () { case " ${LEGS} " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 say "phase0_capture  DECK=${DECK} (${DIM}D) GPU=${GPU_TYPE}(sm_${ARCH}) job=${JOB}"
 echo "  legs='${LEGS}'  out=${OUT}"
 echo "  horizons: timing=${MAX_STEP} trace=${TRACE_STEP} steps (>=2 elastic solves, production cadence)"
+echo "  deck sha256=$(sha256sum "${INPUT}" | awk '{print $1}')  elastic.interval=${ELASTIC_INTERVAL}"
 echo "  profile binary=${PROF_BIN}"
 echo "  plain   binary=${PLAIN_BIN}"
 
