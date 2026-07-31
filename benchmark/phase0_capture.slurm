@@ -461,7 +461,8 @@ if have_leg nsys; then
     -o "${L}/trace" )
   if [ "${DRYRUN}" = 1 ]; then
     echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 nsys ${NSYS_ARGS[*]} ./${PROF_BIN} ${COMMON[*]} ${MANAGED[*]} max_step=${TRACE_STEP} ..."
-    echo "+ nsys stats --report nvtx_sum,nvtx_gpu_proj_sum,nvtx_gpu_proj_trace,nvtx_kern_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.nsys-rep"
+    echo "+ nsys export --type sqlite --force-overwrite=true --output ${L}/trace.sqlite ${L}/trace.nsys-rep"
+    echo "+ nsys stats --report nvtx_sum,nvtx_gpu_proj_sum,nvtx_gpu_proj_trace,nvtx_kern_sum,cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_gpu_mem_time_sum,cuda_api_sum --format csv ${L}/trace.sqlite"
     echo "+ python3 benchmark/nsys_idle.py <cuda_gpu_trace.csv> <nvtx_gpu_proj_trace.csv> --output ${L}/gpu_idle_summary.tsv"
   else
     srun --mpi=pmix -n1 --gpus-per-task=1 \
@@ -490,33 +491,48 @@ if have_leg nsys; then
       echo "  Do not read the stats CSVs -- there are none."
       echo "no trace.nsys-rep produced; nsys rc=${NSYS_RC}" > "${L}/CAPTURE_FAILED"
     else
-      # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
-      # vary across nsys versions -- try each, record which ones existed.
-      for rep in nvtx_sum nvtx_gpu_proj_sum nvtx_gpu_proj_trace nvtx_kern_sum cuda_gpu_kern_sum \
-                 cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum cuda_api_sum \
-                 cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
-        nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
-             "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1
-        # nsys stats exits 0 having written a 0-byte CSV when the sqlite export
-        # fails ("Exportation error: Cannot read from stream"). Judge by the
-        # output, not the exit code.
-        OUTCSV=$(ls "${L}/${rep}"*.csv 2>/dev/null | head -1)
-        if [ -s "${OUTCSV:-/nonexistent}" ]; then
-          echo "  stats ok: ${rep}"
-      else
-          echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
-        fi
-      done
-      CUDA_TRACE=$(ls "${L}/cuda_gpu_trace"*.csv 2>/dev/null | head -1)
-      NVTX_TRACE=$(ls "${L}/nvtx_gpu_proj_trace"*.csv 2>/dev/null | head -1)
-      if [ -s "${CUDA_TRACE:-/nonexistent}" ] && [ -s "${NVTX_TRACE:-/nonexistent}" ]; then
-        PYTHONDONTWRITEBYTECODE=1 python3 benchmark/nsys_idle.py \
-          "${CUDA_TRACE}" "${NVTX_TRACE}" \
-          --output "${L}/gpu_idle_summary.tsv" | tee "${L}/idle.log"
-      else
-        echo "idle analysis unavailable: detailed CUDA/NVTX trace missing" \
-          | tee "${L}/IDLE_FAILED"
+      # Export SQLite exactly once, then run every report against that immutable
+      # database. Running each `nsys stats` call against trace.nsys-rep lets the
+      # first call auto-export SQLite, but on the NOVA parallel filesystem the
+      # rep can compare a fraction newer than the database. Nsight then refuses
+      # every later report as stale. Job 11825546 demonstrated the false failure:
+      # nvtx_sum worked, all CUDA reports were empty, and the required-leg guard
+      # correctly failed the job despite a healthy application trace.
+      : > "${L}/stats.log"
+      TRACE_DB="${L}/trace.sqlite"
+      nsys export --type sqlite --force-overwrite=true --output "${TRACE_DB}" \
+        "${L}/trace.nsys-rep" >> "${L}/stats.log" 2>&1
+      EXPORT_RC=$?
+      if [ "${EXPORT_RC}" -ne 0 ] || [ ! -s "${TRACE_DB}" ]; then
+        echo "SQLite export failed rc=${EXPORT_RC}" | tee "${L}/STATS_FAILED"
         CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+      else
+        # Export CSVs so the collect step moves kilobytes, not gigabytes. Report
+        # names vary across nsys versions -- try each and record availability.
+        for rep in nvtx_sum nvtx_gpu_proj_sum nvtx_gpu_proj_trace nvtx_kern_sum cuda_gpu_kern_sum \
+                   cuda_gpu_mem_size_sum cuda_gpu_mem_time_sum cuda_api_sum \
+                   cuda_gpu_trace um_total_sum um_cpu_page_faults_sum; do
+          nsys stats --report "${rep}" --format csv --output "${L}/${rep}" \
+               "${TRACE_DB}" >> "${L}/stats.log" 2>&1
+          # nsys stats can exit 0 after writing an empty CSV. Judge by content.
+          OUTCSV=$(ls "${L}/${rep}"*.csv 2>/dev/null | head -1)
+          if [ -s "${OUTCSV:-/nonexistent}" ]; then
+            echo "  stats ok: ${rep}"
+          else
+            echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
+          fi
+        done
+        CUDA_TRACE=$(ls "${L}/cuda_gpu_trace"*.csv 2>/dev/null | head -1)
+        NVTX_TRACE=$(ls "${L}/nvtx_gpu_proj_trace"*.csv 2>/dev/null | head -1)
+        if [ -s "${CUDA_TRACE:-/nonexistent}" ] && [ -s "${NVTX_TRACE:-/nonexistent}" ]; then
+          PYTHONDONTWRITEBYTECODE=1 python3 benchmark/nsys_idle.py \
+            "${CUDA_TRACE}" "${NVTX_TRACE}" \
+            --output "${L}/gpu_idle_summary.tsv" | tee "${L}/idle.log"
+        else
+          echo "idle analysis unavailable: detailed CUDA/NVTX trace missing" \
+            | tee "${L}/IDLE_FAILED"
+          CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+        fi
       fi
       KERNEL_SUMMARY=$(ls "${L}/cuda_gpu_kern_sum"*.csv 2>/dev/null | head -1)
       if [ -s "${KERNEL_SUMMARY:-/nonexistent}" ]; then
