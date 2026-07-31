@@ -9,6 +9,9 @@
 #include "Numeric/Interpolator/NodeBilinear.H"
 #include "Util/Util.H"
 #include "Unit/Unit.H"
+#include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <numeric>
 
 
@@ -37,6 +40,7 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("restart", value.restart_file_cell,"");       // Name of restart file to read from
         pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
+        pp.query_default("restart.in_place", value.restart_in_place, false);
     }
 #ifdef AMREX_USE_HDF5
     {
@@ -433,7 +437,8 @@ Integrator::FillPatch(int lev, amrex::Real time,
         physbc.define(geom[lev]);
 
         amrex::Interpolater* mapper;
-        Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
+        // AMReX's FillPatch cache retains the mapper pointer.
+        static Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
         if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
             mapper = &node_bilinear;
         else
@@ -473,7 +478,8 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
     physbc.define(geom[lev]);
 
     amrex::Interpolater* mapper;
-    Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
+    // AMReX's FillPatch cache retains the mapper pointer.
+    static Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
     if (mf[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         mapper = &node_bilinear;
     else
@@ -504,6 +510,19 @@ Integrator::InitData()
 
     BL_PROFILE("Integrator::InitData");
 
+    if (restart_in_place)
+    {
+        Util::Assert(INFO, TEST(restart_file_node == ""),
+                     "restart.in_place currently supports cell plotfile restarts only");
+        Util::Assert(INFO, TEST(restart_file_cell != ""),
+                     "restart.in_place requires restart or restart_cell");
+        const auto output = std::filesystem::absolute(plot_file).lexically_normal();
+        const auto restart_parent = std::filesystem::absolute(
+            std::filesystem::path(restart_file_cell).parent_path()).lexically_normal();
+        Util::Assert(INFO, TEST(restart_parent == output),
+                     "restart.in_place requires restart_cell to be a plotfile within plot_file");
+    }
+
     if (restart_file_cell == "" && restart_file_node == "")
     {
         const amrex::Real time = 0.0;
@@ -531,7 +550,54 @@ Integrator::InitData()
         Restart(restart_file_node, true);
     }
 
-    if (plot_int > 0 || plot_dt > 0.0) {
+    if (restart_in_place)
+    {
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            const std::string restart_name = std::filesystem::path(restart_file_cell).filename().string();
+            std::size_t restart_digits = 0;
+            while (restart_digits < restart_name.size() &&
+                   std::isdigit(static_cast<unsigned char>(restart_name[restart_digits])))
+                ++restart_digits;
+            Util::Assert(INFO, TEST(restart_digits > 0),
+                         "Could not determine the plot step from ", restart_file_cell);
+            const long long restart_step = std::stoll(restart_name.substr(0, restart_digits));
+
+            const auto truncate_visit_file = [restart_step](const std::filesystem::path& visit_file)
+            {
+                if (!std::filesystem::exists(visit_file)) return;
+
+                std::ifstream input(visit_file);
+                if (!input.good()) amrex::FileOpenFailed(visit_file.string());
+
+                std::vector<std::string> retained;
+                std::string line;
+                while (std::getline(input, line))
+                {
+                    std::size_t digits = 0;
+                    while (digits < line.size() &&
+                           std::isdigit(static_cast<unsigned char>(line[digits])))
+                        ++digits;
+                    if (digits == 0 || std::stoll(line.substr(0, digits)) <= restart_step)
+                        retained.push_back(line);
+                }
+
+                const std::filesystem::path temporary = visit_file.string() + ".restart";
+                std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+                if (!output.good()) amrex::FileOpenFailed(temporary.string());
+                for (const auto& entry : retained) output << entry << '\n';
+                output.close();
+                if (output.fail()) amrex::FileOpenFailed(temporary.string());
+                std::filesystem::rename(temporary, visit_file);
+            };
+
+            truncate_visit_file(std::filesystem::path(plot_file) / "celloutput.visit");
+            truncate_visit_file(std::filesystem::path(plot_file) / "nodeoutput.visit");
+        }
+        amrex::ParallelDescriptor::Barrier();
+    }
+
+    if (!restart_in_place && (plot_int > 0 || plot_dt > 0.0)) {
         WritePlotFile();
     }
 }

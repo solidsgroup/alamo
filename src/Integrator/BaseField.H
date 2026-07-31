@@ -104,7 +104,7 @@ public:
                                         physbc, 0,
                                         physbc, 0,
                                         m_refRatio[lev-1],
-                                        &node_bilinear, bcs, 0);
+                                        &NodeInterpolator(), bcs, 0);
 
             }
             else
@@ -155,7 +155,7 @@ public:
                                         physbc, 0,
                                         physbc, 0,
                                         m_refRatio[lev-1],
-                                        &node_bilinear, bcs, 0);
+                                        &NodeInterpolator(), bcs, 0);
         }
         else if (m_gridtype == Set::Hypercube::Cell)
         {
@@ -293,7 +293,13 @@ private:
     BC::NothingT<T> m_nothing_bc;
     BC::BC<T> *m_bc;
     
-    Numeric::Interpolator::NodeBilinear<T> node_bilinear;
+    static Numeric::Interpolator::NodeBilinear<T> &NodeInterpolator()
+    {
+        // AMReX caches InterpolaterBoxCoarsener objects containing this pointer.
+        // Keep the stateless interpolator alive for as long as that cache exists.
+        static Numeric::Interpolator::NodeBilinear<T> node_bilinear;
+        return node_bilinear;
+    }
 
 public:
     virtual int NComp() override {

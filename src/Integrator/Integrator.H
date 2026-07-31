@@ -460,6 +460,7 @@ protected:
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
+    bool restart_in_place = false;
 
     struct {
         int on = 0;

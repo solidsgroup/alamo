@@ -10,7 +10,7 @@ namespace IO::OutputLog
 void Initialize();
 
 /// Open the rank-zero log after the output directory has been created.
-void Open(const std::string& path);
+void Open(const std::string& path, bool append = false);
 
 /// Stop retaining output on ranks that do not own the log file.
 void DisableFile();

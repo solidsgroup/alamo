@@ -69,6 +69,7 @@ public:
         const Set::Vector mask_point = plane_point;
         const Set::Vector mask_normal = plane_normal;
         const Set::Scalar mask_eps = plane_eps;
+        const Util::PNG::DeviceView image = png.GetDeviceView();
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -84,17 +85,17 @@ public:
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)) * DX(0);
+                    x(1) = domlo(1) + ((amrex::Real)(j)) * DX(1);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i)+0.5) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)+0.5) * DX(0);
+                    x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * DX(1);
                 }
 
 
-                std::array<Set::Scalar, 4> val = png(x);
+                std::array<Set::Scalar, 4> val = image(x);
                 Set::Scalar indicator = val[selected_channel];
                 if (threshold_image)
                     indicator = indicator >= image_threshold ? 1.0 : 0.0;
