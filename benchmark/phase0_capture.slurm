@@ -32,7 +32,9 @@
 #            numbers in this job.
 #   flip     N2. Device arena + abort_on_out_of_gpu_memory=1. INVENTORY ONLY --
 #            a crash here is the deliverable, not a failure. Never fix in-job.
-#   nsys     F1,F2,F3,F8,F9. Profile binary (BL_PROFILE regions emit NVTX under
+#   arena    F8/T1/T4/T5. AMReX request-layer allocation counts, live bytes,
+#            and high-water at a startup and full-horizon endpoint.
+#   nsys     F1,F2,F3,F9. Profile binary (BL_PROFILE regions emit NVTX under
 #            CUDA), CUDA+NVTX trace (NOT mpi/OSRT -- see the leg), CUDA memory
 #            usage, and unified-memory page-fault counters. Exports stats CSVs
 #            so collection is small files, not just a .nsys-rep.
@@ -61,7 +63,7 @@ cd "${SLURM_SUBMIT_DIR:-$(pwd)}"
 # DECK is the primary selector; DIM is derived from it. One job per deck.
 DECK="${DECK:-input_copy}"
 GPU_TYPE="${GPU_TYPE:-a100}"
-LEGS="${LEGS:-env timing flip nsys ncu}"
+LEGS="${LEGS:-env timing flip arena nsys ncu}"
 DRYRUN="${DRYRUN:-0}"
 NCU_LAUNCHES="${NCU_LAUNCHES:-3}"   # ncu serializes; a handful of launches is plenty
 MGS="${MGS:-64}"                    # NOVA-like multi-box layout
@@ -335,9 +337,42 @@ if have_leg flip; then
   fi
 fi
 
+# -------------------------------------------------------------- leg: arena ---
+# F8 and the allocation-side targets. Nsight's CUDA memory report sees backing
+# cudaMalloc/cudaFree calls; AMReX's arenas can recycle those while application
+# alloc/free requests churn every step. The profile build's TinyProfiler hooks
+# sit at CArena::alloc/free, so their Nalloc/Nfree/CurrentMem/MaxMem tables see
+# the requests T4/T5 actually define. A one-step and a full-horizon endpoint
+# distinguish initialization from timestep/elastic-solve activity.
+if have_leg arena; then
+  say "LEG arena -- F8/T1/T4/T5 AMReX request-layer memory profile"
+  L="${OUT}/arena"; mkdir -p "${L}"
+  ARENA_STEPS="${ARENA_STEPS:-1 ${MAX_STEP}}"
+  for arena_step in ${ARENA_STEPS}; do
+    A="${L}/step${arena_step}"; mkdir -p "${A}"
+    if [ "${DRYRUN}" = 1 ]; then
+      echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ./${PROF_BIN} ${COMMON[*]} ${DEVICE[*]} tiny_profiler.memprof_enabled=1 max_step=${arena_step} ..."
+      continue
+    fi
+    srun --mpi=pmix -n1 --gpus-per-task=1 \
+      "./${PROF_BIN}" "${COMMON[@]}" "${DEVICE[@]}" \
+      tiny_profiler.memprof_enabled=1 max_step="${arena_step}" \
+      stop_time=1e99_s plot_file="${A}/plot" > "${A}/run.log" 2>&1
+    ARENA_RC=$?
+    echo "  max_step=${arena_step} rc=${ARENA_RC} -> ${A}/run.log"
+    if ! grep -q "Device Memory Usage:" "${A}/run.log"; then
+      echo "  ARENA PROFILE FAILED: request-layer table missing" \
+        | tee "${A}/CAPTURE_FAILED"
+    fi
+  done
+  echo "  Compare endpoint Nalloc-Nfree and CurrentMem for T5b; normalize the"
+  echo "  Nalloc delta by added steps/elastic solves for T4. Treat only"
+  echo "  non-initialization Managed Memory rows as T1 application allocations."
+fi
+
 # --------------------------------------------------------------- leg: nsys ---
 if have_leg nsys; then
-  say "LEG nsys -- F1,F2,F3,F8,F9 (profile binary: BL_PROFILE regions emit NVTX)"
+  say "LEG nsys -- F1,F2,F3,F9 (profile binary: BL_PROFILE regions emit NVTX)"
   L="${OUT}/nsys"; mkdir -p "${L}"
   # NO `mpi` OR `osrt` IN -t. Nsight Systems 2024.6.2's OSRT injection aborts
   # inside ompi_mpi_init -> opal_common_ucx_mca_register against the Open MPI
@@ -375,7 +410,7 @@ if have_leg nsys; then
     # guard exists to prevent.
     if [ ! -s "${L}/trace.nsys-rep" ]; then
       echo "  CAPTURE FAILED: no ${L}/trace.nsys-rep (nsys rc=${NSYS_RC})."
-      echo "  F1,F2,F3,F8,F9 are NOT captured for this deck. Read ${L}/run.log;"
+      echo "  F1,F2,F3,F9 are NOT captured for this deck. Read ${L}/run.log;"
       echo "  An MPI-init abort with a libToolsInjection64.so frame means a trace"
       echo "  feature is incompatible with the linked MPI, not that the deck ran."
       echo "  Do not read the stats CSVs -- there are none."

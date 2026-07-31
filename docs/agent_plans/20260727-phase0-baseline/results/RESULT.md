@@ -557,6 +557,25 @@ the inputs required to replace the hardcoded NCU range list with a discovered
 Pareto after the full-horizon capture. Job 11825250 verified both report names
 against Nsight Systems 2024.6.2.
 
+### H6 — use AMReX request-layer profiling for F8
+
+The vendored AMReX already instruments every `CArena::alloc/free` request under
+TinyProfiler and reports `Nalloc`, `Nfree`, `CurrentMem`, and `MaxMem` by arena
+and active profile region. A local 55-step probe demonstrated that it exposes
+the known pooling-hidden churn: 728 device-arena requests under
+`Integrator::Base::Mechanics::TimeStepBegin`, 353 under
+`MLMG::prepareForSolve`, and 154 under `Operator::Elastic::define()` around the
+first elastic solve, while the managed pool contained only its initialization
+row.
+
+The new `arena` capture leg runs the profile binary at one step and at the full
+deck horizon using the device arena. Endpoint deltas separate startup from
+step/solve request counts; `Nalloc-Nfree` plus `CurrentMem` tests live-allocation
+stability; `MaxMem` and AMReX's final arena-usage block supply the high-water.
+This is request-layer instrumentation, unlike Nsight's backing
+`cudaMalloc/cudaFree` report, and therefore addresses the false-pass mechanism
+behind T4/T5.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
