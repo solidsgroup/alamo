@@ -33,9 +33,9 @@
 #   flip     N2. Device arena + abort_on_out_of_gpu_memory=1. INVENTORY ONLY --
 #            a crash here is the deliverable, not a failure. Never fix in-job.
 #   arena    F8/T1/T4/T5a. AMReX request-layer allocation counts and high-water
-#            at startup/full endpoints. AMReX 26.06 does not print Nfree/live
-#            allocation count here, so T5b remains an explicit instrumentation
-#            gap rather than being inferred from a flat high-water.
+#            at startup/full endpoints. The finalizer prints after balanced
+#            requests have been released and consequently omits Nfree/current;
+#            T5b needs an in-evolution sample and remains an explicit gap.
 #   nsys     F1,F2,F3,F9. Profile binary (BL_PROFILE regions emit NVTX under
 #            CUDA), CUDA+NVTX trace (NOT mpi/OSRT -- see the leg), CUDA memory
 #            usage, and unified-memory page-fault counters. Exports stats CSVs
@@ -416,8 +416,8 @@ fi
 # cudaMalloc/cudaFree calls; AMReX's arenas can recycle those while application
 # allocation requests churn every step. The profile build's TinyProfiler hooks
 # expose Nalloc and MaxMem by region, so endpoint deltas see the T4 request
-# pathology. This AMReX version does not expose Nfree or a live request count in
-# the table, so it cannot certify T5b.
+# pathology. At finalization all requests are balanced and AMReX omits the
+# Nfree/CurrentMem columns. That end-of-process table cannot certify T5b.
 if have_leg arena; then
   say "LEG arena -- F8/T1/T4/T5a AMReX request-layer memory profile"
   L="${OUT}/arena"; mkdir -p "${L}"
@@ -441,7 +441,7 @@ if have_leg arena; then
     fi
   done
   echo "  Normalize the Nalloc delta by added steps/elastic solves for T4."
-  echo "  Nfree/live allocation count is absent in AMReX 26.06: T5b remains a gap."
+  echo "  Finalizer table omits Nfree/current after teardown: T5b needs an in-run sample."
   echo "  Treat only"
   echo "  non-initialization Managed Memory rows as T1 application allocations."
 fi

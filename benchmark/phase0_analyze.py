@@ -239,8 +239,9 @@ def capture(d):
     if ar:
         lines += [
             "",
-            "T5b live allocation count: **UNAVAILABLE** in the AMReX 26.06 "
-            "memory table (Nalloc/AvgMem/MaxMem only).",
+            "T5b live allocation count: **UNAVAILABLE**. The log prints the "
+            "memory table after balanced teardown, not at the requested "
+            "in-evolution endpoint, and contains Nalloc/AvgMem/MaxMem only.",
         ]
     failures = [p for p in d.rglob("*FAILED*") if p.is_file()]
     # failures.txt is a report, not a marker: only surface it when non-empty.
