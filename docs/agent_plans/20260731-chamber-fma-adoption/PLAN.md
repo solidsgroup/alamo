@@ -16,7 +16,8 @@
 ## Operating rules
 
 1. Read only the files listed in Context budget. `docs/archive/` is forbidden.
-2. Every step's VERIFY must pass before acting on that step. On failure, stop and record the discrepancy.
+2. Every step's VERIFY must pass before acting on that step. On failure, stop
+   and record the discrepancy; resume only after explicit user adjudication.
 3. Preserve the two reviewed source commits as separate commits; use scoped, imperative messages for adoption-only documentation.
 4. Do not merge the campaign branch or import its benchmark/Phase-0 history.
 5. Retain MGS32/BF8, 4/4 smoothing, and synchronized MLMG; no rejected configuration may be adopted.
@@ -77,6 +78,12 @@ Does not cover: every production geometry, alternative grid layouts, reduced
 smoothing, or native no-sync. The frozen campaign evidence remains the broader
 rejection record for those arms.
 
+Known target exception: the strict GPU `rod_and_tube_step2` reference has four
+pre-existing traction mismatches already adjudicated in the thermoelastic
+chain-rule task. The mismatch was reproduced unchanged at the pre-adoption
+target. The user explicitly authorized continuing without changing the test or
+reference; it remains a recorded oracle exception, not a passing comparison.
+
 ## Steps
 
 ### Step 1 - Freeze target and adoption provenance
@@ -132,14 +139,18 @@ DO: Perform a fresh adversarial review, record adjudication in
 and append the session log.
 
 CHECK: `benchmark/status.sh` is green, the worktree is clean, and the adoption
-commit history contains only the plan, reviewed source pair, and closeout.
+commits preserve the plan, reviewed source pair, discrepancy record, and
+closeout. Record any unrelated branch commit that lands while validation runs.
 
 ## Checkpoints
 
 - [x] After plan restatement: user accepted the selective-transplant and target-validation recommendation.
 - [x] Before source transplant: target is clean and exact source diff is reviewed.
-- [ ] Before final retention: strict gates, sanitizer, 800-step correctness, and performance evidence pass.
-- [ ] Before closeout commit: fresh adversarial review is adjudicated.
+- [x] Before final retention: CPU/valid GPU gates, clean-exit sanitizer,
+      800-step correctness, and performance evidence pass; the unchanged stale
+      GPU reference is an explicit user-authorized exception.
+- [x] Before closeout commit: fresh adversarial review is adjudicated, and its
+      sanitizer/manifest evidence findings are remediated.
 
 ## Adversarial review
 
@@ -151,8 +162,9 @@ findings in `results/REVIEW.md`.
 
 ## Closeout
 
-- [ ] Oracle passes; required target gates are green
-- [ ] `results/RESULT.md` records changes, evidence, and deviations
-- [ ] No changelog/version change unless separately requested
-- [ ] `results/DONE`
-- [ ] Session log line appended to `docs/llm/SESSION_LOG.tsv`
+- [x] Oracle passes except the documented, pre-existing strict-GPU reference
+      exception explicitly authorized by the user
+- [x] `results/RESULT.md` records changes, evidence, and deviations
+- [x] No changelog/version change unless separately requested
+- [x] `results/DONE`
+- [x] Session log line appended to `docs/llm/SESSION_LOG.tsv`
