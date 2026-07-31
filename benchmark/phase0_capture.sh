@@ -216,6 +216,22 @@ case "${ACTION}" in
     fi
     rsync -az --info=stats1 "${COLLECT_FILTERS[@]}" \
       "${HOST}:${REMOTE}/" "${LOCAL_RESULTS}/${NAME}/"
+    # The SLURM stdout carries the authoritative required_leg_failures verdict,
+    # but it lives in REMOTE_DIR rather than inside the artifact directory.
+    # Preserve it with the capture so later analysis does not need live NOVA
+    # access or infer success from the presence of partial files.
+    JOB_ID="${NAME##*_}"
+    if [[ "${JOB_ID}" =~ ^[0-9]+$ ]]; then
+      mkdir -p "${LOCAL_RESULTS}/${NAME}/env"
+      if ssh_nova "test -f ${REMOTE_DIR}/phase0_capture.${JOB_ID}.out"; then
+        rsync -az "${HOST}:${REMOTE_DIR}/phase0_capture.${JOB_ID}.out" \
+          "${LOCAL_RESULTS}/${NAME}/env/scheduler.out"
+      fi
+      if ssh_nova "test -f ${REMOTE_DIR}/phase0_capture.${JOB_ID}.err"; then
+        rsync -az "${HOST}:${REMOTE_DIR}/phase0_capture.${JOB_ID}.err" \
+          "${LOCAL_RESULTS}/${NAME}/env/scheduler.err"
+      fi
+    fi
     if [ "${RAW:-0}" != "1" ]; then
       echo "=== raw profiler reports and plot trees retained at ${HOST}:${REMOTE}"
       echo "    rerun with RAW=1 only when local raw artifacts are required"

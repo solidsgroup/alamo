@@ -295,7 +295,23 @@ def capture(d):
     provenance = [
         f"**{key}** `{value}`" for key, value in inventory_fields(inv).items()
     ]
-    lines += ["### Provenance", "", "; ".join(provenance) if provenance else "MISSING inventory.txt", "", "### Timing", ""]
+    scheduler_out = read(d / "env" / "scheduler.out")
+    scheduler_err = read(d / "env" / "scheduler.err")
+    required_matches = re.findall(
+        r"^required_leg_failures=(\d+)\s*$", scheduler_out, re.MULTILINE
+    )
+    required_verdict = required_matches[-1] if required_matches else "MISSING"
+    lines += [
+        "### Provenance",
+        "",
+        "; ".join(provenance) if provenance else "MISSING inventory.txt",
+        "",
+        f"Scheduler required-leg failures: **{required_verdict}**; "
+        f"scheduler stderr: **{'NONEMPTY' if scheduler_err.strip() else 'empty'}**.",
+        "",
+        "### Timing",
+        "",
+    ]
     lines += [f"- **{mode}**: {summary}" for mode, summary in timing(d)]
     lines += ["", "### Arena step 1/full", ""]
     ar = arena_table(d)
@@ -461,6 +477,10 @@ def unit():
             "host=test date=2026-07-31T00:00:00-05:00\n"
             "local_head=abc tree_hash=def src_hash=123\n"
         )
+        (d / "env" / "scheduler.out").write_text(
+            "phase0 capture fixture\nrequired_leg_failures=0\n"
+        )
+        (d / "env" / "scheduler.err").write_text("")
         (d / "timing" / "managed" / "timing.txt").write_text("mode=managed wall_median_s=1.2 failed_reps=0\n")
         (d / "nsys" / "gpu_idle_summary.tsv").write_text(
             "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
@@ -497,6 +517,7 @@ def unit():
                 "**host** `test`",
                 "**date** `2026-07-31T00:00:00-05:00`",
                 "**local_head** `abc`",
+                "Scheduler required-leg failures: **0**",
                 "wall median 1.2",
                 "device",
                 "MISSING",
