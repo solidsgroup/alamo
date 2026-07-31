@@ -224,7 +224,7 @@ def capture(d):
     lines += ["", f"Unified-memory page-fault reports: **{um_status}**"]
     lines += ["", "CUDA API top rows:"] + ([f"- {x}" for x in api] or ["- MISSING CUDA API summary"])
     lines += [f"", f"Synchronization rows: {len(sync)}"]
-    lines += ["", "GPU idle fractions:"]
+    lines += ["", "GPU idle fractions (fine-NVTX diagnostic; not the coarse T6b gate):"]
     if idle:
         lines += [
             "",
