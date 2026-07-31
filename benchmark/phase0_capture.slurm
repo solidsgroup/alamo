@@ -165,6 +165,7 @@ MANAGED=( "amrex.the_arena_is_managed=1" )
 DEVICE=(  "amrex.the_arena_is_managed=0" )
 
 mkdir -p "${OUT}"
+CAPTURE_ERRORS=0
 say () { printf '\n=== %s ===\n' "$*"; }
 run () {  # echo then run (or just echo under DRYRUN)
   printf '+ %s\n' "$*"
@@ -293,6 +294,11 @@ if have_leg timing; then
     srun --mpi=pmix -n1 --gpus-per-task=1 \
       "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step=1 \
       stop_time=1e99_s plot_file="${L}/plot_calib" > "${L}/startup.log" 2>&1
+    STARTUP_RC=$?
+    if [ "${STARTUP_RC}" -ne 0 ]; then
+      echo "  startup calibration (${mode}) FAILED rc=${STARTUP_RC}; see ${L}/startup.log"
+      CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+    fi
     S1=$(date +%s.%N)
     STARTUP=$(awk -v a="${S0}" -v b="${S1}" 'BEGIN{printf "%.3f", b-a}')
     echo "  startup calibration (${mode}, max_step=1): ${STARTUP}s"
@@ -324,6 +330,9 @@ if have_leg timing; then
           stop_time=1e99_s plot_file="${L}/plot_rep${rep}" \
           > "${L}/run_rep${rep}.log" 2>&1
         RC=$?; T1=$(date +%s.%N)
+        if [ "${RC}" -ne 0 ]; then
+          CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+        fi
         WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
         # Steady-state per step: startup removed, so this is comparable across
         # decks and across phases. The raw wall is kept for audit.
@@ -413,9 +422,10 @@ if have_leg arena; then
       stop_time=1e99_s plot_file="${A}/plot" > "${A}/run.log" 2>&1
     ARENA_RC=$?
     echo "  max_step=${arena_step} rc=${ARENA_RC} -> ${A}/run.log"
-    if ! grep -q "Device Memory Usage:" "${A}/run.log"; then
+    if [ "${ARENA_RC}" -ne 0 ] || ! grep -q "Device Memory Usage:" "${A}/run.log"; then
       echo "  ARENA PROFILE FAILED: request-layer table missing" \
         | tee "${A}/CAPTURE_FAILED"
+      CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
     fi
   done
   echo "  Compare endpoint Nalloc-Nfree and CurrentMem for T5b; normalize the"
@@ -452,6 +462,9 @@ if have_leg nsys; then
       stop_time=1e99_s plot_file="${L}/plot" > "${L}/run.log" 2>&1
     NSYS_RC=$?
     echo "  nsys rc=${NSYS_RC}"
+    if [ "${NSYS_RC}" -ne 0 ]; then
+      CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+    fi
     # Distinguish "nsys produced nothing" from "this nsys lacks that report".
     # The old loop reported eight MISSING reports when the real fault was an
     # absent trace, which reads as a version quirk instead of a dead capture.
@@ -482,8 +495,8 @@ if have_leg nsys; then
         OUTCSV=$(ls "${L}/${rep}"*.csv 2>/dev/null | head -1)
         if [ -s "${OUTCSV:-/nonexistent}" ]; then
           echo "  stats ok: ${rep}"
-        else
-          echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
+      else
+        echo "  stats EMPTY/UNAVAILABLE: ${rep}" | tee -a "${L}/stats_missing.txt"
         fi
       done
       KERNEL_SUMMARY=$(ls "${L}/cuda_gpu_kern_sum"*.csv 2>/dev/null | head -1)
@@ -496,6 +509,7 @@ if have_leg nsys; then
       else
         echo "kernel discovery unavailable: cuda_gpu_kern_sum is empty" \
           | tee "${L}/DISCOVERY_FAILED"
+        CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
       fi
     fi
   fi
@@ -528,6 +542,7 @@ if have_leg ncu; then
     elif [ ! -s "${TARGETS_FILE}" ]; then
       echo "  SKIPPED: discovered targets missing (${TARGETS_FILE}); NCU cannot claim F4." \
         | tee "${L}/DISCOVERY_FAILED"
+      CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
     else
       while IFS=$'\t' read -r rank time_percent total_time_ms instances label selector; do
         [ "${rank}" = "rank" ] && continue
@@ -557,6 +572,7 @@ if have_leg ncu; then
         else
           echo "rank=${rank} label=${label} selector=${selector} produced no report" \
             | tee "${L}/${tag}.CAPTURE_FAILED"
+          CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
         fi
       done < "${TARGETS_FILE}"
     fi
@@ -631,3 +647,8 @@ fi
 
 say "phase0_capture done -- artifacts under ${OUT}"
 echo "Collect with: bash benchmark/phase0_capture.sh collect ${OUT}"
+echo "required_leg_failures=${CAPTURE_ERRORS}"
+if [ "${CAPTURE_ERRORS}" -ne 0 ]; then
+  echo "phase0_capture FAILED: ${CAPTURE_ERRORS} required simulation/profile legs failed."
+  exit 4
+fi

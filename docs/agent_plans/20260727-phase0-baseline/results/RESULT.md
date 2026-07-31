@@ -671,6 +671,22 @@ The parser has a stdlib-only unit test and was exercised against the collected
 3D CSV; `bash -n` and the capture dry run pass.  Hardware selector validation
 is pending the dirty-source rebuild/capture.
 
+### H12 — a failed required leg must fail the SLURM job
+
+Job `11825460` returned `COMPLETED` even though all ten timing repetitions
+failed, both arena runs lacked memory tables, and nsys produced no trace.  The
+individual marker files were honest, but the scheduler status was a false pass.
+
+The capture now accumulates failures from startup/timing simulations, arena
+profiles, nsys execution/discovery, and missing NCU target reports.  It prints
+`required_leg_failures=<n>` and exits 4 when the count is nonzero.  Device-arena
+flip crashes remain classified evidence rather than job failures by design;
+unsupported optional UM reports and unavailable hardware counters also remain
+explicit partial coverage instead of application failures.
+
+`bash -n` and dry-run execution pass with `required_leg_failures=0`.  Hardware
+validation is part of the dirty-source re-capture.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
