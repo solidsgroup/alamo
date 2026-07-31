@@ -65,6 +65,12 @@ def scoped_call_label(name: str) -> str:
 def selector_for(name: str, label: str) -> str:
     """Build a demangled-name regex broad enough to survive tool formatting."""
     selector = rf".*::{re.escape(label)}.*"
+    # A bare "::value" selector is poisonous: virtually every AMReX launch
+    # contains the trait MaybeDeviceRunnable<...>::value, so NCU can match an
+    # unrelated early kernel before it reaches the ranked ReduceOps::value
+    # launch.  Anchor this callable to its owning reduction type.
+    if label == "value" and "::ReduceOps<" in name:
+        selector = r".*::ReduceOps.*::value.*"
     if label == "placementNew":
         match = re.search(r"::placementNew<([A-Za-z_]\w*(?:::[A-Za-z_]\w*)+)", name)
         if match:
@@ -149,13 +155,24 @@ def unit_test() -> None:
         "void amrex::launch_global<amrex::placementNew<Set::Matrix4<(int)3, (int)1>>(T1 *, long)::[lambda(long)]>()",
         "void amrex::launch_global<Operator::Elastic<(int)1>::SetModel(int)::[lambda(int)]>()",
         "void amrex::launch_global<Operator::Operator<(Grid)1>::Fsmooth(int)::[lambda(int)]>()",
+        "void amrex::launch_global<T1::Type amrex::ReduceOps<amrex::ReduceOpSum>::value<T2>(T1&)::[lambda()]>()",
     )
-    expected = ("Fapply", "placementNew", "SetModel", "Fsmooth")
+    expected = ("Fapply", "placementNew", "SetModel", "Fsmooth", "value")
     actual = tuple(scoped_call_label(name) for name in names)
     if actual != expected:
         raise AssertionError(f"labels: expected {expected}, got {actual}")
     if selector_for(names[1], actual[1]) != r"regex:.*::placementNew.*Set::Matrix4.*":
         raise AssertionError("placementNew selector lost its discovered value type")
+    value_selector = selector_for(names[4], actual[4])
+    if value_selector != r"regex:.*::ReduceOps.*::value.*":
+        raise AssertionError("ReduceOps::value selector lost its owning type")
+    unrelated = (
+        "void amrex::launch_global<std::enable_if<"
+        "amrex::MaybeDeviceRunnable<T2, void>::value, void>::type "
+        "amrex::ParallelFor<ResizeRandomSeed::[lambda()]>>()"
+    )
+    if re.search(value_selector.removeprefix("regex:"), unrelated):
+        raise AssertionError("ReduceOps::value selector matches an unrelated trait")
     print("nsys target discovery unit tests passed")
 
 

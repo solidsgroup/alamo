@@ -332,7 +332,13 @@ def ncu(d):
         if line.strip()
     ) if targets.exists() else None
     produced = len(report_paths)
-    if expected is None:
+    semantic_failures = list((d / "ncu").glob("*VALIDATION_FAILED*"))
+    if semantic_failures:
+        coverage = (
+            f"INVALID ({produced}/{expected if expected is not None else '?'} "
+            "files; semantic validation failed)"
+        )
+    elif expected is None:
         coverage = "UNAVAILABLE (discovery table missing)"
     elif produced == expected:
         coverage = f"COMPLETE ({produced}/{expected})"
