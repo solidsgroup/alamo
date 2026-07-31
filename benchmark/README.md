@@ -149,14 +149,17 @@ For an A/B result:
 
 - use identical binaries, inputs, rank/GPU counts, output settings, and arena
   settings between arms;
-- alternate arm order for at least three repetitions and report the median;
+- alternate arm order for at least three repetitions and report median + MAD;
 - report total wall and wall per completed step;
-- record a separate one-step startup calibration and a startup-excluding
-  synchronized solver or trace-region timer when one is available;
+- pair each long run with a one-step run and compute
+  `(wall_long - wall_short) / (steps_long - 1)` so startup is removed inside
+  every repetition; retain synchronized solver or trace-region timers when
+  available;
 - retain raw samples and state whether an arena-size override was local-only.
 
-Multi-step external wall is the authoritative speed metric. Startup subtraction
-is a useful calibration, not a substitute for it. Per-region GPU timers are
+Multi-step external wall is the authoritative speed metric. The paired
+difference is the startup-excluding wall metric, not a substitute for a long
+horizon. Per-region GPU timers are
 valid only when their region boundaries synchronize the measured work:
 asynchronous/no-sync execution can move completion costs into later regions and
 make inner-region attribution misleading.

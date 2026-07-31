@@ -34,6 +34,9 @@ def timing(d):
         vals = dict(re.findall(r"([A-Za-z_]+)=([^\s]+)", text))
         out.append((mode, f"wall median {vals.get('wall_median_s', '—')} s; "
                            f"steady/step median {vals.get('steady_per_step_median_s', '—')} s; "
+                           f"MAD {vals.get('steady_per_step_mad_s', '—')} s; "
+                           f"sample sd {vals.get('steady_per_step_sd_s', '—')} s; "
+                           f"startup median {vals.get('startup_wall_median_s', '—')} s; "
                            f"failed reps {vals.get('failed_reps', '—')}"))
     return out
 

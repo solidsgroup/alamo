@@ -284,36 +284,18 @@ fi
 # F10. Non-profile binary only. See the header note on why.
 if have_leg timing; then
   say "LEG timing -- F10 wall/step, managed vs device arena (NON-profile binary)"
-  # PLAN v2 §12.1: startup EXCLUDED, calibration derived up front rather than
-  # deferred to analysis. Every prior F10 number here included CUDA context
-  # creation and InitData in a 12-33 s total, which is why none of them were
-  # admissible. Five repetitions satisfy the campaign protocol; randomized,
-  # recorded arm order makes machine drift land on both configurations.
+  # PLAN v2 §12.1: startup EXCLUDED. Each sample is a paired difference between
+  # max_step=1 and the full horizon, not a long run minus one calibration taken
+  # outside the repetition loop. CUDA context creation and InitData therefore
+  # cancel within every sample. Five repetitions satisfy the campaign protocol;
+  # randomized arm order makes machine drift land on both configurations.
   REPS="${REPS:-5}"
   for mode in managed device; do
-    L="${OUT}/timing/${mode}"; mkdir -p "${L}"
-    if [ "${mode}" = managed ]; then ARENA=( "${MANAGED[@]}" ); else ARENA=( "${DEVICE[@]}" ); fi
-    if [ "${DRYRUN}" = 1 ]; then
-      echo "+ [startup calib] srun ... ./${PLAIN_BIN} ${COMMON[*]} ${ARENA[*]} max_step=1 ..."
-      continue
-    fi
-    S0=$(date +%s.%N)
-    srun --mpi=pmix -n1 --gpus-per-task=1 \
-      "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step=1 \
-      stop_time=1e99_s plot_file="${L}/plot_calib" > "${L}/startup.log" 2>&1
-    STARTUP_RC=$?
-    if [ "${STARTUP_RC}" -ne 0 ]; then
-      echo "  startup calibration (${mode}) FAILED rc=${STARTUP_RC}; see ${L}/startup.log"
-      CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
-    fi
-    S1=$(date +%s.%N)
-    STARTUP=$(awk -v a="${S0}" -v b="${S1}" 'BEGIN{printf "%.3f", b-a}')
-    echo "  startup calibration (${mode}, max_step=1): ${STARTUP}s"
-    printf 'startup_s=%s\n' "${STARTUP}" > "${L}/startup.txt"
+    mkdir -p "${OUT}/timing/${mode}"
   done
   if [ "${DRYRUN}" = 1 ]; then
-    echo "+ [5 randomized/interleaved reps] srun ... managed ... max_step=${MAX_STEP}"
-    echo "+ [5 randomized/interleaved reps] srun ... device  ... max_step=${MAX_STEP}"
+    echo "+ [5 randomized/interleaved paired reps] srun ... managed ... max_step=1,${MAX_STEP}"
+    echo "+ [5 randomized/interleaved paired reps] srun ... device  ... max_step=1,${MAX_STEP}"
   else
     for mode in managed device; do
       : > "${OUT}/timing/${mode}/reps.txt"
@@ -329,8 +311,15 @@ if have_leg timing; then
         else
           ARENA=( "${DEVICE[@]}" )
         fi
-        STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
-        STARTUP="${STARTUP:-0}"
+        S0=$(date +%s.%N)
+        srun --mpi=pmix -n1 --gpus-per-task=1 \
+          "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step=1 \
+          stop_time=1e99_s plot_file="${L}/plot_short_rep${rep}" \
+          > "${L}/run_short_rep${rep}.log" 2>&1
+        SHORT_RC=$?
+        S1=$(date +%s.%N)
+        SHORT_WALL=$(awk -v a="${S0}" -v b="${S1}" \
+          'BEGIN{printf "%.3f", b-a}')
         T0=$(date +%s.%N)
         srun --mpi=pmix -n1 --gpus-per-task=1 \
           "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step="${MAX_STEP}" \
@@ -340,48 +329,62 @@ if have_leg timing; then
         if [ "${RC}" -ne 0 ]; then
           CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
         fi
+        if [ "${SHORT_RC}" -ne 0 ]; then
+          CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
+        fi
         WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
-        # Steady-state per step: startup removed, so this is comparable across
-        # decks and across phases. The raw wall is kept for audit.
-        PER=$(awk -v w="${WALL}" -v s="${STARTUP}" -v n="${MAX_STEP}" \
-              'BEGIN{printf "%.5f", (w-s)/n}')
-        echo "  ${mode} rep${rep}: rc=${RC} wall=${WALL}s steady_per_step=${PER}s"
-        printf '%s\t%s\t%s\t%s\n' "${rep}" "${RC}" "${WALL}" "${PER}" \
+        # Both independent processes contain CUDA startup, InitData, and step 1.
+        # Their wall difference therefore covers steps 2..MAX_STEP.
+        PER=$(awk -v w="${WALL}" -v s="${SHORT_WALL}" -v n="${MAX_STEP}" \
+              'BEGIN{printf "%.5f", (w-s)/(n-1)}')
+        echo "  ${mode} rep${rep}: short_rc=${SHORT_RC} short=${SHORT_WALL}s rc=${RC} wall=${WALL}s paired_per_step=${PER}s"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+          "${rep}" "${RC}" "${WALL}" "${PER}" "${SHORT_RC}" "${SHORT_WALL}" \
           >> "${L}/reps.txt"
       done
     done
     for mode in managed device; do
       L="${OUT}/timing/${mode}"
-      STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
-      STARTUP="${STARTUP:-0}"
-      awk -v m="${mode}" -v n="${MAX_STEP}" -v s="${STARTUP}" '
+      awk -v m="${mode}" -v n="${MAX_STEP}" '
         {
-          if ($2 != 0) {fail++}
-          w[NR]=$3; p[NR]=$4; sw+=$3; sp+=$4
+          if ($2 != 0 || $5 != 0) {fail++}
+          w[NR]=$3; p[NR]=$4; q[NR]=$6; sw+=$3; sp+=$4
         }
         END{
           k=NR; if(k==0){print "no reps"; exit}
           mw=sw/k; mp=sp/k;
           for(i=1;i<=k;i++){vw+=(w[i]-mw)^2; vp+=(p[i]-mp)^2}
           sdw=(k>1)?sqrt(vw/(k-1)):0; sdp=(k>1)?sqrt(vp/(k-1)):0;
-          for(i=1;i<=k;i++){ws[i]=w[i];ps[i]=p[i]}
+          for(i=1;i<=k;i++){ws[i]=w[i];ps[i]=p[i];qs[i]=q[i]}
           for(i=2;i<=k;i++){
             x=ws[i];j=i-1;while(j>=1&&ws[j]>x){ws[j+1]=ws[j];j--}ws[j+1]=x
             x=ps[i];j=i-1;while(j>=1&&ps[j]>x){ps[j+1]=ps[j];j--}ps[j+1]=x
+            x=qs[i];j=i-1;while(j>=1&&qs[j]>x){qs[j+1]=qs[j];j--}qs[j+1]=x
           }
-          if(k%2){wm=ws[(k+1)/2];pm=ps[(k+1)/2]}
-          else{wm=(ws[k/2]+ws[k/2+1])/2;pm=(ps[k/2]+ps[k/2+1])/2}
-          printf "mode=%s reps=%d failed_reps=%d steps=%d startup_s=%s\n",
-                 m, k, fail, n, s;
+          if(k%2){wm=ws[(k+1)/2];pm=ps[(k+1)/2];qm=qs[(k+1)/2]}
+          else{
+            wm=(ws[k/2]+ws[k/2+1])/2;
+            pm=(ps[k/2]+ps[k/2+1])/2;
+            qm=(qs[k/2]+qs[k/2+1])/2
+          }
+          for(i=1;i<=k;i++){d[i]=(p[i]>pm)?p[i]-pm:pm-p[i]}
+          for(i=2;i<=k;i++){
+            x=d[i];j=i-1;while(j>=1&&d[j]>x){d[j+1]=d[j];j--}d[j+1]=x
+          }
+          if(k%2){mad=d[(k+1)/2]}
+          else{mad=(d[k/2]+d[k/2+1])/2}
+          printf "mode=%s reps=%d failed_reps=%d steps=%d short_steps=1\n",
+                 m, k, fail, n;
+          printf "startup_wall_median_s=%.3f\n", qm;
           printf "wall_median_s=%.3f steady_per_step_median_s=%.5f\n", wm, pm;
           printf "wall_mean_s=%.3f wall_sd_s=%.3f\n", mw, sdw;
           printf "steady_per_step_mean_s=%.5f steady_per_step_sd_s=%.5f\n", mp, sdp;
+          printf "steady_per_step_mad_s=%.5f\n", mad;
         }' "${L}/reps.txt" | tee "${L}/timing.txt"
     done
   fi
-  echo "T0 rule: report steady_per_step_median_s; retain mean +/- sd for the"
-  echo "  uncertainty gate. A difference inside +/- 2 sd is not a regression"
-  echo "  and not an improvement -- PLAN v2 §12.1."
+  echo "T0 rule: report the paired-difference steady_per_step_median_s and MAD;"
+  echo "  retain mean +/- sample sd for continuity with PLAN v2's uncertainty gate."
 fi
 
 # --------------------------------------------------------------- leg: flip ---
