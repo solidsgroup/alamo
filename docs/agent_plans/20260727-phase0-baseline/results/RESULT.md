@@ -687,6 +687,19 @@ explicit partial coverage instead of application failures.
 `bash -n` and dry-run execution pass with `required_leg_failures=0`.  Hardware
 validation is part of the dirty-source re-capture.
 
+### H13 — serialize final timing captures
+
+Jobs `11825423` and `11825424` ran concurrently on the same physical node.
+They had separate GPUs, but their five-run timing samples show asymmetric node
+noise (for example, one 3D arm has a 0.02460 s/step standard deviation while
+the other has 0.00847).  The uncertainty rule correctly prevents a verdict,
+but knowingly repeating that placement would waste the final timing pass.
+
+`phase0_capture.sh submit` now accepts `SERIAL=1` and chains the submitted decks
+with `afterok` dependencies.  An optional initial `DEPENDENCY=<jobid>` can chain
+the first capture after a build or prerequisite.  The dirty-source final suite
+will use serial submission.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)

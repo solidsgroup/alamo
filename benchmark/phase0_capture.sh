@@ -24,6 +24,7 @@
 #   bash benchmark/phase0_capture.sh push
 #   bash benchmark/phase0_capture.sh build
 #   bash benchmark/phase0_capture.sh submit 2
+#   SERIAL=1 bash benchmark/phase0_capture.sh submit input_copy input input_3d_centre_bore_128_a2
 #   bash benchmark/phase0_capture.sh status
 #   bash benchmark/phase0_capture.sh collect /work/brunnels/jackplum/alamo/benchmark/_phase0_2d_a100_123456
 # ===========================================================================
@@ -166,12 +167,22 @@ case "${ACTION}" in
     # ruling 2026-07-27); input and the 3D centre-bore case are kept alongside.
     DECKS=("$@")
     [ "${#DECKS[@]}" -eq 0 ] && DECKS=(input_copy input input_3d_centre_bore_128_a2)
+    NEXT_DEPENDENCY="${DEPENDENCY:-}"
     for d in "${DECKS[@]}"; do
       echo "=== submit DECK=${d} GPU_TYPE=${GPU_TYPE} LEGS='${LEGS:-default}'"
-      ssh_nova "cd ${REMOTE_DIR} && sbatch --parsable --gres=gpu:${GPU_TYPE}:1 \
+      DEPENDENCY_OPT=""
+      if [ -n "${NEXT_DEPENDENCY}" ]; then
+        DEPENDENCY_OPT="--dependency=afterok:${NEXT_DEPENDENCY}"
+      fi
+      JOB_ID=$(ssh_nova "cd ${REMOTE_DIR} && sbatch --parsable --gres=gpu:${GPU_TYPE}:1 \
                   ${EXCLUDE_NODES:+--exclude=${EXCLUDE_NODES}} \
+                  ${DEPENDENCY_OPT} \
                   --export=ALL,DECK=${d},GPU_TYPE=${GPU_TYPE}${LEGS:+,LEGS='${LEGS}'}${SMOOTH_STEP:+,SMOOTH_STEP=${SMOOTH_STEP}} \
-                  benchmark/phase0_capture.slurm"
+                  benchmark/phase0_capture.slurm")
+      echo "${JOB_ID}"
+      if [ "${SERIAL:-0}" = "1" ]; then
+        NEXT_DEPENDENCY="${JOB_ID}"
+      fi
     done
     echo "Record the job ids. Do not block on the queue (campaign §2)."
     ;;
