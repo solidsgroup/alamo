@@ -520,6 +520,34 @@ line comments record this so the next reader does not "fix" it back.
 **Not yet re-run.** These fixes are unvalidated on hardware; the next submission
 is the test.
 
+### H4 — OSRT, not MPI or `srun`, is the injection trigger
+
+The H1 fix was incomplete: the 2026-07-28 re-capture still aborted on all three
+decks after `mpi` was removed from the trace list. Two focused NOVA jobs on
+2026-07-31 isolated the trigger:
+
+| Job | Arm | Result |
+|---|---|---|
+| 11825224 | `/bin/true`, direct `nsys` | PASS |
+| 11825224 | ALAMO, direct `nsys` | FAIL, same MPI-init exception |
+| 11825224 | ALAMO, `srun nsys` | FAIL, same MPI-init exception |
+| 11825250 | `-t cuda` | PASS |
+| 11825250 | `-t nvtx` | PASS |
+| 11825250 | `-t osrt` | **FAIL** |
+| 11825250 | `-t cuda,nvtx` | PASS |
+| 11825250 | `-t cuda,nvtx,osrt` | **FAIL** |
+
+The failing arms throw `Expected shared object name, found a path delimiter`
+from `libToolsInjection64.so` while Open MPI 5.0.8 registers UCX. The passing
+`cuda,nvtx` arm initializes CUDA, completes one timestep, and emits a nonempty
+report. Older Nsight Systems 2024.5, 2023.4, and 2023.3 also pass with
+`cuda,nvtx`, confirming that changing toolkits is unnecessary.
+
+**Fix:** the Phase 0 nsys leg now traces `cuda,nvtx` only. CUDA tracing retains
+the CUDA API calls needed for transfer and synchronization accounting; OSRT is
+not required by F1/F2/F3/F8/F9. Hardware validation still requires a full-horizon
+re-capture.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)

@@ -33,7 +33,7 @@
 #   flip     N2. Device arena + abort_on_out_of_gpu_memory=1. INVENTORY ONLY --
 #            a crash here is the deliverable, not a failure. Never fix in-job.
 #   nsys     F1,F2,F3,F8,F9. Profile binary (BL_PROFILE regions emit NVTX under
-#            CUDA), CUDA+NVTX+OSRT trace (NOT mpi -- see the leg), CUDA memory
+#            CUDA), CUDA+NVTX trace (NOT mpi/OSRT -- see the leg), CUDA memory
 #            usage, and unified-memory page-fault counters. Exports stats CSVs
 #            so collection is small files, not just a .nsys-rep.
 #   ncu      F4,F5,F6,F7. Top kernels only, a few launches each, selected by
@@ -339,14 +339,16 @@ fi
 if have_leg nsys; then
   say "LEG nsys -- F1,F2,F3,F8,F9 (profile binary: BL_PROFILE regions emit NVTX)"
   L="${OUT}/nsys"; mkdir -p "${L}"
-  # NO `mpi` IN -t. nsys 2024.6.2's libToolsInjection64.so segfaults inside
-  # ompi_mpi_init -> opal_common_ucx_mca_register against the Open MPI 5.0.8 /
-  # UCX 1.18.1 this binary links; jobs 11772152/11772153/11772161 all died at
-  # rc=137 before the first timestep and produced no trace.nsys-rep at all.
-  # Every run here is -n1, so MPI tracing buys nothing anyway. Do not re-add it
-  # without first re-testing on a newer nsys.
+  # NO `mpi` OR `osrt` IN -t. Nsight Systems 2024.6.2's OSRT injection aborts
+  # inside ompi_mpi_init -> opal_common_ucx_mca_register against the Open MPI
+  # 5.0.8 / UCX 1.18.1 this binary links. Isolation job 11825250 proved that
+  # `cuda`, `nvtx`, and `cuda,nvtx` all complete, while `osrt` alone and
+  # `cuda,nvtx,osrt` both abort with "Expected shared object name, found a path
+  # delimiter". Dropping `srun` did not help (job 11825224). Every run here is
+  # -n1, and CUDA tracing still supplies the API calls needed by F2/T6a.
+  # Do not re-add mpi/OSRT without first re-testing the linked MPI and nsys.
   NSYS_ARGS=( profile
-    -t cuda,nvtx,osrt
+    -t cuda,nvtx
     --cuda-memory-usage=true
     --cuda-um-cpu-page-faults=true
     --cuda-um-gpu-page-faults=true
@@ -374,8 +376,9 @@ if have_leg nsys; then
     if [ ! -s "${L}/trace.nsys-rep" ]; then
       echo "  CAPTURE FAILED: no ${L}/trace.nsys-rep (nsys rc=${NSYS_RC})."
       echo "  F1,F2,F3,F8,F9 are NOT captured for this deck. Read ${L}/run.log;"
-      echo "  rc=137 with a libToolsInjection64.so frame means the -t list is at"
-      echo "  fault, not the deck. Do not read the stats CSVs -- there are none."
+      echo "  An MPI-init abort with a libToolsInjection64.so frame means a trace"
+      echo "  feature is incompatible with the linked MPI, not that the deck ran."
+      echo "  Do not read the stats CSVs -- there are none."
       echo "no trace.nsys-rep produced; nsys rc=${NSYS_RC}" > "${L}/CAPTURE_FAILED"
     else
       # Export CSVs so the collect step moves kilobytes, not gigabytes. Report names
