@@ -296,7 +296,13 @@ def capture(d):
         f"**{key}** `{value}`" for key, value in inventory_fields(inv).items()
     ]
     scheduler_out = read(d / "env" / "scheduler.out")
-    scheduler_err = read(d / "env" / "scheduler.err")
+    scheduler_err_path = d / "env" / "scheduler.err"
+    scheduler_err = read(scheduler_err_path)
+    scheduler_err_status = (
+        "MISSING"
+        if not scheduler_err_path.exists()
+        else ("NONEMPTY" if scheduler_err.strip() else "empty")
+    )
     required_matches = re.findall(
         r"^required_leg_failures=(\d+)\s*$", scheduler_out, re.MULTILINE
     )
@@ -307,7 +313,7 @@ def capture(d):
         "; ".join(provenance) if provenance else "MISSING inventory.txt",
         "",
         f"Scheduler required-leg failures: **{required_verdict}**; "
-        f"scheduler stderr: **{'NONEMPTY' if scheduler_err.strip() else 'empty'}**.",
+        f"scheduler stderr: **{scheduler_err_status}**.",
         "",
         "### Timing",
         "",
