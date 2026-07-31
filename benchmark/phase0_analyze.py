@@ -67,34 +67,51 @@ def arena_table(d):
     for step in steps:
         text = read(step / "run.log")
         if not text:
-            rows.append((step.name, "MISSING", "", ""))
+            rows.append((step.name, "MISSING", "", [], {}))
             continue
         if "CAPTURE_FAILED" in text or (step / "CAPTURE_FAILED").exists():
-            rows.append((step.name, "CAPTURE_FAILED", "", ""))
+            rows.append((step.name, "CAPTURE_FAILED", "", [], {}))
             continue
         # Final AMReX summary is less ambiguous than request tables.
         m = re.search(r"\[The\s+Arena\] max space \(MB\) used\s+spread across MPI: \[([^]]+)]", text)
         used = m.group(1).strip() if m else "—"
         m = re.search(r"\[The\s+Arena\] max space \(MB\) allocated\s+spread across MPI: \[([^]]+)]", text)
         alloc = m.group(1).strip() if m else "—"
-        req = []
-        in_device = False
+        requests = []
+        totals = {"device": 0, "managed": 0, "pinned": 0}
+        section = None
         for line in text.splitlines():
-            if line.strip() == "Device Memory Usage:":
-                in_device = True
+            heading = line.strip()
+            if heading == "Device Memory Usage:":
+                section = "device"
                 continue
-            if in_device and line.strip() == "Managed Memory Usage:":
-                in_device = False
-            if not in_device or "Nalloc" in line or "MaxMem" in line or line.startswith("Name ") or set(line.strip()) == {"-"}:
+            if heading == "Managed Memory Usage:":
+                section = "managed"
+                continue
+            if heading == "Pinned Memory Usage:":
+                section = "pinned"
+                continue
+            if section is None or "Nalloc" in line or "MaxMem" in line:
                 continue
             m = re.match(r"^\s*(.*?)\s+(\d+)\s+.*?(\d+(?:\.\d+)?\s+(?:B|KiB|MiB|GiB))\s*$", line)
-            if (
-                m
-                and ("::" in m.group(1) or "(" in m.group(1))
-                and m.group(1).strip() != "The_Arena::Initialize()"
-            ):
-                req.append((m.group(2), m.group(1).strip(), m.group(3).strip()))
-        rows.append((step.name, f"used {used} MB", f"allocated {alloc} MB", req[:3]))
+            if not m:
+                continue
+            name = m.group(1).strip()
+            if "Arena::Initialize()" in name:
+                continue
+            nalloc = int(m.group(2))
+            totals[section] += nalloc
+            if section == "device":
+                requests.append((str(nalloc), name, m.group(3).strip()))
+        rows.append(
+            (
+                step.name,
+                f"used {used} MB",
+                f"allocated {alloc} MB",
+                requests[:3],
+                totals,
+            )
+        )
     return rows
 
 
@@ -163,9 +180,22 @@ def capture(d):
     lines += [f"- **{mode}**: {summary}" for mode, summary in timing(d)]
     lines += ["", "### Arena step 1/full", ""]
     ar = arena_table(d)
-    lines += (["| Capture | High-water used | Allocation |", "|---|---:|---:|"] +
-              [f"| {s} | {u} | {a} |" for s, u, a, _ in ar]) if ar else ["MISSING arena artifacts"]
-    for step, _, _, req in ar:
+    lines += (
+        [
+            "| Capture | High-water used | Allocation | Device requests | "
+            "Managed requests | Pinned requests |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+        + [
+            f"| {step} | {used} | {allocated} | "
+            f"{totals.get('device', '—')} | {totals.get('managed', '—')} | "
+            f"{totals.get('pinned', '—')} |"
+            for step, used, allocated, _, totals in ar
+        ]
+        if ar
+        else ["MISSING arena artifacts"]
+    )
+    for step, _, _, req, _ in ar:
         if req:
             lines += ["", f"Top request rows ({step}):", "", "| Nalloc | Region | MaxMem |", "|---:|---|---:|"]
             lines += [f"| {n} | {name} | {mx} |" for n, name, mx in req[:10]]
