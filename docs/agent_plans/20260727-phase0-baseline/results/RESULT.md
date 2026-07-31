@@ -736,11 +736,38 @@ remain at 90/110 steps because they need two solves to discover the kernel
 Pareto and already generate 100 MB-1 GB detailed CSVs.  The preflight enforces
 the two requirements separately.
 
-Consequently, jobs `11825546-11825548` remain admissible for nsys, NCU, the
-device-arena flip, and short-horizon allocation diagnosis, but their F10 rows
-will not enter the ledger.  A serialized timing/arena-only suite with the new
-five-solve horizon supplies T0, and a separate production-length arena endpoint
-supplies the stability check.
+Consequently, the `11825546-11825548` attempt supplies no ledger row:
+`11825546` later failed in report export (H16), and its two dependents never
+ran.  The replacement full suite uses five-solve timing while retaining bounded
+diagnostic traces, and a separate production-length arena endpoint supplies the
+stability check.
+
+### H16 — run nsys reports against one immutable export
+
+Job `11825546` proved the required-leg failure propagation and exposed a NOVA
+parallel-filesystem timestamp race.  The application trace completed, and the
+first `nsys stats` call exported a 1.2 GB SQLite database and produced
+`nvtx_sum`.  Subsequent calls compared `trace.nsys-rep` fractionally newer than
+that database, refused it as stale, and emitted empty CUDA reports.  Kernel
+discovery and NCU were therefore correctly marked failed, the job exited 4,
+and its `afterok` dependents `11825547/11825548` were cancelled without running.
+No row from this attempt enters the ledger.
+
+The nsys leg now runs `nsys export --type sqlite` exactly once and points every
+stats report at that immutable database.  The installed Nsight Systems 2024.6.2
+accepted the exact export command on a hardware trace, and
+`cuda_gpu_kern_sum` processed successfully from the resulting SQLite path.
+
+After a new content push (`local_head=ce3e47acf`,
+`tree_hash=073ff4f513fbcf63`, unchanged
+`src_hash=c88836ce414b44cc`), the replacement serialized suite is:
+
+| Job | Deck | Purpose |
+|---:|---|---|
+| `11825577` | `input_copy` | full five-solve timing + diagnostic figures |
+| `11825578` | `input` | full five-solve timing + diagnostic figures |
+| `11825579` | 3D | full five-solve timing + diagnostic figures |
+| `11825580` | `input_copy` | 6,000-step production-length arena endpoint |
 
 ---
 
