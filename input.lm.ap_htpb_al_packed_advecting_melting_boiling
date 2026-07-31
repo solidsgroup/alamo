@@ -1,0 +1,331 @@
+# Self-contained 3 MPa AP/HTPB packed-particle combustion case with an
+# advecting aluminum particle that melts and then boils to inert Al vapor.
+# This file intentionally has no
+# FILE or ignore directives: every case parameter inherited by the previous
+# version is specified directly below.
+#
+# Run from the repository root with:
+#   mpirun -np 8 ./bin/lowmach-2d-clang++ \
+#       input.lm.ap_htpb_al_packed_advecting_melting_boiling
+
+# Output and AMR
+plot_file = output.lm.ap_htpb_al_packed_advecting_melting_boiling
+amr.plot_dt = 2.0e-5_s
+amr.max_level = 2
+amr.n_cell = 64 120
+amr.max_grid_size = 16
+amr.blocking_factor = 4
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.nsubsteps = 1
+
+# Reinitialization samples stationary condensed-species ICs and is therefore
+# inappropriate once the aluminum profile moves away from its initial state.
+amr.reinitialize_condensed_composition = 0
+
+# Carry the moving condensed interfaces and active reaction layer to the
+# finest level without following smooth burned-gas temperature or velocity
+# structure downstream.
+eta_refinement_criterion = 0.01
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
+
+# Time integration
+timestep = 1.0e-7_s
+stop_time = 8_ms
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-4
+dynamictimestep.verbose = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+# Domain
+geometry.prob_lo = -0.0006_m -0.0004_m 0.0
+geometry.prob_hi =  0.0006_m  0.0018_m 0.0
+geometry.is_periodic = 1 0 0
+
+# Gas model
+system.amount = kmol
+gas.thermo.type = gross_model
+gas.thermo.gross_model.cp_mass = 0.3_cal/g/K
+gas.thermo.gross_model.Tref = 273.15_K
+gas.transport.type = gross_model
+gas.transport.gross_model.prandtl = 0.69
+gas.transport.gross_model.lewis = 1.0
+gas.transport.gross_model.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.gross_model.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = gross_model
+
+# GrossModel_Aluminized retains the original six reacting species and appends an
+# inert aluminum-bearing gas species. The reduced GrossModel closure accepts one
+# molecular weight for every gas species. Al_gas uses its atomic weight and
+# the inert lumped Al2O3_gas species uses its molecular weight of 101.96 g/mol.
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.9815385_g/mol 101.96_g/mol
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final Al_gas Al2O3_gas AP_solid HTPB_solid Al_solid Al_liquid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+Al_gas.mechanics = fluid
+Al2O3_gas.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+Al_solid.mechanics = rigid_solid
+Al_liquid.mechanics = liquid
+
+AP_solid.reference_density = 1950.0_kg/m^3
+HTPB_solid.reference_density = 920.0_kg/m^3
+Al_solid.reference_density = 2700.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+HTPB_solid.specific_heat = 2418.29_J/kg/K
+HTPB_solid.thermal_conductivity = 0.1300_W/m/K
+Al_solid.specific_heat = 900.0_J/kg/K
+Al_solid.thermal_conductivity = 237.0_W/m/K
+
+# Molten-aluminum properties match the aluminum oxide-cap cases.  The liquid
+# interface thickness is about four cells on the finest AMR level.
+Al_liquid.reference_density = 2375.0_kg/m^3
+Al_liquid.dynamic_viscosity = 1.3e-3_Pa*s
+Al_liquid.specific_heat = 1177.0_J/kg/K
+Al_liquid.thermal_conductivity = 90.0_W/m/K
+liquid.interface_thickness = 20.0_um
+liquid.capillary.enabled = 1
+liquid.capillary.include_solids = 1
+# Every solid is automatically excluded from the capillary gas complement.
+# Specify the interfacial energy between molten aluminum and each solid that
+# exists in this case; solid-gas and solid-solid surface energies are omitted.
+liquid.surface_tension.Al_liquid_gas = 0.86_J/m^2
+liquid.surface_tension.Al_liquid_AP_solid = 0.136_J/m^2
+liquid.surface_tension.Al_liquid_HTPB_solid = 0.136_J/m^2
+liquid.surface_tension.Al_liquid_Al_solid = 0.136_J/m^2
+
+chemistry.model.type = gross_model_aluminized
+chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.gross_model_aluminized.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.gross_model_aluminized.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.gross_model_aluminized.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.gross_model_aluminized.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.nsubsteps = 1
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
+
+# Rigid-body mechanics
+AP_solid.rigid.motion = fixed
+AP_solid.rigid.relaxation_time = 1.0e-8_s
+AP_solid.rigid.velocity = 0.0 0.0
+HTPB_solid.rigid.motion = fixed
+HTPB_solid.rigid.relaxation_time = 1.0e-8_s
+HTPB_solid.rigid.velocity = 0.0 0.0
+Al_solid.rigid.motion = free
+Al_solid.rigid.relaxation_time = 1.0e-8_s
+# Retain the fresh provisional body momentum and predict the pressure impulse
+# from the preceding step. Anderson corrections are used only when that cheap
+# predictor misses the requested coupling tolerance.
+Al_solid.rigid.coupling = anderson
+Al_solid.rigid.max_iterations = 3
+Al_solid.rigid.relative_tolerance = 1.0e-3
+Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
+
+mechanisms.names = AP_decomposition HTPB_pyrolysis Al_melting Al_boiling
+
+# Use the AP and HTPB PhaseChange configurations from input.lm.ap_htpb_packed.
+# The phase-field gradient terms are integrated implicitly.
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.phase0 = AP_solid
+AP_decomposition.phase_change.phase1 = AP_gas
+AP_decomposition.phase_change.latent_heat = 100.0_cal/g
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
+AP_decomposition.phase_change.phase_field.type = allencahn
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+HTPB_pyrolysis.type = phase_change
+HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
+HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
+HTPB_pyrolysis.phase_change.latent_heat = 300.0_cal/g
+HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
+HTPB_pyrolysis.phase_change.phase_field.type = allencahn
+HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
+
+# Use separate forward-only phase changes so aluminum must enter the liquid
+# state before it can become vapor.  These fixed cutoffs are the nominal
+# one-atmosphere transition temperatures; this model does not yet shift the
+# boiling threshold with pressure.  The deliberately elevated regression
+# speeds retain the time scale of the original sublimation regression case.
+Al_melting.type = phase_change
+Al_melting.phase_change.phase0 = Al_solid
+Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.reversible = false
+Al_melting.phase_change.latent_heat = 0.0 #3.9145e5_J/kg
+Al_melting.phase_change.prescribed_speed = 0.8_mm/s
+Al_melting.phase_change.temperature_cutoff = 700_K #933.45_K
+Al_melting.phase_change.phase_field.type = allencahn
+
+Al_boiling.type = phase_change
+Al_boiling.phase_change.phase0 = Al_liquid
+Al_boiling.phase_change.phase1 = Al_gas
+Al_boiling.phase_change.reversible = false
+Al_boiling.phase_change.latent_heat = 0.0 #1.0897e7_J/kg
+Al_boiling.phase_change.prescribed_speed = 0.8_mm/s
+Al_boiling.phase_change.temperature_cutoff = 1500_K #2793.0_K
+Al_boiling.phase_change.phase_field.type = allencahn
+
+# Flow, projection, and diffusion
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+
+# Initial conditions
+
+# The common diffuse condensed/gas surface is 100 um above the domain bottom.
+# All packed-bed coordinates below are relative to surface_y, so translating
+# the surface preserves the AP/HTPB geometry. The repeated minimum is the
+# signed distance to the nearest AP particle, including periodic x images. Its
+# strict sign test gives a sharp AP/HTPB interface.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.lx = 0.0012_m
+AP_solid.density.ic.expression.constant.surface_y = -0.0003_m
+AP_solid.density.ic.expression.constant.surface_eps = 20.0_um
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*(y-surface_y)/surface_eps))*(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000211),lx-abs(x-0.000211))^2+((y-surface_y)-0.000058)^2)-0.000074,sqrt(min(abs(x+0.000215),lx-abs(x+0.000215))^2+((y-surface_y)-0.000062)^2)-0.000077),sqrt(min(abs(x-0.000052),lx-abs(x-0.000052))^2+((y-surface_y)-0.000029)^2)-0.000053),sqrt(min(abs(x+0.000055),lx-abs(x+0.000055))^2+((y-surface_y)-0.000023)^2)-0.000050),sqrt(min(abs(x-0.000134),lx-abs(x-0.000134))^2+((y-surface_y)-0.000013)^2)-0.000023),sqrt(min(abs(x+0.000137),lx-abs(x+0.000137))^2+((y-surface_y)-0.000007)^2)-0.000021),sqrt(min(abs(x-0.000130),lx-abs(x-0.000130))^2+((y-surface_y)+0.000095)^2)-0.000072),sqrt(min(abs(x+0.000134),lx-abs(x+0.000134))^2+((y-surface_y)+0.000099)^2)-0.000070),sqrt(min(abs(x-0.000033),lx-abs(x-0.000033))^2+((y-surface_y)+0.000108)^2)-0.000039),sqrt(min(abs(x+0.000036),lx-abs(x+0.000036))^2+((y-surface_y)+0.000112)^2)-0.000037),sqrt(min(abs(x-0.000062),lx-abs(x-0.000062))^2+((y-surface_y)+0.000216)^2)-0.000051),sqrt(min(abs(x+0.000065),lx-abs(x+0.000065))^2+((y-surface_y)+0.000225)^2)-0.000048),sqrt(min(abs(x-0.000210),lx-abs(x-0.000210))^2+((y-surface_y)+0.000242)^2)-0.000074),sqrt(min(abs(x+0.000214),lx-abs(x+0.000214))^2+((y-surface_y)+0.000235)^2)-0.000070),sqrt(min(abs(x-0.000119),lx-abs(x-0.000119))^2+((y-surface_y)+0.000291)^2)-0.000038),sqrt(min(abs(x+0.000116),lx-abs(x+0.000116))^2+((y-surface_y)+0.000298)^2)-0.000035),sqrt(min(abs(x-0.000072),lx-abs(x-0.000072))^2+((y-surface_y)+0.000374)^2)-0.000070),sqrt(min(abs(x+0.000075),lx-abs(x+0.000075))^2+((y-surface_y)+0.000383)^2)-0.000067),sqrt(min(abs(x-0.000209),lx-abs(x-0.000209))^2+((y-surface_y)+0.000418)^2)-0.000070),sqrt(min(abs(x+0.000205),lx-abs(x+0.000205))^2+((y-surface_y)+0.000427)^2)-0.000067),sqrt(min(abs(x-0.000511),lx-abs(x-0.000511))^2+((y-surface_y)-0.000058)^2)-0.000074),sqrt(min(abs(x+0.000515),lx-abs(x+0.000515))^2+((y-surface_y)-0.000062)^2)-0.000077),sqrt(min(abs(x-0.000352),lx-abs(x-0.000352))^2+((y-surface_y)-0.000029)^2)-0.000053),sqrt(min(abs(x+0.000355),lx-abs(x+0.000355))^2+((y-surface_y)-0.000023)^2)-0.000050),sqrt(min(abs(x-0.000434),lx-abs(x-0.000434))^2+((y-surface_y)-0.000013)^2)-0.000023),sqrt(min(abs(x+0.000437),lx-abs(x+0.000437))^2+((y-surface_y)-0.000007)^2)-0.000021),sqrt(min(abs(x-0.000430),lx-abs(x-0.000430))^2+((y-surface_y)+0.000095)^2)-0.000072),sqrt(min(abs(x+0.000434),lx-abs(x+0.000434))^2+((y-surface_y)+0.000099)^2)-0.000070),sqrt(min(abs(x-0.000333),lx-abs(x-0.000333))^2+((y-surface_y)+0.000108)^2)-0.000039),sqrt(min(abs(x+0.000336),lx-abs(x+0.000336))^2+((y-surface_y)+0.000112)^2)-0.000037),sqrt(min(abs(x-0.000362),lx-abs(x-0.000362))^2+((y-surface_y)+0.000216)^2)-0.000051),sqrt(min(abs(x+0.000365),lx-abs(x+0.000365))^2+((y-surface_y)+0.000225)^2)-0.000048),sqrt(min(abs(x-0.000510),lx-abs(x-0.000510))^2+((y-surface_y)+0.000242)^2)-0.000074),sqrt(min(abs(x+0.000514),lx-abs(x+0.000514))^2+((y-surface_y)+0.000235)^2)-0.000070),sqrt(min(abs(x-0.000419),lx-abs(x-0.000419))^2+((y-surface_y)+0.000291)^2)-0.000038),sqrt(min(abs(x+0.000416),lx-abs(x+0.000416))^2+((y-surface_y)+0.000298)^2)-0.000035),sqrt(min(abs(x-0.000372),lx-abs(x-0.000372))^2+((y-surface_y)+0.000374)^2)-0.000070),sqrt(min(abs(x+0.000375),lx-abs(x+0.000375))^2+((y-surface_y)+0.000383)^2)-0.000067),sqrt(min(abs(x-0.000509),lx-abs(x-0.000509))^2+((y-surface_y)+0.000418)^2)-0.000070),sqrt(min(abs(x+0.000505),lx-abs(x+0.000505))^2+((y-surface_y)+0.000427)^2)-0.000067)<0.0))"
+
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.constant.lx = 0.0012_m
+HTPB_solid.density.ic.expression.constant.surface_y = -0.0003_m
+HTPB_solid.density.ic.expression.constant.surface_eps = 20.0_um
+HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*(y-surface_y)/surface_eps))*(1.0-(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(min(sqrt(min(abs(x-0.000211),lx-abs(x-0.000211))^2+((y-surface_y)-0.000058)^2)-0.000074,sqrt(min(abs(x+0.000215),lx-abs(x+0.000215))^2+((y-surface_y)-0.000062)^2)-0.000077),sqrt(min(abs(x-0.000052),lx-abs(x-0.000052))^2+((y-surface_y)-0.000029)^2)-0.000053),sqrt(min(abs(x+0.000055),lx-abs(x+0.000055))^2+((y-surface_y)-0.000023)^2)-0.000050),sqrt(min(abs(x-0.000134),lx-abs(x-0.000134))^2+((y-surface_y)-0.000013)^2)-0.000023),sqrt(min(abs(x+0.000137),lx-abs(x+0.000137))^2+((y-surface_y)-0.000007)^2)-0.000021),sqrt(min(abs(x-0.000130),lx-abs(x-0.000130))^2+((y-surface_y)+0.000095)^2)-0.000072),sqrt(min(abs(x+0.000134),lx-abs(x+0.000134))^2+((y-surface_y)+0.000099)^2)-0.000070),sqrt(min(abs(x-0.000033),lx-abs(x-0.000033))^2+((y-surface_y)+0.000108)^2)-0.000039),sqrt(min(abs(x+0.000036),lx-abs(x+0.000036))^2+((y-surface_y)+0.000112)^2)-0.000037),sqrt(min(abs(x-0.000062),lx-abs(x-0.000062))^2+((y-surface_y)+0.000216)^2)-0.000051),sqrt(min(abs(x+0.000065),lx-abs(x+0.000065))^2+((y-surface_y)+0.000225)^2)-0.000048),sqrt(min(abs(x-0.000210),lx-abs(x-0.000210))^2+((y-surface_y)+0.000242)^2)-0.000074),sqrt(min(abs(x+0.000214),lx-abs(x+0.000214))^2+((y-surface_y)+0.000235)^2)-0.000070),sqrt(min(abs(x-0.000119),lx-abs(x-0.000119))^2+((y-surface_y)+0.000291)^2)-0.000038),sqrt(min(abs(x+0.000116),lx-abs(x+0.000116))^2+((y-surface_y)+0.000298)^2)-0.000035),sqrt(min(abs(x-0.000072),lx-abs(x-0.000072))^2+((y-surface_y)+0.000374)^2)-0.000070),sqrt(min(abs(x+0.000075),lx-abs(x+0.000075))^2+((y-surface_y)+0.000383)^2)-0.000067),sqrt(min(abs(x-0.000209),lx-abs(x-0.000209))^2+((y-surface_y)+0.000418)^2)-0.000070),sqrt(min(abs(x+0.000205),lx-abs(x+0.000205))^2+((y-surface_y)+0.000427)^2)-0.000067),sqrt(min(abs(x-0.000511),lx-abs(x-0.000511))^2+((y-surface_y)-0.000058)^2)-0.000074),sqrt(min(abs(x+0.000515),lx-abs(x+0.000515))^2+((y-surface_y)-0.000062)^2)-0.000077),sqrt(min(abs(x-0.000352),lx-abs(x-0.000352))^2+((y-surface_y)-0.000029)^2)-0.000053),sqrt(min(abs(x+0.000355),lx-abs(x+0.000355))^2+((y-surface_y)-0.000023)^2)-0.000050),sqrt(min(abs(x-0.000434),lx-abs(x-0.000434))^2+((y-surface_y)-0.000013)^2)-0.000023),sqrt(min(abs(x+0.000437),lx-abs(x+0.000437))^2+((y-surface_y)-0.000007)^2)-0.000021),sqrt(min(abs(x-0.000430),lx-abs(x-0.000430))^2+((y-surface_y)+0.000095)^2)-0.000072),sqrt(min(abs(x+0.000434),lx-abs(x+0.000434))^2+((y-surface_y)+0.000099)^2)-0.000070),sqrt(min(abs(x-0.000333),lx-abs(x-0.000333))^2+((y-surface_y)+0.000108)^2)-0.000039),sqrt(min(abs(x+0.000336),lx-abs(x+0.000336))^2+((y-surface_y)+0.000112)^2)-0.000037),sqrt(min(abs(x-0.000362),lx-abs(x-0.000362))^2+((y-surface_y)+0.000216)^2)-0.000051),sqrt(min(abs(x+0.000365),lx-abs(x+0.000365))^2+((y-surface_y)+0.000225)^2)-0.000048),sqrt(min(abs(x-0.000510),lx-abs(x-0.000510))^2+((y-surface_y)+0.000242)^2)-0.000074),sqrt(min(abs(x+0.000514),lx-abs(x+0.000514))^2+((y-surface_y)+0.000235)^2)-0.000070),sqrt(min(abs(x-0.000419),lx-abs(x-0.000419))^2+((y-surface_y)+0.000291)^2)-0.000038),sqrt(min(abs(x+0.000416),lx-abs(x+0.000416))^2+((y-surface_y)+0.000298)^2)-0.000035),sqrt(min(abs(x-0.000372),lx-abs(x-0.000372))^2+((y-surface_y)+0.000374)^2)-0.000070),sqrt(min(abs(x+0.000375),lx-abs(x+0.000375))^2+((y-surface_y)+0.000383)^2)-0.000067),sqrt(min(abs(x-0.000509),lx-abs(x-0.000509))^2+((y-surface_y)+0.000418)^2)-0.000070),sqrt(min(abs(x+0.000505),lx-abs(x+0.000505))^2+((y-surface_y)+0.000427)^2)-0.000067)<0.0)))"
+
+# Aluminum occupies the gas-side circle. Multiplying by the gas-side
+# complement of the bed profile prevents overlap with the propellant.
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.surface_y = -0.0003_m
+Al_solid.density.ic.expression.constant.surface_eps = 20.0_um
+Al_solid.density.ic.expression.constant.al_height = 0.00035_m
+Al_solid.density.ic.expression.constant.al_r = 70.0_um
+Al_solid.density.ic.expression.constant.al_eps = 20.0_um
+Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps)))"
+
+# The particle begins entirely solid; melting creates this phase dynamically.
+Al_liquid.density.ic.type = constant
+Al_liquid.density.ic.constant.value = 0.0_kg/m^3
+
+# Final products fill the space outside both condensed regions.
+Final.density.ic.type = expression
+Final.density.ic.expression.constant.surface_y = -0.0003_m
+Final.density.ic.expression.constant.surface_eps = 20.0_um
+Final.density.ic.expression.constant.al_height = 0.00035_m
+Final.density.ic.expression.constant.al_r = 70.0_um
+Final.density.ic.expression.constant.al_eps = 20.0_um
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 300.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas))))"
+
+Al_gas.density.ic.type = constant
+Al_gas.density.ic.constant.value = 0.0_kg/m^3
+Al2O3_gas.density.ic.type = constant
+Al2O3_gas.density.ic.constant.value = 0.0_kg/m^3
+
+# Initialize an upward gas stream while leaving the solid regions at rest.
+# No aluminum velocity is prescribed after initialization; its translation and
+# rotation are obtained from the flow-derived rigid-body momentum projection.
+velocity.ic.type = expression
+velocity.ic.expression.constant.U = 0.01_m/s
+velocity.ic.expression.constant.surface_y = -0.0003_m
+velocity.ic.expression.constant.surface_eps = 20.0_um
+velocity.ic.expression.constant.al_height = 0.00035_m
+velocity.ic.expression.constant.al_r = 70.0_um
+velocity.ic.expression.constant.al_eps = 20.0_um
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))"
+
+temperature.ic.type = expression
+temperature.ic.expression.constant.surface_y = -0.0003_m
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 300.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+# Condensed species inherit this global field unless temperature_override is
+# positive.
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 3000000.0
+
+# Apply the packed-case transient ignition flux at the translated propellant
+# surface. The source turns off smoothly after 250 us.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.surface_y = -0.0003_m
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-((y-surface_y)/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+
+# Boundary conditions
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = neumann
+#component_density.bc.constant.type.yhi = dirichlet
+## Twelve component values in the new ordering. Final products retain the 3 MPa,
+## 300 K ambient state; aluminum gas, oxide gas, solid, and liquid are zero.
+#component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 31.2708146359921 0.0 0.0 0.0 0.0 0.0 0.0
+component_density.bc.constant.type.yhi = neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 3000000.0
+
+diagnostics.interval = 100
+diagnostics.extended_fields = 0

@@ -13,6 +13,9 @@ def state(path):
     liquid = data["component_density_Al_liquid"].to_ndarray()
     product_a = data["component_density_product_A"].to_ndarray()
     product_b = data["component_density_product_B"].to_ndarray()
+    solid_eta = data["eta_solid_Al_solid"].to_ndarray()
+    liquid_eta = data["eta_liquid_Al_liquid"].to_ndarray()
+    gas_eta = data["eta_gas"].to_ndarray()
     temperature = data["temperature"].to_ndarray()
     volume = data[("index", "cell_volume")].to_ndarray()
     aluminum = solid + liquid + product_a + product_b
@@ -28,6 +31,9 @@ def state(path):
         "product_b": (product_b * volume).sum(),
         "mass": mass,
         "temperature": weighted_temperature,
+        "capillary_simplex_error": testlib.numpy.max(testlib.numpy.abs(
+            solid_eta + liquid_eta + gas_eta - 1.0)),
+        "gas_in_solid": testlib.numpy.max(gas_eta[solid > 1.98]),
         "minimum": min(
             solid.min(), liquid.min(), product_a.min(), product_b.min()),
     }
@@ -40,6 +46,12 @@ if len(plotfiles) < 2:
 
 initial = state(plotfiles[0])
 final = state(plotfiles[-1])
+if initial["capillary_simplex_error"] > 1.0e-12 or \
+        final["capillary_simplex_error"] > 1.0e-12:
+    raise RuntimeError("Solid-liquid-gas capillary phases violate the simplex")
+if initial["gas_in_solid"] > 1.0e-2:
+    raise RuntimeError(
+        f"Capillary gas fraction inside solid is {initial['gas_in_solid']:.3e}")
 relative_mass_error = abs(final["mass"] - initial["mass"]) / initial["mass"]
 if relative_mass_error > 5.0e-3:
     raise RuntimeError(

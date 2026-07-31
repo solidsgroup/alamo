@@ -3,18 +3,14 @@
 #@ dim=2
 #@ timeout=240
 #@
-#@ [2d-checkerboard]
+#@ [2d-no-capillary]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=velocity.ic.expression.constant.A=1.0
-#@ args=liquid.surface_tension.Al_liquid_gas=1.0e-12
-#@ args=liquid.surface_tension.Al2O3_liquid_gas=1.0e-12
-#@ args=liquid.surface_tension.Al_liquid_Al2O3_liquid=1.0e-12
-#@ args=include_viscosity=0
-#@ args=timestep=1.0e-8
+#@ args=liquid.capillary.enabled=0
+#@ args=liquid.capillary.include_solids=1
 #@ args=max_step=1
-#@ args=stop_time=1.0e-8
+#@ args=stop_time=1.0e-4
 #@ args=amr.plot_int=1
 
 # Static diffuse droplet used to validate the face-balanced capillary force.

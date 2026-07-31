@@ -153,8 +153,8 @@ protected:
     Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
-    Set::Field<Set::Scalar> liquid_eta_mf;
-    Set::Field<Set::Scalar> liquid_chemical_potential_mf;
+    Set::Field<Set::Scalar> phase_eta_mf;
+    Set::Field<Set::Scalar> capillary_chemical_potential_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -226,7 +226,8 @@ protected:
     int free_rigid_solid_species = -1;
     int free_rigid_solid_component = -1;
     std::vector<int> liquid_species;
-    Model::PhaseField::MultLiquid liquid_phase_model;
+    std::vector<int> capillary_solid_species;
+    Model::PhaseField::MultLiquid capillary_phase_model;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -250,6 +251,8 @@ protected:
     bool projection_update_pressure = true;
     bool include_viscosity = true;
     bool include_conduction = true;
+    bool liquid_capillarity_enabled = true;
+    bool liquid_solid_capillarity_enabled = false;
     bool implicit_momentum_diffusion = false;
     bool implicit_thermal_diffusion = false;
     bool implicit_species_diffusion = false;
@@ -261,7 +264,7 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
-    Set::Scalar liquid_reference_density_min = 1.0e100;
+    Set::Scalar capillary_reference_density_min = 1.0e100;
     int last_free_rigid_coupling_iterations = 0;
     Set::Scalar last_free_rigid_coupling_residual = 0.0;
     bool last_free_rigid_coupling_converged = false;

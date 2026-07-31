@@ -17,12 +17,15 @@
 //   eta = 0.5 [1 - tanh(2 x / ell)]
 //
 // and the integrated interfacial energy is exactly sigma_ij.  This permits an
-// independent surface tension for every material pair rather than restricting
-// an N-phase system to additive per-phase surface energies.
+// independent interfacial energy for every active material pair rather than
+// restricting an N-phase system to additive per-phase surface energies.
 //
-// Liquid identities remain conserved partial-density fields.  This model
-// supplies their thermodynamic free energy and chemical potentials only;
-// actual material phase change remains the responsibility of a configured
+// The phase list consists of every liquid, every solid, and an aggregate gas.
+// Active interfaces must contain at least one liquid: liquid-liquid,
+// liquid-gas, and optionally liquid-solid.  Solid-solid and solid-gas entries
+// are always zero, so adding liquid capillarity does not introduce an
+// independent solid surface model.  Material identities remain conserved
+// partial-density fields; actual phase change remains the responsibility of a
 // thermochemical mechanism.
 //
 
@@ -48,19 +51,36 @@ public:
     static constexpr const char* name = "multliquid";
 
     void Define(const std::vector<std::string>& names,
+                const int number_liquid_phases,
+                const bool include_solid_interfaces,
                 const Set::Scalar interface_thickness,
                 const std::vector<Set::Scalar>& surface_tension)
     {
         Util::Assert(INFO, TEST(names.size() >= 2));
+        Util::Assert(INFO, TEST(number_liquid_phases >= 1));
+        Util::Assert(INFO, TEST(number_liquid_phases <
+                                static_cast<int>(names.size())));
         Util::Assert(INFO, TEST(surface_tension.size() ==
                                 names.size() * names.size()));
         phase_names = names;
+        nliquid = number_liquid_phases;
         epsilon = interface_thickness;
         sigma = surface_tension;
         sigma_max = 0.0;
         for (int i = 0; i < NumberOfPhases(); ++i)
             for (int j = i + 1; j < NumberOfPhases(); ++j)
+            {
+                const bool one_liquid =
+                    IsLiquidPhase(i) || IsLiquidPhase(j);
+                const bool one_solid = IsSolidPhase(i) || IsSolidPhase(j);
+                const bool active = one_liquid &&
+                    (include_solid_interfaces || !one_solid);
+                Util::Assert(INFO, TEST(active ? SurfaceTension(i,j) > 0.0 :
+                                                 SurfaceTension(i,j) == 0.0));
+                Util::Assert(INFO, TEST(SurfaceTension(i,j) ==
+                                        SurfaceTension(j,i)));
                 sigma_max = Util::Max(sigma_max, SurfaceTension(i,j));
+            }
     }
 
     int NumberOfPhases() const
@@ -75,6 +95,16 @@ public:
 
     Set::Scalar InterfaceThickness() const { return epsilon; }
     Set::Scalar MaximumSurfaceTension() const { return sigma_max; }
+    bool IsLiquidPhase(const int phase) const { return phase < nliquid; }
+    bool IsSolidPhase(const int phase) const
+    {
+        return phase >= nliquid && phase < NumberOfPhases() - 1;
+    }
+
+    bool HasInterfacialEnergy(const int a, const int b) const
+    {
+        return SurfaceTension(a,b) > 0.0;
+    }
 
     Set::Scalar SurfaceTension(const int a, const int b) const
     {
@@ -117,6 +147,7 @@ public:
 private:
     std::vector<std::string> phase_names;
     std::vector<Set::Scalar> sigma;
+    int nliquid = 0;
     Set::Scalar epsilon = 0.0;
     Set::Scalar sigma_max = 0.0;
 };

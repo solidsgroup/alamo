@@ -124,8 +124,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 !(value.condensed_dynamic_viscosity[n] > 0.0))
                 Util::Exception(INFO, name,
                     " liquid density and dynamic viscosity must be positive");
-            value.liquid_reference_density_min = Util::Min(
-                value.liquid_reference_density_min,
+            value.capillary_reference_density_min = Util::Min(
+                value.capillary_reference_density_min,
                 value.reference_density[n]);
         }
         else
@@ -285,25 +285,69 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     }
     if (!value.liquid_species.empty())
     {
+        pp.query_default("liquid.capillary.enabled",
+                         value.liquid_capillarity_enabled, true);
+        bool include_solid_capillarity = false;
+        pp.query_default("liquid.capillary.include_solids",
+                         include_solid_capillarity, false);
+        value.liquid_solid_capillarity_enabled =
+            value.liquid_capillarity_enabled && include_solid_capillarity;
+
         Set::Scalar liquid_interface_thickness = 0.0;
-        pp.query_required("liquid.interface_thickness",
-                        liquid_interface_thickness, Unit::Length());
-        if (!(liquid_interface_thickness > 0.0))
-            Util::Exception(INFO,
-                "liquid interface thickness must be positive");
+        if (value.liquid_capillarity_enabled)
+        {
+            pp.query_required("liquid.interface_thickness",
+                            liquid_interface_thickness, Unit::Length());
+            if (!(liquid_interface_thickness > 0.0))
+                Util::Exception(INFO,
+                    "liquid interface thickness must be positive");
+        }
+        else
+            pp.ignore("liquid.interface_thickness");
+
+        // Every solid is represented explicitly in the capillary simplex so
+        // it is never folded into the aggregate gas phase.  Only interfaces
+        // involving at least one liquid carry an interfacial energy below;
+        // solid-solid and solid-gas surface energies are intentionally absent.
+        for (int species = value.ngas_species;
+             species < value.nspecies; ++species)
+        {
+            bool is_solid = species == value.deformable_solid_species;
+            for (const int n : value.rigid_solid_species)
+                is_solid = is_solid || species == n;
+            if (!is_solid) continue;
+            value.capillary_solid_species.push_back(species);
+            if (value.liquid_solid_capillarity_enabled)
+                value.capillary_reference_density_min = Util::Min(
+                    value.capillary_reference_density_min,
+                    value.reference_density[species]);
+        }
 
         std::vector<std::string> phase_names;
         for (const int n : value.liquid_species)
             phase_names.push_back(value.species_names[n]);
+        for (const int n : value.capillary_solid_species)
+            phase_names.push_back(value.species_names[n]);
         phase_names.push_back("gas");
+        const int nliquid = static_cast<int>(value.liquid_species.size());
         const int nphase = static_cast<int>(phase_names.size());
         std::vector<Set::Scalar> surface_tension(nphase * nphase, 0.0);
-        for (int a = 0; a < nphase; ++a)
+        for (int a = 0; a < nliquid; ++a)
             for (int b = a + 1; b < nphase; ++b)
             {
+                const std::string key = "liquid.surface_tension." +
+                    phase_names[a] + "_" + phase_names[b];
+                const bool solid_pair =
+                    b >= nliquid && b < nphase - 1;
+                if (!value.liquid_capillarity_enabled ||
+                    (solid_pair &&
+                     !value.liquid_solid_capillarity_enabled))
+                {
+                    pp.ignore(key);
+                    continue;
+                }
                 Set::Scalar sigma = NAN;
-                pp.query_required("liquid.surface_tension." +
-                    phase_names[a] + "_" + phase_names[b], sigma,
+                pp.query_required(key, sigma,
                     Unit::Energy() / Unit::Area());
                 if (!(sigma > 0.0))
                     Util::Exception(INFO, "liquid surface tension for ",
@@ -312,8 +356,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 surface_tension[a * nphase + b] = sigma;
                 surface_tension[b * nphase + a] = sigma;
             }
-        value.liquid_phase_model.Define(
-            phase_names, liquid_interface_thickness, surface_tension);
+        if (value.liquid_capillarity_enabled)
+            value.capillary_phase_model.Define(
+                phase_names, nliquid,
+                value.liquid_solid_capillarity_enabled,
+                liquid_interface_thickness, surface_tension);
         for (const int n : value.liquid_species)
             value.liquid_inverse_reference_density[n] =
                 1.0 / value.reference_density[n];
@@ -466,17 +513,24 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.free_rigid_eta_mf, &value.bc_nothing, 1, 1, "free_rigid_eta", true, false);
     if (!value.liquid_species.empty())
     {
-        std::vector<std::string> liquid_suffix;
+        std::vector<std::string> capillary_suffix;
         for (const int n : value.liquid_species)
-            liquid_suffix.push_back("_" + value.species_names[n]);
-        liquid_suffix.push_back("_gas");
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.liquid_eta_mf,
-            &value.bc_nothing, value.liquid_species.size() + 1, nghost,
-            "liquid_eta", true, false, liquid_suffix);
-        value.AddField<Set::Scalar,Set::HC::Cell>(
-            value.liquid_chemical_potential_mf, &value.bc_nothing,
-            value.liquid_species.size() + 1, 1,
-            "liquid_chemical_potential", true, false, liquid_suffix);
+            capillary_suffix.push_back(
+                "_liquid_" + value.species_names[n]);
+        for (const int n : value.capillary_solid_species)
+            capillary_suffix.push_back(
+                "_solid_" + value.species_names[n]);
+        capillary_suffix.push_back("_gas");
+        const int nphase = static_cast<int>(value.liquid_species.size() +
+            value.capillary_solid_species.size() + 1);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.phase_eta_mf,
+            &value.bc_nothing, nphase, nghost,
+            "eta", true, false, capillary_suffix);
+        if (value.liquid_capillarity_enabled)
+            value.AddField<Set::Scalar,Set::HC::Cell>(
+                value.capillary_chemical_potential_mf, &value.bc_nothing,
+                nphase, 1, "chemical_potential", true, false,
+                capillary_suffix);
     }
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
@@ -733,7 +787,7 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     }
     if (fixed_rigid_solid) fixed_rigid_eta_mf[lev]->setVal(0.0);
     if (free_rigid_solid) free_rigid_eta_mf[lev]->setVal(0.0);
-    if (liquid) liquid_eta_mf[lev]->setVal(0.0);
+    if (liquid) phase_eta_mf[lev]->setVal(0.0);
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->setVal(0.0);
@@ -843,43 +897,56 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     if (liquid)
     {
         const int nliquid = static_cast<int>(liquid_species.size());
-        for (int m = 0; m < static_cast<int>(liquid_species.size()); ++m)
+        const int nsolid =
+            static_cast<int>(capillary_solid_species.size());
+        const int nmaterial = nliquid + nsolid;
+        for (int m = 0; m < nliquid; ++m)
         {
             const int n = liquid_species[m];
-            amrex::MultiFab::Copy(*liquid_eta_mf[lev], component_density_mf,
-                                n, m, 1, liquid_eta_mf[lev]->nGrow());
-            liquid_eta_mf[lev]->mult(
+            amrex::MultiFab::Copy(*phase_eta_mf[lev], component_density_mf,
+                                n, m, 1, phase_eta_mf[lev]->nGrow());
+            phase_eta_mf[lev]->mult(
                 1.0 / reference_density[n], m, 1,
-                liquid_eta_mf[lev]->nGrow());
+                phase_eta_mf[lev]->nGrow());
         }
-        for (amrex::MFIter mfi(*liquid_eta_mf[lev], false);
+        for (int m = 0; m < nsolid; ++m)
+        {
+            const int n = capillary_solid_species[m];
+            const int phase = nliquid + m;
+            amrex::MultiFab::Copy(*phase_eta_mf[lev], component_density_mf,
+                                n, phase, 1, phase_eta_mf[lev]->nGrow());
+            phase_eta_mf[lev]->mult(
+                1.0 / reference_density[n], phase, 1,
+                phase_eta_mf[lev]->nGrow());
+        }
+        for (amrex::MFIter mfi(*phase_eta_mf[lev], false);
              mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.fabbox();
             Set::Patch<Set::Scalar> phase =
-                liquid_eta_mf[lev]->array(mfi);
+                phase_eta_mf[lev]->array(mfi);
             amrex::ParallelFor(
                 bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar liquid_sum = 0.0;
-                    for (int n = 0; n < nliquid; ++n)
+                    Set::Scalar material_sum = 0.0;
+                    for (int n = 0; n < nmaterial; ++n)
                     {
                         phase(i,j,k,n) = Util::Clamp(
                             phase(i,j,k,n), 0.0, 1.0);
-                        liquid_sum += phase(i,j,k,n);
+                        material_sum += phase(i,j,k,n);
                     }
-                    if (liquid_sum > 1.0)
+                    if (material_sum > 1.0)
                     {
-                        const Set::Scalar scale = 1.0 / liquid_sum;
-                        for (int n = 0; n < nliquid; ++n)
+                        const Set::Scalar scale = 1.0 / material_sum;
+                        for (int n = 0; n < nmaterial; ++n)
                             phase(i,j,k,n) *= scale;
-                        phase(i,j,k,nliquid) = 0.0;
+                        phase(i,j,k,nmaterial) = 0.0;
                     }
                     else
-                        phase(i,j,k,nliquid) = 1.0 - liquid_sum;
+                        phase(i,j,k,nmaterial) = 1.0 - material_sum;
                 });
         }
-        liquid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+        phase_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
     if (diagnostics_extended_fields)
     {
@@ -892,15 +959,15 @@ void
 LowMach::UpdateLiquidChemicalPotential(int lev)
 {
     BL_PROFILE("Integrator::LowMach::UpdateLiquidChemicalPotential");
-    if (liquid_species.empty()) return;
+    if (!liquid_capillarity_enabled) return;
 
-    const int nphase = liquid_phase_model.NumberOfPhases();
+    const int nphase = capillary_phase_model.NumberOfPhases();
     const Set::Scalar epsilon =
-        liquid_phase_model.InterfaceThickness();
+        capillary_phase_model.InterfaceThickness();
     const Set::Scalar* DX = geom[lev].CellSize();
     const amrex::Box domain = geom[lev].Domain();
     amrex::MultiFab& chemical_potential =
-        *liquid_chemical_potential_mf[lev];
+        *capillary_chemical_potential_mf[lev];
     chemical_potential.setVal(0.0, 0, nphase,
                               chemical_potential.nGrow());
 
@@ -911,13 +978,14 @@ LowMach::UpdateLiquidChemicalPotential(int lev)
         for (int b = a + 1; b < nphase; ++b)
         {
             const Set::Scalar sigma =
-                liquid_phase_model.SurfaceTension(a,b);
+                capillary_phase_model.SurfaceTension(a,b);
+            if (!capillary_phase_model.HasInterfacialEnergy(a,b)) continue;
             for (amrex::MFIter mfi(chemical_potential, false);
                  mfi.isValid(); ++mfi)
             {
                 const amrex::Box bx = mfi.fabbox() & domain;
                 Set::Patch<const Set::Scalar> phase =
-                    liquid_eta_mf.Patch(lev,mfi);
+                    phase_eta_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> mu =
                     chemical_potential.array(mfi);
                 amrex::ParallelFor(
@@ -2269,6 +2337,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const bool rigid_solid = !rigid_solid_species.empty();
     const bool free_rigid_solid = free_rigid_solid_species >= 0;
     const bool liquid = !liquid_species.empty();
+    const bool capillary = liquid_capillarity_enabled;
     const bool mixed_phase = deformable_solid || rigid_solid || liquid;
     const bool split_chemistry = chemistry.Split();
     const bool split_diffusion =
@@ -2499,14 +2568,14 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     using OwnedFaceField =
         amrex::Array<std::unique_ptr<amrex::MultiFab>, AMREX_SPACEDIM>;
     amrex::Vector<OwnedFaceField> capillary_face_acceleration(nlev);
-    if (liquid)
+    if (capillary)
     {
         for (int lev = 0; lev < nlev; ++lev)
         {
             UpdateLiquidChemicalPotential(lev);
             const Set::Scalar* DX = geom[lev].CellSize();
             const amrex::Box domain = geom[lev].Domain();
-            const int nphase = liquid_phase_model.NumberOfPhases();
+            const int nphase = capillary_phase_model.NumberOfPhases();
 
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
             {
@@ -2531,9 +2600,9 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 {
                     const amrex::Box& bx = mfi.tilebox();
                     Set::Patch<const Set::Scalar> eta =
-                        liquid_eta_mf.Patch(lev,mfi);
+                        phase_eta_mf.Patch(lev,mfi);
                     Set::Patch<const Set::Scalar> mu =
-                        liquid_chemical_potential_mf.Patch(lev,mfi);
+                        capillary_chemical_potential_mf.Patch(lev,mfi);
                     Set::Patch<const Set::Scalar> face_beta =
                         beta.const_array(mfi);
                     Set::Patch<Set::Scalar> face_acceleration =
@@ -2723,7 +2792,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                     *projection_source[lev], 0, 0, 1, 0);
             Operator::PressurePoisson::FaceField capillary_acceleration;
             const Operator::PressurePoisson::FaceField* acceleration = nullptr;
-            if (liquid)
+            if (capillary)
             {
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
                     capillary_acceleration[d] =
@@ -3558,11 +3627,11 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
         Set::Scalar dxmin = std::min(dx[0], dx[1]);
-        if (!liquid_species.empty())
+        if (liquid_capillarity_enabled)
         {
             capillarymax = std::sqrt(
-                liquid_phase_model.MaximumSurfaceTension() /
-                (liquid_reference_density_min * dxmin * dxmin * dxmin));
+                capillary_phase_model.MaximumSurfaceTension() /
+                (capillary_reference_density_min * dxmin * dxmin * dxmin));
         }
         Set::Scalar temperaturemax = 0.0;
 
@@ -3821,7 +3890,7 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         UpdateComponentState(lev, *component_density_mf[lev]);
-        if (!liquid_species.empty())
+        if (liquid_capillarity_enabled)
             UpdateLiquidChemicalPotential(lev);
         if (deformable_solid_species >= 0)
             UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
@@ -3857,7 +3926,8 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
             component_density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> liquid_eta = liquid_eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> phase_eta =
+            phase_eta_mf.Patch(lev,mfi);
         const Set::Scalar vcrit = velocity_refinement_criterion;
         const Set::Scalar pcrit = pressure_refinement_criterion;
         const Set::Scalar Tcrit = temperature_refinement_criterion;
@@ -3921,8 +3991,8 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
                 for (int n = 0; n < nliquid; ++n)
                 {
                     Set::Vector grad_eta = Numeric::Gradient(
-                        liquid_eta, i, j, k, n, dx.data(), sten);
-                    const Set::Scalar eta_val = liquid_eta(i,j,k,n);
+                        phase_eta, i, j, k, n, dx.data(), sten);
+                    const Set::Scalar eta_val = phase_eta(i,j,k,n);
                     refine_eta = refine_eta ||
                         grad_eta.lpNorm<2>() * dr * 2.0 > etacrit ||
                         (eta_val > etacrit && eta_val < 1.0 - etacrit);
