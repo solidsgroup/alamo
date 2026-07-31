@@ -352,6 +352,8 @@ def synchronization_inventory(d):
 def capture(d):
     lines = [f"## Capture: `{d.name}`", "", f"Source: `{d}`"]
     inv = read(d / "env" / "inventory.txt")
+    if not inv:
+        inv = read(d / "env" / "provenance.txt")
     provenance = [
         f"**{key}** `{value}`" for key, value in inventory_fields(inv).items()
     ]
@@ -551,7 +553,7 @@ def unit():
         (d / "timing" / "managed").mkdir(parents=True)
         (d / "timing" / "device").mkdir(parents=True)
         (d / "nsys").mkdir(parents=True)
-        (d / "env" / "inventory.txt").write_text(
+        (d / "env" / "provenance.txt").write_text(
             "host=test date=2026-07-31T00:00:00-05:00\n"
             "local_head=abc tree_hash=def src_hash=123\n"
         )

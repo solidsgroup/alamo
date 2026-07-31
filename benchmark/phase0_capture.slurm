@@ -191,6 +191,15 @@ echo "  profile binary=${PROF_BIN}"
 echo "  plain   binary=${PLAIN_BIN}"
 
 if [ "${DRYRUN}" != 1 ]; then
+  # Every leg, including cheap supplemental timing/NCU-only jobs, needs a
+  # self-contained source key.  The fuller env inventory below is optional,
+  # but provenance is not.
+  mkdir -p "${OUT}/env"
+  {
+    echo "host=$(hostname)  date=$(date -Is)"
+    cat benchmark/_pushed_rev.txt 2>/dev/null ||
+      echo "MISSING benchmark/_pushed_rev.txt"
+  } > "${OUT}/env/provenance.txt"
   for b in "${PROF_BIN}" "${PLAIN_BIN}"; do
     [ -x "${b}" ] || { echo "MISSING ${b} -- run: VARIANTS=\"profile plain\" DIMS=\"${DIM}\" sh benchmark/build_alamo_nova.sh"; exit 2; }
   done
