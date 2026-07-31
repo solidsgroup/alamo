@@ -55,6 +55,7 @@ rhs.expression.region1 = "-(y-0.5)/0.04*exp(-((sqrt((x-0.5)^2+(y-0.5)^2)-0.22)/0
 
 solver.conservative_face_flux = 1
 solver.line_search = 1
+solver.resync_coeffs = 1
 solver.nriters = 3
 solver.nrtolerance = 0
 solver.max_iter = 1500
@@ -64,8 +65,6 @@ solver.bottom_solver = bicgstab
 solver.verbose = 3
 
 max_coarsening_level = 2
-print_model = 1
-print_residual = 1
 zero_out_displacement = 1
 tol_rel = 2.0e-5
 tol_abs = 1.0e-8

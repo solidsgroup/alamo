@@ -32,7 +32,8 @@ public:
     Elastic (const Vector<Geometry>& a_geom,
         const Vector<BoxArray>& a_grids,
         const Vector<DistributionMapping>& a_dmap,
-        const LPInfo& a_info);
+        const LPInfo& a_info,
+        bool a_conservative_face_flux = false);
     virtual ~Elastic ();
     Elastic (const Elastic&) = delete;
     Elastic (Elastic&&) = delete;
@@ -43,7 +44,8 @@ public:
             const Vector<BoxArray>& a_grids,
             const Vector<DistributionMapping>& a_dmap,
             const LPInfo& a_info = LPInfo(),
-            const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
+            const Vector<FabFactory<FArrayBox> const*>& a_factory = {},
+            bool a_conservative_face_flux = false);
 
     virtual void SetHomogeneous (bool a_homogeneous) override {m_homogeneous = a_homogeneous;}
     void SetModel (Set::Matrix4<AMREX_SPACEDIM,SYM> &a_model);
@@ -55,8 +57,6 @@ public:
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi);
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
     {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
-    void SetConservativeFaceFlux(bool a_enabled)
-    { m_conservative_face_flux = a_enabled; }
 
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
@@ -126,8 +126,6 @@ protected:
     virtual bool isCrossStencil () const { return false; }
     bool useQuadraticAmrInterpolation() const override
     { return m_conservative_face_flux; }
-    bool retainCoarseFineResidualRow() const override
-    { return false; }
     bool relaxCoarseFineGhostRows() const override
     { return !m_conservative_face_flux; }
     virtual void prepareForSolve () override

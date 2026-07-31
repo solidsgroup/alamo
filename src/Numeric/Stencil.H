@@ -785,7 +785,7 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] inline
 Set::Matrix
 FaceGradient(const amrex::Array4<const Set::Vector>& f,
     const int i, const int j, const int k, const int face,
@@ -796,26 +796,18 @@ FaceGradient(const amrex::Array4<const Set::Vector>& f,
     const int jp = j + (face == 1);
     const int kp = k + (face == 2);
     ret.col(face) = (f(ip, jp, kp) - f(i, j, k)) / dx[face];
-#if AMREX_SPACEDIM > 1
-    if (face != 0)
-        ret.col(0) = (f(i + 1, j, k) - f(i - 1, j, k)
-                    + f(ip + 1, jp, kp) - f(ip - 1, jp, kp))
-                    / (4.0 * dx[0]);
-    if (face != 1)
-        ret.col(1) = (f(i, j + 1, k) - f(i, j - 1, k)
-                    + f(ip, jp + 1, kp) - f(ip, jp - 1, kp))
-                    / (4.0 * dx[1]);
-#endif
-#if AMREX_SPACEDIM > 2
-    if (face != 2)
-        ret.col(2) = (f(i, j, k + 1) - f(i, j, k - 1)
-                    + f(ip, jp, kp + 1) - f(ip, jp, kp - 1))
-                    / (4.0 * dx[2]);
-#endif
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+        if (dir != face)
+            ret.col(dir) = (
+                f(i + (dir == 0), j + (dir == 1), k + (dir == 2))
+                - f(i - (dir == 0), j - (dir == 1), k - (dir == 2))
+                + f(ip + (dir == 0), jp + (dir == 1), kp + (dir == 2))
+                - f(ip - (dir == 0), jp - (dir == 1), kp - (dir == 2)))
+                / (4.0 * dx[dir]);
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] inline
 Set::Matrix
 FaceGradient(const amrex::Array4<const Set::Scalar>& f,
     const int i, const int j, const int k, const int face,
@@ -828,22 +820,16 @@ FaceGradient(const amrex::Array4<const Set::Scalar>& f,
     for (int n = 0; n < AMREX_SPACEDIM; ++n)
     {
         ret(n, face) = (f(ip, jp, kp, n) - f(i, j, k, n)) / dx[face];
-#if AMREX_SPACEDIM > 1
-        if (face != 0)
-            ret(n, 0) = (f(i + 1, j, k, n) - f(i - 1, j, k, n)
-                        + f(ip + 1, jp, kp, n) - f(ip - 1, jp, kp, n))
-                    / (4.0 * dx[0]);
-        if (face != 1)
-            ret(n, 1) = (f(i, j + 1, k, n) - f(i, j - 1, k, n)
-                        + f(ip, jp + 1, kp, n) - f(ip, jp - 1, kp, n))
-                    / (4.0 * dx[1]);
-#endif
-#if AMREX_SPACEDIM > 2
-        if (face != 2)
-            ret(n, 2) = (f(i, j, k + 1, n) - f(i, j, k - 1, n)
-                        + f(ip, jp, kp + 1, n) - f(ip, jp, kp - 1, n))
-                    / (4.0 * dx[2]);
-#endif
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+            if (dir != face)
+                ret(n, dir) = (
+                    f(i + (dir == 0), j + (dir == 1), k + (dir == 2), n)
+                    - f(i - (dir == 0), j - (dir == 1), k - (dir == 2), n)
+                    + f(ip + (dir == 0), jp + (dir == 1),
+                        kp + (dir == 2), n)
+                    - f(ip - (dir == 0), jp - (dir == 1),
+                        kp - (dir == 2), n))
+                    / (4.0 * dx[dir]);
     }
     return ret;
 }

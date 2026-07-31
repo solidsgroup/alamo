@@ -310,27 +310,6 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
-#if AMREX_SPACEDIM == 2
-                if ((I == lo.x || I == hi.x) && (J == lo.y || J == hi.y)) // Corner
-                {
-                    cdata(I, J, K, n) = fdata(i, j, k, n);
-                }
-                else if (J == lo.y || J == hi.y) // Y boundary
-                {
-                    cdata(I, J, K, n) = 0.25 * fdata(i - 1, j, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i + 1, j, k, n);
-                }
-                else if (I == lo.x || I == hi.x) // X boundary
-                {
-                    cdata(I, J, K, n) = 0.25 * fdata(i, j - 1, k, n) + 0.5 * fdata(i, j, k, n) + 0.25 * fdata(i, j + 1, k, n);
-                }
-                else // Interior
-                {
-                    cdata(I, J, K, n) =
-                        (+fdata(i - 1, j - 1, k, n) + 2.0 * fdata(i, j - 1, k, n) + fdata(i + 1, j - 1, k, n)
-                            + 2.0 * fdata(i - 1, j, k, n) + 4.0 * fdata(i, j, k, n) + 2.0 * fdata(i + 1, j, k, n)
-                            + fdata(i - 1, j + 1, k, n) + 2.0 * fdata(i, j + 1, k, n) + fdata(i + 1, j + 1, k, n)) / 16.0;
-                }
-#else
                 if ((I == lo.x || I == hi.x) &&
                     (J == lo.y || J == hi.y) &&
                     (K == lo.z || K == hi.z)) // Corner
@@ -386,7 +365,6 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
                         fdata(i + 1, j, k, n) + fdata(i, j + 1, k, n) + fdata(i, j, k + 1, n)) / 16.0
                     +
                     fdata(i, j, k, n) / 8.0;
-#endif
             });
         }
     }
@@ -438,17 +416,6 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
                 int I = i / 2, J = j / 2, K = k / 2;
 
-#if AMREX_SPACEDIM == 2
-                if (i % 2 == 0 && j % 2 == 0) // Coincident
-                    fdata(i, j, k, n) = cdata(I, J, K, n);
-                else if (j % 2 == 0) // X edge
-                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n));
-                else if (i % 2 == 0) // Y edge
-                    fdata(i, j, k, n) = 0.5 * (cdata(I, J, K, n) + cdata(I, J + 1, K, n));
-                else // Center
-                    fdata(i, j, k, n) = 0.25 * (cdata(I, J, K, n) + cdata(I + 1, J, K, n) +
-                        cdata(I, J + 1, K, n) + cdata(I + 1, J + 1, K, n));
-#else
                 if (i % 2 == 0 && j % 2 == 0 && k % 2 == 0) // Coincident
                     fdata(i, j, k, n) = cdata(I, J, K, n);
                 else if (j % 2 == 0 && k % 2 == 0) // X Edge
@@ -471,7 +438,6 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
                         cdata(I + 1, J, K, n) + cdata(I, J + 1, K, n) + cdata(I, J, K + 1, n) +
                         cdata(I, J + 1, K + 1, n) + cdata(I + 1, J, K + 1, n) + cdata(I + 1, J + 1, K, n) +
                         cdata(I + 1, J + 1, K + 1, n));
-#endif
 
             });
         }
@@ -670,7 +636,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // const int coarse_coarse_node = 0;
     const int coarse_fine_node = 1;
     const int fine_fine_node = 2;
-    const bool retain_coarse_fine = retainCoarseFineResidualRow();
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
@@ -694,8 +659,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
-                if (nmask(I, J, K) == fine_fine_node ||
-                    (!retain_coarse_fine && nmask(I, J, K) == coarse_fine_node))
+                if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)
                 {
                     if ((I == lo.x || I == hi.x) &&
                         (J == lo.y || J == hi.y) &&
@@ -763,7 +727,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int mglev = 0;
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }

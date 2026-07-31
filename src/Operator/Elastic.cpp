@@ -10,11 +10,13 @@ template<int SYM>
 Elastic<SYM>::Elastic(const Vector<Geometry>& a_geom,
     const Vector<BoxArray>& a_grids,
     const Vector<DistributionMapping>& a_dmap,
-    const LPInfo& a_info)
+    const LPInfo& a_info,
+    bool a_conservative_face_flux)
 {
     BL_PROFILE("Operator::Elastic::Elastic()");
 
-    define(a_geom, a_grids, a_dmap, a_info);
+    define(a_geom, a_grids, a_dmap, a_info, {},
+        a_conservative_face_flux);
 }
 
 template<int SYM>
@@ -27,16 +29,19 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
     const Vector<BoxArray>& a_grids,
     const Vector<DistributionMapping>& a_dmap,
     const LPInfo& a_info,
-    const Vector<FabFactory<FArrayBox> const*>& a_factory)
+    const Vector<FabFactory<FArrayBox> const*>& a_factory,
+    bool a_conservative_face_flux)
 {
     BL_PROFILE("Operator::Elastic::define()");
 
+    m_conservative_face_flux = a_conservative_face_flux;
     Operator::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
     int model_nghost = 2;
     // A cell-to-node average at the outer diagonal ghost row reaches one
     // cell farther than the nodal coefficient stencil.
     int psi_nghost = model_nghost + 1;
+    int model_ncomp = m_conservative_face_flux ? AMREX_SPACEDIM + 1 : 1;
 
     m_ddw_mf.resize(m_num_amr_levels);
     m_psi_mf.resize(m_num_amr_levels);
@@ -48,7 +53,7 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
         {
             m_ddw_mf[amrlev][mglev].reset(new MultiTab(amrex::convert(m_grids[amrlev][mglev],
                 amrex::IntVect::TheNodeVector()),
-                m_dmap[amrlev][mglev], AMREX_SPACEDIM + 1, model_nghost));
+                m_dmap[amrlev][mglev], model_ncomp, model_nghost));
             m_psi_mf[amrlev][mglev].reset(new MultiFab(m_grids[amrlev][mglev],
                 m_dmap[amrlev][mglev], 1, psi_nghost));
 
@@ -71,9 +76,10 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
             Box bx = mfi.grownnodaltilebox();
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
+            const int ncomp = m_ddw_mf[amrlev][0]->nComp();
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                for (int n = 0; n < AMREX_SPACEDIM + 1; ++n)
+                for (int n = 0; n < ncomp; ++n)
                     ddw(i, j, k, n) = a_model;
 
 #ifdef AMREX_DEBUG
@@ -106,6 +112,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
     if (a_model.nGrow() != m_ddw_mf[amrlev][0]->nGrow()) Util::Abort(INFO, "Inconsistent # of ghost nodes, should be ", m_ddw_mf[amrlev][0]->nGrow());
 
     const bool nodal_only = a_model.nComp() == 1;
+    const int ncomp = m_ddw_mf[amrlev][0]->nComp();
 
     for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -116,7 +123,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             C(i, j, k, 0) = a_C(i, j, k, 0);
-            for (int n = 1; n < AMREX_SPACEDIM + 1; ++n)
+            for (int n = 1; n < ncomp; ++n)
                 C(i, j, k, n) = a_C(i, j, k, nodal_only ? 0 : n);
         });
     }
@@ -181,17 +188,16 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     u(p) = U(i, j, k, p);
 
                 const auto sten = Numeric::GetStencil(i, j, k, stencilbox);
-                Set::Matrix gradu;
-                for (int p = 0; p < AMREX_SPACEDIM; ++p)
-                {
-                    AMREX_D_TERM(gradu(p, 0) = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(U, i, j, k, p, DX, sten));,
-                        gradu(p, 1) = (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(U, i, j, k, p, DX, sten));,
-                        gradu(p, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(U, i, j, k, p, DX, sten)););
-                }
+                Set::Matrix gradu = Numeric::Gradient(U, i, j, k, DX, sten);
+                const int index[3] = {i, j, k};
+                const int lower[3] = {lo.x, lo.y, lo.z};
+                const int upper[3] = {hi.x, hi.y, hi.z};
+                bool on_boundary = false;
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                    on_boundary = on_boundary ||
+                        index[dir] == lower[dir] || index[dir] == upper[dir];
 
-                if (AMREX_D_TERM(i == lo.x || i == hi.x,
-                    || j == lo.y || j == hi.y,
-                    || k == lo.z || k == hi.z))
+                if (on_boundary)
                 {
                     Set::Scalar psi_avg = 1.0;
                     if (m_psi_set)
@@ -220,9 +226,8 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     }
                 }
 
-                AMREX_D_TERM(F(i, j, k, 0) = f[0];,
-                    F(i, j, k, 1) = f[1];,
-                    F(i, j, k, 2) = f[2];);
+                for (int p = 0; p < AMREX_SPACEDIM; ++p)
+                    F(i, j, k, p) = f[p];
             });
             continue;
         }
@@ -402,13 +407,18 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                     psi_avg = (1.0 - m_psi_small) *
                         Numeric::Interpolate::CellToNodeAverage(
                             psi, i, j, k, 0) + m_psi_small;
+                const int index[3] = {i, j, k};
+                const int lower[3] = {lo.x, lo.y, lo.z};
+                const int upper[3] = {hi.x, hi.y, hi.z};
+                bool on_boundary = false;
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                    on_boundary = on_boundary ||
+                        index[dir] == lower[dir] || index[dir] == upper[dir];
 
                 for (int p = 0; p < AMREX_SPACEDIM; ++p)
                 {
                     diag(i, j, k, p) = 0.0;
-                    if (AMREX_D_TERM(i == lo.x || i == hi.x,
-                        || j == lo.y || j == hi.y,
-                        || k == lo.z || k == hi.z))
+                    if (on_boundary)
                     {
                         const Set::Matrix sig =
                             DDW(i, j, k) * gradu[p] * psi_avg;
@@ -753,6 +763,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     Util::Assert(INFO, TEST(fine_amrlev > 0));
 
     const int crse_amrlev = fine_amrlev - 1;
+
     MultiTab& crse_ddw = *m_ddw_mf[crse_amrlev][0];
     MultiTab& fine_ddw = *m_ddw_mf[fine_amrlev][0];
     const int ncomp = crse_ddw.nComp();

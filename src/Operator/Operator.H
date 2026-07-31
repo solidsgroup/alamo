@@ -47,10 +47,6 @@ public :
             const LPInfo& a_info = LPInfo(),
             const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
     const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
-    Set::Scalar CompositeNormInf(int amrlev, const MultiFab& mf) const
-    {
-        return normInf(amrlev, mf, false);
-    }
 
     void Reflux(int crse_amrlev,
             MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
@@ -61,6 +57,9 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
+    // MLMG prepares an operator only once. Call this after replacing nonlinear
+    // coefficients so coarse MG levels and the smoother diagonal stay current.
+    void SyncCoefficients() { averageDownCoeffs(); Diagonal(true); }
     
     //
     // Public Utilty functions
@@ -77,7 +76,6 @@ protected:
     virtual void Fapply (int amrlev, int mglev,MultiFab& out,const MultiFab& in) const override =0;
     virtual void averageDownCoeffs () = 0;
     virtual bool useQuadraticAmrInterpolation() const { return false; }
-    virtual bool retainCoarseFineResidualRow() const { return false; }
     virtual bool relaxCoarseFineGhostRows() const { return true; }
     //
     // Virtual: you SHOULD override these functions

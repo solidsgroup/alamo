@@ -2,9 +2,6 @@
 #define SOLVER_NONLOCAL_NEWTON
 
 #include <cmath>
-#include <sstream>
-#include <string>
-#include <AMReX_ParallelDescriptor.H>
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -17,111 +14,66 @@ namespace Nonlocal
 {
 namespace Detail
 {
-inline bool
-AcceptLineSearchResidual(Set::Scalar initial, Set::Scalar trial,
-                        Set::Scalar relative_tolerance = 1.0e-4)
-{
-    if (!std::isfinite(initial) || !std::isfinite(trial) ||
-        !std::isfinite(relative_tolerance) || initial < 0.0 || trial < 0.0 ||
-        relative_tolerance < 0.0)
-        return false;
-    if (initial == 0.0) return trial == 0.0;
-    return trial / initial <= 1.0 + relative_tolerance;
-}
-
-enum class NRTermination
-{
-    Continue,
-    Converged,
-    FixedIterationsComplete,
-    InvalidMetric,
-    Exhausted
-};
-
-inline NRTermination
-DecideNRTermination(Set::Scalar metric, Set::Scalar tolerance,
-                    bool final_iteration)
-{
-    if (!std::isfinite(metric) || !std::isfinite(tolerance) || metric < 0.0 ||
-        tolerance < 0.0)
-        return NRTermination::InvalidMetric;
-    if (tolerance == 0.0)
-        return final_iteration
-            ? NRTermination::FixedIterationsComplete
-            : NRTermination::Continue;
-    if (metric < tolerance) return NRTermination::Converged;
-    return final_iteration ? NRTermination::Exhausted : NRTermination::Continue;
-}
-
 template <typename T>
-[[nodiscard]]
-AMREX_FORCE_INLINE
-T
+inline T
 FaceModel(const amrex::Array4<const T>& model,
-        const int i, const int j, const int k, const int face)
+    const int i, const int j, const int k, const int face)
 {
     const int ip = i + (face == 0);
     const int jp = j + (face == 1);
     const int kp = k + (face == 2);
+    // Use the same arithmetic face model for the residual and tangent. Tensor
+    // models do not have a component-independent harmonic average.
     return 0.5 * (model(i, j, k) + model(ip, jp, kp));
 }
 
 template <typename T, typename U>
-[[nodiscard]]
-AMREX_FORCE_INLINE
-Set::Matrix
-FaceKinematicVariable(const amrex::Array4<const T>& model,
-                    const U& u,
-                    const int i, const int j, const int k, const int face,
-                    const Set::Scalar dx[AMREX_SPACEDIM])
+inline Set::Matrix
+FaceKinematicVariable(const T& model,
+    const U& u,
+    const int i, const int j, const int k, const int face,
+    const Set::Scalar dx[AMREX_SPACEDIM])
 {
-    const T face_model = FaceModel(model, i, j, k, face);
     Set::Matrix gradu = Numeric::FaceGradient(u, i, j, k, face, dx);
-    if (face_model.kinvar == Model::Solid::KinematicVariable::gradu)
+    if (model.kinvar == Model::Solid::KinematicVariable::gradu)
         return gradu;
-    if (face_model.kinvar == Model::Solid::KinematicVariable::epsilon)
+    if (model.kinvar == Model::Solid::KinematicVariable::epsilon)
         return 0.5 * (gradu + gradu.transpose());
-    if (face_model.kinvar == Model::Solid::KinematicVariable::F)
+    if (model.kinvar == Model::Solid::KinematicVariable::F)
         return gradu + Set::Matrix::Identity();
     return Set::Matrix::Zero();
 }
 
 template <typename T, typename U>
-[[nodiscard]]
-AMREX_FORCE_INLINE
-Set::Matrix
+inline Set::Matrix
 FaceStress(const amrex::Array4<const T>& model,
-            const U& u,
-            const int i, const int j, const int k, const int face,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+    const U& u,
+    const int i, const int j, const int k, const int face,
+    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     const T face_model = FaceModel(model, i, j, k, face);
     return face_model.DW(
-        FaceKinematicVariable(model, u, i, j, k, face, dx));
+        FaceKinematicVariable(face_model, u, i, j, k, face, dx));
 }
 
 template <typename T, typename U>
-[[nodiscard]]
-AMREX_FORCE_INLINE
-Set::Matrix4<AMREX_SPACEDIM, T::sym>
+inline Set::Matrix4<AMREX_SPACEDIM, T::sym>
 FaceTangent(const amrex::Array4<const T>& model,
-            const U& u,
-            const int i, const int j, const int k, const int face,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+    const U& u,
+    const int i, const int j, const int k, const int face,
+    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     const T face_model = FaceModel(model, i, j, k, face);
     return face_model.DDW(
-        FaceKinematicVariable(model, u, i, j, k, face, dx));
+        FaceKinematicVariable(face_model, u, i, j, k, face, dx));
 }
 
 template <typename T, typename U>
-[[nodiscard]]
-AMREX_FORCE_INLINE
-Set::Vector
+inline Set::Vector
 FaceStressDivergence(const amrex::Array4<const T>& model,
-                    const U& u,
-                    const int i, const int j, const int k,
-                    const Set::Scalar dx[AMREX_SPACEDIM])
+    const U& u,
+    const int i, const int j, const int k,
+    const Set::Scalar dx[AMREX_SPACEDIM])
 {
     Set::Vector ret = Set::Vector::Zero();
     for (int face = 0; face < AMREX_SPACEDIM; ++face)
@@ -157,7 +109,6 @@ public:
     {
         Linear::Define(a_op);
         m_elastic = dynamic_cast<Operator::Elastic<T::sym> *>(linop);
-        m_elastic->SetConservativeFaceFlux(usesConservativeFaceFlux());
         //m_bc = &m_elastic->GetBC();
     }
     void Clear()
@@ -173,14 +124,11 @@ public:
     void setPsi(Set::Field<Set::Scalar>& a_psi)
     {
         m_psi = &a_psi;
-        if (m_elastic) m_elastic->SetConservativeFaceFlux(false);
-    }
-
-    void setConservativeFaceFlux(bool a_enabled)
-    {
-        m_conservative_face_flux = a_enabled;
-        if (m_elastic)
-            m_elastic->SetConservativeFaceFlux(usesConservativeFaceFlux());
+        if (m_conservative_face_flux && !m_reported_psi_face_flux_conflict)
+        {
+            Util::Warning(INFO, "solver.conservative_face_flux is disabled because a psi field is active");
+            m_reported_psi_face_flux_conflict = true;
+        }
     }
 
     [[nodiscard]] bool usesConservativeFaceFlux() const
@@ -288,7 +236,7 @@ private:
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>>& a_ddw_mf,
         Set::Field<T>& a_model_mf)
     {
-        const bool conservative_solve = m_conservative_face_flux && m_psi == nullptr;
+        const bool conservative_solve = usesConservativeFaceFlux();
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
@@ -330,10 +278,9 @@ private:
                         ddw(i, j, k, 0) = model(i, j, k).DDW(kinvar);
                         for (int face = 0; face < AMREX_SPACEDIM; ++face)
                         {
-                            const int ip = i + (face == 0);
-                            const int jp = j + (face == 1);
-                            [[maybe_unused]] const int kp = k + (face == 2);
-                            if (AMREX_D_TERM(ip <= hi.x, && jp <= hi.y, && kp <= hi.z))
+                            const int index[3] = {i, j, k};
+                            const int upper[3] = {hi.x, hi.y, hi.z};
+                            if (index[face] < upper[face])
                                 ddw(i, j, k, face + 1) = Detail::FaceTangent(
                                     model, u, i, j, k, face, dx);
                             else
@@ -397,7 +344,15 @@ private:
                     amrex::LoopConcurrentOnCpu(cbx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, cbx);
-                        if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                        const int index[3] = {i, j, k};
+                        const int lower[3] = {lo.x, lo.y, lo.z};
+                        const int upper[3] = {hi.x, hi.y, hi.z};
+                        bool on_boundary = false;
+                        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                            on_boundary = on_boundary ||
+                                index[dir] == lower[dir] ||
+                                index[dir] == upper[dir];
+                        if (on_boundary)
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Vector ret = m_elastic->GetBC()(
@@ -485,6 +440,10 @@ public:
         Set::Field<T>& a_model_mf,
         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
+        if (verbose > 0)
+            Util::Message(INFO, "Newton elastic operator: conservative_face_flux=",
+                usesConservativeFaceFlux() ? 1 : 0);
+
         Set::Field<Set::Scalar> dsol_mf, rhs_mf, u0_mf, utrial_mf;
         Set::Field<Set::Matrix> dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
@@ -531,15 +490,16 @@ public:
             //amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
-        Set::Scalar last_relnorm = -1.0;
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter + 1, " of ", m_nriters);
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
-            AbortIfNonFinite(rhs_mf, "Newton residual");
 
             if (nriter == m_nriters) break;
+
+            if (m_resync_coeffs && nriter > 0)
+                m_elastic->SyncCoefficients();
 
             const Set::Scalar resnorm0 =
                 m_line_search ? FieldNorm0(rhs_mf) : -1.0;
@@ -547,18 +507,14 @@ public:
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 dsol_mf[lev]->setVal(0.0);
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
-            AbortIfNonFinite(dsol_mf, "Newton correction", true);
 
-            Set::Scalar cornorm = 0, solnorm = 0;
+            Set::Scalar cornorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
             {
                 for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
                 {
                     Set::Scalar tmpcornorm = dsol_mf[lev]->norm0(comp, 0);
                     if (tmpcornorm > cornorm) cornorm = tmpcornorm;
-
-                    //Set::Scalar tmpsolnorm = a_u_mf[lev]->norm0(comp,0);
-                    //if (tmpsolnorm > solnorm) solnorm = tmpsolnorm;
                 }
             }
 
@@ -568,58 +524,45 @@ public:
             {
                 for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
                     a_u_mf.Copy(lev, *u0_mf[lev], 0, 2);
-                AbortIfNonFinite(u0_mf, "Newton line-search baseline", true);
 
                 auto restore_baseline = [&]()
                 {
                     for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
                         a_u_mf.CopyFrom(lev, *u0_mf[lev], 0, 2);
                 };
-                auto restore_and_abort = [&](const std::string& reason)
-                {
-                    restore_baseline();
-                    prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
-                    AbortIfNonFinite(rhs_mf, "restored Newton residual");
-                    Util::Abort(INFO, reason);
-                };
-                auto restore_baseline_state = [&]()
-                {
-                    restore_baseline();
-                    prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
-                    AbortIfNonFinite(rhs_mf, "restored Newton residual");
-                };
-
                 constexpr int max_backtrack = 8;
                 bool accepted = false;
                 for (int bt = 0; bt <= max_backtrack; bt++)
                 {
+                    for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
+                    {
+                        amrex::MultiFab::Copy(*utrial_mf[lev], *u0_mf[lev],
+                            0, 0, AMREX_SPACEDIM, 2);
+                        amrex::MultiFab::Saxpy(*utrial_mf[lev], alpha,
+                            *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+                        a_u_mf.CopyFrom(lev, *utrial_mf[lev], 0, 2);
+                    }
+
                     try
                     {
-                        for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
-                        {
-                            amrex::MultiFab::Copy(*utrial_mf[lev], *u0_mf[lev],
-                                0, 0, AMREX_SPACEDIM, 2);
-                            amrex::MultiFab::Saxpy(*utrial_mf[lev], alpha,
-                                *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
-                        }
-                        if (HasNonFinite(utrial_mf, true))
-                            restore_and_abort("Newton line-search trial contains a non-finite value");
-                        for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
-                            a_u_mf.CopyFrom(lev, *utrial_mf[lev], 0, 2);
-
-                        prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
+                        prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf,
+                            ddw_mf, a_model_mf);
                     }
                     catch (...)
                     {
-                        restore_baseline_state();
+                        restore_baseline();
+                        prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf,
+                            ddw_mf, a_model_mf);
                         throw;
                     }
-                    if (HasNonFinite(rhs_mf))
-                        restore_and_abort("Newton line-search residual contains a non-finite value");
 
                     resnorm = FieldNorm0(rhs_mf);
 
-                    if (Detail::AcceptLineSearchResidual(resnorm0, resnorm))
+                    // Permit a small residual increase for roundoff-level
+                    // changes in the composite AMR norm.
+                    if (std::isfinite(resnorm0) && std::isfinite(resnorm) &&
+                        (resnorm0 == 0.0 ? resnorm == 0.0 :
+                            resnorm / resnorm0 <= 1.0001))
                     {
                         accepted = true;
                         break;
@@ -629,11 +572,12 @@ public:
                 }
                 if (!accepted)
                 {
-                    std::ostringstream reason;
-                    reason << "Newton line search failed after " << max_backtrack
-                            << " backtracks: initial residual=" << resnorm0
-                            << ", final trial residual=" << resnorm;
-                    restore_and_abort(reason.str());
+                    restore_baseline();
+                    prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf,
+                        ddw_mf, a_model_mf);
+                    Util::Abort(INFO, "Newton line search failed after ",
+                        max_backtrack, " backtracks: initial residual=", resnorm0,
+                        ", final trial residual=", resnorm);
                 }
             }
             else
@@ -643,33 +587,41 @@ public:
                 //amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
             }
 
-            Set::Scalar relnorm;
-            if (solnorm == 0) relnorm = cornorm;
-            else relnorm = cornorm / solnorm;
-            if (!std::isfinite(cornorm) || !std::isfinite(relnorm))
+            const Set::Scalar full_update = cornorm;
+            const Set::Scalar accepted_update = alpha * full_update;
+            if (!std::isfinite(full_update) || !std::isfinite(accepted_update))
                 Util::Abort(INFO, "Newton update norm is non-finite");
-            if (verbose > 0) Util::Message(INFO, "NR iteration ", nriter + 1,
-                ", alpha = ", alpha, ", max norm(ddisp) = ", relnorm);
+            if (verbose > 0)
+            {
+                Util::Message(INFO, "NR iteration ", nriter + 1,
+                    ", alpha = ", alpha,
+                    ", full max norm(ddisp) = ", full_update,
+                    ", accepted max norm(ddisp) = ", accepted_update);
+                if (m_line_search)
+                    Util::Message(INFO, "NR residual: initial = ", resnorm0,
+                        ", accepted = ", resnorm);
+            }
 
-            const Set::Scalar accepted_relnorm = alpha * relnorm;
-            last_relnorm = accepted_relnorm;
-            const Detail::NRTermination termination = Detail::DecideNRTermination(
-                accepted_relnorm, m_nrtolerance, nriter + 1 == m_nriters);
-            if (termination == Detail::NRTermination::InvalidMetric)
-                Util::Abort(INFO, "Newton convergence metric is invalid");
-            if (termination == Detail::NRTermination::Converged)
-                return accepted_relnorm;
-            if (termination == Detail::NRTermination::Exhausted)
-                Util::Abort(INFO, "Newton solver failed to converge in ", m_nriters,
-                    " iterations: final accepted update=", last_relnorm,
+            // Test the undamped Newton correction so backtracking cannot
+            // manufacture convergence merely by choosing a very small alpha.
+            if (m_nrtolerance > 0.0 && full_update < m_nrtolerance)
+                return full_update;
+            if (m_nrtolerance > 0.0 && nriter + 1 == m_nriters)
+            {
+                if (m_nr_abort_on_fail)
+                    Util::Abort(INFO, "Newton solver failed to converge in ",
+                        m_nriters, " iterations: final full update=", full_update,
+                        ", final accepted update=", accepted_update,
+                        ", tolerance=", m_nrtolerance);
+                Util::Warning(INFO, "Newton solver failed to converge in ",
+                    m_nriters, " iterations: final full update=", full_update,
+                    ", final accepted update=", accepted_update,
                     ", tolerance=", m_nrtolerance);
+                return full_update;
+            }
 
         }
 
-        if (m_nrtolerance > 0.0)
-            Util::Abort(INFO, "Newton solver failed to converge in ", m_nriters,
-                " iterations: final accepted update=", last_relnorm,
-                ", tolerance=", m_nrtolerance);
         return 0.0;
     }
 
@@ -952,57 +904,16 @@ public:
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
     bool m_line_search = false;
-    Operator::Elastic<T::sym>* m_elastic = nullptr;
+    bool m_resync_coeffs = false;
+    bool m_nr_abort_on_fail = false;
+    Operator::Elastic<T::sym>* m_elastic;
     //BC::Operator::Elastic::Elastic *m_bc;
 
     Set::Field<Set::Scalar>* m_psi = nullptr;
     bool m_conservative_face_flux = false;
 
 private:
-    bool HasNonFinite(const Set::Field<Set::Scalar>& a_mf,
-                    bool include_ghosts = false) const
-    {
-        if (!include_ghosts)
-        {
-            for (int lev = 0; lev < a_mf.size(); ++lev)
-                if (!a_mf[lev]->is_finite(0, a_mf[lev]->nComp(), 0)) return true;
-            return false;
-        }
-
-        bool nonfinite = false;
-        for (int lev = 0; lev < a_mf.size(); ++lev)
-        {
-            const int ncomp = a_mf[lev]->nComp();
-            amrex::Box active_domain = m_elastic->Geom(lev).growPeriodicDomain(
-                a_mf[lev]->nGrowVect().max());
-            active_domain.convert(amrex::IntVect::TheNodeVector());
-            for (amrex::MFIter mfi(*a_mf[lev], false); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box bx = mfi.growntilebox(a_mf[lev]->nGrowVect()) &
-                    active_domain;
-                if (!bx.ok()) continue;
-
-                const auto field = a_mf[lev]->const_array(mfi);
-                amrex::LoopOnCpu(bx,
-                    [&] (int i, int j, int k)
-                    {
-                        for (int n = 0; n < ncomp; ++n)
-                            nonfinite = nonfinite ||
-                                !std::isfinite(field(i, j, k, n));
-                    });
-            }
-        }
-        amrex::ParallelDescriptor::ReduceBoolOr(nonfinite);
-        return nonfinite;
-    }
-
-    void AbortIfNonFinite(const Set::Field<Set::Scalar>& a_mf,
-                        const char* description,
-                        bool include_ghosts = false) const
-    {
-        if (HasNonFinite(a_mf, include_ghosts))
-            Util::Abort(INFO, description, " contains a non-finite value");
-    }
+    bool m_reported_psi_face_flux_conflict = false;
 
     Set::Scalar FieldNorm0(const Set::Field<Set::Scalar>& a_mf) const
     {
@@ -1024,8 +935,8 @@ private:
         Set::Scalar norm = 0.0;
         for (int lev = 0; lev < composite.size(); ++lev)
         {
-            const Set::Scalar tmp = m_elastic->CompositeNormInf(
-                lev, *composite[lev]);
+            const Set::Scalar tmp =
+                m_elastic->normInf(lev, *composite[lev], false);
             if (tmp > norm) norm = tmp;
         }
         return norm;
@@ -1044,17 +955,23 @@ public:
         // Number of newton-raphson iterations.
         pp_query("nriters", value.m_nriters);
 
-        // Tolerance to use for newton-raphson convergence
+        // Tolerance for the undamped absolute correction norm in vector
+        // mechanics solves, and the relative correction norm in scalar solves.
         pp_query("nrtolerance", value.m_nrtolerance); 
 
-        // Backtrack nonlinear updates until the residual decreases.
+        // Backtrack nonlinear updates until the residual is within a small
+        // relative allowance of its initial value.
         pp_query("line_search", value.m_line_search);
+
+        // Rebuild coarse MG coefficients and the smoother diagonal after each
+        // nonlinear relinearization. MLMG otherwise prepares them only once.
+        pp_query("resync_coeffs", value.m_resync_coeffs);
+
+        // Abort instead of warning if Newton iterations do not converge.
+        pp_query("nr_abort_on_fail", value.m_nr_abort_on_fail);
 
         // Discretize the elastic residual with coefficient-aware face fluxes.
         pp_query("conservative_face_flux", value.m_conservative_face_flux);
-
-        if (!std::isfinite(value.m_nrtolerance) || value.m_nrtolerance < 0.0)
-            Util::Abort(INFO, "solver.nrtolerance must be finite and nonnegative");
     }
 
 };
