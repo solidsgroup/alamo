@@ -87,17 +87,44 @@ def paired_timing(d):
     paired_protocol = "startup_wall_median_s" in read(
         d / "timing" / "managed" / "timing.txt"
     )
+    first_arm_counts = {"managed": 0, "device": 0}
+    valid_order_rows = 0
+    for line in read(d / "timing" / "order.tsv").splitlines():
+        fields = line.split()
+        if len(fields) < 3 or fields[1] not in first_arm_counts:
+            continue
+        valid_order_rows += 1
+        first_arm_counts[fields[1]] += 1
+    if not paired_protocol:
+        order_summary = "legacy single-startup calibration"
+        admissibility = "supporting only (legacy calibration)"
+    elif valid_order_rows < len(common):
+        order_summary = (
+            "paired short/long; realized first-arm order missing or incomplete"
+        )
+        admissibility = "supporting only (order evidence incomplete)"
+    else:
+        order_summary = (
+            "paired short/long; realized first-arm counts "
+            f"managed={first_arm_counts['managed']}, "
+            f"device={first_arm_counts['device']}"
+        )
+        imbalance = abs(
+            first_arm_counts["managed"] - first_arm_counts["device"]
+        )
+        admissibility = (
+            "admissible"
+            if imbalance <= 1
+            else "supporting only (unbalanced realized order)"
+        )
     return {
         "count": len(common),
         "median_delta": median_delta,
         "median_percent": median_percent,
         "mad_delta": mad_delta,
         "verdict": verdict,
-        "protocol": (
-            "paired short/long"
-            if paired_protocol
-            else "legacy single-startup calibration; supporting only"
-        ),
+        "protocol": order_summary,
+        "admissibility": admissibility,
     }
 
 
@@ -476,7 +503,8 @@ def capture(d):
             f"(**{paired['median_percent']:+.2f}%**), "
             f"MAD **{paired['mad_delta']:.5f} s/step**, "
             f"n=**{paired['count']}**; **{paired['verdict']}**. "
-            f"Protocol: {paired['protocol']}.",
+            f"Protocol: {paired['protocol']}; "
+            f"admissibility: **{paired['admissibility']}**.",
         ]
     lines += ["", "### Arena step 1/full", ""]
     ar = arena_table(d)
@@ -712,6 +740,11 @@ def unit():
             "2 0 1.2 0.10 0 0.4\n"
             "3 0 1.0 0.08 0 0.4\n"
         )
+        (d / "timing" / "order.tsv").write_text(
+            "1\tmanaged device\n"
+            "2\tdevice managed\n"
+            "3\tmanaged device\n"
+        )
         (d / "nsys" / "gpu_idle_summary.tsv").write_text(
             "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
             ":test\t1\t0.125000\t0.125000\n"
@@ -752,6 +785,8 @@ def unit():
                 "Paired arena comparison (device − managed): "
                 "**-0.01000 s/step**",
                 "device faster (2-MAD band excludes zero)",
+                "realized first-arm counts managed=2, device=1",
+                "admissibility: **admissible**",
                 "| :test | 1 | 0.125000 | 0.125000 |",
                 "Normalized over **2** coarse steps",
                 "| [CUDA memcpy Host-to-Device] | 45.000000 | 90.000 |",
@@ -765,6 +800,16 @@ def unit():
         missing_out = capture(d)
         assert "- **MISSING** managed-memory profile log." in missing_out
         assert "No non-initialization managed-pool rows found" not in missing_out
+        (d / "timing" / "order.tsv").write_text(
+            "1\tmanaged device\n"
+            "2\tmanaged device\n"
+            "3\tmanaged device\n"
+        )
+        unbalanced_out = capture(d)
+        assert (
+            "admissibility: **supporting only "
+            "(unbalanced realized order)**"
+        ) in unbalanced_out
     print("phase0_analyze: unit OK")
 
 
