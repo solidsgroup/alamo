@@ -576,6 +576,18 @@ This is request-layer instrumentation, unlike Nsight's backing
 `cudaMalloc/cudaFree` report, and therefore addresses the false-pass mechanism
 behind T4/T5.
 
+### H7 — repeated pushes must preserve provenance
+
+A second `phase0_capture.sh push` counted the first push's generated
+`_pushed_tree.diff` and `_pushed_manifest.tsv` as new untracked dirt and included
+them in the next payload manifest. The same source therefore acquired a new
+dirty count and tree hash merely because it had already been pushed.
+
+The push action now excludes all three derived `_pushed_*` files from both the
+dirty count and payload manifest. `tree_hash` still includes the tracked diff
+and payload manifest explicitly. Repeating a push over an unchanged payload now
+produces the same `(dirty_files, tree_hash, src_hash)` tuple.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
