@@ -18,6 +18,7 @@
 #include "IO/ParmParse.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
+#include "IO/OutputLog.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
 #include "Util/MPI.H"
@@ -224,6 +225,7 @@ void Initialize ()
 }
 void Initialize (int argc, char* argv[])
 {
+    IO::OutputLog::Initialize();
     srand (time(NULL));
 
     bool parse_args = false;
@@ -271,11 +273,22 @@ void Initialize (int argc, char* argv[])
 
     std::string filename = GetFileName();
 
-    if (!IO::ParmParse::InTraversalMode() &&
-        amrex::ParallelDescriptor::IOProcessor() && filename != "")
+    if (!IO::ParmParse::InTraversalMode() && filename != "")
     {
-        file_overwrite = Util::CreateCleanDirectory(filename, false);
-        IO::WriteMetaData(filename);
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            file_overwrite = Util::CreateCleanDirectory(filename, false);
+            IO::OutputLog::Open(filename + "/out.log");
+            IO::WriteMetaData(filename);
+        }
+        else
+        {
+            IO::OutputLog::DisableFile();
+        }
+    }
+    else
+    {
+        IO::OutputLog::DisableFile();
     }
 
     std::string length, time, mass, temperature, current, amount, luminousintensity;
@@ -382,13 +395,19 @@ void Finalize()
             IO::WriteMetaData(filename,IO::Status::Complete);
     }
     amrex::Finalize();
+    IO::OutputLog::Finalize();
     finalized = true;
 }
 
 
 
+AMREX_GPU_HOST_DEVICE
 void
-Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
+Abort (const char * msg)
+{
+    AMREX_IF_ON_HOST((Terminate(msg, SIGABRT, true);))
+    AMREX_IF_ON_DEVICE((amrex::Abort();))
+}
 
 void
 Terminate(const char * /* msg */, int signal, bool /*backtrace*/)

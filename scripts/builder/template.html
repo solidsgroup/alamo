@@ -1286,7 +1286,7 @@
       <div class="controls">
         <div class="toolbar">
           <div class="search-wrap">
-            <input id="searchInput" type="search" placeholder="Search active inputs" aria-label="Search active inputs">
+            <input id="searchInput" type="search" placeholder="Search inputs" aria-label="Search inputs">
           </div>
           <div class="view-tabs" role="group" aria-label="Input view">
             <button class="view-tab active" type="button" data-view="all">All</button>
@@ -1728,12 +1728,28 @@
           .filter(Boolean).join(" ").toLowerCase();
       }
 
-      function nodeMatchesView(node) {
-        if (!nodeActive(node)) return false;
+      function nodeMatchesView(node, includeInactive) {
+        if (!includeInactive && !nodeActive(node)) return false;
         if (state.view === "required" && !node.required) return false;
         if (state.view === "configured" && !configured(node)) return false;
         if (state.search && !searchableText(node).includes(state.search)) return false;
         return node.kind === "parameter" || node.kind === "switch" || node.kind === "sequence";
+      }
+
+      function flowBranchMatchesSearch(branch) {
+        if (!state.search) return true;
+        if (String(branch.value).toLowerCase().includes(state.search)) return true;
+        return flowNodesMatchSearch(branch.children);
+      }
+
+      function flowNodesMatchSearch(nodes) {
+        return (nodes || []).some((flowNode) => {
+          const node = nodeForFlow(flowNode);
+          if (node && nodeMatchesView(node, true)) return true;
+          if (flowNode.kind === "switch" &&
+              (flowNode.branches || []).some(flowBranchMatchesSearch)) return true;
+          return flowNodesMatchSearch(flowNode.children);
+        });
       }
 
       function hasVisibleDescendant(node) {
@@ -1859,8 +1875,10 @@
         );
       }
 
-      function renderSwitch(node, flowOptions, nestingDepth, asTabs, tabOptions) {
-        const current = state.switches[node._path];
+      function renderSwitch(node, flowOptions, nestingDepth, asTabs, tabOptions, displayedValue) {
+        const current = displayedValue === undefined
+          ? state.switches[node._path]
+          : String(displayedValue);
         const tabValues = new Set((tabOptions || []).map(String));
         const queryIfDisabled = node.directive === "query_if" && String(current) !== "1";
         const controllerClass = nestingDepth === undefined || queryIfDisabled
@@ -2090,7 +2108,8 @@
         const flowInputs = new Set(orderedNodes.map((node) => node.input));
         const prefixGroups = new Set(orderedNodes.map((flowNode) => {
           const node = nodeForFlow(flowNode);
-          return node && (node.kind === "parameter" || node.kind === "sequence") && nodeMatchesView(node)
+          return node && (node.kind === "parameter" || node.kind === "sequence") &&
+            nodeMatchesView(node, Boolean(state.search))
             ? flowGroup(flowNode.input)
             : "";
         }).filter(Boolean));
@@ -2144,18 +2163,31 @@
 
           if (flowNode.kind === "switch") {
             flushRun();
-            const options = (flowNode.branches || []).map((branch) => String(branch.value));
-            const selectedValue = state.switches[flowNode.input];
-            const selected = (flowNode.branches || []).find((branch) => {
-              return String(branch.value) === String(selectedValue);
-            });
+            const branches = flowNode.branches || [];
+            const nodeVisible = nodeMatchesView(node, Boolean(state.search));
+            const matchingBranches = state.search
+              ? branches.filter(flowBranchMatchesSearch)
+              : branches;
+            const visibleBranches = state.search && !matchingBranches.length && nodeVisible
+              ? branches
+              : matchingBranches;
+            if (!visibleBranches.length && !nodeVisible) return;
+
+            const configuredValue = state.switches[flowNode.input];
+            const selected = visibleBranches.find((branch) => {
+              return String(branch.value) === String(configuredValue);
+            }) || visibleBranches[0];
+            const selectedValue = selected === undefined ? configuredValue : String(selected.value);
+            const options = visibleBranches.map((branch) => String(branch.value));
             const branchKey = parentBranchKey + "|" + flowNode.input + "=" + selectedValue;
-            const childHtml = selected ? renderFlowNodes(selected.children, nestingDepth + 1, branchKey) : "";
-            const hasBranchContent = (flowNode.branches || []).some((branch) => {
+            const childHtml = selected
+              ? renderFlowNodes(selected.children, nestingDepth + 1, branchKey)
+              : "";
+            const hasBranchContent = branches.some((branch) => {
               return Array.isArray(branch.children) && branch.children.length > 0;
             });
-            if (nodeMatchesView(node) || childHtml) {
-              const tabOptions = (flowNode.branches || []).filter((branch) => {
+            if (nodeVisible || childHtml) {
+              const tabOptions = visibleBranches.filter((branch) => {
                 return Array.isArray(branch.children) && branch.children.length > 0;
               }).map((branch) => String(branch.value));
               const selectedHasChildren = Boolean(
@@ -2166,7 +2198,8 @@
                 options,
                 hasBranchContent ? nestingDepth : undefined,
                 hasBranchContent,
-                tabOptions
+                tabOptions,
+                selectedValue
               );
               if (hasBranchContent) {
                 const queryIfEnabled = node.directive === "query_if"
@@ -2182,7 +2215,8 @@
             return;
           }
 
-          if ((node.kind !== "parameter" && node.kind !== "sequence") || !nodeMatchesView(node)) {
+          if ((node.kind !== "parameter" && node.kind !== "sequence") ||
+              !nodeMatchesView(node, Boolean(state.search))) {
             return;
           }
           const group = flowGroup(flowNode.input);

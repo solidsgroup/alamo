@@ -50,14 +50,14 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
         amrex::FArrayBox& xfab = x[mfi];
         amrex::FArrayBox& Axfab = Ax[mfi];
 
-        diagfab.setVal(0.0);
+        diagfab.setVal<amrex::RunOn::Device>(0.0);
 
         for (int i = 0; i < num; i++)
         {
             for (int n = 0; n < ncomp; n++)
             {
-                xfab.setVal(0.0);
-                Axfab.setVal(0.0);
+                xfab.setVal<amrex::RunOn::Device>(0.0);
+                Axfab.setVal<amrex::RunOn::Device>(0.0);
 
                 //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++),
@@ -77,8 +77,8 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                 BL_PROFILE_VAR_STOP(part2);
 
                 //BL_PROFILE_VAR("Operator::Part3", part3); 
-                Axfab.mult(xfab, n, n, 1);
-                diagfab.plus(Axfab, n, n, 1);
+                Axfab.mult<amrex::RunOn::Device>(xfab, n, n, 1);
+                diagfab.plus<amrex::RunOn::Device>(Axfab, n, n, 1);
                 //BL_PROFILE_VAR_STOP(part3);
             }
         }
@@ -119,10 +119,10 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         {
             Box bx = mfi.grownnodaltilebox();
             
-            amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
-            amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
-            amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
-            amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
+            const auto xfab = x.array(mfi);
+            const auto bfab = b.const_array(mfi);
+            const auto Rxfab = Rx.const_array(mfi);
+            const auto diagfab = (*m_diag[amrlev][mglev]).const_array(mfi);
 
             if (!relax_ghost_rows)
             {
@@ -142,7 +142,8 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
             for (int n = 0; n < ncomp; n++)
             {
-                amrex::ParallelFor(bx, [&] AMREX_GPU_DEVICE(int i, int j, int k) 
+                const Set::Scalar omega = m_omega;
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
                     // Skip ghost cells outside problem domain
@@ -157,7 +158,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
                     }
                     else
                     {
-                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                        xfab(i,j,k,n) = (1. - omega) * xfab(i,j,k, n) + omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
                     }
                 });
             }
@@ -402,7 +403,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
         tmpfab.resize(tmpbx, fine.nComp());
-        tmpfab.setVal(0.0);
+        tmpfab.setVal<amrex::RunOn::Device>(0.0);
         const amrex::FArrayBox& crsefab = (*cmf)[mfi];
 
         amrex::Array4<const amrex::Real> const& cdata = crsefab.const_array();
@@ -441,7 +442,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
             });
         }
-        fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
+        fine[mfi].plus<amrex::RunOn::Device>(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
     fine.setMultiGhost(true);
