@@ -215,6 +215,33 @@ def capture(d):
         if req:
             lines += ["", f"Top request rows ({step}):", "", "| Nalloc | Region | MaxMem |", "|---:|---|---:|"]
             lines += [f"| {n} | {name} | {mx} |" for n, name, mx in req[:10]]
+    if len(ar) >= 2:
+        first = ar[0]
+        last = ar[-1]
+        first_step = re.search(r"\d+", first[0])
+        last_step = re.search(r"\d+", last[0])
+        if first_step and last_step:
+            added_steps = int(last_step.group()) - int(first_step.group())
+            if added_steps > 0:
+                deltas = {
+                    arena: (
+                        last[4].get(arena, 0) - first[4].get(arena, 0)
+                    ) / added_steps
+                    for arena in ("device", "managed", "pinned")
+                }
+                lines += [
+                    "",
+                    "Request delta per added step: "
+                    f"device **{deltas['device']:.3f}**, "
+                    f"managed **{deltas['managed']:.3f}**, "
+                    f"pinned **{deltas['pinned']:.3f}**.",
+                ]
+    if ar:
+        lines += [
+            "",
+            "T5b live allocation count: **UNAVAILABLE** in the AMReX 26.06 "
+            "memory table (Nalloc/AvgMem/MaxMem only).",
+        ]
     failures = [p for p in d.rglob("*FAILED*") if p.is_file()]
     # failures.txt is a report, not a marker: only surface it when non-empty.
     failures += [p for p in d.rglob("failures.txt") if read(p).strip()]

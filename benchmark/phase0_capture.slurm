@@ -32,8 +32,10 @@
 #            numbers in this job.
 #   flip     N2. Device arena + abort_on_out_of_gpu_memory=1. INVENTORY ONLY --
 #            a crash here is the deliverable, not a failure. Never fix in-job.
-#   arena    F8/T1/T4/T5. AMReX request-layer allocation counts, live bytes,
-#            and high-water at a startup and full-horizon endpoint.
+#   arena    F8/T1/T4/T5a. AMReX request-layer allocation counts and high-water
+#            at startup/full endpoints. AMReX 26.06 does not print Nfree/live
+#            allocation count here, so T5b remains an explicit instrumentation
+#            gap rather than being inferred from a flat high-water.
 #   nsys     F1,F2,F3,F9. Profile binary (BL_PROFILE regions emit NVTX under
 #            CUDA), CUDA+NVTX trace (NOT mpi/OSRT -- see the leg), CUDA memory
 #            usage, and unified-memory page-fault counters. Exports stats CSVs
@@ -410,14 +412,14 @@ if have_leg flip; then
 fi
 
 # -------------------------------------------------------------- leg: arena ---
-# F8 and the allocation-side targets. Nsight's CUDA memory report sees backing
+# F8 and the measurable allocation-side targets. Nsight's CUDA report sees backing
 # cudaMalloc/cudaFree calls; AMReX's arenas can recycle those while application
-# alloc/free requests churn every step. The profile build's TinyProfiler hooks
-# sit at CArena::alloc/free, so their Nalloc/Nfree/CurrentMem/MaxMem tables see
-# the requests T4/T5 actually define. A one-step and a full-horizon endpoint
-# distinguish initialization from timestep/elastic-solve activity.
+# allocation requests churn every step. The profile build's TinyProfiler hooks
+# expose Nalloc and MaxMem by region, so endpoint deltas see the T4 request
+# pathology. This AMReX version does not expose Nfree or a live request count in
+# the table, so it cannot certify T5b.
 if have_leg arena; then
-  say "LEG arena -- F8/T1/T4/T5 AMReX request-layer memory profile"
+  say "LEG arena -- F8/T1/T4/T5a AMReX request-layer memory profile"
   L="${OUT}/arena"; mkdir -p "${L}"
   ARENA_STEPS="${ARENA_STEPS:-1 ${MAX_STEP}}"
   for arena_step in ${ARENA_STEPS}; do
@@ -438,8 +440,9 @@ if have_leg arena; then
       CAPTURE_ERRORS=$((CAPTURE_ERRORS + 1))
     fi
   done
-  echo "  Compare endpoint Nalloc-Nfree and CurrentMem for T5b; normalize the"
-  echo "  Nalloc delta by added steps/elastic solves for T4. Treat only"
+  echo "  Normalize the Nalloc delta by added steps/elastic solves for T4."
+  echo "  Nfree/live allocation count is absent in AMReX 26.06: T5b remains a gap."
+  echo "  Treat only"
   echo "  non-initialization Managed Memory rows as T1 application allocations."
 fi
 
