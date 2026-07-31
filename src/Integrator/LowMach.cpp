@@ -2662,15 +2662,19 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         }
     };
 
-    auto RigidBodyMagnitude = [](const FreeRigidBodyState& body,
-                                 Set::Scalar radius)
+    auto RigidBodyDifferenceMagnitude = [](
+        const FreeRigidBodyState& a, const FreeRigidBodyState& b,
+        Set::Scalar radius)
     {
-        if (!body.valid) return Set::Scalar(0.0);
+        if (!a.valid || !b.valid) return Set::Scalar(0.0);
         Set::Scalar magnitude_squared = 0.0;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-            magnitude_squared += body.velocity(d) * body.velocity(d) +
-                radius * radius * body.angular_velocity(d) *
-                body.angular_velocity(d);
+        {
+            const Set::Scalar velocity = a.velocity(d) - b.velocity(d);
+            const Set::Scalar rotation =
+                radius * (a.angular_velocity(d) - b.angular_velocity(d));
+            magnitude_squared += velocity * velocity + rotation * rotation;
+        }
         return std::sqrt(magnitude_squared);
     };
 
@@ -2682,8 +2686,16 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         rigid_coupling_absolute_tolerance[free_rigid_solid_component] : 0.0;
     const bool anderson_coupling = free_rigid_solid &&
         rigid_anderson_coupling[free_rigid_solid_component];
+    // The fixed-point residual is attenuated by the implicit Brinkman
+    // mobility.  Undo that attenuation when deciding convergence, and allow
+    // Aitken acceleration to span the corresponding inverse-mobility scale.
+    const Set::Scalar coupling_mobility = free_rigid_solid ?
+        1.0 / (1.0 + dt /
+            rigid_relaxation_time[free_rigid_solid_component]) : 1.0;
+    const Set::Scalar maximum_anderson_weight = 1.0 / coupling_mobility;
     last_free_rigid_coupling_iterations = 0;
     last_free_rigid_coupling_residual = 0.0;
+    last_free_rigid_coupling_converged = false;
     FreeRigidBodyState previous_coupling_output;
     Set::Vector previous_residual_velocity = Set::Vector::Zero();
     Set::Vector previous_residual_rotation = Set::Vector::Zero();
@@ -2753,14 +2765,19 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 residual_rotation(d) * residual_rotation(d);
         }
         const Set::Scalar residual = std::sqrt(residual_squared);
-        const Set::Scalar residual_scale = Util::Max(
-            RigidBodyMagnitude(free_rigid_body, residual_radius),
-            RigidBodyMagnitude(target_body, residual_radius));
+        const Set::Scalar estimated_error = residual / coupling_mobility;
+        const Set::Scalar correction_scale = Util::Max(
+            RigidBodyDifferenceMagnitude(
+                free_rigid_body, provisional_body_state, residual_radius),
+            RigidBodyDifferenceMagnitude(
+                target_body, provisional_body_state, residual_radius));
         last_free_rigid_coupling_iterations = iteration + 1;
-        last_free_rigid_coupling_residual = residual / Util::Max(
-            residual_scale, coupling_absolute_tolerance);
-        if (residual <= coupling_absolute_tolerance +
-                coupling_relative_tolerance * residual_scale ||
+        last_free_rigid_coupling_residual = estimated_error / Util::Max(
+            correction_scale, coupling_absolute_tolerance);
+        last_free_rigid_coupling_converged =
+            estimated_error <= coupling_absolute_tolerance +
+                coupling_relative_tolerance * correction_scale;
+        if (last_free_rigid_coupling_converged ||
             iteration + 1 == projection_iterations)
             break;
 
@@ -2783,7 +2800,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             if (denominator > 1.0e-24)
             {
                 const Set::Scalar weight = Util::Clamp(
-                    -numerator / denominator, 0.0, 5.0);
+                    -numerator / denominator, 0.0,
+                    maximum_anderson_weight);
                 target_body = previous_coupling_output;
                 target_body.velocity += weight *
                     (free_rigid_body.velocity -
@@ -2836,7 +2854,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
 
     if (free_rigid_solid)
     {
-        if (free_rigid_body.valid && provisional_body_state.valid)
+        if (last_free_rigid_coupling_converged &&
+            free_rigid_body.valid && provisional_body_state.valid)
         {
             previous_free_rigid_projection_increment = provisional_body_state;
             previous_free_rigid_projection_increment.velocity =
@@ -3743,7 +3762,9 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
                         << " free_rigid_coupling_iterations "
                         << last_free_rigid_coupling_iterations
                         << " free_rigid_coupling_residual "
-                        << last_free_rigid_coupling_residual;
+                        << last_free_rigid_coupling_residual
+                        << " free_rigid_coupling_converged "
+                        << last_free_rigid_coupling_converged;
     }
     if (amrex::ParallelDescriptor::IOProcessor()) amrex::Print() << "\n";
 }

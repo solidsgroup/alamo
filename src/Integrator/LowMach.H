@@ -264,6 +264,7 @@ protected:
     Set::Scalar liquid_reference_density_min = 1.0e100;
     int last_free_rigid_coupling_iterations = 0;
     Set::Scalar last_free_rigid_coupling_residual = 0.0;
+    bool last_free_rigid_coupling_converged = false;
     Set::Scalar previous_free_rigid_dt = NAN;
 
     struct FreeRigidBodyState
