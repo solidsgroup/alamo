@@ -177,7 +177,7 @@ case "${ACTION}" in
       JOB_ID=$(ssh_nova "cd ${REMOTE_DIR} && sbatch --parsable --gres=gpu:${GPU_TYPE}:1 \
                   ${EXCLUDE_NODES:+--exclude=${EXCLUDE_NODES}} \
                   ${DEPENDENCY_OPT} \
-                  --export=ALL,DECK=${d},GPU_TYPE=${GPU_TYPE}${LEGS:+,LEGS='${LEGS}'}${SMOOTH_STEP:+,SMOOTH_STEP=${SMOOTH_STEP}}${NCU_TARGETS_PATH:+,NCU_TARGETS_PATH=${NCU_TARGETS_PATH}}${NCU_LAUNCHES:+,NCU_LAUNCHES=${NCU_LAUNCHES}}${REPS:+,REPS=${REPS}} \
+                  --export=ALL,DECK=${d},GPU_TYPE=${GPU_TYPE}${LEGS:+,LEGS='${LEGS}'}${SMOOTH_STEP:+,SMOOTH_STEP=${SMOOTH_STEP}}${NCU_TARGETS_PATH:+,NCU_TARGETS_PATH=${NCU_TARGETS_PATH}}${NCU_LAUNCHES:+,NCU_LAUNCHES=${NCU_LAUNCHES}}${REPS:+,REPS=${REPS}}${MAX_STEP:+,MAX_STEP=${MAX_STEP}}${TRACE_STEP:+,TRACE_STEP=${TRACE_STEP}} \
                   benchmark/phase0_capture.slurm")
       echo "${JOB_ID}"
       if [ "${SERIAL:-0}" = "1" ]; then
