@@ -163,8 +163,14 @@ def ncu(d):
         for row in rows:
             name = row.get("Metric Name", "").strip()
             val = row.get("Metric Value", "").strip()
-            if name and val and re.search(r"achieved|throughput|occupancy|dram|sm__|speed of light", name, re.I):
-                metrics.setdefault(name, val)
+            unit = row.get("Metric Unit", "").strip()
+            if name and val and re.search(
+                r"achieved|throughput|occupancy|dram|sm__|speed of light|"
+                r"register|block limit|duration",
+                name,
+                re.I,
+            ):
+                metrics.setdefault(name, f"{val} {unit}".strip())
         if metrics:
             result.append((path.stem, metrics))
     return result
