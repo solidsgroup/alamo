@@ -4,6 +4,7 @@ import argparse
 import csv
 import io
 import re
+import statistics
 import sys
 import tempfile
 from pathlib import Path
@@ -39,6 +40,65 @@ def timing(d):
                            f"startup median {vals.get('startup_wall_median_s', '—')} s; "
                            f"failed reps {vals.get('failed_reps', '—')}"))
     return out
+
+
+def paired_timing(d):
+    def reps(mode):
+        result = {}
+        for line in read(d / "timing" / mode / "reps.txt").splitlines():
+            fields = line.split()
+            if len(fields) < 4:
+                continue
+            try:
+                rep = int(fields[0])
+                rc = int(fields[1])
+                per_step = float(fields[3])
+                short_rc = int(fields[4]) if len(fields) >= 6 else 0
+            except ValueError:
+                continue
+            if rc == 0 and short_rc == 0:
+                result[rep] = per_step
+        return result
+
+    managed = reps("managed")
+    device = reps("device")
+    common = sorted(managed.keys() & device.keys())
+    if not common:
+        return None
+    deltas = [device[rep] - managed[rep] for rep in common]
+    percents = [
+        100.0 * (device[rep] - managed[rep]) / managed[rep]
+        for rep in common
+        if managed[rep] != 0.0
+    ]
+    median_delta = statistics.median(deltas)
+    mad_delta = statistics.median(
+        abs(delta - median_delta) for delta in deltas
+    )
+    median_percent = statistics.median(percents) if percents else float("nan")
+    lower = median_delta - 2.0 * mad_delta
+    upper = median_delta + 2.0 * mad_delta
+    if upper < 0.0:
+        verdict = "device faster (2-MAD band excludes zero)"
+    elif lower > 0.0:
+        verdict = "device slower (2-MAD band excludes zero)"
+    else:
+        verdict = "inconclusive (2-MAD band overlaps zero)"
+    paired_protocol = "startup_wall_median_s" in read(
+        d / "timing" / "managed" / "timing.txt"
+    )
+    return {
+        "count": len(common),
+        "median_delta": median_delta,
+        "median_percent": median_percent,
+        "mad_delta": mad_delta,
+        "verdict": verdict,
+        "protocol": (
+            "paired short/long"
+            if paired_protocol
+            else "legacy single-startup calibration; supporting only"
+        ),
+    }
 
 
 def inventory_fields(text):
@@ -319,6 +379,17 @@ def capture(d):
         "",
     ]
     lines += [f"- **{mode}**: {summary}" for mode, summary in timing(d)]
+    paired = paired_timing(d)
+    if paired:
+        lines += [
+            "",
+            "Paired arena comparison (device − managed): "
+            f"**{paired['median_delta']:+.5f} s/step** "
+            f"(**{paired['median_percent']:+.2f}%**), "
+            f"MAD **{paired['mad_delta']:.5f} s/step**, "
+            f"n=**{paired['count']}**; **{paired['verdict']}**. "
+            f"Protocol: {paired['protocol']}.",
+        ]
     lines += ["", "### Arena step 1/full", ""]
     ar = arena_table(d)
     lines += (
@@ -478,6 +549,7 @@ def unit():
         d = Path(td) / "_phase0_fixture"
         (d / "env").mkdir(parents=True)
         (d / "timing" / "managed").mkdir(parents=True)
+        (d / "timing" / "device").mkdir(parents=True)
         (d / "nsys").mkdir(parents=True)
         (d / "env" / "inventory.txt").write_text(
             "host=test date=2026-07-31T00:00:00-05:00\n"
@@ -487,7 +559,26 @@ def unit():
             "phase0 capture fixture\nrequired_leg_failures=0\n"
         )
         (d / "env" / "scheduler.err").write_text("")
-        (d / "timing" / "managed" / "timing.txt").write_text("mode=managed wall_median_s=1.2 failed_reps=0\n")
+        (d / "timing" / "managed" / "timing.txt").write_text(
+            "mode=managed wall_median_s=1.2 "
+            "steady_per_step_median_s=0.10 startup_wall_median_s=0.4 "
+            "failed_reps=0\n"
+        )
+        (d / "timing" / "device" / "timing.txt").write_text(
+            "mode=device wall_median_s=1.1 "
+            "steady_per_step_median_s=0.09 startup_wall_median_s=0.4 "
+            "failed_reps=0\n"
+        )
+        (d / "timing" / "managed" / "reps.txt").write_text(
+            "1 0 1.2 0.10 0 0.4\n"
+            "2 0 1.3 0.11 0 0.4\n"
+            "3 0 1.1 0.09 0 0.4\n"
+        )
+        (d / "timing" / "device" / "reps.txt").write_text(
+            "1 0 1.1 0.09 0 0.4\n"
+            "2 0 1.2 0.10 0 0.4\n"
+            "3 0 1.0 0.08 0 0.4\n"
+        )
         (d / "nsys" / "gpu_idle_summary.tsv").write_text(
             "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
             ":test\t1\t0.125000\t0.125000\n"
@@ -525,8 +616,9 @@ def unit():
                 "**local_head** `abc`",
                 "Scheduler required-leg failures: **0**",
                 "wall median 1.2",
-                "device",
-                "MISSING",
+                "Paired arena comparison (device − managed): "
+                "**-0.01000 s/step**",
+                "device faster (2-MAD band excludes zero)",
                 "| :test | 1 | 0.125000 | 0.125000 |",
                 "Normalized over **2** coarse steps",
                 "| [CUDA memcpy Host-to-Device] | 45.000000 | 90.000 |",
