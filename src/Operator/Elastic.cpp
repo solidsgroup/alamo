@@ -380,7 +380,8 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
         diagonal_nghost.max()));
     domain.convert(amrex::IntVect::TheNodeVector());
 
-    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
+    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(
+        diagonal_nghost.max() + 1));
     stencilbox.convert(amrex::IntVect::TheNodeVector());
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
