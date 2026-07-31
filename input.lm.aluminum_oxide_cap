@@ -3,7 +3,7 @@
 # deformation, and detachment arise only from the flow and interfacial forces.
 
 plot_file = output.lm.aluminum_oxide_cap
-amr.plot_dt = 2.0e-5
+amr.plot_dt = 1.0e-5
 amr.max_grid_size = 64
 amr.blocking_factor = 8
 amr.max_level = 0
@@ -23,9 +23,11 @@ geometry.prob_hi = 400.0e-6 250.0e-6 0.0
 geometry.is_periodic = 1 1 0
 
 system.amount = kmol
-gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.9815385_g/mol 101.96_g/mol
+#gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.9815385_g/mol 101.96_g/mol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
 gas.thermo.type = cpconstant
-gas.thermo.cpconstant.cp_moles = 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 31.0_J/mol/K 100.0_J/mol/K
+#gas.thermo.cpconstant.cp_moles = 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 31.0_J/mol/K 100.0_J/mol/K
+gas.thermo.cpconstant.cp_moles = 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K 30.0_J/mol/K
 gas.thermo.cpconstant.h0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 gas.thermo.cpconstant.s0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 gas.thermo.cpconstant.Tref = 300.0_K 300.0_K 300.0_K 300.0_K 300.0_K 300.0_K 300.0_K 300.0_K
@@ -66,9 +68,10 @@ chemistry.solver.type = forward_euler
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
+# The explicit capillary force becomes unstable for this mesh at cfl = 0.80.
 cfl = 0.20
 include_viscosity = 1
-implicit_viscosity = 0
+implicit_viscosity = 1
 include_conduction = 0
 advect_temperature = 0
 projection.enabled = 1
@@ -106,7 +109,8 @@ Al2O3_liquid.density.ic.expression.constant.eps = 10.0e-6
 Al2O3_liquid.density.ic.expression.region0 = "rho*(0.5-0.5*tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))*(0.5-0.5*tanh(2.0*(sqrt((x-cx)*(x-cx)+(y-cy)*(y-cy))-Rc)/eps))"
 
 Final.density.ic.type = expression
-Final.density.ic.expression.constant.rhog = 3.75
+# Ideal-gas density at 3 MPa, 2500 K, and MW = 26 g/mol.
+Final.density.ic.expression.constant.rhog = 3.7524974773345154
 Final.density.ic.expression.constant.x0 = 190.0e-6
 Final.density.ic.expression.constant.y0 = 125.0e-6
 Final.density.ic.expression.constant.R = 52.0e-6
