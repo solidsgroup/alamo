@@ -152,7 +152,14 @@ def nsys(d):
     if idle_path.exists():
         with idle_path.open(newline="", errors="replace") as handle:
             idle = list(csv.DictReader(handle, delimiter="\t"))
-    return kr, mem, api, sync, idle
+    um_paths = sorted(nd.glob("um*.csv"))
+    if any(path.stat().st_size for path in um_paths):
+        um_status = "rows present"
+    elif um_paths:
+        um_status = "EMPTY/UNAVAILABLE (inspect stats.log before claiming zero)"
+    else:
+        um_status = "MISSING"
+    return kr, mem, api, sync, idle, um_status
 
 
 def ncu(d):
@@ -205,15 +212,16 @@ def capture(d):
         if req:
             lines += ["", f"Top request rows ({step}):", "", "| Nalloc | Region | MaxMem |", "|---:|---|---:|"]
             lines += [f"| {n} | {name} | {mx} |" for n, name, mx in req[:10]]
-    failures = [p for p in d.rglob("CAPTURE_FAILED")]
+    failures = [p for p in d.rglob("*FAILED*") if p.is_file()]
     # failures.txt is a report, not a marker: only surface it when non-empty.
     failures += [p for p in d.rglob("failures.txt") if read(p).strip()]
     flip = read(d / "flip" / "failures.txt")
     lines += ["", f"Flip failures: **{len([x for x in flip.splitlines() if x.strip()]) if flip else 0}**"]
-    kr, mem, api, sync, idle = nsys(d)
+    kr, mem, api, sync, idle, um_status = nsys(d)
     lines += ["", "### Nsight Systems", "", "Top kernels (top 10):"]
     lines += [f"- {x}" for x in kr] or ["- MISSING kernel summary"]
     lines += ["", "CUDA transfers:"] + ([f"- {x}" for x in mem] or ["- MISSING CUDA memory summary"])
+    lines += ["", f"Unified-memory page-fault reports: **{um_status}**"]
     lines += ["", "CUDA API top rows:"] + ([f"- {x}" for x in api] or ["- MISSING CUDA API summary"])
     lines += [f"", f"Synchronization rows: {len(sync)}"]
     lines += ["", "GPU idle fractions:"]
