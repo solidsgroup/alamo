@@ -253,10 +253,9 @@ if have_leg timing; then
   # PLAN v2 §12.1: startup EXCLUDED, calibration derived up front rather than
   # deferred to analysis. Every prior F10 number here included CUDA context
   # creation and InitData in a 12-33 s total, which is why none of them were
-  # admissible. REPS>1 gives the uncertainty estimate §12.1 also requires; the
-  # arena arms are interleaved rather than run in blocks so machine drift lands
-  # on both.
-  REPS="${REPS:-3}"
+  # admissible. Five repetitions satisfy the campaign protocol; randomized,
+  # recorded arm order makes machine drift land on both configurations.
+  REPS="${REPS:-5}"
   for mode in managed device; do
     L="${OUT}/timing/${mode}"; mkdir -p "${L}"
     if [ "${mode}" = managed ]; then ARENA=( "${MANAGED[@]}" ); else ARENA=( "${DEVICE[@]}" ); fi
@@ -273,46 +272,74 @@ if have_leg timing; then
     echo "  startup calibration (${mode}, max_step=1): ${STARTUP}s"
     printf 'startup_s=%s\n' "${STARTUP}" > "${L}/startup.txt"
   done
-  for mode in managed device; do
-    L="${OUT}/timing/${mode}"; mkdir -p "${L}"
-    if [ "${mode}" = managed ]; then ARENA=( "${MANAGED[@]}" ); else ARENA=( "${DEVICE[@]}" ); fi
-    say "timing/${mode}"
-    if [ "${DRYRUN}" = 1 ]; then
-      echo "+ srun --mpi=pmix -n1 --gpus-per-task=1 ./${PLAIN_BIN} ${COMMON[*]} ${ARENA[*]} max_step=${MAX_STEP} stop_time=1e99_s plot_file=${L}/plot"
-    else
-      STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
-      STARTUP="${STARTUP:-0}"
-      : > "${L}/reps.txt"
-      for rep in $(seq 1 "${REPS}"); do
+  if [ "${DRYRUN}" = 1 ]; then
+    echo "+ [5 randomized/interleaved reps] srun ... managed ... max_step=${MAX_STEP}"
+    echo "+ [5 randomized/interleaved reps] srun ... device  ... max_step=${MAX_STEP}"
+  else
+    for mode in managed device; do
+      : > "${OUT}/timing/${mode}/reps.txt"
+    done
+    : > "${OUT}/timing/order.tsv"
+    for rep in $(seq 1 "${REPS}"); do
+      RUN_ORDER=$(printf '%s\n' managed device | shuf | paste -sd' ' -)
+      printf '%s\t%s\n' "${rep}" "${RUN_ORDER}" >> "${OUT}/timing/order.tsv"
+      for mode in ${RUN_ORDER}; do
+        L="${OUT}/timing/${mode}"
+        if [ "${mode}" = managed ]; then
+          ARENA=( "${MANAGED[@]}" )
+        else
+          ARENA=( "${DEVICE[@]}" )
+        fi
+        STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
+        STARTUP="${STARTUP:-0}"
         T0=$(date +%s.%N)
         srun --mpi=pmix -n1 --gpus-per-task=1 \
           "./${PLAIN_BIN}" "${COMMON[@]}" "${ARENA[@]}" max_step="${MAX_STEP}" \
-          stop_time=1e99_s plot_file="${L}/plot" > "${L}/run_rep${rep}.log" 2>&1
+          stop_time=1e99_s plot_file="${L}/plot_rep${rep}" \
+          > "${L}/run_rep${rep}.log" 2>&1
         RC=$?; T1=$(date +%s.%N)
         WALL=$(awk -v a="${T0}" -v b="${T1}" 'BEGIN{printf "%.3f", b-a}')
         # Steady-state per step: startup removed, so this is comparable across
         # decks and across phases. The raw wall is kept for audit.
         PER=$(awk -v w="${WALL}" -v s="${STARTUP}" -v n="${MAX_STEP}" \
               'BEGIN{printf "%.5f", (w-s)/n}')
-        echo "  rep${rep}: rc=${RC} wall=${WALL}s steady_per_step=${PER}s"
-        printf '%s\t%s\t%s\n' "${rep}" "${WALL}" "${PER}" >> "${L}/reps.txt"
+        echo "  ${mode} rep${rep}: rc=${RC} wall=${WALL}s steady_per_step=${PER}s"
+        printf '%s\t%s\t%s\t%s\n' "${rep}" "${RC}" "${WALL}" "${PER}" \
+          >> "${L}/reps.txt"
       done
+    done
+    for mode in managed device; do
+      L="${OUT}/timing/${mode}"
+      STARTUP=$(awk -F= '/startup_s/{print $2}' "${L}/startup.txt" 2>/dev/null)
+      STARTUP="${STARTUP:-0}"
       awk -v m="${mode}" -v n="${MAX_STEP}" -v s="${STARTUP}" '
-        {w[NR]=$2; p[NR]=$3; sw+=$2; sp+=$3}
+        {
+          if ($2 != 0) {fail++}
+          w[NR]=$3; p[NR]=$4; sw+=$3; sp+=$4
+        }
         END{
           k=NR; if(k==0){print "no reps"; exit}
           mw=sw/k; mp=sp/k;
           for(i=1;i<=k;i++){vw+=(w[i]-mw)^2; vp+=(p[i]-mp)^2}
           sdw=(k>1)?sqrt(vw/(k-1)):0; sdp=(k>1)?sqrt(vp/(k-1)):0;
-          printf "mode=%s reps=%d steps=%d startup_s=%s\n", m, k, n, s;
+          for(i=1;i<=k;i++){ws[i]=w[i];ps[i]=p[i]}
+          for(i=2;i<=k;i++){
+            x=ws[i];j=i-1;while(j>=1&&ws[j]>x){ws[j+1]=ws[j];j--}ws[j+1]=x
+            x=ps[i];j=i-1;while(j>=1&&ps[j]>x){ps[j+1]=ps[j];j--}ps[j+1]=x
+          }
+          if(k%2){wm=ws[(k+1)/2];pm=ps[(k+1)/2]}
+          else{wm=(ws[k/2]+ws[k/2+1])/2;pm=(ps[k/2]+ps[k/2+1])/2}
+          printf "mode=%s reps=%d failed_reps=%d steps=%d startup_s=%s\n",
+                 m, k, fail, n, s;
+          printf "wall_median_s=%.3f steady_per_step_median_s=%.5f\n", wm, pm;
           printf "wall_mean_s=%.3f wall_sd_s=%.3f\n", mw, sdw;
           printf "steady_per_step_mean_s=%.5f steady_per_step_sd_s=%.5f\n", mp, sdp;
         }' "${L}/reps.txt" | tee "${L}/timing.txt"
-    fi
-  done
-  echo "T0 rule: compare steady_per_step_mean_s between arms and against the"
-  echo "  previous phase's ledger row. A difference inside +/- 2 sd is NOT a"
-  echo "  regression and NOT an improvement -- PLAN v2 §12.1."
+    done
+  fi
+  echo "T0 rule: report steady_per_step_median_s; retain mean +/- sd for the"
+  echo "  uncertainty gate. A difference inside +/- 2 sd is not a regression"
+  echo "  and not an improvement -- PLAN v2 §12.1."
 fi
 
 # --------------------------------------------------------------- leg: flip ---

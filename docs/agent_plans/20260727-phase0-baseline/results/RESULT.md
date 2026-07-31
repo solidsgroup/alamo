@@ -588,6 +588,20 @@ dirty count and payload manifest. `tree_hash` still includes the tracked diff
 and payload manifest explicitly. Repeating a push over an unchanged payload now
 produces the same `(dirty_files, tree_hash, src_hash)` tuple.
 
+### H8 — timing protocol now matches the campaign
+
+The first admissible F10 attempt used three repetitions and ran all managed
+samples before all device samples, despite the script comment claiming
+interleaving. That is insufficient for the campaign's five-run median protocol
+and leaves the arms exposed to node drift.
+
+F10 now performs five repetitions by default, randomizes managed/device order
+within each repetition, records the realized order, and gives every run a
+distinct output path. It reports the median as the headline value while
+retaining mean and sample standard deviation for the non-regression uncertainty
+gate. Nonzero run return codes are counted explicitly instead of disappearing
+inside a wall-time sample.
+
 ---
 
 ## Local preview (indicative only, not admissible evidence)
