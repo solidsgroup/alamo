@@ -126,6 +126,34 @@ def csv_rows(path):
         return []
 
 
+def profile_memory_rows(text, heading):
+    if heading not in text:
+        return []
+    section = text.rsplit(heading, 1)[1]
+    section = re.split(
+        r"\n(?:Device|Managed|Pinned) Memory Usage:|"
+        r"\nTotal GPU global memory",
+        section,
+        maxsplit=1,
+    )[0]
+    rows = []
+    for line in section.splitlines():
+        if "Nalloc" in line or set(line.strip()) <= {"-"}:
+            continue
+        match = re.match(
+            r"^\s*(.*?)\s+(\d+)\s+.*?"
+            r"(\d+(?:\.\d+)?\s+(?:B|KiB|MiB|GiB))\s*$",
+            line,
+        )
+        if not match:
+            continue
+        name = match.group(1).strip()
+        if "Arena::Initialize()" in name:
+            continue
+        rows.append((name, int(match.group(2)), match.group(3).strip()))
+    return rows
+
+
 def nsys(d):
     nd = d / "nsys"
     kern = next(iter(nd.glob("discovered_top10.tsv")), None)
@@ -166,8 +194,10 @@ def nsys(d):
         um_status = "EMPTY/UNAVAILABLE (inspect stats.log before claiming zero)"
     else:
         um_status = "MISSING"
+    run_text = read(nd / "run.log")
+    managed_rows = profile_memory_rows(run_text, "Managed Memory Usage:")
     trace_steps = len(re.findall(
-        r"^STEP\s+\d+\s+starts", read(nd / "run.log"), re.MULTILINE
+        r"^STEP\s+\d+\s+starts", run_text, re.MULTILINE
     ))
     normalized = {
         "trace_steps": trace_steps,
@@ -210,7 +240,7 @@ def nsys(d):
         )
         normalized["sync_calls_per_step"] = sync_calls / trace_steps
         normalized["sync_ms_per_step"] = sync_ns / trace_steps / 1.0e6
-    return kr, mem, api, sync, idle, um_status, normalized
+    return kr, mem, api, sync, idle, um_status, normalized, managed_rows
 
 
 def ncu(d):
@@ -321,7 +351,16 @@ def capture(d):
     failures += [p for p in d.rglob("failures.txt") if read(p).strip()]
     flip = read(d / "flip" / "failures.txt")
     lines += ["", f"Flip failures: **{len([x for x in flip.splitlines() if x.strip()]) if flip else 0}**"]
-    kr, mem, api, sync, idle, um_status, normalized = nsys(d)
+    (
+        kr,
+        mem,
+        api,
+        sync,
+        idle,
+        um_status,
+        normalized,
+        managed_rows,
+    ) = nsys(d)
     lines += ["", "### Nsight Systems", "", "Top kernels (top 10):"]
     lines += [f"- {x}" for x in kr] or ["- MISSING kernel summary"]
     lines += ["", "CUDA transfers:"] + ([f"- {x}" for x in mem] or ["- MISSING CUDA memory summary"])
@@ -348,6 +387,22 @@ def capture(d):
             f"(**{normalized['sync_ms_per_step']:.3f} ms/step** in API time).",
         ]
     lines += ["", f"Unified-memory page-fault reports: **{um_status}**"]
+    lines += ["", "Managed-pool application requests (profile run):"]
+    if managed_rows:
+        lines += [
+            "",
+            "| Region | Nalloc | MaxMem |",
+            "|---|---:|---:|",
+        ]
+        lines += [
+            f"| {name} | {nalloc} | {maxmem} |"
+            for name, nalloc, maxmem in managed_rows[:10]
+        ]
+    else:
+        lines += [
+            "- No non-initialization managed-pool rows found "
+            "(interpret only after pinning the T1 configuration)."
+        ]
     lines += ["", "CUDA API top rows:"] + ([f"- {x}" for x in api] or ["- MISSING CUDA API summary"])
     lines += [f"", f"Synchronization rows: {len(sync)}"]
     lines += ["", "GPU idle fractions (fine-NVTX diagnostic; not the coarse T6b gate):"]
@@ -414,6 +469,12 @@ def unit():
         (d / "nsys" / "run.log").write_text(
             "STEP 1 starts ...\nSTEP 1 ends.\n"
             "STEP 2 starts ...\nSTEP 2 ends.\n"
+            "Managed Memory Usage:\n"
+            "------------------------------------------------------------\n"
+            "Name                              Nalloc    AvgMem    MaxMem\n"
+            "------------------------------------------------------------\n"
+            "The_Arena::Initialize()                1      8 B      1 GiB\n"
+            "Integrator::Flame::Regrid              2     16 B     64 MiB\n"
         )
         (d / "nsys" / "cuda_gpu_mem_size_sum.csv").write_text(
             "Total (MB),Count,Operation\n"
@@ -444,6 +505,7 @@ def unit():
                 "| [CUDA memcpy Host-to-Device] | 45.000000 | 90.000 |",
                 "non-Async `cudaMemcpy*`): **0.500**",
                 "CUDA synchronization calls per step: **45.000**",
+                "| Integrator::Flame::Regrid | 2 | 64 MiB |",
                 "| explicit_stream_sync | src/probe.H:9 |",
             )
         )
