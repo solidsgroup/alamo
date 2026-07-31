@@ -271,6 +271,9 @@ tables, transfers, synchronization, idle fractions, the discovered kernel
 Pareto, and NCU limiter metrics. `nsys_idle.py` reduces the large detailed
 CUDA/NVTX traces on NOVA; bounded collection moves only its compact summary.
 Use `RAW=1` with `collect` only when a local raw report is actually needed.
+`sync_inventory.py` mechanically enumerates explicit stream syncs, device-result
+landings, host norms, blocking collectives, and blocking copies in the supported
+Flame/Elastic/Newton source closure.
 
 ## Optimization knobs (making the GPU win big)
 

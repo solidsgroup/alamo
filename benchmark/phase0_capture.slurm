@@ -246,6 +246,12 @@ if have_leg env; then
     echo "device_total_MiB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)"
   } > "${L}/inventory.txt" 2>&1
   [ "${DRYRUN}" = 1 ] || cat "${L}/inventory.txt"
+  if [ "${DRYRUN}" = 1 ]; then
+    echo "+ python3 benchmark/sync_inventory.py --output ${L}/sync_inventory.tsv"
+  else
+    PYTHONDONTWRITEBYTECODE=1 python3 benchmark/sync_inventory.py \
+      --output "${L}/sync_inventory.tsv" > "${L}/sync_inventory.log"
+  fi
 
   # ncu counter permission: a real capture on a trivial run is the only honest test.
   say "ncu counter permission probe"

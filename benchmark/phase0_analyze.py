@@ -186,6 +186,14 @@ def ncu(d):
     return result
 
 
+def synchronization_inventory(d):
+    path = d / "env" / "sync_inventory.tsv"
+    if not path.exists():
+        return []
+    with path.open(newline="", errors="replace") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
 def capture(d):
     lines = [f"## Capture: `{d.name}`", "", f"Source: `{d}`"]
     inv = read(d / "env" / "inventory.txt")
@@ -273,6 +281,28 @@ def capture(d):
     metrics = ncu(d)
     lines += ["", "### NCU dynamic metrics", ""]
     lines += [f"- **{name}**: " + "; ".join(f"{k}={v}" for k, v in vals.items()) for name, vals in metrics] or ["MISSING NCU CSV metrics"]
+    inventory = synchronization_inventory(d)
+    lines += ["", "### Mechanical synchronization inventory", ""]
+    if inventory:
+        counts = {}
+        for row in inventory:
+            kind = row.get("kind", "unknown")
+            counts[kind] = counts.get(kind, 0) + 1
+        lines += [
+            "; ".join(f"**{kind}** {count}" for kind, count in counts.items()),
+            "",
+            "| Kind | Site | Code |",
+            "|---|---|---|",
+        ]
+        for row in inventory:
+            code = row.get("code", "—").replace("|", "&#124;").replace("`", "'")
+            lines.append(
+                f"| {row.get('kind', '—')} | "
+                f"{row.get('path', '—')}:{row.get('line', '—')} | "
+                f"`{code}` |"
+            )
+    else:
+        lines += ["MISSING sync_inventory.tsv"]
     if failures:
         lines += ["", "Markers: " + ", ".join(str(x.relative_to(d)) for x in failures)]
     return "\n".join(lines)
@@ -293,6 +323,10 @@ def unit():
             "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
             ":test\t1\t0.125000\t0.125000\n"
         )
+        (d / "env" / "sync_inventory.tsv").write_text(
+            "kind\tpath\tline\tcode\n"
+            "explicit_stream_sync\tsrc/probe.H\t9\tamrex::Gpu::streamSynchronizeAll();\n"
+        )
         out = capture(d)
         assert all(
             expected in out
@@ -304,6 +338,7 @@ def unit():
                 "device",
                 "MISSING",
                 "| :test | 1 | 0.125000 | 0.125000 |",
+                "| explicit_stream_sync | src/probe.H:9 |",
             )
         )
     print("phase0_analyze: unit OK")
