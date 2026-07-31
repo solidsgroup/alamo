@@ -142,12 +142,16 @@ def nsys(d):
             for row in csv_rows(files[0])[:10]:
                 kr.append(f"{row.get('Time (%)', '—')}% | {row.get('Total Time (ns)', '—')} ns | {row.get('Name', '—')}")
     mem = []
+    mem_rows = []
     for path in nd.glob("*cuda_gpu_mem_size_sum*.csv"):
-        for row in csv_rows(path):
+        mem_rows = csv_rows(path)
+        for row in mem_rows:
             mem.append(f"{row.get('Operation', '—')}: {row.get('Total (MB)', '—')} MB ({row.get('Count', '—')} calls)")
     api = []
+    api_rows = []
     for path in nd.glob("*cuda_api_sum*.csv"):
-        for row in csv_rows(path)[:10]:
+        api_rows = csv_rows(path)
+        for row in api_rows[:10]:
             api.append(f"{row.get('Name', '—')}: {row.get('Total Time (ns)', '—')} ns ({row.get('Num Calls', '—')} calls)")
     sync = [x for x in api if re.search(r"Synchronize|DeviceSynchronize|StreamSynchronize", x, re.I)]
     idle = []
@@ -162,7 +166,51 @@ def nsys(d):
         um_status = "EMPTY/UNAVAILABLE (inspect stats.log before claiming zero)"
     else:
         um_status = "MISSING"
-    return kr, mem, api, sync, idle, um_status
+    trace_steps = len(re.findall(
+        r"^STEP\s+\d+\s+starts", read(nd / "run.log"), re.MULTILINE
+    ))
+    normalized = {
+        "trace_steps": trace_steps,
+        "transfers": [],
+        "blocking_transfer_calls_per_step": None,
+        "sync_calls_per_step": None,
+        "sync_ms_per_step": None,
+    }
+    if trace_steps:
+        for row in mem_rows:
+            try:
+                total_mb = float(row.get("Total (MB)", ""))
+                count = int(row.get("Count", ""))
+            except ValueError:
+                continue
+            normalized["transfers"].append(
+                (
+                    row.get("Operation", "—"),
+                    total_mb / trace_steps,
+                    count / trace_steps,
+                )
+            )
+        blocking_calls = 0
+        sync_calls = 0
+        sync_ns = 0
+        for row in api_rows:
+            name = row.get("Name", "")
+            try:
+                count = int(row.get("Num Calls", ""))
+                total_ns = int(row.get("Total Time (ns)", ""))
+            except ValueError:
+                continue
+            if re.match(r"^cudaMemcpy(?!.*Async)", name):
+                blocking_calls += count
+            if re.search(r"(?:Device|Stream|Event|Thread)Synchronize", name):
+                sync_calls += count
+                sync_ns += total_ns
+        normalized["blocking_transfer_calls_per_step"] = (
+            blocking_calls / trace_steps
+        )
+        normalized["sync_calls_per_step"] = sync_calls / trace_steps
+        normalized["sync_ms_per_step"] = sync_ns / trace_steps / 1.0e6
+    return kr, mem, api, sync, idle, um_status, normalized
 
 
 def ncu(d):
@@ -273,10 +321,32 @@ def capture(d):
     failures += [p for p in d.rglob("failures.txt") if read(p).strip()]
     flip = read(d / "flip" / "failures.txt")
     lines += ["", f"Flip failures: **{len([x for x in flip.splitlines() if x.strip()]) if flip else 0}**"]
-    kr, mem, api, sync, idle, um_status = nsys(d)
+    kr, mem, api, sync, idle, um_status, normalized = nsys(d)
     lines += ["", "### Nsight Systems", "", "Top kernels (top 10):"]
     lines += [f"- {x}" for x in kr] or ["- MISSING kernel summary"]
     lines += ["", "CUDA transfers:"] + ([f"- {x}" for x in mem] or ["- MISSING CUDA memory summary"])
+    if normalized["trace_steps"]:
+        lines += [
+            "",
+            f"Normalized over **{normalized['trace_steps']}** coarse steps:",
+            "",
+            "| Direction | MB/step | Transfers/step |",
+            "|---|---:|---:|",
+        ]
+        lines += [
+            f"| {operation} | {mb_per_step:.6f} | {count_per_step:.3f} |"
+            for operation, mb_per_step, count_per_step
+            in normalized["transfers"]
+        ]
+        lines += [
+            "",
+            "Blocking CUDA transfer calls per step "
+            f"(non-Async `cudaMemcpy*`): "
+            f"**{normalized['blocking_transfer_calls_per_step']:.3f}**.",
+            "CUDA synchronization calls per step: "
+            f"**{normalized['sync_calls_per_step']:.3f}** "
+            f"(**{normalized['sync_ms_per_step']:.3f} ms/step** in API time).",
+        ]
     lines += ["", f"Unified-memory page-fault reports: **{um_status}**"]
     lines += ["", "CUDA API top rows:"] + ([f"- {x}" for x in api] or ["- MISSING CUDA API summary"])
     lines += [f"", f"Synchronization rows: {len(sync)}"]
@@ -341,6 +411,20 @@ def unit():
             "range\tinstances\tidle_fraction\tmedian_instance_idle_fraction\n"
             ":test\t1\t0.125000\t0.125000\n"
         )
+        (d / "nsys" / "run.log").write_text(
+            "STEP 1 starts ...\nSTEP 1 ends.\n"
+            "STEP 2 starts ...\nSTEP 2 ends.\n"
+        )
+        (d / "nsys" / "cuda_gpu_mem_size_sum.csv").write_text(
+            "Total (MB),Count,Operation\n"
+            "90,180,[CUDA memcpy Host-to-Device]\n"
+        )
+        (d / "nsys" / "cuda_api_sum.csv").write_text(
+            "Total Time (ns),Num Calls,Name\n"
+            "90000000,90,cudaStreamSynchronize\n"
+            "1000,1,cudaMemcpy\n"
+            "2000,2,cudaMemcpyAsync\n"
+        )
         (d / "env" / "sync_inventory.tsv").write_text(
             "kind\tpath\tline\tcode\n"
             "explicit_stream_sync\tsrc/probe.H\t9\tamrex::Gpu::streamSynchronizeAll();\n"
@@ -356,6 +440,10 @@ def unit():
                 "device",
                 "MISSING",
                 "| :test | 1 | 0.125000 | 0.125000 |",
+                "Normalized over **2** coarse steps",
+                "| [CUDA memcpy Host-to-Device] | 45.000000 | 90.000 |",
+                "non-Async `cudaMemcpy*`): **0.500**",
+                "CUDA synchronization calls per step: **45.000**",
                 "| explicit_stream_sync | src/probe.H:9 |",
             )
         )
