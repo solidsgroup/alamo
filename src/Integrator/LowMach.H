@@ -167,10 +167,6 @@ protected:
     Set::Field<Set::Scalar> vorticity_mf;
     Set::Field<Set::Scalar> viscosity_mf;
     Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
-    // Harmonic (series) normal-direction conductivity from ComputeThermalState
-    // (see LowMach.H's ComputeThermalState doc comment); equal to
-    // thermal_conductivity_coeff_mf away from a diffuse solid/gas interface.
-    Set::Field<Set::Scalar> thermal_conductivity_perp_coeff_mf;
     Set::Field<Set::Scalar> diffusion_coeff_mf;
     Set::Field<Set::Scalar> wdot_mf;
     Set::Field<Set::Scalar> qdot_mf;
@@ -241,15 +237,6 @@ protected:
     bool implicit_species_diffusion = false;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
-    // Diagnostic toggle: when false, disables the harmonic (series) normal-
-    // direction conductivity mixing across a diffuse solid/gas interface
-    // (see ComputeThermalState / Ettrich et al. 2014 eqs 27-28) and falls
-    // back to the isotropic arithmetic mixing used before that model was
-    // added -- i.e. Operator::Diffusion's tensor-mobility path is never
-    // populated and the scalar MLABecLaplacian solve is used instead. Lets
-    // the effect of the normal-direction mixing rule be isolated from every
-    // other change on this branch.
-    bool interface_normal_harmonic = true;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
