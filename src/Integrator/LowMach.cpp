@@ -247,6 +247,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
     if (value.deformable_solid_species >= 0 || !value.rigid_solid_species.empty())
         pp.query_default("eta_refinement_criterion", value.eta_refinement_criterion, 1.0e100);
+    pp.query_default("modulus_refinement_criterion", value.modulus_refinement_criterion, 1.0e100);
     pp.query_default("amr.reinitialize_condensed_composition",
                     value.reinitialize_condensed_composition, false);
     if (value.reinitialize_condensed_composition)
@@ -2645,6 +2646,44 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real ti
                 refine_eta)
                 tag(i,j,k) = amrex::TagBox::SET;
         });
+    }
+
+    // Refine at sharp elastic-modulus contrasts (e.g. the diffuse solid/void
+    // interface) so that AMR coarse-fine boundaries are not placed on top of
+    // them -- crossing a large mu/kappa jump at a refinement boundary can
+    // destabilize the MLMG elastic solve even when max_coarsening_level
+    // already protects the bulk V-cycle coarsening.
+    if (m_type != Base::Mechanics<elastic_model_type>::Type::Disable &&
+        modulus_refinement_criterion < 1.0e99)
+    {
+        const Set::Scalar modulus_ratio_crit = modulus_refinement_criterion;
+        for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            Set::Patch<char> tag = tags.array(mfi);
+            amrex::Array4<const elastic_model_type> const& model = model_mf[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+#if AMREX_SPACEDIM == 2
+                Set::Scalar mu_min = std::min({model(i,j,k).mu, model(i+1,j,k).mu, model(i,j+1,k).mu, model(i+1,j+1,k).mu});
+                Set::Scalar mu_max = std::max({model(i,j,k).mu, model(i+1,j,k).mu, model(i,j+1,k).mu, model(i+1,j+1,k).mu});
+                Set::Scalar kappa_min = std::min({model(i,j,k).kappa, model(i+1,j,k).kappa, model(i,j+1,k).kappa, model(i+1,j+1,k).kappa});
+                Set::Scalar kappa_max = std::max({model(i,j,k).kappa, model(i+1,j,k).kappa, model(i,j+1,k).kappa, model(i+1,j+1,k).kappa});
+#elif AMREX_SPACEDIM == 3
+                Set::Scalar mu_min = std::min({model(i,j,k).mu, model(i+1,j,k).mu, model(i,j+1,k).mu, model(i+1,j+1,k).mu,
+                                                model(i,j,k+1).mu, model(i+1,j,k+1).mu, model(i,j+1,k+1).mu, model(i+1,j+1,k+1).mu});
+                Set::Scalar mu_max = std::max({model(i,j,k).mu, model(i+1,j,k).mu, model(i,j+1,k).mu, model(i+1,j+1,k).mu,
+                                                model(i,j,k+1).mu, model(i+1,j,k+1).mu, model(i,j+1,k+1).mu, model(i+1,j+1,k+1).mu});
+                Set::Scalar kappa_min = std::min({model(i,j,k).kappa, model(i+1,j,k).kappa, model(i,j+1,k).kappa, model(i+1,j+1,k).kappa,
+                                                   model(i,j,k+1).kappa, model(i+1,j,k+1).kappa, model(i,j+1,k+1).kappa, model(i+1,j+1,k+1).kappa});
+                Set::Scalar kappa_max = std::max({model(i,j,k).kappa, model(i+1,j,k).kappa, model(i,j+1,k).kappa, model(i+1,j+1,k).kappa,
+                                                   model(i,j,k+1).kappa, model(i+1,j,k+1).kappa, model(i,j+1,k+1).kappa, model(i+1,j+1,k+1).kappa});
+#endif
+                if ((mu_min > 0.0 && mu_max / mu_min > modulus_ratio_crit) ||
+                    (kappa_min > 0.0 && kappa_max / kappa_min > modulus_ratio_crit))
+                    tag(i,j,k) = amrex::TagBox::SET;
+            });
+        }
     }
 }
 

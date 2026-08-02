@@ -209,6 +209,12 @@ protected:
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
+    // Refine cells where the elastic modulus (mu or kappa) varies by more than
+    // this ratio corner-to-corner. Keeps AMR coarse-fine boundaries away from
+    // sharp modulus contrasts (e.g. a diffuse solid/void interface), which can
+    // otherwise destabilize the MLMG elastic solve at the refinement boundary.
+    // Default (huge) disables this criterion.
+    Set::Scalar modulus_refinement_criterion = 1.0e100;
     Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
