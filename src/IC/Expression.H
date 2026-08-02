@@ -71,6 +71,10 @@ public:
         Util::Assert(INFO, TEST(a_field[lev]->nComp() == (int)f.size()));
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
+            const auto prob_lo = IC<Set::Scalar>::geom[lev].ProbLoArray();
+            const auto cell_size = IC<Set::Scalar>::geom[lev].CellSizeArray();
+            const int coord = static_cast<int>(this->coord);
+            const auto unitfactor = this->unitfactor;
             amrex::Box bx;// = mfi.tilebox();
             //bx.grow(a_field[lev]->nGrow());
             amrex::IndexType type = a_field[lev]->ixType();
@@ -81,23 +85,33 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (unsigned int n = 0; n < f.size(); n++)
             {
+                const auto f_n = f[n];
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector x = Set::Position(i, j, k, IC<Set::Scalar>::geom[lev], type);
-                    if (coord == Expression::CoordSys::Cartesian)
+                    Set::Vector x =
+                        Set::Position(i, j, k, prob_lo, cell_size, type);
+                    if (coord == static_cast<int>(Expression::CoordSys::Cartesian))
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
+                        field(i, j, k, n) = f_n(x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
+                        field(i, j, k, n) = f_n(x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
+                        field(i, j, k, n) = f_n(x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
-                    else if (coord == Expression::CoordSys::Polar)
+                    else if (coord == static_cast<int>(Expression::CoordSys::Polar))
                     {
-                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
+                        field(i, j, k, n) = f_n(
+                            sqrt(x(0)*x(0) + x(1)*x(1)),
+                            std::atan2(x(1), x(0)),
+#if AMREX_SPACEDIM > 2
+                            x(2),
+#else
+                            0.0,
+#endif
+                            a_time) * unitfactor;
                     }
 #endif
                 });
@@ -112,6 +126,10 @@ public:
         Util::Assert(INFO, TEST(f.size() >= AMREX_SPACEDIM));
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
+            const auto prob_lo = IC<Set::Vector>::geom[lev].ProbLoArray();
+            const auto cell_size = IC<Set::Vector>::geom[lev].CellSizeArray();
+            const int coord = static_cast<int>(this->coord);
+            const auto unitfactor = this->unitfactor;
             amrex::Box bx;
             amrex::IndexType type = a_field[lev]->ixType();
             if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
@@ -121,23 +139,33 @@ public:
             Set::Patch<Set::Vector> field = a_field.Patch(lev,mfi);
             for (unsigned int n = 0; n < AMREX_SPACEDIM; n++)
             {
+                const auto f_n = f[n];
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector x = Set::Position(i, j, k, IC<Set::Vector>::geom[lev], type);
-                    if (coord == Expression::CoordSys::Cartesian)
+                    Set::Vector x =
+                        Set::Position(i, j, k, prob_lo, cell_size, type);
+                    if (coord == static_cast<int>(Expression::CoordSys::Cartesian))
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
+                        field(i, j, k)(n) = f_n(x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
+                        field(i, j, k)(n) = f_n(x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
+                        field(i, j, k)(n) = f_n(x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
-                    else if (coord == Expression::CoordSys::Polar)
+                    else if (coord == static_cast<int>(Expression::CoordSys::Polar))
                     {
-                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
+                        field(i, j, k)(n) = f_n(
+                            sqrt(x(0)*x(0) + x(1)*x(1)),
+                            std::atan2(x(1), x(0)),
+#if AMREX_SPACEDIM > 2
+                            x(2),
+#else
+                            0.0,
+#endif
+                            a_time) * unitfactor;
                     }
 #endif
                 });

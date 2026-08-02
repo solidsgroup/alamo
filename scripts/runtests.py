@@ -145,6 +145,8 @@ parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_t
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--cuda', const='auto', default=None, nargs='?', type=str,
+                    help="Run CUDA tests, optionally specifying the executable architecture suffix")
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
 parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
@@ -433,6 +435,12 @@ def test(testdir):
                         yaml_enabled = "-DALAMO_YAML" in config_file.read()
                 if requires_yaml and not yaml_enabled: continue
 
+            requires_cuda = 'cuda' in config[desc].keys()
+            if requires_cuda:
+                config[desc].pop('cuda')
+            if bool(args.cuda) != requires_cuda:
+                continue
+
             # Specify performance flag
             if args.perf:
                 env["CPUPROFILE"] = "profile.prof"
@@ -447,6 +455,17 @@ def test(testdir):
             if args.profile: exestr += "-profile"
             if args.perf: exestr += "-perf"
             if coverage: exestr += "-coverage"
+            if args.cuda:
+                cuda_arch = args.cuda
+                if cuda_arch == "auto":
+                    result = subprocess.run(
+                        ["nvidia-smi", "--query-gpu=compute_cap",
+                         "--format=csv,noheader"],
+                        capture_output=True, text=True, check=True,
+                    )
+                    cuda_arch = (
+                        result.stdout.splitlines()[0].strip().replace(".", ""))
+                exestr += f"-cuda{cuda_arch}"
             exestr += "-"+args.comp
             
             #
