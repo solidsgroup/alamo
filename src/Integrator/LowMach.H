@@ -187,6 +187,13 @@ protected:
         // interfacial traction (rhs -= pressure * grad_eta) on top of the
         // constant elastic.traction term.
         Set::Scalar apply_fluid_pressure = 0.0;
+        // Soft "ersatz" model for the void/gas region. When set, the nodal
+        // model is blended as (solid mixture)*eta + void_model*(1-eta) and
+        // the psi mask is dropped, so the stiffness contrast alone masks out
+        // the void. This keeps the MLMG coefficients smooth and bounded
+        // (cf. tests/ElasticSoftVoid).
+        elastic_model_type void_model;
+        bool void_model_on = false;
     } elastic;
 
     Set::Vector g = Set::Vector::Zero();

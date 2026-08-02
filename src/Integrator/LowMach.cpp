@@ -375,6 +375,17 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         // (rhs -= pressure * grad_eta), on top of the constant elastic.traction.
         pp.query_default("elastic.apply_fluid_pressure", value.elastic.apply_fluid_pressure, "0.0", Unit::Less());
 
+        // Soft "void" model applied outside the condensed phase. Specifying
+        // it (e.g. elastic.void.model.mu = 0.1 against solid moduli of
+        // 100s) both regularizes the modulus field and disables the psi
+        // mask -- see below. Gate on mu/E to cover all forms
+        // NeoHookean::Parse accepts: (mu,kappa), (lambda,mu), (E,nu).
+        if (pp.contains("elastic.void.model.mu") || pp.contains("elastic.void.model.E"))
+        {
+            pp.queryclass<elastic_model_type>("elastic.void.model", value.elastic.void_model);
+            value.elastic.void_model_on = true;
+        }
+
         pp.queryclass<Base::Mechanics<elastic_model_type>>("elastic", value);
 
         if (value.m_type != Base::Mechanics<elastic_model_type>::Type::Disable)
@@ -384,9 +395,18 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                     value.species_names[n] + ".elastic.model", value.elastic_model[n]);
 
             // Use the rigid solid volume fraction directly as psi
-            // (cf. Flame::Parse, which does the same with its eta_mf).
-            value.psi_on = false;
-            value.solver.setPsi(value.rigid_eta_mf);
+            // (cf. Flame::Parse, which does the same with its eta_mf) --
+            // unless a soft void model is in play, in which case the
+            // modulus field already masks the void, and psi's 1e-8 floor
+            // (Operator::Elastic::m_psi_small) would reintroduce the very
+            // contrast we are trying to remove. Skipping setPsi also lets
+            // Newton::usesConservativeFaceFlux() take effect, since it
+            // requires m_psi == nullptr.
+            if (!value.elastic.void_model_on)
+            {
+                value.psi_on = false;
+                value.solver.setPsi(value.rigid_eta_mf);
+            }
         }
     }
     else
@@ -2199,8 +2219,11 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 //
 // - model_mf is set to the volume-fraction-weighted mixture of each rigid
 //   solid species' elastic constants (normalized so the weights sum to 1
-//   inside the solid; outside the solid the model is masked out by psi =
-//   rigid_eta_mf, so its value there is irrelevant).
+//   inside the solid). Outside the solid the model is either masked out by
+//   psi = rigid_eta_mf, or -- when elastic.void.model.* is set -- blended
+//   down to a soft void model as the rigid fraction goes to zero, with psi
+//   disabled (see Parse). The latter avoids the O(1e-8) psi floor
+//   reintroducing the full solid/void modulus contrast.
 // - rhs_mf is set to a constant traction acting normal to the solid/fluid
 //   interface, plus (when elastic.apply_fluid_pressure is set) the local
 //   fluid pressure: rhs = elastic.traction * grad(rigid_eta)
@@ -2248,6 +2271,8 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             const Set::Scalar etacutoff = elastic.etacutoff;
             const Set::Scalar eta_small = small;
             const bool use_fluid_pressure = (elastic.apply_fluid_pressure != 0.0);
+            const elastic_model_type void_model = elastic.void_model;
+            const bool void_on = elastic.void_model_on;
 
             // Interfacial body force: a constant traction plus, optionally,
             // the local fluid pressure. grad_eta points from fluid into the
@@ -2285,13 +2310,27 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 // Normalize so the weights sum to exactly 1 inside the solid.
                 // This keeps F0 an affine mixture (F0 is scaled by
                 // operator*, so weights summing to <1 would drive it
-                // singular). Outside the solid the model is arbitrary but
-                // masked out by psi = rigid_eta.
+                // singular). Outside the solid, without a void model, the
+                // mixture is arbitrary but masked out by psi = rigid_eta;
+                // with a void model it is blended away below instead.
                 const bool valid = total > eta_small;
                 elastic_model_type mixed = models[0] * (valid ? w[0] / total : 1.0);
                 for (int m = 1; m < nrigid; ++m)
                     mixed += models[m] * (valid ? w[m] / total : 0.0);
-                model(i,j,k) = mixed;
+
+                if (void_on)
+                {
+                    // Blend the solid mixture with the soft void model by
+                    // rigid solid fraction. Both operands carry F0 =
+                    // Identity and the weights (solid_frac, 1-solid_frac)
+                    // sum to exactly 1, so this affine combination is safe
+                    // for the same reason the normalization above is (see
+                    // NeoHookeanPredeformed::operator*, which scales F0).
+                    const Set::Scalar solid_frac = Util::Clamp(total, 0.0, 1.0);
+                    model(i,j,k) = mixed * solid_frac + void_model * (1.0 - solid_frac);
+                }
+                else
+                    model(i,j,k) = mixed;
             });
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
