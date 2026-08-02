@@ -1,56 +1,68 @@
 #!/usr/bin/env python3
-"""Fit (rate_multiplier, activation_temperature, w1, pressure_exponent) to
-AP_reg_rate.csv.
+"""Fit (rate_multiplier, activation_temperature, w1, pressure_exponent,
+pressure_reference, latent_heat) to AP_reg_rate.csv.
 
 Drives tests/LMRFMonoAP/input directly (the same input used by the
 LMRFMonoAP regression test) with command-line ParmParse overrides for
 pressure, rate_multiplier, activation_temperature, the Allen-Cahn
-double-well parameter w1, and the optional pressure_exponent factor
-(P/pressure_reference)^pressure_exponent, and measures the resulting
-regression rate with the same method as tests/LMRFMonoAP/test: track the
-rigid_eta = 0.5 interface position vs. time via yt, then fit a line to the
-back half of the run (back quarter for the 1 MPa case) to get a
+double-well parameter w1, the optional pressure_exponent factor
+(P/pressure_reference)^pressure_exponent, and latent_heat, and measures the
+resulting regression rate with the same method as tests/LMRFMonoAP/test:
+track the rigid_eta = 0.5 interface position vs. time via yt, then fit a
+line to the back half of the run (back quarter for the 1 MPa case) to get a
 steady-state rate in mm/s. No template files, no custom HDF5 rate
 extractor -- this is exactly what the regression test itself checks, just
 without the pass/fail assertions and with variable coefficients.
 
 The search is a two-stage global optimization over
-x = [log10(rate_multiplier), activation_temperature, w1, pressure_exponent],
-scored against the experimental r(P) curve in AP_reg_rate.csv (matches
-tests/LMRFMonoAP/reference.csv). Every evaluation -- in both stages -- fits
-against the *entire* fit-pressure set at once (2-6 MPa by default); there is
-no reduced-pressure bracket stage, since fitting a subset of the data first
-is exactly the kind of shortcut that can lock the search onto a minimum that
-is only good for those pressures. Stage 1 is a Latin-hypercube random search
-of the full parameter box, which gives the global stage a diverse initial
-population instead of a single local starting guess. Stage 2 seeds
-scipy.optimize.differential_evolution's population with the best random-
-search points and evolves them (with a final local polish) -- a
-population-based global method that does not get stuck the way a
-single-start local method (least_squares/Newton-type) can.
+x = [log10(rate_multiplier), activation_temperature, w1, pressure_exponent,
+     pressure_reference, latent_heat] (any of
+w1/pressure_exponent/pressure_reference/latent_heat can be held fixed
+instead of fit -- see --no-fit-*), scored against the experimental
+r(P) curve in AP_reg_rate.csv (matches tests/LMRFMonoAP/reference.csv).
+Every evaluation -- in both stages -- fits against the *entire*
+fit-pressure set at once (2-6 MPa by default); there is no reduced-pressure
+bracket stage, since fitting a subset of the data first is exactly the
+kind of shortcut that can lock the search onto a minimum that is only good
+for those pressures. Stage 1 is a Latin-hypercube random search of the
+full parameter box, which gives the global stage a diverse initial
+population instead of a single local starting guess. Stage 2 seeds a
+particle-swarm optimization (PSO, hand-rolled below -- no extra dependency)
+with the best random-search points and evolves them (with a final local
+L-BFGS-B polish) -- a population-based global method that does not get
+stuck the way a single-start local method (least_squares/Newton-type) can.
 
 allencahn.mobility, lambda and kappa stay fixed at the test's values:
 mobility because only rate_multiplier * mobility is identifiable (see
-MassSource in src/Model/Mechanism/PhaseChange.H), and lambda/kappa because
-rate_multiplier multiplies both model.LocalStabilityRate()
-(~mobility*lambda) and model.GradientCoefficient() (~mobility*kappa) with
-the same outer factor -- so only their ratio (interface width, a
-mesh-resolution choice, not a material property) is a non-degenerate knob,
-and fitting it would tie the result to this test's grid spacing. w1 (with
-w0 fixed at 0 and w12 fixed at the test's value) instead reshapes the
-dimensionless double-well potential and carries no mesh/length-scale
-dependence. pressure_exponent likewise multiplies
-LocalRate/LocalStabilityRate/GradientCoefficient uniformly (see
-PhaseChange.H), so it rescales the whole interface kinetics by
-(P/pressure_reference)^pressure_exponent without touching lambda/kappa or
-the interface width -- it stays mesh-independent for the same reason
-rate_multiplier and the Arrhenius factor are. pressure_reference is fixed
-at 1 MPa (the code default) for this fit. Earlier AP models typically
-landed on a pressure_exponent near 1, which sets this script's default
-initial guess and keeps the search bounds centered around that region.
-1 MPa (the deflagration-limit point, rate = 0) is excluded from the fit
-residuals and checked separately in the validation sweep as a pass/fail
-extinction check.
+MassSource in src/Model/Mechanism/PhaseChange.H -- verified exactly
+degenerate: LocalRate, GradientCoefficient, and LocalStabilityRate all
+scale as the simple product rate_multiplier * mobility with no term where
+they appear separately), and lambda/kappa because rate_multiplier
+multiplies both model.LocalStabilityRate() (~mobility*lambda) and
+model.GradientCoefficient() (~mobility*kappa) with the same outer factor --
+so only their ratio (interface width, a mesh-resolution choice, not a
+material property) is a non-degenerate knob, and fitting it would tie the
+result to this test's grid spacing. w1 (with w0 fixed at 0 and w12 fixed
+at the test's default, i.e. the Allen-Cahn double-well potential is left
+at its default shape) instead reshapes the dimensionless double-well
+potential and carries no mesh/length-scale dependence. pressure_exponent
+likewise multiplies LocalRate/LocalStabilityRate/GradientCoefficient
+uniformly (see PhaseChange.H), so it rescales the whole interface kinetics
+by (P/pressure_reference)^pressure_exponent without touching lambda/kappa
+or the interface width -- it stays mesh-independent for the same reason
+rate_multiplier and the Arrhenius factor are, and is fit by default
+(--fit-pressure-exponent). pressure_reference (the P0 in
+(P/P0)^pressure_exponent) is also fit by default, strictly bounded above 0
+(see --pressure-reference-min) since a non-positive reference pressure is
+not physical/would blow up the power law. latent_heat sets the
+enthalpy cost of solid->gas conversion (HeatSource = latent_heat *
+MassSource, a direct sink in the energy equation at the interface); it is
+a physical material property (not mesh-dependent), but literature values
+vary, so a bounded amount of tuning around the test's default (100 cal/g)
+is included here -- strictly bounded above 0 (see --latent-heat-min), since
+latent_heat <= 0 is not physical. 1 MPa (the deflagration-limit point,
+rate = 0) is excluded from the fit residuals and checked separately in the
+validation sweep as a pass/fail extinction check.
 
 Run as a background job; it logs every evaluation's parameters and
 residual norm to <workdir>/iterations.jsonl as it goes, and writes
@@ -64,6 +76,7 @@ Example
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import csv
 import glob
 import json
@@ -73,7 +86,7 @@ import threading
 from pathlib import Path
 
 import numpy as np
-from scipy.optimize import differential_evolution
+from scipy.optimize import minimize
 from scipy.stats import qmc
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -89,13 +102,15 @@ import testlib  # noqa: E402
 DEFAULT_FIT_PRESSURES = [2.0, 3.0, 4.0, 5.0, 6.0]
 
 # The pre-existing test defaults -- a reasonable center point for the
-# random-search box. pressure_exponent0 defaults to 1.0 (rather than 0,
-# i.e. no pressure dependence) because earlier AP models tended to land
-# near a pressure exponent of 1.
+# random-search box. pressure_exponent0 defaults to 0.0 (no pressure
+# effect) per this script's current configuration; latent_heat0 is the
+# test's literature default (100 cal/g).
 DEFAULT_RATE_MULTIPLIER0 = 1.109867e6
 DEFAULT_ACTIVATION_TEMPERATURE0 = 2748.73
 DEFAULT_W1_0 = 1.0
-DEFAULT_PRESSURE_EXPONENT0 = 1.0
+DEFAULT_PRESSURE_EXPONENT0 = 0.0
+DEFAULT_PRESSURE_REFERENCE0_MPA = 1.0
+DEFAULT_LATENT_HEAT0 = 100.0
 
 PENALTY_RESIDUAL = 5.0  # relative-error stand-in for a failed/non-igniting sim
 
@@ -128,7 +143,8 @@ def nearest_experimental(data: dict[float, float], pressures: list[float]) -> li
 
 def run_case(pressure_mpa: float, rate_multiplier: float,
              activation_temperature: float, w1: float,
-             pressure_exponent: float, outdir: Path,
+             pressure_exponent: float, pressure_reference_mpa: float,
+             latent_heat: float, outdir: Path,
              lowmach_bin: Path) -> subprocess.Popen:
     """Launch tests/LMRFMonoAP/input at the given pressure/coefficients.
 
@@ -139,6 +155,7 @@ def run_case(pressure_mpa: float, rate_multiplier: float,
     """
     outdir.mkdir(parents=True, exist_ok=True)
     pressure_pa = pressure_mpa * 1.0e6
+    pressure_reference_pa = pressure_reference_mpa * 1.0e6
     args = [
         str(lowmach_bin), str(TEST_INPUT),
         f"Final.density.ic.expression.constant.P={pressure_pa!r}",
@@ -149,6 +166,8 @@ def run_case(pressure_mpa: float, rate_multiplier: float,
         f"AP_decomposition.phase_change.activation_temperature={activation_temperature!r}_K",
         f"AP_decomposition.phase_change.phase_field.allencahn.w1={w1!r}",
         f"AP_decomposition.phase_change.pressure_exponent={pressure_exponent!r}",
+        f"AP_decomposition.phase_change.pressure_reference={pressure_reference_pa!r}_Pa",
+        f"AP_decomposition.phase_change.latent_heat={latent_heat!r}_cal/g",
         f"plot_file={outdir}/output",
     ]
     if pressure_mpa == 1.0:
@@ -210,14 +229,17 @@ def measure_rate(outdir: Path, pressure_mpa: float) -> float | None:
 
 
 def run_sweep(rate_multiplier: float, activation_temperature: float, w1: float,
-              pressure_exponent: float, pressures: list[float], workdir: Path,
+              pressure_exponent: float, pressure_reference_mpa: float,
+              latent_heat: float,
+              pressures: list[float], workdir: Path,
               lowmach_bin: Path) -> dict[float, float | None]:
     """Run all pressures concurrently, then measure each one's rate."""
     procs = {}
     for p in pressures:
         outdir = workdir / f"P{p:g}MPa"
         procs[p] = (outdir, run_case(p, rate_multiplier, activation_temperature,
-                                      w1, pressure_exponent, outdir, lowmach_bin))
+                                      w1, pressure_exponent, pressure_reference_mpa,
+                                      latent_heat, outdir, lowmach_bin))
     rates: dict[float, float | None] = {}
     for p, (outdir, proc) in procs.items():
         proc.wait()
@@ -228,7 +250,9 @@ def run_sweep(rate_multiplier: float, activation_temperature: float, w1: float,
 def make_objective(pressures: list[float], targets: list[float], workdir: Path,
                     lowmach_bin: Path, log_path: Path, stage: str = "search",
                     fixed_w1: float | None = None,
-                    fixed_pressure_exponent: float | None = None):
+                    fixed_pressure_exponent: float | None = None,
+                    fixed_pressure_reference: float | None = None,
+                    fixed_latent_heat: float | None = None):
     """Build a scalar objective (sum of squared relative-error residuals)
     against the *full* pressure/target set passed in -- every call fits
     against all of it, there is no reduced-data bracket stage."""
@@ -242,7 +266,7 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
     cache: dict[tuple, float] = {}
     lock = threading.Lock()
 
-    def unpack(x: np.ndarray) -> tuple[float, float, float, float]:
+    def unpack(x: np.ndarray) -> tuple[float, float, float, float, float, float]:
         rate_multiplier = float(10.0 ** x[0])
         activation_temperature = float(x[1])
         free_idx = 2
@@ -256,7 +280,18 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
         else:
             pressure_exponent = float(x[free_idx])
             free_idx += 1
-        return rate_multiplier, activation_temperature, w1, pressure_exponent
+        if fixed_pressure_reference is not None:
+            pressure_reference = fixed_pressure_reference
+        else:
+            pressure_reference = float(x[free_idx])
+            free_idx += 1
+        if fixed_latent_heat is not None:
+            latent_heat = fixed_latent_heat
+        else:
+            latent_heat = float(x[free_idx])
+            free_idx += 1
+        return (rate_multiplier, activation_temperature, w1, pressure_exponent,
+                pressure_reference, latent_heat)
 
     def objective(x: np.ndarray) -> float:
         key = tuple(round(float(v), 12) for v in x)
@@ -267,11 +302,13 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
             iteration[0] += 1
             idx = iteration[0]
 
-        rate_multiplier, activation_temperature, w1, pressure_exponent = unpack(x)
+        (rate_multiplier, activation_temperature, w1, pressure_exponent,
+         pressure_reference, latent_heat) = unpack(x)
         eval_dir = workdir / f"{stage}_iter_{idx:03d}"
         eval_dir.mkdir(parents=True, exist_ok=True)
         rates = run_sweep(rate_multiplier, activation_temperature, w1,
-                           pressure_exponent, pressures, eval_dir, lowmach_bin)
+                           pressure_exponent, pressure_reference, latent_heat,
+                           pressures, eval_dir, lowmach_bin)
 
         residuals = []
         for p, target in fit_pairs:
@@ -290,6 +327,8 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
             "activation_temperature": activation_temperature,
             "w1": w1,
             "pressure_exponent": pressure_exponent,
+            "pressure_reference_mpa": pressure_reference,
+            "latent_heat": latent_heat,
             "rates_mm_s": rates,
             "residual_norm": residual_norm,
         }
@@ -299,11 +338,94 @@ def make_objective(pressures: list[float], targets: list[float], workdir: Path,
             print(f"[{stage} iter {idx}] rate_multiplier={rate_multiplier:.6g} "
                   f"activation_temperature={activation_temperature:.6g} "
                   f"w1={w1:.6g} pressure_exponent={pressure_exponent:.6g} "
+                  f"pressure_reference_mpa={pressure_reference:.6g} "
+                  f"latent_heat={latent_heat:.6g} "
                   f"residual_norm={residual_norm:.6g}", flush=True)
             cache[key] = cost
         return cost
 
     return objective, unpack
+
+
+def particle_swarm_optimize(objective, bounds, init_positions: np.ndarray,
+                             maxiter: int, tol: float, seed: int | None,
+                             pool: concurrent.futures.Executor,
+                             inertia: float = 0.7, cognitive: float = 1.5,
+                             social: float = 1.5,
+                             velocity_clamp_fraction: float = 0.2,
+                             stall_limit: int = 5):
+    """Hand-rolled particle swarm optimization (no external PSO dependency).
+
+    Each particle has a position and velocity in the bounded parameter box;
+    every generation, velocities are updated by a weighted combination of
+    inertia (the particle's own momentum), a cognitive term (pull toward
+    that particle's own best-seen position), and a social term (pull toward
+    the swarm's best-seen position), then positions are advanced and
+    clamped back into bounds (with the corresponding velocity component
+    damped/reversed on clamping, so a particle that hits a wall doesn't
+    just get stuck repeatedly overshooting it). All particles in a
+    generation are evaluated concurrently via `pool.map`, mirroring how
+    stage 1's random search and the old differential_evolution stage were
+    parallelized. Stops early if the global best hasn't improved by more
+    than `tol` for `stall_limit` consecutive generations.
+    """
+    rng = np.random.default_rng(seed)
+    lo = np.array([b[0] for b in bounds])
+    hi = np.array([b[1] for b in bounds])
+    positions = init_positions.copy()
+    n_particles = positions.shape[0]
+    vmax = velocity_clamp_fraction * (hi - lo)
+    velocities = rng.uniform(-1.0, 1.0, size=positions.shape) * vmax
+
+    costs = np.array(list(pool.map(objective, positions)))
+    personal_best_pos = positions.copy()
+    personal_best_cost = costs.copy()
+    g_idx = int(np.argmin(personal_best_cost))
+    global_best_pos = personal_best_pos[g_idx].copy()
+    global_best_cost = float(personal_best_cost[g_idx])
+    print(f"[pso gen 0] global_best_cost={global_best_cost:.6g}", flush=True)
+
+    stall = 0
+    for gen in range(1, maxiter + 1):
+        r1 = rng.random(positions.shape)
+        r2 = rng.random(positions.shape)
+        velocities = (inertia * velocities
+                      + cognitive * r1 * (personal_best_pos - positions)
+                      + social * r2 * (global_best_pos - positions))
+        velocities = np.clip(velocities, -vmax, vmax)
+        positions = positions + velocities
+
+        below = positions < lo
+        above = positions > hi
+        positions = np.clip(positions, lo, hi)
+        # Damp-and-reverse velocity on any component that hit a wall, so
+        # particles don't keep pinning themselves against the boundary.
+        velocities[below] *= -0.5
+        velocities[above] *= -0.5
+
+        costs = np.array(list(pool.map(objective, positions)))
+        improved = costs < personal_best_cost
+        personal_best_pos[improved] = positions[improved]
+        personal_best_cost[improved] = costs[improved]
+
+        g_idx = int(np.argmin(personal_best_cost))
+        candidate_cost = float(personal_best_cost[g_idx])
+        if candidate_cost < global_best_cost - tol:
+            stall = 0
+        else:
+            stall += 1
+        if candidate_cost < global_best_cost:
+            global_best_cost = candidate_cost
+            global_best_pos = personal_best_pos[g_idx].copy()
+
+        print(f"[pso gen {gen}] global_best_cost={global_best_cost:.6g} "
+              f"stall={stall}/{stall_limit}", flush=True)
+        if stall >= stall_limit:
+            print(f"PSO converged: no improvement > tol for {stall_limit} "
+                  f"generations", flush=True)
+            break
+
+    return global_best_pos, global_best_cost, n_particles
 
 
 def parse_args() -> argparse.Namespace:
@@ -335,10 +457,10 @@ def parse_args() -> argparse.Namespace:
                               "rate_multiplier/activation_temperature")
     parser.add_argument("--pressure-exponent0", type=float,
                          default=DEFAULT_PRESSURE_EXPONENT0,
-                         help="initial guess for the optional "
-                              "(P/1MPa)^pressure_exponent kinetics correction "
-                              "(dimensionless; 0 == no effect; earlier AP models "
-                              "tended toward ~1, which is the default)")
+                         help="value (if fixed) or initial guess (if fit) for "
+                              "the optional (P/1MPa)^pressure_exponent "
+                              "kinetics correction (dimensionless; 0 == no "
+                              "pressure effect, the default)")
     parser.add_argument("--fit-pressure-exponent", dest="fit_pressure_exponent",
                          action="store_true", default=True,
                          help="include pressure_exponent as a free fit "
@@ -346,30 +468,91 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-fit-pressure-exponent",
                          dest="fit_pressure_exponent", action="store_false",
                          help="hold pressure_exponent fixed at "
-                              "--pressure-exponent0 (0.0 reproduces the "
-                              "pre-existing model exactly)")
+                              "--pressure-exponent0")
+    parser.add_argument("--pressure-reference0", type=float,
+                         default=DEFAULT_PRESSURE_REFERENCE0_MPA,
+                         help="value (if fixed) or initial guess (if fit) for "
+                              "pressure_reference [MPa], the P0 in "
+                              "(P/P0)^pressure_exponent (default: 1.0 MPa, the "
+                              "code default)")
+    parser.add_argument("--fit-pressure-reference",
+                         dest="fit_pressure_reference", action="store_true",
+                         default=True,
+                         help="include pressure_reference as a free fit "
+                              "parameter (default), strictly bounded above 0 "
+                              "-- see --pressure-reference-min/-max")
+    parser.add_argument("--no-fit-pressure-reference",
+                         dest="fit_pressure_reference", action="store_false",
+                         help="hold pressure_reference fixed at "
+                              "--pressure-reference0")
+    parser.add_argument("--pressure-reference-min", type=float, default=0.1,
+                         help="lower search bound for pressure_reference [MPa] "
+                              "(default: 0.1; must be > 0, a non-positive "
+                              "reference pressure is not physical)")
+    parser.add_argument("--pressure-reference-max", type=float, default=10.0,
+                         help="upper search bound for pressure_reference [MPa] "
+                              "(default: 10.0)")
+    parser.add_argument("--latent-heat0", type=float,
+                         default=DEFAULT_LATENT_HEAT0,
+                         help="value (if fixed) or initial guess (if fit) for "
+                              "latent_heat [cal/g] (default: 100, the test's "
+                              "literature value)")
+    parser.add_argument("--fit-latent-heat", dest="fit_latent_heat",
+                         action="store_true", default=True,
+                         help="include latent_heat as a free fit parameter "
+                              "(default), bounded strictly above 0 -- see "
+                              "--latent-heat-min/--latent-heat-max")
+    parser.add_argument("--no-fit-latent-heat", dest="fit_latent_heat",
+                         action="store_false",
+                         help="hold latent_heat fixed at --latent-heat0")
+    parser.add_argument("--latent-heat-min", type=float, default=0.1,
+                         help="lower search bound for latent_heat [cal/g] "
+                              "(default: 0.1; must be > 0, latent_heat <= 0 "
+                              "is not physical)")
+    parser.add_argument("--latent-heat-max", type=float, default=200.0,
+                         help="upper search bound for latent_heat [cal/g] "
+                              "(default: 200)")
     parser.add_argument("--lowmach-bin", type=Path, default=DEFAULT_LOWMACH_BIN,
                          help="lowmach binary to run")
     parser.add_argument("--random-samples", type=int, default=24,
                          help="number of Latin-hypercube samples drawn over the "
                               "full parameter box in the stage-1 random search "
                               "(default: 24)")
-    parser.add_argument("--de-seed-count", type=int, default=10,
+    parser.add_argument("--pso-seed-count", type=int, default=10,
                          help="number of best random-search points used to seed "
-                              "the stage-2 differential_evolution population "
-                              "(default: 10; must be >= 5)")
-    parser.add_argument("--de-maxiter", type=int, default=15,
-                         help="max generations for stage-2 differential_evolution "
+                              "the stage-2 particle-swarm population (default: "
+                              "10; must be >= 5)")
+    parser.add_argument("--pso-maxiter", type=int, default=15,
+                         help="max generations for stage-2 particle swarm "
                               "(default: 15)")
-    parser.add_argument("--de-tol", type=float, default=1.0e-3,
-                         help="differential_evolution convergence tolerance "
-                              "(default: 1e-3)")
-    parser.add_argument("--de-seed", type=int, default=None,
+    parser.add_argument("--pso-tol", type=float, default=1.0e-3,
+                         help="minimum global-best improvement per generation "
+                              "before it counts toward the stall/convergence "
+                              "counter (default: 1e-3)")
+    parser.add_argument("--pso-stall-limit", type=int, default=5,
+                         help="stop stage 2 after this many consecutive "
+                              "generations without a > --pso-tol improvement "
+                              "in the global best (default: 5)")
+    parser.add_argument("--pso-inertia", type=float, default=0.7,
+                         help="PSO inertia weight (default: 0.7)")
+    parser.add_argument("--pso-cognitive", type=float, default=1.5,
+                         help="PSO cognitive (personal-best pull) coefficient "
+                              "(default: 1.5)")
+    parser.add_argument("--pso-social", type=float, default=1.5,
+                         help="PSO social (global-best pull) coefficient "
+                              "(default: 1.5)")
+    parser.add_argument("--pso-seed", type=int, default=None,
                          help="random seed for reproducibility (default: unseeded)")
     parser.add_argument("--no-polish", dest="polish", action="store_false",
                          default=True,
                          help="skip the final local (L-BFGS-B) polish step after "
-                              "differential_evolution converges")
+                              "the particle swarm converges")
+    parser.add_argument("--eval-workers", type=int, default=3,
+                         help="number of parameter sets evaluated concurrently "
+                              "in both stages (each evaluation itself launches "
+                              "its 5 pressures concurrently, so total sim "
+                              "processes in flight = eval-workers * 5; default "
+                              "3, i.e. up to 15 concurrent lowmach processes)")
     return parser.parse_args()
 
 
@@ -378,6 +561,13 @@ def main() -> None:
     args.workdir.mkdir(parents=True, exist_ok=True)
     log_path = args.workdir / "iterations.jsonl"
 
+    if args.latent_heat_min <= 0.0:
+        raise SystemExit("--latent-heat-min must be > 0 (latent_heat <= 0 is "
+                          "not physical)")
+    if args.pressure_reference_min <= 0.0:
+        raise SystemExit("--pressure-reference-min must be > 0 (a "
+                          "non-positive reference pressure is not physical)")
+
     data = load_experimental_data(args.data)
     targets = nearest_experimental(data, args.fit_pressures)
     print(f"Fitting to {len(args.fit_pressures)} pressures: "
@@ -385,6 +575,8 @@ def main() -> None:
 
     fixed_w1 = None if args.fit_w1 else args.w1_0
     fixed_pressure_exponent = None if args.fit_pressure_exponent else args.pressure_exponent0
+    fixed_pressure_reference = None if args.fit_pressure_reference else args.pressure_reference0
+    fixed_latent_heat = None if args.fit_latent_heat else args.latent_heat0
 
     x0_list = [np.log10(args.rate_multiplier0), args.activation_temperature0]
     lo, hi = [-1.0, 0.0], [8.0, 10000.0]
@@ -396,6 +588,14 @@ def main() -> None:
         x0_list.append(args.pressure_exponent0)
         lo.append(-1.0)
         hi.append(3.0)
+    if args.fit_pressure_reference:
+        x0_list.append(args.pressure_reference0)
+        lo.append(args.pressure_reference_min)
+        hi.append(args.pressure_reference_max)
+    if args.fit_latent_heat:
+        x0_list.append(args.latent_heat0)
+        lo.append(args.latent_heat_min)
+        hi.append(args.latent_heat_max)
     x0 = np.array(x0_list)
     lo, hi = np.array(lo), np.array(hi)
     bounds = list(zip(lo, hi))
@@ -404,55 +604,84 @@ def main() -> None:
     objective, unpack = make_objective(
         args.fit_pressures, targets, args.workdir, args.lowmach_bin, log_path,
         stage="search", fixed_w1=fixed_w1,
-        fixed_pressure_exponent=fixed_pressure_exponent)
+        fixed_pressure_exponent=fixed_pressure_exponent,
+        fixed_pressure_reference=fixed_pressure_reference,
+        fixed_latent_heat=fixed_latent_heat)
 
     print(f"\n=== Stage 1: random search over the full parameter box "
           f"({args.random_samples} samples, fitting all {args.fit_pressures} "
-          f"MPa every evaluation) ===")
-    sampler = qmc.LatinHypercube(d=ndim, seed=args.de_seed)
+          f"MPa every evaluation, {args.eval_workers} evaluated concurrently) ===")
+    sampler = qmc.LatinHypercube(d=ndim, seed=args.pso_seed)
     unit_samples = sampler.random(n=args.random_samples)
     samples = qmc.scale(unit_samples, lo, hi)
     samples[0] = x0  # always include the current best-known point
-    costs = np.array([objective(x) for x in samples])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.eval_workers) as pool:
+        costs = np.array(list(pool.map(objective, samples)))
     order = np.argsort(costs)
     best_random = samples[order[0]]
-    param_names = ["rate_multiplier", "activation_temperature", "w1", "pressure_exponent"]
+    param_names = ["rate_multiplier", "activation_temperature", "w1",
+                   "pressure_exponent", "pressure_reference", "latent_heat"]
     best_random_params = dict(zip(param_names, unpack(best_random)))
     print(f"Stage 1 best: cost={costs[order[0]]:.6g} at {best_random_params}")
 
-    seed_count = max(args.de_seed_count, 5)
+    seed_count = max(args.pso_seed_count, 5)
     seed_pop = samples[order[:seed_count]]
     if len(seed_pop) < seed_count:
         extra = qmc.scale(sampler.random(n=seed_count - len(seed_pop)), lo, hi)
         seed_pop = np.vstack([seed_pop, extra])
 
-    print(f"\n=== Stage 2: differential_evolution seeded from the "
-          f"{seed_count} best random-search points, fitting all "
-          f"{args.fit_pressures} MPa every evaluation ===")
-    de_objective, _ = make_objective(
+    print(f"\n=== Stage 2: particle swarm seeded from the {seed_count} best "
+          f"random-search points, fitting all {args.fit_pressures} MPa every "
+          f"evaluation, {args.eval_workers} particles evaluated concurrently "
+          f"===")
+    pso_objective, _ = make_objective(
         args.fit_pressures, targets, args.workdir, args.lowmach_bin, log_path,
-        stage="de", fixed_w1=fixed_w1,
-        fixed_pressure_exponent=fixed_pressure_exponent)
+        stage="pso", fixed_w1=fixed_w1,
+        fixed_pressure_exponent=fixed_pressure_exponent,
+        fixed_pressure_reference=fixed_pressure_reference,
+        fixed_latent_heat=fixed_latent_heat)
 
-    result = differential_evolution(
-        de_objective, bounds, init=seed_pop, maxiter=args.de_maxiter,
-        tol=args.de_tol, seed=args.de_seed, polish=args.polish,
-        updating="deferred")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.eval_workers) as pool:
+        best_x, best_cost, n_particles = particle_swarm_optimize(
+            pso_objective, bounds, seed_pop, maxiter=args.pso_maxiter,
+            tol=args.pso_tol, seed=args.pso_seed, pool=pool,
+            inertia=args.pso_inertia, cognitive=args.pso_cognitive,
+            social=args.pso_social, stall_limit=args.pso_stall_limit)
 
-    rate_multiplier, activation_temperature, w1, pressure_exponent = unpack(result.x)
-    print("\n=== Converged (or hit maxiter) ===")
+        success = True
+        message = "particle swarm stall/maxiter"
+        if args.polish:
+            print(f"\n=== Polish: local L-BFGS-B from the swarm's global "
+                  f"best (cost={best_cost:.6g}) ===")
+            polish_result = minimize(
+                pso_objective, best_x, method="L-BFGS-B", bounds=bounds)
+            print(f"Polish result: cost={polish_result.fun:.6g} "
+                  f"success={polish_result.success}: {polish_result.message}")
+            if polish_result.fun <= best_cost:
+                best_x = polish_result.x
+                best_cost = float(polish_result.fun)
+            success = bool(polish_result.success)
+            message = str(polish_result.message)
+
+    (rate_multiplier, activation_temperature, w1, pressure_exponent,
+     pressure_reference, latent_heat) = unpack(best_x)
+    print("\n=== Converged (or hit maxiter/stall limit) ===")
     print(f"rate_multiplier         = {rate_multiplier:.6g}")
     print(f"activation_temperature  = {activation_temperature:.6g} K")
     print(f"w1                      = {w1:.6g}")
     print(f"pressure_exponent       = {pressure_exponent:.6g}")
-    print(f"final cost              = {result.fun:.6g}")
-    print(f"success={result.success}: {result.message}")
+    print(f"pressure_reference      = {pressure_reference:.6g} MPa")
+    print(f"latent_heat             = {latent_heat:.6g} cal/g")
+    print(f"final cost              = {best_cost:.6g}")
+    print(f"success={success}: {message}")
 
     best = {
         "rate_multiplier": rate_multiplier,
         "activation_temperature": activation_temperature,
         "w1": w1,
         "pressure_exponent": pressure_exponent,
+        "pressure_reference_mpa": pressure_reference,
+        "latent_heat": latent_heat,
     }
     with open(args.workdir / "best_fit.json", "w") as fh:
         json.dump(best, fh, indent=2)
@@ -463,8 +692,8 @@ def main() -> None:
     val_dir = args.workdir / "validation"
     val_dir.mkdir(parents=True, exist_ok=True)
     val_rates = run_sweep(rate_multiplier, activation_temperature, w1,
-                          pressure_exponent, all_pressures,
-                          val_dir, args.lowmach_bin)
+                          pressure_exponent, pressure_reference, latent_heat,
+                          all_pressures, val_dir, args.lowmach_bin)
 
     try:
         import matplotlib
@@ -483,7 +712,9 @@ def main() -> None:
         plt.ylabel("Regression Rate (mm/s)")
         plt.title(f"AP regression fit: rate_multiplier={rate_multiplier:.4g}, "
                   f"activation_temperature={activation_temperature:.4g} K, "
-                  f"w1={w1:.4g}, pressure_exponent={pressure_exponent:.4g}")
+                  f"w1={w1:.4g}, pressure_exponent={pressure_exponent:.4g}, "
+                  f"pressure_reference={pressure_reference:.4g} MPa, "
+                  f"latent_heat={latent_heat:.4g} cal/g")
         plt.grid(True, alpha=0.4)
         plt.legend()
         plt.tight_layout()

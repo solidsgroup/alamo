@@ -56,11 +56,11 @@
 
 plot_file = tests/LMRFMonoAP/output
 amr.plot_dt = 1.0e-4_s
-amr.max_level = 0
+amr.max_level = 1
 amr.n_cell = 2 64
 amr.max_grid_size = 64
 amr.blocking_factor = 2
-amr.regrid_int = -1
+amr.regrid_int = 1000
 
 timestep = 1.0e-7_s
 stop_time = 2.5e-2_s
@@ -118,8 +118,10 @@ mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 1.109867e6
-AP_decomposition.phase_change.activation_temperature = 2748.73_K
+AP_decomposition.phase_change.rate_multiplier = 47434.69188426883
+AP_decomposition.phase_change.activation_temperature = 1820.799110537528_K
+AP_decomposition.phase_change.pressure_exponent = 0.35
+AP_decomposition.phase_change.pressure_reference = 557883.906497885_Pa
 AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
@@ -127,8 +129,8 @@ AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_P
 AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
 AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
 AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
-AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
-AP_decomposition.phase_change.latent_heat = 100.0_cal/g
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 2.5103451202281226
+AP_decomposition.phase_change.latent_heat = 80.0_cal/g
 
 rigid.relaxation_time = 1.0e-8_s
 rigid.velocity = 0.0 0.0
