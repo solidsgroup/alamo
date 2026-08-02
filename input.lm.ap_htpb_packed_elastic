@@ -13,18 +13,38 @@
 # the 2D slice. AP and HTPB partial volume fractions are exact complements.
 #
 # WARNING -- elastic solver conditioning: Solid.elastic.model.mu/kappa below
-# are literal SI moduli (~1e9-1e10 Pa for AP, ~1e6-1e8 Pa for HTPB), unlike
-# the nondimensional-style O(100) values used in tests/LowMachElastic and
-# tests/LowMachElasticPressure specifically to keep the MLMG V-cycle
-# well-conditioned (see tests/LowMachElastic/input's commentary on
-# modulus/dx^2). At this file's finest-level spacing (dx ~ 2mm/40/2^4 =
-# 3.1um), modulus/dx^2 for AP is ~1e21 -- many orders of magnitude past
-# anything validated so far. Tolerance-based solving (elastic.tol_rel/
-# tol_abs, set explicitly below rather than left at default) is used instead
-# of a fixed iteration count so a non-converged solve is visible rather than
-# silently accepted, but expect to need to revisit this (coarser levels only,
-# a different preconditioner, or scaling the moduli down) if MLMG fails to
-# converge or converges absurdly slowly.
+# are literal SI moduli scaled down by 1e-3 (O(1e2-1e4) for AP/HTPB here vs.
+# ~1e9-1e10 Pa/~1e6-1e8 Pa unscaled), unlike the nondimensional-style O(100)
+# values used in tests/LowMachElastic and tests/LowMachElasticPressure --
+# still large enough that modulus/dx^2 is well past anything validated at
+# this file's finest-level spacing (dx ~ 2mm/40/2^4 = 3.1um). More
+# importantly, most of this domain starts as void (gas), and until recently
+# LowMach::UpdateModel masked the void purely via psi, whose 1e-8 floor
+# (Operator::Elastic::m_psi_small) reintroduced the full solid modulus there
+# -- a ~1e8-1e11 stiffness contrast across a diffuse interface that made the
+# first MLMG solve diverge outright. elastic.void.model.mu/kappa below give
+# the void a small but nonzero modulus instead (the tests/ElasticSoftVoid
+# "ersatz material" approach): the modulus field itself now carries the
+# contrast (~1e3-1e5, in the validated range) and psi is disabled entirely
+# when a void model is set (see LowMach::Parse).
+#
+# That alone is NOT sufficient at this contrast: MLMG coarsens right through
+# the (few-cell-wide) diffuse solid/void interface, and coarse-level
+# operators built from a factor-1e4 coefficient jump over 1-2 cells are
+# garbage -- MLMG then genuinely diverges, not just converges slowly. This
+# is Operator::Elastic's documented heterogeneous-media MLMG-divergence gap
+# (see tests/LowMachElasticPressure/Readme.rst), reproduced directly by that
+# test's 2d-pressure-1Pa-softvoid sub-case. elastic.max_coarsening_level
+# below caps how far MG coarsens past the interface and is what actually
+# restores convergence; do not remove it without re-verifying convergence.
+#
+# Tolerance-based solving (elastic.tol_rel/tol_abs, set explicitly below
+# rather than left at default) is used instead of a fixed iteration count so
+# a non-converged solve is visible rather than silently accepted, but expect
+# to need to revisit this (a different preconditioner, a stiffer/softer void
+# modulus, a different max_coarsening_level, or scaling the solid moduli
+# down further) if MLMG still fails to converge or converges absurdly
+# slowly.
 
 plot_file = output.lm.ap_htpb_packed_elastic
 amr.plot_dt = 1.0e-5_s
@@ -107,6 +127,15 @@ AP_solid.elastic.model.mu    = 9.47e2 # 9.47e9
 AP_solid.elastic.model.kappa = 1.00e4 # 1.00e10
 HTPB_solid.elastic.model.mu    = 1.67e2 # 1.67e6
 HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
+
+# Soft void: the gas region gets a small but nonzero modulus (0.1, in the
+# same 1e-3-scaled units as the solid moduli above) instead of being masked
+# by psi's 1e-8 floor. See the WARNING above -- this replaces the void's
+# effective modulus of "full AP stiffness x 1e-8" with a true soft-material
+# contrast (~1e3-1e5 against the moduli above, matching tests/ElasticSoftVoid)
+# and disables psi entirely (LowMach::Parse).
+elastic.void.model.mu    = 0.1
+elastic.void.model.kappa = 0.1
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -285,6 +314,35 @@ elastic.solver.verbose = 4
 # see the WARNING at the top of this file.
 elastic.tol_rel = 1.0e-8
 elastic.tol_abs = 1.0e-8
+# Required alongside elastic.void.model.* below: MLMG coarsens right
+# through the diffuse solid/void interface, and at this modulus contrast
+# that produces garbage coarse-level operators (verified in
+# tests/LowMachElasticPressure's 2d-pressure-1Pa-softvoid sub-case, which
+# diverges outright without this cap). See the WARNING above.
+elastic.max_coarsening_level = 2
+elastic.solver.conservative_face_flux = 1
+elastic.solver.line_search = 1
+elastic.solver.resync_coeffs = 1
+# A single Newton iteration is exact for this problem regardless: from the
+# zeroed initial guess set by elastic.zero_out_displacement (Base::Mechanics
+# default), NeoHookeanPredeformed linearizes exactly about F = I (see
+# tests/LowMachElasticPressure/Readme.rst's derivation), so nriters > 1 buys
+# no accuracy here. It does cost stability: with nriters = 3 the accepted
+# first-iteration step is tiny (line search alpha ~= 0.004, residual barely
+# reduced), and the resync_coeffs rebuild for the 2nd Newton iteration then
+# diverges catastrophically -- independent of the void modulus above (tried
+# 0.1 and 10 with identical behavior) -- so this is a separate conditioning
+# issue in the multi-Newton path at these moduli, not something the void
+# model fixes. Confirmed nriters = 1 converges end-to-end (see the void
+# modulus comment above); revisit only if this problem stops being an
+# effectively-linear F=I configuration (e.g. nonzero initial displacement
+# carried over between elastic.interval solves at large deformation).
+elastic.solver.nriters = 1
+elastic.solver.nrtolerance = 0
+elastic.solver.max_iter = 1500
+elastic.solver.pre_smooth = 2
+elastic.solver.post_smooth = 2
+elastic.solver.bottom_solver = bicgstab
 
 # BCs mirror the velocity slip-wall/open-top setup above, per component
 # (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear
