@@ -142,6 +142,114 @@ applied pressure ``P`` (1 Pa and 4 Pa), and whether a soft void model is set:
   unaffected, confirming
   that path reduces to the same answer as the default psi-masked one.
 
+Void modulus vs. solver stability and accuracy
+------------------------------------------------
+
+``2d-pressure-1Pa-softvoid`` above pins down one contrast (``1e4``, capped)
+against the analytic solution, but doesn't show how that tradeoff moves as
+the void modulus changes. To characterize it, the 1 Pa case was re-run
+directly (not through ``runtests.py``) at eleven solid/void contrasts from
+``1x`` to ``1e5x`` (``elastic.void.model.mu/kappa`` scaled proportionally
+to the solid's 140/150), each both with and without
+``elastic.max_coarsening_level=2``, and compared against the same
+``disp_y = -P*y/M`` / ``sigma_yy = -P`` analytic targets used by ``test``:
+
+.. list-table::
+   :header-rows: 1
+
+   * - contrast
+     - no cap
+     - cap = 2
+     - disp_y err
+     - sigma_yy err
+   * - 1x
+     - OK (17 it.)
+     - OK (12 it.)
+     - 0.0003%
+     - 0.19%
+   * - 3x
+     - OK (16 it.)
+     - OK (13 it.)
+     - 0.53%
+     - 0.72%
+   * - 10x
+     - OK (16 it.)
+     - OK (14 it.)
+     - 0.90%
+     - 1.10%
+   * - 33x
+     - OK (17 it.)
+     - OK (14 it.)
+     - 0.83%
+     - 1.02%
+   * - 100x
+     - OK (27 it.)
+     - OK (14 it.)
+     - 0.61%
+     - 0.81%
+   * - 333x
+     - OK (24 it.)
+     - OK (14 it.)
+     - 0.44%
+     - 0.63%
+   * - 1,000x
+     - **diverges**
+     - OK (15 it.)
+     - 0.36%
+     - 0.56%
+   * - 3,333x
+     - **diverges**
+     - OK (15 it.)
+     - 0.33%
+     - 0.52%
+   * - 10,000x
+     - **diverges**
+     - OK (18 it.)
+     - 0.32%
+     - 0.51%
+   * - 33,333x
+     - **diverges**
+     - OK (52 it.)
+     - 0.31%
+     - 0.50%
+   * - 100,000x
+     - **diverges**
+     - **diverges**
+     - n/a
+     - n/a
+
+Two things fall out of this that aren't obvious from a single data point:
+
+- **Stability is governed by the coarsening cap, not raw contrast.**
+  Uncapped, MLMG diverges outright (not just slowly) once contrast passes
+  roughly 300-1,000x -- consistent with the coarsening argument in the
+  sub-case description above. Capped at 2 levels, it stays stable out to
+  ~30,000x with a flat iteration count (12-18), and only starts costing
+  more iterations near the edge of that range (52 at 33,000x) before
+  failing at 100,000x.
+- **Accuracy vs. contrast is not monotonic**, and the smaller-contrast end
+  is not actually the more physically faithful one. At contrast ~1 the void
+  is essentially as stiff as the solid, so there is no real interface to
+  get wrong and the ~1e-3% error is not evidence the interface physics is
+  being captured -- it is not really modeling a void at all. Error is
+  *worst* in the middle, around contrast 3-30 (~0.9-1.1%), then improves
+  monotonically as contrast grows, settling near a ~0.3%/0.5% floor by
+  ~1,000-3,000x. That floor is set by the diffuse-interface discretization
+  itself (dx and interface width -- see "Why the pressure is O(1) Pa"
+  above), not by how soft the void is, so pushing contrast higher than
+  that buys no more accuracy.
+
+Net implication: once ``elastic.max_coarsening_level`` is capped, there is
+no accuracy reason to run the void softer than roughly 1,000-3,000x below
+the solid -- doing so only spends iteration budget for no benefit, and
+going much softer than that risks the stability cliff above.
+``input.lm.ap_htpb_packed_elastic`` currently sits at ~1,670x (HTPB) to
+~1e5x (AP kappa); the AP side is past where this sweep's accuracy plateau
+sets in and close to where even the capped solver starts needing
+meaningfully more iterations -- a candidate to revisit (e.g. raising
+``elastic.void.model.mu/kappa`` toward AP-contrast ~1,000-3,000x) if that
+input file's own MLMG iteration count runs high in practice.
+
 Boundary-node caveat
 ---------------------
 
