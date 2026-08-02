@@ -57,6 +57,9 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
+    // MLMG prepares an operator only once. Call this after replacing nonlinear
+    // coefficients so coarse MG levels and the smoother diagonal stay current.
+    void SyncCoefficients() { averageDownCoeffs(); Diagonal(true); }
     
     //
     // Public Utilty functions
@@ -72,6 +75,8 @@ public:
 protected:
     virtual void Fapply (int amrlev, int mglev,MultiFab& out,const MultiFab& in) const override =0;
     virtual void averageDownCoeffs () = 0;
+    virtual bool useQuadraticAmrInterpolation() const { return false; }
+    virtual bool relaxCoarseFineGhostRows() const { return true; }
     //
     // Virtual: you SHOULD override these functions
     //
@@ -91,6 +96,8 @@ public:
 public:
     virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
     virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
+    virtual void interpolationAmr (int famrlev, MultiFab& fine,
+        const MultiFab& crse, IntVect const& nghost) const override final;
     virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs, const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
     virtual void prepareForSolve () override;
     virtual bool isSingular (int amrlev) const final {return (amrlev == 0) ? m_is_bottom_singular : false; }

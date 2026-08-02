@@ -814,6 +814,55 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
+[[nodiscard]] inline
+Set::Matrix
+FaceGradient(const amrex::Array4<const Set::Vector>& f,
+    const int i, const int j, const int k, const int face,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix ret = Set::Matrix::Zero();
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
+    ret.col(face) = (f(ip, jp, kp) - f(i, j, k)) / dx[face];
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+        if (dir != face)
+            ret.col(dir) = (
+                f(i + (dir == 0), j + (dir == 1), k + (dir == 2))
+                - f(i - (dir == 0), j - (dir == 1), k - (dir == 2))
+                + f(ip + (dir == 0), jp + (dir == 1), kp + (dir == 2))
+                - f(ip - (dir == 0), jp - (dir == 1), kp - (dir == 2)))
+                / (4.0 * dx[dir]);
+    return ret;
+}
+
+[[nodiscard]] inline
+Set::Matrix
+FaceGradient(const amrex::Array4<const Set::Scalar>& f,
+    const int i, const int j, const int k, const int face,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix ret = Set::Matrix::Zero();
+    const int ip = i + (face == 0);
+    const int jp = j + (face == 1);
+    const int kp = k + (face == 2);
+    for (int n = 0; n < AMREX_SPACEDIM; ++n)
+    {
+        ret(n, face) = (f(ip, jp, kp, n) - f(i, j, k, n)) / dx[face];
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+            if (dir != face)
+                ret(n, dir) = (
+                    f(i + (dir == 0), j + (dir == 1), k + (dir == 2), n)
+                    - f(i - (dir == 0), j - (dir == 1), k - (dir == 2), n)
+                    + f(ip + (dir == 0), jp + (dir == 1),
+                        kp + (dir == 2), n)
+                    - f(ip - (dir == 0), jp - (dir == 1),
+                        kp - (dir == 2), n))
+                    / (4.0 * dx[dir]);
+    }
+    return ret;
+}
+
 [[nodiscard]] AMREX_FORCE_INLINE
 std::pair<Set::Vector,Set::Matrix>
 GradientSplit(  const amrex::Array4<const Set::Vector>& f,
