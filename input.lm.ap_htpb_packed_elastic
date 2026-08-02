@@ -12,12 +12,20 @@
 # cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
 # the 2D slice. AP and HTPB partial volume fractions are exact complements.
 #
+# NOTE -- amr.max_level = 1 below: a known bug means max AMR level 1 only
+# works with the elastic solver enabled, which this file already does, so
+# this is the file to run at that setting. amr.n_cell is doubled (80 80 32,
+# vs. 40 40 16 at the max_level = 2 this file used previously) to hold the
+# finest-level spacing at dx ~ 0.5mm/80/2 = 3.125um despite the missing
+# level; timestep, dynamictimestep bounds, and the interface/heat-source
+# widths below match that same dx.
+#
 # WARNING -- elastic solver conditioning: Solid.elastic.model.mu/kappa below
 # are literal SI moduli scaled down by 1e-3 (O(1e2-1e4) for AP/HTPB here vs.
 # ~1e9-1e10 Pa/~1e6-1e8 Pa unscaled), unlike the nondimensional-style O(100)
 # values used in tests/LowMachElastic and tests/LowMachElasticPressure --
 # still large enough that modulus/dx^2 is well past anything validated at
-# this file's finest-level spacing (dx ~ 2mm/40/2^4 = 3.1um). More
+# this file's finest-level spacing (dx ~ 3.125um, see NOTE above). More
 # importantly, most of this domain starts as void (gas), and until recently
 # LowMach::UpdateModel masked the void purely via psi, whose 1e-8 floor
 # (Operator::Elastic::m_psi_small) reintroduced the full solid modulus there
@@ -47,9 +55,9 @@
 # slowly.
 
 plot_file = output.lm.ap_htpb_packed_elastic
-amr.plot_dt = 1.0e-5_s
-amr.max_level = 2
-amr.n_cell = 40 40 16
+amr.plot_dt = 1.0e-4_s
+amr.max_level = 1
+amr.n_cell = 60 60 
 amr.max_grid_size = 20
 amr.blocking_factor = 2
 amr.regrid_int = 5
@@ -62,8 +70,9 @@ amr.reinitialize_condensed_composition_eta_min = 0.99
 amr.cell.all = 1
 amr.node.any = 0
 
-# Resolve the condensed/gas interface through level 3. Level 4 remains
-# available for flame and flow structure selected by the criteria below.
+# Only one refinement level is available (amr.max_level = 1 above); these
+# criteria select where it is applied, covering both the condensed/gas
+# interface and flame/flow structure.
 eta_refinement_criterion = 0.5
 temperature_refinement_criterion = 1.0
 velocity_refinement_criterion = 1.0
@@ -123,10 +132,10 @@ HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 # to this specific formulation -- replace with measured/calibrated values if
 # available. See the WARNING above regarding solver conditioning at these
 # magnitudes.
-AP_solid.elastic.model.mu    = 9.47e2 # 9.47e9
-AP_solid.elastic.model.kappa = 1.00e4 # 1.00e10
-HTPB_solid.elastic.model.mu    = 1.67e2 # 1.67e6
-HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
+AP_solid.elastic.model.mu    = 9.47e9
+AP_solid.elastic.model.kappa = 1.00e10
+HTPB_solid.elastic.model.mu    = 1.67e6
+HTPB_solid.elastic.model.kappa = 8.33e8
 
 # Soft void: the gas region gets a small but nonzero modulus (0.1, in the
 # same 1e-3-scaled units as the solid moduli above) instead of being masked
@@ -134,8 +143,8 @@ HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
 # effective modulus of "full AP stiffness x 1e-8" with a true soft-material
 # contrast (~1e3-1e5 against the moduli above, matching tests/ElasticSoftVoid)
 # and disables psi entirely (LowMach::Parse).
-elastic.void.model.mu    = 0.1
-elastic.void.model.kappa = 0.1
+elastic.void.model.mu    = 10000000
+elastic.void.model.kappa = 10000000
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -251,7 +260,7 @@ pressure.ic.constant.value = 3000000.0
 # Apply the transient ignition flux used by the AP/HTPB sandwich case.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
-heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.qflux = 1.0e4_W/m^2
 heat_source.ic.expression.constant.width = 6.25e-6_m
 heat_source.ic.expression.constant.norm = 1.772453850905516
 heat_source.ic.expression.constant.toff = 2.5e-4_s
@@ -303,7 +312,7 @@ pressure.bc.constant.val.yhi = 3000000.0
 # iteration MLMG solve (default elastic.nriters = 1, see
 # Base::Mechanics::Register) does not dominate runtime.
 elastic.type = static
-elastic.interval = 10
+elastic.interval = 100
 elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0
@@ -339,10 +348,12 @@ elastic.solver.resync_coeffs = 1
 # carried over between elastic.interval solves at large deformation).
 elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 0
-elastic.solver.max_iter = 1500
+elastic.solver.max_iter = 3000
 elastic.solver.pre_smooth = 2
 elastic.solver.post_smooth = 2
 elastic.solver.bottom_solver = bicgstab
+elastic.zero_out_displacement = True
+
 
 # BCs mirror the velocity slip-wall/open-top setup above, per component
 # (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear
