@@ -25,8 +25,8 @@ amr.reinitialize_condensed_composition_eta_min = 0.99
 
 # Carry the condensed/gas interface and active reaction layer to the finest
 # level without following smooth burned-gas temperature structure downstream.
-eta_refinement_criterion = 0.7
-reaction_refinement_criterion = 3.0e4_1/s
+eta_refinement_criterion = 0.1
+reaction_refinement_criterion = 1.0e4_1/s
 temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s

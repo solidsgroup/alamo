@@ -5,6 +5,7 @@
 
 #include "Set/Matrix4.H"
 #include "Util/Util.H"
+#include "IO/FileNameParse.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Set/Matrix4.H"
@@ -43,6 +44,33 @@ int main (int argc, char* argv[])
 
     Util::globalprefix = "  │  ";
 
+    Util::Test::Message("IO::FileNameParse test");
+    {
+        int subfailed = 0;
+        const char *original = std::getenv("SLURM_FILENAME_PARSE_TEST");
+        const bool restore_original = original != nullptr;
+        const std::string original_value = restore_original ? original : "";
+
+        setenv("SLURM_FILENAME_PARSE_TEST", "314159", 1);
+        std::string available = "output_{SLURM_FILENAME_PARSE_TEST}";
+        IO::FileNameParse(available);
+        subfailed += Util::Test::SubMessage(
+            "Slurm environment substitution", available != "output_314159");
+
+        unsetenv("SLURM_FILENAME_PARSE_TEST");
+        std::string unavailable = "output_{SLURM_FILENAME_PARSE_TEST}";
+        IO::FileNameParse(unavailable);
+        subfailed += Util::Test::SubMessage(
+            "Unavailable Slurm variable fallback",
+            unavailable != "output_SLURM_FILENAME_PARSE_TEST");
+
+        if (restore_original)
+            setenv("SLURM_FILENAME_PARSE_TEST", original_value.c_str(), 1);
+        else
+            unsetenv("SLURM_FILENAME_PARSE_TEST");
+
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
 
     #define MODELTEST(TYPE) \
         Util::Test::Message(#TYPE); \

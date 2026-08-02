@@ -11,6 +11,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -254,6 +255,7 @@ protected:
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
     Operator::Diffusion diffusion;
     Operator::PressurePoisson pressure_poisson;
+    bool synchronize_restart_state = false;
 };
 }
 

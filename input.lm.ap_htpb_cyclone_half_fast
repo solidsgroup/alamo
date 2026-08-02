@@ -1,40 +1,43 @@
-# Wide AP/HTPB sandwich regression at 1.0 MPa.
-# Run with: mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_wide_1.0MPa
+# Fast presentation-scale 4 MPa AP/HTPB regression through a Cyclone logo.
+# Run with:
+#   mpirun -np 4 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_cyclone_half_fast
 #
-# This is one symmetric half of the standard sandwich specimen used in
-# meier2024finite. The centered HTPB laminate remains 100 um thick, while the
-# effective full specimen is widened to 2 mm for a substantially larger AP region.
-# Thus 0 <= x <= 50 um is half of the HTPB laminate and 50 um <= x <= 1 mm is AP.
-# The lateral faces are impermeable slip walls rather than periodic boundaries.
+# The logo is flipped to account for PNG row ordering, then rotated clockwise
+# in the simulation. Rotating rendered frames counterclockwise makes the logo
+# upright and the downward burn left-to-right.
+# White pixels are AP and black pixels are HTPB. Thresholding keeps their
+# internal interface sharp; only the common condensed/gas surface is diffuse.
 
-plot_file = output.lm.ap_htpb_wide_1.0MPa
-amr.plot_dt = 1.0e-4_s
-amr.max_level = 3
-amr.n_cell = 64 256
+plot_file = output.lm.ap_htpb_cyclone_half_fast
+amr.plot_dt = 0.05_ms
+amr.max_level = 2
+amr.n_cell = 32 48
 amr.max_grid_size = 32
 amr.blocking_factor = 4
-amr.regrid_int = 5
+amr.regrid_int = 25
 amr.grid_eff = 0.7
-amr.nsubsteps = 1
+amr.nsubsteps = 2
 amr.reinitialize_condensed_composition = 1
 amr.reinitialize_condensed_composition_eta_min = 0.99
 
-eta_refinement_criterion = 0.01
+# The 1 mm logo uses a 7.8 um finest-cell size. Refinement follows
+# the exposed condensed surface and reaction zone rather than the buried image.
+eta_refinement_criterion = 0.1
 reaction_refinement_criterion = 1.0e4_1/s
 temperature_refinement_criterion = 500.0
 
 timestep = 1.0e-7_s
-stop_time = 1_s
+stop_time = 0.3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 5.0e-6
+dynamictimestep.max = 5e-7
 dynamictimestep.verbose = 0
 
 integration.type = RungeKutta
-integration.rk.type = 3
+integration.rk.type = 2
 
-geometry.prob_lo = 0.0_m     -3.0e-3_m 0.0
-geometry.prob_hi = 1.0e-3_m   1.0e-3_m 0.0
+geometry.prob_lo = -0.5_mm -1.0_mm 0.0
+geometry.prob_hi =  0.5_mm  0.5_mm 0.0
 geometry.is_periodic = 0 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
@@ -81,10 +84,8 @@ chemistry.solver.backward_euler.max_iter = 100
 chemistry.solver.backward_euler.reltol = 1.0e-8
 chemistry.solver.backward_euler.abstol = 1.0e-12
 
-# AP uses the calibrated LMRFMonoAP parameters. The HTPB prefactor is calibrated
-# to approximately 4 mm/s regression in the 3 MPa sandwich configuration. Both
-# mechanisms use the calibrated aggregate-eta interface energy, and the
-# phase-field gradient terms are integrated implicitly.
+# Retain the calibrated phase-change rates while doubling the equilibrium
+# interface width at approximately constant surface energy.
 mechanisms.names = AP_decomposition HTPB_pyrolysis
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
@@ -94,8 +95,8 @@ AP_decomposition.phase_change.activation_temperature = 3145.0_K
 AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 4.166666666666667_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 2.0e-8_J/m
 AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
 AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
 AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
@@ -108,8 +109,8 @@ HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
 HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
 HTPB_pyrolysis.phase_change.phase_field.type = allencahn
 HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 4.166666666666667_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 2.0e-8_J/m
 HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
 HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
 HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
@@ -126,33 +127,50 @@ implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
 projection.enabled = 1
-projection.tol_rel = 1.0e-11
-projection.tol_abs = 1.0e-12
+projection.tol_rel = 1.0e-8
+projection.tol_abs = 1.0e-10
 projection.verbose = 0
 projection.update_pressure = 1
 diffusion.tol_rel = 1.0e-11
 diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0
-#diagnostics.interval = 100
 diagnostics.extended_fields = 0
 
-# Operating pressure.
-Final.density.ic.expression.constant.P = 1.0e6
-pressure.ic.constant.value = 1.0e6
-pressure.bc.constant.val.yhi = 1.0e6
+# Read complementary AP and HTPB indicators from the same image. Both are
+# multiplied by the y<0 condensed mask, so their sum reconstructs one diffuse
+# horizontal burn surface without diffusing the internal material boundary.
+AP_solid.density.ic.type = png
+AP_solid.density.ic.png.filename = cyclone.png
+AP_solid.density.ic.png.fit = coord
+AP_solid.density.ic.png.coord.lo = -0.5_mm -1.0_mm
+AP_solid.density.ic.png.coord.hi =  0.5_mm  0.0_mm
+AP_solid.density.ic.png.channel = G
+AP_solid.density.ic.png.rotation = 90
+AP_solid.density.ic.png.flip.y = 1
+AP_solid.density.ic.png.threshold = 0.5
+AP_solid.density.ic.png.value = 1950.0_kg/m^3
+AP_solid.density.ic.png.plane.point = 0.0_mm 0.0_mm 0.0_mm
+AP_solid.density.ic.png.plane.normal = 0.0 -1.0 0.0
+AP_solid.density.ic.png.plane.eps = 20.0_um
 
-# The solid occupies y<0. The complementary expressions reconstruct one
-# common condensed/gas interface while placing the symmetry plane at the
-# center of the 100 um HTPB laminate.
-AP_solid.density.ic.type = expression
-AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((x-50.0e-6)/10.0e-6)))"
-HTPB_solid.density.ic.type = expression
-HTPB_solid.density.ic.expression.region0 = "max(0.0,920.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((x-50.0e-6)/10.0e-6)))"
+HTPB_solid.density.ic.type = png
+HTPB_solid.density.ic.png.filename = cyclone.png
+HTPB_solid.density.ic.png.fit = coord
+HTPB_solid.density.ic.png.coord.lo = -0.5_mm -1.0_mm
+HTPB_solid.density.ic.png.coord.hi =  0.5_mm  0.0_mm
+HTPB_solid.density.ic.png.channel = G
+HTPB_solid.density.ic.png.rotation = 90
+HTPB_solid.density.ic.png.flip.y = 1
+HTPB_solid.density.ic.png.threshold = 0.5
+HTPB_solid.density.ic.png.invert = 1
+HTPB_solid.density.ic.png.value = 920.0_kg/m^3
+HTPB_solid.density.ic.png.plane.point = 0.0_mm 0.0_mm 0.0_mm
+HTPB_solid.density.ic.png.plane.normal = 0.0 -1.0 0.0
+HTPB_solid.density.ic.png.plane.eps = 20.0_um
 
-# The gas initially contains final products. Its density uses the preheated
-# temperature profile below so that the ignition state is initially isobaric;
-# AP and HTPB reactants enter only through regression.
+# The gas starts as final products above the logo at a uniform 4 MPa.
 Final.density.ic.type = expression
+Final.density.ic.expression.constant.P = 4.0e6
 Final.density.ic.expression.constant.Tambient = 300.0_K
 Final.density.ic.expression.constant.Tignite = 400.0_K
 Final.density.ic.expression.constant.Lsolid = 100.0_um
@@ -161,9 +179,6 @@ Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(
 
 velocity.ic.type = constant
 velocity.ic.constant.value = 0.0 0.0
-# Initialize the solid and gas with a mildly preheated thermal penetration
-# profile. A hotter initial interface drives the calibrated AP phase field far
-# above its steady regression rate before the gas flame has developed.
 temperature.ic.type = expression
 temperature.ic.expression.constant.Tambient = 300.0_K
 temperature.ic.expression.constant.Tignite = 400.0_K
@@ -171,7 +186,9 @@ temperature.ic.expression.constant.Lsolid = 100.0_um
 temperature.ic.expression.constant.Lgas = 250.0_um
 temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
 pressure.ic.type = constant
+pressure.ic.constant.value = 4.0e6
 
+# Apply the same short ignition pulse as the calibrated sandwich case.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
 heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
@@ -205,3 +222,4 @@ pressure.bc.constant.type.xlo = neumann
 pressure.bc.constant.type.xhi = neumann
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 4.0e6

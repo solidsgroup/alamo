@@ -18,6 +18,7 @@
 #include "IO/ParmParse.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
+#include "IO/OutputLog.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
 #include "Util/MPI.H"
@@ -115,6 +116,7 @@ namespace Util
 std::string filename = "";
 std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
+bool restart_in_place = false;
 bool initialized = false;
 bool finalized = false;
 
@@ -162,9 +164,10 @@ void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
             else          destinationpath = filename+"/"+basefilename;
 
             // Copy the file where the file name is the absolute path, with / replaced with _
-            if (std::filesystem::exists(destinationpath))
+            if (std::filesystem::exists(destinationpath) && !restart_in_place)
                 Util::Exception(INFO,"Trying to copy ",destinationpath," but it already exists.");
-            std::filesystem::copy_file(a_path,destinationpath);
+            if (!std::filesystem::exists(destinationpath))
+                std::filesystem::copy_file(a_path,destinationpath);
         }
     }
     catch (std::filesystem::filesystem_error const& ex)
@@ -224,6 +227,7 @@ void Initialize ()
 }
 void Initialize (int argc, char* argv[])
 {
+    IO::OutputLog::Initialize();
     srand (time(NULL));
 
     bool parse_args = false;
@@ -271,11 +275,26 @@ void Initialize (int argc, char* argv[])
 
     std::string filename = GetFileName();
 
-    if (!IO::ParmParse::InTraversalMode() &&
-        amrex::ParallelDescriptor::IOProcessor() && filename != "")
+    if (!IO::ParmParse::InTraversalMode() && filename != "")
     {
-        file_overwrite = Util::CreateCleanDirectory(filename, false);
-        IO::WriteMetaData(filename);
+        int restart_in_place = 0;
+        pp.query_default("restart.in_place", restart_in_place, false);
+        Util::restart_in_place = restart_in_place;
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            if (!restart_in_place)
+                file_overwrite = Util::CreateCleanDirectory(filename, false);
+            IO::OutputLog::Open(filename + "/out.log", restart_in_place);
+            IO::WriteMetaData(filename);
+        }
+        else
+        {
+            IO::OutputLog::DisableFile();
+        }
+    }
+    else
+    {
+        IO::OutputLog::DisableFile();
     }
 
     std::string length, time, mass, temperature, current, amount, luminousintensity;
@@ -382,6 +401,7 @@ void Finalize()
             IO::WriteMetaData(filename,IO::Status::Complete);
     }
     amrex::Finalize();
+    IO::OutputLog::Finalize();
     finalized = true;
 }
 

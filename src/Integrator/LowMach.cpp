@@ -31,6 +31,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 #if !AMREX_DEVICE_COMPILE
     BL_PROFILE("Integrator::LowMach::Parse");
 
+    // Plotfiles retain the current RK state, not the previous-stage buffers.
+    value.synchronize_restart_state = !value.restart_file_cell.empty();
+
     pp.query_required("cfl", value.cfl);
     pp.query_default(
         "phase_field.cfl", value.phase_field_cfl, value.cfl);
@@ -140,7 +143,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
+            pp.select<IC::Constant,IC::Expression,IC::PNG,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
     }
@@ -2231,6 +2234,11 @@ LowMach::Regrid(int lev, Set::Scalar time)
     component_density_bc->FillBoundary(
         *component_density_mf[lev], 0, nspecies, time, 0);
     component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+    // Composition reconstruction is a remap, so the next RK stage must not
+    // begin from the pre-remap buffer.
+    amrex::MultiFab::Copy(*component_density_old_mf[lev],
+                          *component_density_mf[lev], 0, 0, nspecies,
+                          component_density_mf[lev]->nGrow());
     UpdateComponentState(lev, *component_density_mf[lev]);
 }
 
@@ -2604,6 +2612,35 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
         for (int lev = 0; lev <= finest_level; ++lev)
             laser_ic->Initialize(lev, laser_mf, time);
 
+    if (synchronize_restart_state)
+    {
+        if (!(pressure_reference == pressure_reference))
+        {
+            Set::Field<Set::Scalar> reference_pressure(pressure_mf.size());
+            reference_pressure[0] = std::make_unique<amrex::MultiFab>(
+                pressure_mf[0]->boxArray(), pressure_mf[0]->DistributionMap(),
+                1, 0);
+            pressure_ic->Initialize(0, reference_pressure, 0.0);
+            pressure_reference = reference_pressure[0]->sum(0, false) /
+                static_cast<Set::Scalar>(geom[0].Domain().numPts());
+        }
+        amrex::get<4>(thermal_data) = pressure_reference;
+        amrex::get<0>(thermochemical_data) = thermal_data;
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            amrex::MultiFab::Copy(*velocity_old_mf[lev], *velocity_mf[lev],
+                                  0, 0, AMREX_SPACEDIM, velocity_mf[lev]->nGrow());
+            amrex::MultiFab::Copy(*temperature_old_mf[lev], *temperature_mf[lev],
+                                  0, 0, 1, temperature_mf[lev]->nGrow());
+            amrex::MultiFab::Copy(*component_density_old_mf[lev],
+                                  *component_density_mf[lev], 0, 0, nspecies,
+                                  component_density_mf[lev]->nGrow());
+            if (deformable_solid_species >= 0)
+                amrex::MultiFab::Copy(*xi_old_mf[lev], *xi_mf[lev],
+                                      0, 0, AMREX_SPACEDIM, xi_mf[lev]->nGrow());
+        }
+        synchronize_restart_state = false;
+    }
     if (!dynamictimestep.on) return;
 
     const bool deformable_solid = deformable_solid_species >= 0;
