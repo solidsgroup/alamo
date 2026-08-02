@@ -1,0 +1,101 @@
+#@ [2d-serial]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 1
+#@ check = true
+#@ timeout = 120
+#@
+#@ [2d-parallel]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 2
+#@ check = true
+#@ timeout = 120
+#@
+
+# Same high-contrast soft-void setup as tests/ElasticSoftVoid, but with the
+# fixed level-1 patch re-centered on the ellipse so that the coarse/fine
+# refinement boundary actually crosses the diffuse solid/void interface
+# (ElasticSoftVoid's patch sits in the lower-left quadrant and only grazes
+# the interface at one corner). This reproduces the MLMG divergence seen in
+# input.lm.ap_htpb_packed_elastic, where the AMR refinement boundary crosses
+# a ~1e4-1e5x modulus contrast at the solid/void interface.
+#
+# explicitmesh.lo1/hi1 are in level-1 (fine) index space: n_cell=128 at
+# level 0 -> level 1 spans indices 0..255, dx_1 = 1/256. The patch below is
+# a 128-cell square centered on the domain center (128,128), i.e. physical
+# [0.25,0.75]^2. Its edges sit at radius 0.25 from the ellipse center
+# (0.5,0.5) -- inside the diffuse interface band (ellipse a=0.22, eps=0.04,
+# so the eta transition spans roughly r in [0.18,0.26]) -- while its corners
+# reach r=0.354, well out in the void. So each edge of the c/f boundary
+# crosses from inside the interface band to pure void. The resolution is
+# high enough (vs. tests/ElasticSoftVoid's 32x32) that MLMG actually
+# coarsens several levels past the interface, which is what triggers the
+# divergence -- a 32x32 grid has too few possible MG levels to exercise it.
+
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.neohookean
+
+type = static
+timestep = 0.1
+stop_time = 0.1
+
+amr.plot_int = 1
+amr.max_level = 1
+amr.n_cell = 128 128 8
+amr.blocking_factor = 8
+amr.max_grid_size = 64
+amr.regrid_int = -1
+amr.grid_eff = 1.0
+amr.node.all = 1
+amr.cell.all = 1
+
+explicitmesh.on = 1
+explicitmesh.lo1 = 64 64 0
+explicitmesh.hi1 = 191 191 0
+
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+geometry.is_periodic = 0 0 0
+
+ic.type = ellipse
+ic.ellipse.a = 0.22 0.22 0.22
+ic.ellipse.x0 = 0.5 0.5 0.5
+ic.ellipse.eps = 0.04
+
+nmodels = 2
+model1.mu = 1
+model1.kappa = 1
+model2.mu = 26000
+model2.kappa = 70000
+
+rhs.type = expression
+rhs.expression.region0 = "-(x-0.5)/0.04*exp(-((sqrt((x-0.5)^2+(y-0.5)^2)-0.22)/0.04)^2)"
+rhs.expression.region1 = "-(y-0.5)/0.04*exp(-((sqrt((x-0.5)^2+(y-0.5)^2)-0.22)/0.04)^2)"
+
+solver.conservative_face_flux = 1
+solver.line_search = 1
+solver.resync_coeffs = 1
+solver.nriters = 3
+solver.nrtolerance = 0
+solver.max_iter = 1500
+solver.pre_smooth = 2
+solver.post_smooth = 2
+solver.bottom_solver = bicgstab
+solver.verbose = 3
+
+max_coarsening_level = 2
+zero_out_displacement = 1
+tol_rel = 2.0e-5
+tol_abs = 1.0e-8
+ref_threshold = 100
+
+bc.type = constant
+bc.constant.type.xlo = disp disp
+bc.constant.type.xhi = disp trac
+bc.constant.type.ylo = trac disp
+bc.constant.type.yhi = disp disp
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xhiyhi = disp disp
