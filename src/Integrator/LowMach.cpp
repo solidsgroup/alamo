@@ -54,12 +54,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("include_conduction", value.include_conduction, true);
     pp.query_default("conduction.interface_normal_harmonic",
         value.interface_normal_harmonic, true);
-    pp.query_default("conduction.interface_conductivity_blend",
-        value.interface_conductivity_blend, 0.0);
-    if (value.interface_conductivity_blend < 0.0 ||
-        value.interface_conductivity_blend > 1.0)
-        Util::Exception(INFO,
-            "conduction.interface_conductivity_blend must be in [0,1]");
     pp.query_default("advect_temperature", value.advect_temperature, true);
     if (value.implicit_momentum_diffusion && !value.include_viscosity)
         Util::Exception(INFO,
@@ -430,8 +424,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.gas_device_data, value.nspecies, value.ngas_species,
         value.density_floor, value.pressure_reference,
         value.condensed_thermal_transport,
-        specific_heat, thermal_conductivity, inverse_reference_density,
-        value.interface_conductivity_blend};
+        specific_heat, thermal_conductivity, inverse_reference_density};
     value.chemistry_device_data = {
         rocfire_chemistry,
         value.chemistry.Get<Model::Chemistry::Rocfire>(),
@@ -924,8 +917,7 @@ LowMach::ComputeThermalState(
     const auto& [gas_data, nspecies, ngas_species, density_floor,
                  pressure_reference, condensed_thermal_transport,
                  condensed_specific_heat, condensed_thermal_conductivity,
-                 condensed_inverse_reference_density,
-                 interface_conductivity_blend] = data;
+                 condensed_inverse_reference_density] = data;
     Set::Scalar density = 0.0;
     Set::Scalar gas_density = 0.0;
     for (int n = 0; n < nspecies; ++n)
@@ -1005,22 +997,8 @@ LowMach::ComputeThermalState(
             inverse_conductivity_perp += species_volume_weight /
                 condensed_thermal_conductivity[n];
     }
-    const Set::Scalar conductivity_perp_harmonic =
-        inverse_conductivity_perp > 0.0 ?
+    const Set::Scalar conductivity_perp = inverse_conductivity_perp > 0.0 ?
         1.0 / inverse_conductivity_perp : conductivity;
-    // Geometric interpolation between the harmonic (series, physical lower
-    // bound) and arithmetic (parallel, physical upper bound) mixing rules;
-    // see the ComputeThermalState doc comment in LowMach.H. Both bounds
-    // are guaranteed equal to `conductivity` (and to each other) whenever
-    // at most one phase/species is present, so this is exactly the
-    // harmonic value (blend has no effect) away from a diffuse interface.
-    const Set::Scalar conductivity_perp =
-        interface_conductivity_blend <= 0.0 ? conductivity_perp_harmonic :
-        conductivity_perp_harmonic <= 0.0 ? conductivity_perp_harmonic :
-        conductivity <= 0.0 ? conductivity_perp_harmonic :
-        std::exp((1.0 - interface_conductivity_blend) *
-                    std::log(conductivity_perp_harmonic) +
-                interface_conductivity_blend * std::log(conductivity));
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
             conductivity, cp, conductivity_perp};
 }
@@ -1662,9 +1640,7 @@ LowMach::ComputeThermochemicalSource(
     const auto& [gas_data, nspecies, ngas_species, density_floor,
                  pressure_reference, condensed_thermal_transport,
                  condensed_specific_heat, condensed_thermal_conductivity,
-                 condensed_inverse_reference_density,
-                 interface_conductivity_blend] = thermal;
-    amrex::ignore_unused(interface_conductivity_blend);
+                 condensed_inverse_reference_density] = thermal;
 
     // return values
     Model::Chemistry::SpeciesArray species{};

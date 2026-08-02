@@ -90,8 +90,7 @@ public:
 
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
-        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*,
-        Set::Scalar>;
+        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*>;
     using ChemistryData = amrex::GpuTuple<
         bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
@@ -106,21 +105,11 @@ public:
     // properties; `conductivity_perp` is the inverse-weighted
     // (harmonic/series) mixing rule, used as the conductivity coefficient of
     // the diffusion equation normal to the interface (see Ettrich et al.
-    // 2014, Model. Simul. Mater. Sci. Eng. 22 085006, eq 28), optionally
-    // blended toward the arithmetic `conductivity` by
-    // `interface_conductivity_blend` in [0,1] (0 = pure harmonic/series,
-    // the physical lower bound and the default; 1 = pure arithmetic, the
-    // physical upper bound for a two-phase mixture). This blend is a
-    // geometric interpolation between those two bounds, and both bounds
-    // coincide with the single-phase conductivity whenever only one phase
-    // (or condensed species) is present in a cell -- i.e. it is inert away
-    // from a diffuse interface by construction, so it cannot change bulk
-    // solid/gas temperatures or the LowMachConduction analytic single-phase
-    // solution. The transient (mass) coefficient is always `heat_capacity`
-    // (arithmetic), regardless of flux direction: volumetric heat capacity
-    // is not a resistance, so it has no harmonic/series counterpart -- the
-    // energy stored in a control volume is simply the volume-weighted sum
-    // of each phase's energy.
+    // 2014, Model. Simul. Mater. Sci. Eng. 22 085006, eq 28). The transient
+    // (mass) coefficient is always `heat_capacity` (arithmetic), regardless
+    // of flux direction: volumetric heat capacity is not a resistance, so it
+    // has no harmonic/series counterpart -- the energy stored in a control
+    // volume is simply the volume-weighted sum of each phase's energy.
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static amrex::GpuTuple<
         Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar,
@@ -261,12 +250,6 @@ protected:
     // the effect of the normal-direction mixing rule be isolated from every
     // other change on this branch.
     bool interface_normal_harmonic = true;
-    // Blend factor in [0,1] interpolating the interface-normal conductivity
-    // (see ComputeThermalState) from pure harmonic/series (0, default) to
-    // pure arithmetic/parallel (1) mixing. Only affects cells where both
-    // gas and condensed phases (or more than one condensed species) are
-    // simultaneously present -- inert in bulk regions by construction.
-    Set::Scalar interface_conductivity_blend = 0.0;
     Set::Scalar finite_solid_reference_density = 1.0;
     Set::Scalar finite_solid_eta_threshold = 0.5;
     Set::Scalar finite_solid_J_floor = 1.0e-6;
