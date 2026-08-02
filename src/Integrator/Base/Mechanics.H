@@ -211,7 +211,11 @@ protected:
         amrex::LPInfo info;
         if (m_max_coarsening_level >= 0)
             info.setMaxCoarseningLevel(m_max_coarsening_level);
-        Operator::Elastic<MODEL::sym> elastic_op(Geom(0, finest_level), grids, DistributionMap(0, finest_level), info);
+        const bool conservative_face_flux =
+            solver.usesConservativeFaceFlux() && !psi_on;
+        Operator::Elastic<MODEL::sym> elastic_op(
+            Geom(0, finest_level), grids, DistributionMap(0, finest_level),
+            info, conservative_face_flux);
         elastic_op.SetUniform(false);
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
