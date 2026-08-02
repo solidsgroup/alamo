@@ -14,6 +14,10 @@
 #@ [2d-pressure-4Pa]
 #@ check-file = reference/pressure-4Pa.csv
 #@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=4.0 Gas.density.ic.expression.constant.P=4.0
+#@
+#@ [2d-pressure-1Pa-softvoid]
+#@ check-file = reference/pressure-1Pa.csv
+#@ args = elastic.apply_fluid_pressure=1 pressure.ic.constant.value=1.0 Gas.density.ic.expression.constant.P=1.0 elastic.void.model.mu=0.014 elastic.void.model.kappa=0.015 elastic.max_coarsening_level=2
 
 # Analytic validation of the LowMach elastic solve driven by the local fluid
 # pressure (elastic.apply_fluid_pressure, see LowMach::UpdateModel), as
@@ -35,9 +39,23 @@
 # plane-strain linear elasticity -- so the above is the exact discrete
 # target, not an approximation (see Readme.rst for the derivation).
 #
-# Three sub-cases: pressure off (control -- must give zero displacement),
-# and two different pressure magnitudes (1 Pa, 4 Pa) so the sign/magnitude/
-# linearity of the response can all be checked independently.
+# Four sub-cases: pressure off (control -- must give zero displacement), two
+# different pressure magnitudes (1 Pa, 4 Pa) so the sign/magnitude/linearity
+# of the response can all be checked independently, and a repeat of the 1 Pa
+# case with elastic.void.model.mu/kappa set (LowMach::UpdateModel's soft
+# "ersatz" void model, see input.lm.ap_htpb_packed_elastic) at 1e-4 of the
+# solid moduli -- soft enough to leave the solid's analytic solution
+# unaffected, confirming the void-model/no-psi code path reduces to the same
+# answer as the default psi-masked path.
+#
+# The softvoid sub-case also sets elastic.max_coarsening_level=2: at this
+# test's dx (1e-4 m) and diffuse interface width (2 cells), MLMG genuinely
+# diverges (not just slowly converges) at a solid/void modulus contrast as
+# low as ~1e2-1e3 unless multigrid coarsening is capped -- coarsening
+# through a handful of cells spanning a factor-1e4 coefficient jump produces
+# garbage coarse-level operators. This matches Operator::Elastic's
+# documented heterogeneous-media MLMG-divergence gap (see above) and is why
+# input.lm.ap_htpb_packed_elastic also sets elastic.max_coarsening_level.
 
 plot_file = tests/LowMachElasticPressure/output
 amr.plot_dt = 2.0e-7_s

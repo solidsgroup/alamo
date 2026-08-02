@@ -99,8 +99,8 @@ pressure.
 What the test checks
 ---------------------
 
-Three sub-cases, distinguished by ``elastic.apply_fluid_pressure`` and the
-applied pressure ``P`` (1 Pa and 4 Pa):
+Four sub-cases, distinguished by ``elastic.apply_fluid_pressure``, the
+applied pressure ``P`` (1 Pa and 4 Pa), and whether a soft void model is set:
 
 - ``2d-pressure-off``: the fluid-pressure branch disabled and
   ``elastic.traction = 0`` -- the interfacial RHS is identically zero, so
@@ -120,6 +120,27 @@ applied pressure ``P`` (1 Pa and 4 Pa):
   5. ``sigma_xx/sigma_yy ~= lambda/M`` (asserted within 5%; achieved
      ~1-4%, the loosest of the checks -- likely residual diffuse-interface/
      discretization effects on the shear-coupled component).
+- ``2d-pressure-1Pa-softvoid``: repeats ``2d-pressure-1Pa`` with
+  ``elastic.void.model.mu/kappa`` set to 1e-4 of the solid's (which also
+  disables the ``psi`` mask -- see ``LowMach::Parse``) and
+  ``elastic.max_coarsening_level=2``, checked against the *same* reference
+  CSV as ``2d-pressure-1Pa``. This exercises the soft "void modulus" path
+  added for ``input.lm.ap_htpb_packed_elastic``, where masking the void
+  purely via ``psi``'s ``1e-8`` floor reintroduced the full solid modulus
+  there and made the MLMG solve diverge.
+
+  The coarsening cap is not optional here: at this test's grid spacing and
+  diffuse interface width (~2 cells), MLMG genuinely diverges -- not just
+  converges slowly -- once the solid/void contrast passes roughly ``1e2``
+  to ``1e3``, unless coarsening is capped (coarsening through a couple of
+  cells spanning a factor-``1e4`` coefficient jump produces garbage
+  coarse-level operators). This is the same heterogeneous-media
+  MLMG-divergence gap noted above, and is why
+  ``input.lm.ap_htpb_packed_elastic`` also sets
+  ``elastic.max_coarsening_level``. Aside from the coarsening cap, the void
+  modulus here is soft enough to leave the solid's analytic solution
+  unaffected, confirming
+  that path reduces to the same answer as the default psi-masked one.
 
 Boundary-node caveat
 ---------------------
