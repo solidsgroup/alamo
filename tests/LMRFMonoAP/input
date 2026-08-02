@@ -41,6 +41,66 @@
 #@ args = pressure.ic.constant.value=6.0e6
 #@ args = pressure.bc.constant.val.yhi=6.0e6
 #@
+# The following high-pressure cases (above 6 MPa) are disabled: at
+# amr.max_level=1 the solver either aborts (MLMG failed) or stalls with
+# dt collapsed to ~1e-10 s once the interface burns through the domain,
+# so they don't run reliably as automated tests. The extracted regression
+# rates from partial output still matched AP_reg_rate.csv within 15%; see
+# tests/LMRFMonoAP/CALIBRATION_HANDOFF.md.
+##@ [2d-6.99MPa]
+##@ args = Final.density.ic.expression.constant.P=6.99e6
+##@ args = component_density.bc.expression.constant.P=6.99e6
+##@ args = pressure.ic.constant.value=6.99e6
+##@ args = pressure.bc.constant.val.yhi=6.99e6
+##@
+##@ [2d-8.27MPa]
+##@ args = Final.density.ic.expression.constant.P=8.27e6
+##@ args = component_density.bc.expression.constant.P=8.27e6
+##@ args = pressure.ic.constant.value=8.27e6
+##@ args = pressure.bc.constant.val.yhi=8.27e6
+##@
+##@ [2d-8.37MPa]
+##@ args = Final.density.ic.expression.constant.P=8.37e6
+##@ args = component_density.bc.expression.constant.P=8.37e6
+##@ args = pressure.ic.constant.value=8.37e6
+##@ args = pressure.bc.constant.val.yhi=8.37e6
+##@
+##@ [2d-10.34MPa]
+##@ args = Final.density.ic.expression.constant.P=10.34e6
+##@ args = component_density.bc.expression.constant.P=10.34e6
+##@ args = pressure.ic.constant.value=10.34e6
+##@ args = pressure.bc.constant.val.yhi=10.34e6
+##@
+##@ [2d-10.44MPa]
+##@ args = Final.density.ic.expression.constant.P=10.44e6
+##@ args = component_density.bc.expression.constant.P=10.44e6
+##@ args = pressure.ic.constant.value=10.44e6
+##@ args = pressure.bc.constant.val.yhi=10.44e6
+##@
+##@ [2d-11.72MPa]
+##@ args = Final.density.ic.expression.constant.P=11.72e6
+##@ args = component_density.bc.expression.constant.P=11.72e6
+##@ args = pressure.ic.constant.value=11.72e6
+##@ args = pressure.bc.constant.val.yhi=11.72e6
+##@
+##@ [2d-12.41MPa]
+##@ args = Final.density.ic.expression.constant.P=12.41e6
+##@ args = component_density.bc.expression.constant.P=12.41e6
+##@ args = pressure.ic.constant.value=12.41e6
+##@ args = pressure.bc.constant.val.yhi=12.41e6
+##@
+##@ [2d-13.10MPa]
+##@ args = Final.density.ic.expression.constant.P=13.10e6
+##@ args = component_density.bc.expression.constant.P=13.10e6
+##@ args = pressure.ic.constant.value=13.10e6
+##@ args = pressure.bc.constant.val.yhi=13.10e6
+##@
+##@ [2d-13.79MPa]
+##@ args = Final.density.ic.expression.constant.P=13.79e6
+##@ args = component_density.bc.expression.constant.P=13.79e6
+##@ args = pressure.ic.constant.value=13.79e6
+##@ args = pressure.bc.constant.val.yhi=13.79e6
+##@
 #@ [2d-cuda-smoke]
 #@ exe = lowmach
 #@ dim = 2

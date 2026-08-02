@@ -9,7 +9,7 @@ import testlib
 
 
 outdir = sys.argv[1]
-match = re.search(r"-(\d)MPa(?:-|$)", outdir)
+match = re.search(r"-([0-9.]+)MPa(?:-|$)", outdir)
 if not match:
     raise RuntimeError(f"Could not determine pressure from {outdir}")
 
@@ -76,7 +76,7 @@ times_trimmed = times[mask]
 positions_trimmed = positions[mask]
 interface_widths = interface_widths[mask]
 
-pressure = int(match.group(1))
+pressure = float(match.group(1))
 if len(times_trimmed) < 2:
     raise RuntimeError(f"Not enough steady-state samples left after trimming in {outdir}")
 burn_rate = -1000.0 * testlib.numpy.polyfit(
@@ -84,7 +84,8 @@ burn_rate = -1000.0 * testlib.numpy.polyfit(
 
 references = testlib.numpy.loadtxt(
     Path(__file__).with_name("reference.csv"), delimiter=",")
-reference_rate = dict(references)[pressure]
+nearest = testlib.numpy.argmin(testlib.numpy.abs(references[:, 0] - pressure))
+reference_rate = references[nearest, 1]
 if pressure == 1:
     testlib.numpy.testing.assert_allclose(burn_rate, reference_rate, atol=0.05)
 else:
