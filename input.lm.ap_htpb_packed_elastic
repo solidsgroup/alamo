@@ -38,6 +38,23 @@
 # below caps how far MG coarsens past the interface and is what actually
 # restores convergence; do not remove it without re-verifying convergence.
 #
+# How soft to make the void: tests/LowMachElasticPressure's
+# "Void modulus vs. solver stability and accuracy" sweep (Readme.rst) swept
+# solid/void contrast from 1x to 1e5x, capped and uncapped. Findings that
+# drove the void.model values below: (1) with the coarsening cap, MLMG stays
+# stable with a flat ~12-18 iterations out to ~30,000x contrast, then costs
+# more iterations near ~33,000x, and fails by 100,000x; (2) accuracy vs.
+# contrast is NOT monotonic -- worst around contrast 3-30x (~1%), improving
+# as contrast grows, and flattening to a ~0.3-0.5% discretization floor by
+# ~1,000-3,000x, past which softer buys no more accuracy. This file
+# previously used a single void.model.mu/kappa = 0.1, which put HTPB's
+# kappa contrast at ~833,000x -- past the entire tested range, well beyond
+# where even the capped solver is known to fail. void.model.mu/kappa below
+# are chosen so every one of AP/HTPB's mu/kappa contrasts against the void
+# lands in [~250x, ~2,100x]: inside the accuracy plateau (or its
+# near-plateau approach), and with a >10x stability margin below the
+# ~30,000x mark where the capped solver still ran flat.
+#
 # Tolerance-based solving (elastic.tol_rel/tol_abs, set explicitly below
 # rather than left at default) is used instead of a fixed iteration count so
 # a non-converged solve is visible rather than silently accepted, but expect
@@ -128,14 +145,18 @@ AP_solid.elastic.model.kappa = 1.00e4 # 1.00e10
 HTPB_solid.elastic.model.mu    = 1.67e2 # 1.67e6
 HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
 
-# Soft void: the gas region gets a small but nonzero modulus (0.1, in the
-# same 1e-3-scaled units as the solid moduli above) instead of being masked
-# by psi's 1e-8 floor. See the WARNING above -- this replaces the void's
+# Soft void: the gas region gets a small but nonzero modulus (in the same
+# 1e-3-scaled units as the solid moduli above) instead of being masked by
+# psi's 1e-8 floor. See the WARNING above -- this replaces the void's
 # effective modulus of "full AP stiffness x 1e-8" with a true soft-material
-# contrast (~1e3-1e5 against the moduli above, matching tests/ElasticSoftVoid)
-# and disables psi entirely (LowMach::Parse).
-elastic.void.model.mu    = 0.1
-elastic.void.model.kappa = 0.1
+# contrast and disables psi entirely (LowMach::Parse). Chosen per the
+# tests/LowMachElasticPressure sweep so every solid modulus above sits
+# ~250x-2,100x above these values: AP mu ~1,890x, AP kappa ~250x, HTPB mu
+# ~330x, HTPB kappa ~2,080x -- inside/near the sweep's accuracy plateau and
+# with >10x stability margin below where the capped solver was still
+# verified stable (~30,000x).
+elastic.void.model.mu    = 0.5
+elastic.void.model.kappa = 40.0
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
