@@ -72,7 +72,7 @@ public:
         Util::Assert(INFO, TEST(value.nspecies > 0 && value.nspecies <= MAX_SPECIES),
             "Chemistry requires between 1 and ", MAX_SPECIES, " gas species.");
         value.split_chemistry = false;
-        pp.select<OBJ...>("model", value, value.nspecies);
+        pp.select<OBJ...>("model", value, pp.forward_args(value.nspecies));
         pp.select<
             Solver::Local::ODE::ForwardEuler,
             Solver::Local::ODE::BackwardEuler>("solver", value.solver);

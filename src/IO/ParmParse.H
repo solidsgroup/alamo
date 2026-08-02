@@ -46,6 +46,13 @@
 //    |                                 | available, it is indicated by a green badge, e.g.               | 
 //    |                                 | :bdg-success:`1.0`.                                             | 
 //    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_switch`     | Validate a string against allowed values and run the branch     |
+//    |                                 | lambda associated with the selected value.                     |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_if`         | Read a Boolean value and run the supplied lambda when enabled.  |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_if_else`    | Read a Boolean value and run the corresponding supplied lambda. |
+//    +---------------------------------+-----------------------------------------------------------------+
 //    | :bdg-success:`query_file`       | Read in a string that defines a file name.                      |
 //    |                                 | Check to make sure that the file exists and is a regular file,  |
 //    |                                 | and print an informative error message if not (this can be      |
@@ -89,19 +96,32 @@
 
 #include <filesystem>
 #include <exception>
+#include <functional>
+#include <iostream>
 #include <list>
+#include <optional>
+#include <source_location>
+#include <sstream>
 #include <stdexcept>
+#include <string>
+#include <tuple>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "Util/Util.H"
 #include "Unit/Unit.H"
 #include "Set/Base.H"
+#include "IO/InputScraper.H"
 #include "AMReX_ParmParse.H"
 
 
 #define pp_query_required(...) pp.query_required(__VA_ARGS__)
 #define pp_query_default(...) pp.query_default(__VA_ARGS__)
 #define pp_query_validate(...) pp.query_validate(__VA_ARGS__)
+#define pp_query_switch(...) pp.query_switch(__VA_ARGS__)
+#define pp_query_if(...) pp.query_if(__VA_ARGS__)
+#define pp_query_if_else(...) pp.query_if_else(__VA_ARGS__)
 #define pp_query_file(...) pp.query_file(__VA_ARGS__)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__)
 #define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__)
@@ -115,7 +135,28 @@ namespace IO
 {
 class ParmParse : public amrex::ParmParse
 {
+public:
+    using InputNode = InputScraper::InputNode;
+    template<typename... Args>
+    struct ForwardArgs
+    {
+        std::tuple<Args...> values;
+
+        explicit ForwardArgs(Args... args) : values(std::forward<Args>(args)...) {}
+    };
+
+    template<typename Arg>
+    using ForwardArgStorage = std::conditional_t<
+        std::is_lvalue_reference_v<Arg>, Arg, std::remove_cvref_t<Arg>>;
+
+    template<typename... Args>
+    static ForwardArgs<ForwardArgStorage<Args>...> forward_args(Args&&... args)
+    {
+        return ForwardArgs<ForwardArgStorage<Args>...>(std::forward<Args>(args)...);
+    }
+
 private:
+    friend class InputScraper;
     void Define() 
     {
         if (checked_for_input_files) return;
@@ -130,13 +171,112 @@ private:
         checked_for_input_files = true;
     }
     static bool checked_for_input_files;
+    void RecordInput(   std::string name,
+                        std::string directive,
+                        const std::source_location &location,
+                        std::vector<std::string> options = {},
+                        std::optional<std::string> default_value = std::nullopt,
+                        bool has_unnamed_default = false);
+    void RecordConstraint(  std::string kind,
+                            int count,
+                            std::vector<std::string> members,
+                            std::vector<std::string> units,
+                            const std::source_location &location);
+    void PrintTraversalBranch(std::string name, const std::string &value);
+    void RecordInputAndContinue(
+        std::string name,
+        const std::source_location &location,
+        std::vector<std::string> options = {},
+        std::optional<std::string> default_value = std::nullopt,
+        bool has_unnamed_default = false,
+        const std::source_location &handler_location = std::source_location::current())
+    {
+        if (InTraversalMode())
+            RecordInput(name, InputScraper::DirectiveName(handler_location), location,
+                        std::move(options), std::move(default_value),
+                        has_unnamed_default);
+    }
+    using TraversalBranchScope = InputScraper::TraversalBranchScope;
+
+    template<typename T, typename... Args>
+    static T *ConstructSelected(ForwardArgs<Args...> &args, ParmParse &pp, const std::string &name)
+    {
+        return std::apply(
+            [&](auto &...constructor_args) -> T *
+            {
+                return new T(constructor_args..., pp, name);
+            },
+            args.values);
+    }
+
+    template<typename T, typename = void>
+    struct HasSelectName : std::false_type {};
+
+    template<typename T>
+    struct HasSelectName<T, std::void_t<decltype(T::name)>> : std::true_type {};
+
+    template<typename T, typename... Args>
+    static constexpr bool HasSelectedConstructor =
+        std::is_constructible_v<T, std::add_lvalue_reference_t<Args>...,
+                                ParmParse &, std::string>;
+
+    template<typename T, typename... Args>
+    static T *ConstructSelectDefault(ForwardArgs<Args...> &args)
+    {
+        return std::apply(
+            [&](auto &...constructor_args) -> T *
+            {
+                static_assert(  std::is_constructible_v<T, decltype(constructor_args)...>,
+                                "The unnamed select default cannot be constructed from forward_args");
+                return new T(constructor_args...);
+            },
+            args.values);
+    }
+
+    template<typename T, typename... Args>
+    static void AppendSelectName(std::vector<std::string> &names, ForwardArgs<Args...> &)
+    {
+        if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+            names.emplace_back(T::name);
+    }
+
+    template<typename T, typename... Args, typename PTRTYPE>
+    static bool TrySelectNamed( const std::string &type, const std::string &name,
+                                PTRTYPE *&value, ForwardArgs<Args...> &args,
+                                ParmParse &pp)
+    {
+        if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+        {
+            if (type == T::name)
+            {
+                value = ConstructSelected<T>(args, pp, name + "." + std::string(T::name));
+                return true;
+            }
+        }
+        return false;
+    }
     
 public:
+    static void SetTraversalMode(bool enabled);
+    static bool InTraversalMode();
+    static bool ShouldExecute();
+    static const InputNode &InputTree();
+    static void ClearInputTree();
+    static void SetTraversalOutputFile(std::string path);
+    static const std::string &TraversalOutputFile();
+    static void WriteInputTreeJson(std::ostream &os);
+    static void WriteInputTreeJsonFile(const std::string &path);
+    static bool IgnoreInTraversalMode(
+        std::string note = "This input parser is not yet compliant with traversal mode; its inputs are not fully documented.",
+        const std::source_location &location = std::source_location::current());
+
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
     ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
     std::string getPrefix() const {return m_prefix;};
-    void ignore(std::string name)
+    void ignore(std::string name,
+                const std::source_location & location = std::source_location::current())
     {
+        (void)location;
         (void)amrex::ParmParse::contains(name.c_str());
     }
     
@@ -158,21 +298,27 @@ public:
     }
 
 
-    void forbid(std::string name, std::string explanation)
+    void forbid(std::string name, std::string explanation,
+                const std::source_location & location = std::source_location::current())
     {
+        (void)location;
         if (amrex::ParmParse::contains(full(name).c_str()))
         {
-            Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
         }
         std::set<std::string> subs = amrex::ParmParse::getEntries(full(name));
         if (subs.size())
         {
-            Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
         }
     }
 
-    bool contains(std::string name)
+    bool contains(  std::string name,
+                    const std::source_location & location = std::source_location::current())
     {
+        (void)location;
         if (amrex::ParmParse::contains(name.c_str()))
             return true;
         if (amrex::ParmParse::contains(full(name).c_str()))
@@ -190,109 +336,175 @@ public:
         return false;
     }
 
-    int queryunit (std::string name, Unit &value)
+    template<typename T>
+    int query(  std::string name, T & value,
+                const std::source_location & location = std::source_location::current())
     {
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue(name, location, {"0", "1"});
+        else
+            RecordInputAndContinue(name, location);
+        if (InTraversalMode() && !contains(name.c_str())) return 0;
+        return amrex::ParmParse::query(name.c_str(), value);
+    }
+
+    int queryunit ( std::string name, Unit &value,
+                    const std::source_location & location = std::source_location::current())
+    {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode() && !contains(name.c_str())) return 0;
         try
         {
             std::string strvalue;
             int retval = amrex::ParmParse::query(name.c_str(),strvalue);
             value = Unit::Parse(strvalue);
-            Util::DebugMessage(INFO,full(name),": ",strvalue," ==> ",value);
             return retval;
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
-    int queryunit (std::string name, Unit &value, const Unit type)
+    int queryunit ( std::string name, Unit &value, const Unit type,
+                    const std::source_location & location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode() && !contains(name.c_str())) return 0;
         try
         {
-            int retval = queryunit(name,value);
+            int retval = queryunit(name,value, location);
             if (!value.isType(type) && !value.isType(Unit::Less()))
             {
-                Util::ParmParseException(INFO, full(name),
-                                "value requiested had wrong units:", value.normalized_unitstring(),
-                                ", units requested are of SI type ",type.normalized_unitstring());
+                if (!InTraversalMode())
+                    Util::ParmParseException(   INFO, full(name),
+                                                "value requiested had wrong units:", value.normalized_unitstring(),
+                                                ", units requested are of SI type ",type.normalized_unitstring());
             }
             return retval;
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryunit (std::string name, Set::Scalar &value, const Unit type)
+    int queryunit ( std::string name, Set::Scalar &value, const Unit type,
+                    const std::source_location & location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode() && !contains(name.c_str())) return 0;
         try
         {
             Unit read;
-            int retval = queryunit(name,read,type);
+            int retval = queryunit(name,read,type, location);
             value = read.normalized_value();
             return retval;
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,full(name), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), e.what());
         }
         return -1;
     }
 
     template<typename T> 
-    int query_required( std::string name, T & value)
+    int query_required( std::string name, T & value,
+                        const std::source_location & location = std::source_location::current())
     {
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue(name, location, {"0", "1"});
+        else
+            RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (!contains(name.c_str())) return 0;
+            return amrex::ParmParse::query(name.c_str(), value);
+        }
         try
         {
             if (!contains(name.c_str()))
             {
-                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+                if (!InTraversalMode())
+                    Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
             }
             return query(name.c_str(),value);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
     template<typename T> 
-    int query_required( std::string name, T & value, const Unit type)
+    int query_required( std::string name, T & value, const Unit type,
+                        const std::source_location & location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (!contains(name.c_str())) return 0;
+            std::string strvalue;
+            int retval = amrex::ParmParse::query(name.c_str(), strvalue);
+            Unit read = Unit::Parse(strvalue);
+            value = read.normalized_value();
+            return retval;
+        }
         try
         {
             if (!contains(name.c_str()))
             {
-                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+                if (!InTraversalMode())
+                    Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
             }
-            return queryunit(name.c_str(), value, type);
+            return queryunit(name.c_str(), value, type, location);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
     template<typename T>
-    int query_default(  std::string name, T & value, T defaultvalue)
+    int query_default(  std::string name, T & value, T defaultvalue,
+                        const std::source_location & location = std::source_location::current())
     {
+        if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+            RecordInputAndContinue( name, location, {"0", "1"},
+                                    InputScraper::InputValueString(defaultvalue));
+        else
+            RecordInputAndContinue( name, location, {},
+                                    InputScraper::InputValueString(defaultvalue));
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::query(name.c_str(), value);
+            value = defaultvalue;
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -303,39 +515,72 @@ public:
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     } 
 
     template<typename T>
-    int query_default(  std::string name, T & value, std::string defaultvalue, const Unit type)
+    int query_default(  std::string name, T & value, std::string defaultvalue, const Unit type,
+                        const std::source_location & location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, defaultvalue);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::string strvalue;
+                int retval = amrex::ParmParse::query(name.c_str(), strvalue);
+                Unit read = Unit::Parse(strvalue);
+                value = read.normalized_value();
+                return retval;
+            }
+            Unit read = Unit::Parse(defaultvalue);
+            value = read.normalized_value();
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
             {
                 add(name.c_str(),defaultvalue);
             }
-            return queryunit(name.c_str(),value,type);
+            return queryunit(name.c_str(),value,type, location);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     } 
 
-    int query_validate( std::string name, int & value, std::vector<int> possibleintvals)
+    int query_validate( std::string name, int & value, std::vector<int> possibleintvals,
+                        const std::source_location & location = std::source_location::current())
     {
+        std::vector<std::string> options;
+        for (const auto &possibleval : possibleintvals)
+            options.push_back(std::to_string(possibleval));
+        RecordInputAndContinue(name, location, options);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::query(name.c_str(), value);
+            value = possibleintvals[0];
+            return 0;
+        }
+
         try
         {
             // First value is accepted by default...
@@ -363,22 +608,38 @@ public:
             for (unsigned int i = 1; i < possibleintvals.size(); i++)
                 ss << "," << possibleintvals[i];
 
-            Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
 
-    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault)
+    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault,
+                        const std::source_location &location = std::source_location::current())
     {        
+        std::vector<std::string> options;
+        for (const auto &possibleval : possiblecharvals)
+            options.push_back(std::string(possibleval));
+        RecordInputAndContinue(name, location, options);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::query(name.c_str(), value);
+            value = std::string(possiblecharvals[0]);
+            return 0;
+        }
+
         try
         {
             // if not using default values, then the input must be specified
@@ -386,7 +647,8 @@ public:
             {
                 if (!amrex::ParmParse::contains(name.c_str()))
                 {
-                    Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+                    if (!InTraversalMode())
+                        Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
                 }
             }
 
@@ -417,21 +679,112 @@ public:
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
 
         return -1;
     }
 
-    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals)
+    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals,
+                        const std::source_location &location = std::source_location::current())
     {
         try
         {
-            return query_validate(name,value,possiblecharvals,true);
+            return query_validate(name,value,possiblecharvals,true, location);
+        }
+        catch (std::runtime_error & e)
+        {
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    int query_switch(   std::string name,
+                        std::initializer_list<std::pair<std::string, std::function<void()>>> cases,
+                        const std::source_location &location = std::source_location::current())
+    {
+        std::string value;
+        std::vector<std::string> possiblevals;
+        possiblevals.reserve(cases.size());
+        for (const auto &entry : cases)
+            possiblevals.push_back(entry.first);
+        {
+            RecordInputAndContinue(name, location, possiblevals);
+        }
+
+        auto set_switch_value = [&](const std::string &switch_value)
+        {
+            this->remove(name.c_str());
+            this->add(name.c_str(), switch_value);
+        };
+
+        auto print_switch_branch = [&](const std::string &switch_value)
+        {
+            PrintTraversalBranch(name, switch_value);
+        };
+
+        auto run_case = [&](const std::string &switch_value, auto &&action)
+        {
+            set_switch_value(switch_value);
+            print_switch_branch(switch_value);
+            TraversalBranchScope branch(*this, name, switch_value);
+            action();
+        };
+
+        if (InTraversalMode())
+        {
+            std::string original_value;
+            bool had_original_value = amrex::ParmParse::contains(name.c_str());
+            if (had_original_value)
+                amrex::ParmParse::query(name.c_str(), original_value);
+
+            for (const auto &entry : cases)
+                run_case(entry.first, entry.second);
+
+            if (had_original_value)
+                set_switch_value(original_value);
+            else
+                this->remove(name.c_str());
+            return 0;
+        }
+
+        int retval = -1;
+        try
+        {
+            if (!amrex::ParmParse::contains(name.c_str()))
+            {
+                add(name.c_str(), possiblevals[0]);
+            }
+
+            retval = amrex::ParmParse::query(name.c_str(),value);
+
+            bool ok = false;
+            for (const auto & possibleval : possiblevals)
+            {
+                if (value == possibleval) ok = true;
+            }
+
+            if (!ok)
+            {
+                std::stringstream ss;
+                ss << possiblevals[0];
+                for (unsigned int i = 1; i < possiblevals.size(); i++)
+                    ss << "," << possiblevals[i];
+
+                Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
+            }
         }
         catch (std::runtime_error & e)
         {
@@ -441,112 +794,279 @@ public:
         {
             Util::ParmParseException(INFO,full(name));
         }
-        return -1;
+
+        bool matched = false;
+        for (const auto &entry : cases)
+        {
+            if (!matched && value == entry.first)
+            {
+                entry.second();
+                matched = true;
+            }
+        }
+
+        if (!matched)
+        {
+            Util::ParmParseException(INFO,full(name),value," not a valid value for ",full(name));
+        }
+
+        return retval;
     }
 
-    
+    template <typename Action>
+    int query_if(   std::string name, Action &&action,
+                    const std::source_location &location = std::source_location::current())
+    {
+        static_assert(  std::is_invocable_v<Action &>,
+                        "query_if action must be callable without arguments");
+
+        RecordInputAndContinue(name, location, {"0", "1"}, "0");
+
+        auto set_value = [&](const std::string &value)
+        {
+            this->remove(name.c_str());
+            this->add(name.c_str(), value);
+        };
+
+        if (InTraversalMode())
+        {
+            std::string original_value;
+            bool had_original_value = amrex::ParmParse::contains(name.c_str());
+            if (had_original_value)
+                amrex::ParmParse::query(name.c_str(), original_value);
+
+            set_value("1");
+            PrintTraversalBranch(name, "1");
+            {
+                TraversalBranchScope branch(*this, name, "1");
+                action();
+            }
+
+            if (had_original_value)
+                set_value(original_value);
+            else
+                this->remove(name.c_str());
+            return 0;
+        }
+
+        int enabled = 0;
+        int retval = amrex::ParmParse::query(name.c_str(), enabled);
+        if (retval && enabled != 0 && enabled != 1)
+            Util::ParmParseException(INFO, full(name), "expected 0 or 1 but got ", enabled);
+        if (enabled)
+            action();
+        return retval;
+    }
+
+    template <typename TrueAction, typename FalseAction>
+    int query_if_else(  std::string name,
+                        TrueAction &&true_action,
+                        FalseAction &&false_action,
+                        const std::source_location &location = std::source_location::current())
+    {
+        static_assert(  std::is_invocable_v<TrueAction &>,
+                        "query_if_else true action must be callable without arguments");
+        static_assert(  std::is_invocable_v<FalseAction &>,
+                        "query_if_else false action must be callable without arguments");
+
+        RecordInputAndContinue(name, location, {"0", "1"}, "0");
+
+        auto set_value = [&](const std::string &value)
+        {
+            this->remove(name.c_str());
+            this->add(name.c_str(), value);
+        };
+
+        auto run_action = [&](const std::string &value, auto &&action)
+        {
+            set_value(value);
+            PrintTraversalBranch(name, value);
+            TraversalBranchScope branch(*this, name, value);
+            action();
+        };
+
+        if (InTraversalMode())
+        {
+            std::string original_value;
+            bool had_original_value = amrex::ParmParse::contains(name.c_str());
+            if (had_original_value)
+                amrex::ParmParse::query(name.c_str(), original_value);
+
+            run_action("0", false_action);
+            run_action("1", true_action);
+
+            if (had_original_value)
+                set_value(original_value);
+            else
+                this->remove(name.c_str());
+            return 0;
+        }
+
+        int enabled = 0;
+        int retval = amrex::ParmParse::query(name.c_str(), enabled);
+        if (retval && enabled != 0 && enabled != 1)
+            Util::ParmParseException(INFO, full(name), "expected 0 or 1 but got ", enabled);
+        if (enabled)
+            true_action();
+        else
+            false_action();
+        return retval;
+    }
+
     // special case for strings
-    int query_default(  std::string name, std::string & value, const char *defaultvalue)
+    int query_default(  std::string name, std::string & value, const char *defaultvalue,
+                        const std::source_location &location = std::source_location::current())
     {
         try
         {
-            return query_default(name, value, std::string(defaultvalue));
+            return query_default(name, value, std::string(defaultvalue), location);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
     // special case for bools
-    int query_default(  std::string name, int & value, bool defaultvalue)
+    int query_default(  std::string name, int & value, bool defaultvalue,
+                        const std::source_location &location = std::source_location::current())
     {
         try
         {
             int defaultint = 0;
             if (defaultvalue) defaultint = 1;
-            return query_default(name, value, defaultint);
+            return query_default(name, value, defaultint, location);
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
 
     // validate filenames
-    int query_file( std::string name, std::string & value, bool copyfile, bool checkfile)
+    int query_file( std::string name, std::string & value, bool copyfile, bool checkfile,
+                    const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (!contains(name.c_str())) return 0;
+            return amrex::ParmParse::query(name.c_str(), value);
+        }
         try
         {
             if (!contains(name.c_str()))
             {
-                Util::ParmParseException(INFO,full(name),full(name)," must be specified");
+                if (!InTraversalMode())
+                    Util::ParmParseException(INFO,full(name),full(name)," must be specified");
             }
 
             int retval = query(name.c_str(),value);
 
-            if (amrex::ParallelDescriptor::IOProcessor())
+            if (ShouldExecute() && amrex::ParallelDescriptor::IOProcessor())
             {
                 if ( checkfile && ! std::filesystem::exists(value))
                 {
-                    Util::ParmParseException(INFO,full(name),full(name)," does not exist");
+                    if (!InTraversalMode())
+                        Util::ParmParseException(INFO,full(name),full(name)," does not exist");
                 }
                 if ( checkfile && !std::filesystem::is_regular_file(value))
                 {
-                    Util::ParmParseException(INFO,full(name),full(name)," is not a regular file");
+                    if (!InTraversalMode())
+                        Util::ParmParseException(INFO,full(name),full(name)," is not a regular file");
                 }
                 if ( copyfile )
                 {
-                    Util::CopyFileToOutputDir(value, true, full(name));
+                    if (!InTraversalMode())
+                        Util::CopyFileToOutputDir(value, true, full(name));
                 }
             }
             return retval;
         }
         catch (std::runtime_error & e)
         {
-            Util::ParmParseException(INFO,full(name),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int query_file( std::string name, std::string & value, bool copyfile)
+    int query_file( std::string name, std::string & value, bool copyfile,
+                    const std::source_location & location = std::source_location::current())
     {
-        return query_file(name,value,copyfile,true);
+        return query_file(name,value,copyfile,true, location);
     }
-    int query_file( std::string name, std::string & value)
+    int query_file( std::string name, std::string & value,std::source_location loc = std::source_location::current())
     {
-        return query_file(name,value,true,true);
+        return query_file(name,value,true,true, loc);
     }
 
 
     template<typename T>
-    int queryarr(   std::string name, std::vector<T> & value)
+    int queryarr(   std::string name, std::vector<T> & value,
+                    const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::queryarr(name.c_str(), value);
+            value.clear();
+            return 0;
+        }
         try
         {
             return amrex::ParmParse::queryarr(name.c_str(),value);
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryarr(   std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
+    int queryarr(   std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less(),
+                    const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                if (unit.isType(Unit::Less()))
+                    return amrex::ParmParse::queryarr(name.c_str(), value);
+
+                value.clear();
+                std::vector<std::string> valstrings;
+                int retval = amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                for (unsigned int i = 0; i < valstrings.size(); i++)
+                {
+                    Unit unitvalue = Unit::Parse(valstrings[i]);
+                    value.push_back(unitvalue.normalized_value());
+                }
+                return retval;
+            }
+            value.clear();
+            return 0;
+        }
         try
         {
             if (unit.isType(Unit::Less()))
@@ -574,37 +1094,95 @@ public:
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,full(name), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryarr(   std::string name, Set::Vector & value, Unit unit = Unit::Less())
+    int queryarr(   std::string name, Set::Vector & value, Unit unit = Unit::Less(),
+                    const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                if (unit.isType(Unit::Less()))
+                    amrex::ParmParse::queryarr(name.c_str(), vals);
+                else
+                {
+                    std::vector<std::string> valstrings;
+                    amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                    for (unsigned int i = 0; i < valstrings.size(); i++)
+                    {
+                        Unit unitvalue = Unit::Parse(valstrings[i]);
+                        vals.push_back(unitvalue.normalized_value());
+                    }
+                }
+                value = Set::Vector::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value(i) = vals[i];
+                return 0;
+            }
+            value = Set::Vector::Zero();
+            return 0;
+        }
         try
         {
             std::vector<Set::Scalar> vals;
             queryarr(name.c_str(), vals, unit);
             if (vals.size() < AMREX_SPACEDIM) 
             {
-                Util::ParmParseException(   INFO,full(name),full(name),
-                                            " requires at least ", AMREX_SPACEDIM, 
-                                            " arguments, got ",vals.size());
+                if (!InTraversalMode())
+                    Util::ParmParseException(   INFO,full(name),full(name),
+                                                " requires at least ", AMREX_SPACEDIM,
+                                                " arguments, got ",vals.size());
             }
             for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
             return 0;
         }
         catch(...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryarr(   std::string name, Set::Matrix & value, Unit unit = Unit::Less())
+    int queryarr(   std::string name, Set::Matrix & value, Unit unit = Unit::Less(),
+                    const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                if (unit.isType(Unit::Less()))
+                    amrex::ParmParse::queryarr(name.c_str(), vals);
+                else
+                {
+                    std::vector<std::string> valstrings;
+                    amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                    for (unsigned int i = 0; i < valstrings.size(); i++)
+                    {
+                        Unit unitvalue = Unit::Parse(valstrings[i]);
+                        vals.push_back(unitvalue.normalized_value());
+                    }
+                }
+                value = Set::Matrix::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM * AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value.data()[i] = vals[i];
+                return 0;
+            }
+            value = Set::Matrix::Zero();
+            return 0;
+        }
         std::vector<Set::Scalar> vals;
         queryarr(name.c_str(), vals,unit);
         if (vals.size() == 9)
@@ -635,31 +1213,104 @@ public:
         }
         else
         {
-            Util::ParmParseException(INFO,full(name),full(name)," needs either 4 or 9 components, but got ",vals.size());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),full(name)," needs either 4 or 9 components, but got ",vals.size());
         }    
         return 0;
     }
 
     template<typename T>
-    int queryarr_required(  std::string name, std::vector<T> & value)
+    int queryarr_required(  std::string name, std::vector<T> & value,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::queryarr(name.c_str(), value);
+            value.clear();
+            return 0;
+        }
         if (!contains(name.c_str()))
         {
-            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
         }        
         return queryarr<T>(name,value);
     }
 
-    int queryarr_required(  std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
+    int queryarr_required(  std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less(),
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                if (unit.isType(Unit::Less()))
+                    return amrex::ParmParse::queryarr(name.c_str(), value);
+
+                value.clear();
+                std::vector<std::string> valstrings;
+                int retval = amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                for (unsigned int i = 0; i < valstrings.size(); i++)
+                {
+                    Unit unitvalue = Unit::Parse(valstrings[i]);
+                    value.push_back(unitvalue.normalized_value());
+                }
+                return retval;
+            }
+            value.clear();
+            return 0;
+        }
         if (!contains(name.c_str()))
         {
-            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
         }        
         return queryarr(name,value,unit);
     }
-    int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue)
+    int queryarr_required(  std::string name, Set::Vector & value, Unit unit = Unit::Less(),
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location);
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                if (unit.isType(Unit::Less()))
+                    amrex::ParmParse::queryarr(name.c_str(), vals);
+                else
+                {
+                    std::vector<std::string> valstrings;
+                    amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                    for (const auto &valstring : valstrings)
+                        vals.push_back(Unit::Parse(valstring).normalized_value());
+                }
+                value = Set::Vector::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value(i) = vals[i];
+                return 0;
+            }
+            value = Set::Vector::Zero();
+            return 0;
+        }
+        if (!contains(name.c_str()))
+            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+        return queryarr(name,value,unit);
+    }
+    int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue,
+                            const std::source_location &location = std::source_location::current())
+    {
+        RecordInputAndContinue(name, location, {}, InputScraper::InputArrayString(defaultvalue));
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::queryarr(name.c_str(), value);
+            value = defaultvalue;
+            return 0;
+        }
         if (!contains(name.c_str()))
         {
             addarr(name.c_str(),defaultvalue);
@@ -667,8 +1318,24 @@ public:
         return amrex::ParmParse::queryarr(name.c_str(),value);
     }
 
-    int queryarr_default(   std::string name, Set::Vector & value, std::string defaultvalue, Unit unit)
+    int queryarr_default(   std::string name, Set::Vector & value, std::string defaultvalue, Unit unit,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, defaultvalue);
+        if (InTraversalMode())
+        {
+            std::vector<std::string> data = Util::String::Split(defaultvalue);
+            if (contains(name.c_str()))
+                amrex::ParmParse::queryarr(name.c_str(), data);
+
+            value = Set::Vector::Zero();
+            for (int i = 0; i < AMREX_SPACEDIM && i < static_cast<int>(data.size()); i++)
+            {
+                Unit unitvalue = Unit::Parse(data[i]);
+                value(i) = unitvalue.normalized_value();
+            }
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -679,16 +1346,34 @@ public:
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,full(name), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryarr_default(   std::string name, Set::Vector & value, Set::Vector defaultvalue)
+    int queryarr_default(   std::string name, Set::Vector & value, Set::Vector defaultvalue,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, InputScraper::InputArrayString(defaultvalue));
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                amrex::ParmParse::queryarr(name.c_str(), vals);
+                value = Set::Vector::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value(i) = vals[i];
+                return 0;
+            }
+            value = defaultvalue;
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -705,13 +1390,30 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
     
-    int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix def)
+    int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix def,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, InputScraper::InputArrayString(def));
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+            {
+                std::vector<Set::Scalar> vals;
+                amrex::ParmParse::queryarr(name.c_str(), vals);
+                value = Set::Matrix::Zero();
+                for (int i = 0; i < AMREX_SPACEDIM * AMREX_SPACEDIM && i < static_cast<int>(vals.size()); i++)
+                    value.data()[i] = vals[i];
+                return 0;
+            }
+            value = def;
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -728,13 +1430,23 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
-    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<double> defaultvalue)
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<double> defaultvalue,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, InputScraper::InputArrayString(defaultvalue));
+        if (InTraversalMode())
+        {
+            if (contains(name.c_str()))
+                return amrex::ParmParse::queryarr(name.c_str(), value);
+            value = defaultvalue;
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -745,13 +1457,30 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
 
-    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<std::string> defaultvalue, Unit unit)
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<std::string> defaultvalue, Unit unit,
+                            const std::source_location &location = std::source_location::current())
     {
+        RecordInputAndContinue(name, location, {}, InputScraper::InputArrayString(defaultvalue));
+        if (InTraversalMode())
+        {
+            std::vector<std::string> data = defaultvalue;
+            if (contains(name.c_str()))
+                amrex::ParmParse::queryarr(name.c_str(), data);
+
+            value.clear();
+            for (const auto &entry : data)
+            {
+                Unit unitvalue = Unit::Parse(entry);
+                value.push_back(unitvalue.normalized_value());
+            }
+            return 0;
+        }
         try
         {
             if (!contains(name.c_str()))
@@ -762,7 +1491,8 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
@@ -770,9 +1500,21 @@ public:
 
     template <typename T>
     int
-    queryclass_enumerate(std::string a_name, std::vector<T> &value, int number = 1)
+    queryclass_enumerate(   std::string a_name, std::vector<T> &value, int number = 1,
+                            const std::source_location &location = std::source_location::current())
     {
+        {
+            RecordInputAndContinue(a_name, location);
+        }
         value.clear();
+        if (InTraversalMode())
+        {
+            const std::string template_name = a_name + "0";
+            T tmp;
+            this->queryclass<T>(template_name, tmp);
+            InputScraper::CaptureSequenceTemplate(*this, a_name, template_name);
+            return 0;
+        }
 
         //
         // If only one is present with no subscript, then read
@@ -812,7 +1554,8 @@ public:
         }
         else
         {
-            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -836,8 +1579,12 @@ public:
 
     template <typename T>
     int
-    query_enumerate(std::string a_name, std::vector<T> &value, int number = 1)
+    query_enumerate(std::string a_name, std::vector<T> &value, int number = 1,
+                    const std::source_location &location = std::source_location::current())
     {
+        {
+            RecordInputAndContinue(a_name, location);
+        }
         value.clear();
 
         //
@@ -878,7 +1625,8 @@ public:
         }
         else
         {
-            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -893,6 +1641,56 @@ public:
                 this->query_required(name, tmp);
                 value.push_back(tmp);
             }
+            name = a_name + std::to_string(cntr+1);
+        }
+
+        return 0;
+    }
+
+    template <typename T>
+    int
+    queryarr_enumerate( std::string a_name, std::vector<std::vector<T>> &value, int number = 1,
+                        const std::source_location &location = std::source_location::current())
+    {
+        RecordInputAndContinue(a_name, location);
+        value.clear();
+
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            for (int n = 0; n < number; n++)
+            {
+                std::vector<T> tmp;
+                this->queryarr_required(name, tmp);
+                value.push_back(std::move(tmp));
+            }
+            return 0;
+        }
+
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
+        }
+
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            std::vector<T> tmp;
+            this->queryarr_required(name, tmp);
+            value.push_back(std::move(tmp));
             name = a_name + std::to_string(cntr+1);
         }
 
@@ -966,8 +1764,12 @@ public:
 
 
     template<class T>
-    void queryclass(std::string name, T * value)
+    void queryclass(std::string name, T * value,
+                    const std::source_location &location = std::source_location::current())
     {
+        {
+            RecordInputAndContinue(name, location);
+        }
         auto old_prefix = m_prefix;
         try
         {
@@ -980,19 +1782,25 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,name,"The following inputs were specified but not used",ss.str());
+                if (!InTraversalMode())
+                    Util::ParmParseException(INFO,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
         {
             m_prefix = old_prefix;
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         m_prefix = old_prefix;
     }
     template<class T>
-    void queryclass(std::string name, T & value)
+    void queryclass(std::string name, T & value,
+                    const std::source_location &location = std::source_location::current())
     {
+        {
+            RecordInputAndContinue(name, location);
+        }
         auto old_prefix = m_prefix;
         try
         {
@@ -1005,7 +1813,8 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,name,"The following inputs were specified but not used",ss.str());
+                if (!InTraversalMode())
+                    Util::ParmParseException(INFO,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (std::runtime_error &e)
@@ -1015,41 +1824,50 @@ public:
         catch (...)
         {
             m_prefix = old_prefix;
-            Util::ParmParseException(INFO,full(name));
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name));
         }
         m_prefix = old_prefix;
     }
 
     template<class T>
-    void queryclass(T * value)
+    void queryclass(T * value,
+                    const std::source_location &location = std::source_location::current())
     {
+        (void)location;
         try
         {
             T::Parse(*value, *this);
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,getPrefix(), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix(), e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,getPrefix());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix());
         }
     }
     template<class T>
-    void queryclass(T & value)
+    void queryclass(T & value,
+                    const std::source_location &location = std::source_location::current())
     {
+        (void)location;
         try
         {
             T::Parse(value, *this);
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,getPrefix(), e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix(), e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO, getPrefix());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO, getPrefix());
         }
     }
 
@@ -1061,109 +1879,215 @@ public:
     // If there is more than one instantiating class, then type must be set.
     // Otherwise, no type is necessary.
     //
+    template<typename... IC, typename PTRTYPE>
+    void select (   std::string name, PTRTYPE *& ic_eta,
+                    const std::source_location &location = std::source_location::current())
+    {
+        auto args = forward_args();
+        select<IC...>(std::move(name), ic_eta, args, location);
+    }
+
     template<typename... IC, typename... Args, typename PTRTYPE>
-    void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    void select (   std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
+                    const std::source_location &location = std::source_location::current())
     {
         try
         {
+            std::string type_name = name + ".type";
+            std::vector<std::string> possiblevals = {std::string(IC::name)...};
+
+            if (InTraversalMode())
+            {
+                {
+                    RecordInputAndContinue(type_name, location, possiblevals);
+                }
+
+                std::string original_type;
+                bool had_original_type = this->contains(type_name.c_str());
+                if (had_original_type)
+                    amrex::ParmParse::query(type_name.c_str(), original_type);
+
+                auto set_select_value = [&](const std::string &select_value)
+                {
+                    this->remove(type_name.c_str());
+                    this->add(type_name.c_str(), select_value);
+                };
+
+                auto restore_select_value = [&]()
+                {
+                    this->remove(type_name.c_str());
+                    if (had_original_type)
+                        this->add(type_name.c_str(), original_type);
+                };
+
+                auto traverse_one = [&]<typename T>()
+                {
+                    std::string select_value = T::name;
+                    set_select_value(select_value);
+                    PrintTraversalBranch(type_name, select_value);
+                    TraversalBranchScope branch(*this, type_name, select_value);
+                    PTRTYPE *tmp = ConstructSelected<T>(args, *this, name + "." + select_value);
+                    delete tmp;
+                };
+
+                (traverse_one.template operator()<IC>(), ...);
+                restore_select_value();
+                ic_eta = nullptr;
+                return;
+            }
+
             // if there is only one IC arg provided, we don't need to check the type - assume that
             // it is the default.
             if constexpr (sizeof...(IC) == 0)
             {
                 using first_IC = std::tuple_element_t<0, std::tuple<IC...>>;
-                ic_eta = new first_IC(std::forward<Args>(args)..., (*this), name + "." + std::string(first_IC::name));
+                ic_eta = ConstructSelected<first_IC>(args, *this, name + "." + std::string(first_IC::name));
             }
             // otherwise, check the type.
             else
             {
                 std::string type = "";
-                this->query_required(name + ".type", type);
+                this->query_required(type_name, type);
                 bool matched = ((   type == IC::name 
-                                    ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                                    ? (ic_eta = ConstructSelected<IC>(args, *this, name + "." + std::string(IC::name))),
                                     true
                                     : false) || ...);
                 if (!matched)
-                    Util::ParmParseException(INFO,full(name), type, " not a valid type for ", name);
+                    if (!InTraversalMode())
+                        Util::ParmParseException(INFO,full(name), type, " not a valid type for ", name);
             }
         }
         catch (std::runtime_error &e)
         {
-            Util::ParmParseException(INFO,getPrefix(),e.what());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix(),e.what());
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,getPrefix());
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix());
         }
-    }
-
-    template<typename T, typename = void>
-    struct HasSelectName : std::false_type {};
-
-    template<typename T>
-    struct HasSelectName<T, std::void_t<decltype(T::name)>> : std::true_type {};
-
-    template<typename T, typename PTRTYPE, typename... Args>
-    void construct_select_default(std::string name, PTRTYPE *& value, Args&&... args)
-    {
-        if constexpr (HasSelectName<T>::value &&
-                    std::is_constructible_v<T, Args..., IO::ParmParse&, std::string>)
-        {
-            value = new T(std::forward<Args>(args)..., (*this),
-                        name + "." + std::string(T::name));
-        }
-        else if constexpr (std::is_constructible_v<T, Args...>)
-        {
-            value = new T(std::forward<Args>(args)...);
-        }
-    }
-
-    template<typename T, typename PTRTYPE, typename... Args>
-    bool try_select_named(std::string name, const std::string& type, PTRTYPE *& value, Args&&... args)
-    {
-        if constexpr (HasSelectName<T>::value &&
-                    std::is_constructible_v<T, Args..., IO::ParmParse&, std::string>)
-        {
-            if (type != std::string(T::name)) return false;
-
-            value = new T(std::forward<Args>(args)..., (*this), name + "." + std::string(T::name));
-            return true;
-        }
-        return false;
     }
 
     //
-    // Identical to the above, except the first class is used as the default
-    // when no type is specified. The default class does not need to expose
-    // name or Parse; typed selections still require a name to match against.
+    // Identical to the above, except the first class is the default. A first
+    // class without a ParmParse constructor is constructed directly when
+    // no type is specified.
     //
+    template<typename FirstIC, typename... IC, typename PTRTYPE>
+    void select_default (   std::string name, PTRTYPE *& ic_eta,
+                            const std::source_location &location = std::source_location::current())
+    {
+        auto args = forward_args();
+        select_default<FirstIC, IC...>(std::move(name), ic_eta, args, location);
+    }
+
     template<typename FirstIC, typename... IC, typename... Args, typename PTRTYPE>
-    void select_default (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    void select_default (   std::string name, PTRTYPE *& ic_eta, ForwardArgs<Args...> args,
+                            const std::source_location &location = std::source_location::current())
     {
         std::string type = "";
+        std::string type_name = name + ".type";
+        constexpr bool has_unnamed_default =
+            !(  HasSelectName<FirstIC>::value &&
+                HasSelectedConstructor<FirstIC, Args...>);
+        std::vector<std::string> possiblevals;
+        AppendSelectName<FirstIC>(possiblevals, args);
+        (AppendSelectName<IC>(possiblevals, args), ...);
 
-        if (!this->contains(name + ".type"))
+        if (InTraversalMode())
         {
-            construct_select_default<FirstIC>(name, ic_eta, std::forward<Args>(args)...);
+            {
+                RecordInputAndContinue( type_name, location, possiblevals,
+                                        std::nullopt, has_unnamed_default);
+            }
+
+            std::string original_type;
+            bool had_original_type = this->contains(type_name.c_str());
+            if (had_original_type)
+                amrex::ParmParse::query(type_name.c_str(), original_type);
+
+            auto set_select_value = [&](const std::string &select_value)
+            {
+                this->remove(type_name.c_str());
+                this->add(type_name.c_str(), select_value);
+            };
+
+            auto restore_select_value = [&]()
+            {
+                this->remove(type_name.c_str());
+                if (had_original_type)
+                    this->add(type_name.c_str(), original_type);
+            };
+
+            auto traverse_one = [&]<typename T>()
+            {
+                if constexpr (HasSelectName<T>::value && HasSelectedConstructor<T, Args...>)
+                {
+                    std::string select_value = T::name;
+                    set_select_value(select_value);
+                    PrintTraversalBranch(type_name, select_value);
+                    TraversalBranchScope branch(*this, type_name, select_value);
+                    PTRTYPE *tmp = ConstructSelected<T>(args, *this, name + "." + select_value);
+                    delete tmp;
+                }
+            };
+
+            traverse_one.template operator()<FirstIC>();
+            (traverse_one.template operator()<IC>(), ...);
+            restore_select_value();
+            ic_eta = nullptr;
             return;
         }
 
-        this->query_required(name + ".type", type);
+        if constexpr (  HasSelectName<FirstIC>::value &&
+                        HasSelectedConstructor<FirstIC, Args...>)
+        {
+            this->query_default(type_name, type, std::string(FirstIC::name));
+        }
+        else
+        {
+            if (!this->contains(type_name.c_str()))
+            {
+                ic_eta = ConstructSelectDefault<FirstIC>(args);
+                return;
+            }
+            this->query_required(type_name, type);
+        }
 
-        bool matched = try_select_named<FirstIC>(name, type, ic_eta, std::forward<Args>(args)...);
-        matched = matched || (try_select_named<IC>(name, type, ic_eta, std::forward<Args>(args)...) || ...);
+        bool matched = TrySelectNamed<FirstIC>(type, name, ic_eta, args, *this);
+        matched = matched || (TrySelectNamed<IC>(type, name, ic_eta, args, *this) || ...);
 
-        if (!matched)
+        if (!matched && !InTraversalMode())
             Util::ParmParseException(INFO,full(name), type," not a valid type for ",name);
     }
 
 
     //
     //
-    template<typename... IC, typename... Args, typename PTRTYPE>
-    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, Args&&... args)
+    template<typename... IC, typename PTRTYPE>
+    void select_enumerate ( std::string a_name, std::vector<PTRTYPE*> & value,
+                            const std::source_location &location = std::source_location::current())
     {
+        auto args = forward_args();
+        select_enumerate<IC...>(std::move(a_name), value, args, location);
+    }
 
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select_enumerate ( std::string a_name, std::vector<PTRTYPE*> & value, ForwardArgs<Args...> args,
+                            const std::source_location &location = std::source_location::current())
+    {
+        RecordInputAndContinue(a_name, location);
         value.clear();
+
+        if (InTraversalMode())
+        {
+            PTRTYPE *tmp = nullptr;
+            const std::string template_name = a_name + "0";
+            this->select<IC...>(template_name, tmp, args, location);
+            InputScraper::CaptureSequenceTemplate(*this, a_name, template_name);
+            return;
+        }
 
         //
         // If only one is present with no subscript, then read
@@ -1173,7 +2097,7 @@ public:
         if (this->contains(name))
         {
             PTRTYPE *tmp;
-            this->select<IC...>(a_name, tmp, args...);
+            this->select<IC...>(a_name, tmp, args, location);
             value.push_back(tmp);
             return;
         }
@@ -1200,7 +2124,8 @@ public:
         }
         else
         {
-            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -1212,7 +2137,7 @@ public:
             if (this->contains(name.c_str()))
             {
                 PTRTYPE *tmp;
-                this->select<IC...>(name, tmp, args...);
+                this->select<IC...>(name, tmp, args, location);
                 value.push_back(tmp);
             }
             name = a_name + std::to_string(cntr+1);
@@ -1236,7 +2161,8 @@ public:
                         true
                         : false) || ...);
         if (!matched)
-            Util::ParmParseException(INFO,getPrefix(),type," not a valid type for ",type);
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,getPrefix(),type," not a valid type for ",type);
     }
 
     //
@@ -1263,11 +2189,43 @@ public:
     // template-based static dispatch.
     //
 
+    template <typename... OBJ, typename CLASS>
+        requires (!std::is_pointer_v<std::remove_reference_t<CLASS>>)
+    void select(std::string name, CLASS& value,
+                const std::source_location &location = std::source_location::current())
+    {
+        auto args = forward_args();
+        select<OBJ...>(std::move(name), value, args, location);
+    }
+
     template <typename... OBJ, typename CLASS, typename... Args>
-    void select(std::string name, CLASS& value, Args&&... args)
+        requires (!std::is_pointer_v<std::remove_reference_t<CLASS>>)
+    void select(std::string name, CLASS& value, ForwardArgs<Args...> args,
+                const std::source_location &location = std::source_location::current())
     {
         pushPrefix(name);
-        static_polymorphism_parser<CLASS, 0, OBJ...>(value, std::forward<Args>(args)...);
+        if (InTraversalMode())
+        {
+            std::vector<std::string> possiblevals = {std::string(OBJ::name)...};
+            {
+                RecordInputAndContinue("type", location, possiblevals);
+            }
+
+            std::string original_type;
+            bool had_original_type = this->contains("type");
+            if (had_original_type)
+                amrex::ParmParse::query("type", original_type);
+            int original_selected = value.selected;
+
+            static_polymorphism_traverser<CLASS, 0, OBJ...>(value, args);
+
+            this->remove("type");
+            if (had_original_type)
+                this->add("type", original_type);
+            value.selected = original_selected;
+        }
+        else
+            static_polymorphism_parser<CLASS, 0, OBJ...>(value, args);
         popPrefix();
     }
 
@@ -1283,7 +2241,36 @@ private:
     // This is only for use by the "select" functions.
     // 
     template <typename CLASS, int N, typename... OBJ, typename... Args>
-    void static_polymorphism_parser(CLASS& value, Args&&... args)
+    void static_polymorphism_traverser(CLASS& value, ForwardArgs<Args...> &args)
+    {
+        if constexpr (N < sizeof...(OBJ))
+        {
+            std::string type = value.names[N];
+            this->remove("type");
+            this->add("type", type);
+            value.selected = N;
+
+            PrintTraversalBranch("type", type);
+            {
+                TraversalBranchScope branch(*this, "type", type);
+                pushPrefix(type);
+                std::apply(
+                    [&](auto &...parse_args)
+                    {
+                        std::get<N>(value.obj).Parse(
+                            std::get<N>(value.obj), *this, parse_args...);
+                    },
+                    args.values);
+                popPrefix();
+            }
+
+            static_polymorphism_traverser<CLASS, N+1, OBJ...>(
+                value, args);
+        }
+    }
+
+    template <typename CLASS, int N, typename... OBJ, typename... Args>
+    void static_polymorphism_parser(CLASS& value, ForwardArgs<Args...> &args)
     {
         if constexpr (N == 0)
         {
@@ -1295,9 +2282,10 @@ private:
                     value.selected = i;
 
             if (value.selected < 0)
-                Util::ParmParseException(INFO,getPrefix(),
-                                "Error reading " + getPrefix() + 
-                                ", invalid type " + type);
+                if (!InTraversalMode())
+                    Util::ParmParseException(   INFO,getPrefix(),
+                                                "Error reading " + getPrefix() +
+                                                ", invalid type " + type);
 
             
             pushPrefix(type);
@@ -1307,14 +2295,19 @@ private:
         {
             if (value.selected == N)
             {
-                std::get<N>(value.obj).Parse(
-                    std::get<N>(value.obj), *this, std::forward<Args>(args)...);
+                std::apply(
+                    [&](auto &...parse_args)
+                    {
+                        std::get<N>(value.obj).Parse(
+                            std::get<N>(value.obj), *this, parse_args...);
+                    },
+                    args.values);
                 popPrefix();
                 return;
             }
             else 
                 return static_polymorphism_parser<CLASS, N+1, OBJ...>(
-                    value, std::forward<Args>(args)...);
+                    value, args);
         }
         else Util::Abort(INFO);
     }
@@ -1323,8 +2316,46 @@ public:
 
     template <int N>
     void query_exactly( std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N],
-                        std::vector<Unit> units = std::vector<Unit>())
+                        std::vector<Unit> units = std::vector<Unit>(),
+                        const std::source_location &location = std::source_location::current())
     {
+        for (const auto &name : names)
+            RecordInputAndContinue(name, location, names);
+        std::vector<std::string> unit_names;
+        for (const auto &unit : units)
+            unit_names.push_back(unit.normalized_unitstring());
+        RecordConstraint("exactly", N, names, unit_names, location);
+
+        if (InTraversalMode())
+        {
+            int cnt = 0;
+            for (unsigned int n = 0; n < names.size() && cnt < N; n++)
+            {
+                if (!contains(names[n].c_str())) continue;
+
+                values[cnt].first = names[n];
+                if (units.size() == 0)
+                    amrex::ParmParse::query(names[n].c_str(), values[cnt].second);
+                else
+                {
+                    std::string strvalue;
+                    amrex::ParmParse::query(names[n].c_str(), strvalue);
+                    Unit read = Unit::Parse(strvalue);
+                    values[cnt].second = read.normalized_value();
+                }
+                cnt++;
+            }
+            for (unsigned int n = 0; n < names.size() && cnt < N; n++)
+            {
+                if (contains(names[n].c_str())) continue;
+
+                values[cnt].first = names[n];
+                values[cnt].second = 1.0;
+                cnt++;
+            }
+            return;
+        }
+
         try
         {
             Util::AssertException(  INFO,TEST(units.size() == 0 || units.size() == names.size()),
@@ -1372,7 +2403,8 @@ public:
                 if (i < names.size()-1) names_str += ", ";
             }
             names_str += "]";
-            Util::ParmParseException(INFO,names_str);
+            if (!InTraversalMode())
+                Util::ParmParseException(INFO,names_str);
         }
     }
 };

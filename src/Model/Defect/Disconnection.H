@@ -24,6 +24,7 @@
 #include "IO/ParmParse.H"
 #include "Set/Base.H"
 #include "Util/MPI.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -39,25 +40,29 @@ public:
     static void
     Parse(Disconnection &value, IO::ParmParse &pp)
     {
-        Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"2D only");
-        // time to start applying disconnections
-        pp_query_default ("tstart", value.tstart,0.0); 
-        // nucleation energy
-        pp_query_default ("nucleation_energy", value.nucleation_energy,0.0); 
-        // characteristic time
-        pp_query_default("tau_vol", value.tau_vol, 1.0);
-        // temperature
-        pp_query_default("temp", value.temp, 0.0);
-        // characteristic size
-        pp_query_default("box_size", value.box_size, 0.0);
-        // interval between generation events
-        pp_query_required("interval", value.interval);
-        // regularization epsilon
-        pp_query_default ("epsilon",value.epsilon,1E-20); 
-        // whether to manually specify disconnection nucleation points
-        pp.query("disconnection.fixed.on",value.fixed.on); 
-        if (value.fixed.on)
+        if (AMREX_SPACEDIM != 2)
         {
+            if (IO::ParmParse::InTraversalMode()) return;
+            Util::ParmParseException(INFO,"2D only");
+        }
+        // time to start applying disconnections
+        pp.query_default ("tstart", value.tstart,0.0); 
+        // nucleation energy
+        pp.query_default ("nucleation_energy", value.nucleation_energy,0.0); 
+        // characteristic time
+        pp.query_default("tau_vol", value.tau_vol, 1.0);
+        // temperature
+        pp.query_default("temp", value.temp, 0.0);
+        // characteristic size
+        pp.query_default("box_size", value.box_size, 0.0);
+        // interval between generation events
+        pp.query_required("interval", value.interval);
+        // regularization epsilon
+        pp.query_default ("epsilon",value.epsilon,1E-20); 
+        // whether to manually specify disconnection nucleation points
+        pp.query_if_else("disconnection.fixed.on", [&]() {
+            value.fixed.on = true;
+
             // array of x locations
             pp.queryarr("fixed.sitex",value.fixed.sitex); 
             // array of y locations
@@ -70,18 +75,18 @@ public:
             Util::Assert(INFO,TEST(value.fixed.sitex.size() == value.fixed.phases.size()));
             Util::Assert(INFO,TEST(value.fixed.sitex.size() == value.fixed.time.size()));
             value.fixed.done.resize(value.fixed.sitex.size(),false);
-        }
-        else
-        {
+
+        }, [&]() {
+
             value.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
             value.int_dist = std::uniform_int_distribution<int>(0,1);
             value.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
-        }
+        });
 
         // verbosity
         pp_query_default("verbose",value.verbose,false); 
     }
-
+    
 
     /// This operates on an entire field, and manages all of the MPI
     /// communication necessary for consistent nucleation.

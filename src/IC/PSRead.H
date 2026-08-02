@@ -178,6 +178,9 @@ public:
         Unit unit = Unit::Length();
         // Units of length in the file
         pp.queryunit("file.unit",unit);
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
         Util::AssertException(  INFO,TEST(unit.isType(Unit::Length())), 
                                 "Unit must be of type length but got unit ",unit.normalized_unitstring());
         

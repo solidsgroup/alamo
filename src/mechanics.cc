@@ -36,40 +36,21 @@ int main (int argc, char* argv[])
 
     Integrator::Integrator *integrator = nullptr;
 
-    if (program == "mechanics")
-    {
-        std::string model = "linear.isotropic";
-        // which mechanics model to use
-        pp.query_default("alamo.program.mechanics.model",model,"linear.isotropic");
-        if (model == "linear.isotropic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Isotropic>>(integrator);
-        else if (model == "linear.cubic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Cubic>>(integrator);
-        else if (model == "affine.cubic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Cubic>>(integrator);
-        else if (model == "affine.hexagonal")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Hexagonal>>(integrator);
-        else if (model == "affine.isotropic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Isotropic>>(integrator);
-        else if (model == "linear.laplacian")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Laplacian>>(integrator);
-        else if (model == "finite.neohookean")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookean>>(integrator);
-        else if (model == "finite.neohookeanpre")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>>(integrator);
-        else if (model == "linear.transverse")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Transverse> >(integrator);
-        else if (model == "finite.pseudolinear.cubic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>>(integrator);
-        else if (model == "finite.pseudoaffine.cubic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
-        else if (model == "affine.j2")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::J2>>(integrator);
-        else if (model == "finite.crystalplastic")
-            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>>(integrator);
-        else Util::Abort(INFO,model," is not a valid model");
-    }
-    else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
+    pp.query_switch("alamo.program.mechanics.model",{
+            {"linear.isotropic",          [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Isotropic>>(integrator);             }},
+            { "linear.cubic",             [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Cubic>>(integrator);                 }},
+            { "affine.cubic",             [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Cubic>>(integrator);                 }},
+            { "affine.hexagonal",         [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Hexagonal>>(integrator);             }},
+            { "affine.isotropic",         [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Isotropic>>(integrator);             }},
+            { "linear.laplacian",         [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Laplacian>>(integrator);             }},
+            { "finite.neohookean",        [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookean>>(integrator);            }},
+            { "finite.neohookeanpre",     [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>>(integrator); }},
+            { "linear.transverse",        [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Transverse> >(integrator);           }},
+            { "finite.pseudolinear.cubic",[&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>>(integrator);   }},
+            { "finite.pseudoaffine.cubic",[&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);   }},
+            { "affine.j2",                [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Affine::J2>>(integrator);                    }},
+            { "finite.crystalplastic",    [&]() {pp.select_only<Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>>(integrator);        }}
+        });
 
     integrator->InitData();
     integrator->Evolve();

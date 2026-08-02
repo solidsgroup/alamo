@@ -17,6 +17,9 @@ namespace IC
 class Constant : public IC<Set::Scalar>, public IC<Set::Vector>
 {
 public:
+    class Zero;
+    class One;
+
     static constexpr const char* name = "constant";
 
     virtual ~Constant() = default;
@@ -70,9 +73,29 @@ public:
         // Value (or values if multicomponent) to set field to 
         pp.queryarr_required("value", value.m_value, value.unit); 
     }
-private:
+protected:
     std::vector<Set::Scalar> m_value;
     Unit unit;
+};
+
+class Constant::Zero : public Constant
+{
+public:
+    explicit Zero(amrex::Vector<amrex::Geometry> &_geom) :
+        Constant(_geom)
+    {
+        m_value = {0.0};
+    }
+};
+
+class Constant::One : public Constant
+{
+public:
+    explicit One(amrex::Vector<amrex::Geometry> &_geom) :
+        Constant(_geom)
+    {
+        m_value = {1.0};
+    }
 };
 }
 #endif

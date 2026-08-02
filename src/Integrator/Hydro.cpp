@@ -72,16 +72,16 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("velocity.bc","--> momentum.bc");
 
         // Boundary condition for density
-        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,pp.forward_args(1));
         // Boundary condition for energy
-        pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,pp.forward_args(1));
         // Boundary condition for momentum
-        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
+        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,pp.forward_args(2));
 
         if (!value.managed)
         {
             // Boundary condition for phase field order parameter
-            pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
+            pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,pp.forward_args(1));
         }
 
         pp_query_default("small",value.small,1E-8); // small regularization value
@@ -148,37 +148,37 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     if (!value.managed)
     {
         // eta initial condition
-        pp.select_default<IC::Constant,IC::Laminate,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.eta_ic,value.geom);
+        pp.select_default<IC::Constant,IC::Laminate,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.eta_ic,pp.forward_args(value.geom));
     }
 
     // PRIMITIVE FIELD INITIAL CONDITIONS
 
     // velocity initial condition
-    pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.velocity_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.velocity_ic,pp.forward_args(value.geom));
     // solid pressure initial condition
-    pp.select_default<IC::Constant,IC::Expression>("pressure.ic",value.pressure_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("pressure.ic",value.pressure_ic,pp.forward_args(value.geom));
     // density initial condition type
-    pp.select_default<IC::Constant,IC::Expression>("density.ic",value.density_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("density.ic",value.density_ic,pp.forward_args(value.geom));
 
 
     // SOLID FIELDS
 
     // solid momentum initial condition
-    pp.select_default<IC::Constant,IC::Expression>("solid.momentum.ic",value.solid.momentum_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("solid.momentum.ic",value.solid.momentum_ic,pp.forward_args(value.geom));
     // solid density initial condition
-    pp.select_default<IC::Constant,IC::Expression>("solid.density.ic",value.solid.density_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("solid.density.ic",value.solid.density_ic,pp.forward_args(value.geom));
     // solid energy initial condition
-    pp.select_default<IC::Constant,IC::Expression>("solid.energy.ic",value.solid.energy_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("solid.energy.ic",value.solid.energy_ic,pp.forward_args(value.geom));
 
 
     // DIFFUSE BOUNDARY SOURCES
 
     // diffuse boundary prescribed mass flux 
-    pp.select_default<IC::Constant,IC::Expression>("m0.ic",value.ic_m0,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("m0.ic",value.ic_m0,pp.forward_args(value.geom));
     // diffuse boundary prescribed velocity
-    pp.select_default<IC::Constant,IC::Expression>("u0.ic",value.ic_u0,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("u0.ic",value.ic_u0,pp.forward_args(value.geom));
     // diffuse boundary prescribed heat flux 
-    pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,pp.forward_args(value.geom));
 
     // Riemann solver
     pp.select_default<  Solver::Local::Riemann::Roe,
@@ -190,11 +190,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     value.nspecies = value.gas.nspecies;
     std::cout << value.nspecies << "\n";
 
-    std::string prescribedflowmode_str;
-    // 
-    pp.query_validate("prescribedflowmode",prescribedflowmode_str,{"absolute","relative"});
-    if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
-    else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
+    // Determine whether flow is prescribed in normal coordinates or global coordinates
+    pp.query_switch("prescribedflowmode", {
+        {"absolute", [&]() {value.prescribedflowmode = PrescribedFlowMode::Absolute;}},
+        {"relative", [&]() {value.prescribedflowmode = PrescribedFlowMode::Relative;}}
+    });
 
     // Gravitational acceleration vector
     pp.queryarr_default("g",value.g,Set::Vector::Zero());

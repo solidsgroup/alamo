@@ -31,9 +31,9 @@ void PFC::Parse(PFC &value, IO::ParmParse &pp)
     pp.query_required("eps",    value.eps);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random>("eta.ic", value.ic, value.geom);
+    pp.select_default<IC::Random>("eta.ic", value.ic, pp.forward_args(value.geom));
     // boundary condition for :math:`\eta`
-    pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
+    pp.select_default<BC::Constant>("eta.bc", value.bc, pp.forward_args(1));
 
     value.RegisterNewFab(value.eta_mf, value.bc, 1, 1, "eta",true);
     value.RegisterNewFab(value.grad_chempot_mf, value.bc, 1, 1, "grad_chempot",true);
