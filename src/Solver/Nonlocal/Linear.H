@@ -450,6 +450,18 @@ protected:
     {
         if (threw)
         {
+            // amrex::MLMG only throws these specific, distinguishable
+            // messages ("MLMG blew up." / "MLMG failed to converge.") when
+            // its own throw_exception flag is set -- PrepareMLMG does that
+            // below whenever dump_on_fail/abort_on_fail=false is in play.
+            // Without it, MLMG instead calls the generic amrex::Abort("MLMG
+            // failed."), which -- once amrex.signal_handling=0 and
+            // amrex.throw_exception=1 are set, as dump_on_fail/
+            // abort_on_fail already require -- surfaces here as a caught
+            // exception with that generic text, indistinguishable between
+            // a stall and a blowup. Default that ambiguous case to Diverged
+            // (the worse-case reading) rather than silently mislabeling it
+            // Stalled.
             std::string msg = what ? what : "";
             if (msg.find("blew up") != std::string::npos)
                 m_last_status = SolveStatus::Diverged;
@@ -486,6 +498,17 @@ protected:
         mlmg.setFinalFillBC(false);
         mlmg.setMaxFmgIter(100000000);
 
+        // Whenever the user has opted into non-aborting failure handling
+        // (dump_on_fail or abort_on_fail=false -- which already forces
+        // amrex.signal_handling=0/amrex.throw_exception=1 in Parse below),
+        // also ask MLMG itself to throw. Without this, MLMG's own
+        // convergence-failure paths call the generic amrex::Abort("MLMG
+        // failed.") instead of throwing their specific "MLMG blew up." /
+        // "MLMG failed to converge." messages -- the global amrex settings
+        // still convert that Abort into a caught exception, but with
+        // indistinguishable text, which defeats reportSolverStats's
+        // stalled-vs-diverged classification.
+        if (m_dump_on_fail || !m_abort_on_fail) mlmg.setThrowException(true);
 
         if (max_iter >= 0)        mlmg.setMaxIter(max_iter);
         if (bottom_max_iter >= 0) mlmg.setBottomMaxIter(bottom_max_iter);
