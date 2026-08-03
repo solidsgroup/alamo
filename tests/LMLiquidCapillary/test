@@ -9,10 +9,10 @@ import testlib
 def fields(path):
     ds = testlib.yt.load(path)
     grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
-    eta = grid[("boxlib", "eta_liquid_Al_liquid")].to_ndarray()[:, :, 0]
-    eta_oxide = grid[("boxlib", "eta_liquid_Al2O3_liquid")].to_ndarray()[:, :, 0]
-    eta_tracer = grid[("boxlib", "eta_liquid_tracer_liquid")].to_ndarray()[:, :, 0]
-    eta_gas = grid[("boxlib", "eta_gas")].to_ndarray()[:, :, 0]
+    eta = grid[("boxlib", "liquid_species_eta_Al_liquid")].to_ndarray()[:, :, 0]
+    eta_oxide = grid[("boxlib", "liquid_species_eta_Al2O3_liquid")].to_ndarray()[:, :, 0]
+    eta_tracer = grid[("boxlib", "liquid_species_eta_tracer_liquid")].to_ndarray()[:, :, 0]
+    eta_gas = grid[("boxlib", "gas_eta")].to_ndarray()[:, :, 0]
     ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
     uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
     pressure = grid[("boxlib", "pressure")].to_ndarray()[:, :, 0]

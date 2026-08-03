@@ -95,17 +95,19 @@ Al_liquid.thermal_conductivity = 90.0_W/m/K
 liquid.interface_thickness = 20.0_um
 liquid.capillary.enabled = 1
 liquid.capillary.include_solids = 1
-# Every solid is automatically excluded from the capillary gas complement.
-# Specify the interfacial energy between molten aluminum and each solid that
-# exists in this case; solid-gas and solid-solid surface energies are omitted.
+# Surface tension is reserved for liquid-gas and liquid-liquid interfaces.
 liquid.surface_tension.Al_liquid_gas = 1.72_J/m^2
-liquid.surface_tension.Al_liquid_AP_solid = 0.136_J/m^2
-liquid.surface_tension.Al_liquid_HTPB_solid = 0.136_J/m^2
-liquid.surface_tension.Al_liquid_Al_solid = 1.0e-3_J/m^2
-# This reduces only the energy of Al-liquid/Al-solid contact; it does not add
-# solid-gas traction.  The adhesion term independently favors a liquid coating
-# on the aluminum surface.
-liquid.adhesion_energy.Al_liquid_Al_solid = 2.00_J/m^2
+# Each liquid-solid interface gets a positive diffuse-interface regularizer.
+liquid.solid_interface_regularization.Al_liquid_AP_solid = 0.136_J/m^2
+liquid.solid_interface_regularization.Al_liquid_HTPB_solid = 0.136_J/m^2
+liquid.solid_interface_regularization.Al_liquid_Al_solid = 1.0e-3_J/m^2
+# gamma_SL-gamma_SG may be supplied directly.  Positive values discourage
+# wetting relative to exposed solid.
+liquid.solid_surface_energy_difference.Al_liquid_AP_solid = 0.136_J/m^2
+liquid.solid_surface_energy_difference.Al_liquid_HTPB_solid = 0.136_J/m^2
+# Or specify the Young contact angle through the liquid.  This angle preserves
+# the previous Al-liquid/Al-solid wetting preference.
+liquid.contact_angle.Al_liquid_Al_solid = 54.4921878_deg
 
 chemistry.model.type = gross_model_aluminized
 chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s

@@ -371,17 +371,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         const int nliquid = static_cast<int>(value.liquid_species.size());
         const int nphase = static_cast<int>(phase_names.size());
         std::vector<Set::Scalar> surface_tension(nphase * nphase, 0.0);
-        std::vector<Set::Scalar> adhesion_energy(nphase * nphase, 0.0);
+        std::vector<Set::Scalar> solid_interface_regularization(
+            nphase * nphase, 0.0);
+        std::vector<Set::Scalar> solid_surface_energy_difference(
+            nphase * nphase, 0.0);
         for (int a = 0; a < nliquid; ++a)
             for (int b = a + 1; b < nphase; ++b)
             {
-                const std::string key = "liquid.surface_tension." +
-                    phase_names[a] + "_" + phase_names[b];
                 const bool solid_pair =
                     b >= nliquid && b < nphase - 1;
-                if (!value.liquid_capillarity_enabled ||
-                    (solid_pair &&
-                     !value.liquid_solid_capillarity_enabled))
+                if (solid_pair) continue;
+                const std::string key = "liquid.surface_tension." +
+                    phase_names[a] + "_" + phase_names[b];
+                if (!value.liquid_capillarity_enabled)
                 {
                     pp.ignore(key);
                     continue;
@@ -399,29 +401,96 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         for (int a = 0; a < nliquid; ++a)
             for (int b = nliquid; b < nphase - 1; ++b)
             {
-                const std::string key = "liquid.adhesion_energy." +
+                const std::string pair =
                     phase_names[a] + "_" + phase_names[b];
+                const std::string regularization_key =
+                    "liquid.solid_interface_regularization." + pair;
+                const std::string contact_angle_key =
+                    "liquid.contact_angle." + pair;
+                const std::string surface_difference_key =
+                    "liquid.solid_surface_energy_difference." + pair;
+                const std::string old_surface_tension_key =
+                    "liquid.surface_tension." + pair;
+                const std::string old_adhesion_key =
+                    "liquid.adhesion_energy." + pair;
+
+                if (pp.contains(old_surface_tension_key) ||
+                    pp.contains(old_adhesion_key))
+                    Util::Exception(INFO,
+                        "liquid-solid surface_tension and adhesion_energy "
+                        "inputs have been removed for ", pair,
+                        "; use solid_interface_regularization and exactly "
+                        "one of contact_angle or "
+                        "solid_surface_energy_difference");
                 if (!value.liquid_solid_capillarity_enabled)
                 {
-                    pp.ignore(key);
+                    pp.ignore(regularization_key);
+                    pp.ignore(contact_angle_key);
+                    pp.ignore(surface_difference_key);
                     continue;
                 }
-                Set::Scalar energy = 0.0;
-                pp.query_default(key, energy, "0.0_J/m^2",
+
+                Set::Scalar regularization = NAN;
+                pp.query_required(regularization_key, regularization,
                     Unit::Energy() / Unit::Area());
-                if (energy < 0.0)
-                    Util::Exception(INFO, "liquid-solid adhesion energy for ",
-                        phase_names[a], "_", phase_names[b],
-                        " must be nonnegative");
-                adhesion_energy[a * nphase + b] = energy;
-                adhesion_energy[b * nphase + a] = energy;
+                if (!(regularization > 0.0))
+                    Util::Exception(INFO,
+                        "liquid-solid interface regularization for ", pair,
+                        " must be positive");
+
+                const bool has_contact_angle =
+                    pp.contains(contact_angle_key);
+                const bool has_surface_difference =
+                    pp.contains(surface_difference_key);
+                if (has_contact_angle == has_surface_difference)
+                    Util::Exception(INFO, "liquid-solid pair ", pair,
+                        " requires exactly one of ", contact_angle_key,
+                        " or ", surface_difference_key);
+
+                Set::Scalar surface_difference = NAN;
+                if (has_contact_angle)
+                {
+                    Set::Scalar contact_angle = NAN;
+                    pp.query_required(contact_angle_key, contact_angle,
+                                      Unit::Angle());
+                    if (!std::isfinite(contact_angle) ||
+                        contact_angle < 0.0 ||
+                        contact_angle > Set::Constant::Pi)
+                        Util::Exception(INFO, "contact angle for ", pair,
+                            " must be between 0 and 180 degrees");
+                    const int gas = nphase - 1;
+                    surface_difference = Model::PhaseField::MultLiquid::
+                        SurfaceEnergyDifferenceFromContactAngle(
+                            surface_tension[a * nphase + gas],
+                            contact_angle);
+                }
+                else
+                {
+                    pp.query_required(surface_difference_key,
+                        surface_difference,
+                        Unit::Energy() / Unit::Area());
+                    if (!std::isfinite(surface_difference))
+                        Util::Exception(INFO,
+                            "solid surface energy difference for ", pair,
+                            " must be finite");
+                }
+
+                solid_interface_regularization[a * nphase + b] =
+                    regularization;
+                solid_interface_regularization[b * nphase + a] =
+                    regularization;
+                solid_surface_energy_difference[a * nphase + b] =
+                    surface_difference;
+                solid_surface_energy_difference[b * nphase + a] =
+                    surface_difference;
             }
         if (value.liquid_capillarity_enabled)
             value.capillary_phase_model.Define(
                 phase_names, nliquid,
                 value.liquid_solid_capillarity_enabled,
                 liquid_interface_thickness, surface_tension,
-                adhesion_energy);
+                solid_interface_regularization,
+                solid_surface_energy_difference);
         for (const int n : value.liquid_species)
             value.liquid_inverse_reference_density[n] =
                 1.0 / value.reference_density[n];
@@ -575,18 +644,30 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (!value.liquid_species.empty())
     {
         std::vector<std::string> capillary_suffix;
+        std::vector<std::string> plot_eta_names;
         for (const int n : value.liquid_species)
+        {
             capillary_suffix.push_back(
                 "_liquid_" + value.species_names[n]);
+            plot_eta_names.push_back(
+                "liquid_species_eta_" + value.species_names[n]);
+        }
         for (const int n : value.capillary_solid_species)
             capillary_suffix.push_back(
                 "_solid_" + value.species_names[n]);
         capillary_suffix.push_back("_gas");
+        plot_eta_names.push_back("gas_eta");
         const int nphase = static_cast<int>(value.liquid_species.size() +
             value.capillary_solid_species.size() + 1);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.phase_eta_mf,
             &value.bc_nothing, nphase, nghost,
-            "eta", true, false, capillary_suffix);
+            "phase_eta_internal", false, false, capillary_suffix);
+        // Solid components of the capillary simplex duplicate eta_mf or
+        // rigid_species_eta_mf.  Write only the liquid and gas components so
+        // every physical eta appears once in a plotfile.
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.phase_eta_plot_mf,
+            &value.bc_nothing, value.liquid_species.size() + 1, 0,
+            "", true, false, plot_eta_names);
         if (value.liquid_capillarity_enabled)
             value.AddField<Set::Scalar,Set::HC::Cell>(
                 value.capillary_chemical_potential_mf, &value.bc_nothing,
@@ -1038,10 +1119,10 @@ LowMach::UpdateLiquidChemicalPotential(int lev)
     for (int a = 0; a < nphase; ++a)
         for (int b = a + 1; b < nphase; ++b)
         {
-            const Set::Scalar sigma =
-                capillary_phase_model.SurfaceTension(a,b);
-            const Set::Scalar adhesion =
-                capillary_phase_model.AdhesionEnergy(a,b);
+            const Set::Scalar pair_regularization =
+                capillary_phase_model.PairRegularization(a,b);
+            const Set::Scalar surface_correction =
+                capillary_phase_model.SolidSurfaceCorrection(a,b);
             if (!capillary_phase_model.HasInterfacialEnergy(a,b)) continue;
             for (amrex::MFIter mfi(chemical_potential, false);
                  mfi.isValid(); ++mfi)
@@ -1059,24 +1140,26 @@ LowMach::UpdateLiquidChemicalPotential(int lev)
                         mu(i,j,k,a) +=
                             Model::PhaseField::MultLiquid::
                                 PairChemicalPotential(
-                                    phase, a, b, sigma, epsilon,
+                                    phase, a, b, pair_regularization, epsilon,
                                     i, j, k, DX, stencil);
                         mu(i,j,k,b) +=
                             Model::PhaseField::MultLiquid::
                                 PairChemicalPotential(
-                                    phase, b, a, sigma, epsilon,
+                                    phase, b, a, pair_regularization, epsilon,
                                     i, j, k, DX, stencil);
-                        if (adhesion > 0.0)
+                        if (surface_correction != 0.0)
                         {
                             mu(i,j,k,a) +=
                                 Model::PhaseField::MultLiquid::
-                                    LiquidAdhesionChemicalPotential(
-                                        phase, a, b, adhesion, epsilon,
+                                    LiquidSurfaceCorrectionChemicalPotential(
+                                        phase, a, b, surface_correction,
+                                        epsilon,
                                         i, j, k, DX, stencil);
                             mu(i,j,k,b) +=
                                 Model::PhaseField::MultLiquid::
-                                    SolidAdhesionChemicalPotential(
-                                        phase, a, b, adhesion, epsilon,
+                                    SolidSurfaceCorrectionChemicalPotential(
+                                        phase, a, b, surface_correction,
+                                        epsilon,
                                         i, j, k, DX, stencil);
                         }
                     });
@@ -4008,6 +4091,18 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         UpdateComponentState(lev, *component_density_mf[lev]);
+        if (!liquid_species.empty())
+        {
+            const int nliquid = static_cast<int>(liquid_species.size());
+            const int gas_phase = nliquid +
+                static_cast<int>(capillary_solid_species.size());
+            amrex::MultiFab::Copy(
+                *phase_eta_plot_mf[lev], *phase_eta_mf[lev],
+                0, 0, nliquid, 0);
+            amrex::MultiFab::Copy(
+                *phase_eta_plot_mf[lev], *phase_eta_mf[lev],
+                gas_phase, nliquid, 1, 0);
+        }
         if (liquid_capillarity_enabled)
             UpdateLiquidChemicalPotential(lev);
         if (deformable_solid_species >= 0)

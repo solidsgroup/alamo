@@ -154,6 +154,7 @@ protected:
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> phase_eta_mf;
+    Set::Field<Set::Scalar> phase_eta_plot_mf;
     Set::Field<Set::Scalar> capillary_chemical_potential_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;

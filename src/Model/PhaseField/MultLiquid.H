@@ -6,37 +6,51 @@
 //
 // the pairwise free energy is
 //
-//   F = sum_{i<j} sigma_ij [
+//   F_ij = c_ij [
 //         3 ell/4 |eta_i grad(eta_j) - eta_j grad(eta_i)|^2
 //       + 12/ell eta_i^2 eta_j^2 ].
 //
-// A liquid-solid pair may additionally have the solid-surface energy
+// For liquid-liquid and liquid-gas pairs, c_ij is the physical surface
+// tension.  A liquid-solid pair instead uses a positive coefficient kappa_ij
+// in the same pair functional only to regularize the diffuse interface.  Its
+// physical surface-energy difference relative to exposed solid is supplied by
 //
-//       -A_ij h(eta_liquid) |grad(eta_solid)|,
+//   F_surface = 2 (Delta_gamma_ij - kappa_ij)
+//               h(eta_liquid) delta(eta_solid),
 //
-// where h(q) = q^2(3-2q).  It lowers the energy by A_ij per unit solid surface
-// covered by liquid, while h'(0) = h'(1) = 0 prevents a bulk force.  Unlike a
-// bilinear eta_liquid*eta_solid term, its variational force is not a pure
-// pressure gradient.  It also assigns no energy to an exposed solid-gas
-// interface.
+// where Delta_gamma_ij = gamma_SL - gamma_SG,
+// h(q) = q^2(3-2q), and
 //
-// Every term vanishes when either phase is absent, so removing a phase from a
-// calculation leaves the lower-dimensional model unchanged.  On a binary
-// interface the equilibrium profile is
+//   delta(eta_solid) = sqrt(|grad(eta_solid)|^2 + r^2) - r.
 //
-//   eta = 0.5 [1 - tanh(2 x / ell)]
+// Since 2 integral_0^1 h(q) dq = 1, a flat binary liquid-solid
+// interface has total energy kappa_ij + (Delta_gamma_ij-kappa_ij) =
+// Delta_gamma_ij per unit area.  The subtraction of r makes the surface term
+// exactly zero in uniform bulk regions.  h'(0) = h'(1) = 0 prevents a bulk
+// force.
 //
-// and the integrated interfacial energy is exactly sigma_ij.  This permits an
-// independent interfacial energy for every active material pair rather than
-// restricting an N-phase system to additive per-phase surface energies.
+// A contact angle theta measured through the liquid is equivalent to
+//
+//   Delta_gamma_ij = -sigma_LG cos(theta)
+//
+// by Young's equation.  The input layer accepts either theta or Delta_gamma,
+// never both, so they cannot independently over-constrain the same physics.
+//
+// On a binary interface the equilibrium profile is
+//
+//   eta = 0.5 [1 - tanh(2 x / ell)],
+//
+// and the integrated pair functional is exactly c_ij.  Every pair term is
+// reduction-consistent: removing a phase leaves the lower-dimensional model
+// unchanged.
 //
 // The phase list consists of every liquid, every solid, and an aggregate gas.
 // Active interfaces must contain at least one liquid: liquid-liquid,
 // liquid-gas, and optionally liquid-solid.  Solid-solid and solid-gas entries
-// are always zero, so adding liquid capillarity does not introduce an
-// independent solid surface model.  Material identities remain conserved
-// partial-density fields; actual phase change remains the responsibility of a
-// thermochemical mechanism.
+// are always zero.  Thus Delta_gamma is a signed, referenced surface energy
+// rather than an absolute solid surface tension.  Material identities remain
+// conserved partial-density fields; actual phase change remains the
+// responsibility of a thermochemical mechanism.
 //
 
 #ifndef MODEL_PHASEFIELD_MULTLIQUID_H
@@ -66,21 +80,28 @@ public:
                 const bool include_solid_interfaces,
                 const Set::Scalar interface_thickness,
                 const std::vector<Set::Scalar>& surface_tension,
-                const std::vector<Set::Scalar>& adhesion_energy)
+                const std::vector<Set::Scalar>&
+                    solid_interface_regularization,
+                const std::vector<Set::Scalar>&
+                    solid_surface_energy_difference)
     {
         Util::Assert(INFO, TEST(names.size() >= 2));
         Util::Assert(INFO, TEST(number_liquid_phases >= 1));
         Util::Assert(INFO, TEST(number_liquid_phases <
                                 static_cast<int>(names.size())));
+        Util::Assert(INFO, TEST(interface_thickness > 0.0));
         Util::Assert(INFO, TEST(surface_tension.size() ==
                                 names.size() * names.size()));
-        Util::Assert(INFO, TEST(adhesion_energy.size() ==
+        Util::Assert(INFO, TEST(solid_interface_regularization.size() ==
+                                names.size() * names.size()));
+        Util::Assert(INFO, TEST(solid_surface_energy_difference.size() ==
                                 names.size() * names.size()));
         phase_names = names;
         nliquid = number_liquid_phases;
         epsilon = interface_thickness;
         sigma = surface_tension;
-        adhesion = adhesion_energy;
+        solid_regularization = solid_interface_regularization;
+        solid_surface_difference = solid_surface_energy_difference;
         capillary_energy_max = 0.0;
         for (int i = 0; i < NumberOfPhases(); ++i)
             for (int j = i + 1; j < NumberOfPhases(); ++j)
@@ -88,20 +109,33 @@ public:
                 const bool one_liquid =
                     IsLiquidPhase(i) || IsLiquidPhase(j);
                 const bool one_solid = IsSolidPhase(i) || IsSolidPhase(j);
-                const bool active = one_liquid &&
-                    (include_solid_interfaces || !one_solid);
-                Util::Assert(INFO, TEST(active ? SurfaceTension(i,j) > 0.0 :
-                                                 SurfaceTension(i,j) == 0.0));
+                const bool liquid_solid = one_liquid && one_solid;
+                const bool fluid_interface = one_liquid && !one_solid;
+                Util::Assert(INFO, TEST(fluid_interface ?
+                    SurfaceTension(i,j) > 0.0 :
+                    SurfaceTension(i,j) == 0.0));
                 Util::Assert(INFO, TEST(SurfaceTension(i,j) ==
                                         SurfaceTension(j,i)));
-                const bool liquid_solid = one_liquid && one_solid;
-                Util::Assert(INFO, TEST(liquid_solid ?
-                    AdhesionEnergy(i,j) >= 0.0 :
-                    AdhesionEnergy(i,j) == 0.0));
-                Util::Assert(INFO, TEST(AdhesionEnergy(i,j) ==
-                                        AdhesionEnergy(j,i)));
-                capillary_energy_max = Util::Max(capillary_energy_max,
-                    SurfaceTension(i,j) + AdhesionEnergy(i,j));
+
+                const bool active_solid = liquid_solid &&
+                    include_solid_interfaces;
+                Util::Assert(INFO, TEST(active_solid ?
+                    SolidInterfaceRegularization(i,j) > 0.0 :
+                    SolidInterfaceRegularization(i,j) == 0.0));
+                Util::Assert(INFO, TEST(SolidInterfaceRegularization(i,j) ==
+                    SolidInterfaceRegularization(j,i)));
+                Util::Assert(INFO, TEST(active_solid ?
+                    std::isfinite(SolidSurfaceEnergyDifference(i,j)) :
+                    SolidSurfaceEnergyDifference(i,j) == 0.0));
+                Util::Assert(INFO, TEST(SolidSurfaceEnergyDifference(i,j) ==
+                    SolidSurfaceEnergyDifference(j,i)));
+
+                Set::Scalar stiffness = SurfaceTension(i,j);
+                if (active_solid)
+                    stiffness = SolidInterfaceRegularization(i,j) +
+                        2.0 * std::abs(SolidSurfaceCorrection(i,j));
+                capillary_energy_max = Util::Max(
+                    capillary_energy_max, stiffness);
             }
     }
 
@@ -128,7 +162,7 @@ public:
 
     bool HasInterfacialEnergy(const int a, const int b) const
     {
-        return SurfaceTension(a,b) > 0.0;
+        return PairRegularization(a,b) > 0.0;
     }
 
     Set::Scalar SurfaceTension(const int a, const int b) const
@@ -136,16 +170,66 @@ public:
         return sigma[a * NumberOfPhases() + b];
     }
 
-    Set::Scalar AdhesionEnergy(const int a, const int b) const
+    Set::Scalar SolidInterfaceRegularization(
+        const int a, const int b) const
     {
-        return adhesion[a * NumberOfPhases() + b];
+        return solid_regularization[a * NumberOfPhases() + b];
+    }
+
+    Set::Scalar SolidSurfaceEnergyDifference(
+        const int a, const int b) const
+    {
+        return solid_surface_difference[a * NumberOfPhases() + b];
+    }
+
+    Set::Scalar SolidSurfaceCorrection(const int a, const int b) const
+    {
+        return SolidSurfaceEnergyDifference(a,b) -
+            SolidInterfaceRegularization(a,b);
+    }
+
+    Set::Scalar PairRegularization(const int a, const int b) const
+    {
+        return SurfaceTension(a,b) + SolidInterfaceRegularization(a,b);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Scalar Interpolation(const Set::Scalar q)
+    {
+        const Set::Scalar bounded = Util::Clamp(q, 0.0, 1.0);
+        return bounded * bounded * (3.0 - 2.0 * bounded);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Scalar InterpolationDerivative(const Set::Scalar q)
+    {
+        const Set::Scalar bounded = Util::Clamp(q, 0.0, 1.0);
+        return 6.0 * bounded * (1.0 - bounded);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Scalar RegularizedSurfaceDelta(
+        const Set::Scalar gradient_norm,
+        const Set::Scalar interface_thickness)
+    {
+        const Set::Scalar regularization =
+            1.0e-12 / interface_thickness;
+        return std::sqrt(gradient_norm * gradient_norm +
+                         regularization * regularization) - regularization;
+    }
+
+    static Set::Scalar SurfaceEnergyDifferenceFromContactAngle(
+        const Set::Scalar liquid_gas_surface_tension,
+        const Set::Scalar contact_angle)
+    {
+        return -liquid_gas_surface_tension * std::cos(contact_angle);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static Set::Scalar PairChemicalPotential(
         const amrex::Array4<const Set::Scalar>& eta,
         const int phase, const int other,
-        const Set::Scalar surface_tension,
+        const Set::Scalar pair_regularization,
         const Set::Scalar interface_thickness,
         const int i, const int j, const int k,
         const Set::Scalar dx[AMREX_SPACEDIM],
@@ -166,48 +250,46 @@ public:
         const Set::Scalar relative_laplacian =
             eta_i * lap_j - eta_j * lap_i;
 
-        return 3.0 * interface_thickness * surface_tension *
+        return 3.0 * interface_thickness * pair_regularization *
                     relative_gradient.dot(grad_j) +
-               1.5 * interface_thickness * surface_tension * eta_j *
+               1.5 * interface_thickness * pair_regularization * eta_j *
                     relative_laplacian +
-               24.0 * surface_tension / interface_thickness *
+               24.0 * pair_regularization / interface_thickness *
                     eta_i * eta_j * eta_j;
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    static Set::Scalar LiquidAdhesionChemicalPotential(
+    static Set::Scalar LiquidSurfaceCorrectionChemicalPotential(
         const amrex::Array4<const Set::Scalar>& eta,
         const int liquid, const int solid,
-        const Set::Scalar adhesion_energy,
+        const Set::Scalar surface_correction,
         const Set::Scalar interface_thickness,
         const int i, const int j, const int k,
         const Set::Scalar dx[AMREX_SPACEDIM],
         std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil)
     {
-        const Set::Scalar q = Util::Clamp(eta(i,j,k,liquid), 0.0, 1.0);
-        const Set::Scalar hprime = 6.0 * q * (1.0 - q);
+        const Set::Scalar hprime = InterpolationDerivative(
+            eta(i,j,k,liquid));
         const Set::Vector grad_solid = Numeric::Gradient(
             eta, i, j, k, solid, dx, stencil);
-        const Set::Scalar regularization = 1.0e-12 / interface_thickness;
-        const Set::Scalar surface_delta = std::sqrt(
-            grad_solid.dot(grad_solid) +
-            regularization * regularization);
-        return -adhesion_energy * hprime * surface_delta;
+        const Set::Scalar surface_delta = RegularizedSurfaceDelta(
+            std::sqrt(grad_solid.dot(grad_solid)), interface_thickness);
+        return 2.0 * surface_correction * hprime * surface_delta;
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    static Set::Scalar SolidAdhesionChemicalPotential(
+    static Set::Scalar SolidSurfaceCorrectionChemicalPotential(
         const amrex::Array4<const Set::Scalar>& eta,
         const int liquid, const int solid,
-        const Set::Scalar adhesion_energy,
+        const Set::Scalar surface_correction,
         const Set::Scalar interface_thickness,
         const int i, const int j, const int k,
         const Set::Scalar dx[AMREX_SPACEDIM],
         std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil)
     {
-        const Set::Scalar q = Util::Clamp(eta(i,j,k,liquid), 0.0, 1.0);
-        const Set::Scalar h = q * q * (3.0 - 2.0 * q);
-        const Set::Scalar hprime = 6.0 * q * (1.0 - q);
+        const Set::Scalar q = eta(i,j,k,liquid);
+        const Set::Scalar h = Interpolation(q);
+        const Set::Scalar hprime = InterpolationDerivative(q);
         const Set::Vector grad_liquid = Numeric::Gradient(
             eta, i, j, k, liquid, dx, stencil);
         const Set::Vector grad_solid = Numeric::Gradient(
@@ -231,14 +313,15 @@ public:
         const Set::Scalar curvature = laplacian / surface_delta -
             projected_hessian /
                 (surface_delta * surface_delta * surface_delta);
-        return adhesion_energy *
+        return -2.0 * surface_correction *
             (hprime * grad_liquid.dot(normal) + h * curvature);
     }
 
 private:
     std::vector<std::string> phase_names;
     std::vector<Set::Scalar> sigma;
-    std::vector<Set::Scalar> adhesion;
+    std::vector<Set::Scalar> solid_regularization;
+    std::vector<Set::Scalar> solid_surface_difference;
     int nliquid = 0;
     Set::Scalar epsilon = 0.0;
     Set::Scalar capillary_energy_max = 0.0;

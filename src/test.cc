@@ -3,6 +3,7 @@
 #include <cmath>
 #include <stdlib.h>
 
+#include "AMReX_FArrayBox.H"
 #include "Set/Matrix4.H"
 #include "Util/Util.H"
 #include "IO/FileNameParse.H"
@@ -28,6 +29,7 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Chemistry/GrossModel.H"
+#include "Model/PhaseField/MultLiquid.H"
 
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/ODE/BackwardEuler.H"
@@ -69,6 +71,150 @@ int main (int argc, char* argv[])
         else
             unsetenv("SLURM_FILENAME_PARSE_TEST");
 
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Model::PhaseField::MultLiquid surface energy test");
+    {
+        int subfailed = 0;
+        using PhaseModel = Model::PhaseField::MultLiquid;
+        constexpr int liquid = 0;
+        constexpr int solid = 1;
+        constexpr int gas = 2;
+        constexpr int nphase = 3;
+        const Set::Scalar sigma_lg = 0.8;
+        const Set::Scalar solid_regularization = 0.3;
+        const Set::Scalar surface_difference = -0.4;
+        const Set::Scalar correction =
+            surface_difference - solid_regularization;
+
+        std::vector<Set::Scalar> surface_tension(
+            nphase * nphase, 0.0);
+        std::vector<Set::Scalar> regularization(
+            nphase * nphase, 0.0);
+        std::vector<Set::Scalar> difference(
+            nphase * nphase, 0.0);
+        surface_tension[liquid * nphase + gas] = sigma_lg;
+        surface_tension[gas * nphase + liquid] = sigma_lg;
+        regularization[liquid * nphase + solid] = solid_regularization;
+        regularization[solid * nphase + liquid] = solid_regularization;
+        difference[liquid * nphase + solid] = surface_difference;
+        difference[solid * nphase + liquid] = surface_difference;
+
+        PhaseModel model;
+        const Set::Scalar ell = 0.7;
+        model.Define({"liquid", "solid", "gas"}, 1, true, ell,
+                     surface_tension, regularization, difference);
+        subfailed += Util::Test::SubMessage(
+            "Surface tension excludes liquid-solid",
+            model.SurfaceTension(liquid,solid) != 0.0 ||
+            std::abs(model.SurfaceTension(liquid,gas) - sigma_lg) > 1.0e-14);
+        subfailed += Util::Test::SubMessage(
+            "Signed solid surface correction",
+            std::abs(model.SolidSurfaceCorrection(liquid,solid) -
+                     correction) > 1.0e-14);
+        subfailed += Util::Test::SubMessage(
+            "Capillary stiffness includes correction",
+            std::abs(model.MaximumCapillaryEnergy() - 1.7) > 1.0e-14);
+
+        const Set::Scalar from_angle =
+            PhaseModel::SurfaceEnergyDifferenceFromContactAngle(
+                sigma_lg, Set::Constant::Pi / 3.0);
+        subfailed += Util::Test::SubMessage(
+            "Young contact-angle conversion",
+            std::abs(from_angle - surface_difference) > 1.0e-12);
+
+        constexpr int interpolation_points = 10000;
+        Set::Scalar normalized_interpolation = 0.0;
+        for (int i = 0; i < interpolation_points; ++i)
+        {
+            const Set::Scalar q =
+                (static_cast<Set::Scalar>(i) + 0.5) /
+                interpolation_points;
+            normalized_interpolation += 2.0 * PhaseModel::Interpolation(q) /
+                interpolation_points;
+        }
+        subfailed += Util::Test::SubMessage(
+            "Solid surface delta normalization",
+            std::abs(normalized_interpolation - 1.0) > 1.0e-13);
+        subfailed += Util::Test::SubMessage(
+            "Bulk surface delta is zero",
+            PhaseModel::RegularizedSurfaceDelta(0.0, ell) != 0.0);
+
+        const amrex::Box flat_domain(
+            amrex::IntVect::TheZeroVector(),
+            amrex::IntVect(AMREX_D_DECL(8, 4, 4)));
+        amrex::FArrayBox flat_phase(flat_domain, nphase);
+        auto flat = flat_phase.array();
+        const amrex::Dim3 flat_lo = amrex::lbound(flat_domain);
+        const amrex::Dim3 flat_hi = amrex::ubound(flat_domain);
+        const Set::Scalar flat_dx = ell / 4.0;
+        for (int k = flat_lo.z; k <= flat_hi.z; ++k)
+            for (int j = flat_lo.y; j <= flat_hi.y; ++j)
+                for (int i = flat_lo.x; i <= flat_hi.x; ++i)
+                {
+                    const Set::Scalar x = (i - 4) * flat_dx;
+                    const Set::Scalar q =
+                        0.5 * (1.0 - std::tanh(2.0 * x / ell));
+                    flat(i,j,k,liquid) = q;
+                    flat(i,j,k,solid) = 1.0 - q;
+                    flat(i,j,k,gas) = 0.0;
+                }
+        const auto flat_const = flat_phase.const_array();
+        const int ci = 4;
+        const int cj = 2;
+        const int ck = AMREX_SPACEDIM > 2 ? 2 : 0;
+        const Set::Scalar cell_size[AMREX_SPACEDIM] =
+            {AMREX_D_DECL(flat_dx, flat_dx, flat_dx)};
+        const auto central = Numeric::DefaultType();
+        const Set::Scalar mu_liquid =
+            PhaseModel::LiquidSurfaceCorrectionChemicalPotential(
+                flat_const, liquid, solid, correction, ell,
+                ci, cj, ck, cell_size, central);
+        const Set::Scalar mu_solid =
+            PhaseModel::SolidSurfaceCorrectionChemicalPotential(
+                flat_const, liquid, solid, correction, ell,
+                ci, cj, ck, cell_size, central);
+        const Set::Vector grad_liquid = Numeric::Gradient(
+            flat_const, ci, cj, ck, liquid, cell_size, central);
+        const Set::Vector grad_solid = Numeric::Gradient(
+            flat_const, ci, cj, ck, solid, cell_size, central);
+        const Set::Vector flat_force =
+            mu_liquid * grad_liquid + mu_solid * grad_solid;
+        subfailed += Util::Test::SubMessage(
+            "Flat binary surface correction force",
+            flat_force.lpNorm<2>() > 1.0e-10);
+
+        constexpr int profile_points = 10000;
+        const Set::Scalar dx = 16.0 * ell / profile_points;
+        Set::Scalar pair_energy = 0.0;
+        Set::Scalar correction_energy = 0.0;
+        for (int i = 0; i < profile_points; ++i)
+        {
+            const Set::Scalar x = -8.0 * ell +
+                (static_cast<Set::Scalar>(i) + 0.5) * dx;
+            const Set::Scalar q =
+                0.5 * (1.0 - std::tanh(2.0 * x / ell));
+            const Set::Scalar s = 1.0 - q;
+            const Set::Scalar grad_q = -4.0 * q * s / ell;
+            const Set::Scalar grad_s = -grad_q;
+            const Set::Scalar relative_gradient =
+                q * grad_s - s * grad_q;
+            pair_energy += solid_regularization *
+                (0.75 * ell * relative_gradient * relative_gradient +
+                 12.0 / ell * q * q * s * s) * dx;
+            correction_energy += 2.0 * correction *
+                PhaseModel::Interpolation(q) *
+                PhaseModel::RegularizedSurfaceDelta(
+                    std::abs(grad_s), ell) * dx;
+        }
+        subfailed += Util::Test::SubMessage(
+            "Flat-interface regularization energy",
+            std::abs(pair_energy - solid_regularization) > 2.0e-10);
+        subfailed += Util::Test::SubMessage(
+            "Flat-interface physical energy",
+            std::abs(pair_energy + correction_energy -
+                     surface_difference) > 2.0e-10);
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

@@ -2,6 +2,7 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
 #@ [2d-solid-liquid-reverse]
 #@ exe=lowmach
@@ -9,6 +10,7 @@
 #@ timeout=120
 #@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
 #@ args=Al_solidification.phase_change.rate_multiplier=1.0
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
 #@ [2d-solid-liquid-no-solid-capillary]
 #@ exe=lowmach
@@ -16,11 +18,11 @@
 #@ timeout=120
 #@ args=liquid.capillary.include_solids=0
 #@
-#@ [2d-solid-liquid-adhesion]
+#@ [2d-solid-liquid-contact-angle]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
-#@ args=liquid.adhesion_energy.Al_liquid_Al_solid=0.02_J/m^2
+#@ args=liquid.contact_angle.Al_liquid_Al_solid=180.0_deg
 #@
 #@ [2d-liquid-gas-bundle]
 #@ exe=lowmach
@@ -28,6 +30,7 @@
 #@ timeout=120
 #@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
 #@ args=Al_vaporization.phase_change.prescribed_speed=0.1_m/s
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
 #@ [2d-gas-liquid-reverse]
 #@ exe=lowmach
@@ -35,6 +38,7 @@
 #@ timeout=120
 #@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
 #@ args=Al_condensation.phase_change.rate_multiplier=0.1
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 
 plot_file = tests/LMPhaseChange/output
 amr.plot_int = 100
@@ -84,7 +88,7 @@ liquid.interface_thickness = 0.04_m
 liquid.capillary.enabled = 1
 liquid.capillary.include_solids = 1
 liquid.surface_tension.Al_liquid_gas = 0.01_J/m^2
-liquid.surface_tension.Al_liquid_Al_solid = 0.01_J/m^2
+liquid.solid_interface_regularization.Al_liquid_Al_solid = 0.01_J/m^2
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler

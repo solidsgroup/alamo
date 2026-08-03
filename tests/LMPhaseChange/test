@@ -8,14 +8,28 @@ import testlib
 
 def state(path):
     ds = testlib.yt.load(path)
+    field_names = {name for _, name in ds.field_list}
+    redundant_eta = sorted(name for name in field_names if
+        name.startswith("eta_solid_") or
+        name.startswith("eta_liquid_") or name == "eta_gas")
+    if redundant_eta:
+        raise RuntimeError(
+            f"Plotfile contains redundant eta fields: {redundant_eta}")
+    if "rigid_species_eta_Al_solid" not in field_names:
+        raise RuntimeError("Plotfile omitted rigid_species_eta_Al_solid")
+    if "liquid_species_eta_Al_liquid" not in field_names:
+        raise RuntimeError("Plotfile omitted liquid_species_eta_Al_liquid")
+    if "gas_eta" not in field_names:
+        raise RuntimeError("Plotfile omitted gas_eta")
     data = ds.all_data()
     solid = data["component_density_Al_solid"].to_ndarray()
     liquid = data["component_density_Al_liquid"].to_ndarray()
     product_a = data["component_density_product_A"].to_ndarray()
     product_b = data["component_density_product_B"].to_ndarray()
-    solid_eta = data["eta_solid_Al_solid"].to_ndarray()
-    liquid_eta = data["eta_liquid_Al_liquid"].to_ndarray()
-    gas_eta = data["eta_gas"].to_ndarray()
+    solid_eta = data["rigid_species_eta_Al_solid"].to_ndarray()
+    liquid_eta = data["liquid_species_eta_Al_liquid"].to_ndarray()
+    gas_eta = data["gas_eta"].to_ndarray()
+    capillary_solid_eta = 1.0 - liquid_eta - gas_eta
     temperature = data["temperature"].to_ndarray()
     volume = data[("index", "cell_volume")].to_ndarray()
     aluminum = solid + liquid + product_a + product_b
@@ -31,8 +45,10 @@ def state(path):
         "product_b": (product_b * volume).sum(),
         "mass": mass,
         "temperature": weighted_temperature,
-        "capillary_simplex_error": testlib.numpy.max(testlib.numpy.abs(
-            solid_eta + liquid_eta + gas_eta - 1.0)),
+        "capillary_phase_minimum": min(
+            liquid_eta.min(), capillary_solid_eta.min(), gas_eta.min()),
+        "capillary_phase_maximum": max(
+            liquid_eta.max(), capillary_solid_eta.max(), gas_eta.max()),
         "gas_in_solid": testlib.numpy.max(gas_eta[solid > 1.98]),
         "minimum": min(
             solid.min(), liquid.min(), product_a.min(), product_b.min()),
@@ -46,9 +62,11 @@ if len(plotfiles) < 2:
 
 initial = state(plotfiles[0])
 final = state(plotfiles[-1])
-if initial["capillary_simplex_error"] > 1.0e-12 or \
-        final["capillary_simplex_error"] > 1.0e-12:
-    raise RuntimeError("Solid-liquid-gas capillary phases violate the simplex")
+if initial["capillary_phase_minimum"] < -1.0e-12 or \
+        final["capillary_phase_minimum"] < -1.0e-12 or \
+        initial["capillary_phase_maximum"] > 1.0 + 1.0e-12 or \
+        final["capillary_phase_maximum"] > 1.0 + 1.0e-12:
+    raise RuntimeError("Liquid-gas capillary output lies outside the simplex")
 if initial["gas_in_solid"] > 1.0e-2:
     raise RuntimeError(
         f"Capillary gas fraction inside solid is {initial['gas_in_solid']:.3e}")
