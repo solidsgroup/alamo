@@ -22,6 +22,7 @@
 #include "Color.H"
 #include "Numeric/Stencil.H"
 #include "Util/MPI.H"
+#include "Util/Zephyr.H"
 #include <mpi.h>
 
 namespace
@@ -236,12 +237,18 @@ void Initialize (int argc, char* argv[])
     amrex_argv.reserve(argc > 0 ? argc : 0);
     for (int i = 0; i < argc; i++)
     {
-        if (std::string(argv[i]) == "--parse-args")
+        const std::string argument(argv[i]);
+        if (argument == "--post")
+        {
+            Util::Zephyr::Enable();
+            continue;
+        }
+        if (argument == "--parse-args")
         {
             parse_args = true;
             continue;
         }
-        if (std::string(argv[i]) == "--parse-args-output")
+        if (argument == "--parse-args-output")
         {
             if (i + 1 >= argc)
                 ParseArgsError("--parse-args-output requires a file path");
@@ -286,6 +293,7 @@ void Initialize (int argc, char* argv[])
                 file_overwrite = Util::CreateCleanDirectory(filename, false);
             IO::OutputLog::Open(filename + "/out.log", restart_in_place);
             IO::WriteMetaData(filename);
+            Util::Zephyr::Start(filename);
         }
         else
         {
@@ -399,6 +407,8 @@ void Finalize()
         std::string filename = GetFileName();
         if (filename != "")
             IO::WriteMetaData(filename,IO::Status::Complete);
+        if (amrex::ParallelDescriptor::IOProcessor())
+            Util::Zephyr::Stop();
     }
     amrex::Finalize();
     IO::OutputLog::Finalize();

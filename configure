@@ -99,6 +99,23 @@ def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None,shell=Fa
         raise e
     return p
 
+def authenticate_zephyr(server):
+    """Connect zph to Zephyr during ALAMO configuration."""
+    zph = shutil.which("zph")
+    if not zph:
+        raise Exception(error(
+            "Zephyr authentication requires zph on PATH. Install it with "
+            "`pipx install 'git+https://github.com/solidsgroup/zephyr.git#subdirectory=cli'` "
+            "and rerun configure."
+        ))
+    message("Zephyr", f"connecting zph to {server}")
+    try:
+        subprocess.run([zph, "login", server], check=True)
+    except subprocess.CalledProcessError as exception:
+        raise Exception(error(
+            "Zephyr authentication did not complete; rerun configure to try again."
+        )) from exception
+
 message("Python",python_version)
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
@@ -186,6 +203,11 @@ parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to
 parser.add_argument('--hdf5', default=False, action='store_true', help='Compile with HDF5 support')
 parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
 parser.add_argument('--yaml', action='store_true', default=False, help='Build and link to yaml-cpp')
+parser.add_argument(
+    '--zephyr', nargs='?', const='https://zephyr.solids.group', default=None,
+    metavar='URL',
+    help='Authenticate zph for ALAMO posting (default: https://zephyr.solids.group)',
+)
 parser.set_defaults(**defaults)
 
 
@@ -225,10 +247,16 @@ if args.cuda and (args.memcheck or args.coverage or args.omp):
     raise(Exception(error(
         "CUDA builds currently do not support memcheck, coverage, or OpenMP")))
 
+if args.zephyr:
+    authenticate_zephyr(args.zephyr)
+
 if pre_args.save:
-    data = vars(args)
+    data = vars(args).copy()
     data.pop("save",None)
     data.pop("config",None)
+    # zph stores the authenticated server and token. This one-time action is
+    # deliberately not part of ALAMO's persistent build configuration.
+    data.pop("zephyr",None)
     with open(pre_args.config,"w") as f:
         json.dump(data,f,indent=4,sort_keys=True)
     message("Config",f"saving configuration to {pre_args.config}")

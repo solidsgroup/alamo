@@ -148,6 +148,31 @@ All you need to do is re-run the configure script, and previous versions of Alam
     To continue the build, just issue the :code:`make` command again and it should continue normally.
     You can also add the :code:`--output-sync=target` option which may help eliminate the issue.
 
+Posting runs to Zephyr
+----------------------
+
+With the ``zph`` client installed on ``PATH``, ALAMO can post a simulation to
+Zephyr without putting networking or credentials in the solver process.
+Authenticate once while configuring ALAMO:
+
+.. code-block:: console
+
+    ./configure --zephyr https://zephyr.solids.group
+
+``configure`` asks ``zph`` to print and open a short-lived login URL. Complete
+Google login in the browser; no token needs to be copied. The login is saved in
+the user's normal configuration directory. Posting is then enabled per run with
+the boolean ``--post`` argument:
+
+.. code-block:: console
+
+    ./bin/alamo-2d-g++ --post input
+
+If the compute node cannot open a browser, copy the printed URL to a browser on
+another machine while running ``configure``. At runtime ALAMO starts
+``zph watch`` as a lightweight sidecar; posting failures do not stop solver
+progress.
+
 Unit Testing
 ------------
 
