@@ -1,6 +1,7 @@
 #ifndef SOLVER_NONLOCAL_LINEAR
 #define SOLVER_NONLOCAL_LINEAR
 #include "Operator/Operator.H"
+#include "Solver/Nonlocal/MLMGSyncStateGuard.H"
 #include <AMReX_MLMG.H>
 
 namespace Solver
@@ -112,6 +113,7 @@ public:
         Set::Scalar retval = NAN;
         try
         {
+            MLMGSyncStateGuard sync_state(no_gpu_sync);
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp), a_tol_rel, a_tol_abs, checkpoint_file);
         }
         catch (const std::exception& e)
@@ -136,6 +138,7 @@ public:
         Set::Scalar retval = NAN;
         try
         {
+            MLMGSyncStateGuard sync_state(no_gpu_sync);
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs), a_tol_rel, a_tol_abs, checkpoint_file);
         }
         catch (const std::exception& e)
@@ -152,6 +155,7 @@ public:
         Set::Scalar retval = NAN;
         try
         {
+            MLMGSyncStateGuard sync_state(no_gpu_sync);
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs), tol_rel, tol_abs);
         }
         catch (const std::exception& e)
@@ -248,6 +252,7 @@ protected:
     Set::Scalar omega = -1.0;
     bool average_down_coeffs = false;
     bool normalize_ddw = false;
+    bool no_gpu_sync = false;
 
     Operator::Operator<Grid::Node>* linop;
     amrex::MLMG* mlmg;
@@ -259,7 +264,8 @@ protected:
         mlmg.setCFStrategy(MLMG::CFStrategy::ghostnodes);
         mlmg.setFinalFillBC(false);
         mlmg.setMaxFmgIter(100000000);
-
+        mlmg.setNoGpuSync(no_gpu_sync);
+        mlmg.setThrowException(m_dump_on_fail || !m_abort_on_fail);
 
         if (max_iter >= 0)        mlmg.setMaxIter(max_iter);
         if (bottom_max_iter >= 0) mlmg.setBottomMaxIter(bottom_max_iter);
@@ -358,18 +364,20 @@ public:
         // is a "void" region or when doing phase field fracture.
         pp_query("normalize_ddw", value.normalize_ddw);
 
+        // Use MLMG's solver-scoped single-stream/no-sync GPU execution.
+        // Default false preserves AMReX's normal per-MFIter synchronization.
+        pp_query("no_gpu_sync", value.no_gpu_sync);
+
         // [false] 
         // If set to true, output diagnostic multifab information 
         // whenever the MLMG solver fails to converge.
-        // (Note: you must also set :code:`amrex.signalhandling=0`
-        // and :code:`amrex.throw_exception=1` for this to work.)
+        // Linear configures AMReX's exception path when this is enabled.
         pp_query("dump_on_fail", value.m_dump_on_fail);
 
         // [true]
         // If set to false, MLMG will not die if convergence criterion
         // is not reached.
-        // (Note: you must also set :code:`amrex.signalhandling=0`
-        // and :code:`amrex.throw_exception=1` for this to work.)
+        // Linear configures AMReX's exception path when this is disabled.
         pp_query("abort_on_fail", value.m_abort_on_fail);
 
         if (value.m_dump_on_fail || !value.m_abort_on_fail)

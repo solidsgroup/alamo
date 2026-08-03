@@ -1,9 +1,0 @@
-arm: 3D_mcl1
-args: elastic.max_coarsening_level=1
-
-rep          wall_s     mlmg_iters final_rel_resid     bottom_s
-rep1          7.888             84 8.820397044e-06   .833075729
-rep2          7.860             84 8.820397044e-06   .841093454
-rep3          7.864             84 8.820397044e-06   .829895682
-
-median wall: 7.864269171

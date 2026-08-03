@@ -1,9 +1,0 @@
-arm: D_smooth_2_2
-args: elastic.solver.pre_smooth=2 elastic.solver.post_smooth=2
-
-rep          wall_s     mlmg_iters final_rel_resid     bottom_s
-rep1          1.222             86 9.734444545e-06   .133607857
-rep2          1.223             86 9.734444545e-06   .133427948
-rep3          1.228             86 9.734444545e-06   .131569512
-
-median wall: 1.223162771

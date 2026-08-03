@@ -13,6 +13,19 @@
 #     bin/alamo_gpu-2d-profile-cuda90-g++   (H200)
 # Both are --profile builds: fully optimized (--use_fast_math etc.) AND able to
 # emit TinyProfiler tables when you pass the profiler runtime params.
+#
+# VARIANTS (default "profile") selects which builds to produce:
+#   profile -> bin/alamo_gpu-<dim>d-profile-cuda<arch>-g++   diagnostic binary.
+#              TinyProfiler is on, and on CUDA every BL_PROFILE region also emits
+#              an NVTX range (vendored AMReX 26.06 AMReX_TinyProfiler.cpp:134,211),
+#              which is what makes an nsys timeline readable.
+#   plain   -> bin/alamo_gpu-<dim>d-cuda<arch>-g++            timing binary.
+#              No profiler instrumentation. Wall-clock claims must come from this
+#              one -- a profile build pays a push/pop per region (16k+ Fapply
+#              ranges in a 2-step 2D run) and MODE=bench additionally sets
+#              tiny_profiler.device_synchronize_around_region=1, which serializes
+#              the asynchrony a memory-strategy campaign is trying to measure.
+#   Build both:  VARIANTS="profile plain" sh build_alamo_nova.sh
 # ============================================================================
 set -euo pipefail
 
@@ -31,6 +44,8 @@ ALAMO_DIR="${ALAMO_DIR:-$PWD}"
 ACCOUNT="${ACCOUNT:-brunnels}"
 BUILD_PARTITION="${BUILD_PARTITION:-nova}"   # CPU EPYC nodes; build needs no GPU
 ARCHES="${ARCHES:-80 90}"                    # 80=A100, 90=H200
+VARIANTS="${VARIANTS:-profile}"              # "profile", "plain", or "profile plain"
+DIMS="${DIMS:-2}"                            # 2, 3, or "2 3"
 BUILD_JOBS="${BUILD_JOBS:-64}"
 BUILD_MEM="${BUILD_MEM:-64G}"
 COMP="${COMP:-g++}"                          # nvcc host compiler (gcc is the safe choice)
@@ -52,7 +67,19 @@ module list 2>&1 | sed 's/^/    /' || true
 mkdir -p "${ALAMO_DIR}"
 ALAMO_DIR="$(cd "${ALAMO_DIR}" && pwd)"   # absolutize
 echo -e "${YELLOW}Building in ${ALAMO_DIR}${NC}"
-if [ -d "${ALAMO_DIR}/.git" ]; then
+if [ "${SKIP_GIT:-0}" = 1 ]; then
+  # The working tree was placed here by an rsync push (benchmark/phase0_capture.sh
+  # push) and IS the thing to build. Pulling would fight it: a dirty local branch
+  # makes `pull --ff-only` abort, and if it did succeed it would silently discard
+  # the pushed source. Provenance for what is actually here lives in
+  # benchmark/_pushed_rev.txt, not in this checkout's git metadata.
+  echo -e "${YELLOW}SKIP_GIT=1 -- building the tree as-is, no fetch/checkout/pull${NC}"
+  if [ -f "${ALAMO_DIR}/benchmark/_pushed_rev.txt" ]; then
+    sed 's/^/    /' "${ALAMO_DIR}/benchmark/_pushed_rev.txt"
+  else
+    echo -e "${RED}  WARNING: no benchmark/_pushed_rev.txt -- no trustworthy source provenance${NC}"
+  fi
+elif [ -d "${ALAMO_DIR}/.git" ]; then
   echo -e "${YELLOW}Updating existing checkout in place...${NC}"
   git -C "${ALAMO_DIR}" fetch origin "${BRANCH}"
   git -C "${ALAMO_DIR}" checkout "${BRANCH}"
@@ -102,13 +129,22 @@ module purge 2>/dev/null || true
 module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
 module load gcc 2>/dev/null || module load gcc/12 2>/dev/null || true
 module load openmpi 2>/dev/null || module load openmpi4 2>/dev/null || true
+for dim in ${DIMS}; do
 for arch in ${ARCHES}; do
-    echo "=== building cuda sm_\${arch} ==="
-    ./configure --comp=${COMP} --dim 2 --cuda \${arch} --profile --get-eigen
+for variant in ${VARIANTS}; do
+    case "\${variant}" in
+      profile) VFLAG="--profile" ;;
+      plain)   VFLAG="" ;;
+      *) echo "unknown VARIANT '\${variant}' (use profile|plain)"; exit 1 ;;
+    esac
+    echo "=== building dim=\${dim} cuda sm_\${arch} variant=\${variant} ==="
+    ./configure --comp=${COMP} --dim \${dim} --cuda \${arch} \${VFLAG} --get-eigen
     make -j\${SLURM_CPUS_PER_TASK:-${BUILD_JOBS}} bin/alamo_gpu
 done
+done
+done
 echo "=== build complete ==="
-ls -lh bin/alamo_gpu-2d*cuda* || true
+ls -lh bin/alamo_gpu-*d*cuda* || true
 END_OF_SBATCH
 
 echo -e "${BOLD}${GREEN}Submitting build job...${NC}"

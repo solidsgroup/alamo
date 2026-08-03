@@ -138,6 +138,32 @@ compute vs `WritePlotFile` IO vs `Operator::Elastic` solve vs `Flame::Regrid`),
 wraps the GPU run in `nsys` when present, and prints a side-by-side speedup
 table. Artifacts land in `benchmark/results_<stamp>/`.
 
+### GPU timing protocol
+
+Use at least 10 completed steps for a GPU speed claim; use more when the
+measured operation runs infrequently. One- or two-step decks are correctness
+smokes only because CUDA/AMReX initialization and arena reservation can
+dominate their wall time.
+
+For an A/B result:
+
+- use identical binaries, inputs, rank/GPU counts, output settings, and arena
+  settings between arms;
+- alternate arm order for at least three repetitions and report median + MAD;
+- report total wall and wall per completed step;
+- pair each long run with a one-step run and compute
+  `(wall_long - wall_short) / (steps_long - 1)` so startup is removed inside
+  every repetition; retain synchronized solver or trace-region timers when
+  available;
+- retain raw samples and state whether an arena-size override was local-only.
+
+Multi-step external wall is the authoritative speed metric. The paired
+difference is the startup-excluding wall metric, not a substitute for a long
+horizon. Per-region GPU timers are
+valid only when their region boundaries synchronize the measured work:
+asynchronous/no-sync execution can move completion costs into later regions and
+make inner-region attribution misleading.
+
 ### Flame graphs
 
 * **GPU (best):** the script captures `gpu_trace.nsys-rep`. Open it in NVIDIA
@@ -220,6 +246,34 @@ benchmark/g0_ncu_capture.sh
 This requires NVIDIA performance counter access. If `ncu` reports
 `ERR_NVGPUCTRPERM`, enable counter access on the host or run the capture on a
 permitted NOVA node.
+
+## Phase-0 memory capture
+
+The memory-strategy capture records a content-derived source key, runs
+five-solve timing and bounded diagnostic profiling, and keeps raw Nsight
+reports on NOVA by default:
+
+```bash
+HOST=nova REMOTE_DIR=/work/brunnels/jackplum/alamo \
+  bash benchmark/phase0_capture.sh push
+DRYRUN=1 DECK=input_copy bash benchmark/phase0_capture.slurm
+HOST=nova REMOTE_DIR=/work/brunnels/jackplum/alamo SERIAL=1 \
+  bash benchmark/phase0_capture.sh submit \
+  input_copy input input_3d_centre_bore_128_a2
+HOST=nova bash benchmark/phase0_capture.sh collect \
+  /work/brunnels/jackplum/alamo/benchmark/_phase0_<deck>_a100_<job>
+python3 benchmark/phase0_analyze.py \
+  "$CAPTURE_DIR_1" "$CAPTURE_DIR_2"
+```
+
+`phase0_analyze.py` reports provenance, repeated timing, arena request/high-water
+tables, transfers, synchronization, idle fractions, the discovered kernel
+Pareto, and NCU limiter metrics. `nsys_idle.py` reduces the large detailed
+CUDA/NVTX traces on NOVA; bounded collection moves only its compact summary.
+Use `RAW=1` with `collect` only when a local raw report is actually needed.
+`sync_inventory.py` mechanically enumerates explicit stream syncs, device-result
+landings, host norms, blocking collectives, and blocking copies in the supported
+Flame/Elastic/Newton source closure.
 
 ## Optimization knobs (making the GPU win big)
 

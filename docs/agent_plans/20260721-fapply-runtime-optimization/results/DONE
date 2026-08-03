@@ -1,5 +1,0 @@
-Completed 2026-07-22.
-
-Retain configuration-only 2/2 pre/post smoothing. Local A1000 and NOVA/A100
-performance and frozen two-step physics gates pass. No source optimization is
-retained; protected Elastic source remains identical to campaign HEAD.

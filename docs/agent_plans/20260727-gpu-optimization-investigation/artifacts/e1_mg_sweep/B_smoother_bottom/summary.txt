@@ -1,9 +1,0 @@
-arm: B_smoother_bottom
-args: elastic.solver.bottom_solver=smoother
-
-rep          wall_s     mlmg_iters final_rel_resid     bottom_s
-rep1          1.387             82 9.181663385e-06   .130606103
-rep2          1.367             82 9.181663385e-06   .126744396
-rep3          1.386             82 9.181663385e-06   .126946775
-
-median wall: 1.386197108

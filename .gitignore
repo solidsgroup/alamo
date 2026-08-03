@@ -87,3 +87,13 @@ __pycache__/
 # local GPU A/B profiling artifacts
 benchmark/local_ab_*/
 benchmark/local_amr_shape_*/
+
+# multi-rank correctness probe artifacts (benchmark/two_rank_probe.sh)
+benchmark/_two_rank_probe_*/
+
+# Phase 0 NOVA capture artifacts (benchmark/phase0_capture.slurm)
+benchmark/_phase0_*/
+
+# validation run outputs (benchmark/validate/run_validation_*.py); the
+# harness scripts and references/ stay tracked
+benchmark/validate/runs/

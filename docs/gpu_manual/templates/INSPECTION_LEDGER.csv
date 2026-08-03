@@ -1,2 +1,0 @@
-schema_version,port_id,file,anchor_line,taxonomy,question,source,pattern_id,disposition,evidence,owner
-1,<port-id>,<relative-path>,<line>,<host-loop|launch|receiver-type|diagnostic|capture|lifetime|reduction|dispatch|numerical-kernel|field-layout|kernel-graph>,<specific-question>,<inspection|compiler|scanner>,<GPU-NNN-or-empty>,<open|convert|converted|not-applicable|false-positive|blocked>,<path-or-rationale>,<owner>

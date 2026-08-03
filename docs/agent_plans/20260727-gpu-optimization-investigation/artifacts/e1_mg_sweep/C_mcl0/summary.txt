@@ -1,4 +1,0 @@
-arm: C_mcl0
-args: elastic.max_coarsening_level=0
-
-rep          wall_s     mlmg_iters final_rel_resid     bottom_s

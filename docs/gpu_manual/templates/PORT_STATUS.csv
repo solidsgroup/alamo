@@ -1,2 +1,0 @@
-schema_version,port_id,physics_family,scope,closure,inspection,closed_book_onboarding,closed_book_transform,validation,gpu_safety,gpu_native_shape,baseline_efficiency,harvest,optimization,evidence
-2,<port-id>,<family>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-run|blocked|fail|pass>,<not-attempted|measured-no-win|measured-win>,<status-and-harvest-paths>

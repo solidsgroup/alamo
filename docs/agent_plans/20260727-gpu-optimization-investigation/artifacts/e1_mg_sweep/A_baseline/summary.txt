@@ -1,9 +1,0 @@
-arm: A_baseline
-args: <none>
-
-rep          wall_s     mlmg_iters final_rel_resid     bottom_s
-rep1          1.361             82    11.70906206   .128033299
-rep2          1.384             82    11.70906206   .129832287
-rep3          1.367             82    11.70906206   .130889127
-
-median wall: 1.367165654

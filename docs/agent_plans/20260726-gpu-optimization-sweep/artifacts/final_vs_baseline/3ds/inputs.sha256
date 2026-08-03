@@ -1,3 +1,0 @@
-fe84d22acf9675fe201bbe0b0b7737928e68acb4fcf624d86f77bdf1107e76b4  /home/jackplum/Projects/alamo/docs/agent_plans/20260726-gpu-optimization-sweep/artifacts/baseline/bin/alamo_gpu-3d-base
-72fd2895cf8665f866ef2e208f93c70f7a3e9441664e3d0080b620764cd967ef  /home/jackplum/Projects/alamo/docs/agent_plans/20260726-gpu-optimization-sweep/artifacts/mt_sweep/bin/alamo_gpu-3d-mt128
-5bc70d56a2fa7443096eef4659d9685bb41f5ca91da7824426488f016730d022  tests/ElasticSoftVoid/input

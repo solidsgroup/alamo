@@ -1,3 +1,0 @@
-schema_version,port_id,node,kind,required_by,discovery,evidence,status,owner,retirement_trigger
-1,<port-id>,<path-or-symbol>,<entry|translation-unit|header|template|model|operator|runtime-edge>,<parent-node>,<compiler|inspection>,<diagnostic-or-record>,<required|excluded|scaffold>,<owner>,<required-for-scaffold-only>
-
