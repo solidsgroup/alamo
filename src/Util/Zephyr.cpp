@@ -1,8 +1,6 @@
 #include "Util/Zephyr.H"
 
-#include <cerrno>
 #include <chrono>
-#include <csignal>
 #include <cstring>
 #include <iostream>
 #include <spawn.h>
@@ -76,12 +74,10 @@ void Stop()
         return;
     }
 
-    if (kill(sidecar_pid, SIGTERM) != 0 && errno != ESRCH)
-    {
-        std::cerr << "Zephyr: unable to stop zph: " << std::strerror(errno) << std::endl;
-        return;
-    }
-
+    // ALAMO has already written terminal metadata. Give zph a chance to
+    // observe it and exit, but never signal the sidecar: for a very short run,
+    // it may still be starting and a signal here can strand a remote run in
+    // the "starting" state. If it needs longer, it will observe our PID exit.
     for (int attempt = 0; attempt < 30; ++attempt)
     {
         if (waitpid(sidecar_pid, &status, WNOHANG) == sidecar_pid)
