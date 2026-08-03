@@ -67,6 +67,12 @@ public:
             // Timestep interval for elastic solves (default - solve every time)
             pp_query_default("interval", value.m_interval, 0);
 
+            // Minimum physical time between elastic solves (default - disabled,
+            // use #interval instead). Use this instead of #interval when the
+            // outer timestep is adaptive, since a fixed step interval then
+            // corresponds to a varying amount of physical time.
+            pp.query_default("dt", value.m_dt, "0.0", Unit::Time());
+
             // Maximum multigrid coarsening level (default - none, maximum coarsening)
             pp_query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
 
@@ -206,7 +212,13 @@ protected:
 
         if (m_type != Mechanics<MODEL>::Type::Static) return;
         if (a_time < tstart) return;
-        if (m_interval && a_step % m_interval) return;
+        if (m_dt > 0.0)
+        {
+            if (m_last_solve_time > -0.5 * std::numeric_limits<Set::Scalar>::max() &&
+                a_time - m_last_solve_time < m_dt) return;
+        }
+        else if (m_interval && a_step % m_interval) return;
+        m_last_solve_time = a_time;
 
         amrex::LPInfo info;
         if (m_max_coarsening_level >= 0)
@@ -236,6 +248,21 @@ protected:
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
+            // Solver::Nonlocal::Newton::solve builds disp_mf out of purely
+            // local (no-communication) Copy/Saxpy/CopyFrom calls on top of a
+            // Newton correction whose ghost cells are always zero (MLMG is
+            // called with setFinalFillBC(false) in Linear.H, and the
+            // correction's ghost region is explicitly zeroed before every
+            // linear solve). So disp_mf's ghost ring never picks up the true
+            // neighboring box's displacement -- it stays pinned at whatever
+            // it was initialized to. The stress/strain kernel below reads
+            // one ghost node beyond every grid box's valid region (grow(2)),
+            // so without this fill it computes a spurious gradient at every
+            // interior box seam. Fill from the (correct) valid data now,
+            // before that read.
+            disp_mf[lev]->setMultiGhost(true);
+            disp_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -504,6 +531,8 @@ protected:
     bool psi_on = false;
 
     int m_interval = 0;
+    Set::Scalar m_dt = 0.0;
+    Set::Scalar m_last_solve_time = -std::numeric_limits<Set::Scalar>::max();
     Type m_type = Type::Static;
 
     Set::Field<Set::Vector> disp_mf;

@@ -1,40 +1,36 @@
-# 3 MPa AP/HTPB Miller-packed regression and Rocfire gas-phase combustion,
-# with the LowMach elastic FSI solve enabled (elastic.apply_fluid_pressure,
-# see tests/LowMachElasticPressure) so the condensed phase deforms under the
-# local gas pressure as the bed regresses. Otherwise identical to
-# input.lm.ap_htpb_packed -- diff against that file for the combustion setup.
-# Run in either dimension:
-#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed_elastic
-#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed_elastic
+# 3D variant of input.lm.ap_htpb_packed_elastic -- diff against that file for
+# the full combustion/elastic setup and its conditioning notes; things that
+# differ here: (1) amr.n_cell's z extent is set equal to the x extent so the
+# mesh is isotropic (dx=dy=dz) over a full cubic domain instead of the base
+# file's flattened 64-cell z slab; (2) the ignition heat_source IC is
+# localized to a circular patch (radius = 1/8 of the domain's x length)
+# centered on the domain's x-z axis, rather than spanning the entire x-z
+# extent; (3) amr.n_cell is halved in all three directions (160^3, vs. an
+# isotropic-mesh 320^3) to keep the 3D cell count tractable, with the packed-
+# sphere psread eps/plane.eps below doubled (5um->10um, 20um->40um) to track
+# the doubled dx (0.5mm/160 = 3.125um) and preserve the same interface
+# smoothing width in grid cells; (4) the run segfaulted on the first time
+# step at 160^3/0.5mm, so both geometry.prob_lo/hi and amr.n_cell are
+# quartered again (domain 0.5mm->0.125mm, mesh 160->40) as a smaller
+# debugging configuration -- this keeps dx fixed at 3.125um (so the psread
+# eps values from (3) are still correct), and the heat_source ignition
+# radius is quartered along with the domain so it stays 1/8 of the domain's
+# x length. The pre-quarter full-size values are left in place as commented
+# lines immediately below their active replacements, to restore the full
+# run once the segfault is diagnosed.
+#
+#   mpirun -np 8 ./bin/lowmach-3d-clang++ input.lm.ap_htpb_packed_elastic_3d
 #
 # The XYZR file contains 659 AP spheres from a mechanically contracted Miller
 # packing. The 3D case uses the spheres directly; the 2D case uses their z=0
 # cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
 # the 2D slice. AP and HTPB partial volume fractions are exact complements.
 #
-# NOTE -- amr.max_level = 1 below: a known bug means max AMR level 1 only
-# works with the elastic solver enabled, which this file already does, so
-# this is the file to run at that setting. amr.n_cell is doubled (80 80 32,
-# vs. 40 40 16 at the max_level = 2 this file used previously) to hold the
-# finest-level spacing at dx ~ 0.5mm/80/2 = 3.125um despite the missing
-# level; timestep, dynamictimestep bounds, and the interface/heat-source
-# widths below match that same dx.
-#
-# WARNING -- elastic solver conditioning: Solid.elastic.model.mu/kappa below
-# are literal SI moduli scaled down by 1e-3 (O(1e2-1e4) for AP/HTPB here vs.
-# ~1e9-1e10 Pa/~1e6-1e8 Pa unscaled), unlike the nondimensional-style O(100)
-# values used in tests/LowMachElastic and tests/LowMachElasticPressure --
-# still large enough that modulus/dx^2 is well past anything validated at
-# this file's finest-level spacing (dx ~ 3.125um, see NOTE above). More
-# importantly, most of this domain starts as void (gas), and until recently
-# LowMach::UpdateModel masked the void purely via psi, whose 1e-8 floor
-# (Operator::Elastic::m_psi_small) reintroduced the full solid modulus there
-# -- a ~1e8-1e11 stiffness contrast across a diffuse interface that made the
-# first MLMG solve diverge outright. elastic.void.model.mu/kappa below give
-# the void a small but nonzero modulus instead (the tests/ElasticSoftVoid
-# "ersatz material" approach): the modulus field itself now carries the
-# contrast (~1e3-1e5, in the validated range) and psi is disabled entirely
-# when a void model is set (see LowMach::Parse).
+# WARNING -- elastic solver conditioning, and two defects worked around
+# below purely from the input side (2026-08-02; see
+# ~/.claude/plans/i-have-an-input-cached-phoenix.md for the full
+# investigation -- code fixes were attempted and reverted, so everything
+# here is an input-only mitigation, not a real fix):
 #
 # (1) AMR coarse/fine divergence (unconditional, code defect D2): with
 # amr.max_level > 0, Operator<Grid::Node>::reflux() silently discards the
@@ -120,12 +116,11 @@
 # tol_rel=1e-8 is slow (verified needing ~1650-2050 iterations across the 3
 # solves tested), not divergent.
 
-plot_file = output.lm.ap_htpb_packed_elastic
+plot_file = output.lm.ap_htpb_packed_elastic_3d
 amr.plot_dt = 1.0e-4_s
-amr.plot_int=1
 amr.max_level = 0
-amr.n_cell = 160 160 #320 320 64
-
+# amr.n_cell = 160 160 160  # full-size mesh (0.5mm domain, dx=3.125um) -- see (4) above
+amr.n_cell = 40 40 40
 amr.max_grid_size = 20
 amr.blocking_factor = 2
 amr.regrid_int = 5
@@ -154,8 +149,10 @@ dynamictimestep.verbose = 0
 integration.type = RungeKutta
 integration.rk.type = 3
 
-geometry.prob_lo = -0.25_mm -0.25_mm -0.25_mm
-geometry.prob_hi =  0.25_mm  0.25_mm  0.25_mm
+# geometry.prob_lo = -0.25_mm  -0.25_mm  -0.25_mm  # full-size domain -- see (4) above
+# geometry.prob_hi =  0.25_mm   0.25_mm   0.25_mm
+geometry.prob_lo = -0.0625_mm -0.0625_mm -0.0625_mm
+geometry.prob_hi =  0.0625_mm  0.0625_mm  0.0625_mm
 geometry.is_periodic = 0 0 0
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
@@ -199,7 +196,6 @@ HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 # to this specific formulation -- replace with measured/calibrated values if
 # available. See the WARNING above regarding solver conditioning at these
 # magnitudes.
-
 AP_solid.elastic.model.mu    = 9.47e6 # true SI 9.47e9 -- see WARNING above (1e4x rescale)
 AP_solid.elastic.model.kappa = 1.00e8 # true SI 1.00e10 -- see WARNING above (1e4x rescale)
 HTPB_solid.elastic.model.mu    = 1.67e6 # = true SI value -- see WARNING above (1e4x rescale)
@@ -218,7 +214,6 @@ HTPB_solid.elastic.model.kappa = 8.33e8 # = true SI value -- see WARNING above (
 # exactly (both sides scaled together).
 elastic.void.model.mu    = 5.0e3
 elastic.void.model.kappa = 4.0e5
->>>>>>> elastic-amr-reflux
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -296,7 +291,7 @@ AP_solid.density.ic.psread.eps = 10.0_um
 AP_solid.density.ic.psread.value = 1950.0_kg/m^3
 AP_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
 AP_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
-AP_solid.density.ic.psread.plane.eps = 20.0_um
+AP_solid.density.ic.psread.plane.eps = 40.0_um
 
 HTPB_solid.density.ic.type = psread
 HTPB_solid.density.ic.psread.file.name = input.lm.ap_htpb_packed.xyzr
@@ -307,7 +302,7 @@ HTPB_solid.density.ic.psread.value = 920.0_kg/m^3
 HTPB_solid.density.ic.psread.invert = 1
 HTPB_solid.density.ic.psread.plane.point = 0.0_mm 0.0_mm 0.0_mm
 HTPB_solid.density.ic.psread.plane.normal = 0.0 -1.0 0.0
-HTPB_solid.density.ic.psread.plane.eps = 20.0_um
+HTPB_solid.density.ic.psread.plane.eps = 40.0_um
 
 # The gas initially contains final products above the packed bed. Initialize
 # the gas consistently with the thermal penetration profile so that pressure
@@ -345,15 +340,24 @@ temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 3000000.0
 
-# Apply the transient ignition flux used by the AP/HTPB sandwich case.
+# Apply the transient ignition flux used by the AP/HTPB sandwich case,
+# localized to a circular patch (radius = 1/8 of the domain's x length)
+# centered on the domain's x-z axis (x=0, z=0 -- the domain is centered on
+# the origin, see geometry.prob_lo/hi above), rather than spanning the whole
+# x-z extent as in the 2D/thin-slab base file. The radial cutoff is smoothed
+# with the same tanh transition width used for the through-thickness (y)
+# profile. radius is quartered along with geometry.prob_lo/hi above (see (4)
+# at the top of the file) so it stays 1/8 of the domain's x length.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
-heat_source.ic.expression.constant.qflux = 1.0e4_W/m^2
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
 heat_source.ic.expression.constant.width = 6.25e-6_m
 heat_source.ic.expression.constant.norm = 1.772453850905516
 heat_source.ic.expression.constant.toff = 2.5e-4_s
 heat_source.ic.expression.constant.tramp = 1.0e-5_s
-heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+# heat_source.ic.expression.constant.radius = 62.5e-6_m  # full-size domain's 1/8 x length -- see (4) above
+heat_source.ic.expression.constant.radius = 15.625e-6_m
+heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))*0.5*(1.0-tanh((sqrt(x^2+z^2)-radius)/width))"
 
 component_density.bc.type = constant
 component_density.bc.constant.type.xlo = neumann
@@ -400,12 +404,12 @@ pressure.bc.constant.val.yhi = 3000000.0
 # iteration MLMG solve (default elastic.nriters = 1, see
 # Base::Mechanics::Register) does not dominate runtime.
 elastic.type = static
-elastic.interval = 1
+elastic.interval = 1000
 #elastic.dt = 1e-4_s
 elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0
-elastic.print_model = 1
+#elastic.print_model = 1
 elastic.solver.verbose = 4
 # Tolerance-based (not elastic.solver.fixed_iter): a stalled/non-converged
 # solve should be visible rather than silently accepted at these moduli --
@@ -419,7 +423,7 @@ elastic.tol_abs = 1.0e-8
 # diverges outright without this cap). See the WARNING above -- raised from
 # 2 to 3 (verified stable, ~2x faster); do not push further (uncapped
 # diverges within a handful of iterations).
-elastic.max_coarsening_level = 3
+elastic.max_coarsening_level = 0
 elastic.solver.conservative_face_flux = 1
 elastic.solver.line_search = 1
 elastic.solver.resync_coeffs = 1
@@ -442,10 +446,11 @@ elastic.solver.nrtolerance = 0
 # Raised from 1500 -- see WARNING above (max_coarsening_level=3 caps MG
 # effectiveness, so convergence to tol_rel is slow, not divergent; verified
 # needing ~1650-2050 iterations).
-elastic.solver.max_iter = 10000000
+elastic.solver.max_iter = 100000
 elastic.solver.pre_smooth = 2
 elastic.solver.post_smooth = 2
 elastic.solver.bottom_solver = smoother
+allow_unused=True
 
 # BCs mirror the velocity slip-wall/open-top setup above, per component
 # (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear

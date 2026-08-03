@@ -905,9 +905,18 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
         BoxArray newba = crseba;
         newba.refine(2);
+        // The corner/edge/face/interior stencils below read fine data up to
+        // 1 cell beyond 2*I for every I the loop below visits, and I ranges
+        // over crse's ghost region (crse.nGrow()) wherever a box's own ghost
+        // ring isn't clipped by the physical domain boundary (i.e. at
+        // box-to-box seams). So the fine ghost needed is 2*crse.nGrow()+1,
+        // not 2*crse.nGrow() -- the previous fixed value of 4 (with
+        // model_nghost=2) was one short, reading past fine_on_crseba's
+        // ghost box and segfaulting/reading garbage at interior box seams.
+        const int fine_ngrow = 2 * crse.nGrow() + 1;
         MultiTab fine_on_crseba;
-        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, 2, 4,
+        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, fine_ngrow);
+        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, crse.nGrow(), fine_ngrow,
             m_geom[amrlev][mglev-1].periodicity());
         /* ine_on_crseba.FillBoundaryAndSync(m_geom[amrlev][mglev-1].periodicity()); */
 
@@ -915,13 +924,17 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         {
 
             Box bx = mfi.grownnodaltilebox() & cdomain;
-            /*Box bx = mfi.grownnodaltilebox(-1,1) & cdomain;*/
 
             amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>> const& fdata = fine_on_crseba.array(mfi);
             amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, SYM>> const& cdata = crse.array(mfi);
 
-            const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
-            /*const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);*/
+            // NOTE: the corner/edge/face branches below are meant to fire only at
+            // the *physical domain* boundary (where the 27-point interior stencil
+            // would reach outside the domain). Bounding them by the domain --
+            // not the tile -- is required: otherwise every tile's outer node
+            // layer gets the reduced restriction stencil, making the coarse-grid
+            // operator depend on max_grid_size/tiling.
+            const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
@@ -994,6 +1007,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         if (!m_psi_set) continue;
 
         amrex::Box cdomain_cell(m_geom[amrlev][mglev].Domain());
+        amrex::Box cdomain_cell_grown(m_geom[amrlev][mglev].growPeriodicDomain(2));
         amrex::Box fdomain_cell(m_geom[amrlev][mglev - 1].Domain());
         MultiFab& crse_psi = *m_psi_mf[amrlev][mglev];
         MultiFab& fine_psi = *m_psi_mf[amrlev][mglev - 1];
@@ -1009,7 +1023,11 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
             amrex::Array4<const Set::Scalar> const& fdata = fine_psi_on_crseba.array(mfi);
             amrex::Array4<Set::Scalar> const& cdata = crse_psi.array(mfi);
 
-            const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+            // psi is cell-centered; its domain-boundary bounds must come from the
+            // (grown, periodic) *cell* domain, not from the nodal `cdomain` used
+            // for the mu/kappa restriction above -- mixing the two mis-locates the
+            // corner/edge/face branches relative to this cell-centered array.
+            const Dim3 lo = amrex::lbound(cdomain_cell_grown), hi = amrex::ubound(cdomain_cell_grown);
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
