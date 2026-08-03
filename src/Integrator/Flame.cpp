@@ -304,20 +304,41 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // strict-validation ordering requirement as psi_floor above.
     pp_query_default("elastic.use_psi", value.elastic.use_psi, 1);
 
-    // Static nodal mask for the homogenized casing partition. When no IC is
-    // supplied, Initialize/Regrid fill the field with one, reproducing the
-    // original three-material blend exactly.
-    if (pp.contains("casing_support.ic"))
+    // Static nodal casing indicator. When no IC is supplied,
+    // Initialize/Regrid fill chi with one, reproducing the original
+    // three-material blend exactly. casing_support.ic remains a legacy alias.
+    const bool has_chi_ic = pp.contains("chi.ic");
+    const bool has_legacy_chi_ic = pp.contains("casing_support.ic");
+    if (has_chi_ic && has_legacy_chi_ic)
+        Util::Abort(INFO, "Specify only one of chi.ic and casing_support.ic");
+    if (has_chi_ic)
     {
         pp.select<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
-            ("casing_support.ic", value.ic_casing_support, pp.forward_args(value.geom));
+            ("chi.ic", value.ic_chi, pp.forward_args(value.geom));
     }
-    pp_query_default("elastic.plot_casing_support", value.elastic.plot_casing_support, false);
-    pp_query_default("elastic.casing_support_refinement_criterion",
-        value.elastic.casing_support_refinement_criterion,
-        std::numeric_limits<Set::Scalar>::infinity());
-    value.RegisterNodalFab(value.casing_support_mf, 1, 2, "casing_support",
-        value.elastic.plot_casing_support, false);
+    else if (has_legacy_chi_ic)
+    {
+        pp.select<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG,IC::PSRead,IC::StarAftGrain>
+            ("casing_support.ic", value.ic_chi, pp.forward_args(value.geom));
+    }
+    const bool has_chi_refinement = pp.contains("elastic.chi_refinement_criterion");
+    const bool has_legacy_chi_refinement =
+        pp.contains("elastic.casing_support_refinement_criterion");
+    if (has_chi_refinement && has_legacy_chi_refinement)
+        Util::Abort(INFO, "Specify only one of elastic.chi_refinement_criterion and "
+                          "elastic.casing_support_refinement_criterion");
+    if (has_chi_refinement)
+        pp_query_default("elastic.chi_refinement_criterion", value.elastic.chi_refinement_criterion,
+            std::numeric_limits<Set::Scalar>::infinity());
+    else
+        pp_query_default("elastic.casing_support_refinement_criterion",
+            value.elastic.chi_refinement_criterion,
+            std::numeric_limits<Set::Scalar>::infinity());
+    // Retain the legacy knob as a consumed no-op: chi is always emitted for
+    // direct comparison with phi and eta in node plotfiles.
+    bool legacy_plot_casing_support = true;
+    pp_query_default("elastic.plot_casing_support", legacy_plot_casing_support, true);
+    value.RegisterNodalFab(value.chi_mf, 1, 2, "chi", true, false);
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
@@ -427,10 +448,10 @@ void Flame::Initialize(int lev)
     }
 
     ic_phi->Initialize(lev, phi_mf);
-    if (ic_casing_support)
-        ic_casing_support->Initialize(lev, casing_support_mf);
+    if (ic_chi)
+        ic_chi->Initialize(lev, chi_mf);
     else
-        casing_support_mf[lev]->setVal(1.0);
+        chi_mf[lev]->setVal(1.0);
 
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
@@ -480,7 +501,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             phi_mf[lev]->FillBoundary(geom[lev].periodicity());
         else
             phi_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
-        casing_support_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        chi_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
         eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         temp_mf[lev]->FillBoundary(geom[lev].periodicity());
 
@@ -498,7 +519,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             amrex::Box bx = mfi.grownnodaltilebox();
             Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> casing_support = casing_support_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> chi   = chi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
 
@@ -544,15 +565,20 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
                         // The support mask transfers unsupported casing/exterior
                         // into the gas model while retaining a partition of unity.
-                        // c=1 exactly recovers the original three-material blend.
+                        // Apply the same endpoint-flat quintic used for phi: the
+                        // casing modulus is many orders of magnitude above the
+                        // void modulus, so raw diffuse-chi tails would otherwise
+                        // leak appreciable casing stiffness into the exterior.
                         Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, 0);
-                        Set::Scalar c = casing_support(i, j, k, 0);
+                        Set::Scalar c = chi(i, j, k, 0);
                         // g(phi) = phi^3(10 - 15 phi + 6 phi^2), g'(0)=g'(1)=0.
                         Set::Scalar p = std::clamp(phi_avg, Set::Scalar(0.0), Set::Scalar(1.0));
                         Set::Scalar g = p * p * p * (10.0 - 15.0 * p + 6.0 * p * p);
-                        Set::Scalar w_solid  = c * g * eta_avg;
-                        Set::Scalar w_void   = c * g * (1. - eta_avg) + (1. - c);
-                        Set::Scalar w_casing = c * (1. - g);
+                        Set::Scalar q = std::clamp(c, Set::Scalar(0.0), Set::Scalar(1.0));
+                        Set::Scalar h = q * q * q * (10.0 - 15.0 * q + 6.0 * q * q);
+                        Set::Scalar w_solid  = h * g * eta_avg;
+                        Set::Scalar w_void   = h * g * (1. - eta_avg) + (1. - h);
+                        Set::Scalar w_casing = h * (1. - g);
                         model(i, j, k) = model_prop * w_solid
                                         + model_void * w_void
                                         + model_casing * w_casing;
@@ -906,8 +932,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar t_refinement_criterion       = this->t_refinement_criterion;
     const Set::Scalar t_refinement_restriction     = this->t_refinement_restriction;
     const Set::Scalar phi_refinement_criterion     = this->phi_refinement_criterion;
-    const Set::Scalar casing_support_refinement_criterion =
-        elastic.casing_support_refinement_criterion;
+    const Set::Scalar chi_refinement_criterion = elastic.chi_refinement_criterion;
     const Set::Scalar thermal_Tcutoff              = thermal.Tcutoff;
     const Set::Scalar thermal_phi_ref_initial      = thermal.phi_refinement_criterion_inital;
     const Set::Scalar thermal_end_initial_refine_t = thermal.end_initial_refine_time;
@@ -997,20 +1022,19 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         }
     }
 
-    if (std::isfinite(casing_support_refinement_criterion))
+    if (std::isfinite(chi_refinement_criterion))
     {
-        casing_support_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        chi_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
-            Set::Patch<const Set::Scalar> casing_support = casing_support_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> chi = chi_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector grad_casing_support =
-                    Numeric::Gradient(casing_support, i, j, k, 0, DX.data());
-                if (grad_casing_support.lpNorm<2>() * dr >= casing_support_refinement_criterion)
+                Set::Vector grad_chi = Numeric::Gradient(chi, i, j, k, 0, DX.data());
+                if (grad_chi.lpNorm<2>() * dr >= chi_refinement_criterion)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -1022,10 +1046,10 @@ void Flame::Regrid(int lev, Set::Scalar time)
     BL_PROFILE("Integrator::Flame::Regrid");
 
     ic_phi->Initialize(lev, phi_mf, time);
-    if (ic_casing_support)
-        ic_casing_support->Initialize(lev, casing_support_mf, time);
+    if (ic_chi)
+        ic_chi->Initialize(lev, chi_mf, time);
     else
-        casing_support_mf[lev]->setVal(1.0);
+        chi_mf[lev]->setVal(1.0);
 
     if (thermal.on) {
         // eta_0 is only consumed by the thermal regrid path below, so only pay
