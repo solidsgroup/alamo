@@ -199,6 +199,13 @@ public:
 
         using AMRVec = amrex::Vector<std::unique_ptr<amrex::MultiFab> >;
         const int nlevs = a_sol.size();
+        if (nlevs > 1)
+            Util::Abort(INFO,
+                "solver.fgmres=1 (FGMRES) is only valid for single-level (amr.max_level=0) "
+                "problems: Operator<Grid::Node>::solutionResidual() ignores its crse_bcdata "
+                "argument, so mlmg->apply() does not re-establish coarse/fine ghost coupling "
+                "for an arbitrary vector and FGMRES will diverge on amr.max_level>0 problems. "
+                "Set amr.max_level=0 to use FGMRES, or unset solver.fgmres to use plain MLMG.");
         const int ncomp = a_sol[0]->nComp();
         const int restart = fgmres_restart > 0 ? fgmres_restart : 30;
         const int max_outer = fgmres_max_outer > 0 ? fgmres_max_outer : 10;
