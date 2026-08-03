@@ -250,6 +250,120 @@ meaningfully more iterations -- a candidate to revisit (e.g. raising
 ``elastic.void.model.mu/kappa`` toward AP-contrast ~1,000-3,000x) if that
 input file's own MLMG iteration count runs high in practice.
 
+Scripted follow-up: coarsening depth and resolution
+-----------------------------------------------------
+
+The sweep above was run by hand and never varied resolution, so it could not
+show whether iteration count is h-independent -- the actual acceptance test
+for any coarse-grid fix, and the one axis ``elastic.max_coarsening_level``
+capping can never recover on its own. ``scripts/solver_benchmark.py`` (added
+alongside ``scripts/solverlib.py`` for the MLMG diagnostics-first pass, see
+``~/.claude/plans/improve-MLMG-solver-ideas.md``) scripts this case by
+invoking ``bin/lowmach-<dim>d-<comp>`` directly with the same
+``elastic.void.model.mu/kappa`` scaling used above. Its ``--preset contrast``
+reproduces every cell of the table above (iteration counts and errors both),
+confirming the harness before trusting its other presets. One cell needed
+manual attribution: at cap=2, 33,333x sits close enough to the stability edge
+that a ~1e-5 relative change in the void modulus (e.g. rounding ``140/33333``
+to 4 vs. 17 significant figures) flips it between converging in ~51
+iterations and diverging in 2 -- a real property of the operator there, not
+a harness bug.
+
+Note: this test does not set ``elastic.solver.conservative_face_flux = 1``
+(unlike ``input.lm.ap_htpb_packed_elastic``), so everything below runs on the
+*non-conservative* ``Fapply`` path, not the conservative flux-difference one.
+
+**A2 -- bisecting the coarsening depth** (``--preset cap-bisect``), at three
+contrasts, ``amr.n_cell = 32 64``:
+
+.. list-table::
+   :header-rows: 1
+
+   * - contrast
+     - cap=0
+     - cap=1
+     - cap=2
+     - cap=3
+     - cap=4
+     - cap=5
+     - cap=6
+     - uncapped
+   * - 1,000x
+     - OK (3 it.)
+     - OK (11 it.)
+     - OK (15 it.)
+     - OK (17 it.)
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+   * - 10,000x
+     - OK (3 it.)
+     - OK (11 it.)
+     - OK (18 it.)
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+   * - 33,333x
+     - OK (2 it.)
+     - OK (11 it.)
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+     - **diverges**
+
+Two things fall out of this that the hand-run sweep couldn't show:
+
+- **``max_coarsening_level = 0`` always converges, in 2-3 iterations, at
+  every contrast tested -- including 33,333x.** With zero coarsening the
+  fine-level operator is well-behaved regardless of contrast; every failure
+  mode in this table is introduced by coarsening, not present without it.
+  Read against the plan's root-cause table, this rules the fine-level
+  averaging story (R8) *out* as the dominant issue for this
+  (non-conservative-path) configuration and points at the coarse-grid
+  coefficient averaging (R1) instead.
+- **The highest coarsening depth that still converges falls as contrast
+  rises** (3 -> 2 -> 1, for 1,000x -> 10,000x -> 33,333x), rather than
+  cliffing at the same fixed depth regardless of contrast. That is more
+  consistent with coefficient-averaging error accumulating per level and
+  crossing MLMG's divergence threshold sooner at higher contrast (R1) than
+  with a fixed structural/layout defect (R6) that would bite at a constant
+  depth. A4 (offline two-grid spectral-radius analysis, deferred from this
+  pass) is the instrument that can confirm this directly.
+- Accuracy is flat across every coarsening depth that converges (e.g.
+  ``disp_y_err`` at 1,000x is 0.0036 at cap=0 through cap=3, to 4
+  significant figures) -- confirming again that ``max_coarsening_level``
+  trades stability, not accuracy.
+
+**H-refine -- the missing axis** (``--preset h-refine``), ``amr.n_cell`` in
+{32x64, 64x128, 128x256}, at cap=2 and uncapped:
+
+At 32x64 and 64x128 the qualitative picture above holds (uncapped diverges,
+cap=2 converges except at the 33,333x edge case noted above), with iteration
+counts if anything falling slightly with resolution rather than growing --
+no sign of the iteration count blowing up under refinement in the range
+tested. **128x256 could not be evaluated: every configuration at that
+resolution crashes** with a bus error (invalid address alignment) inside
+``Operator::Elastic::averageDownCoeffsSameAmrLevel``, not a convergence
+failure. ``amr.max_grid_size = 64`` (set in this test's ``input``) splits a
+128x256 domain into an 8-box (2x4) layout, vs. 2 boxes (64x128, split along
+one direction only) or a single box (32x64). Bisecting by hand (outside the
+harness): ``amr.n_cell = 128 64`` (2 boxes along x, 1 along y) crashes the
+same way; ``amr.n_cell = 64 256`` (1 box along x, 4 along y) does not --
+and the crash reproduces even at contrast ~1x, so it is unrelated to modulus
+contrast entirely. This looks like a real, previously-undiscovered defect
+specific to having more than one box along the x-direction in
+coefficient coarsening, distinct from the convergence/divergence behavior
+documented everywhere else on this page, and worth its own investigation
+before drawing any h-independence conclusion past 64x128. Not fixed here
+(this page documents the operator's numerics as found, per the
+diagnostics-first pass's own
+scope; see the plan for where this would fit against D1b/R1).
+
 Boundary-node caveat
 ---------------------
 
