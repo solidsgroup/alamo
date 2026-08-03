@@ -236,6 +236,21 @@ protected:
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
+            // Solver::Nonlocal::Newton::solve builds disp_mf out of purely
+            // local (no-communication) Copy/Saxpy/CopyFrom calls on top of a
+            // Newton correction whose ghost cells are always zero (MLMG is
+            // called with setFinalFillBC(false) in Linear.H, and the
+            // correction's ghost region is explicitly zeroed before every
+            // linear solve). So disp_mf's ghost ring never picks up the true
+            // neighboring box's displacement -- it stays pinned at whatever
+            // it was initialized to. The stress/strain kernel below reads
+            // one ghost node beyond every grid box's valid region (grow(2)),
+            // so without this fill it computes a spurious gradient at every
+            // interior box seam. Fill from the (correct) valid data now,
+            // before that read.
+            disp_mf[lev]->setMultiGhost(true);
+            disp_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
 
