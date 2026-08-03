@@ -364,6 +364,23 @@ before drawing any h-independence conclusion past 64x128. Not fixed here
 diagnostics-first pass's own
 scope; see the plan for where this would fit against D1b/R1).
 
+**Update:** this is not confined to this test. ``tests/ElasticSoftVoidAMR``
+(multi-box by construction: ``amr.max_grid_size = 64`` on a 128x128 patch)
+was found to hit the *identical* crash -- same signal, same signature,
+``Operator::Elastic::averageDownCoeffsSameAmrLevel`` -- intermittently, on
+unmodified HEAD, with no code changes at all: three consecutive runs of the
+same binary crashed this way, then two more consecutive runs of that same
+binary instead reproduced the previously-documented failure (MLMG converges
+at 1055 iterations, then Newton's line search aborts). Both outcomes are
+possible from a single binary depending on run-to-run allocator/heap state,
+which is the signature of a real memory-safety defect (a bad index or
+alignment assumption in that function), not a numerical one -- distinct
+from, and likely more urgent than, every other item on this page. Given how
+directly this implicates ``averageDownCoeffsSameAmrLevel``, the exact
+function D1b/R1 already target, whoever picks up D1b should check for an
+out-of-bounds or misaligned access there before assuming the fix is purely
+about *which* average to compute.
+
 Boundary-node caveat
 ---------------------
 
