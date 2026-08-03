@@ -43,30 +43,23 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
     amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
     amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 
-    diag.setVal(0.0);
-
-    // NOTE: Fapply (e.g. Elastic::Fapply) opens its own MFIter over the whole
-    // MultiFab it is given. The per-color/per-component work below must
-    // therefore open and close its own MFIter around the "set x" and
-    // "accumulate diag" steps *separately* from the Fapply call -- holding a
-    // single MFIter open across a Fapply call nests two active MFIters over
-    // different MultiFabs and aborts (AMReX_MFIter.cpp's "Nested or multiple
-    // active MFIters" assertion). This path is a fallback used only by
-    // operators that do not override the (int,int,MultiFab&) Diagonal with a
-    // closed form (Elastic does, so this was never previously exercised for
-    // it -- see Linear::checkDiagonalConsistency, A1).
-    for (int i = 0; i < num; i++)
+    for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
     {
-        for (int n = 0; n < ncomp; n++)
+        const Box& bx = mfi.validbox();
+        amrex::FArrayBox& diagfab = diag[mfi];
+        amrex::FArrayBox& xfab = x[mfi];
+        amrex::FArrayBox& Axfab = Ax[mfi];
+
+        diagfab.setVal<amrex::RunOn::Device>(0.0);
+
+        for (int i = 0; i < num; i++)
         {
-            x.setVal(0.0);
-            Ax.setVal(0.0);
-
-            for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
+            for (int n = 0; n < ncomp; n++)
             {
-                const Box& bx = mfi.validbox();
-                amrex::FArrayBox& xfab = x[mfi];
+                xfab.setVal<amrex::RunOn::Device>(0.0);
+                Axfab.setVal<amrex::RunOn::Device>(0.0);
 
+                //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++),
                     for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++),
                         for (int m3 = bx.loVect()[2]; m3 <= bx.hiVect()[2]; m3++))
@@ -76,20 +69,17 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                     if (m1 % sep == i / sep && m2 % sep == i % sep) xfab(m, n) = 1.0;
                     else xfab(m, n) = 0.0;
                 }
-            }
+                //BL_PROFILE_VAR_STOP(part1);
 
-            BL_PROFILE_VAR("Operator::Part2", part2);
-            Util::Message(INFO, "Calling fapply...", cntr++);
-            Fapply(amrlev, mglev, Ax, x);
-            BL_PROFILE_VAR_STOP(part2);
+                BL_PROFILE_VAR("Operator::Part2", part2);
+                Util::Message(INFO, "Calling fapply...", cntr++);
+                Fapply(amrlev, mglev, Ax, x);
+                BL_PROFILE_VAR_STOP(part2);
 
-            for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
-            {
-                amrex::FArrayBox& diagfab = diag[mfi];
-                amrex::FArrayBox& xfab = x[mfi];
-                amrex::FArrayBox& Axfab = Ax[mfi];
+                //BL_PROFILE_VAR("Operator::Part3", part3); 
                 Axfab.mult<amrex::RunOn::Device>(xfab, n, n, 1);
                 diagfab.plus<amrex::RunOn::Device>(Axfab, n, n, 1);
+                //BL_PROFILE_VAR_STOP(part3);
             }
         }
     }
