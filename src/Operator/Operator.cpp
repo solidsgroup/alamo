@@ -301,7 +301,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
+        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
 
         for (int n = 0; n < crse.nComp(); n++)
@@ -651,7 +651,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
 
-        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
+        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
