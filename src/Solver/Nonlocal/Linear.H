@@ -2,6 +2,7 @@
 #define SOLVER_NONLOCAL_LINEAR
 #include "Operator/Operator.H"
 #include <AMReX_MLMG.H>
+#include <cmath>
 
 namespace Solver
 {
@@ -49,6 +50,39 @@ public:
         this->mlmg = nullptr;
         m_defined = false;
     }
+
+    // Iteration/residual diagnostics (C7). Purely additive read-outs of numbers
+    // amrex::MLMG already computes internally but that nothing in this repo
+    // previously consumed -- iteration counts have historically been recovered
+    // by regexing stdout instead.
+    [[nodiscard]] int getNumIters() const { return mlmg->getNumIters(); }
+    [[nodiscard]] Set::Scalar getFinalResidual() const { return mlmg->getFinalResidual(); }
+    [[nodiscard]] Set::Scalar getInitResidual() const { return mlmg->getInitResidual(); }
+    [[nodiscard]] Set::Scalar getInitRHS() const { return mlmg->getInitRHS(); }
+    [[nodiscard]] const amrex::Vector<Set::Scalar>& getResidualHistory() const { return mlmg->getResidualHistory(); }
+
+    // Geometric-mean convergence factor over the residual history. This is the
+    // number that actually distinguishes "slow" from "broken" -- an iteration
+    // count alone conflates the two.
+    [[nodiscard]] Set::Scalar getConvergenceFactor() const
+    {
+        const amrex::Vector<Set::Scalar>& hist = mlmg->getResidualHistory();
+        if (hist.size() < 2) return NAN;
+        Set::Scalar logsum = 0.0;
+        int n = 0;
+        for (int i = 1; i < (int)hist.size(); i++)
+        {
+            if (hist[i - 1] <= 0.0 || hist[i] <= 0.0) continue;
+            logsum += std::log(hist[i] / hist[i - 1]);
+            n++;
+        }
+        if (n == 0) return NAN;
+        return std::exp(logsum / n);
+    }
+
+    enum class SolveStatus { Converged, Stalled, Diverged, Unknown };
+
+    [[nodiscard]] SolveStatus getSolveStatus() const { return m_last_status; }
 
     Set::Scalar solveaffine(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
         amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs,
@@ -113,17 +147,22 @@ public:
         try
         {
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp), a_tol_rel, a_tol_abs, checkpoint_file);
+            reportSolverStats(false, nullptr);
         }
         catch (const std::exception& e)
         {
-            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp));
+            reportSolverStats(true, e.what());
+            if (m_dump_on_fail || m_dump_always) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
-        if (a_sol[0]->contains_nan()) 
+        if (m_dump_always && m_last_status == SolveStatus::Converged)
+            dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp));
+        if (a_sol[0]->contains_nan())
         {
             dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(rhs_tmp));
             Util::Abort(INFO);
         }
+        runDiagnosticChecks(a_sol);
 
         return retval;
     };
@@ -137,12 +176,17 @@ public:
         try
         {
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs), a_tol_rel, a_tol_abs, checkpoint_file);
+            reportSolverStats(false, nullptr);
         }
         catch (const std::exception& e)
         {
-            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
+            reportSolverStats(true, e.what());
+            if (m_dump_on_fail || m_dump_always) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
+        if (m_dump_always && m_last_status == SolveStatus::Converged)
+            dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
+        runDiagnosticChecks(a_sol);
         return retval;
     };
     Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
@@ -153,17 +197,22 @@ public:
         try
         {
             retval = mlmg->solve(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs), tol_rel, tol_abs);
+            reportSolverStats(false, nullptr);
         }
         catch (const std::exception& e)
         {
-            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
+            reportSolverStats(true, e.what());
+            if (m_dump_on_fail || m_dump_always) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
-        if (a_sol[0]->contains_nan()) 
+        if (m_dump_always && m_last_status == SolveStatus::Converged)
+            dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
+        if (a_sol[0]->contains_nan())
         {
             dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             Util::Abort(INFO);
         }
+        runDiagnosticChecks(a_sol);
         return retval;
     };
     void apply(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs,
@@ -227,6 +276,141 @@ public:
 
     }
 
+    // A5: is the assembled operator symmetric?
+    //
+    // Tests x.(Ay) - y.(Ax) on random vectors through this class's own
+    // apply() (note apply()'s argument order is (out, in)), on the actual
+    // configuration -- real BCs, real contrast, real AMR levels -- rather
+    // than a synthetic operator.
+    //
+    // Domain-boundary nodes are zeroed out of both x and y in every
+    // component before applying A. Displacement-type BC rows are *replaced*
+    // (BC::Operator::Elastic::Constant::set, f(i)=u(i)) while neighboring
+    // interior rows keep their original coupling to that boundary node --
+    // that row-replacement is expected, known-asymmetric bookkeeping, not a
+    // property of the interior discretization. Masking it out isolates the
+    // question this test actually exists to answer: is the interior/traction
+    // stencil symmetric. (SetHomogeneous is not touched here: m_homogeneous
+    // on Operator::Elastic is set but never read anywhere in Fapply, so
+    // Fapply is already a purely linear map independent of that flag --
+    // see improve-MLMG-solver-ideas.md R5.)
+    //
+    // Separately: this only exercises Fapply, not Fsmooth. The
+    // relaxCoarseFineGhostRows() ghost-row zeroing in Operator::Fsmooth
+    // (active on the non-conservative path) is invisible to this test --
+    // a clean result here does not exonerate that suspect.
+    //
+    // Checks single-level dot products per AMR level (no composite
+    // correction for overlapping fine/coarse regions) -- adequate for a
+    // diagnostic, not for a quantitative norm.
+    Set::Scalar checkSymmetry(const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_template,
+        int n_samples = 3)
+    {
+        if (!m_defined) Util::Abort(INFO, "Solver not defined");
+        int nlevs = a_template.size();
+        Set::Scalar max_relative_asymmetry = 0.0;
+
+        for (int s = 0; s < n_samples; s++)
+        {
+            amrex::Vector<std::unique_ptr<amrex::MultiFab> > x(nlevs), y(nlevs), Ax(nlevs), Ay(nlevs);
+            for (int lev = 0; lev < nlevs; lev++)
+            {
+                const amrex::BoxArray& ba = a_template[lev]->boxArray();
+                const amrex::DistributionMapping& dm = a_template[lev]->DistributionMap();
+                int ncomp = a_template[lev]->nComp();
+                amrex::IntVect ng = a_template[lev]->nGrowVect();
+                x[lev] = std::make_unique<amrex::MultiFab>(ba, dm, ncomp, ng);
+                y[lev] = std::make_unique<amrex::MultiFab>(ba, dm, ncomp, ng);
+                Ax[lev] = std::make_unique<amrex::MultiFab>(ba, dm, ncomp, ng);
+                Ay[lev] = std::make_unique<amrex::MultiFab>(ba, dm, ncomp, ng);
+
+                amrex::Box domain(linop->Geom(lev).Domain());
+                domain.convert(amrex::IntVect::TheNodeVector());
+                const Dim3 dlo = amrex::lbound(domain), dhi = amrex::ubound(domain);
+
+                for (MFIter mfi(*x[lev], false); mfi.isValid(); ++mfi)
+                {
+                    const amrex::Box& bx = mfi.validbox();
+                    amrex::Array4<Set::Scalar> const& xfab = x[lev]->array(mfi);
+                    amrex::Array4<Set::Scalar> const& yfab = y[lev]->array(mfi);
+                    amrex::LoopOnCpu(bx, ncomp, [=](int i, int j, int k, int n)
+                    {
+                        bool AMREX_D_DECL(xmin = (i == dlo.x), ymin = (j == dlo.y), zmin = (k == dlo.z)),
+                             AMREX_D_DECL(xmax = (i == dhi.x), ymax = (j == dhi.y), zmax = (k == dhi.z));
+                        bool on_boundary = AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin);
+                        xfab(i, j, k, n) = on_boundary ? 0.0 : Util::Random() - 0.5;
+                        yfab(i, j, k, n) = on_boundary ? 0.0 : Util::Random() - 0.5;
+                    });
+                }
+                x[lev]->FillBoundary(); y[lev]->FillBoundary();
+            }
+
+            apply(Ax, x);
+            apply(Ay, y);
+
+            Set::Scalar xAy = 0.0, yAx = 0.0, normAx_normy = 0.0;
+            for (int lev = 0; lev < nlevs; lev++)
+            {
+                int ncomp = a_template[lev]->nComp();
+                xAy += amrex::MultiFab::Dot(*x[lev], 0, *Ay[lev], 0, ncomp, 0);
+                yAx += amrex::MultiFab::Dot(*y[lev], 0, *Ax[lev], 0, ncomp, 0);
+                normAx_normy += Ax[lev]->norm0() * y[lev]->norm0();
+            }
+            Set::Scalar relative_asymmetry =
+                (normAx_normy > 0.0) ? std::abs(xAy - yAx) / normAx_normy : std::abs(xAy - yAx);
+            max_relative_asymmetry = std::max(max_relative_asymmetry, relative_asymmetry);
+
+            Util::Message(INFO, "checkSymmetry: sample ", s,
+                " x.Ay=", xAy, " y.Ax=", yAx,
+                " relative asymmetry=", relative_asymmetry);
+        }
+        return max_relative_asymmetry;
+    }
+
+    // A1: does the analytic diagonal (Elastic::Diagonal, a closed form) agree
+    // with the probed diagonal (the base Operator<Grid::Node>::Diagonal,
+    // which finds the diagonal by hitting Fapply with unit vectors)?
+    //
+    // Checked only at (amrlev=0, mglev=0) -- the finest level, where
+    // divergence would be explained outright with no coarse-grid story at
+    // all. Expected to agree to roundoff on the conservative path (the
+    // conservative diagonal is built from the same DDW(...,face+1) the
+    // conservative Fapply uses for its flux), so this is cheap insurance
+    // more than a leading suspect -- but it must pass before any offline
+    // matrix assembly (A4) can be trusted.
+    Set::Scalar checkDiagonalConsistency(const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_template)
+    {
+        if (!m_defined) Util::Abort(INFO, "Solver not defined");
+        const amrex::BoxArray& ba = a_template[0]->boxArray();
+        const amrex::DistributionMapping& dm = a_template[0]->DistributionMap();
+        int ncomp = a_template[0]->nComp();
+
+        amrex::MultiFab analytic(ba, dm, ncomp, 0);
+        amrex::MultiFab probed(ba, dm, ncomp, 0);
+        linop->Diagonal(0, 0, analytic);
+        linop->Operator::Operator<Grid::Node>::Diagonal(0, 0, probed);
+
+        amrex::MultiFab diff(ba, dm, ncomp, 0);
+        amrex::MultiFab::Copy(diff, analytic, 0, 0, ncomp, 0);
+        amrex::MultiFab::Subtract(diff, probed, 0, 0, ncomp, 0);
+        Set::Scalar max_abs_diff = diff.norm0();
+        Set::Scalar scale = std::max(analytic.norm0(), probed.norm0());
+        Set::Scalar relative_diff = (scale > 0.0) ? max_abs_diff / scale : max_abs_diff;
+
+        Util::Message(INFO, "checkDiagonalConsistency: max abs diff=", max_abs_diff,
+            " relative diff=", relative_diff);
+        return relative_diff;
+    }
+
+    // Runs whichever of A5/A1 the user opted into (check_symmetry,
+    // check_diagonal), using the just-solved (or just-attempted) solution
+    // vector purely as a layout template -- its values are not read.
+    void runDiagnosticChecks(const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_template)
+    {
+        if (m_check_symmetry_trials > 0) checkSymmetry(a_template, m_check_symmetry_trials);
+        if (m_check_diagonal) checkDiagonalConsistency(a_template);
+    }
+
     //using MLMG::solve;
 protected:
     int max_iter = -1;
@@ -251,6 +435,48 @@ protected:
 
     Operator::Operator<Grid::Node>* linop;
     amrex::MLMG* mlmg;
+
+    SolveStatus m_last_status = SolveStatus::Unknown;
+    bool m_dump_always = false;
+    int m_check_symmetry_trials = 0;
+    bool m_check_diagonal = false;
+
+    // Classifies the outcome of the mlmg->solve() call just made and, if
+    // verbose, prints a single machine-readable line -- SOLVER_STATS -- so
+    // scripts (e.g. scripts/solverlib.py) can read iteration counts and
+    // residuals without regexing AMReX's prose. Must be called before any
+    // Util::Abort so the numbers are still recoverable from stdout.
+    void reportSolverStats(bool threw, const char* what)
+    {
+        if (threw)
+        {
+            std::string msg = what ? what : "";
+            if (msg.find("blew up") != std::string::npos)
+                m_last_status = SolveStatus::Diverged;
+            else if (msg.find("failed to converge") != std::string::npos)
+                m_last_status = SolveStatus::Stalled;
+            else
+                m_last_status = SolveStatus::Diverged;
+        }
+        else
+        {
+            m_last_status = SolveStatus::Converged;
+        }
+
+        if (verbose >= 1)
+        {
+            const char* status_str =
+                m_last_status == SolveStatus::Converged ? "converged" :
+                m_last_status == SolveStatus::Stalled ? "stalled" :
+                m_last_status == SolveStatus::Diverged ? "diverged" : "unknown";
+            Util::Message(INFO, "SOLVER_STATS iters=", getNumIters(),
+                " resid0=", getInitResidual(),
+                " resid=", getFinalResidual(),
+                " rhs0=", getInitRHS(),
+                " convfactor=", getConvergenceFactor(),
+                " status=", status_str);
+        }
+    }
 
     void PrepareMLMG(amrex::MLMG& mlmg)
     {
@@ -280,6 +506,13 @@ protected:
         if (bottom_solver == "cg")       mlmg.setBottomSolver(MLMG::BottomSolver::cg);
         else if (bottom_solver == "bicgstab") mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
         else if (bottom_solver == "smoother") mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
+        else if (!bottom_solver.empty())
+            // amrex::MLLinOp::BottomSolver also has Default, bicgcg, cgbicg,
+            // hypre, petsc -- none of those are wired up here, and an
+            // unrecognized string was previously ignored silently, leaving
+            // whatever the default (bicgstab) already was.
+            Util::Warning(INFO, "Unrecognized elastic.solver.bottom_solver = '",
+                bottom_solver, "' -- ignored. Recognized: cg, bicgstab, smoother.");
 
         if (bottom_tol_rel >= 0) mlmg.setBottomTolerance(bottom_tol_rel);
         if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
@@ -364,6 +597,31 @@ public:
         // (Note: you must also set :code:`amrex.signalhandling=0`
         // and :code:`amrex.throw_exception=1` for this to work.)
         pp_query("dump_on_fail", value.m_dump_on_fail);
+
+        // [false]
+        // A3 diagnostic. If set to true, output the same diagnostic
+        // multifab information as dump_on_fail after *every* solve, whether
+        // it converged or not. Combine with fixed_iter (or a small max_iter
+        // plus abort_on_fail=0) to localize where the residual lives after
+        // a fixed number of iterations on a case that is merely slow, not
+        // one that outright fails.
+        pp_query("dump_always", value.m_dump_always);
+
+        // [0]
+        // A5 diagnostic. If > 0, run this many random-vector symmetry
+        // trials (x.(Ay) vs y.(Ax), boundary DOFs masked out) through
+        // Linear::apply after every solve and report the relative
+        // asymmetry. See Linear::checkSymmetry for what this can and
+        // cannot see.
+        pp_query("check_symmetry", value.m_check_symmetry_trials);
+
+        // [false]
+        // A1 diagnostic. If true, after every solve compare the analytic
+        // diagonal (e.g. Elastic::Diagonal's closed form) against the
+        // probed diagonal (the base Operator<Grid::Node>::Diagonal, which
+        // hits Fapply with unit vectors) at the finest level, and report
+        // the relative difference. See Linear::checkDiagonalConsistency.
+        pp_query("check_diagonal", value.m_check_diagonal);
 
         // [true]
         // If set to false, MLMG will not die if convergence criterion
