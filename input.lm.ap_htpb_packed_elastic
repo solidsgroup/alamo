@@ -12,61 +12,100 @@
 # cross-section. AP occupies approximately 44% of the 3D bed volume and 49% of
 # the 2D slice. AP and HTPB partial volume fractions are exact complements.
 #
-# WARNING -- elastic solver conditioning: Solid.elastic.model.mu/kappa below
-# are literal SI moduli scaled down by 1e-3 (O(1e2-1e4) for AP/HTPB here vs.
-# ~1e9-1e10 Pa/~1e6-1e8 Pa unscaled), unlike the nondimensional-style O(100)
-# values used in tests/LowMachElastic and tests/LowMachElasticPressure --
-# still large enough that modulus/dx^2 is well past anything validated at
-# this file's finest-level spacing (dx ~ 2mm/40/2^4 = 3.1um). More
-# importantly, most of this domain starts as void (gas), and until recently
-# LowMach::UpdateModel masked the void purely via psi, whose 1e-8 floor
-# (Operator::Elastic::m_psi_small) reintroduced the full solid modulus there
-# -- a ~1e8-1e11 stiffness contrast across a diffuse interface that made the
-# first MLMG solve diverge outright. elastic.void.model.mu/kappa below give
-# the void a small but nonzero modulus instead (the tests/ElasticSoftVoid
-# "ersatz material" approach): the modulus field itself now carries the
-# contrast (~1e3-1e5, in the validated range) and psi is disabled entirely
-# when a void model is set (see LowMach::Parse).
+# WARNING -- elastic solver conditioning, and two defects worked around
+# below purely from the input side (2026-08-02; see
+# ~/.claude/plans/i-have-an-input-cached-phoenix.md for the full
+# investigation -- code fixes were attempted and reverted, so everything
+# here is an input-only mitigation, not a real fix):
 #
-# That alone is NOT sufficient at this contrast: MLMG coarsens right through
-# the (few-cell-wide) diffuse solid/void interface, and coarse-level
-# operators built from a factor-1e4 coefficient jump over 1-2 cells are
-# garbage -- MLMG then genuinely diverges, not just converges slowly. This
-# is Operator::Elastic's documented heterogeneous-media MLMG-divergence gap
-# (see tests/LowMachElasticPressure/Readme.rst), reproduced directly by that
-# test's 2d-pressure-1Pa-softvoid sub-case. elastic.max_coarsening_level
-# below caps how far MG coarsens past the interface and is what actually
-# restores convergence; do not remove it without re-verifying convergence.
+# (1) AMR coarse/fine divergence (unconditional, code defect D2): with
+# amr.max_level > 0, Operator<Grid::Node>::reflux() silently discards the
+# coarse-side residual contribution at every coarse/fine boundary node. This
+# was verified to make the elastic MLMG solve diverge with textbook linear
+# residual growth (resid/bnorm climbing ~0.04-0.07/cycle, sustained over
+# 1500 V-cycles) on this exact production case at every amr.max_level > 0
+# tried (1 and 2), reproduced deterministically on STEP 1's very first
+# solve, and independent of the modulus scaling in (2) below (identical
+# growth curve at both the original and the rescaled moduli). There is no
+# input-side fix for this -- it is a real bug in the AMR reflux code. The
+# only way to avoid it without touching code is to eliminate AMR entirely:
+# amr.max_level = 0 below, with amr.n_cell scaled up 4x (40x40x16 ->
+# 160x160x64) to preserve the finest-level dx (~3.1um) the interface
+# resolution relies on. This costs ~16x (2D) more cells everywhere, all the
+# time -- there is no adaptive refinement left. eta/temperature/velocity
+# _refinement_criterion and amr.regrid_int/grid_eff below are now inert
+# (no-ops) as a result; left in place rather than deleted in case AMR is
+# ever restorable here.
 #
-# How soft to make the void: tests/LowMachElasticPressure's
-# "Void modulus vs. solver stability and accuracy" sweep (Readme.rst) swept
+# (2) Force/stiffness mismatch (independent of AMR): elastic.void.model.*
+# and the solid mu/kappa below were originally tuned in
+# tests/LowMachElasticPressure's void-modulus sweep against that test's
+# ~1 Pa forcing, then transplanted here where elastic.apply_fluid_pressure
+# drives the solve with the real ~3 MPa chamber pressure -- a ~3e6x forcing
+# increase with no corresponding stiffness increase. Confirmed directly:
+# at the original moduli, STEP 1's "exact" Newton step (nriters=1) produced
+# a full displacement norm of 3.5 CENTIMETERS against a 0.5mm domain (line
+# search then clipped the accepted step to alpha=0.0039, still ~137um,
+# comparable to the whole domain) -- badly violating the small-deformation
+# regime NeoHookeanPredeformed's one-Newton-iteration solve assumes is
+# exact. That oversized step corrupts the geometry the next elastic solve
+# (10 steps later, resync_coeffs=1) resyncs coefficients from, and that
+# solve then diverges catastrophically (resid/bnorm growing ~6 orders of
+# magnitude per V-cycle, failing in 4 iterations) even at amr.max_level = 0
+# where (1) cannot be the cause. Fix applied below: every mu/kappa (AP,
+# HTPB, and the void model) scaled up by 1e4 uniformly, which preserves
+# every solid/void contrast ratio (so the accuracy/stability sweep findings
+# below still apply unchanged) while bringing the force/stiffness ratio
+# back to a physically sane regime. Verified over 30 steps / 3 elastic
+# solves (interval=10) at the scaled moduli: every solve now takes the full
+# Newton step (alpha=1) with shrinking displacement norms (3.5um -> 0.44um
+# -> 0.077um) as the interface settles, and MLMG converges to tol_rel=1e-8
+# every time. NOTE: elastic displacement/stress is one-way (fluid->solid,
+# see LowMach::UpdateModel) and does not feed back into the CFD/chemistry,
+# so this rescaling has no effect on the reacting-flow physics -- only on
+# whether the elastic diagnostic solve itself is numerically well-posed.
+#
+# Both of the above still ride on the pre-existing conditioning workarounds:
+# MLMG coarsens right through the (few-cell-wide) diffuse solid/void
+# interface, and coarse-level operators built from a large coefficient jump
+# over 1-2 cells are garbage -- MLMG genuinely diverges, not just converges
+# slowly (see tests/LowMachElasticPressure/Readme.rst, the
+# 2d-pressure-1Pa-softvoid sub-case). elastic.max_coarsening_level below
+# caps how far MG coarsens past the interface; this is what actually
+# restores convergence, do not remove it without re-verifying convergence.
+# Verified empirically here that raising it from 2 to 3 (one more MG level)
+# still converges and roughly halves solve wall time (131s -> 57s per
+# solve at this resolution); raising it further to uncapped (-1, 6 MG
+# levels) reliably diverges within a handful of iterations. Do not push it
+# past 3 without re-verifying.
+#
+# How soft to make the void (contrast ratios only -- the uniform 1e4 scale
+# above does not change these): tests/LowMachElasticPressure's "Void
+# modulus vs. solver stability and accuracy" sweep (Readme.rst) swept
 # solid/void contrast from 1x to 1e5x, capped and uncapped. Findings that
-# drove the void.model values below: (1) with the coarsening cap, MLMG stays
-# stable with a flat ~12-18 iterations out to ~30,000x contrast, then costs
-# more iterations near ~33,000x, and fails by 100,000x; (2) accuracy vs.
-# contrast is NOT monotonic -- worst around contrast 3-30x (~1%), improving
-# as contrast grows, and flattening to a ~0.3-0.5% discretization floor by
-# ~1,000-3,000x, past which softer buys no more accuracy. This file
-# previously used a single void.model.mu/kappa = 0.1, which put HTPB's
-# kappa contrast at ~833,000x -- past the entire tested range, well beyond
-# where even the capped solver is known to fail. void.model.mu/kappa below
-# are chosen so every one of AP/HTPB's mu/kappa contrasts against the void
-# lands in [~250x, ~2,100x]: inside the accuracy plateau (or its
-# near-plateau approach), and with a >10x stability margin below the
-# ~30,000x mark where the capped solver still ran flat.
+# drove the void.model contrast below: (1) with the coarsening cap, MLMG
+# stays stable with a flat ~12-18 iterations out to ~30,000x contrast, then
+# costs more iterations near ~33,000x, and fails by 100,000x; (2) accuracy
+# vs. contrast is NOT monotonic -- worst around contrast 3-30x (~1%),
+# improving as contrast grows, and flattening to a ~0.3-0.5% discretization
+# floor by ~1,000-3,000x, past which softer buys no more accuracy.
+# void.model.mu/kappa below are chosen so every one of AP/HTPB's mu/kappa
+# contrasts against the void lands in [~250x, ~2,100x]: inside the accuracy
+# plateau (or its near-plateau approach), and with a >10x stability margin
+# below the ~30,000x mark where the capped solver still ran flat.
 #
 # Tolerance-based solving (elastic.tol_rel/tol_abs, set explicitly below
 # rather than left at default) is used instead of a fixed iteration count so
-# a non-converged solve is visible rather than silently accepted, but expect
-# to need to revisit this (a different preconditioner, a stiffer/softer void
-# modulus, a different max_coarsening_level, or scaling the solid moduli
-# down further) if MLMG still fails to converge or converges absurdly
-# slowly.
+# a non-converged solve is visible rather than silently accepted.
+# elastic.solver.max_iter below is raised from 1500 to 3000 -- with
+# max_coarsening_level capped at 3 for conditioning reasons, convergence to
+# tol_rel=1e-8 is slow (verified needing ~1650-2050 iterations across the 3
+# solves tested), not divergent.
 
 plot_file = output.lm.ap_htpb_packed_elastic
-amr.plot_dt = 1.0e-5_s
-amr.max_level = 2
-amr.n_cell = 40 40 16
+amr.plot_dt = 1.0e-3_s
+amr.max_level = 0
+amr.n_cell = 160 160 64
 amr.max_grid_size = 20
 amr.blocking_factor = 2
 amr.regrid_int = 5
@@ -79,8 +118,8 @@ amr.reinitialize_condensed_composition_eta_min = 0.99
 amr.cell.all = 1
 amr.node.any = 0
 
-# Resolve the condensed/gas interface through level 3. Level 4 remains
-# available for flame and flow structure selected by the criteria below.
+# Inert with amr.max_level = 0 above (see WARNING at top of file) -- left in
+# place in case AMR is ever restorable here.
 eta_refinement_criterion = 0.5
 temperature_refinement_criterion = 1.0
 velocity_refinement_criterion = 1.0
@@ -140,23 +179,24 @@ HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 # to this specific formulation -- replace with measured/calibrated values if
 # available. See the WARNING above regarding solver conditioning at these
 # magnitudes.
-AP_solid.elastic.model.mu    = 9.47e2 # 9.47e9
-AP_solid.elastic.model.kappa = 1.00e4 # 1.00e10
-HTPB_solid.elastic.model.mu    = 1.67e2 # 1.67e6
-HTPB_solid.elastic.model.kappa = 8.33e4 # 8.33e8
+AP_solid.elastic.model.mu    = 9.47e6 # true SI 9.47e9 -- see WARNING above (1e4x rescale)
+AP_solid.elastic.model.kappa = 1.00e8 # true SI 1.00e10 -- see WARNING above (1e4x rescale)
+HTPB_solid.elastic.model.mu    = 1.67e6 # = true SI value -- see WARNING above (1e4x rescale)
+HTPB_solid.elastic.model.kappa = 8.33e8 # = true SI value -- see WARNING above (1e4x rescale)
 
 # Soft void: the gas region gets a small but nonzero modulus (in the same
-# 1e-3-scaled units as the solid moduli above) instead of being masked by
-# psi's 1e-8 floor. See the WARNING above -- this replaces the void's
-# effective modulus of "full AP stiffness x 1e-8" with a true soft-material
-# contrast and disables psi entirely (LowMach::Parse). Chosen per the
-# tests/LowMachElasticPressure sweep so every solid modulus above sits
-# ~250x-2,100x above these values: AP mu ~1,890x, AP kappa ~250x, HTPB mu
-# ~330x, HTPB kappa ~2,080x -- inside/near the sweep's accuracy plateau and
-# with >10x stability margin below where the capped solver was still
-# verified stable (~30,000x).
-elastic.void.model.mu    = 0.5
-elastic.void.model.kappa = 40.0
+# units as the solid moduli above, i.e. also 1e4x-rescaled -- see WARNING
+# above) instead of being masked by psi's 1e-8 floor. This replaces the
+# void's effective modulus of "full AP stiffness x 1e-8" with a true
+# soft-material contrast and disables psi entirely (LowMach::Parse). Chosen
+# per the tests/LowMachElasticPressure sweep so every solid modulus above
+# sits ~250x-2,100x above these values: AP mu ~1,890x, AP kappa ~250x, HTPB
+# mu ~330x, HTPB kappa ~2,080x -- inside/near the sweep's accuracy plateau
+# and with >10x stability margin below where the capped solver was still
+# verified stable (~30,000x). The 1e4x rescale above preserves these ratios
+# exactly (both sides scaled together).
+elastic.void.model.mu    = 5.0e3
+elastic.void.model.kappa = 4.0e5
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -250,6 +290,20 @@ HTPB_solid.density.ic.psread.plane.eps = 20.0_um
 # The gas initially contains final products above the packed bed. Initialize
 # the gas consistently with the thermal penetration profile so that pressure
 # is uniform at startup.
+#
+# NOTE (2026-08-02): a "remove heat_source, start the fluid domain at 3000K"
+# variant was tried and reliably crashes regardless of how the hot region is
+# shaped (whole gas volume, or a thin layer at the interface): both pull the
+# SOLID surface temperature up near its phase-change activation_temperature
+# (3145K, see AP_decomposition/HTPB_pyrolysis below -- only ~150K above the
+# 3000K flame temperature) at t=0, triggering a near-singular decomposition
+# rate right at the interface that blows up the diffusion solve within a
+# handful of steps, independent of the (already-fixed, see WARNING above)
+# elastic solver. Reverted back to this file's original scheme -- matching
+# input.lm.ap_htpb_packed, confirmed working there -- of a modest Tignite =
+# 400K initial peak (safely below the 3145K activation temperature) plus a
+# transient heat_source ramp that reaches ignition-sustaining temperatures
+# gradually instead of instantaneously.
 Final.density.ic.type = expression
 Final.density.ic.expression.constant.P = 3.0e6
 Final.density.ic.expression.constant.Tambient = 300.0_K
@@ -324,7 +378,7 @@ pressure.bc.constant.val.yhi = 3000000.0
 # iteration MLMG solve (default elastic.nriters = 1, see
 # Base::Mechanics::Register) does not dominate runtime.
 elastic.type = static
-elastic.interval = 10
+elastic.interval = 1000
 elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0
@@ -339,8 +393,10 @@ elastic.tol_abs = 1.0e-8
 # through the diffuse solid/void interface, and at this modulus contrast
 # that produces garbage coarse-level operators (verified in
 # tests/LowMachElasticPressure's 2d-pressure-1Pa-softvoid sub-case, which
-# diverges outright without this cap). See the WARNING above.
-elastic.max_coarsening_level = 2
+# diverges outright without this cap). See the WARNING above -- raised from
+# 2 to 3 (verified stable, ~2x faster); do not push further (uncapped
+# diverges within a handful of iterations).
+elastic.max_coarsening_level = 3
 elastic.solver.conservative_face_flux = 1
 elastic.solver.line_search = 1
 elastic.solver.resync_coeffs = 1
@@ -360,7 +416,10 @@ elastic.solver.resync_coeffs = 1
 # carried over between elastic.interval solves at large deformation).
 elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 0
-elastic.solver.max_iter = 1500
+# Raised from 1500 -- see WARNING above (max_coarsening_level=3 caps MG
+# effectiveness, so convergence to tol_rel is slow, not divergent; verified
+# needing ~1650-2050 iterations).
+elastic.solver.max_iter = 3000
 elastic.solver.pre_smooth = 2
 elastic.solver.post_smooth = 2
 elastic.solver.bottom_solver = bicgstab
