@@ -905,9 +905,18 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
         BoxArray newba = crseba;
         newba.refine(2);
+        // The corner/edge/face/interior stencils below read fine data up to
+        // 1 cell beyond 2*I for every I the loop below visits, and I ranges
+        // over crse's ghost region (crse.nGrow()) wherever a box's own ghost
+        // ring isn't clipped by the physical domain boundary (i.e. at
+        // box-to-box seams). So the fine ghost needed is 2*crse.nGrow()+1,
+        // not 2*crse.nGrow() -- the previous fixed value of 4 (with
+        // model_nghost=2) was one short, reading past fine_on_crseba's
+        // ghost box and segfaulting/reading garbage at interior box seams.
+        const int fine_ngrow = 2 * crse.nGrow() + 1;
         MultiTab fine_on_crseba;
-        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, 2, 4,
+        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, fine_ngrow);
+        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, crse.nGrow(), fine_ngrow,
             m_geom[amrlev][mglev-1].periodicity());
         /* ine_on_crseba.FillBoundaryAndSync(m_geom[amrlev][mglev-1].periodicity()); */
 
