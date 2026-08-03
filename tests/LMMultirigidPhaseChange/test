@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    solid = data["component_density_Al_solid"].to_ndarray()
+    liquid = data["component_density_Al_liquid"].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    target = (x - 0.25)**2 + (y - 0.25)**2 < 0.18**2
+    inert = (x - 0.75)**2 + (y - 0.25)**2 < 0.18**2
+    return {
+        "mass": ((solid + liquid) * volume).sum(),
+        "target_liquid": (liquid[target] * volume[target]).sum(),
+        "inert_liquid": (liquid[inert] * volume[inert]).sum(),
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMMultirigidPhaseChange requires initial and final plotfiles")
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+mass_error = abs(final["mass"] - initial["mass"]) / initial["mass"]
+if mass_error > 1.0e-10:
+    raise RuntimeError(f"Aluminum mass changed by {mass_error:.3e}")
+target_production = final["target_liquid"] - initial["target_liquid"]
+inert_production = final["inert_liquid"] - initial["inert_liquid"]
+if target_production < 1.0e-5:
+    raise RuntimeError("The Al interface did not produce liquid")
+if inert_production > 1.0e-7 * target_production:
+    raise RuntimeError(
+        "The inert rigid interface spuriously activated Al melting: "
+        f"target={target_production:.3e}, inert={inert_production:.3e}")
+
+print("LowMach multi-rigid phase-change localization regression passed")

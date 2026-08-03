@@ -30,7 +30,19 @@ def particle_moments(path):
     velocity_y = (core_weight * uy).sum() / core_mass
     radius = testlib.numpy.sqrt(
         (weight * ((x - center_x)**2 + (y - center_y)**2)).sum() / mass)
-    return mass, vapor_mass, center_x, center_y, velocity_x, velocity_y, radius
+    dx = x - center_x
+    dy = y - center_y
+    covariance = testlib.numpy.array([
+        [(weight * dx * dx).sum(), (weight * dx * dy).sum()],
+        [(weight * dx * dy).sum(), (weight * dy * dy).sum()]]) / mass
+    principal_moments = testlib.numpy.linalg.eigvalsh(covariance)
+    anisotropy = principal_moments[-1] / principal_moments[0]
+    # The configured disk has R=0.15 and eps=0.025.  Material outside 0.25
+    # is therefore a sensitive measure of a shear-peeled rigid tail while
+    # retaining the intended diffuse interface in the initial reference.
+    tail_fraction = weight[dx * dx + dy * dy > 0.25**2].sum() / mass
+    return (mass, vapor_mass, center_x, center_y, velocity_x, velocity_y,
+            radius, anisotropy, tail_fraction)
 
 
 outdir = sys.argv[1]
@@ -66,5 +78,12 @@ if abs(final[3] - initial[3]) > 2.0e-3 or abs(final[5]) > 2.0e-3:
 shape_change = abs(final[6] - initial[6]) / initial[6]
 if not is_sublimation and shape_change > 5.0e-2:
     raise RuntimeError(f"Particle radius of gyration changed by {shape_change:.3e}")
+if not is_sublimation and final[7] > 1.02:
+    raise RuntimeError(
+        f"Rigid particle became anisotropic: principal-moment ratio {final[7]:.6e}")
+if not is_sublimation and final[8] > 1.25 * initial[8]:
+    raise RuntimeError(
+        f"Rigid particle developed an excessive tail: mass fraction "
+        f"{initial[8]:.6e} -> {final[8]:.6e}")
 
 print("LowMach freely moving rigid particle regression passed")

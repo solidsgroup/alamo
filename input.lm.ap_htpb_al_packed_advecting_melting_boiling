@@ -98,10 +98,14 @@ liquid.capillary.include_solids = 1
 # Every solid is automatically excluded from the capillary gas complement.
 # Specify the interfacial energy between molten aluminum and each solid that
 # exists in this case; solid-gas and solid-solid surface energies are omitted.
-liquid.surface_tension.Al_liquid_gas = 0.86_J/m^2
+liquid.surface_tension.Al_liquid_gas = 1.72_J/m^2
 liquid.surface_tension.Al_liquid_AP_solid = 0.136_J/m^2
 liquid.surface_tension.Al_liquid_HTPB_solid = 0.136_J/m^2
-liquid.surface_tension.Al_liquid_Al_solid = 0.136_J/m^2
+liquid.surface_tension.Al_liquid_Al_solid = 1.0e-3_J/m^2
+# This reduces only the energy of Al-liquid/Al-solid contact; it does not add
+# solid-gas traction.  The adhesion term independently favors a liquid coating
+# on the aluminum surface.
+liquid.adhesion_energy.Al_liquid_Al_solid = 2.00_J/m^2
 
 chemistry.model.type = gross_model_aluminized
 chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -177,7 +181,7 @@ Al_melting.phase_change.phase1 = Al_liquid
 Al_melting.phase_change.reversible = false
 Al_melting.phase_change.latent_heat = 0.0 #3.9145e5_J/kg
 Al_melting.phase_change.prescribed_speed = 0.8_mm/s
-Al_melting.phase_change.temperature_cutoff = 700_K #933.45_K
+Al_melting.phase_change.temperature_cutoff = 500_K #933.45_K
 Al_melting.phase_change.phase_field.type = allencahn
 
 Al_boiling.type = phase_change
@@ -186,7 +190,7 @@ Al_boiling.phase_change.phase1 = Al_gas
 Al_boiling.phase_change.reversible = false
 Al_boiling.phase_change.latent_heat = 0.0 #1.0897e7_J/kg
 Al_boiling.phase_change.prescribed_speed = 0.8_mm/s
-Al_boiling.phase_change.temperature_cutoff = 1500_K #2793.0_K
+Al_boiling.phase_change.temperature_cutoff = 1000_K #2793.0_K
 Al_boiling.phase_change.phase_field.type = allencahn
 
 # Flow, projection, and diffusion

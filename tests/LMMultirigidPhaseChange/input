@@ -1,0 +1,153 @@
+#@ [2d]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+
+# A uniform trace of Al_solid overlaps a separate inert rigid disk.  A
+# prescribed Al melting front must respond to the Al interface at x=0.25,
+# not to the aggregate rigid interface surrounding the disk at x=0.75.
+plot_file = tests/LMMultirigidPhaseChange/output
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 64
+amr.blocking_factor = 8
+amr.n_cell = 64 32
+
+max_step = 1
+timestep = 1.0e-3
+stop_time = 1.0e-3
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 0.5 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient Al_solid inert_solid Al_liquid
+ambient.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+inert_solid.mechanics = rigid_solid
+Al_liquid.mechanics = liquid
+
+Al_solid.reference_density = 2.0_kg/m^3
+inert_solid.reference_density = 2.0_kg/m^3
+Al_liquid.reference_density = 2.0_kg/m^3
+Al_liquid.dynamic_viscosity = 1.0e-3_Pa*s
+
+Al_solid.rigid.motion = fixed
+Al_solid.rigid.relaxation_time = 1.0e-4_s
+Al_solid.rigid.velocity = 0.0 0.0
+inert_solid.rigid.motion = fixed
+inert_solid.rigid.relaxation_time = 1.0e-4_s
+inert_solid.rigid.velocity = 0.0 0.0
+
+liquid.capillary.enabled = 0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+mechanisms.names = Al_melting
+Al_melting.type = phase_change
+Al_melting.phase_change.phase0 = Al_solid
+Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.prescribed_speed = 0.1_m/s
+Al_melting.phase_change.phase_field.type = allencahn
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diagnostics.interval = 0
+
+ambient.density.ic.type = expression
+ambient.density.ic.expression.constant.rhog = 1.12254198039921
+ambient.density.ic.expression.constant.x0 = 0.25
+ambient.density.ic.expression.constant.x1 = 0.75
+ambient.density.ic.expression.constant.y0 = 0.25
+ambient.density.ic.expression.constant.R = 0.10
+ambient.density.ic.expression.constant.eps = 0.025
+ambient.density.ic.expression.region0 = "rhog*max(0.0,1.0-0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))-0.5*(1.0-tanh((sqrt((x-x1)*(x-x1)+(y-y0)*(y-y0))-R)/eps)))"
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rho = 2.0
+Al_solid.density.ic.expression.constant.trace = 1.0e-4
+Al_solid.density.ic.expression.constant.x0 = 0.25
+Al_solid.density.ic.expression.constant.y0 = 0.25
+Al_solid.density.ic.expression.constant.R = 0.10
+Al_solid.density.ic.expression.constant.eps = 0.025
+Al_solid.density.ic.expression.region0 = "rho*(trace+(1.0-trace)*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+inert_solid.density.ic.type = expression
+inert_solid.density.ic.expression.constant.rho = 2.0
+inert_solid.density.ic.expression.constant.x0 = 0.75
+inert_solid.density.ic.expression.constant.y0 = 0.25
+inert_solid.density.ic.expression.constant.R = 0.10
+inert_solid.density.ic.expression.constant.eps = 0.025
+inert_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+Al_liquid.density.ic.type = constant
+Al_liquid.density.ic.constant.value = 0.0
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0

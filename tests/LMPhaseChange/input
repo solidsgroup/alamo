@@ -16,6 +16,12 @@
 #@ timeout=120
 #@ args=liquid.capillary.include_solids=0
 #@
+#@ [2d-solid-liquid-adhesion]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=liquid.adhesion_energy.Al_liquid_Al_solid=0.02_J/m^2
+#@
 #@ [2d-liquid-gas-bundle]
 #@ exe=lowmach
 #@ dim=2

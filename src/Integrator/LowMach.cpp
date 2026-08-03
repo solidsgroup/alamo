@@ -19,6 +19,45 @@
 
 namespace Integrator
 {
+namespace
+{
+// Lightweight velocity accessor used directly by the advection stencil.  It
+// avoids allocating and filling an auxiliary vector MultiFab for an affine
+// rigid velocity that is cheaper to evaluate than to load from memory.
+struct RigidBodyVelocity
+{
+    Set::Vector translation = Set::Vector::Zero();
+    Set::Vector rotation = Set::Vector::Zero();
+    Set::Vector center = Set::Vector::Zero();
+    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM> prob_lo{};
+    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM> dx{};
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar operator()(int i, int j, int k, int d) const
+    {
+        (void)k;
+        Set::Scalar value = translation(d);
+#if AMREX_SPACEDIM == 2
+        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
+        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
+        value += d == 0 ? -rotation(0) * y : rotation(0) * x;
+#elif AMREX_SPACEDIM == 3
+        const Set::Scalar x = prob_lo[0] + (i + 0.5) * dx[0] - center(0);
+        const Set::Scalar y = prob_lo[1] + (j + 0.5) * dx[1] - center(1);
+        const Set::Scalar z = prob_lo[2] + (k + 0.5) * dx[2] - center(2);
+        if (d == 0) value += rotation(1) * z - rotation(2) * y;
+        if (d == 1) value += rotation(2) * x - rotation(0) * z;
+        if (d == 2) value += rotation(0) * y - rotation(1) * x;
+#else
+        (void)i;
+        (void)j;
+        (void)k;
+#endif
+        return value;
+    }
+};
+}
+
 LowMach::LowMach(IO::ParmParse& pp) : LowMach()
 {
     pp_queryclass(*this);
@@ -332,6 +371,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         const int nliquid = static_cast<int>(value.liquid_species.size());
         const int nphase = static_cast<int>(phase_names.size());
         std::vector<Set::Scalar> surface_tension(nphase * nphase, 0.0);
+        std::vector<Set::Scalar> adhesion_energy(nphase * nphase, 0.0);
         for (int a = 0; a < nliquid; ++a)
             for (int b = a + 1; b < nphase; ++b)
             {
@@ -356,11 +396,32 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 surface_tension[a * nphase + b] = sigma;
                 surface_tension[b * nphase + a] = sigma;
             }
+        for (int a = 0; a < nliquid; ++a)
+            for (int b = nliquid; b < nphase - 1; ++b)
+            {
+                const std::string key = "liquid.adhesion_energy." +
+                    phase_names[a] + "_" + phase_names[b];
+                if (!value.liquid_solid_capillarity_enabled)
+                {
+                    pp.ignore(key);
+                    continue;
+                }
+                Set::Scalar energy = 0.0;
+                pp.query_default(key, energy, "0.0_J/m^2",
+                    Unit::Energy() / Unit::Area());
+                if (energy < 0.0)
+                    Util::Exception(INFO, "liquid-solid adhesion energy for ",
+                        phase_names[a], "_", phase_names[b],
+                        " must be nonnegative");
+                adhesion_energy[a * nphase + b] = energy;
+                adhesion_energy[b * nphase + a] = energy;
+            }
         if (value.liquid_capillarity_enabled)
             value.capillary_phase_model.Define(
                 phase_names, nliquid,
                 value.liquid_solid_capillarity_enabled,
-                liquid_interface_thickness, surface_tension);
+                liquid_interface_thickness, surface_tension,
+                adhesion_energy);
         for (const int n : value.liquid_species)
             value.liquid_inverse_reference_density[n] =
                 1.0 / value.reference_density[n];
@@ -979,6 +1040,8 @@ LowMach::UpdateLiquidChemicalPotential(int lev)
         {
             const Set::Scalar sigma =
                 capillary_phase_model.SurfaceTension(a,b);
+            const Set::Scalar adhesion =
+                capillary_phase_model.AdhesionEnergy(a,b);
             if (!capillary_phase_model.HasInterfacialEnergy(a,b)) continue;
             for (amrex::MFIter mfi(chemical_potential, false);
                  mfi.isValid(); ++mfi)
@@ -1003,6 +1066,19 @@ LowMach::UpdateLiquidChemicalPotential(int lev)
                                 PairChemicalPotential(
                                     phase, b, a, sigma, epsilon,
                                     i, j, k, DX, stencil);
+                        if (adhesion > 0.0)
+                        {
+                            mu(i,j,k,a) +=
+                                Model::PhaseField::MultLiquid::
+                                    LiquidAdhesionChemicalPotential(
+                                        phase, a, b, adhesion, epsilon,
+                                        i, j, k, DX, stencil);
+                            mu(i,j,k,b) +=
+                                Model::PhaseField::MultLiquid::
+                                    SolidAdhesionChemicalPotential(
+                                        phase, a, b, adhesion, epsilon,
+                                        i, j, k, DX, stencil);
+                        }
                     });
             }
         }
@@ -2942,6 +3018,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             previous_free_rigid_projection_increment = FreeRigidBodyState{};
             previous_free_rigid_dt = NAN;
         }
+        free_rigid_body_time = free_rigid_body.valid ? time : NAN;
     }
 }
 
@@ -3231,6 +3308,27 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     if (external_heat_source)
         heat_source_ic->Initialize(lev, heat_source_mf, time);
 
+    // A freely moving rigid species must be transported by the same rigid
+    // translation and rotation used by its momentum penalty.  Transporting
+    // it with the mixture velocity lets shear in the diffuse interface peel
+    // off dilute solid filaments, which subsequently behave as independent
+    // material.  The body velocity is held explicit over one flow step and
+    // evaluated about its translated stage center.
+    const bool advect_free_rigid =
+        free_rigid_solid_species >= 0 && free_rigid_body.valid &&
+        std::isfinite(free_rigid_body_time);
+    RigidBodyVelocity free_rigid_velocity;
+    if (advect_free_rigid)
+    {
+        free_rigid_velocity.translation = free_rigid_body.velocity;
+        free_rigid_velocity.rotation = free_rigid_body.angular_velocity;
+        free_rigid_velocity.center = free_rigid_body.center +
+            (time - free_rigid_body_time) *
+            free_rigid_velocity.translation;
+        free_rigid_velocity.prob_lo = geom[lev].ProbLoArray();
+        free_rigid_velocity.dx = geom[lev].CellSizeArray();
+    }
+
     u_rhs_mf.setVal(0.0, 0, AMREX_SPACEDIM, u_rhs_mf.nGrow());
 
     //
@@ -3436,10 +3534,18 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     !liquid_component)
                     continue;
                 const Set::Scalar mechanism_source = component_density_rhs(i,j,k,n);
-                component_density_rhs(i,j,k,n) =
-                    advect_scheme(
-                        component_density, u, i, j, k, n, dx.data(),
-                            {Numeric::Advect::Form::Conservative}, sten) + mechanism_source;
+                if (n == free_rigid_component && advect_free_rigid)
+                    component_density_rhs(i,j,k,n) =
+                        advect_scheme(component_density,
+                            free_rigid_velocity, i, j, k, n, dx.data(),
+                            {Numeric::Advect::Form::Conservative}, sten) +
+                        mechanism_source;
+                else
+                    component_density_rhs(i,j,k,n) =
+                        advect_scheme(component_density, u, i, j, k, n,
+                            dx.data(),
+                            {Numeric::Advect::Form::Conservative}, sten) +
+                        mechanism_source;
             }
             if (deformable_solid)
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -3579,7 +3685,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 // Calculate dynamic timestep
 //
 void
-LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
 {
     if (synchronize_restart_state)
     {
@@ -3610,6 +3716,18 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         }
         synchronize_restart_state = false;
     }
+
+    // Initialize the body kinematics before the first Runge-Kutta stage (and
+    // refresh them after a restart).  Later steps already carry the state
+    // produced by the preceding projection.
+    if (free_rigid_solid_species >= 0 &&
+        (!free_rigid_body.valid || !std::isfinite(free_rigid_body_time)))
+    {
+        for (int lev = 0; lev <= finest_level; ++lev)
+            UpdateComponentState(lev, *component_density_mf[lev]);
+        UpdateFreeRigidBodyState();
+        if (free_rigid_body.valid) free_rigid_body_time = time;
+    }
     if (!dynamictimestep.on) return;
 
     const bool deformable_solid = deformable_solid_species >= 0;
@@ -3630,7 +3748,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         if (liquid_capillarity_enabled)
         {
             capillarymax = std::sqrt(
-                capillary_phase_model.MaximumSurfaceTension() /
+                capillary_phase_model.MaximumCapillaryEnergy() /
                 (capillary_reference_density_min * dxmin * dxmin * dxmin));
         }
         Set::Scalar temperaturemax = 0.0;

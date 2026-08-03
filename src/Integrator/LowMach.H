@@ -251,7 +251,9 @@ protected:
     bool projection_update_pressure = true;
     bool include_viscosity = true;
     bool include_conduction = true;
-    bool liquid_capillarity_enabled = true;
+    // Enabled by default when liquid species are configured; it must remain
+    // false for gas/solid-only systems because no capillary fields exist.
+    bool liquid_capillarity_enabled = false;
     bool liquid_solid_capillarity_enabled = false;
     bool implicit_momentum_diffusion = false;
     bool implicit_thermal_diffusion = false;
@@ -269,6 +271,7 @@ protected:
     Set::Scalar last_free_rigid_coupling_residual = 0.0;
     bool last_free_rigid_coupling_converged = false;
     Set::Scalar previous_free_rigid_dt = NAN;
+    Set::Scalar free_rigid_body_time = NAN;
 
     struct FreeRigidBodyState
     {

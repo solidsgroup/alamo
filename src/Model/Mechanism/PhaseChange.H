@@ -346,17 +346,14 @@ private:
         Set::Scalar eta_dot = 0.0;
         if (phase0_is_rigid)
         {
-            const Set::Scalar eta =
-                Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-            if (eta > 0.0 && use_prescribed_speed)
-            {
-                const Set::Scalar phase0_eta = Util::Clamp(
-                    state.rigid_species_eta(i,j,k,rigid_component),
-                    0.0, eta);
-                eta_dot = -phase0_eta / eta * prescribed_speed *
-                    Numeric::Gradient(
-                        state.rigid_eta, i, j, k, 0, DX).norm();
-            }
+            if (use_prescribed_speed)
+                // Propagate only phase0's own interface.  Weighting the
+                // aggregate rigid gradient by local composition lets an
+                // unrelated rigid material interface consume a dilute
+                // phase0 trace (for example Al at an AP/HTPB flame).
+                eta_dot = -prescribed_speed * Numeric::Gradient(
+                    state.rigid_species_eta, i, j, k,
+                    rigid_component, DX).norm();
         }
         else
         {
