@@ -1,2 +1,0 @@
-schema_version,port_id,source_revision,site_id,file,line,pattern_id,state,evidence
-3,example-port,git:REVISION,GPU-002:example:0,src/Example.H,42,GPU-002,candidate,confirm device reachability
