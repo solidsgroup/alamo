@@ -13,20 +13,21 @@
 # =====================================================================
 
 alamo.program = flame
-plot_file = output_phi_cell_centered_copy
+plot_file = output_aaa_thermal
 
 # ---- AMR / domain (top-left quarter of the full 0.1754 m square) -----
-amr.plot_dt = 1.0
-amr.max_level = 2
+amr.plot_dt = 0.01
+amr.max_level = 1
 amr.nsubsteps = 2
-amr.blocking_factor = 8
+amr.blocking_factor = 16
 amr.base_regrid_int = 10
 amr.grid_eff = 0.7
 amr.node.all = 1
+# Refine the eta (burn-front) and phi (propellant/casing) interfaces.
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 15.0_K
-amr.phi_refinement_criterion = 0.2
-amr.n_cell = 64 64 64   
+amr.phi_refinement_criterion = 0.05
+amr.n_cell = 128 128
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
 
@@ -38,8 +39,8 @@ system.length = m
 system.time = s
 
 # ---- Time -----------------------------------------------------------
-timestep = 2.0e-4_s
-stop_time = 1.0_s   
+timestep = 2.5e-4_s
+stop_time = 1.5_s   
 
 # ---- Phase field (eta = burn state; phi = fuel-presence mask) --------
 pf.eps = 1.25e-4_m
@@ -62,14 +63,25 @@ pf.eta.ic.bmp.channel = g
 pf.eta.ic.bmp.min = 0
 pf.eta.ic.bmp.max = 255
 
-phi.ic.type = bmp
-phi.ic.bmp.filename = base_circle0.bmp
-phi.ic.bmp.fit = coord
-phi.ic.bmp.coord.lo = 0.0 0.0
-phi.ic.bmp.coord.hi = 0.1754 0.1754
-phi.ic.bmp.channel = g
-phi.ic.bmp.min = 0
-phi.ic.bmp.max = 255
+# Analytic circular mask preserving the bitmap phi=0.5 radius. Its tanh
+# scale is chosen to match the observed eta-interface thickness.
+phi.ic.type = expression
+phi.ic.expression.coord = cartesian
+phi.ic.expression.constant.cx = 0.0877_m
+phi.ic.expression.constant.cy = 0.0877_m
+phi.ic.expression.constant.radius = 0.0785_m
+phi.ic.expression.constant.width = 1.5e-3_m
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((radius - sqrt((x-cx)^2 + (y-cy)^2))/width)"
+
+# Retain aluminum only inside the outer motor radius. Together with phi,
+# chi creates the thin casing annulus; chi=0 exterior is void. Its tanh
+# scale matches phi's observed-eta-matched transition width.
+chi.ic.type = expression
+chi.ic.expression.constant.cx = 0.0877
+chi.ic.expression.constant.cy = 0.0877
+chi.ic.expression.constant.a4 = 0.0825_m
+chi.ic.expression.constant.w = 1.5e-3_m
+chi.ic.expression.region0 = "0.5 + 0.5*tanh((a4 - sqrt((x-cx)^2 + (y-cy)^2))/w)"
 
 # eta BCs: outer edges (xlo, yhi) solid dirichlet; symmetry planes
 # (xhi=vertical centerline, ylo=horizontal centerline) neumann.
@@ -138,30 +150,32 @@ chamber.ballistic.pressure = 4.0e6_Pa
 # ---- Thermoelasticity (SWEEP recipe; only the BCs are quarter) -------
 elastic.on = 1
 elastic.type = static
-elastic.interval = 100
-elastic.tstart = 0.5e-4
+elastic.interval = 40
+elastic.tstart = 0.01
 elastic.phirefinement = 100
 elastic.elastic_ref_threshold = 0.01
 elastic.print_model = 1
+# Refine the diffuse outer boundary of chi as well.
+elastic.chi_refinement_criterion = 0.05
 
 elastic.use_psi = 0
-elastic.psi_floor = 0.01
+elastic.psi_floor = 0.00
 elastic.zero_out_displacement = 1
-elastic.max_coarsening_level = 2
+elastic.max_coarsening_level = 3
 elastic.tol_rel = 2e-5
 elastic.tol_abs = 1e-8
 
-elastic.solver.max_iter = 1000
+elastic.solver.max_iter = 1500
 elastic.solver.pre_smooth = 4
 elastic.solver.post_smooth = 4
 elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1e-5
 elastic.solver.line_search = 1
 elastic.solver.resync_coeffs = 1
-elastic.solver.bottom_solver = smoother
+elastic.solver.bottom_solver = bigcgstab
 elastic.solver.nr_convergence = update
 elastic.solver.nr_diagnostics = 1
-elastic.solver.verbose = 1
+elastic.solver.verbose = 4
 
 elastic.plot_disp = 1
 elastic.plot_psi = 1
@@ -174,14 +188,16 @@ elastic.traction_from_chamber = 1
 
 # ---- Elastic material models (SWEEP moduli, unchanged) --------------
 model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+#model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 model_prop.kappa = 162_MPa
 model_prop.mu = 113.6_MPa
 
 model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-model_void.kappa = 0.5_MPa   
-model_void.mu = 0.5_MPa   
+model_void.kappa = 1.0_MPa   
+model_void.mu = 1.0_MPa   
 
 model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+#model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 model_casing.kappa = 70_GPa   
 model_casing.mu = 26_GPa   
 
@@ -198,15 +214,6 @@ elastic.bc.constant.type.xloyhi = disp disp
 elastic.bc.constant.type.xhiylo = disp disp
 elastic.bc.constant.type.xhiyhi = disp disp
 
-# ---- Cell-centered phi experiment -----------------------------------
-# Match eta's centering path for elastic model mixing.
-phi.cell_centered_mixing = 1
-phi.bc.type = constant
-phi.bc.constant.type.xlo = dirichlet
-phi.bc.constant.type.xhi = neumann
-phi.bc.constant.type.ylo = neumann
-phi.bc.constant.type.yhi = dirichlet
-phi.bc.constant.val.xlo = 0.0
-phi.bc.constant.val.xhi = 0.0
-phi.bc.constant.val.ylo = 0.0
-phi.bc.constant.val.yhi = 0.0
+# ---- Phi mixing ------------------------------------------------------
+# Match the recorded clamped-run metadata (nodal phi mixing).
+phi.cell_centered_mixing = false
