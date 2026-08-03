@@ -1,0 +1,10 @@
+Tests
+Tests.rst
+FilenameParsing.rst
+Inputs.generated.rst
+InputsReference/
+InputsSearch.rst
+Builder.html
+InputIndex_*
+_static/input-builders/
+_static/input-schemas/

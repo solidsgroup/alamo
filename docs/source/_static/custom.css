@@ -1,0 +1,670 @@
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
+table pre /*Wrap text in tables*/
+{
+    white-space:pre-wrap !important;
+}
+
+span.sd-badge /*Wrap long text inside badges*/
+{
+    white-space:pre-wrap !important;
+}
+
+table .notranslate
+{
+    margin:0px !important;
+}
+
+p
+{
+    line-height: 20px;   /* within paragraph */
+    margin-bottom: 10px; /* between paragraphs */    
+}
+
+.api-inputs-table code.code
+{
+    background-color:transparent !important;
+    border-color:transparent !important;
+    font-weight:bold !important;
+}
+
+
+img.logo
+{
+    width:100%!important;
+}
+
+.documentation-version {
+    margin: 10px 12px 0;
+    text-align: left;
+}
+
+.documentation-version label {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.documentation-version select {
+    width: 100%;
+    height: 32px;
+    padding: 4px 26px 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 3px;
+    background: #ffffff;
+    color: #263238;
+    font-size: 13px;
+}
+
+.documentation-version-links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 11px;
+}
+
+.documentation-version-links a {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+li[class="toctree-l1"] a:hover
+{
+    color:white!important;
+}
+
+h1 {font-size:xx-large!important;}
+/*h2 {font-size:x-large!important;}*/
+h2 {font-size:large!important;}
+h3 {font-size:medium!important;}
+h4 {font-size:medium!important;}
+h5 {font-size:small!important;}
+h6 {font-size:small!important;}
+
+
+.wy-nav-content {
+   //max-width: none; // uncomment to make full-width (but this does not look as good)
+}
+
+
+ul.current {
+    padding:0px!important;
+}
+
+a.reference.internal{
+    text-decoration:none;!important;
+
+}
+
+ul.nav-tabs {
+    margin-bottom: 0 !important; /* Remove margin below the tabs */
+    padding-bottom: 0 !important; /* Remove padding below the tabs */
+}
+
+ul.nav-tabs > li {
+    list-style: none !important; /* Force no bullets */
+}
+
+/* Remove padding/margin to avoid extra spacing */
+ul.nav-tabs > li {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.card-title {
+    text-decoration: none;
+}
+
+/* Adjust the card header to eliminate extra space */
+.card-header {
+    padding-top: 0 !important; /* Adjust padding above */
+    padding-bottom: 0 !important; /* Adjust padding below */
+    margin-bottom: 0 !important; /* Remove margin below header */
+}
+
+li.toctree-l1 ul {
+    padding: 0px !important;
+}
+
+
+
+
+
+/* Modern, compact styles for tables with class 'api-inputs-table' */
+.api-inputs-table {
+  width: 100%;
+  border-collapse: separate !important; /* Changed to separate for border visibility */
+  border-spacing: 0 !important; /* Remove default spacing */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #b0b8c1 !important; /* Enhanced outside border with !important for more definition */
+}
+
+.api-inputs-table th,
+.api-inputs-table td {
+  padding: 10px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.api-inputs-table thead th {
+  background-color: #f5f7fa;
+  color: #333;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #d1d9e6;
+}
+
+.api-inputs-table tbody tr {
+  background-color: #fff !important; /* Apply important to background color */
+  transition: background-color 0.3s ease !important; /* Ensuring transition is applied to all rows */
+}
+
+.api-inputs-table tbody tr:nth-child(even) {
+  background-color: #fafbfc !important; /* Apply important to even row background */
+}
+
+.api-inputs-table tbody tr:hover,
+.api-inputs-table tbody tr:nth-child(even):hover {
+  background-color: #f0f4f8 !important; /* Apply important to hover effect for both odd and even rows */
+}
+
+.api-inputs-table a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.api-inputs-table a:hover {
+  text-decoration: underline;
+}
+
+.api-inputs-table p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.api-inputs-table td[colspan="3"] {
+  background-color: #f9fafb !important; /* Apply important to colspan background */
+  font-weight: bold;
+  color: #555;
+}
+
+/* =========================================== */
+
+
+
+/* Improve section headers to match ReadTheDocs theme */
+h1 {
+    background-color: #2980b9; /* ReadTheDocs primary blue */
+    color: white !important;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/*h2 {
+    background-color: #3498db; 
+    color: white !important;
+    padding: 8px;
+    border-radius: 4px;
+}*/
+
+h2 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h3 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h4 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h5 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+/* Add space between sections */
+section {
+    margin-bottom: 35px;
+    padding-top: 20px;
+}
+
+/* Horizontal line styling */
+hr {
+    border: 1px solid #e1e4e5; /* Light gray, matching ReadTheDocs dividers */
+    margin: 20px 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*  This is styling to control the "API" sections in the Inputs page  */
+
+
+
+/* Base styles for the dropdown container */
+.sd-dropdown {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* Style the summary header */
+.sd-dropdown summary {
+  font-weight: 600;
+  background: #f9f9f9;
+  padding: 0.6em 1em;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Adjust the border radius when the dropdown is open */
+.sd-dropdown[open] summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Style the content area */
+.sd-dropdown .sd-summary-content {
+  border: 1px solid #ddd;
+  border-top: none;
+  padding: 1em;
+  background: #fff;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  margin-top: -1px; /* Overlap border with the summary */
+}
+
+/* Paragraphs */
+.sd-dropdown p {
+  margin: 0.5em 0;
+}
+
+/* Unordered lists */
+.sd-dropdown ul {
+  margin: 0.5em 0;
+  padding-left: 1.2em;
+}
+
+/* List items */
+.sd-dropdown li {
+  margin: 0.3em 0;
+}
+
+/* Inline code blocks */
+.sd-dropdown code {
+  background: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 0.95em;
+}
+
+
+.api-inputs-table button.active {
+    background-color: var(--bs-blue) !important;
+    color: white !important;
+    font-weight:bold !important;
+    margin-bottom: -50px;
+    padding-bottom: 50px;
+    border-color: var(--bs-blue) !important;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-bottom-width: 0px !important;
+}
+
+.api-inputs-table td {
+    overflow: hidden;
+}
+
+.conditional_class_inputs .input-col {
+    border-left-width: 20px;
+}
+
+.conditional_class_inputs {
+    display:none !important;
+}
+
+.conditional_class_inputs.active {
+    display:table-row-group !important;
+}
+
+
+.api-inputs-table button:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+
+.conditional_class_inputs .input-col {
+    border-left: 3px solid #007bff; /* Highlight with a blue left border */
+    padding-left: 15px; /* Ensure text doesn’t overlap */
+    background-color: #f5f7fa; /* Light background for better distinction */
+}
+
+
+.conditional_class_inputs tr:first-child  td{
+    border-top: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional_class_inputs tr:last-child  td{
+    border-bottom: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional_class_inputs tr  td:last-child{
+    border-right: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional-start-second td {
+    align-content: center;
+    border-top-style: none;
+}
+
+/* Schema-generated input reference */
+.input-reference-math-loader {
+    display: none;
+}
+
+.input-reference-directory {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 16px 0 28px;
+}
+
+.input-reference-directory-item {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) 12px;
+    align-items: center;
+    gap: 8px;
+    min-height: 58px;
+    padding: 9px 12px;
+    border: 1px solid #d8dee4;
+    border-radius: 6px;
+    background: #fff;
+    color: #30363b !important;
+    text-decoration: none !important;
+}
+
+.input-reference-directory-item:hover {
+    border-color: #7fb4d5;
+    background: #f3f8fb;
+    color: #1f5f88 !important;
+}
+
+.input-reference-directory-item > .fas:first-child {
+    color: #2980b9;
+    font-size: 17px;
+}
+
+.input-reference-directory-item strong,
+.input-reference-directory-item small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.input-reference-directory-item strong {
+    font-size: 14px;
+}
+
+.input-reference-directory-item small {
+    margin-top: 2px;
+    color: #6a737d;
+    font-size: 12px;
+}
+
+.input-reference-directory-item > .fas:last-child {
+    color: #8a949d;
+    font-size: 10px;
+}
+
+.input-reference-list {
+    display: grid;
+    gap: 12px;
+    margin: 20px 0 32px;
+}
+
+.input-reference-item {
+    overflow: hidden;
+    border: 1px solid #d8dee4;
+    border-left: 4px solid #2980b9;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.input-reference-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e8ebee;
+    background: #f7f9fb;
+}
+
+.input-reference-name {
+    overflow-wrap: anywhere;
+    border: 0 !important;
+    background: transparent !important;
+    color: #1f5f88 !important;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none !important;
+}
+
+.input-reference-name code {
+    border: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+a.input-reference-name:hover {
+    color: #174867 !important;
+    text-decoration: underline !important;
+}
+
+.test-input-reference {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: #8fb8d3;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+.test-input-reference:hover {
+    border-radius: 2px;
+    background: #dcecf6;
+    color: #174867;
+}
+
+.input-reference-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.input-reference-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 7px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.input-reference-badge-default {
+    border-color: #9ac7a5;
+    background: #edf7ef;
+    color: #28643a;
+}
+
+.input-reference-badge-option {
+    border-color: #9fc5df;
+    background: #eef6fb;
+    color: #205f89;
+}
+
+.input-reference-badge-meta {
+    border-color: #ccd2d8;
+    background: #f3f4f5;
+    color: #535b63;
+}
+
+.input-reference-badge-required {
+    border-color: #e0a4a4;
+    background: #fff1f1;
+    color: #a12626;
+}
+
+.input-reference-description {
+    margin: 0 !important;
+    padding: 12px 14px;
+    color: #30363b;
+}
+
+.input-reference-resolved {
+    border-top: 1px solid #edf0f2;
+}
+
+.input-reference-resolved summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: relative;
+    padding: 8px 14px;
+    padding-left: 34px;
+    color: #40515e;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.input-reference-resolved summary::before {
+    position: absolute;
+    left: 14px;
+    content: "\f054";
+    font-family: "Font Awesome 6 Free";
+    font-size: 10px;
+    font-weight: 900;
+    transition: transform 120ms ease;
+}
+
+.input-reference-resolved[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.input-reference-resolved summary:hover {
+    background: #f7f9fb;
+    color: #1f5f88;
+}
+
+.input-reference-resolved summary span {
+    color: #6a737d;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.input-reference-resolved-body {
+    border-top: 1px solid #e8ebee;
+    background: #fbfcfd;
+}
+
+.input-reference-executable {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.35fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 10px 14px;
+}
+
+.input-reference-executable + .input-reference-executable {
+    border-top: 1px solid #e8ebee;
+}
+
+.input-reference-executable strong {
+    overflow-wrap: anywhere;
+    color: #3e4850;
+    font-size: 12px;
+}
+
+.input-reference-paths {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.input-reference-paths code {
+    overflow-wrap: anywhere;
+    border: 1px solid #d9e2e8;
+    border-radius: 4px;
+    background: #fff;
+    color: #263238;
+    font-size: 12px;
+}
+
+@media (max-width: 700px) {
+    .input-reference-directory {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .input-reference-item-header,
+    .input-reference-resolved summary {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .input-reference-badges {
+        justify-content: flex-start;
+    }
+
+    .input-reference-executable {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+}
