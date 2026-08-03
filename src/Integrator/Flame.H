@@ -41,7 +41,7 @@ public:
     {
         delete ic_eta;
         delete ic_phi;
-        delete ic_casing_support;
+        delete ic_chi;
         delete thermal.ic_temp;
         delete ic_laser;
         delete bc_eta;
@@ -77,7 +77,7 @@ public:
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
-    Set::Field<Set::Scalar> casing_support_mf;
+    Set::Field<Set::Scalar> chi_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;
@@ -90,7 +90,7 @@ public:
     BC::BC<Set::Scalar>* bc_eta = nullptr;
     BC::BC<Set::Scalar>* bc_phi = nullptr;
     IC::IC<Set::Scalar>* ic_phi = nullptr;
-    IC::IC<Set::Scalar>* ic_casing_support = nullptr;
+    IC::IC<Set::Scalar>* ic_chi = nullptr;
     IC::IC<Set::Scalar>* ic_laser = nullptr;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
@@ -166,8 +166,7 @@ public:
         // (psi_floor*kappa_void) is numerically equivalent to use_psi=0 with
         // kappa_void scaled to that product, so a soft physical void replaces both.
         int use_psi = 1;
-        bool plot_casing_support = false;
-        Set::Scalar casing_support_refinement_criterion =
+        Set::Scalar chi_refinement_criterion =
             std::numeric_limits<Set::Scalar>::infinity();
     } elastic;
 
