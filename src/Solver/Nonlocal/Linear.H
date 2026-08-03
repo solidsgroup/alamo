@@ -132,6 +132,7 @@ public:
         amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs,
         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
+        if (m_use_fgmres) return solveFGMRES(a_sol, a_rhs, a_tol_rel, a_tol_abs);
         PrepareMLMG(*mlmg);
         Set::Scalar retval = NAN;
         try
@@ -148,6 +149,7 @@ public:
     Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
         amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs)
     {
+        if (m_use_fgmres) return solveFGMRES(a_sol, a_rhs, tol_rel, tol_abs);
         PrepareMLMG(*mlmg);
         Set::Scalar retval = NAN;
         try
@@ -159,7 +161,7 @@ public:
             if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
-        if (a_sol[0]->contains_nan()) 
+        if (a_sol[0]->contains_nan())
         {
             dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             Util::Abort(INFO);
@@ -171,6 +173,160 @@ public:
     {
         PrepareMLMG(*mlmg);
         mlmg->apply(GetVecOfPtrs(a_rhs), GetVecOfPtrs(a_sol));
+    };
+
+    /// \brief Restarted, right-preconditioned FGMRES with MLMG as the preconditioner.
+    ///
+    /// Outer Krylov acceleration so the solve can survive a poorly-scaled/converging
+    /// multigrid operator (near-singular coarse levels, high modulus contrast) instead
+    /// of stalling. mlmg->apply() is used as the (exact, linear) matrix-vector product,
+    /// and mlmg->precond() -- a fixed number of V/F-cycles from a zero initial guess --
+    /// is used as the preconditioner. See getFinalResidual()/getNumIters() after calling
+    /// this for diagnostics.
+    ///
+    /// CAVEAT: mlmg->apply() only computes a correct composite matrix-vector product for
+    /// single-level problems. Operator<Grid::Node>::solutionResidual() ignores its
+    /// crse_bcdata argument, so coarse/fine ghost coupling is not re-established for an
+    /// arbitrary (non-solution) vector the way it is inside a real MLMG V-cycle. On
+    /// amr.max_level>0 problems this makes FGMRES diverge; only use solver.fgmres=1 (or
+    /// elastic.solver.fgmres=1) with amr.max_level=0 until that gap is fixed.
+    Set::Scalar solveFGMRES(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
+        amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs,
+        Real a_tol_rel, Real a_tol_abs)
+    {
+        if (!m_defined) Util::Abort(INFO, "Solver not defined");
+        PrepareMLMG(*mlmg);
+
+        using AMRVec = amrex::Vector<std::unique_ptr<amrex::MultiFab> >;
+        const int nlevs = a_sol.size();
+        const int ncomp = a_sol[0]->nComp();
+        const int restart = fgmres_restart > 0 ? fgmres_restart : 30;
+        const int max_outer = fgmres_max_outer > 0 ? fgmres_max_outer : 10;
+        const int precond_iters = fgmres_precond_iter > 0 ? fgmres_precond_iter : 1;
+
+        auto makeLike = [&](AMRVec& ref) {
+            AMRVec v(nlevs);
+            for (int lev = 0; lev < nlevs; ++lev)
+                v[lev] = std::make_unique<amrex::MultiFab>(ref[lev]->boxArray(), ref[lev]->DistributionMap(), ncomp, ref[lev]->nGrow());
+            return v;
+        };
+        auto setValAll = [&](AMRVec& v, Set::Scalar val) { for (auto& mf : v) mf->setVal(val); };
+        auto dot = [&](AMRVec& x, AMRVec& y) {
+            Set::Scalar s = 0.0;
+            for (int lev = 0; lev < nlevs; ++lev)
+                s += amrex::MultiFab::Dot(*x[lev], 0, *y[lev], 0, ncomp, 0);
+            return s;
+        };
+        auto vnorm = [&](AMRVec& x) { return std::sqrt(dot(x, x)); };
+        auto axpy = [&](AMRVec& y, Set::Scalar a, AMRVec& x) {
+            for (int lev = 0; lev < nlevs; ++lev)
+                amrex::MultiFab::Saxpy(*y[lev], a, *x[lev], 0, 0, ncomp, 0);
+        };
+        auto copyv = [&](AMRVec& dst, AMRVec& src) {
+            for (int lev = 0; lev < nlevs; ++lev)
+                amrex::MultiFab::Copy(*dst[lev], *src[lev], 0, 0, ncomp, src[lev]->nGrow());
+        };
+        auto scalev = [&](AMRVec& x, Set::Scalar a) {
+            for (int lev = 0; lev < nlevs; ++lev) x[lev]->mult(a, 0, ncomp, 0);
+        };
+        auto matvec = [&](AMRVec& v, AMRVec& Av) {
+            mlmg->apply(GetVecOfPtrs(Av), GetVecOfPtrs(v));
+        };
+        auto precond = [&](AMRVec& r, AMRVec& z) {
+            setValAll(z, 0.0);
+            mlmg->setPrecondIter(precond_iters);
+            try { mlmg->precond(GetVecOfPtrs(z), GetVecOfConstPtrs(r), 1.0e-16, 1.0e-16); }
+            catch (const std::exception&) {}
+        };
+
+        AMRVec r = makeLike(a_sol);
+        AMRVec Ax = makeLike(a_sol);
+        matvec(a_sol, Ax);
+        copyv(r, a_rhs);
+        axpy(r, -1.0, Ax);
+
+        Set::Scalar bnorm = vnorm(a_rhs);
+        if (bnorm < 1.0e-300) bnorm = 1.0;
+        Set::Scalar rnorm = vnorm(r);
+        Set::Scalar tol = std::max(a_tol_rel * bnorm, a_tol_abs);
+
+        if (verbose > 0) Util::Message(INFO, "FGMRES: initial residual = ", rnorm, " (target = ", tol, ")");
+
+        for (int outer = 0; outer < max_outer && rnorm > tol; ++outer)
+        {
+            std::vector<AMRVec> V(restart + 1);
+            std::vector<AMRVec> Z(restart);
+            std::vector<std::vector<Set::Scalar> > H(restart + 1, std::vector<Set::Scalar>(restart, 0.0));
+            std::vector<Set::Scalar> cs(restart, 0.0), sn(restart, 0.0), g(restart + 1, 0.0);
+
+            Set::Scalar beta = rnorm;
+            V[0] = makeLike(a_sol);
+            copyv(V[0], r);
+            scalev(V[0], 1.0 / beta);
+            g[0] = beta;
+
+            int kk = -1;
+            for (int j = 0; j < restart; ++j)
+            {
+                Z[j] = makeLike(a_sol);
+                precond(V[j], Z[j]);
+
+                V[j + 1] = makeLike(a_sol);
+                matvec(Z[j], V[j + 1]);
+
+                for (int i = 0; i <= j; ++i)
+                {
+                    H[i][j] = dot(V[j + 1], V[i]);
+                    axpy(V[j + 1], -H[i][j], V[i]);
+                }
+                H[j + 1][j] = vnorm(V[j + 1]);
+                if (H[j + 1][j] > 1.0e-300) scalev(V[j + 1], 1.0 / H[j + 1][j]);
+
+                for (int i = 0; i < j; ++i)
+                {
+                    Set::Scalar temp = cs[i] * H[i][j] + sn[i] * H[i + 1][j];
+                    H[i + 1][j] = -sn[i] * H[i][j] + cs[i] * H[i + 1][j];
+                    H[i][j] = temp;
+                }
+                Set::Scalar denom = std::sqrt(H[j][j] * H[j][j] + H[j + 1][j] * H[j + 1][j]);
+                if (denom < 1.0e-300) denom = 1.0e-300;
+                cs[j] = H[j][j] / denom;
+                sn[j] = H[j + 1][j] / denom;
+                H[j][j] = cs[j] * H[j][j] + sn[j] * H[j + 1][j];
+                H[j + 1][j] = 0.0;
+                g[j + 1] = -sn[j] * g[j];
+                g[j] = cs[j] * g[j];
+
+                kk = j;
+                rnorm = std::abs(g[j + 1]);
+                if (verbose > 0) Util::Message(INFO, "FGMRES: outer ", outer, " inner ", j, " residual = ", rnorm);
+                if (rnorm <= tol) break;
+            }
+
+            std::vector<Set::Scalar> y(kk + 1);
+            for (int i = kk; i >= 0; --i)
+            {
+                y[i] = g[i];
+                for (int k = i + 1; k <= kk; ++k) y[i] -= H[i][k] * y[k];
+                y[i] /= H[i][i];
+            }
+            for (int i = 0; i <= kk; ++i)
+                axpy(a_sol, y[i], Z[i]);
+
+            matvec(a_sol, Ax);
+            copyv(r, a_rhs);
+            axpy(r, -1.0, Ax);
+            rnorm = vnorm(r);
+            if (verbose > 0) Util::Message(INFO, "FGMRES: outer ", outer, " true residual = ", rnorm);
+        }
+
+        if (a_sol[0]->contains_nan())
+        {
+            dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
+            Util::Abort(INFO);
+        }
+
+        return rnorm;
     };
 
 
@@ -248,6 +404,11 @@ protected:
     Set::Scalar omega = -1.0;
     bool average_down_coeffs = false;
     bool normalize_ddw = false;
+
+    bool m_use_fgmres = false;
+    int fgmres_restart = -1;
+    int fgmres_max_outer = -1;
+    int fgmres_precond_iter = -1;
 
     Operator::Operator<Grid::Node>* linop;
     amrex::MLMG* mlmg;
@@ -357,6 +518,23 @@ public:
         // This is primarily used when DDW is near-singular - like when there
         // is a "void" region or when doing phase field fracture.
         pp_query("normalize_ddw", value.normalize_ddw);
+
+        // [false]
+        // Use a hand-rolled restarted FGMRES (MLMG as preconditioner) instead of
+        // calling MLMG::solve() directly. Intended for cases where MLMG alone
+        // stalls/diverges (e.g. high modulus contrast); more robust but slower
+        // per-iteration than a plain V/F-cycle. CAVEAT: only valid for single-level
+        // (amr.max_level=0) problems -- see solveFGMRES() doc comment for why.
+        pp_query("fgmres", value.m_use_fgmres);
+
+        // Restart length (number of Krylov vectors kept before restarting) [30]
+        pp_query("fgmres_restart", value.fgmres_restart);
+
+        // Max number of outer restart cycles [10]
+        pp_query("fgmres_max_outer", value.fgmres_max_outer);
+
+        // Number of MLMG V/F-cycles used per FGMRES preconditioner application [1]
+        pp_query("fgmres_precond_iter", value.fgmres_precond_iter);
 
         // [false] 
         // If set to true, output diagnostic multifab information 
