@@ -61,6 +61,9 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
     Operator::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
     int model_nghost = 2;
+    // Diagonal computes two nodal ghost layers; cell-to-node interpolation
+    // requires one additional cell-centered coefficient layer.
+    int psi_nghost = 3;
 
     m_ddw_mf.resize(m_num_amr_levels);
     m_psi_mf.resize(m_num_amr_levels);
@@ -74,7 +77,7 @@ Elastic<SYM>::define(const Vector<Geometry>& a_geom,
                 amrex::IntVect::TheNodeVector()),
                 m_dmap[amrlev][mglev], AMREX_SPACEDIM + 1, model_nghost));
             m_psi_mf[amrlev][mglev].reset(new MultiFab(m_grids[amrlev][mglev],
-                m_dmap[amrlev][mglev], 1, model_nghost));
+                m_dmap[amrlev][mglev], 1, psi_nghost));
 
             if (!m_psi_set) m_psi_mf[amrlev][mglev]->setVal(1.0);
         }
