@@ -110,7 +110,14 @@ else:
         raise RuntimeError("Forward phase change did not melt solid")
     if not final["liquid"] > 1.002 * initial["liquid"]:
         raise RuntimeError("Melting did not produce liquid")
-    if not final["temperature"] < initial["temperature"] - 1.0e-3:
+    if "coupled-exothermic" in outdir:
+        if not final["temperature"] > initial["temperature"] + 1.0e-3:
+            raise RuntimeError(
+                "Negative coupled enthalpy did not release heat")
+    elif not final["temperature"] < initial["temperature"] - 1.0e-3:
+        if "coupled-endothermic" in outdir:
+            raise RuntimeError(
+                "Positive coupled enthalpy did not absorb heat")
         raise RuntimeError("Melting did not absorb latent heat")
 
 print("LowMach condensed phase-change regression passed")

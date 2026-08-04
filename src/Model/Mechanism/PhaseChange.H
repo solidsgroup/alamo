@@ -4,7 +4,12 @@
 // representation or a fixed-composition bundle of gas species.  Separate
 // configured mechanisms form solid-liquid-gas and direct solid-gas paths.
 // The sign of the phase0 rate selects the direction, and reversible transfers
-// are limited by the locally available phase1 mass.
+// are limited by the locally available phase1 mass.  ``latent_heat`` is the
+// positive specific enthalpy absorbed by the forward phase change and changes
+// sign with a reverse transfer.  The optional signed
+// ``coupled_enthalpy_change`` represents an additional process tied to forward
+// conversion only: negative values are exothermic, positive values are
+// endothermic, and the value is defined per unit mass of phase0 consumed.
 //
 
 #ifndef MODEL_MECHANISM_PHASECHANGE_H
@@ -147,6 +152,16 @@ public:
                         "0.0_J/kg", Unit::Energy() / Unit::Mass());
         if (!std::isfinite(value.latent_heat))
             Util::Exception(INFO, "latent_heat must be finite");
+        // This is a signed thermochemical enthalpy change, rather than a heat-
+        // release magnitude.  It applies only while phase0 is consumed so an
+        // irreversible coupled process is not reversed by condensation or
+        // solidification.
+        pp.query_default("coupled_enthalpy_change",
+                        value.coupled_enthalpy_change,
+                        "0.0_J/kg", Unit::Energy() / Unit::Mass());
+        if (!std::isfinite(value.coupled_enthalpy_change))
+            Util::Exception(INFO,
+                "coupled_enthalpy_change must be finite");
         pp.query_default("rate_multiplier", value.rate_multiplier, 1.0);
         if (value.rate_multiplier < 0.0)
             Util::Exception(INFO, "rate_multiplier must be nonnegative");
@@ -206,7 +221,22 @@ public:
                             const int i, const int j, const int k,
                             const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
-        return latent_heat * MassSource(state, i, j, k, DX);
+        return HeatFromPhase0Change(
+            MassSource(state, i, j, k, DX), latent_heat,
+            coupled_enthalpy_change);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Scalar HeatFromPhase0Change(
+        const Set::Scalar mass_change,
+        const Set::Scalar latent_heat,
+        const Set::Scalar coupled_enthalpy_change)
+    {
+        // A forward transfer consumes phase0, so mass_change < 0.  Multiplying
+        // a negative coupled enthalpy by that negative rate produces positive
+        // heat, consistent with the conventional exothermic sign convention.
+        return latent_heat * mass_change + coupled_enthalpy_change *
+            Util::Min(mass_change, 0.0);
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx,
@@ -321,7 +351,8 @@ public:
         for (int n = 0; n < nphase1_species; ++n)
             component_density(i,j,k,phase1_species[n]) -=
                 phase1_mass_fractions[n] * mass_change;
-        integrated_heat += latent_heat * mass_change;
+        integrated_heat += HeatFromPhase0Change(
+            mass_change, latent_heat, coupled_enthalpy_change);
 
         Set::Scalar phase1_specific_volume =
             phase1_inverse_reference_density;
@@ -402,6 +433,7 @@ private:
     Set::Scalar phase1_inverse_reference_density = 0.0;
     Set::Scalar phase1_gas_constant = 0.0;
     Set::Scalar latent_heat = 0.0;
+    Set::Scalar coupled_enthalpy_change = 0.0;
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;

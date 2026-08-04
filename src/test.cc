@@ -29,6 +29,7 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Chemistry/GrossModel.H"
+#include "Model/Mechanism/PhaseChange.H"
 #include "Model/PhaseField/MultLiquid.H"
 
 #include "Solver/Local/Riemann/Roe.H"
@@ -70,6 +71,36 @@ int main (int argc, char* argv[])
             setenv("SLURM_FILENAME_PARSE_TEST", original_value.c_str(), 1);
         else
             unsetenv("SLURM_FILENAME_PARSE_TEST");
+
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Model::Mechanism::PhaseChange enthalpy test");
+    {
+        int subfailed = 0;
+        using PhaseChange = Model::Mechanism::PhaseChange;
+        const Set::Scalar latent = 10.0;
+        const Set::Scalar exothermic = -15.0;
+        const Set::Scalar endothermic = 5.0;
+        const Set::Scalar forward_change = -2.0;
+        const Set::Scalar reverse_change = 2.0;
+
+        subfailed += Util::Test::SubMessage(
+            "Default coupled enthalpy preserves latent heat",
+            std::abs(PhaseChange::HeatFromPhase0Change(
+                forward_change, latent, 0.0) + 20.0) > 1.0e-14);
+        subfailed += Util::Test::SubMessage(
+            "Negative coupled enthalpy releases heat",
+            std::abs(PhaseChange::HeatFromPhase0Change(
+                forward_change, latent, exothermic) - 10.0) > 1.0e-14);
+        subfailed += Util::Test::SubMessage(
+            "Positive coupled enthalpy absorbs heat",
+            std::abs(PhaseChange::HeatFromPhase0Change(
+                forward_change, latent, endothermic) + 30.0) > 1.0e-14);
+        subfailed += Util::Test::SubMessage(
+            "Coupled enthalpy is forward only",
+            std::abs(PhaseChange::HeatFromPhase0Change(
+                reverse_change, latent, exothermic) - 20.0) > 1.0e-14);
 
         failed += Util::Test::SubFinalMessage(subfailed);
     }

@@ -4,6 +4,22 @@
 #@ timeout=120
 #@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
+#@ [2d-solid-liquid-coupled-exothermic]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=Al_melting.phase_change.latent_heat=0.0_J/kg
+#@ args=Al_melting.phase_change.coupled_enthalpy_change=-50000.0_J/kg
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
+#@
+#@ [2d-solid-liquid-coupled-endothermic]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=Al_melting.phase_change.latent_heat=0.0_J/kg
+#@ args=Al_melting.phase_change.coupled_enthalpy_change=50000.0_J/kg
+#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
+#@
 #@ [2d-solid-liquid-reverse]
 #@ exe=lowmach
 #@ dim=2
