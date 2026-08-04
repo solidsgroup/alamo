@@ -171,11 +171,11 @@ See ``generate_reference.py`` for the full derivation notes and the code
 that evaluates these formulas.
 
 With ``mu1=1.67e6, kappa1=8.33e8`` (HTPB), ``mu2=9.47e6, kappa2=1.00e8``
-(AP), ``a=1.5e-4``, ``P=1``: ``p0 = -0.99800``, ``s = 0.0019995`` (the
-deviatoric correction is small -- about 0.2% of P -- because HTPB is nearly
-incompressible, so the confined-compression far field sits close to
-hydrostatic already), giving ``sigma_xx_in = -0.98067``,
-``sigma_yy_in = -0.98746`` -- notably **not equal** to each other, unlike
+(AP), ``a=1.5e-4``, ``P=1.0e6`` (1 MPa, physical units): ``p0 = -998001 Pa``,
+``s = 1999.46 Pa`` (the deviatoric correction is small -- about 0.2% of P --
+because HTPB is nearly incompressible, so the confined-compression far field
+sits close to hydrostatic already), giving ``sigma_xx_in = -980674 Pa``,
+``sigma_yy_in = -987464 Pa`` -- notably **not equal** to each other, unlike
 the original equibiaxial-loading version of this test.
 
 ``disp_y`` along the sampling ray is **not** zero here (unlike the original
@@ -225,8 +225,8 @@ necessarily disagree, and checks:
    ``stress_yy`` against the closed-form solution (interior + exterior
    branches, interface band excluded), via ``testlib.validate`` against the
    reference CSV when one is supplied by the run's ``check-file``, and
-   again inline as a fallback (achieved: disp_x ~6e-14 vs 5e-13 tolerance,
-   stress ~0.005 vs 0.06 tolerance).
+   again inline as a fallback (achieved: disp_x ~6.4e-8 vs 5e-7 tolerance,
+   stress ~2.5e3-4.1e3 Pa vs 6e4 Pa tolerance).
 3. ``disp_y`` matches the uniform rigid compaction offset
    ``eps_yy*(y_ray-ylo)`` along the sampling ray (absolute tolerance) --
    **not** zero, since (unlike the original version) the bottom roller

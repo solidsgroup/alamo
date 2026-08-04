@@ -168,8 +168,8 @@ if reference is not None:
         end=[x_hi, y_ray, 0.0],
         vars=["disp_x", "stress_xx", "stress_yy"],
         reference=reference,
-        tolerance=[1.0, 1.0, 1.0],           # relative tol effectively disabled, see note above
-        abs_tolerance=[5.0e-13, 0.06, 0.06],  # disp_x ~1e-13 scale; stress in units of P=1
+        tolerance=[1.0, 1.0, 1.0],             # relative tol effectively disabled, see note above
+        abs_tolerance=[5.0e-7, 6.0e4, 6.0e4],  # disp_x/stress scale linearly with P=1e6 Pa
         coord="x",
     )
 
@@ -200,8 +200,8 @@ abserr_disp_x = abserr_rms(disp_x, disp_x_exact)
 abserr_stress_xx = abserr_rms(stress_xx, stress_xx_exact)
 abserr_stress_yy = abserr_rms(stress_yy, stress_yy_exact)
 
-tol_disp_abs = 5.0e-13
-tol_stress_abs = 0.06
+tol_disp_abs = 5.0e-7
+tol_stress_abs = 6.0e4
 if abserr_disp_x > tol_disp_abs:
     raise RuntimeError(f"disp_x RMS abs error {abserr_disp_x:.4g} exceeds tolerance {tol_disp_abs}")
 if abserr_stress_xx > tol_stress_abs:
@@ -223,7 +223,7 @@ ylo = -1.5e-3  # geometry.prob_lo[1] == ylo of the roller-clamped (u_y=0) HTPB b
 eps_yy = sigma_yy_inf / (lambda1 + 2.0 * mu1)
 disp_y_exact = eps_yy * (y_ray - ylo)
 disp_y_err_max = float(testlib.numpy.abs(disp_y - disp_y_exact).max())
-tol_disp_y_abs = 5.0e-13
+tol_disp_y_abs = 5.0e-7
 if disp_y_err_max > tol_disp_y_abs:
     raise RuntimeError(
         f"disp_y does not match the rigid compaction offset along y=0: "

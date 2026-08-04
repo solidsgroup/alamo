@@ -166,7 +166,7 @@ HTPB_solid.density.ic.expression.constant.ytop = 1.5e-3
 HTPB_solid.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt(x^2+y^2)-R)/w))*0.5*(1.0-tanh((y-ytop)/w))"
 
 Gas.density.ic.type = expression
-Gas.density.ic.expression.constant.P    = 1.0
+Gas.density.ic.expression.constant.P    = 1.0e6
 Gas.density.ic.expression.constant.Rgas = 286.7  # ~8314.4 J/kmol/K / 29.0 g/mol
 Gas.density.ic.expression.constant.T    = 300.0
 Gas.density.ic.expression.constant.R    = 1.5e-4
@@ -181,7 +181,7 @@ temperature.ic.type = constant
 temperature.ic.constant.value = 300.0
 
 pressure.ic.type = constant
-pressure.ic.constant.value = 1.0
+pressure.ic.constant.value = 1.0e6
 
 component_density.bc.type = constant
 component_density.bc.constant.type.xlo = neumann neumann neumann
@@ -216,10 +216,10 @@ pressure.bc.constant.type.xlo = dirichlet
 pressure.bc.constant.type.xhi = dirichlet
 pressure.bc.constant.type.ylo = dirichlet
 pressure.bc.constant.type.yhi = dirichlet
-pressure.bc.constant.val.xlo = 1.0
-pressure.bc.constant.val.xhi = 1.0
-pressure.bc.constant.val.ylo = 1.0
-pressure.bc.constant.val.yhi = 1.0
+pressure.bc.constant.val.xlo = 1.0e6
+pressure.bc.constant.val.xhi = 1.0e6
+pressure.bc.constant.val.ylo = 1.0e6
+pressure.bc.constant.val.yhi = 1.0e6
 
 # Elastic solve over the whole domain (AP + HTPB + Gas, all first-class
 # elastic phases), driven by the local fluid pressure at the Gas/HTPB

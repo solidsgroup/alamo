@@ -108,7 +108,7 @@ mu1, kappa1 = 1.67e6, 8.33e8  # HTPB_solid.elastic.model.mu/kappa (matrix)
 mu2, kappa2 = 9.47e6, 1.00e8  # AP_solid.elastic.model.mu/kappa  (inclusion)
 a = 1.5e-4                    # inclusion radius R
 w = 4.0e-5                    # diffuse interface width (must match `input`)
-P = 1.0                       # fluid pressure
+P = 1.0e6                     # fluid pressure (1 MPa, physical units)
 
 lambda1 = kappa1 - (2.0 / 3.0) * mu1
 k1 = 2.0 * kappa1 + (2.0 / 3.0) * mu1
