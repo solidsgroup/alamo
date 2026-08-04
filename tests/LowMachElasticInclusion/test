@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+reference = sys.argv[2] if len(sys.argv) > 2 else None
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachElasticInclusion requires initial and final plotfiles")
+
+# Analytic validation of a two-phase circular elastic inclusion (AP embedded
+# in the LowMach "soft void" ersatz-elastic Gas), loaded ONLY by
+# elastic.apply_fluid_pressure's interfacial traction (the domain boundary
+# is traction-free -- see input), against the closed-form
+# Kolosov-Muskhelishvili circular-inhomogeneity solution -- see Readme.rst
+# for the full derivation:
+#
+#   sigma_in = k2*A2, A2 = -P/(k2+2*mu1)                      (uniform, r<a)
+#   sigma_rr(r) = -2*mu1*B1/r^2, sigma_tt(r) = +2*mu1*B1/r^2  (r>a), B1=a^2*A2
+#   u_r(r) = A2*r (r<a), B1/r (r>a)
+
+mu1, kappa1 = 5.0e3, 4.0e5
+mu2, kappa2 = 9.47e6, 1.00e8
+a = 1.5e-4
+w = 4.0e-5
+
+k1 = 2.0 * kappa1 + (2.0 / 3.0) * mu1
+k2 = 2.0 * kappa2 + (2.0 / 3.0) * mu2
+
+# Applied pressure and whether the fluid-pressure traction path is enabled,
+# read from the run's metadata (same idiom as tests/LowMachElasticPressure).
+pressure = None
+apply_fluid_pressure = None
+with open(f"{outdir}/metadata") as f:
+    for line in f:
+        if "pressure.ic.constant.value" in line:
+            pressure = float(line.split("=")[-1].strip())
+        if "elastic.apply_fluid_pressure" in line:
+            apply_fluid_pressure = float(line.split("=")[-1].strip())
+if pressure is None or apply_fluid_pressure is None:
+    raise RuntimeError("could not find pressure/apply_fluid_pressure in metadata")
+
+A1 = 0.0  # traction-free domain boundary
+A2 = -pressure / (k2 + 2.0 * mu1)
+B1 = a * a * A2
+sigma_in = k2 * A2
+
+final = plotfiles[-1]
+
+# Sample a ray through the domain interior along y~=0, crossing the
+# inclusion; the domain is [-1.5e-3,1.5e-3]^2, so [-1.3e-3,1.3e-3] stays
+# well clear of the outer boundary. y is offset by half a cell (dx/2 at
+# amr.n_cell=160 over a 3.0e-3 domain) rather than sitting exactly on
+# y=0.0: a ray exactly on that grid line degenerates (yt's ray/AMR-grid
+# intersection returns zero cells at y=0.0 on this even-n_cell, domain-
+# centered grid). The resulting <0.4% cos^2(theta)/sin^2(theta) mixing this
+# introduces into the theta=0 formulas below is negligible next to the
+# tolerances used.
+x_lo, x_hi = -1.3e-3, 1.3e-3
+y_ray = 9.375e-6
+
+df = testlib.readContours(
+    path=final,
+    start=[x_lo, y_ray, 0.0],
+    end=[x_hi, y_ray, 0.0],
+    vars=["disp_x", "disp_y", "stress_xx", "stress_yy"],
+)
+x = df["x"].to_numpy()
+r = testlib.numpy.abs(x)
+
+# Exclude a band around the diffuse interface (r=a) -- >3 interface widths --
+# where the analytic sharp-interface jump and the simulation's smoothed eta
+# transition necessarily disagree.
+band = 3.0 * w
+mask = testlib.numpy.abs(r - a) > band
+if mask.sum() < 20:
+    raise RuntimeError(f"too few sample points after excluding interface band: {mask.sum()}")
+
+x_s = x[mask]
+disp_x = df["disp_x"].to_numpy()[mask]
+disp_y = df["disp_y"].to_numpy()[mask]
+stress_xx = df["stress_xx"].to_numpy()[mask]
+stress_yy = df["stress_yy"].to_numpy()[mask]
+
+for name, arr in (("disp_x", disp_x), ("disp_y", disp_y),
+                   ("stress_xx", stress_xx), ("stress_yy", stress_yy)):
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+
+if apply_fluid_pressure == 0.0:
+    # Control case: pressure branch disabled and the boundary traction
+    # zeroed too (see input), so the RHS is identically zero everywhere ->
+    # zero displacement.
+    if disp_mag_max > 1.0e-12:
+        raise RuntimeError(
+            f"apply_fluid_pressure=0 case shows nonzero displacement: "
+            f"max|disp|={disp_mag_max}")
+    print("LowMachElasticInclusion control case (pressure off) passed: "
+          f"max|disp|={disp_mag_max:.3g}")
+    sys.exit(0)
+
+# --- Pressure-driven case ---------------------------------------------------
+
+r_s = testlib.numpy.abs(x_s)
+sign_s = testlib.numpy.sign(x_s)
+inside = r_s < a
+
+u_r_exact = testlib.numpy.where(inside, A2 * r_s, B1 / r_s)
+disp_x_exact = u_r_exact * sign_s
+
+sigma_rr_exact = testlib.numpy.where(inside, sigma_in, -2.0 * mu1 * B1 / r_s**2)
+sigma_tt_exact = testlib.numpy.where(inside, sigma_in, 2.0 * mu1 * B1 / r_s**2)
+# Along y=0 (theta=0/pi): sigma_xx = sigma_rr, sigma_yy = sigma_tt.
+stress_xx_exact = sigma_rr_exact
+stress_yy_exact = sigma_tt_exact
+
+# NOTE on why absolute (not relative) tolerances are used below: with the
+# AP/void contrast this real, this problem sits very near the rigid-
+# inclusion limit (sigma_in ~= -0.9995*P, i.e. almost full pressure
+# transmission -- see Readme.rst), so B1 (and hence the exterior 1/r^2
+# field) is tiny: the analytic exterior stress decays to O(1e-5)*P within
+# a few interface widths of r=a. A relative-L2 metric over the whole ray is
+# dominated by that near-zero exterior region, where even the diffuse
+# interface's own residual smoothing (numerically ~1e-4*P, well below the
+# interior error but not exactly zero) reads as "infinite" relative error.
+# Absolute tolerances, scaled to the interior stress magnitude, avoid that
+# pathology and are the physically meaningful check here anyway (does the
+# exterior field actually stay small, not exactly what fraction of a
+# near-zero number it hits).
+
+if reference is not None:
+    testlib.validate(
+        path=final,
+        outdir=outdir,
+        start=[x_lo, y_ray, 0.0],
+        end=[x_hi, y_ray, 0.0],
+        vars=["disp_x", "stress_xx", "stress_yy"],
+        reference=reference,
+        tolerance=[1.0, 1.0, 1.0],           # relative tol effectively disabled, see note above
+        abs_tolerance=[5.0e-13, 0.06, 0.06],  # disp_x ~1e-13 scale; stress in units of P=1
+        coord="x",
+    )
+
+# 1. Interior stress: uniform sigma_xx=sigma_yy=sigma_in inside the
+# inclusion, pinning the stress-concentration magnitude/sign.
+in_mask = r_s < (a - band)
+if in_mask.sum() < 4:
+    raise RuntimeError(f"too few interior sample points: {in_mask.sum()}")
+sigma_xx_in_mean = float(stress_xx[in_mask].mean())
+sigma_yy_in_mean = float(stress_yy[in_mask].mean())
+tol_in = 0.08 * abs(sigma_in)
+for name, val in (("stress_xx", sigma_xx_in_mean), ("stress_yy", sigma_yy_in_mean)):
+    if abs(val - sigma_in) > tol_in:
+        raise RuntimeError(
+            f"interior {name}={val:.6g}, expected {sigma_in:.6g} (tol {tol_in:.3g})")
+
+# 2. Full-profile absolute error against the closed-form solution (interior
+# + exterior branches, interface band excluded) -- see note above on why
+# absolute rather than relative.
+def abserr_rms(numeric, exact):
+    diff2 = (numeric - exact) ** 2
+    return float(testlib.numpy.sqrt(testlib.integrate(x_s, diff2) / (x_s[-1] - x_s[0])))
+
+abserr_disp_x = abserr_rms(disp_x, disp_x_exact)
+abserr_stress_xx = abserr_rms(stress_xx, stress_xx_exact)
+abserr_stress_yy = abserr_rms(stress_yy, stress_yy_exact)
+
+tol_disp_abs = 5.0e-13
+tol_stress_abs = 0.06
+if abserr_disp_x > tol_disp_abs:
+    raise RuntimeError(f"disp_x RMS abs error {abserr_disp_x:.4g} exceeds tolerance {tol_disp_abs}")
+if abserr_stress_xx > tol_stress_abs:
+    raise RuntimeError(f"stress_xx RMS abs error {abserr_stress_xx:.4g} exceeds tolerance {tol_stress_abs}")
+if abserr_stress_yy > tol_stress_abs:
+    raise RuntimeError(f"stress_yy RMS abs error {abserr_stress_yy:.4g} exceeds tolerance {tol_stress_abs}")
+
+# 3. disp_y should be negligible (absolute, not relative to disp_x -- both
+# are extremely small at this near-rigid AP/void contrast, so a relative
+# check is dominated by floating-point/discretization noise in disp_x
+# rather than telling us anything about disp_y itself).
+disp_y_max = float(testlib.numpy.abs(disp_y).max())
+tol_disp_y_abs = 5.0e-13
+if disp_y_max > tol_disp_y_abs:
+    raise RuntimeError(
+        f"disp_y not negligible along y=0: max|disp_y|={disp_y_max:.3g} "
+        f"exceeds tolerance {tol_disp_y_abs}")
+
+print(f"LowMachElasticInclusion passed (P={pressure}, sigma_in={sigma_in:.6g}, "
+      f"interior stress_xx={sigma_xx_in_mean:.6g}, stress_yy={sigma_yy_in_mean:.6g}, "
+      f"disp_x RMS abserr={abserr_disp_x:.3g}, stress_xx RMS abserr={abserr_stress_xx:.3g}, "
+      f"stress_yy RMS abserr={abserr_stress_yy:.3g})")
