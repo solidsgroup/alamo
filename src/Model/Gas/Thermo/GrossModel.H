@@ -44,15 +44,22 @@ public:
     static void Parse(GrossModel & value, IO::ParmParse & pp,
             const std::vector<double>& molecular_weight)
     {
+        // gravimetric specific heat
+        pp.query_default("cp_mass", value.cp_mass_value, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
+        // reference temperature
+        pp.query_default("Tref", value.Tref, "300.0_K", Unit::Temperature());
+
+        // Required parent inputs intentionally have no synthetic values while
+        // input documentation is being traversed.  The model-specific inputs
+        // above still need to be recorded, but dependent runtime validation
+        // must wait for an actual input file.
+        if (IO::ParmParse::InTraversalMode()) return;
+
         Util::Assert(INFO, TEST(!molecular_weight.empty()),
             "gas.mw must contain at least one molecular weight.");
         Util::Assert(INFO, TEST(molecular_weight.size() <= max_species),
             "gas.thermo.gross_model supports at most ", max_species, " species.");
         value.nspecies = static_cast<int>(molecular_weight.size());
-        // gravimetric specific heat
-        pp.query_default("cp_mass", value.cp_mass_value, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
-        // reference temperature
-        pp.query_default("Tref", value.Tref, "300.0_K", Unit::Temperature());
 
         for (std::size_t n = 0; n < molecular_weight.size(); ++n)
         {

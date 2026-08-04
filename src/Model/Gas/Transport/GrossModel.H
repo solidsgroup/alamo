@@ -48,13 +48,6 @@ public:
                         int a_nspecies, const std::vector<double> &a_MW,
                         const Thermo::Thermo<Thermo::CpConstant,Thermo::NASA7,Thermo::GrossModel> &a_thermo)
     {
-        value.nspecies = a_nspecies;
-        Util::Assert(INFO, TEST(static_cast<int>(a_MW.size()) == value.nspecies),
-            "Transport::GrossModel molecular-weight count does not match its species count.");
-        Util::Assert(INFO, TEST(!a_MW.empty()),
-            "gas.mw must contain at least one molecular weight.");
-        Util::Assert(INFO, TEST(a_MW.size() <= max_species),
-            "gas.transport.gross_model supports at most ", max_species, " species.");
         // prandtl number
         pp.query_default("prandtl", value.prandtl, "0.69", Unit::Less());
         // lewis number
@@ -63,6 +56,19 @@ public:
         pp.query_default("lambda_a", value.lambda_a, "2.13037e-7_cal/cm/s/K^2", Unit::Energy()/Unit::Length()/Unit::Time()/Unit::Temperature()/Unit::Temperature());
         // thermal conductivity coefficient, lambda_b
         pp.query_default("lambda_b", value.lambda_b, "5.32743e-6_cal/cm/s/K", Unit::Energy()/Unit::Length()/Unit::Time()/Unit::Temperature());
+
+        // Schema traversal records the model inputs without constructing valid
+        // parent gas and thermo data.  Avoid validating or dereferencing those
+        // placeholders until parsing a real simulation input.
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        value.nspecies = a_nspecies;
+        Util::Assert(INFO, TEST(static_cast<int>(a_MW.size()) == value.nspecies),
+            "Transport::GrossModel molecular-weight count does not match its species count.");
+        Util::Assert(INFO, TEST(!a_MW.empty()),
+            "gas.mw must contain at least one molecular weight.");
+        Util::Assert(INFO, TEST(a_MW.size() <= max_species),
+            "gas.transport.gross_model supports at most ", max_species, " species.");
 
         for (int n = 0; n < value.nspecies; ++n)
         {
