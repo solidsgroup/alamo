@@ -25,7 +25,7 @@ sys.path.insert(0, "../../scripts")
 import numpy as np
 import matplotlib.pyplot as plt
 import testlib
-from generate_reference import analytic, a, w, sigma_xx_in, sigma_yy_in, p0, s
+from generate_reference import analytic, a, w, sigma_xx_in, sigma_yy_in, p0, s, lambda1, mu1, P
 
 if len(sys.argv) < 2:
     raise SystemExit(f"usage: {sys.argv[0]} <outdir> [output.png]")
@@ -49,19 +49,31 @@ df = testlib.readContours(
 )
 x = df["x"].to_numpy()
 r = np.abs(x)
-disp_x = df["disp_x"].to_numpy()
+disp_y = df["disp_y"].to_numpy()
 stress_xx = df["stress_xx"].to_numpy()
 stress_yy = df["stress_yy"].to_numpy()
 
 band = 3.0 * w
 
+# disp_y along y~=0 is, to leading order, the uniform rigid-body compaction
+# offset of the confined-compression far field (the inclusion's own
+# perturbation to u_y vanishes along y=0 by symmetry) -- see `test` item 3
+# for the derivation. u_y_base = eps_yy*(y-ylo), eps_yy = sigma_yy_inf /
+# (lambda1+2*mu1), sigma_yy_inf = -P.
+ylo = -1.5e-3
+sigma_yy_inf = -P
+eps_yy = sigma_yy_inf / (lambda1 + 2.0 * mu1)
+disp_y_exact_val = eps_yy * (y_ray - ylo)
+
 # --- Analytic curve on a fine grid (for smooth plotting) -------------------
 x_fine = np.linspace(x_lo, x_hi, 2000)
-ux_fine, _, sxx_fine, syy_fine = analytic(x_fine)
+_, _, sxx_fine, syy_fine = analytic(x_fine)
+uy_fine = np.full_like(x_fine, disp_y_exact_val)
 
 # --- Analytic curve on the sim's own sample points (for error panels) ------
-ux_exact, _, sxx_exact, syy_exact = analytic(x)
-err_ux = disp_x - ux_exact
+_, _, sxx_exact, syy_exact = analytic(x)
+uy_exact = np.full_like(x, disp_y_exact_val)
+err_uy = disp_y - uy_exact
 err_xx = stress_xx - sxx_exact
 err_yy = stress_yy - syy_exact
 
@@ -76,17 +88,17 @@ title = (
 )
 fig.suptitle(title, fontsize=10)
 
-# -- disp_x --
+# -- disp_y --
 ax = axes[0, 0]
-ax.plot(x * 1e3, disp_x, '-', color='tab:green', lw=1.5, label='sim disp_x')
-ax.plot(x_fine * 1e3, ux_fine, '--', color='k', lw=1.2, label='analytic disp_x')
+ax.plot(x * 1e3, disp_y, '-', color='tab:green', lw=1.5, label='sim disp_y')
+ax.plot(x_fine * 1e3, uy_fine, '--', color='k', lw=1.2, label='analytic disp_y (rigid compaction offset)')
 ax.axvspan(-(a + band) * 1e3, -(a - band) * 1e3, color='red', alpha=0.12)
 ax.axvspan((a - band) * 1e3, (a + band) * 1e3, color='red', alpha=0.12)
-ax.set_ylabel("disp_x (m)")
-ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.18), ncol=2, fontsize=8, frameon=False)
+ax.set_ylabel("disp_y (m)")
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.18), ncol=1, fontsize=8, frameon=False)
 
 ax = axes[1, 0]
-ax.plot(x * 1e3, np.abs(err_ux), '-', color='tab:green', lw=1.2, label='|err| disp_x')
+ax.plot(x * 1e3, np.abs(err_uy), '-', color='tab:green', lw=1.2, label='|err| disp_y')
 ax.axvspan(-(a + band) * 1e3, -(a - band) * 1e3, color='red', alpha=0.12, label='excluded interface band')
 ax.axvspan((a - band) * 1e3, (a + band) * 1e3, color='red', alpha=0.12)
 ax.set_xlabel("x (mm)")
