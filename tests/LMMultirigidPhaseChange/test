@@ -11,6 +11,7 @@ def state(path):
     data = ds.all_data()
     solid = data["component_density_Al_solid"].to_ndarray()
     liquid = data["component_density_Al_liquid"].to_ndarray()
+    liquid_eta = data["liquid_species_eta_Al_liquid"].to_ndarray()
     volume = data[("index", "cell_volume")].to_ndarray()
     x = data[("index", "x")].to_ndarray()
     y = data[("index", "y")].to_ndarray()
@@ -20,6 +21,7 @@ def state(path):
         "mass": ((solid + liquid) * volume).sum(),
         "target_liquid": (liquid[target] * volume[target]).sum(),
         "inert_liquid": (liquid[inert] * volume[inert]).sum(),
+        "liquid_eta_error": abs(liquid_eta - liquid / 2.0).max(),
     }
 
 
@@ -42,5 +44,9 @@ if inert_production > 1.0e-7 * target_production:
     raise RuntimeError(
         "The inert rigid interface spuriously activated Al melting: "
         f"target={target_production:.3e}, inert={inert_production:.3e}")
+if max(initial["liquid_eta_error"], final["liquid_eta_error"]) > 1.0e-13:
+    raise RuntimeError(
+        "Phase-change liquid eta was not reconstructed from partial density: "
+        f"error={final['liquid_eta_error']:.3e}")
 
 print("LowMach multi-rigid phase-change localization regression passed")

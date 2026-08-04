@@ -644,30 +644,36 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (!value.liquid_species.empty())
     {
         std::vector<std::string> capillary_suffix;
-        std::vector<std::string> plot_eta_names;
+        std::vector<std::string> liquid_species_suffix;
         for (const int n : value.liquid_species)
         {
             capillary_suffix.push_back(
                 "_liquid_" + value.species_names[n]);
-            plot_eta_names.push_back(
-                "liquid_species_eta_" + value.species_names[n]);
+            liquid_species_suffix.push_back(species_suffix[n]);
         }
         for (const int n : value.capillary_solid_species)
             capillary_suffix.push_back(
                 "_solid_" + value.species_names[n]);
         capillary_suffix.push_back("_gas");
-        plot_eta_names.push_back("gas_eta");
         const int nphase = static_cast<int>(value.liquid_species.size() +
             value.capillary_solid_species.size() + 1);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.phase_eta_mf,
             &value.bc_nothing, nphase, nghost,
             "phase_eta_internal", false, false, capillary_suffix);
+        // Mechanical liquid volume fractions are reconstructed directly from
+        // partial densities, just like rigid_species_eta.  The capillary
+        // simplex below may normalize its private copy, but that must not
+        // change the diagnostic/mechanical liquid occupancy.
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.liquid_species_eta_mf, &value.bc_nothing,
+            value.liquid_species.size(), nghost, "liquid_species_eta",
+            true, false, liquid_species_suffix);
         // Solid components of the capillary simplex duplicate eta_mf or
-        // rigid_species_eta_mf.  Write only the liquid and gas components so
-        // every physical eta appears once in a plotfile.
+        // rigid_species_eta_mf.  Liquid components are written by
+        // liquid_species_eta_mf.  Only gas remains to be copied out of the
+        // normalized capillary simplex.
         value.AddField<Set::Scalar,Set::HC::Cell>(value.phase_eta_plot_mf,
-            &value.bc_nothing, value.liquid_species.size() + 1, 0,
-            "", true, false, plot_eta_names);
+            &value.bc_nothing, 1, 0, "gas_eta", true, false);
         if (value.liquid_capillarity_enabled)
             value.AddField<Set::Scalar,Set::HC::Cell>(
                 value.capillary_chemical_potential_mf, &value.bc_nothing,
@@ -895,6 +901,8 @@ LowMach::UpdateSolidStress(int lev,
 // - eta_mf         (if there ia a deformable solid present, calculated based on densities)
 // - rigid_species_eta_mf and rigid_eta_mf
 //                  (if rigid solids are present, calculated based on densities)
+// - liquid_species_eta_mf
+//                  (if liquids are present, calculated based on densities)
 // - density        (based on partial densities)
 //
 // If writing diagonistics, also calculate:
@@ -929,7 +937,11 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
     }
     if (fixed_rigid_solid) fixed_rigid_eta_mf[lev]->setVal(0.0);
     if (free_rigid_solid) free_rigid_eta_mf[lev]->setVal(0.0);
-    if (liquid) phase_eta_mf[lev]->setVal(0.0);
+    if (liquid)
+    {
+        liquid_species_eta_mf[lev]->setVal(0.0);
+        phase_eta_mf[lev]->setVal(0.0);
+    }
     if (diagnostics_extended_fields)
     {
         mass_fraction_mf[lev]->setVal(0.0);
@@ -1045,12 +1057,18 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
         for (int m = 0; m < nliquid; ++m)
         {
             const int n = liquid_species[m];
-            amrex::MultiFab::Copy(*phase_eta_mf[lev], component_density_mf,
-                                n, m, 1, phase_eta_mf[lev]->nGrow());
-            phase_eta_mf[lev]->mult(
+            amrex::MultiFab::Copy(
+                *liquid_species_eta_mf[lev], component_density_mf,
+                n, m, 1, liquid_species_eta_mf[lev]->nGrow());
+            liquid_species_eta_mf[lev]->mult(
                 1.0 / reference_density[n], m, 1,
-                phase_eta_mf[lev]->nGrow());
+                liquid_species_eta_mf[lev]->nGrow());
         }
+        liquid_species_eta_mf[lev]->FillBoundary(
+            geom[lev].periodicity());
+        amrex::MultiFab::Copy(
+            *phase_eta_mf[lev], *liquid_species_eta_mf[lev],
+            0, 0, nliquid, phase_eta_mf[lev]->nGrow());
         for (int m = 0; m < nsolid; ++m)
         {
             const int n = capillary_solid_species[m];
@@ -4098,10 +4116,7 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
                 static_cast<int>(capillary_solid_species.size());
             amrex::MultiFab::Copy(
                 *phase_eta_plot_mf[lev], *phase_eta_mf[lev],
-                0, 0, nliquid, 0);
-            amrex::MultiFab::Copy(
-                *phase_eta_plot_mf[lev], *phase_eta_mf[lev],
-                gas_phase, nliquid, 1, 0);
+                gas_phase, 0, 1, 0);
         }
         if (liquid_capillarity_enabled)
             UpdateLiquidChemicalPotential(lev);
