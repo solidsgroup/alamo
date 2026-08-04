@@ -12,24 +12,30 @@ plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) < 2:
     raise RuntimeError("LowMachElasticInclusion requires initial and final plotfiles")
 
-# Analytic validation of a two-phase circular elastic inclusion (AP embedded
-# in the LowMach "soft void" ersatz-elastic Gas), loaded ONLY by
-# elastic.apply_fluid_pressure's interfacial traction (the domain boundary
-# is traction-free -- see input), against the closed-form
-# Kolosov-Muskhelishvili circular-inhomogeneity solution -- see Readme.rst
-# for the full derivation:
+# Analytic validation of a circular AP inclusion embedded inside a square
+# HTPB block, top-loaded through a Gas layer via elastic.apply_fluid_
+# pressure's interfacial traction on the Gas/HTPB interface -- a confined
+# ("oedometer") compression of the block plus a classical circular-
+# inhomogeneity-under-remote-stress correction near the AP inclusion. See
+# Readme.rst and generate_reference.py's module docstring for the full
+# derivation:
 #
-#   sigma_in = k2*A2, A2 = -P/(k2+2*mu1)                      (uniform, r<a)
-#   sigma_rr(r) = -2*mu1*B1/r^2, sigma_tt(r) = +2*mu1*B1/r^2  (r>a), B1=a^2*A2
-#   u_r(r) = A2*r (r<a), B1/r (r>a)
+#   sigma_yy_inf = -P, sigma_xx_inf = -P*lambda1/(lambda1+2*mu1)   (far field)
+#   p0 = mean(sigma_inf), s = (sigma_xx_inf-sigma_yy_inf)/2
+#   isotropic: A1=p0/k1, A2=p0*(k1+2*mu1)/(k1*(k2+2*mu1)), B1=a^2*(A2-p0/k1)
+#   deviatoric: B=s*a^2*(mu1-mu2)/(mu1+kM1*mu2), D3=a^2*B,
+#               gamma2p=-s*mu2*(1+kM1)/(mu1+kM1*mu2), kM1=3-4*nu1
 
-mu1, kappa1 = 5.0e3, 4.0e5
-mu2, kappa2 = 9.47e6, 1.00e8
+mu1, kappa1 = 1.67e6, 8.33e8   # HTPB (matrix)
+mu2, kappa2 = 9.47e6, 1.00e8   # AP (inclusion)
 a = 1.5e-4
 w = 4.0e-5
 
+lambda1 = kappa1 - (2.0 / 3.0) * mu1
 k1 = 2.0 * kappa1 + (2.0 / 3.0) * mu1
 k2 = 2.0 * kappa2 + (2.0 / 3.0) * mu2
+nu1 = (3.0 * kappa1 - 2.0 * mu1) / (2.0 * (3.0 * kappa1 + mu1))
+kM1 = 3.0 - 4.0 * nu1
 
 # Applied pressure and whether the fluid-pressure traction path is enabled,
 # read from the run's metadata (same idiom as tests/LowMachElasticPressure).
@@ -44,17 +50,30 @@ with open(f"{outdir}/metadata") as f:
 if pressure is None or apply_fluid_pressure is None:
     raise RuntimeError("could not find pressure/apply_fluid_pressure in metadata")
 
-A1 = 0.0  # traction-free domain boundary
-A2 = -pressure / (k2 + 2.0 * mu1)
-B1 = a * a * A2
-sigma_in = k2 * A2
+sigma_yy_inf = -pressure
+sigma_xx_inf = -pressure * lambda1 / (lambda1 + 2.0 * mu1)
+p0 = 0.5 * (sigma_xx_inf + sigma_yy_inf)
+s = 0.5 * (sigma_xx_inf - sigma_yy_inf)
+
+A1 = p0 / k1
+A2 = p0 * (k1 + 2.0 * mu1) / (k1 * (k2 + 2.0 * mu1))
+B1 = a * a * (A2 - p0 / k1)
+sigma_in_iso = k2 * A2
+
+Bdev = s * a * a * (mu1 - mu2) / (mu1 + kM1 * mu2)
+D3dev = a * a * Bdev
+gamma2p = -s * mu2 * (1.0 + kM1) / (mu1 + kM1 * mu2)
+
+sigma_xx_in = sigma_in_iso - gamma2p
+sigma_yy_in = sigma_in_iso + gamma2p
 
 final = plotfiles[-1]
 
 # Sample a ray through the domain interior along y~=0, crossing the
-# inclusion; the domain is [-1.5e-3,1.5e-3]^2, so [-1.3e-3,1.3e-3] stays
-# well clear of the outer boundary. y is offset by half a cell (dx/2 at
-# amr.n_cell=160 over a 3.0e-3 domain) rather than sitting exactly on
+# inclusion; the HTPB block spans x in [-1.5e-3,1.5e-3], so
+# [-1.3e-3,1.3e-3] stays well clear of the side walls (and far below the
+# Gas layer at y=1.5e-3). y is offset by half a cell (dx/2 at
+# amr.n_cell=160 over a 3.0e-3-wide domain) rather than sitting exactly on
 # y=0.0: a ray exactly on that grid line degenerates (yt's ray/AMR-grid
 # intersection returns zero cells at y=0.0 on this even-n_cell, domain-
 # centered grid). The resulting <0.4% cos^2(theta)/sin^2(theta) mixing this
@@ -108,31 +127,38 @@ if apply_fluid_pressure == 0.0:
 # --- Pressure-driven case ---------------------------------------------------
 
 r_s = testlib.numpy.abs(x_s)
-sign_s = testlib.numpy.sign(x_s)
 inside = r_s < a
+x_safe = testlib.numpy.where(x_s != 0.0, x_s, 1.0)
+r_safe = testlib.numpy.where(r_s > 0.0, r_s, 1.0)
 
-u_r_exact = testlib.numpy.where(inside, A2 * r_s, B1 / r_s)
-disp_x_exact = u_r_exact * sign_s
+ux_iso_exact = testlib.numpy.where(inside, A2 * x_s, A1 * x_s + B1 / x_safe)
+ux_dev_exact = testlib.numpy.where(
+    inside,
+    -gamma2p * x_s / (2.0 * mu2),
+    ((kM1 + 1.0) * Bdev / x_safe + s * x_s - D3dev / x_safe**3) / (2.0 * mu1),
+)
+disp_x_exact = ux_iso_exact + ux_dev_exact
 
-sigma_rr_exact = testlib.numpy.where(inside, sigma_in, -2.0 * mu1 * B1 / r_s**2)
-sigma_tt_exact = testlib.numpy.where(inside, sigma_in, 2.0 * mu1 * B1 / r_s**2)
-# Along y=0 (theta=0/pi): sigma_xx = sigma_rr, sigma_yy = sigma_tt.
-stress_xx_exact = sigma_rr_exact
-stress_yy_exact = sigma_tt_exact
+sigma_rr_iso_exact = testlib.numpy.where(inside, sigma_in_iso, p0 - 2.0 * mu1 * B1 / r_safe**2)
+sigma_tt_iso_exact = testlib.numpy.where(inside, sigma_in_iso, p0 + 2.0 * mu1 * B1 / r_safe**2)
+sigma_xx_dev_exact = testlib.numpy.where(inside, -gamma2p, -4.0 * Bdev / r_safe**2 + s + 3.0 * D3dev / r_safe**4)
+sigma_yy_dev_exact = testlib.numpy.where(inside, gamma2p, -s - 3.0 * D3dev / r_safe**4)
+# Along y=0 (theta=0/pi): sigma_xx = sigma_rr, sigma_yy = sigma_tt for the
+# isotropic part; the deviatoric formulas are already written directly in
+# terms of sigma_xx/sigma_yy (see generate_reference.py).
+stress_xx_exact = sigma_rr_iso_exact + sigma_xx_dev_exact
+stress_yy_exact = sigma_tt_iso_exact + sigma_yy_dev_exact
 
-# NOTE on why absolute (not relative) tolerances are used below: with the
-# AP/void contrast this real, this problem sits very near the rigid-
-# inclusion limit (sigma_in ~= -0.9995*P, i.e. almost full pressure
-# transmission -- see Readme.rst), so B1 (and hence the exterior 1/r^2
-# field) is tiny: the analytic exterior stress decays to O(1e-5)*P within
-# a few interface widths of r=a. A relative-L2 metric over the whole ray is
-# dominated by that near-zero exterior region, where even the diffuse
-# interface's own residual smoothing (numerically ~1e-4*P, well below the
-# interior error but not exactly zero) reads as "infinite" relative error.
-# Absolute tolerances, scaled to the interior stress magnitude, avoid that
-# pathology and are the physically meaningful check here anyway (does the
-# exterior field actually stay small, not exactly what fraction of a
-# near-zero number it hits).
+# NOTE on why absolute (not relative) tolerances are used below: near the
+# domain boundary the exterior dipole/quadrupole corrections decay to a
+# small fraction of P, while the bulk far-field stress (sigma_xx_inf,
+# sigma_yy_inf, both O(1)*P) does NOT decay to zero the way the original
+# equibiaxial version of this test's exterior field did -- but the
+# correction terms this test is actually validating (the AP inclusion's
+# local perturbation) are still small far from the inclusion, so a relative
+# metric on those specific terms would still be dominated by numerical
+# noise. Absolute tolerances, scaled to the interior stress magnitude,
+# avoid that pathology.
 
 if reference is not None:
     testlib.validate(
@@ -147,18 +173,21 @@ if reference is not None:
         coord="x",
     )
 
-# 1. Interior stress: uniform sigma_xx=sigma_yy=sigma_in inside the
-# inclusion, pinning the stress-concentration magnitude/sign.
+# 1. Interior stress: uniform sigma_xx, sigma_yy inside the inclusion
+# (distinct from each other here, unlike the original equibiaxial version of
+# this test, since the far-field loading is confined-compression, not
+# equibiaxial), pinning the stress-concentration magnitude/sign.
 in_mask = r_s < (a - band)
 if in_mask.sum() < 4:
     raise RuntimeError(f"too few interior sample points: {in_mask.sum()}")
 sigma_xx_in_mean = float(stress_xx[in_mask].mean())
 sigma_yy_in_mean = float(stress_yy[in_mask].mean())
-tol_in = 0.08 * abs(sigma_in)
-for name, val in (("stress_xx", sigma_xx_in_mean), ("stress_yy", sigma_yy_in_mean)):
-    if abs(val - sigma_in) > tol_in:
+tol_in = 0.08 * abs(sigma_in_iso)
+for name, val, exact in (("stress_xx", sigma_xx_in_mean, sigma_xx_in),
+                          ("stress_yy", sigma_yy_in_mean, sigma_yy_in)):
+    if abs(val - exact) > tol_in:
         raise RuntimeError(
-            f"interior {name}={val:.6g}, expected {sigma_in:.6g} (tol {tol_in:.3g})")
+            f"interior {name}={val:.6g}, expected {exact:.6g} (tol {tol_in:.3g})")
 
 # 2. Full-profile absolute error against the closed-form solution (interior
 # + exterior branches, interface band excluded) -- see note above on why
@@ -180,18 +209,29 @@ if abserr_stress_xx > tol_stress_abs:
 if abserr_stress_yy > tol_stress_abs:
     raise RuntimeError(f"stress_yy RMS abs error {abserr_stress_yy:.4g} exceeds tolerance {tol_stress_abs}")
 
-# 3. disp_y should be negligible (absolute, not relative to disp_x -- both
-# are extremely small at this near-rigid AP/void contrast, so a relative
-# check is dominated by floating-point/discretization noise in disp_x
-# rather than telling us anything about disp_y itself).
-disp_y_max = float(testlib.numpy.abs(disp_y).max())
+# 3. disp_y should match the uniform rigid-body compaction offset of the
+# confined-compression far field, NOT zero: unlike the original equibiaxial
+# version of this test (traction-free boundary, so u_y(y=0)=0 by symmetry),
+# here the bottom face is a roller (u_y=0 at y=ylo) and the block undergoes
+# a genuine net vertical compaction under the top load, so u_y grows
+# linearly away from ylo even ignoring the AP inclusion entirely: u_y_base
+# = eps_yy*(y-ylo), eps_yy = sigma_yy_inf/(lambda1+2*mu1). The inclusion's
+# own perturbation to u_y vanishes along y=0 by symmetry (same as before);
+# at y_ray (a small offset from 0) that perturbation is negligible, so
+# disp_y should be uniform along the ray, equal to u_y_base(y_ray).
+ylo = -1.5e-3  # geometry.prob_lo[1] == ylo of the roller-clamped (u_y=0) HTPB block bottom
+eps_yy = sigma_yy_inf / (lambda1 + 2.0 * mu1)
+disp_y_exact = eps_yy * (y_ray - ylo)
+disp_y_err_max = float(testlib.numpy.abs(disp_y - disp_y_exact).max())
 tol_disp_y_abs = 5.0e-13
-if disp_y_max > tol_disp_y_abs:
+if disp_y_err_max > tol_disp_y_abs:
     raise RuntimeError(
-        f"disp_y not negligible along y=0: max|disp_y|={disp_y_max:.3g} "
+        f"disp_y does not match the rigid compaction offset along y=0: "
+        f"max|disp_y-disp_y_exact|={disp_y_err_max:.3g} (expected {disp_y_exact:.3g}) "
         f"exceeds tolerance {tol_disp_y_abs}")
 
-print(f"LowMachElasticInclusion passed (P={pressure}, sigma_in={sigma_in:.6g}, "
+print(f"LowMachElasticInclusion passed (P={pressure}, "
+      f"expected stress_xx_in={sigma_xx_in:.6g}, stress_yy_in={sigma_yy_in:.6g}, "
       f"interior stress_xx={sigma_xx_in_mean:.6g}, stress_yy={sigma_yy_in_mean:.6g}, "
       f"disp_x RMS abserr={abserr_disp_x:.3g}, stress_xx RMS abserr={abserr_stress_xx:.3g}, "
       f"stress_yy RMS abserr={abserr_stress_yy:.3g})")

@@ -3,86 +3,139 @@
 Generate the analytical reference data for the LowMachElasticInclusion test.
 
 This does NOT read simulation output -- it evaluates the closed-form
-two-phase circular-inclusion elasticity solution directly (see Readme.rst
-for the full Kolosov-Muskhelishvili derivation), so `test` checks the
-solver against a known-correct answer rather than against a previous
-simulation's own output.
+solution directly (see Readme.rst for the full derivation), so `test`
+checks the solver against a known-correct answer rather than against a
+previous simulation's own output.
 
 Physics
 -------
-A circular AP inclusion of radius `a` sits at the origin, embedded in an
-infinite matrix (the LowMach "soft void" ersatz-elastic Gas). The domain
-boundary is traction-free (see `input`) -- the ONLY loading is
-`elastic.apply_fluid_pressure`'s interfacial body force, which is itself
-the fluid pressure acting as a traction on the AP/Gas free surface (see
-LowMach::UpdateModel). This is the axisymmetric specialization of the
-classical Kolosov-Muskhelishvili two-phase circular inhomogeneity
-solution: for purely dilatational (equibiaxial) loading there is no
-angular harmonic content, so the general complex potentials collapse to
-the elementary monopole/dipole radial form
-    u_r(r) = A*r + B/r
-with B = 0 required in the (bounded) inclusion, and A = 0 required in the
-matrix (traction-free as r -> infinity kills the non-decaying "A*r" term
-there, leaving only the localized B/r dipole decay).
+A circular AP inclusion of radius `a` sits at the origin, embedded in a
+square HTPB block that fills the domain width and extends from y=-1.5e-3 to
+y=ytop=1.5e-3; a Gas layer above y=ytop delivers `elastic.apply_fluid_
+pressure`'s interfacial body force onto the top face of the block, pushing
+straight down. Side and bottom faces of the domain (which coincide with the
+HTPB block's own side/bottom faces) are rollers; the top (Gas's free
+surface) is traction-free.
 
-Plane-strain constitutive law (matching
-Model::Solid::Finite::NeoHookeanPredeformed linearized about F=I -- see
-tests/LowMachElasticPressure/Readme.rst): with lambda = kappa - 2*mu/3,
-    sigma_rr = 2*(lambda+mu)*A - 2*mu*B/r^2
-    sigma_tt = 2*(lambda+mu)*A + 2*mu*B/r^2
-Define the "2-D areal modulus" k = 2*(lambda+mu) = 2*kappa + (2/3)*mu.
+Step 1: far-field state in the HTPB block. Ignoring the AP inclusion, the
+block/roller/top-load system is exactly 1-D (uniform in x, by the symmetry
+of a full-width block with rollers on both sides): u_x = 0 everywhere,
+eps_xx = eps_zz = 0 (plane strain), so this is confined ("oedometer")
+compression, not free uniaxial stress. The Gas layer above is, by the same
+1-D argument, itself statically determinate (traction-free top + roller
+sides + uniform interfacial load below) with sigma_yy = 0 throughout,
+independent of Gas's own modulus (see `input`) -- so the HTPB/Gas
+interfacial pressure jump (same mechanism as the original circular-
+inclusion-in-void version of this test: sigma_nn(fluid side) =
+sigma_nn(solid side) + P, going from solid to fluid in the direction of the
+outward normal) gives sigma_yy(HTPB top) = -P directly. Plane-strain
+constitutive law (lambda = kappa - 2*mu/3) then gives, uniformly through
+the HTPB block:
 
-``elastic.apply_fluid_pressure`` does not enforce ordinary traction
-continuity at the AP/Gas interface -- the RHS it adds is
-``-P*grad(eta)``, i.e. (since P is spatially uniform)
-``-grad(P*eta)`` exactly, so ``div(sigma) = -grad(P*eta)`` is
-``div(sigma + P*eta*I) = 0``. Integrating across the diffuse interface
-(``eta: 1 -> 0`` from inclusion to matrix) shows ``sigma + P*eta*I`` is
-continuous, i.e. ``sigma`` itself has a genuine jump:
+    sigma_yy_inf = -P
+    sigma_xx_inf = -P * lambda1 / (lambda1 + 2*mu1)
 
-    sigma_rr(a+) = sigma_rr(a-) + P
+-- NOT equibiaxial (that only happens in the incompressible limit
+lambda1 -> infinity; HTPB's nu ~ 0.499 puts this test close to, but not
+exactly at, that limit).
 
-this is the correct interfacial condition for a fluid at pressure P
-pushing on the solid, not a continuity condition (verified directly
-against raw simulation output: a naive continuity-only match
-under-predicts the interior stress magnitude by ~90%).
+Step 2: superpose the classical two-phase circular-inhomogeneity-under-
+remote-stress solution (AP embedded in "infinite" HTPB, valid since the
+block is 10x the inclusion radius on every side -- Saint-Venant/image
+corrections are O((a/L)^2), negligible next to the ~5-8% error this test
+tolerates). AP/HTPB is an ordinary bonded interface here (ordinary
+continuity of traction and displacement -- no fluid-pressure jump; that
+only applies at the Gas/HTPB interface). Decompose the remote state into:
 
-Matching u_r (continuous, A1 = 0 in the matrix per above) and this jump in
-sigma_rr at r=a between inclusion (2, B2=0) and matrix (1, A1=0) gives:
+  - an isotropic part p0 = (sigma_xx_inf+sigma_yy_inf)/2, handled by the
+    SAME axisymmetric Lame solution the original version of this test used
+    (u_r = A*r+B/r), but now sourced by a REMOTE stress rather than an
+    interfacial jump, so A1 != 0 in the matrix:
 
-    A2 = -P / (k2+2*mu1)
-    B1 = a^2*A2                 (= a^2*(A2-A1), A1=0)
+        A1 = p0/k1
+        A2 = p0*(k1+2*mu1) / (k1*(k2+2*mu1))
+        B1 = a^2*(A2 - p0/k1)
+        sigma_in_iso = k2*A2                                    (r<a)
+        sigma_rr(r) = p0 - 2*mu1*B1/r^2, sigma_tt(r) = p0 + 2*mu1*B1/r^2  (r>=a)
 
-Uniform stress inside the inclusion:
-    sigma_in = k2*A2
+    where k = 2*kappa + (2/3)*mu (1=HTPB matrix, 2=AP inclusion), same
+    definition as before.
 
-Outside (matrix, r>=a) -- pure dipole decay, no remote offset (A1=0):
-    sigma_rr(r) = -2*mu1*B1/r^2
-    sigma_tt(r) = +2*mu1*B1/r^2
-    u_r(r)      = B1/r
+  - a deviatoric part s = (sigma_xx_inf-sigma_yy_inf)/2 (equivalent to a
+    remote pure-shear state at 45 degrees), handled by the classical
+    circular-inhomogeneity-under-remote-shear solution via Kolosov-
+    Muskhelishvili complex potentials phi(z), psi(z). Solving the bonded-
+    interface matching problem (see derivation notes in this repo's commit
+    history / Readme.rst) gives, with kM1 = 3-4*nu1 (Muskhelishvili's plane-
+    strain material constant for the MATRIX only -- remarkably, for a
+    CIRCULAR inhomogeneity under remote shear, the inclusion's own kM2
+    drops out of the solution entirely):
 
-mu1/kappa1 (Gas/void) and mu2/kappa2 (AP) must match `input`
-(elastic.void.model.mu/kappa, AP_solid.elastic.model.mu/kappa) exactly -- if
+        B  = s*a^2*(mu1-mu2) / (mu1 + kM1*mu2)
+        D3 = a^2*B
+        gamma2p = -s*mu2*(1+kM1) / (mu1 + kM1*mu2)
+
+    Interior (r<a, uniform Cartesian stress -- the classic 2-D "Eshelby"
+    result that a circular inhomogeneity's interior field under remote
+    uniform stress is itself uniform):
+        sigma_xx_dev_in = -gamma2p,  sigma_yy_dev_in = +gamma2p
+
+    Along the y=0 ray (x=r, theta=0/pi), exterior (r=|x|>=a):
+        sigma_xx_dev(x) = -4*B/x^2 + s + 3*D3/x^4
+        sigma_yy_dev(x) =        -s - 3*D3/x^4
+    (even in x, so this holds for x<0 too without extra sign handling)
+
+    Displacement (2*mu*(ux+i*uy) = kM*phi(z) - z*conj(phi'(z)) - conj(psi(z))),
+    evaluated on the real axis (uy_dev = 0 there by symmetry, matching the
+    isotropic part):
+        ux_dev(x) = [(kM1+1)*B/x + s*x - D3/x^3] / (2*mu1)      (r>=a, odd in x)
+        ux_dev(x) = -gamma2p*x / (2*mu2)                        (r<a, odd in x)
+
+Total: sigma_xx = sigma_xx_iso + sigma_xx_dev, etc.; ux = ux_iso + ux_dev,
+with ux_iso(x) = A1*x + B1/x (r>=a), A2*x (r<a) -- same odd-in-x form as the
+original test (u_r = A*r+B/r with disp_x = u_r*sign(x) collapses to this
+single formula in x). uy = 0 exactly along y=0 for both parts.
+
+mu1/kappa1 (HTPB) and mu2/kappa2 (AP) must match `input` exactly
+(HTPB_solid.elastic.model.mu/kappa, AP_solid.elastic.model.mu/kappa) -- if
 you change one there, change it here too and re-run this script.
 """
 import numpy as np
 import pandas as pd
 
 # --- Must match input ---
-mu1, kappa1 = 5.0e3, 4.0e5   # elastic.void.model.mu/kappa      (matrix / Gas)
-mu2, kappa2 = 9.47e6, 1.00e8 # AP_solid.elastic.model.mu/kappa  (inclusion, AP)
-a = 1.5e-4                   # inclusion radius R
-w = 4.0e-5                   # diffuse interface width (must match `input`)
-P = 1.0                      # fluid pressure
+mu1, kappa1 = 1.67e6, 8.33e8  # HTPB_solid.elastic.model.mu/kappa (matrix)
+mu2, kappa2 = 9.47e6, 1.00e8  # AP_solid.elastic.model.mu/kappa  (inclusion)
+a = 1.5e-4                    # inclusion radius R
+w = 4.0e-5                    # diffuse interface width (must match `input`)
+P = 1.0                       # fluid pressure
 
+lambda1 = kappa1 - (2.0 / 3.0) * mu1
 k1 = 2.0 * kappa1 + (2.0 / 3.0) * mu1
 k2 = 2.0 * kappa2 + (2.0 / 3.0) * mu2
 
-A1 = 0.0                      # traction-free domain boundary
-A2 = -P / (k2 + 2.0 * mu1)
-B1 = a * a * A2
+nu1 = (3.0 * kappa1 - 2.0 * mu1) / (2.0 * (3.0 * kappa1 + mu1))
+kM1 = 3.0 - 4.0 * nu1
 
-sigma_in = k2 * A2
+# --- Step 1: far-field confined-compression state in the HTPB block ---
+sigma_yy_inf = -P
+sigma_xx_inf = -P * lambda1 / (lambda1 + 2.0 * mu1)
+p0 = 0.5 * (sigma_xx_inf + sigma_yy_inf)
+s = 0.5 * (sigma_xx_inf - sigma_yy_inf)
+
+# --- Step 2a: isotropic (mean-stress) inhomogeneity correction ---
+A1 = p0 / k1
+A2 = p0 * (k1 + 2.0 * mu1) / (k1 * (k2 + 2.0 * mu1))
+B1 = a * a * (A2 - p0 / k1)
+sigma_in_iso = k2 * A2
+
+# --- Step 2b: deviatoric (remote-shear) inhomogeneity correction ---
+Bdev = s * a * a * (mu1 - mu2) / (mu1 + kM1 * mu2)
+D3dev = a * a * Bdev
+gamma2p = -s * mu2 * (1.0 + kM1) / (mu1 + kM1 * mu2)
+
+sigma_xx_in = sigma_in_iso - gamma2p
+sigma_yy_in = sigma_in_iso + gamma2p
 
 x_lo, x_hi = -1.3e-3, 1.3e-3
 n_pts = 400
@@ -91,20 +144,30 @@ n_pts = 400
 def analytic(x):
     """Evaluate along the y=0 ray. Returns disp_x, disp_y, stress_xx, stress_yy."""
     r = np.abs(x)
-    sign = np.sign(x)
-    sign[sign == 0.0] = 1.0
-
     inside = r < a
+    r_safe = np.where(r > 0.0, r, 1.0)
+    x_safe = np.where(x != 0.0, x, 1.0)
 
-    u_r = np.where(inside, A2 * r, B1 / np.where(r > 0, r, 1.0))
-    sigma_rr = np.where(inside, sigma_in, -2.0 * mu1 * B1 / np.where(r > 0, r * r, 1.0))
-    sigma_tt = np.where(inside, sigma_in, 2.0 * mu1 * B1 / np.where(r > 0, r * r, 1.0))
+    # Isotropic part (odd-in-x u_r*sign(x) form collapses to a single
+    # formula in x -- see module docstring).
+    ux_iso = np.where(inside, A2 * x, A1 * x + B1 / x_safe)
+    sigma_rr_iso = np.where(inside, sigma_in_iso, p0 - 2.0 * mu1 * B1 / r_safe**2)
+    sigma_tt_iso = np.where(inside, sigma_in_iso, p0 + 2.0 * mu1 * B1 / r_safe**2)
 
-    disp_x = u_r * sign
+    # Deviatoric part.
+    ux_dev = np.where(
+        inside,
+        -gamma2p * x / (2.0 * mu2),
+        ((kM1 + 1.0) * Bdev / x_safe + s * x - D3dev / x_safe**3) / (2.0 * mu1),
+    )
+    sigma_xx_dev = np.where(inside, -gamma2p, -4.0 * Bdev / r_safe**2 + s + 3.0 * D3dev / r_safe**4)
+    sigma_yy_dev = np.where(inside, gamma2p, -s - 3.0 * D3dev / r_safe**4)
+
+    # Along y=0: sigma_xx=sigma_rr, sigma_yy=sigma_tt for the isotropic part.
+    disp_x = ux_iso + ux_dev
     disp_y = np.zeros_like(x)
-    # Along y=0 (theta=0 or pi): sigma_xx = sigma_rr, sigma_yy = sigma_tt.
-    stress_xx = sigma_rr
-    stress_yy = sigma_tt
+    stress_xx = sigma_rr_iso + sigma_xx_dev
+    stress_yy = sigma_tt_iso + sigma_yy_dev
     return disp_x, disp_y, stress_xx, stress_yy
 
 
@@ -122,7 +185,8 @@ if __name__ == "__main__":
     })
     df.to_csv("reference/inclusion.csv")
     print(f"Wrote {len(df)} rows to reference/inclusion.csv "
-          f"(sigma_in={sigma_in:.6g}, A1={A1:.6g}, A2={A2:.6g}, B1={B1:.6g})")
+          f"(sigma_xx_in={sigma_xx_in:.6g}, sigma_yy_in={sigma_yy_in:.6g}, "
+          f"p0={p0:.6g}, s={s:.6g})")
 
     zero = pd.DataFrame({
         "x": x,

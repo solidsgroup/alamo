@@ -1,178 +1,241 @@
-LowMach elastic circular inclusion (Kolosov-Muskhelishvili validation)
-========================================================================
+LowMach elastic inclusion: AP in an HTPB block, top-loaded (multi-species validation)
+=======================================================================================
 
 Analytic validation of the LowMach elastic fluid-structure-interaction solve
 (``elastic.apply_fluid_pressure``, see ``LowMach::UpdateModel`` and
-``tests/LowMachElasticPressure``) against the classical two-phase circular
-inhomogeneity solution, obtained via Kolosov-Muskhelishvili complex
-potentials.
+``tests/LowMachElasticPressure``) with **three** coexisting species in the
+domain -- a circular AP inclusion embedded inside a square HTPB block,
+itself sitting in a slightly taller rectangular domain with a Gas layer
+above it that delivers the loading -- exercising the elastic solver's
+species-mixing path (``LowMach::UpdateModel``'s composition-weighted model,
+see below) rather than the simple two-phase (solid-in-void) setup this test
+started as.
 
 This is a simplified, single-particle descendant of
 ``input.lm.ap_htpb_packed_elastic`` (the production AP/HTPB packed-bed
-case): one circular AP particle at the center of a square domain, uniform
-frozen pressure, uniform 300K temperature, frozen chemistry -- no HTPB, no
-regression, no reaction. Where that input drives the elastic solve with the
-real local gas pressure field on a complex multi-particle geometry (and has
-no closed-form answer to check against), this test isolates the single
-piece of physics that *does* have one: a stiff circular inclusion pressure-
-loaded at its own boundary, embedded in a softer "matrix."
-``AP_solid.elastic.model.mu/kappa`` below are the real (rescaled) AP crystal
-moduli from that production file (E ~ 21.6 GPa, nu ~ 0.14).
+case): one circular AP particle centered in a square HTPB block, uniform
+frozen pressure, uniform 300K temperature, frozen chemistry -- no
+regression, no reacting chemistry. Where that input drives the elastic
+solve with the real local gas pressure field on a complex multi-particle
+geometry (and has no closed-form answer to check against), this test
+isolates a geometry simple enough to have one: a circular AP inhomogeneity
+embedded in an "infinite" HTPB matrix, itself under a uniform confined-
+compression remote load. ``AP_solid.elastic.model.mu/kappa`` and
+``HTPB_solid.elastic.model.mu/kappa`` below are the real (rescaled) moduli
+from that production file (AP: E ~ 21.6 GPa, nu ~ 0.14; HTPB: nu ~ 0.499, a
+nearly incompressible rubbery binder).
 
 Setup
 -----
 
-A single ``rigid_solid`` species (``AP_solid``) occupies a disk of radius
-``a = 1.5e-4`` m at the center of a ``3.0mm x 3.0mm`` square domain; a
-single fluid species (``Gas``) fills the rest, at a uniform, time-frozen
-pressure ``P`` (``projection.update_pressure = 0``, see
-``tests/LowMachElasticPressure/Readme.rst``). Chemistry is frozen and the
-temperature field is a uniform 300K everywhere, so the AP/Gas interface
-never moves.
+A circular ``AP_solid`` inclusion (``rigid_solid``) of radius ``a =
+1.5e-4`` m sits at the origin, embedded in a square ``HTPB_solid``
+(``rigid_solid``) block spanning ``x,y in [-1.5e-3,1.5e-3]`` m -- i.e. the
+HTPB block fills the domain's full width. A ``Gas`` layer (``fluid``, 0.6mm
+thick) sits above the block, from ``y=1.5e-3`` to the domain top at
+``y=2.1e-3``; the domain is therefore a **slight rectangle**
+(``3.0mm x 3.6mm``), not the square the original circular-inclusion-in-void
+version of this test used. All three species carry real elastic moduli
+(``AP_solid``, ``HTPB_solid`` genuinely; ``Gas`` a soft ersatz value, see
+"Numerical stability" below) so the whole domain solves as a genuine
+three-phase elastic continuum.
 
-Unlike ``tests/LowMachElasticPressure`` (where the fluid region is masked
-out of the elastic solve and only the solid modulus matters),
-``elastic.void.model.mu/kappa`` here is a **first-class physical
-parameter**: the Gas region is given a real (if soft) elastic modulus so
-that the whole domain -- solid and fluid alike -- solves as a genuine
-two-phase elastic continuum, which is what makes this a non-trivial
-Kolosov-Muskhelishvili inhomogeneity problem in the first place. It is a
-soft ersatz value, not HTPB's real modulus, chosen purely so MLMG converges
-at all: AP's real modulus is ~1,894x (mu) / ~250x (kappa) stiffer, and even
-this contrast requires capping multigrid coarsening
-(``elastic.max_coarsening_level``, see "Grid resolution" below) to avoid
-divergence through the diffuse interface.
+Chemistry is frozen and the temperature field is a uniform 300K everywhere,
+so none of the AP/HTPB or HTPB/Gas interfaces ever move.
 
 **Loading and boundary conditions.** All physical loading enters through
-``elastic.apply_fluid_pressure``'s interfacial body force at the AP/Gas
-diffuse interface (see "How the loading works" below) -- there is no
-separately hand-derived domain-boundary traction. The domain's outer
-boundary carries **rollers** on all four faces (normal displacement
-clamped, tangential traction-free; the corners get both components
-clamped), the same convention ``input.lm.ap_htpb_packed_elastic`` already
-uses on its x-faces, applied symmetrically here since this problem has no
-privileged direction. Rollers, not a fully traction-free boundary, are
-required for a subtle reason: an all-traction boundary is well-posed only
-up to rigid-body motion (2 translations + 1 rotation in 2D). The
-interfacial load is self-equilibrated (net force/torque zero by symmetry),
-so a fully free boundary wouldn't make MLMG blow up outright, but the
-discrete system is singular/rank-deficient, and empirically the "smoother"
-bottom solver handles that badly: with only one face clamped instead of
-rollers on all four, the residual bottomed out around ``3e-6`` by iteration
-~100, then crept back up geometrically, diverging by iteration ~10,000.
-Rollers distribute a much weaker (purely normal) constraint along the
-*entire* boundary instead, which converges cleanly (161 iterations, ~1.6s).
-Since the domain half-width is 10x the inclusion radius, the correction the
-rollers introduce relative to a "fully free at infinity" solution is
-``O((a/L)^2) ~ 1e-4`` relative -- negligible next to the ~0.3-2% error this
-test actually measures (see "Comparison").
+``elastic.apply_fluid_pressure``'s interfacial body force at the HTPB/Gas
+diffuse interface -- Gas's uniform, time-frozen pressure ``P``
+(``projection.update_pressure = 0``, see
+``tests/LowMachElasticPressure/Readme.rst``) pushes straight down on the
+top face of the HTPB block, the same "fluid pressure IS the interfacial
+traction" mechanism as the original version of this test (see "How the
+loading works" below), just now delivered onto a flat solid/fluid boundary
+instead of a circular one. AP/HTPB is an **ordinary bonded interface**
+(plain continuity of traction and displacement) -- the special fluid-
+pressure jump only applies where an actual fluid (Gas) touches a solid.
+
+The domain's side and bottom faces carry **rollers** (normal displacement
+clamped, tangential traction-free) -- these coincide exactly with the HTPB
+block's own side/bottom faces, since the block spans the full domain width
+and its bottom sits at the domain bottom. The top face (Gas's own free
+surface) is **fully traction-free**, not a roller: nothing supports the
+domain from above, and the only load anywhere is the interfacial pressure
+term. Unlike the original version of this test (which needed rollers on
+*every* face purely to remove rigid-body null modes from a self-
+equilibrated interfacial load), this system is **statically determinate**:
+the net downward force from the pressure interface is genuinely reacted by
+the bottom roller, not merely constrained against drift.
 
 How the loading works
 ----------------------
 
+Unchanged from the original version of this test (see
+``tests/LowMachElasticPressure/Readme.rst`` and ``LowMach::UpdateModel``):
 ``elastic.apply_fluid_pressure`` adds RHS ``-P*grad(eta)`` to
-``div(sigma) = rhs`` (``eta`` = the AP/Gas phase field, 1 in AP / 0 in Gas;
-``elastic.traction = 0`` so this pressure term is the only source). Since
-``P`` is spatially uniform, ``-P*grad(eta) = -grad(P*eta)`` exactly, so
-``div(sigma + P*eta*I) = 0``: the combination ``sigma + P*eta*I`` is
-continuous across the interface, which means ``sigma`` itself jumps there::
+``div(sigma) = rhs``, where ``eta`` is the total rigid-solid phase fraction
+(1 in AP or HTPB, 0 in Gas). Since ``P`` is spatially uniform,
+``div(sigma + P*eta*I) = 0``, so ``sigma`` jumps across the diffuse
+interface: ``sigma_nn(fluid side) = sigma_nn(solid side) + P`` (crossing in
+the direction of the outward normal from solid into fluid). Applied at the
+flat HTPB/Gas interface (outward normal ``+y``), with the Gas layer itself
+carrying zero stress (see next section):
+``0 = sigma_yy(HTPB top) + P``, i.e. ``sigma_yy(HTPB top) = -P``.
 
-    sigma_rr(a+) = sigma_rr(a-) + P
+Step 1: far-field confined-compression state
+----------------------------------------------
 
-This is **not** ordinary matched-material traction continuity -- it is the
-correct statement of a fluid at pressure P pushing on a solid surface (a
-delta-function body force localized at the, here diffuse, interface). This
-was confirmed directly against raw simulation output during test
-development: assuming plain continuity under-predicts the interior stress
-magnitude by roughly a factor of 2.
+Ignoring the AP inclusion, the block/roller/top-load system is **exactly**
+1-D: the HTPB block spans the full domain width with rollers on both sides
+(``u_x = 0`` at ``x = +-1.5e-3`` for every ``y``), so by symmetry
+``u_x = 0`` and all fields are uniform in ``x`` -- this is confined
+("oedometer") compression, not free uniaxial stress: ``eps_xx = eps_zz =
+0`` (plane strain). This is an **exact** solution of the no-inclusion
+problem (not merely a far-field approximation), since nothing breaks the
+x-uniformity anywhere in the block or the Gas layer above it. The Gas
+layer, by the same 1-D argument (traction-free top + roller sides + a
+uniform interfacial load at its bottom), is itself statically determinate
+with ``sigma_yy = 0`` throughout, **independent of Gas's own modulus**
+(this is why the "Numerical stability" ersatz value below does not need to
+match anything physical -- see also "Comparison").
 
-Analytic solution
-------------------
+Plane-strain constitutive law (``lambda = kappa - 2*mu/3``) then gives,
+uniformly through the HTPB block::
 
-For purely radial (no angular dependence) loading, a circular inhomogeneity
-problem has no angular (``cos 2*theta``, ``sin 2*theta``, ...) harmonic
-content -- the general Kolosov-Muskhelishvili complex potentials
-``phi(z) = A*z + B/z``, ``psi(z) = C*z + D/z`` collapse to their elementary
-``n = +-1`` (monopole/dipole) terms, which is exactly the axisymmetric
-Lame solution ``u_r(r) = A*r + B/r``, with:
+    sigma_yy_inf = -P
+    sigma_xx_inf = -P * lambda1 / (lambda1 + 2*mu1)
 
-- ``B = 0`` required for the (bounded) inclusion, and
-- ``A = 0`` required in the matrix, since the domain boundary is (up to
-  the negligible roller correction above) traction-free at large r: only
-  the localized ``B/r`` dipole term can decay to zero stress as
-  ``r -> infinity``.
+-- **not** equibiaxial (that only holds in the incompressible limit
+``lambda1 -> infinity``; HTPB's ``nu ~ 0.499`` puts this test close to, but
+not exactly at, that limit: with the real moduli below,
+``sigma_xx_inf ~= -0.9960*P``, ``sigma_yy_inf = -P``).
 
-Plane-strain constitutive law (matching
-``Model::Solid::Finite::NeoHookeanPredeformed`` linearized about ``F = I``
--- see ``tests/LowMachElasticPressure/Readme.rst``): with
-``lambda = kappa - 2*mu/3``,
+Step 2: circular-inhomogeneity correction near the AP inclusion
+-------------------------------------------------------------------
 
-    sigma_rr = 2*(lambda+mu)*A - 2*mu*B/r^2
-    sigma_tt = 2*(lambda+mu)*A + 2*mu*B/r^2
+Superpose the classical two-phase circular-inhomogeneity-under-remote-
+stress solution (AP embedded in "infinite" HTPB -- valid since the block is
+10x the inclusion radius on every side, so Saint-Venant/image corrections
+are ``O((a/L)^2)``, negligible next to the ~1-6% error this test
+tolerates). Decompose the remote state ``(sigma_xx_inf, sigma_yy_inf)``
+into:
 
-Define the "2-D areal modulus" ``k = 2*(lambda+mu) = 2*kappa + (2/3)*mu``
-for each phase (1 = matrix/Gas, 2 = inclusion/AP). Matching ``u_r``
-(continuous) and the ``sigma_rr`` jump above at ``r = a``, with ``A1 = 0``
-and ``B2 = 0``, gives::
+- an **isotropic** part ``p0 = (sigma_xx_inf+sigma_yy_inf)/2``, handled by
+  the same axisymmetric Lame solution (``u_r = A*r + B/r``) the original
+  version of this test used, but now sourced by a REMOTE stress rather than
+  an interfacial jump, so ``A1 != 0`` in the matrix::
 
-    A2 = -P / (k2 + 2*mu1)
-    B1 = a^2 * A2
+      A1 = p0/k1
+      A2 = p0*(k1+2*mu1) / (k1*(k2+2*mu1))
+      B1 = a^2*(A2 - p0/k1)
+      sigma_in_iso = k2*A2                                              (r<a)
+      sigma_rr(r) = p0 - 2*mu1*B1/r^2, sigma_tt(r) = p0 + 2*mu1*B1/r^2   (r>=a)
 
-Uniform stress inside the inclusion (``r < a``)::
+  where ``k = 2*kappa + (2/3)*mu`` (1 = HTPB matrix, 2 = AP inclusion),
+  same definition as before.
 
-    sigma_xx = sigma_yy = sigma_in = k2*A2
+- a **deviatoric** part ``s = (sigma_xx_inf-sigma_yy_inf)/2`` (equivalent
+  to a remote pure-shear state at 45 degrees), handled by the classical
+  circular-inhomogeneity-under-remote-shear solution via Kolosov-
+  Muskhelishvili complex potentials. Solving the bonded-interface matching
+  problem gives, with ``kM1 = 3-4*nu1`` (Muskhelishvili's plane-strain
+  material constant, for the **matrix only** -- remarkably, for a circular
+  inhomogeneity under remote shear, the inclusion's own ``kM2`` drops out
+  of the solution entirely)::
 
-Outside (``r >= a``), pure dipole decay, no remote offset::
+      B  = s*a^2*(mu1-mu2) / (mu1 + kM1*mu2)
+      D3 = a^2*B
+      gamma2p = -s*mu2*(1+kM1) / (mu1 + kM1*mu2)
 
-    sigma_rr(r) = -2*mu1*B1/r^2
-    sigma_tt(r) = +2*mu1*B1/r^2
+  Interior (``r<a``, **uniform** Cartesian stress -- the classic 2-D
+  "Eshelby" result that a circular inhomogeneity's interior field under
+  remote uniform stress is itself uniform)::
 
-Along the ``y = 0`` sampling ray (``theta = 0`` or ``pi``),
-``sigma_xx = sigma_rr``, ``sigma_yy = sigma_tt`` directly, and ``u_r`` maps
-to ``disp_x = u_r * sign(x)``, ``disp_y = 0``.
+      sigma_xx_dev_in = -gamma2p,  sigma_yy_dev_in = +gamma2p
 
-With ``mu1 = 5.0e3``, ``kappa1 = 4.0e5`` (Gas/void ersatz), ``mu2 =
-9.47e6``, ``kappa2 = 1.00e8`` (AP, real rescaled moduli), ``P = 1``:
-``k1 = 803333``, ``k2 = 2.06313e8``, ``A2 = -4.8468e-9``,
-``B1 = -1.0905e-16``, giving ``sigma_in = -0.999952`` -- i.e. this
-configuration sits extremely close to the **rigid-inclusion limit**
-(``k2 >> k1``): AP is so much stiffer than the void that it barely deforms
-further under the interfacial load and simply carries almost exactly
-``-P`` throughout, with a correspondingly tiny exterior dipole field
-(``B1`` is ~16 orders of magnitude smaller than ``a^2``). See
-``generate_reference.py`` for the code that produces these numbers and the
-reference CSV.
+  Along the ``y=0`` ray (``theta=0/pi``), exterior (``r=|x|>=a``)::
+
+      sigma_xx_dev(x) = -4*B/x^2 + s + 3*D3/x^4
+      sigma_yy_dev(x) =        -s - 3*D3/x^4
+
+  (even in ``x``, so this holds for ``x<0`` too without extra sign
+  handling). Displacement, evaluated on the real axis
+  (``uy_dev = 0`` there by symmetry, matching the isotropic part)::
+
+      ux_dev(x) = [(kM1+1)*B/x + s*x - D3/x^3] / (2*mu1)   (r>=a, odd in x)
+      ux_dev(x) = -gamma2p*x / (2*mu2)                     (r<a, odd in x)
+
+**Total**: ``sigma_xx = sigma_xx_iso + sigma_xx_dev``, etc.; ``ux = ux_iso
++ ux_dev`` with ``ux_iso(x) = A1*x + B1/x`` (``r>=a``), ``A2*x`` (``r<a``).
+See ``generate_reference.py`` for the full derivation notes and the code
+that evaluates these formulas.
+
+With ``mu1=1.67e6, kappa1=8.33e8`` (HTPB), ``mu2=9.47e6, kappa2=1.00e8``
+(AP), ``a=1.5e-4``, ``P=1``: ``p0 = -0.99800``, ``s = 0.0019995`` (the
+deviatoric correction is small -- about 0.2% of P -- because HTPB is nearly
+incompressible, so the confined-compression far field sits close to
+hydrostatic already), giving ``sigma_xx_in = -0.98067``,
+``sigma_yy_in = -0.98746`` -- notably **not equal** to each other, unlike
+the original equibiaxial-loading version of this test.
+
+``disp_y`` along the sampling ray is **not** zero here (unlike the original
+version): the bottom roller pins ``u_y=0`` at ``y=ylo``, not at ``y=0``, so
+the block's own rigid vertical compaction contributes a uniform offset
+``u_y_base(y) = eps_yy*(y-ylo)``, ``eps_yy = sigma_yy_inf/(lambda1+2*mu1)``,
+on top of the (still-zero, by symmetry) inclusion perturbation to
+``disp_y`` along ``y~=0``. See ``test``'s disp_y check.
+
+Numerical stability
+--------------------
+
+``elastic.void.model.mu/kappa`` (Gas) is a soft ersatz modulus, needed
+purely so MLMG stays well-conditioned -- its exact value does not enter the
+analytic reference at all, since the Gas layer's stress state is
+statically determinate given its free top and roller sides (see Step 1
+above), independent of Gas's own modulus. This value is **stiffer** than
+the original circular-inclusion-in-void version of this test used
+(``5.0e3/4.0e5``): with HTPB's real, nearly-incompressible ``kappa=8.33e8``
+now a first-class matrix material (rather than AP alone sitting in void),
+the HTPB/void kappa contrast at the old ersatz value is ~2,082x, well above
+the ~[250x,2100x] window ``input.lm.ap_htpb_packed_elastic`` verifies
+stable (see its WARNING) -- confirmed directly: at
+``elastic.max_coarsening_level=3`` MLMG genuinely diverges (blows up within
+1-2 V-cycles) at the old ersatz value, but converges cleanly, if very
+slowly, at ``elastic.max_coarsening_level=0`` (no coarsening at all),
+which rules out a physically singular setup and points squarely at a
+multigrid-coarsening instability specific to this contrast. Raising the
+ersatz Gas modulus 10x (``5.0e4/4.0e6``) brings the HTPB/void kappa
+contrast down to ~208x, back in the verified window, and
+``elastic.max_coarsening_level=3`` converges cleanly again.
 
 Comparison
 ----------
 
 ``test`` samples a ray along ``y ~= 0`` (offset by half a cell -- see
-`test` for why an exact ``y=0.0`` ray degenerates) from ``x = -1.3mm`` to
+``test`` for why an exact ``y=0.0`` ray degenerates) from ``x = -1.3mm`` to
 ``x = +1.3mm`` (``disp_x``, ``disp_y``, ``stress_xx``, ``stress_yy``),
-excludes a band ``|r - a| < 3*w`` around the AP/Gas interface where the
+excludes a band ``|r - a| < 3*w`` around the AP/HTPB interface where the
 analytic sharp jump and the simulation's smoothed ``eta`` transition
 necessarily disagree, and checks:
 
-1. Interior stress: ``stress_xx``/``stress_yy`` uniform and equal to
-   ``sigma_in`` well inside the inclusion (8% tolerance; achieved is
-   ~0.3-0.4%).
-2. Full-profile **absolute** (not relative) error of ``disp_x``,
-   ``stress_xx``, ``stress_yy`` against the closed-form solution, via
-   ``testlib.validate`` against the reference CSV when one is supplied by
-   the run's ``check-file``, and again inline as a fallback. Absolute
-   tolerances are used deliberately: because this configuration sits so
-   close to the rigid-inclusion limit, the analytic exterior field decays
-   to ``O(1e-5)*P`` within a few interface widths of ``r=a`` -- a
-   relative-L2 metric over the whole ray would be dominated by that
-   near-zero exterior region, where even the diffuse interface's own
-   residual smoothing (numerically ``~1e-4*P``) reads as enormous relative
-   error despite being physically negligible.
-3. ``disp_y`` negligible (absolute) along the sampling ray, a consequence
-   of the purely radial (no angular dependence) loading.
+1. Interior stress: ``stress_xx`` uniform and equal to ``sigma_xx_in``,
+   ``stress_yy`` uniform and equal to ``sigma_yy_in``, well inside the
+   inclusion (8% tolerance on each; achieved is ~1.1-1.4%).
+2. Full-profile **absolute** RMS error of ``disp_x``, ``stress_xx``,
+   ``stress_yy`` against the closed-form solution (interior + exterior
+   branches, interface band excluded), via ``testlib.validate`` against the
+   reference CSV when one is supplied by the run's ``check-file``, and
+   again inline as a fallback (achieved: disp_x ~6e-14 vs 5e-13 tolerance,
+   stress ~0.005 vs 0.06 tolerance).
+3. ``disp_y`` matches the uniform rigid compaction offset
+   ``eps_yy*(y_ray-ylo)`` along the sampling ray (absolute tolerance) --
+   **not** zero, since (unlike the original version) the bottom roller
+   pins ``u_y=0`` at the domain bottom, not at ``y=0`` -- see "Step 2"
+   above.
 
 The ``[2d-pressure-off]`` sub-case is a wiring control:
 ``elastic.apply_fluid_pressure = 0`` makes the interfacial RHS identically
-zero, and the boundary carries no loading of its own (rollers are
-zero-traction tangentially, zero-displacement normally -- there's no
-"pressure" leaking in through the boundary either way), so the solve must
-return zero displacement everywhere.
+zero, and none of the boundaries carry any loading of their own (rollers
+are zero-traction tangentially/zero-displacement normally; the top is
+simply traction-free), so the solve must return zero displacement
+everywhere.
