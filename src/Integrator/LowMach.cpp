@@ -2533,6 +2533,33 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             rigid_prescribed_velocity[d][m] =
                 rigid_velocity[m](d);
     }
+    // When every rigid phase has the same relaxation time, the Brinkman
+    // mobility depends only on aggregate rigid occupancy.  If all phases are
+    // also fixed at the same velocity, the complete penalty update can use the
+    // aggregate field and avoid a per-cell loop over rigid species.  The
+    // common AP/HTPB configuration follows this path and recovers the original
+    // aggregate-solid work and behavior.
+    bool shared_rigid_relaxation = rigid_solid;
+    bool shared_fixed_rigid_penalty = rigid_solid && !free_rigid_solid;
+    Set::Scalar shared_rigid_inverse_relaxation_time = 0.0;
+    Set::Vector shared_rigid_velocity = Set::Vector::Zero();
+    if (rigid_solid)
+    {
+        shared_rigid_inverse_relaxation_time =
+            rigid_inverse_relaxation_time[0];
+        shared_rigid_velocity = rigid_velocity[0];
+        for (int m = 1; m < nrigid; ++m)
+        {
+            shared_rigid_relaxation = shared_rigid_relaxation &&
+                rigid_relaxation_time[m] == rigid_relaxation_time[0];
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                shared_fixed_rigid_penalty =
+                    shared_fixed_rigid_penalty &&
+                    rigid_velocity[m](d) == rigid_velocity[0](d);
+        }
+        shared_fixed_rigid_penalty = shared_fixed_rigid_penalty &&
+            shared_rigid_relaxation;
+    }
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
@@ -2707,19 +2734,38 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rigid_eta;
             Set::Patch<const Set::Scalar> rigid_species_eta;
             if (rigid_solid)
+            {
+                rigid_eta = rigid_eta_mf.Patch(lev,mfi);
                 rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
+            }
             Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar penalty_rate = 0.0;
-                for (int m = 0; m < nrigid; ++m)
+                const Set::Scalar rigid_composition_sum = rigid_solid ?
+                    Util::Max(rigid_eta(i,j,k), 0.0) : 0.0;
+                const Set::Scalar aggregate_eta =
+                    Util::Clamp(rigid_composition_sum, 0.0, 1.0);
+                const Set::Scalar aggregate_weight =
+                    Model::PhaseField::H(aggregate_eta);
+                if (shared_rigid_relaxation)
+                    penalty_rate = aggregate_weight *
+                        shared_rigid_inverse_relaxation_time;
+                else if (rigid_composition_sum > 0.0)
                 {
-                    const Set::Scalar weight = Model::PhaseField::H(
-                        Util::Clamp(rigid_species_eta(i,j,k,m), 0.0, 1.0));
-                    penalty_rate += weight * rigid_inverse_relaxation_time[m];
+                    for (int m = 0; m < nrigid; ++m)
+                    {
+                        const Set::Scalar composition = Util::Clamp(
+                            rigid_species_eta(i,j,k,m) /
+                                rigid_composition_sum,
+                            0.0, 1.0);
+                        penalty_rate += aggregate_weight * composition *
+                            rigid_inverse_relaxation_time[m];
+                    }
                 }
                 const Set::Scalar mobility =
                     1.0 / (1.0 + dt * penalty_rate);
@@ -2831,19 +2877,44 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             {
                 const amrex::Box& bx = mfi.tilebox();
                 Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_eta =
+                    rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(bx,
                     [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    const Set::Scalar rigid_composition_sum = Util::Max(
+                        rigid_eta(i,j,k), 0.0);
+                    const Set::Scalar aggregate_eta = Util::Clamp(
+                        rigid_composition_sum, 0.0, 1.0);
+                    const Set::Scalar aggregate_weight =
+                        Model::PhaseField::H(aggregate_eta);
+                    if (shared_fixed_rigid_penalty)
+                    {
+                        const Set::Scalar penalty_rate = aggregate_weight *
+                            shared_rigid_inverse_relaxation_time;
+                        const Set::Scalar mobility = 1.0 /
+                            (1.0 + dt * penalty_rate);
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                            u(i,j,k,d) = mobility * u(i,j,k,d) +
+                                (1.0 - mobility) *
+                                    shared_rigid_velocity(d);
+                        return;
+                    }
+
                     Set::Scalar total_penalty_rate = 0.0;
                     Set::Scalar weighted_target[AMREX_SPACEDIM] = {0.0};
+                    if (!(rigid_composition_sum > 0.0)) return;
                     for (int m = 0; m < nrigid; ++m)
                     {
-                        const Set::Scalar weight = Model::PhaseField::H(
-                            Util::Clamp(
-                                rigid_species_eta(i,j,k,m), 0.0, 1.0));
+                        const Set::Scalar composition = Util::Clamp(
+                            rigid_species_eta(i,j,k,m) /
+                                rigid_composition_sum,
+                            0.0, 1.0);
+                        const Set::Scalar weight =
+                            aggregate_weight * composition;
                         if (!(weight > 0.0) ||
                             (m == free_component && !active_free_rigid))
                             continue;
