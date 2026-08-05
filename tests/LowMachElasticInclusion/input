@@ -231,13 +231,13 @@ elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0
 elastic.print_model = 1
-elastic.solver.verbose = 0
+elastic.solver.verbose = 4
 # One Newton iteration from a zeroed initial guess linearizes about F = I,
 # giving the exact plane-strain linear-elastic solution -- see
 # tests/LowMachElasticPressure/Readme.rst's derivation, which applies
 # unchanged here (same NeoHookeanPredeformed model).
 elastic.solver.nriters = 1
-elastic.zero_out_displacement = 1
+#elastic.zero_out_displacement
 # Required alongside the elastic.void.model.* value above -- see its
 # comment for the specific contrast/coarsening-instability tradeoff this
 # cap and that value were tuned together against.

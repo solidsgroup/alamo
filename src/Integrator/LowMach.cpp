@@ -376,6 +376,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         // (rhs -= pressure * grad_eta), on top of the constant elastic.traction.
         pp.query_default("elastic.apply_fluid_pressure", value.elastic.apply_fluid_pressure, "0.0", Unit::Less());
 
+        // Rigid-solid (kappa, mu) mixing rule in the diffuse eta band:
+        // "voigt" (default, arithmetic average), "reuss" (harmonic average),
+        // or "hashin-shtrikman".
+        pp_query("elastic.mixing_rule", value.elastic.mixing_rule);
+        if (value.elastic.mixing_rule != "voigt" && value.elastic.mixing_rule != "reuss"
+            && value.elastic.mixing_rule != "hashin-shtrikman")
+            Util::Exception(INFO, "elastic.mixing_rule must be 'voigt', 'reuss', or 'hashin-shtrikman', got '",
+                value.elastic.mixing_rule, "'");
+
         // Soft "void" model applied outside the condensed phase. Specifying
         // it (e.g. elastic.void.model.mu = 0.1 against solid moduli of
         // 100s) both regularizes the modulus field and disables the psi
@@ -2274,6 +2283,8 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             const bool use_fluid_pressure = (elastic.apply_fluid_pressure != 0.0);
             const elastic_model_type void_model = elastic.void_model;
             const bool void_on = elastic.void_model_on;
+            const bool use_hs_mixing = (elastic.mixing_rule == "hashin-shtrikman");
+            const bool use_reuss_mixing = (elastic.mixing_rule == "reuss");
 
             // Interfacial body force: a constant traction plus, optionally,
             // the local fluid pressure. grad_eta points from fluid into the
@@ -2318,6 +2329,70 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 elastic_model_type mixed = models[0] * (valid ? w[0] / total : 1.0);
                 for (int m = 1; m < nrigid; ++m)
                     mixed += models[m] * (valid ? w[m] / total : 0.0);
+
+                // Optionally replace the arithmetic (kappa, mu) average above
+                // with the Reuss (harmonic, compliance-weighted) average --
+                // exact for two isotropic phases under stress continuity
+                // (1/kappa_eff = sum w_m/kappa_m, likewise for mu, which
+                // follows from the isotropic compliance tensor's volumetric/
+                // deviatoric split). Purely local/symmetric: no reference-
+                // phase choice needed, unlike Hashin-Shtrikman below. F0 is
+                // left as the affine (Voigt) mixture above -- see the HS
+                // comment below for why.
+                if (use_reuss_mixing && valid)
+                {
+                    Set::Scalar inv_kappa = 0.0, inv_mu = 0.0;
+                    for (int m = 0; m < nrigid; ++m)
+                    {
+                        const Set::Scalar wm = w[m] / total;
+                        inv_kappa += wm / models[m].kappa;
+                        inv_mu    += wm / models[m].mu;
+                    }
+                    mixed.kappa = 1.0 / inv_kappa;
+                    mixed.mu    = 1.0 / inv_mu;
+                }
+
+                // Optionally replace the arithmetic (kappa, mu) average above
+                // with the Hashin-Shtrikman two-phase estimate, folded in
+                // pairwise over the nrigid species (order-dependent for
+                // nrigid>2, exact for nrigid==2 -- the case this was written
+                // for). At each fold, the species with the larger running
+                // volume fraction is used as the HS "reference/matrix" phase
+                // -- a purely local, orientation-free rule that needs no
+                // interface normal, so it applies to any interface geometry,
+                // not just circular/planar ones. F0 is left as the affine
+                // (Voigt) mixture above -- HS bounds are a stress-strain
+                // constitutive concept, not meaningful for a reference
+                // deformation gradient.
+                if (use_hs_mixing && valid)
+                {
+                    Set::Scalar kappa_eff = models[0].kappa;
+                    Set::Scalar mu_eff    = models[0].mu;
+                    Set::Scalar f_acc     = w[0] / total;
+                    for (int m = 1; m < nrigid; ++m)
+                    {
+                        const Set::Scalar f_new = w[m] / total;
+                        const Set::Scalar denom = f_acc + f_new;
+                        if (denom > eta_small)
+                        {
+                            const Set::Scalar f1 = f_acc / denom, f2 = f_new / denom;
+                            Set::Scalar Kr, Gr, fr, Ko, Go, fo;
+                            if (f1 >= f2) {
+                                Kr = kappa_eff;       Gr = mu_eff;       fr = f1;
+                                Ko = models[m].kappa; Go = models[m].mu; fo = f2;
+                            } else {
+                                Kr = models[m].kappa; Gr = models[m].mu; fr = f2;
+                                Ko = kappa_eff;        Go = mu_eff;      fo = f1;
+                            }
+                            kappa_eff = Kr + fo / (1.0 / (Ko - Kr) + fr / (Kr + 4.0 / 3.0 * Gr));
+                            mu_eff    = Gr + fo / (1.0 / (Go - Gr)
+                                        + 2.0 * fr * (Kr + 2.0 * Gr) / (5.0 * Gr * (Kr + 4.0 / 3.0 * Gr)));
+                        }
+                        f_acc = denom;
+                    }
+                    mixed.kappa = kappa_eff;
+                    mixed.mu    = mu_eff;
+                }
 
                 if (void_on)
                 {

@@ -200,7 +200,7 @@ elastic.solver.verbose = 0
 # One Newton iteration from a zeroed initial guess linearizes about F = I,
 # giving the exact plane-strain linear-elastic solution -- see input header.
 elastic.solver.nriters = 1
-elastic.zero_out_displacement = 1
+elastic.zero_out_displacement = 0
 
 # Base (y=ylo) is clamped. The x-faces are rollers (u_x = 0, zero shear)
 # so the problem is exactly 1-D; the top (fluid side) is traction-free.

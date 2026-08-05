@@ -194,6 +194,19 @@ protected:
         // (cf. tests/ElasticSoftVoid).
         elastic_model_type void_model;
         bool void_model_on = false;
+        // How multiple rigid-solid species' (kappa, mu) are combined in the
+        // diffuse eta-transition band (see UpdateModel). "voigt" (default)
+        // is a plain volume-fraction-weighted average of the moduli --
+        // exact only when strain is continuous across the local interface.
+        // "reuss" is the volume-fraction-weighted average of the
+        // compliances (1/kappa, 1/mu) -- exact only when stress/traction is
+        // continuous across the local interface; always softer than Voigt.
+        // "hashin-shtrikman" uses the Hashin-Shtrikman two-phase bound
+        // (Hashin & Shtrikman 1963), tighter than the Voigt-Reuss pair.
+        // All three are purely local (per-node volume-fraction) formulas
+        // with no interface-normal/orientation information, so they apply
+        // to any interface geometry, not just circular/planar ones.
+        std::string mixing_rule = "voigt";
     } elastic;
 
     Set::Vector g = Set::Vector::Zero();
