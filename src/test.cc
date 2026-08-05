@@ -43,6 +43,15 @@ int main (int argc, char* argv[])
 {
     Util::Initialize(argc, argv);
 
+    // The documentation builder invokes every executable in input-schema
+    // traversal mode.  Unit tests are not input parsers and must not execute
+    // against the synthetic traversal state.
+    if (IO::ParmParse::InTraversalMode())
+    {
+        Util::Finalize();
+        return 0;
+    }
+
     int failed = 0;
 
     Util::globalprefix = "  │  ";
