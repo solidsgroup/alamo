@@ -1,5 +1,5 @@
 # Self-contained 3 MPa AP/HTPB packed-particle combustion case with an
-# advecting aluminum particle that melts and then boils to inert Al vapor.
+# advecting aluminum particle that melts and then evaporates to inert Al vapor.
 # This file intentionally has no
 # FILE or ignore directives: every case parameter inherited by the previous
 # version is specified directly below.
@@ -88,9 +88,16 @@ HTPB_solid.specific_heat = 2418.29_J/kg/K
 HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 Al_solid.specific_heat = 900.0_J/kg/K
 Al_solid.thermal_conductivity = 237.0_W/m/K
-Al_solid.temperature_override = 800.0_K
+Al_solid.temperature_override = 900.0_K
 
-# The liquid interface thickness is about four cells on the finest AMR level.
+# Use one physical diffuse thickness for the initialized propellant surface,
+# aluminum particle, capillary free energy, and kinetic surface state.  The
+# Arrhenius and Hertz--Knudsen mechanisms integrate local moments along the
+# diffuse normal over the corresponding eta=0.1--0.9 band; they do not select
+# or extrapolate from an eta contour.  Keep every surface_eps and al_eps below
+# equal to this value.  It spans about 4.27 cells on the finest AMR level.
+interface.thickness = 20.0_um
+
 # The constant liquid-gas tension is representative of molten aluminum over
 # the resolved melting/evaporation interval; a temperature-dependent property
 # would be preferable once the interface model supports it.
@@ -98,22 +105,25 @@ Al_liquid.reference_density = 2375.0_kg/m^3
 Al_liquid.dynamic_viscosity = 1.3e-3_Pa*s
 Al_liquid.specific_heat = 1177.0_J/kg/K
 Al_liquid.thermal_conductivity = 90.0_W/m/K
-liquid.interface_thickness = 20.0_um
-liquid.capillary.enabled = 1
-liquid.capillary.include_solids = 1
+interface.enabled = 1
+# Conservatively advect the material partial densities.  Superbee below is
+# the accepted bounded transport path; no independent level-set field or
+# explicit interface-restoration equation is used in this production case.
+interface.transport.type = advected
+interface.liquid_solid.enabled = 1
 # Surface tension is reserved for liquid-gas and liquid-liquid interfaces.
-liquid.surface_tension.Al_liquid_gas = 0.85_J/m^2
+interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
 # Each liquid-solid interface gets a positive diffuse-interface regularizer.
-liquid.solid_interface_regularization.Al_liquid_AP_solid = 0.05_J/m^2
-liquid.solid_interface_regularization.Al_liquid_HTPB_solid = 0.05_J/m^2
-liquid.solid_interface_regularization.Al_liquid_Al_solid = 0.10_J/m^2
+interface.liquid_solid.regularization.Al_liquid_AP_solid = 0.05_J/m^2
+interface.liquid_solid.regularization.Al_liquid_HTPB_solid = 0.05_J/m^2
+interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.10_J/m^2
 # AP and HTPB are transient hot propellant interfaces, so do not impose an
 # artificial wetting preference there.  Molten aluminum completely wets its
-# own solid: gamma_SL-gamma_SG lies beyond the finite-contact-angle Young
-# range, so specify that signed surface-energy difference directly.
-liquid.contact_angle.Al_liquid_AP_solid = 90.0_deg
-liquid.contact_angle.Al_liquid_HTPB_solid = 90.0_deg
-liquid.solid_surface_energy_difference.Al_liquid_Al_solid = -1.0_J/m^2
+# own solid.  Use the complete-wetting limit without pushing the signed
+# surface-energy difference beyond Young's physically realizable range.
+interface.liquid_solid.contact_angle.Al_liquid_AP_solid = 90.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_HTPB_solid = 90.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 0.0_deg
 
 chemistry.model.type = gross_model_aluminized
 chemistry.model.gross_model_aluminized.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
@@ -140,72 +150,73 @@ Al_solid.rigid.relaxation_time = 1.0e-8_s
 # from the preceding step. Anderson corrections are used only when that cheap
 # predictor misses the requested coupling tolerance.
 Al_solid.rigid.coupling = anderson
-Al_solid.rigid.max_iterations = 3
+Al_solid.rigid.max_iterations = 6
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
 
-mechanisms.names = AP_decomposition HTPB_pyrolysis Al_melting Al_boiling
+mechanisms.names = AP_decomposition HTPB_pyrolysis Al_melting Al_evaporation
 
-# Use the AP and HTPB PhaseChange configurations from input.lm.ap_htpb_packed.
-# The phase-field gradient terms are integrated implicitly.
+# Dimensional surface regression law, calibrated at 3 MPa and 600 K.  The
+# pressure exponent is representative of AP/HTPB burning-rate data and the
+# common reference speed is 6 mm/s.
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.phase0 = AP_solid
 AP_decomposition.phase_change.phase1 = AP_gas
+AP_decomposition.phase_change.kinetics = arrhenius_surface_flux
 AP_decomposition.phase_change.latent_heat = 100.0_cal/g
-AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.reference_mass_flux = 11.70_kg/m^2/s
+AP_decomposition.phase_change.reference_pressure = 3.0_MPa
+AP_decomposition.phase_change.pressure_exponent = 0.4
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 360.0_K
-AP_decomposition.phase_change.phase_field.type = allencahn
-AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
-AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
-AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
-AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+AP_decomposition.phase_change.reference_temperature = 600.0_K
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
 HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
+HTPB_pyrolysis.phase_change.kinetics = arrhenius_surface_flux
 HTPB_pyrolysis.phase_change.latent_heat = 300.0_cal/g
-HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.reference_mass_flux = 5.52_kg/m^2/s
+HTPB_pyrolysis.phase_change.reference_pressure = 3.0_MPa
+HTPB_pyrolysis.phase_change.pressure_exponent = 0.4
 HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
-HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
-HTPB_pyrolysis.phase_change.phase_field.type = allencahn
-HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
+HTPB_pyrolysis.phase_change.reference_temperature = 600.0_K
 
 # Use separate forward-only phase changes so aluminum must enter the liquid
-# state before it can become vapor.  Melting begins at the equilibrium melting
-# temperature.  Evaporation is represented by the fixed-speed capability
-# available in this mechanism, calibrated to the vapor-pressure-limited
-# recession rate near 2000 K.  It is not a bulk-boiling threshold; a future
-# vapor-pressure/Al-partial-pressure flux model should replace this surrogate.
-# Aluminum vapor remains chemically inert, but 40% of its 31.05 MJ/kg nominal
-# combustion enthalpy is returned locally as an unresolved process coupled to
-# forward vaporization.  The negative sign denotes an exothermic enthalpy
-# change; latent heat remains a separate positive vaporization cost.
+# state before it can become vapor.  Local enthalpy projection makes each
+# transition effectively instantaneous once sensible heat is available while
+# retaining the physical latent heats.  Evaporation uses a Hertz--Knudsen
+# flux driven by aluminum saturation pressure minus its local partial
+# pressure.  Its temperature and thermal response are normalized diffuse
+# moments evaluated across interface.thickness, so it can occur below the
+# normal boiling point without imposing a fictitious transition temperature.
+# Aluminum vapor remains chemically inert.  Thirty percent of its 31.05 MJ/kg
+# nominal combustion enthalpy is retained locally as an unresolved process
+# coupled to forward vaporization; returning all of it locally makes the
+# vaporization/heat-release loop thermally unbounded.  The negative sign
+# denotes an exothermic enthalpy change; latent heat remains a separate
+# positive vaporization cost.
 Al_melting.type = phase_change
 Al_melting.phase_change.phase0 = Al_solid
 Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.kinetics = equilibrium_enthalpy
 Al_melting.phase_change.reversible = false
 Al_melting.phase_change.latent_heat = 3.9145e5_J/kg
-Al_melting.phase_change.prescribed_speed = 0.8_mm/s
-Al_melting.phase_change.temperature_cutoff = 933.45_K
-Al_melting.phase_change.phase_field.type = allencahn
+Al_melting.phase_change.transition_temperature = 933.45_K
 
-Al_boiling.type = phase_change
-Al_boiling.phase_change.phase0 = Al_liquid
-Al_boiling.phase_change.phase1 = Al_gas
-Al_boiling.phase_change.reversible = false
-Al_boiling.phase_change.latent_heat = 1.0897e7_J/kg
-Al_boiling.phase_change.coupled_enthalpy_change = -1.242e7_J/kg
-Al_boiling.phase_change.prescribed_speed = 0.13_mm/s
-Al_boiling.phase_change.temperature_cutoff = 2000_K
-Al_boiling.phase_change.phase_field.type = allencahn
+Al_evaporation.type = phase_change
+Al_evaporation.phase_change.phase0 = Al_liquid
+Al_evaporation.phase_change.phase1 = Al_gas
+Al_evaporation.phase_change.kinetics = hertz_knudsen
+Al_evaporation.phase_change.reversible = false
+Al_evaporation.phase_change.latent_heat = 1.0897e7_J/kg
+# Retain 30% of the nominal 31.05 MJ/kg aluminum oxidation enthalpy locally.
+# This remains a strong vaporization aid while leaving a positive 1.582 MJ/kg
+# net vaporization cost, so vapor creation cannot power its own equilibrium
+# conversion in the absence of heat from the surrounding flame.
+Al_evaporation.phase_change.coupled_enthalpy_change = -9.315e6_J/kg
+Al_evaporation.phase_change.accommodation_coefficient = 0.04
+Al_evaporation.phase_change.saturation_reference_temperature = 2743.0_K
+Al_evaporation.phase_change.saturation_reference_pressure = 101325.0_Pa
 
 # Flow, projection, and diffusion
 advection.type = muscl
@@ -258,7 +269,7 @@ Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-su
 Al_liquid.density.ic.type = constant
 Al_liquid.density.ic.constant.value = 0.0_kg/m^3
 
-# Hot final products fill the space outside both condensed regions.  Their
+# Cold final products fill the space outside both condensed regions.  Their
 # density uses the same temperature profile as the mixture temperature below,
 # keeping the gas initially isobaric at 3 MPa.
 Final.density.ic.type = expression
@@ -268,12 +279,13 @@ Final.density.ic.expression.constant.al_height = 0.00035_m
 Final.density.ic.expression.constant.al_r = 70.0_um
 Final.density.ic.expression.constant.al_eps = 20.0_um
 Final.density.ic.expression.constant.P = 3.0e6
-Final.density.ic.expression.constant.Tsolid = 300.0_K
-Final.density.ic.expression.constant.Tsurface = 350.0_K
-Final.density.ic.expression.constant.Tproducts = 3000.0_K
+Final.density.ic.expression.constant.Tambient = 300.0_K
+# A modest interfacial preheat seeds the finite-rate GrossModel reactions;
+# the bulk gas remains cold and the laser must still establish the flame.
+Final.density.ic.expression.constant.Tignite = 400.0_K
 Final.density.ic.expression.constant.Lsolid = 100.0_um
-Final.density.ic.expression.constant.Lgas = 50.0_um
-Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))*P/(319.787*(Tsurface+(Tsolid-Tsurface)*(1.0-exp(-max(-(y-surface_y),0.0)/Lsolid))+(Tproducts-Tsurface)*(1.0-exp(-max(y-surface_y,0.0)/Lgas)))))"
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*(sqrt(x*x+(y-surface_y-al_height)^2)-al_r)/al_eps))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas))))"
 
 Al_gas.density.ic.type = constant
 Al_gas.density.ic.constant.value = 0.0_kg/m^3
@@ -295,16 +307,31 @@ velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps)
 
 temperature.ic.type = expression
 temperature.ic.expression.constant.surface_y = -0.0003_m
-temperature.ic.expression.constant.Tsolid = 300.0_K
-temperature.ic.expression.constant.Tsurface = 350.0_K
-temperature.ic.expression.constant.Tproducts = 3000.0_K
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
 temperature.ic.expression.constant.Lsolid = 100.0_um
-temperature.ic.expression.constant.Lgas = 50.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
 # Condensed species inherit this global field unless temperature_override is
 # positive.
-temperature.ic.expression.region0 = "Tsurface+(Tsolid-Tsurface)*(1.0-exp(-max(-(y-surface_y),0.0)/Lsolid))+(Tproducts-Tsurface)*(1.0-exp(-max(y-surface_y,0.0)/Lgas))"
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-(y-surface_y),0.0)/Lsolid-max(y-surface_y,0.0)/Lgas)"
 pressure.ic.type = constant
 pressure.ic.constant.value = 3000000.0
+
+# Apply the packed-case transient ignition flux to the condensed side of the
+# translated propellant surface.  The factor of two compensates for the
+# one-sided mask, so integrating through the diffuse interface gives qflux
+# rather than the one-half qflux delivered by the former symmetric Gaussian.
+# No laser energy is deposited directly into the gas.  The source turns off
+# smoothly after 250 us; subsequent gas heating must come from GrossModel.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.surface_y = -0.0003_m
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "2.0*qflux*exp(-((y-surface_y)/width)^2)/(norm*width)*(0.5-0.5*tanh((y-surface_y)/width))*0.5*(1.0-tanh((t-toff)/tramp))"
 
 # Boundary conditions
 component_density.bc.type = constant
