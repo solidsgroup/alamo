@@ -365,12 +365,16 @@ private:
     virtual void ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 
+protected:
     /// This is the function that is responsible for updating patch data.
+    /// Derived integrators may use the same AMR-aware path for internal
+    /// fields that are assembled during a timestep.
     void FillPatch(int lev, amrex::Real time,
         amrex::Vector<std::unique_ptr<amrex::MultiFab>>& source_mf,
         amrex::MultiFab& destination_multifab,
         BC::BC<Set::Scalar>& physbc,
         int icomp);
+private:
     /// Simple utility to count cells 
     long CountCells(int lev);
     /// Timestep marching

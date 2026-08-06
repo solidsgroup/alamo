@@ -124,7 +124,7 @@ PressurePoisson::PrepareCoefficients(Set::Scalar time)
 void
 PressurePoisson::PrepareRHS(
     int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
-    const FaceField* face_acceleration)
+    const FaceField* face_capillary_acceleration)
 {
     amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_velocity_const_ptr;
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -139,16 +139,18 @@ PressurePoisson::PrepareRHS(
             const amrex::Box& bx = mfi.tilebox();
             const auto u = velocity.const_array(mfi);
             const auto face = face_velocity[lev][d].array(mfi);
-            amrex::Array4<const Set::Scalar> acceleration;
-            const bool has_acceleration = face_acceleration != nullptr;
-            if (has_acceleration)
-                acceleration = (*face_acceleration)[d]->const_array(mfi);
+            amrex::Array4<const Set::Scalar> capillary_acceleration;
+            const bool has_capillary_acceleration =
+                face_capillary_acceleration != nullptr;
+            if (has_capillary_acceleration)
+                capillary_acceleration =
+                    (*face_capillary_acceleration)[d]->const_array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 face(i,j,k) = 0.5 *
                     (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
-                if (has_acceleration)
-                    face(i,j,k) += dt * acceleration(i,j,k);
+                if (has_capillary_acceleration)
+                    face(i,j,k) += dt * capillary_acceleration(i,j,k);
             });
         }
         face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());

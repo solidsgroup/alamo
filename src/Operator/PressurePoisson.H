@@ -39,7 +39,7 @@ public:
 
     void PrepareCoefficients(Set::Scalar time);
     void PrepareRHS(int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
-                    const FaceField* face_acceleration = nullptr);
+                    const FaceField* face_capillary_acceleration = nullptr);
     void Solve(Set::Scalar time, const amrex::BCRec& pressure_bc);
     void ApplyCorrection(int lev, amrex::MultiFab& velocity, Set::Scalar dt);
 

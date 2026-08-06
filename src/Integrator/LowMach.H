@@ -22,7 +22,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Mechanism/InterphaseReaction.H"
-#include "Model/PhaseField/MultLiquid.H"
+#include "Model/PhaseField/MultiphaseInterface.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -85,12 +85,14 @@ public:
                             const amrex::MultiFab& xi_mf,
                             bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
-    void UpdateLiquidChemicalPotential(int lev);
+    void UpdateInterfacialChemicalPotential(int lev);
+    void ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
     void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
-    void ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt);
+    void ApplyEquilibriumPhaseChange(Set::Scalar time, Set::Scalar dt);
+    void ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
     void UpdateFreeRigidBodyState();
 
@@ -154,9 +156,9 @@ protected:
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
     Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> liquid_species_eta_mf;
-    Set::Field<Set::Scalar> phase_eta_mf;
-    Set::Field<Set::Scalar> phase_eta_plot_mf;
-    Set::Field<Set::Scalar> capillary_chemical_potential_mf;
+    Set::Field<Set::Scalar> interfacial_volume_fraction_mf;
+    Set::Field<Set::Scalar> gas_volume_fraction_mf;
+    Set::Field<Set::Scalar> interfacial_chemical_potential_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -167,6 +169,7 @@ protected:
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_heat_mf;
+    Set::Field<Set::Scalar> kinetic_diffuse_moment_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -228,8 +231,15 @@ protected:
     int free_rigid_solid_species = -1;
     int free_rigid_solid_component = -1;
     std::vector<int> liquid_species;
-    std::vector<int> capillary_solid_species;
-    Model::PhaseField::MultLiquid capillary_phase_model;
+    std::vector<int> interfacial_solid_species;
+    Model::PhaseField::MultiphaseInterface interfacial_model;
+    enum class InterfacialTransport
+    {
+        Advected,
+        ConservativeAllenCahn
+    };
+    InterfacialTransport interfacial_transport =
+        InterfacialTransport::Advected;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -255,11 +265,14 @@ protected:
     bool include_conduction = true;
     // Enabled by default when liquid species are configured; it must remain
     // false for gas/solid-only systems because no capillary fields exist.
-    bool liquid_capillarity_enabled = false;
-    bool liquid_solid_capillarity_enabled = false;
+    bool interfacial_forces_enabled = false;
+    bool liquid_solid_interface_enabled = false;
     bool implicit_momentum_diffusion = false;
     bool implicit_thermal_diffusion = false;
     bool implicit_species_diffusion = false;
+    bool has_equilibrium_phase_change = false;
+    bool has_kinetic_phase_change = false;
+    bool has_split_phase_change = false;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
     Set::Scalar finite_solid_reference_density = 1.0;
@@ -268,7 +281,9 @@ protected:
     Set::Scalar finite_solid_viscosity = 0.0;
     Set::Scalar finite_solid_interface_viscosity = 0.0;
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
-    Set::Scalar capillary_reference_density_min = 1.0e100;
+    Set::Scalar interfacial_reference_density_min = 1.0e100;
+    Set::Scalar interfacial_thickness = 0.0;
+    Set::Scalar conservative_allen_cahn_diffusivity = 0.0;
     int last_free_rigid_coupling_iterations = 0;
     Set::Scalar last_free_rigid_coupling_residual = 0.0;
     bool last_free_rigid_coupling_converged = false;

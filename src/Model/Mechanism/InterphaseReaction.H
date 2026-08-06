@@ -32,6 +32,7 @@ public:
                     const std::vector<std::string>& species_names,
                     const int ngas_species,
                     const std::vector<int>& /*rigid_solid_species*/,
+                    const std::vector<int>& /*liquid_species*/,
                     const std::vector<Set::Scalar>& reference_density,
                     const std::vector<double>& molecular_weight,
                     const Set::Scalar universal_gas_constant)
@@ -314,6 +315,44 @@ public:
     }
 
     int RigidComponent() const { return -1; }
+
+    bool Equilibrium() const { return false; }
+    bool Kinetic() const { return false; }
+    Set::Scalar EquilibriumTemperature() const { return NAN; }
+    Set::Scalar LatentHeat() const { return 0.0; }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::GpuTuple<Set::Scalar,Set::Vector>
+    KineticDiffuseSurface(
+        const amrex::Array4<const Set::Scalar>&,
+        const int, const int, const int,
+        const Set::Scalar[AMREX_SPACEDIM]) const
+    {
+        return {0.0, Set::Vector::Zero()};
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar>
+    ApplyEquilibriumChange(
+        const amrex::Array4<Set::Scalar>& /*component_density*/,
+        const State& /*state*/, const Set::Scalar /*requested_mass_change*/,
+        const Set::Scalar /*heat_capacity*/,
+        const Set::Scalar /*gas_volume_fraction*/,
+        const int /*i*/, const int /*j*/, const int /*k*/) const
+    {
+        return {0.0, 0.0, 0.0};
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyKineticChange(
+        const amrex::Array4<Set::Scalar>& /*component_density*/,
+        const State& /*state*/, const Set::Scalar /*heat_capacity*/,
+        const Set::Scalar, const Set::Scalar, const Set::Scalar,
+        Set::Scalar& /*temperature*/, Set::Scalar& /*integrated_heat*/,
+        const int /*i*/, const int /*j*/, const int /*k*/) const
+    {
+        return 0.0;
+    }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar ApplyImplicitChange(

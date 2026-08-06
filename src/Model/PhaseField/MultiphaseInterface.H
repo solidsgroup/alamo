@@ -53,8 +53,8 @@
 // responsibility of a thermochemical mechanism.
 //
 
-#ifndef MODEL_PHASEFIELD_MULTLIQUID_H
-#define MODEL_PHASEFIELD_MULTLIQUID_H
+#ifndef MODEL_PHASEFIELD_MULTIPHASEINTERFACE_H
+#define MODEL_PHASEFIELD_MULTIPHASEINTERFACE_H
 
 #include <cmath>
 #include <string>
@@ -70,10 +70,10 @@ namespace Model
 {
 namespace PhaseField
 {
-class MultLiquid
+class MultiphaseInterface
 {
 public:
-    static constexpr const char* name = "multliquid";
+    static constexpr const char* name = "multiphase_interface";
 
     void Define(const std::vector<std::string>& names,
                 const int number_liquid_phases,
