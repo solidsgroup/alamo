@@ -29,7 +29,6 @@ def state(path):
     solid_eta = data["rigid_species_eta_Al_solid"].to_ndarray()
     liquid_eta = data["liquid_species_eta_Al_liquid"].to_ndarray()
     gas_eta = data["gas_eta"].to_ndarray()
-    capillary_solid_eta = 1.0 - liquid_eta - gas_eta
     temperature = data["temperature"].to_ndarray()
     volume = data[("index", "cell_volume")].to_ndarray()
     aluminum = solid + liquid + product_a + product_b
@@ -45,11 +44,12 @@ def state(path):
         "product_b": (product_b * volume).sum(),
         "mass": mass,
         "temperature": weighted_temperature,
-        "capillary_phase_minimum": min(
-            liquid_eta.min(), capillary_solid_eta.min(), gas_eta.min()),
-        "capillary_phase_maximum": max(
-            liquid_eta.max(), capillary_solid_eta.max(), gas_eta.max()),
-        "gas_in_solid": testlib.numpy.max(gas_eta[solid > 1.98]),
+        "liquid_eta_error": abs(liquid_eta - liquid / 2.0).max(),
+        "solid_eta_error": abs(solid_eta - solid / 2.0).max(),
+        "gas_eta_minimum": gas_eta.min(),
+        "gas_eta_maximum": gas_eta.max(),
+        "gas_in_solid": testlib.numpy.max(gas_eta[solid > 1.98])
+            if testlib.numpy.any(solid > 1.98) else 0.0,
         "minimum": min(
             solid.min(), liquid.min(), product_a.min(), product_b.min()),
     }
@@ -62,11 +62,16 @@ if len(plotfiles) < 2:
 
 initial = state(plotfiles[0])
 final = state(plotfiles[-1])
-if initial["capillary_phase_minimum"] < -1.0e-12 or \
-        final["capillary_phase_minimum"] < -1.0e-12 or \
-        initial["capillary_phase_maximum"] > 1.0 + 1.0e-12 or \
-        final["capillary_phase_maximum"] > 1.0 + 1.0e-12:
-    raise RuntimeError("Liquid-gas capillary output lies outside the simplex")
+if max(initial["liquid_eta_error"], final["liquid_eta_error"],
+       initial["solid_eta_error"], final["solid_eta_error"]) > 1.0e-12:
+    raise RuntimeError(
+        "Condensed eta diagnostics are not partial density divided by "
+        "reference density")
+if initial["gas_eta_minimum"] < -1.0e-12 or \
+        final["gas_eta_minimum"] < -1.0e-12 or \
+        initial["gas_eta_maximum"] > 1.0 + 1.0e-12 or \
+        final["gas_eta_maximum"] > 1.0 + 1.0e-12:
+    raise RuntimeError("Normalized gas_eta lies outside [0,1]")
 if initial["gas_in_solid"] > 1.0e-2:
     raise RuntimeError(
         f"Capillary gas fraction inside solid is {initial['gas_in_solid']:.3e}")

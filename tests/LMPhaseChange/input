@@ -2,59 +2,21 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
+#@ args=interface.liquid_solid.surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
 #@ [2d-solid-liquid-coupled-exothermic]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
-#@ args=Al_melting.phase_change.latent_heat=0.0_J/kg
-#@ args=Al_melting.phase_change.coupled_enthalpy_change=-50000.0_J/kg
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
+#@ args=Al_melting.phase_change.coupled_enthalpy_change=-100000.0_J/kg
+#@ args=interface.liquid_solid.surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 #@
 #@ [2d-solid-liquid-coupled-endothermic]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
-#@ args=Al_melting.phase_change.latent_heat=0.0_J/kg
 #@ args=Al_melting.phase_change.coupled_enthalpy_change=50000.0_J/kg
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
-#@
-#@ [2d-solid-liquid-reverse]
-#@ exe=lowmach
-#@ dim=2
-#@ timeout=120
-#@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
-#@ args=Al_solidification.phase_change.rate_multiplier=1.0
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
-#@
-#@ [2d-solid-liquid-no-solid-capillary]
-#@ exe=lowmach
-#@ dim=2
-#@ timeout=120
-#@ args=liquid.capillary.include_solids=0
-#@
-#@ [2d-solid-liquid-contact-angle]
-#@ exe=lowmach
-#@ dim=2
-#@ timeout=120
-#@ args=liquid.contact_angle.Al_liquid_Al_solid=180.0_deg
-#@
-#@ [2d-liquid-gas-bundle]
-#@ exe=lowmach
-#@ dim=2
-#@ timeout=120
-#@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
-#@ args=Al_vaporization.phase_change.prescribed_speed=0.1_m/s
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
-#@
-#@ [2d-gas-liquid-reverse]
-#@ exe=lowmach
-#@ dim=2
-#@ timeout=120
-#@ args=Al_melting.phase_change.prescribed_speed=0.0_m/s
-#@ args=Al_condensation.phase_change.rate_multiplier=0.1
-#@ args=liquid.solid_surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
+#@ args=interface.liquid_solid.surface_energy_difference.Al_liquid_Al_solid=0.01_J/m^2
 
 plot_file = tests/LMPhaseChange/output
 amr.plot_int = 100
@@ -100,68 +62,27 @@ Al_liquid.dynamic_viscosity = 1.0e-2_Pa*s
 Al_liquid.specific_heat = 1000.0_J/kg/K
 Al_liquid.thermal_conductivity = 0.1_W/m/K
 
-liquid.interface_thickness = 0.04_m
-liquid.capillary.enabled = 1
-liquid.capillary.include_solids = 1
-liquid.surface_tension.Al_liquid_gas = 0.01_J/m^2
-liquid.solid_interface_regularization.Al_liquid_Al_solid = 0.01_J/m^2
+interface.thickness = 0.04_m
+interface.enabled = 1
+interface.liquid_solid.enabled = 1
+interface.surface_tension.Al_liquid_gas = 0.01_J/m^2
+interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.01_J/m^2
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
 
-mechanisms.names = Al_melting Al_solidification Al_vaporization Al_condensation
+mechanisms.names = Al_melting
 
 Al_melting.type = phase_change
 Al_melting.phase_change.phase0 = Al_solid
 Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.kinetics = equilibrium_enthalpy
 Al_melting.phase_change.reversible = 0
 Al_melting.phase_change.latent_heat = 50000.0_J/kg
-Al_melting.phase_change.prescribed_speed = 0.1_m/s
-Al_melting.phase_change.phase_field.type = allencahn
-
-Al_solidification.type = phase_change
-Al_solidification.phase_change.phase0 = Al_solid
-Al_solidification.phase_change.phase1 = Al_liquid
-Al_solidification.phase_change.reversible = 1
-Al_solidification.phase_change.latent_heat = 50000.0_J/kg
-Al_solidification.phase_change.rate_multiplier = 0.0
-Al_solidification.phase_change.phase_field.type = allencahn
-Al_solidification.phase_change.phase_field.allencahn.mobility = 1.0_1/Pa/s
-Al_solidification.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
-Al_solidification.phase_change.phase_field.allencahn.epsilon = 0.04_m
-Al_solidification.phase_change.phase_field.allencahn.w0 = 1.0
-Al_solidification.phase_change.phase_field.allencahn.w12 = 2.0
-Al_solidification.phase_change.phase_field.allencahn.w1 = 0.0
-
-Al_vaporization.type = phase_change
-Al_vaporization.phase_change.phase0 = Al_liquid
-Al_vaporization.phase_change.phase1 = product_A product_B
-Al_vaporization.phase_change.phase1.mass_fractions = 0.3 0.7
-Al_vaporization.phase_change.latent_heat = 0.0_J/kg
-Al_vaporization.phase_change.prescribed_speed = 0.0_m/s
-Al_vaporization.phase_change.phase_field.type = allencahn
-
-Al_condensation.type = phase_change
-Al_condensation.phase_change.phase0 = Al_liquid
-Al_condensation.phase_change.phase1 = product_A product_B
-Al_condensation.phase_change.phase1.mass_fractions = 0.3 0.7
-Al_condensation.phase_change.reversible = 1
-Al_condensation.phase_change.latent_heat = 0.0_J/kg
-Al_condensation.phase_change.rate_multiplier = 0.0
-Al_condensation.phase_change.phase_field.type = allencahn
-Al_condensation.phase_change.phase_field.allencahn.mobility = 1.0_1/Pa/s
-Al_condensation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
-Al_condensation.phase_change.phase_field.allencahn.epsilon = 0.04_m
-Al_condensation.phase_change.phase_field.allencahn.w0 = 10.0
-Al_condensation.phase_change.phase_field.allencahn.w12 = 11.0
-Al_condensation.phase_change.phase_field.allencahn.w1 = 0.0
+Al_melting.phase_change.transition_temperature = 290.0_K
 
 Al_solid.rigid.relaxation_time = 1.0e-4_s
 Al_solid.rigid.velocity = 0.0 0.0
-diffusion.verbose = 0
-diffusion.tol_rel = 1.0e-10
-diffusion.tol_abs = 1.0e-12
-
 advection.type = muscl
 advection.muscl.limiter.type = minmod
 cfl = 0.2

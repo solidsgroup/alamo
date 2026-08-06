@@ -3,9 +3,8 @@
 #@ dim=2
 #@ timeout=120
 
-# A uniform trace of Al_solid overlaps a separate inert rigid disk.  A
-# prescribed Al melting front must respond to the Al interface at x=0.25,
-# not to the aggregate rigid interface surrounding the disk at x=0.75.
+# Separate aluminum and inert rigid disks verify that equilibrium melting
+# transfers only the configured species, never aggregate rigid occupancy.
 plot_file = tests/LMMultirigidPhaseChange/output
 amr.plot_int = 1
 amr.max_level = 0
@@ -54,7 +53,7 @@ inert_solid.rigid.motion = fixed
 inert_solid.rigid.relaxation_time = 1.0e-4_s
 inert_solid.rigid.velocity = 0.0 0.0
 
-liquid.capillary.enabled = 0
+interface.enabled = 0
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
@@ -63,8 +62,9 @@ mechanisms.names = Al_melting
 Al_melting.type = phase_change
 Al_melting.phase_change.phase0 = Al_solid
 Al_melting.phase_change.phase1 = Al_liquid
-Al_melting.phase_change.prescribed_speed = 0.1_m/s
-Al_melting.phase_change.phase_field.type = allencahn
+Al_melting.phase_change.kinetics = equilibrium_enthalpy
+Al_melting.phase_change.transition_temperature = 290.0_K
+Al_melting.phase_change.latent_heat = 1.0_J/kg
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
@@ -89,12 +89,11 @@ ambient.density.ic.expression.constant.eps = 0.025
 ambient.density.ic.expression.region0 = "rhog*max(0.0,1.0-0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))-0.5*(1.0-tanh((sqrt((x-x1)*(x-x1)+(y-y0)*(y-y0))-R)/eps)))"
 Al_solid.density.ic.type = expression
 Al_solid.density.ic.expression.constant.rho = 2.0
-Al_solid.density.ic.expression.constant.trace = 1.0e-4
 Al_solid.density.ic.expression.constant.x0 = 0.25
 Al_solid.density.ic.expression.constant.y0 = 0.25
 Al_solid.density.ic.expression.constant.R = 0.10
 Al_solid.density.ic.expression.constant.eps = 0.025
-Al_solid.density.ic.expression.region0 = "rho*(trace+(1.0-trace)*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+Al_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
 inert_solid.density.ic.type = expression
 inert_solid.density.ic.expression.constant.rho = 2.0
 inert_solid.density.ic.expression.constant.x0 = 0.75

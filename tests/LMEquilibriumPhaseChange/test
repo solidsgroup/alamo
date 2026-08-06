@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def integrated_state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    gas = data["component_density_test_gas"].to_ndarray()
+    solid = data["component_density_test_solid"].to_ndarray()
+    liquid = data["component_density_test_liquid"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    velocity_x = data["velocityx"].to_ndarray()
+    velocity_y = data["velocityy"].to_ndarray()
+    liquid_mass = (liquid * volume).sum()
+    return {
+        "gas": (gas * volume).sum(),
+        "solid": (solid * volume).sum(),
+        "liquid": liquid_mass,
+        "total": ((gas + solid + liquid) * volume).sum(),
+        "minimum": min(gas.min(), solid.min(), liquid.min()),
+        "maximum_speed": ((velocity_x**2 + velocity_y**2)**0.5).max(),
+        "liquid_temperature": (temperature * liquid * volume).sum() /
+            liquid_mass if liquid_mass > 0.0 else 0.0,
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMEquilibriumPhaseChange requires initial and final plotfiles")
+
+initial = integrated_state(plotfiles[0])
+final = integrated_state(plotfiles[-1])
+relative_mass_error = abs(final["total"] - initial["total"]) / \
+    initial["total"]
+if relative_mass_error > 5.0e-3:
+    raise RuntimeError(
+        f"Equilibrium phase changes altered mass by {relative_mass_error:.3e}")
+if final["minimum"] < -1.0e-9:
+    raise RuntimeError(
+        f"Equilibrium phase change produced density {final['minimum']:.3e}")
+if not final["solid"] < 0.10 * initial["solid"]:
+    raise RuntimeError("Equilibrium melting did not promptly consume solid")
+if not final["liquid"] > 0.70 * initial["solid"]:
+    raise RuntimeError("Equilibrium melting did not produce the liquid phase")
+vaporized_fraction = (final["gas"] - initial["gas"]) / initial["solid"]
+if not 0.20 < vaporized_fraction < 0.22:
+    raise RuntimeError(
+        "Equilibrium vaporization or its coupled heat is incorrect: "
+        f"converted fraction {vaporized_fraction:.6e}")
+if final["maximum_speed"] > 1.0:
+    raise RuntimeError(
+        "Rate-limited equilibrium conversion produced an impulsive flow: "
+        f"maximum speed {final['maximum_speed']:.6e}")
+if abs(final["liquid_temperature"] - 270.0) > 2.0:
+    raise RuntimeError(
+        "Latent heat did not pin the remaining liquid near its transition "
+        f"temperature: {final['liquid_temperature']:.6e} K")
+
+print("LowMach equilibrium phase-change regression passed")

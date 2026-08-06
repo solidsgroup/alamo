@@ -92,6 +92,7 @@ def read_interface_history(output_directory):
             "maximum_position_m": np.max(positions),
             "extreme_x_m": x[extreme_index],
             "median_width_m": np.nanmedian(widths),
+            "maximum_temperature_K": np.max(temperature),
         })
 
     return sorted(history, key=lambda row: row["time_s"])

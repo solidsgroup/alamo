@@ -1,0 +1,142 @@
+#@ [2d-coarse-step]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@
+#@ [2d-fine-step]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=timestep=2.5e-4
+
+# A hot liquid shell surrounds an inert condensed core.  Hertz--Knudsen
+# evaporation must occur only on the exterior liquid--gas boundary, conserve
+# mass, cool the liquid by latent heat, and converge under timestep refinement.
+plot_file = tests/LMHertzKnudsenPhaseChange/output
+amr.plot_int = 20
+amr.max_level = 0
+amr.max_grid_size = 32
+amr.blocking_factor = 8
+amr.n_cell = 64 64
+
+timestep = 1.0e-3
+stop_time = 0.02
+dynamictimestep.on = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = test_vapor ambient_gas inert_solid test_liquid
+test_vapor.mechanics = fluid
+ambient_gas.mechanics = fluid
+inert_solid.mechanics = rigid_solid
+inert_solid.reference_density = 2.0_kg/m^3
+inert_solid.specific_heat = 1000.0_J/kg/K
+inert_solid.thermal_conductivity = 0.1_W/m/K
+inert_solid.rigid.motion = fixed
+inert_solid.rigid.relaxation_time = 1.0e-4_s
+inert_solid.rigid.velocity = 0.0 0.0
+test_liquid.mechanics = liquid
+test_liquid.reference_density = 2.0_kg/m^3
+test_liquid.dynamic_viscosity = 1.0e-2_Pa*s
+test_liquid.specific_heat = 1000.0_J/kg/K
+test_liquid.thermal_conductivity = 0.1_W/m/K
+
+interface.enabled = 0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+interface.thickness = 0.05
+mechanisms.names = test_evaporation
+test_evaporation.type = phase_change
+test_evaporation.phase_change.phase0 = test_liquid
+test_evaporation.phase_change.phase1 = test_vapor
+test_evaporation.phase_change.kinetics = hertz_knudsen
+test_evaporation.phase_change.reversible = false
+test_evaporation.phase_change.latent_heat = 2.0e5_J/kg
+test_evaporation.phase_change.accommodation_coefficient = 0.01
+test_evaporation.phase_change.saturation_reference_temperature = 1000.0_K
+test_evaporation.phase_change.saturation_reference_pressure = 1.0e5_Pa
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.4
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diagnostics.interval = 0
+
+test_vapor.density.ic.type = constant
+test_vapor.density.ic.constant.value = 0.0
+ambient_gas.density.ic.type = expression
+ambient_gas.density.ic.expression.constant.rhog = 0.2806539502
+ambient_gas.density.ic.expression.constant.x0 = 0.5
+ambient_gas.density.ic.expression.constant.y0 = 0.5
+ambient_gas.density.ic.expression.constant.R = 0.30
+ambient_gas.density.ic.expression.constant.eps = 0.025
+ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+inert_solid.density.ic.type = expression
+inert_solid.density.ic.expression.constant.rho = 2.0
+inert_solid.density.ic.expression.constant.x0 = 0.5
+inert_solid.density.ic.expression.constant.y0 = 0.5
+inert_solid.density.ic.expression.constant.R = 0.15
+inert_solid.density.ic.expression.constant.eps = 0.025
+inert_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+test_liquid.density.ic.type = expression
+test_liquid.density.ic.expression.constant.rho = 2.0
+test_liquid.density.ic.expression.constant.x0 = 0.5
+test_liquid.density.ic.expression.constant.y0 = 0.5
+test_liquid.density.ic.expression.constant.R0 = 0.15
+test_liquid.density.ic.expression.constant.R1 = 0.30
+test_liquid.density.ic.expression.constant.eps = 0.025
+test_liquid.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R0)/eps))*0.5*(1.0-tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R1)/eps))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 1200.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e5
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic periodic
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic

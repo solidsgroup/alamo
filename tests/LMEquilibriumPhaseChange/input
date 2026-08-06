@@ -1,0 +1,154 @@
+#@ [2d-coarse-step]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@
+#@ [2d-fine-step]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=timestep=1.0e-4
+
+plot_file = tests/LMEquilibriumPhaseChange/output
+amr.plot_int = 10
+amr.max_level = 0
+amr.max_grid_size = 32
+amr.blocking_factor = 8
+amr.n_cell = 32 32
+
+timestep = 2.0e-4
+stop_time = 0.002
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+# Generic test materials deliberately avoid aluminum names and temperatures.
+species.names = test_gas test_solid test_liquid
+test_gas.mechanics = fluid
+test_solid.mechanics = rigid_solid
+test_solid.reference_density = 2.0_kg/m^3
+test_solid.specific_heat = 1000.0_J/kg/K
+test_solid.thermal_conductivity = 0.1_W/m/K
+test_solid.rigid.motion = fixed
+test_solid.rigid.relaxation_time = 1.0e-4_s
+test_solid.rigid.velocity = 0.0 0.0
+test_liquid.mechanics = liquid
+test_liquid.reference_density = 2.0_kg/m^3
+test_liquid.dynamic_viscosity = 1.0e-2_Pa*s
+test_liquid.specific_heat = 1000.0_J/kg/K
+test_liquid.thermal_conductivity = 0.1_W/m/K
+interface.enabled = 0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+# The initial 302 K condensed disk has enough sensible superheat to melt at
+# 280 K.  Its liquid then vaporizes at 270 K, exercising the coupled
+# exothermic term and constant-pressure volume source.  Both transitions are
+# local enthalpy projections.
+mechanisms.names = test_melting test_vaporization
+test_melting.type = phase_change
+test_melting.phase_change.phase0 = test_solid
+test_melting.phase_change.phase1 = test_liquid
+test_melting.phase_change.kinetics = equilibrium_enthalpy
+test_melting.phase_change.latent_heat = 20000.0_J/kg
+test_melting.phase_change.transition_temperature = 280.0_K
+
+test_vaporization.type = phase_change
+test_vaporization.phase_change.phase0 = test_liquid
+test_vaporization.phase_change.phase1 = test_gas
+test_vaporization.phase_change.kinetics = equilibrium_enthalpy
+test_vaporization.phase_change.latent_heat = 200000.0_J/kg
+# Return half of the vaporization cost as a coupled exothermic process.  This
+# verifies the negative-is-exothermic convention without making conversion
+# self-sustaining in the closed test system.
+test_vaporization.phase_change.coupled_enthalpy_change = -100000.0_J/kg
+test_vaporization.phase_change.transition_temperature = 270.0_K
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+
+test_solid.density.ic.type = expression
+test_solid.density.ic.expression.constant.rho = 2.0
+test_solid.density.ic.expression.constant.R = 0.2
+test_solid.density.ic.expression.constant.eps = 0.03
+test_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-0.5)^2+(y-0.5)^2)-R)/eps))"
+test_liquid.density.ic.type = constant
+test_liquid.density.ic.constant.value = 0.0_kg/m^3
+test_gas.density.ic.type = expression
+test_gas.density.ic.expression.constant.rho = 1.12254198039921
+test_gas.density.ic.expression.constant.R = 0.2
+test_gas.density.ic.expression.constant.eps = 0.03
+test_gas.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt((x-0.5)^2+(y-0.5)^2)-R)/eps))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 302.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+component_density.bc.constant.val.xlo = 0.0 0.0 0.0
+component_density.bc.constant.val.xhi = 0.0 0.0 0.0
+component_density.bc.constant.val.ylo = 0.0 0.0 0.0
+component_density.bc.constant.val.yhi = 0.0 0.0 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0

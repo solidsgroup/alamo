@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    vapor = data["component_density_test_vapor"].to_ndarray()
+    ambient = data["component_density_ambient_gas"].to_ndarray()
+    solid = data["component_density_inert_solid"].to_ndarray()
+    liquid = data["component_density_test_liquid"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    radius = ((x - 0.5)**2 + (y - 0.5)**2)**0.5
+    liquid_mass = (liquid * volume).sum()
+    return {
+        "vapor": (vapor * volume).sum(),
+        "total": ((vapor + ambient + solid + liquid) * volume).sum(),
+        "minimum": min(vapor.min(), ambient.min(), solid.min(), liquid.min()),
+        "inside_vapor": (vapor[radius < 0.22] * volume[radius < 0.22]).sum(),
+        "liquid_temperature":
+            (temperature * liquid * volume).sum() / liquid_mass,
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMHertzKnudsenPhaseChange requires initial and final plotfiles")
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+produced = final["vapor"] - initial["vapor"]
+relative_mass_error = abs(final["total"] - initial["total"]) / initial["total"]
+if not 1.5e-2 < produced < 1.8e-2:
+    raise RuntimeError(
+        "Hertz-Knudsen evaporation is outside its converged range: "
+        f"vapor mass={produced:.12e}")
+if relative_mass_error > 2.0e-8:
+    raise RuntimeError(
+        f"Hertz-Knudsen transfer altered mass by {relative_mass_error:.3e}")
+if final["minimum"] < -1.0e-10:
+    raise RuntimeError(
+        f"Hertz-Knudsen transfer produced density {final['minimum']:.3e}")
+if final["inside_vapor"] > 0.01 * produced:
+    raise RuntimeError(
+        "Evaporation occurred on the buried liquid-solid boundary: "
+        f"inside fraction={final['inside_vapor'] / produced:.3e}")
+if not final["liquid_temperature"] < initial["liquid_temperature"] - 1.0:
+    raise RuntimeError("Vaporization latent heat did not cool the liquid")
+
+print(f"Hertz-Knudsen vapor mass {produced:.12e}")

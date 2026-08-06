@@ -48,10 +48,10 @@ condensed_product.dynamic_viscosity = 2.0e-2_Pa*s
 condensed_product.specific_heat = 1000.0_J/kg/K
 condensed_product.thermal_conductivity = 0.1_W/m/K
 
-liquid.interface_thickness = 0.04_m
-liquid.surface_tension.primary_liquid_gas = 0.01_J/m^2
-liquid.surface_tension.condensed_product_gas = 0.01_J/m^2
-liquid.surface_tension.primary_liquid_condensed_product = 0.01_J/m^2
+interface.thickness = 0.04_m
+interface.surface_tension.primary_liquid_gas = 0.01_J/m^2
+interface.surface_tension.condensed_product_gas = 0.01_J/m^2
+interface.surface_tension.primary_liquid_condensed_product = 0.01_J/m^2
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler

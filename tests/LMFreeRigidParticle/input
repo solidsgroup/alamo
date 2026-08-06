@@ -24,9 +24,20 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
-#@ args=Al_sublimation.phase_change.prescribed_speed=0.2_m/s
+#@ args=Al_sublimation.phase_change.reference_mass_flux=1.0_kg/m^2/s
 #@ args=stop_time=0.004
 #@ args=amr.plot_int=10
+#@ args=amr.max_level=0
+#@ args=amr.regrid_int=-1
+#@
+#@ [2d-periodic-crossing]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=Al_solid.density.ic.expression.constant.x0=0.94
+#@ args=ambient_gas.density.ic.expression.constant.x0=0.94
+#@ args=velocity.ic.expression.constant.x0=0.94
+#@ args=velocity.ic.expression.constant.U=5.0
 #@ args=amr.max_level=0
 #@ args=amr.regrid_int=-1
 
@@ -76,12 +87,17 @@ Al_solid.rigid.motion = free
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
 
+interface.thickness = 0.05
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_vapor
-Al_sublimation.phase_change.prescribed_speed = 0.0_m/s
-Al_sublimation.phase_change.phase_field.type = allencahn
+Al_sublimation.phase_change.kinetics = arrhenius_surface_flux
+Al_sublimation.phase_change.reference_mass_flux = 0.0_kg/m^2/s
+Al_sublimation.phase_change.reference_pressure = 1.0e5_Pa
+Al_sublimation.phase_change.pressure_exponent = 0.0
+Al_sublimation.phase_change.activation_temperature = 0.0_K
+Al_sublimation.phase_change.reference_temperature = 300.0_K
 
 Al_solid.rigid.relaxation_time = 1.0e-5_s
 # The provisional body momentum plus the preceding projection impulse is the
@@ -115,14 +131,14 @@ ambient_gas.density.ic.expression.constant.x0 = 0.35
 ambient_gas.density.ic.expression.constant.y0 = 0.5
 ambient_gas.density.ic.expression.constant.R = 0.15
 ambient_gas.density.ic.expression.constant.eps = 0.025
-ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt(min(abs(x-x0),1.0-abs(x-x0))^2+min(abs(y-y0),1.0-abs(y-y0))^2)-R)/eps))"
 Al_solid.density.ic.type = expression
 Al_solid.density.ic.expression.constant.rhos = 5.0
 Al_solid.density.ic.expression.constant.x0 = 0.35
 Al_solid.density.ic.expression.constant.y0 = 0.5
 Al_solid.density.ic.expression.constant.R = 0.15
 Al_solid.density.ic.expression.constant.eps = 0.025
-Al_solid.density.ic.expression.region0 = "rhos*(1.0-0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps)))"
+Al_solid.density.ic.expression.region0 = "rhos*(1.0-0.5*(1.0+tanh((sqrt(min(abs(x-x0),1.0-abs(x-x0))^2+min(abs(y-y0),1.0-abs(y-y0))^2)-R)/eps)))"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.U = 1.0
@@ -130,7 +146,7 @@ velocity.ic.expression.constant.x0 = 0.35
 velocity.ic.expression.constant.y0 = 0.5
 velocity.ic.expression.constant.R = 0.15
 velocity.ic.expression.constant.eps = 0.025
-velocity.ic.expression.region0 = "U*0.5*(1.0+tanh((sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+velocity.ic.expression.region0 = "U*0.5*(1.0+tanh((sqrt(min(abs(x-x0),1.0-abs(x-x0))^2+min(abs(y-y0),1.0-abs(y-y0))^2)-R)/eps))"
 velocity.ic.expression.region1 = "0.0"
 temperature.ic.type = constant
 temperature.ic.constant.value = 300.0

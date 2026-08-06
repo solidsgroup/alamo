@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def integrated_state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    vapor = data["component_density_Al_vapor"].to_ndarray()
+    products = data["component_density_hot_products"].to_ndarray()
+    solid = data["component_density_Al_solid"].to_ndarray()
+    liquid = data["component_density_Al_liquid"].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    radius = (x*x + y*y)**0.5
+    return {
+        "vapor": (vapor * volume).sum(),
+        "solid": (solid * volume).sum(),
+        "liquid": (liquid * volume).sum(),
+        "maximum_liquid_density": liquid.max(),
+        "total": ((vapor + products + solid + liquid) * volume).sum(),
+        "minimum": min(vapor.min(), products.min(), solid.min(), liquid.min()),
+        "core_vapor": (vapor[radius < 35.0e-6] *
+                       volume[radius < 35.0e-6]).sum(),
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 3:
+    raise RuntimeError(
+        "LMThreePhaseAluminum must cover the complete transition history")
+
+history = [integrated_state(path) for path in plotfiles]
+initial = history[0]
+final = history[-1]
+initial_aluminum = initial["solid"] + initial["liquid"] + initial["vapor"]
+final_aluminum = final["solid"] + final["liquid"] + final["vapor"]
+maximum_vapor_fraction = max(state["vapor"] for state in history) / \
+    initial_aluminum
+converted_or_exited_fraction = 1.0 - \
+    (final["solid"] + final["liquid"]) / initial_aluminum
+
+if final_aluminum > 1.0001 * initial_aluminum:
+    raise RuntimeError(
+        "Open-boundary transition created aluminum mass: "
+        f"relative excess={final_aluminum / initial_aluminum - 1.0:.3e}")
+if min(state["minimum"] for state in history) < -1.0e-8:
+    raise RuntimeError(
+        f"Three-phase transition produced density {final['minimum']:.3e}")
+if final["solid"] > 0.01 * initial_aluminum:
+    raise RuntimeError(
+        "Solid aluminum did not fully melt over the validated interval: "
+        f"remaining fraction={final['solid'] / initial_aluminum:.3e}")
+if max(state["liquid"] for state in history) < 0.90 * initial_aluminum:
+    raise RuntimeError("The particle never completed a molten-liquid stage")
+maximum_liquid_density = max(
+    state["maximum_liquid_density"] for state in history)
+if maximum_liquid_density < 1900.0:
+    raise RuntimeError(
+        "The molten phase never developed a resolved liquid core: "
+        f"maximum density={maximum_liquid_density:.3f} kg/m^3")
+if final["liquid"] < 0.10 * initial_aluminum:
+    raise RuntimeError("No persistent molten-aluminum phase remained")
+if maximum_vapor_fraction < 1.0e-5 or converted_or_exited_fraction < 1.0e-4:
+    raise RuntimeError(
+        "Aluminum evaporation was not appreciable: "
+        f"maximum vapor={maximum_vapor_fraction:.3e}, "
+        f"converted/exited={converted_or_exited_fraction:.3e}")
+maximum_core_vapor_fraction = max(
+    state["core_vapor"] / state["vapor"]
+    for state in history if state["vapor"] > 1.0e-14 * initial_aluminum)
+if maximum_core_vapor_fraction > 0.01:
+    raise RuntimeError(
+        "Hertz-Knudsen transfer formed vapor in the particle core: "
+        f"core fraction={maximum_core_vapor_fraction:.3e}")
+
+print(
+    "Three-phase aluminum regression passed: "
+    f"solid={final['solid'] / initial_aluminum:.3e}, "
+    f"liquid={final['liquid'] / initial_aluminum:.3e}, "
+    f"max liquid density={maximum_liquid_density:.3f} kg/m^3, "
+    f"max vapor={maximum_vapor_fraction:.3e}, "
+    f"converted/exited={converted_or_exited_fraction:.3e}")

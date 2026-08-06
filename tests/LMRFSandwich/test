@@ -16,6 +16,8 @@ extreme = np.asarray([row["extreme_position_m"] for row in history])
 mean = np.asarray([row["mean_position_m"] for row in history])
 maximum = np.asarray([row["maximum_position_m"] for row in history])
 width = np.asarray([row["median_width_m"] for row in history])
+maximum_temperature = np.asarray([
+    row["maximum_temperature_K"] for row in history])
 
 if not np.all(np.diff(times) > 0.0):
     raise AssertionError("Plotfile times are not strictly increasing")
@@ -28,6 +30,15 @@ if extreme[-1] > extreme[0] + 1.0e-9:
 if not np.isfinite(rates["extreme_burn_rate_mm_per_s"]):
     raise AssertionError("The fitted extreme burn rate is not finite")
 np.testing.assert_allclose(width[-1], 20.0e-6, rtol=0.6)
+if maximum_temperature[0] > 500.0:
+    raise AssertionError(
+        "The flame regression must start from a cold ignition state")
+if np.max(maximum_temperature[times > 3.0e-4]) < 1500.0:
+    raise AssertionError(
+        "GrossModel did not ignite after the transient laser pulse")
+if maximum_temperature[-1] < 1500.0:
+    raise AssertionError(
+        "The GrossModel flame was not self-sustaining at the final time")
 
 print(
     "Calibration burn rate (extreme eta=0.5 position): "
@@ -35,3 +46,6 @@ print(
 print(
     "Lateral-mean diagnostic (do not calibrate): "
     f"{rates['mean_burn_rate_mm_per_s']:.8g} mm/s")
+print(
+    "Self-sustaining GrossModel flame temperature: "
+    f"{maximum_temperature[-1]:.8g} K")

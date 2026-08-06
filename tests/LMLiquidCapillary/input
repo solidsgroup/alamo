@@ -7,11 +7,36 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=liquid.capillary.enabled=0
-#@ args=liquid.capillary.include_solids=1
+#@ args=interface.enabled=0
+#@ args=interface.liquid_solid.enabled=1
 #@ args=max_step=1
 #@ args=stop_time=1.0e-4
 #@ args=amr.plot_int=1
+#@
+#@ [2d-transport-advected]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.transport.type=advected
+#@ args=advection.muscl.limiter.type=superbee
+#@ args=velocity.ic.expression.constant.U=0.5
+#@ args=timestep=2.0e-3
+#@ args=stop_time=1.0
+#@ args=max_step=500
+#@ args=amr.plot_int=500
+#@
+#@ [2d-transport-conservative-allen-cahn]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.transport.type=conservative_allen_cahn
+#@ args=advection.muscl.limiter.type=superbee
+#@ args=interface.transport.diffusivity=1.0e-5_m^2/s
+#@ args=velocity.ic.expression.constant.U=0.5
+#@ args=timestep=2.0e-3
+#@ args=stop_time=1.0
+#@ args=max_step=500
+#@ args=amr.plot_int=500
 
 # Static diffuse droplet used to validate the face-balanced capillary force.
 plot_file = tests/LMLiquidCapillary/output
@@ -65,13 +90,13 @@ tracer_liquid.dynamic_viscosity = 0.10_Pa*s
 tracer_liquid.specific_heat = 1000.0_J/kg/K
 tracer_liquid.thermal_conductivity = 1.0_W/m/K
 
-liquid.interface_thickness = 0.125
-liquid.surface_tension.Al_liquid_gas = 1.0
-liquid.surface_tension.Al2O3_liquid_gas = 1.0
-liquid.surface_tension.Al_liquid_Al2O3_liquid = 1.0
-liquid.surface_tension.Al_liquid_tracer_liquid = 1.0
-liquid.surface_tension.Al2O3_liquid_tracer_liquid = 1.0
-liquid.surface_tension.tracer_liquid_gas = 1.0
+interface.thickness = 0.125
+interface.surface_tension.Al_liquid_gas = 1.0
+interface.surface_tension.Al2O3_liquid_gas = 1.0
+interface.surface_tension.Al_liquid_Al2O3_liquid = 1.0
+interface.surface_tension.Al_liquid_tracer_liquid = 1.0
+interface.surface_tension.Al2O3_liquid_tracer_liquid = 1.0
+interface.surface_tension.tracer_liquid_gas = 1.0
 
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
@@ -114,9 +139,10 @@ ambient.density.ic.expression.region0 = "rho*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.A = 0.0
+velocity.ic.expression.constant.U = 0.0
 velocity.ic.expression.constant.dx = 0.03125
 velocity.ic.expression.constant.pi = 3.141592653589793
-velocity.ic.expression.region0 = "A*cos(pi*(x-0.5*dx)/dx)"
+velocity.ic.expression.region0 = "U+A*cos(pi*(x-0.5*dx)/dx)"
 velocity.ic.expression.region1 = "0.0"
 temperature.ic.type = constant
 temperature.ic.constant.value = 300.0

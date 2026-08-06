@@ -47,7 +47,8 @@ if eta_density_error > 1.0e-13:
 simplex_error = testlib.numpy.max(testlib.numpy.abs(
     eta + eta_oxide + eta_tracer + eta_gas - 1.0))
 if simplex_error > 1.0e-12:
-    raise RuntimeError(f"MultLiquid simplex error {simplex_error:.3e}")
+    raise RuntimeError(
+        f"multiphase interface simplex error {simplex_error:.3e}")
 if testlib.numpy.max(testlib.numpy.abs(eta_tracer)) > 1.0e-14:
     raise RuntimeError("An absent liquid phase was spuriously generated")
 
@@ -66,6 +67,27 @@ if "no-capillary" in outdir:
 mass_drift = abs(eta.sum() / eta0.sum() - 1.0)
 if mass_drift > 2.0e-4:
     raise RuntimeError(f"Liquid phase volume changed by {mass_drift:.3e}")
+
+if "transport" in outdir:
+    shifted_errors = []
+    for axis in (0, 1):
+        for shift in (-16, 16):
+            reference = testlib.numpy.roll(eta0, shift, axis=axis)
+            shifted_errors.append(testlib.numpy.linalg.norm(eta - reference) /
+                testlib.numpy.linalg.norm(reference))
+    profile_error = min(shifted_errors)
+    mixing0 = (eta0 * (1.0 - eta0)).sum()
+    mixing = (eta * (1.0 - eta)).sum()
+    mixing_error = abs(mixing / mixing0 - 1.0)
+    if profile_error > 0.25:
+        raise RuntimeError(
+            f"Transported interface relative profile error {profile_error:.3e}")
+    if mixing_error > 0.20:
+        raise RuntimeError(
+            f"Transported interface thickness error {mixing_error:.3e}")
+    print("LowMach long-time diffuse-interface transport regression passed: "
+        f"profile={profile_error:.6e}, mixing={mixing_error:.6e}")
+    sys.exit(0)
 
 pressure_jump = testlib.numpy.median(pressure[eta > 0.9]) - \
     testlib.numpy.median(pressure[eta < 0.01])

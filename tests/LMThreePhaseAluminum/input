@@ -1,0 +1,167 @@
+#@ [2d-full-transition]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=300
+
+# A cold solid aluminum particle is heated by a resolved surface laser.
+# The run is intentionally long enough for the complete solid -> liquid
+# transition and appreciable exterior liquid -> vapor conversion.  This is a
+# compact physics regression, not a substitute for the full AP/HTPB case.
+plot_file = tests/LMThreePhaseAluminum/output
+amr.plot_dt = 2.5e-4_s
+amr.max_level = 0
+amr.max_grid_size = 24
+amr.blocking_factor = 8
+amr.n_cell = 48 48
+
+timestep = 1.0e-7_s
+stop_time = 5.0e-4_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-10
+dynamictimestep.max = 5.0e-6
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = -2.0e-4_m -2.0e-4_m 0.0
+geometry.prob_hi =  2.0e-4_m  2.0e-4_m 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 26.9815385_kg/kmol 26.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 3.20e4_J/kmol/K 3.25e4_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 7.0e-5_Pa*s 7.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.20_W/m/K 0.20_W/m/K
+gas.eos.type = cpg
+
+species.names = Al_vapor hot_products Al_solid Al_liquid
+Al_vapor.mechanics = fluid
+hot_products.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+Al_solid.reference_density = 2700.0_kg/m^3
+Al_solid.specific_heat = 900.0_J/kg/K
+Al_solid.thermal_conductivity = 237.0_W/m/K
+Al_solid.temperature_override = 900.0_K
+Al_solid.rigid.motion = fixed
+Al_solid.rigid.relaxation_time = 1.0e-7_s
+Al_solid.rigid.velocity = 0.0 0.0
+Al_liquid.mechanics = liquid
+Al_liquid.reference_density = 2375.0_kg/m^3
+Al_liquid.dynamic_viscosity = 1.3e-3_Pa*s
+Al_liquid.specific_heat = 1177.0_J/kg/K
+Al_liquid.thermal_conductivity = 90.0_W/m/K
+
+# Capillary thermodynamics and transport have dedicated static/dynamic tests.
+# This long transition test disables their explicit force so it isolates the
+# enthalpy and Hertz--Knudsen closures without paying a redundant capillary
+# timestep restriction.
+interface.enabled = 0
+interface.thickness = 25.0_um
+interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
+interface.liquid_solid.enabled = 1
+interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.10_J/m^2
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 0.0_deg
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+mechanisms.names = Al_melting Al_evaporation
+Al_melting.type = phase_change
+Al_melting.phase_change.phase0 = Al_solid
+Al_melting.phase_change.phase1 = Al_liquid
+Al_melting.phase_change.kinetics = equilibrium_enthalpy
+Al_melting.phase_change.reversible = false
+Al_melting.phase_change.latent_heat = 3.9145e5_J/kg
+Al_melting.phase_change.transition_temperature = 933.45_K
+
+Al_evaporation.type = phase_change
+Al_evaporation.phase_change.phase0 = Al_liquid
+Al_evaporation.phase_change.phase1 = Al_vapor
+Al_evaporation.phase_change.kinetics = hertz_knudsen
+Al_evaporation.phase_change.reversible = false
+Al_evaporation.phase_change.latent_heat = 1.0897e7_J/kg
+Al_evaporation.phase_change.coupled_enthalpy_change = -9.315e6_J/kg
+Al_evaporation.phase_change.accommodation_coefficient = 0.04
+Al_evaporation.phase_change.saturation_reference_temperature = 2743.0_K
+Al_evaporation.phase_change.saturation_reference_pressure = 101325.0_Pa
+
+advection.type = muscl
+advection.muscl.limiter.type = superbee
+cfl = 0.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+diagnostics.interval = 0
+
+Al_vapor.density.ic.type = constant
+Al_vapor.density.ic.constant.value = 0.0_kg/m^3
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rho = 2700.0_kg/m^3
+Al_solid.density.ic.expression.constant.radius = 60.0_um
+Al_solid.density.ic.expression.constant.width = 20.0_um
+Al_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh(2.0*(sqrt(x*x+y*y)-radius)/width))"
+Al_liquid.density.ic.type = constant
+Al_liquid.density.ic.constant.value = 0.0_kg/m^3
+hot_products.density.ic.type = expression
+hot_products.density.ic.expression.constant.rho = 10.423_kg/m^3
+hot_products.density.ic.expression.constant.radius = 60.0_um
+hot_products.density.ic.expression.constant.width = 20.0_um
+hot_products.density.ic.expression.region0 = "rho*0.5*(1.0+tanh(2.0*(sqrt(x*x+y*y)-radius)/width))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 900.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 3.0e6
+
+# A finite absorbed flux heats the diffuse particle surface gradually.  This
+# avoids an artificial initial gas/solid temperature jump and verifies that
+# equilibrium melting remains heat-transfer-limited rather than timestep-
+# limited.  The laser stays on so the completed melt subsequently evaporates.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 4.0e8_W/m^2
+heat_source.ic.expression.constant.radius = 60.0_um
+heat_source.ic.expression.constant.width = 8.0_um
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.region0 = "qflux*exp(-((sqrt(x*x+y*y)-radius)/width)^2)/(norm*width)"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann neumann neumann
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = neumann neumann
+velocity.bc.constant.type.xhi = neumann neumann
+velocity.bc.constant.type.ylo = neumann neumann
+velocity.bc.constant.type.yhi = neumann neumann
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = dirichlet
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = dirichlet
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.xlo = 3.0e6
+pressure.bc.constant.val.xhi = 3.0e6
+pressure.bc.constant.val.ylo = 3.0e6
+pressure.bc.constant.val.yhi = 3.0e6
