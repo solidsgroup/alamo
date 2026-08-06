@@ -1,0 +1,627 @@
+# Variant of input.lm.ap_htpb_packed_elastic that replaces the Miller-packed
+# XYZR sphere IC with a real AP/HTPB backscatter-micrograph IC
+# (AP-HTPB-Experimental-Image-Raw.png, the raw grayscale micrograph -- no
+# preprocessing script needed). IC::PNG is 2D-only (see src/IC/PNG.H), so
+# this file only runs in 2D:
+#   mpirun -np 8 ./bin/lowmach-2d-clang++ input.lm.ap_htpb_packed_elastic_png
+#
+# REWRITE (2026-08-06): this file previously hand-built two pre-blurred,
+# pre-padded, pre-complemented PNG images and fed them through a minimal
+# local IC::PNG (added this session, supporting only a "value" scale key) --
+# multiple iterations of that approach diverged or regressed (see git
+# history / session notes around this date for the full trail: an
+# immediately-diverging fine mesh, a domain/mesh mismatch against the
+# sphere-packed file, and a same-image extra-blur attempt that made things
+# worse). That local IC::PNG turned out to predate a much more capable
+# GPU-safe IC::PNG/Util::PNG (src/IC/PNG.H, src/Util/PNG.H) already built,
+# proven, and run to 57% completion on the eulerian-solids branch (commit
+# a858880ba "make PNG gpu safe", see output.lm.ap_htpb_cyclone's
+# metadata/diff.patch) -- ported onto this branch wholesale instead of
+# continuing to re-derive the same functionality. Its key capabilities used
+# below:
+#  - threshold: binarizes the sampled channel to a sharp 0/1 indicator
+#    before use, instead of treating raw grayscale as a continuous density
+#    fraction. The diffuse interface is then built by
+#    amr.reinitialize_condensed_composition (already enabled below,
+#    inherited from the sphere-packed file) at a controlled width, NOT by
+#    manually pre-blurring the source image -- this is what the previous
+#    from-scratch attempts got wrong.
+#  - invert: lets AP_solid and HTPB_solid read the SAME source image
+#    (invert=0 / invert=1), guaranteeing an exact volume-fraction complement
+#    by construction. No more separately-generated, separately-blurred
+#    AP-IC.png/HTPB-IC.png pair to keep in sync.
+#  - plane.normal/plane.point/plane.eps: built-in plane clipping, exactly
+#    like PSRead's (see input.lm.ap_htpb_packed_elastic), used below to
+#    confine the image to the solid (y<0) region. No more baking a black
+#    margin into the image to fake this.
+#  - coord.hi must be > coord.lo in each direction now (rotation/flip.x/
+#    flip.y control orientation explicitly instead) -- the old "coord.lo
+#    maps to the image's first row, not necessarily the smaller y value"
+#    footgun documented in earlier versions of this file no longer applies.
+#
+# Domain/mesh sizing has been revised twice since this file was first
+# ported (zoomed out, then zoomed back in slightly + finer dx) -- see the
+# amr.n_cell/geometry.prob_lo comments below for the current, authoritative
+# values; solid = y<0, gas = y>0 throughout. Elastic-solver conditioning
+# rationale (void modulus, max_coarsening_level, etc.) is inherited
+# unchanged from input.lm.ap_htpb_packed_elastic -- see that file's header.
+#
+# Everything else (chemistry, elastic solver settings/conditioning
+# workarounds, BCs) is unchanged from input.lm.ap_htpb_packed_elastic -- diff
+# against that file, and see its header comments, for the full rationale.
+
+# Required for elastic.solver.abort_on_fail=0 (below) to actually work.
+# amrex::Initialize() reads amrex.signal_handling/amrex.throw_exception itself
+# ONCE at program startup (ext/AMReX-Codes/amrex/Src/Base/AMReX.cpp) and
+# installs its signal handler right then. Solver::Nonlocal::Linear::Parse()
+# also injects these same two keys via ParmParse when abort_on_fail=0/
+# dump_on_fail=1 is set, but that Parse() call happens much later (when the
+# elastic solver object is built, mid-program) -- long after AMReX's signal
+# handler is already latched in, so that injection is a no-op in practice.
+# Setting them here at top level ensures they're seen at startup instead, so
+# MLMG's internal Abort() actually throws a catchable C++ exception (which
+# Linear::solve()'s try/catch can then suppress) instead of raising SIGABRT.
+amrex.signal_handling = 0
+amrex.throw_exception = 1
+
+plot_file = output.lm.ap_htpb_packed_elastic_png
+amr.plot_dt = 2.0e-4_s
+#amr.plot_int=100
+amr.max_level = 0
+# ZOOMED-IN-SLIGHTLY, FINER MESH (2026-08-06): x narrowed from the previous
+# zoomed-out 2mm to 1.6mm, dx=dy dropped from 3.125um to 2.5um. A stall was
+# traced to a real AP/HTPB grain boundary running nearly parallel to the y=0
+# solid/gas surface at some x (row 0 of the source image, which IC::PNG
+# samples for y=0 and clamps to for all y>0 -- see src/Util/PNG.H's ximg(1)
+# clamp -- had a 16-column-wide run of near-threshold pixels there), so the
+# material's own diffuse band and the y=0 plane.eps taper (see below) were
+# compounding into a stiff, fast-changing composition right at the burning
+# surface. Widening plane.eps to compensate was TRIED AND REVERTED (made it
+# worse -- see the plane.eps comment further down); the actual fix was
+# cropping the source image so a cleaner row lands at y=0 (also further
+# down). Finer dx here still helps independently (more cells resolve
+# whatever diffuse width the (now cleaner) IC produces).
+# n_cell = 640 320 (NOT 640 300 -- first attempt at this used 300, which
+# regressed HARD, failing by step 30 instead of ~660: MLMG reported only 3
+# MG levels instead of the previous config's 4, because 300 = 2^2*75 only
+# halves cleanly twice before hitting an odd factor, starving
+# elastic/projection/diffusion.max_coarsening_level=3's assumed coarsening
+# depth. 320 = 2^6*5 halves six times -- restores (and exceeds) the original
+# mesh's MG depth. Solid/gas split adjusted to 213/107 cells (532.5/267.5um)
+# to keep the ~2:1 ratio at this cell count; y domain is now 800um total.
+# x HALVED (2026-08-06, later same day, after the crop fix was verified
+# stable to step 2000+/t~2.25ms): domain narrowed 1.6mm -> 0.8mm to cut
+# compute cost, at the SAME dx=2.5um, so n_cell.x drops 640 -> 320. This is a
+# true crop (the source image's x-extent was cropped to its center 432 of
+# 864 columns, AP-HTPB-Experimental-Image-Raw-Cropped.png), not a re-stretch
+# -- the x pixel scale (1.852um/px) and blur sigma are UNCHANGED, only less
+# of the domain (and less of the image) is simulated. y is unchanged (320
+# cells, 800um, see below).
+amr.n_cell = 320 320
+# max_grid_size changed 20 -> 16 (2026-08-06, later same day): 20=2^2*5 only
+# halves cleanly twice (20->10->5) before going fractional, one short of
+# elastic/projection/diffusion.max_coarsening_level=3's assumed 3 halvings;
+# a run at n_cell=640x320 with max_grid_size=20 hit a hard SIGBUS inside
+# MLMG's very first V-cycle at STEP 1 (before any residual was even
+# printed) -- a memory fault, not a numerical divergence, consistent with a
+# box-coarsening edge case. 16=2^4 halves cleanly 4 times; both n_cell
+# values (320, 320) are still evenly divisible by it (20, 20 boxes).
+amr.max_grid_size = 16
+amr.blocking_factor = 2
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.nsubsteps = 1
+amr.reinitialize_condensed_composition = 1
+amr.reinitialize_condensed_composition_eta_min = 0.99
+# Elastic fields (disp/stress/strain) are nodal; mirror them into the *cell*
+# plotfiles too so they can be sampled the same way as the scalar fields.
+amr.cell.all = 1
+amr.node.any = 0
+
+# Inert with amr.max_level = 0 above (see input.lm.ap_htpb_packed_elastic's
+# WARNING) -- left in place in case AMR is ever restorable here.
+eta_refinement_criterion = 0.5
+temperature_refinement_criterion = 1.0
+velocity_refinement_criterion = 1.0
+
+timestep = 1.0e-7_s
+stop_time = 100_ms
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-6
+dynamictimestep.verbose = 0
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+# dx = dy = 2.5um; x is +-0.4mm (halved, see amr.n_cell comment above), y is
+# -0.5325mm (solid) to +0.2675mm (gas), z left at +-0.25mm (unused, 2D-only
+# file).
+geometry.prob_lo = -0.4_mm -0.5325_mm -0.25_mm
+geometry.prob_hi =  0.4_mm  0.2675_mm  0.25_mm
+geometry.is_periodic = 0 0 0
+
+# Gas species 0-5 retain the ordering required by the Rocfire mechanism:
+# AP, binder, monopropellant, premixed, primary-flame, final-flame products.
+system.amount = kmol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
+
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid HTPB_solid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+AP_solid.reference_density = 1950.0_kg/m^3
+HTPB_solid.reference_density = 920.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+HTPB_solid.specific_heat = 2418.29_J/kg/K
+HTPB_solid.thermal_conductivity = 0.1300_W/m/K
+
+# Elastic constants, converted from representative literature isotropic
+# (E, nu) values via mu = E/(2*(1+nu)), kappa = E/(3*(1-2*nu)):
+#   AP crystal:    E ~ 21.6 GPa, nu ~ 0.14  -> mu ~ 9.47 GPa,  kappa ~ 10.0 GPa
+#   HTPB binder:   E ~ 5.0 MPa,  nu ~ 0.499 (near-incompressible rubber)
+#                                            -> mu ~ 1.67 MPa, kappa ~ 833 MPa
+# These are representative orders of magnitude for the pure phases, not a fit
+# to this specific formulation -- replace with measured/calibrated values if
+# available. See input.lm.ap_htpb_packed_elastic's WARNING regarding solver
+# conditioning at these magnitudes.
+AP_solid.elastic.model.mu    = 9.47e6 # true SI 9.47e9 -- see WARNING above (1e4x rescale)
+AP_solid.elastic.model.kappa = 1.00e8 # true SI 1.00e10 -- see WARNING above (1e4x rescale)
+HTPB_solid.elastic.model.mu    = 1.67e6 # = true SI value -- see WARNING above (1e4x rescale)
+HTPB_solid.elastic.model.kappa = 8.33e8 # = true SI value -- see WARNING above (1e4x rescale)
+
+# Soft void: the gas region gets a small but nonzero modulus (in the same
+# units as the solid moduli above, i.e. also 1e4x-rescaled) instead of being
+# masked by psi's 1e-8 floor. See input.lm.ap_htpb_packed_elastic's WARNING
+# for the full derivation of these contrast ratios.
+# DEBUG: void stiffened 10x from the original 5.0e3/4.0e5 (contrast vs.
+# AP/HTPB now ~25-189x, below the file's documented [~250,~2100]x
+# accuracy-plateau range but still far under the ~30,000x stability limit)
+# to test whether reducing solid/void contrast helps the elastic MLMG
+# solve, which now diverges catastrophically around step 10-11 (after the
+# Final.density.ic/temperature.ic pad-offset vacuum-density fix let the run
+# get that far in the first place). Revert to 5.0e3/4.0e5 if this doesn't
+# help, since it trades accuracy for stability margin.
+elastic.void.model.mu    = 5.0e4
+elastic.void.model.kappa = 4.0e6
+
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+# TIGHTENED (2026-08-06): the v7 (x-halved) run never hit a chemistry solver
+# failure (Model::Chemistry::Chemistry::Advance already adaptively subcycles
+# within each hydro dt, halving/doubling chemistry_dt on Newton
+# non-convergence -- see src/Model/Chemistry/Chemistry.H -- and hard-aborts
+# with "Local chemistry integration failed" if that subcycling can't
+# converge; that message never appeared in the v7 log), but it DID show a
+# temperature runaway (2500K real flame temp -> 16000K over ~85 steps,
+# starting right where the surface had locally burned through) right before
+# the eventual Diffusion.cpp MLMG abort. The old reltol/abstol (1e-8/1e-12)
+# let each substep's Newton iteration accept a residual that, integrated
+# over many stiff substeps near a burn-through point, could still
+# accumulate enough error to overshoot the true adiabatic flame temperature.
+# Tightened both tolerances by 2 orders of magnitude and raised max_iter so
+# the (still-adaptive) substepping has room to actually reach the tighter
+# tolerance instead of prematurely halving chemistry_dt toward the 40-
+# rejection abort limit.
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 300
+chemistry.solver.backward_euler.reltol = 1.0e-10
+chemistry.solver.backward_euler.abstol = 1.0e-14
+
+# AP uses the 1-6 MPa monopropellant calibration from LMRFMonoAP. HTPB uses the
+# approximately 4 mm/s calibration from the 3 MPa sandwich configuration.
+# The phase-field gradient terms are integrated implicitly.
+mechanisms.names = AP_decomposition HTPB_pyrolysis
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.in = AP_solid
+AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
+AP_decomposition.phase_change.phase_field.type = allencahn
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+HTPB_pyrolysis.type = phase_change
+HTPB_pyrolysis.phase_change.in = HTPB_solid
+HTPB_pyrolysis.phase_change.out = HTPB_gas
+HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
+HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
+HTPB_pyrolysis.phase_change.phase_field.type = allencahn
+HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
+HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+# NEW (2026-08-06): caps the diffusion number (kappa/(rho*cp)*dt/dx^2) using
+# the max thermal conductivity anywhere in the domain, even though
+# conduction is solved implicitly here (implicit diffusion is
+# unconditionally linearly stable, so src/Integrator/LowMach.cpp normally
+# skips this check entirely whenever implicit_thermal_diffusion is set --
+# see the conduction_cfl comment in LowMach::Parse). Added specifically to
+# bound how fast DT is allowed to stay large while the temperature-runaway
+# instability (see the plane.eps comment above) is developing: Rocfire's
+# thermal_conductivity = lambda_a*T + lambda_b grows linearly with T, and a
+# spiking coefficient combined with a large DT is what appears to destabilize
+# the nonlinear diffusion MLMG solve even though the linear operator itself
+# is unconditionally stable. Same 0.5 safety factor as the existing
+# (explicit-only) viscous/conductive check.
+conduction_cfl = 0.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+# DEBUG: switched back to hard-abort (was 0). With elastic.interval=1000
+# (see below -- confirmed this session as the fix for the elastic-driven
+# blowup, verified stable to step 2685+ on input.lm.ap_htpb_packed_elastic),
+# this file still diverges: pressure/velocity blow up (checked via yt at
+# step 152: pressure ~1.5e15 Pa, velocity ~4e5-8e5 m/s, vs. ~3e6 Pa / ~cm/s
+# expected) even though elastic is frozen until step 1000. With
+# abort_on_fail=0 this failure was silent -- the run just ground down to
+# dynamictimestep.min (1e-12) and stalled with no error. Restored to abort
+# so the next run stops exactly where projection/diffusion first stops
+# converging, to localize this second, elastic-independent divergence.
+projection.abort_on_fail = 1
+# Cap MLMG coarsening depth, matching elastic.max_coarsening_level = 3 --
+# without this (root cause found by tracing pressure growth: 3e6 -> 2.5e11
+# over 21 steps because projection never actually converges), MLMG coarsens
+# straight through the diffuse rigid/fluid interface in the mobility-scaled
+# beta = mobility/density coefficient field (LowMach.cpp), producing garbage
+# coarse operators -- the same failure mode elastic was already protected
+# against. Added matching max_coarsening_level ParmParse handling to both
+# operators (src/Operator/PressurePoisson.cpp, src/Operator/Diffusion.cpp).
+projection.max_coarsening_level = 3
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+diffusion.abort_on_fail = 1
+diffusion.max_coarsening_level = 3
+#diagnostics.interval = 100
+diagnostics.extended_fields = 0
+
+# The common diffuse condensed/gas surface is y=0. Both materials read the
+# SAME raw micrograph (AP-HTPB-Experimental-Image-Raw.png, 864x480,
+# grayscale so channel choice doesn't matter -- g picked for consistency
+# with the working cyclone reference run); invert makes HTPB the exact
+# complement of AP. fit=coord stretches the full image onto x in
+# [-0.25mm, 0.25mm], y in [-0.25mm, 0.0mm] (the solid bed only). threshold
+# binarizes each sample to 0/1 (0.5 in the default 0-255-normalized range,
+# landing almost exactly on this image's ~127 mean pixel value); the actual
+# diffuse interface comes from amr.reinitialize_condensed_composition below,
+# not from the image. plane.normal/point/eps clip the image to y<0 (a soft
+# tanh transition over plane.eps, matching PSRead's usage in
+# input.lm.ap_htpb_packed_elastic) instead of relying on any padding baked
+# into the image -- so, unlike the abandoned padded-image approach, rigid_eta
+# is now genuinely 0 for all y>0 with no separate pad-offset bookkeeping
+# needed in Final.density.ic/temperature.ic below.
+# DIFFUSE INTERFACE (2026-08-06): threshold removed and the source image
+# swapped for AP-HTPB-Experimental-Image-Diffuse.png, a pre-processed copy
+# (scripts/microstructure_to_diffuse_interface.py) of the raw micrograph:
+# binarized at 127.5/255 (matching the old threshold=0.5) then Gaussian-
+# blurred with an ANISOTROPIC sigma chosen so the blur is isotropic in
+# PHYSICAL space despite the image being stretched non-uniformly onto the
+# domain. amr.reinitialize_condensed_composition does NOT create or widen a
+# diffuse interface (it only re-snaps species ratios in already-mostly-full
+# cells, eta>=eta_min, to avoid corrupting whatever interface already
+# exists) -- the diffuse width has to come from the IC itself, so threshold
+# is omitted and the continuous (blurred) grayscale value is used directly
+# as the volume fraction.
+# plane.eps WIDENING REVERTED, IMAGE CROPPED/SHIFTED INSTEAD (2026-08-06,
+# later same day): widening plane.eps to 40um (tried first) made things
+# WORSE -- it failed by step ~30 (t~5e-5s) instead of step ~660 (t~2ms),
+# because the two diffuse fronts (material grain boundary, y=0 plane taper)
+# were spatially correlated (a real boundary sits right at the surface at
+# some x), so widening the taper just pulled MORE of the grain-boundary band
+# into the overlap instead of independently smoothing either one. Reverted
+# plane.eps to the original 20um (and Final.density.ic.expression's tanh
+# width back to 20.0e-6 to match). Root cause fixed properly instead: the
+# raw micrograph is genuinely a poor fit at row 0 (the row IC::PNG samples
+# for y=0, and clamps to for the whole y>0 gas region -- see
+# src/Util/PNG.H's ximg(1) clamp) -- row 0 has boundaries running nearly
+# PARALLEL to the surface at several x (verified: max contiguous run of
+# near-threshold pixels = 16/864 columns at row 0, vs. rows found by scanning
+# all 480 rows for the smallest such run). AP-HTPB-Experimental-Image-Raw.png
+# was cropped starting at row 173 (AP-HTPB-Experimental-Image-Raw-Cropped.png,
+# 864x307, discarding the top 173 rows) so the row that now lands at y=0 has
+# only a 5-column max parallel run -- much less likely to compound with the
+# plane taper. The crop shortens the pixel count over the same 532.5um solid
+# depth (864x307 instead of 864x480), so the blur sigma was recomputed for
+# the coarser y pixel scale (532.5um/307px=1.735um/px, x unchanged at
+# 1.6mm/864px=1.852um/px) keeping the same ~15um/~6-cell target width:
+# sigma_x_px=4.56/1.852=2.46 (unchanged), sigma_y_px=4.56/1.735=2.63.
+AP_solid.density.ic.type = png
+AP_solid.density.ic.png.filename = AP-HTPB-Experimental-Image-Diffuse.png
+AP_solid.density.ic.png.channel = g
+AP_solid.density.ic.png.fit = coord
+AP_solid.density.ic.png.coord.lo = -0.4_mm -0.5325_mm
+AP_solid.density.ic.png.coord.hi =  0.4_mm  0.0_mm
+AP_solid.density.ic.png.flip.y = 1
+AP_solid.density.ic.png.invert = false
+# plane.eps set to 0 (2026-08-06, later same day): traced the t~2.37ms
+# Diffusion.cpp MLMG crash back to a phantom-fuel bug, not a stiffness/
+# tolerance issue (chemistry.solver.backward_euler tolerance tightening by
+# 2 orders of magnitude made zero difference -- same crash, same step).
+# Root cause: IC::PNG clamps EVERY y>0 (gas-region) sample to row 0 of the
+# source image (src/Util/PNG.H's ximg(1) clamp), and this soft tanh
+# plane.eps mask never reaches exactly 0 -- at y=56um with eps=20um,
+# mask=0.5*(1+tanh(2*(-56)/20))~6e-6, small but nonzero. That let row 0's
+# real AP/HTPB texture (nonzero away from a pure-HTPB-or-AP column) bleed,
+# attenuated but never eliminated, arbitrarily far up into the gas as trace
+# rigid_species_eta/component_density (verified: HTPB_solid density
+# ~4e-6 relative at y=56-61um, x~96-99um, exactly where row 0 has an
+# AP/HTPB grain boundary). That trace "ghost" HTPB sits in a low-density/
+# low-heat-capacity gas cell, ignites once T crosses
+# HTPB_pyrolysis.phase_change.temperature_cutoff=360K (quickly, from the
+# initial exponential temperature profile), and the resulting small heat
+# release produces an outsized local dT -- kicking off the runaway
+# (T: 434K at step 401 -> 16000K+ by step 635) that eventually kills the
+# diffusion solve. Now that the diffuse interface comes from the
+# pre-blurred image (not from plane.eps -- see the DIFFUSE INTERFACE
+# comment above), plane.eps's only remaining job is to hard-zero material
+# for y>0, so it should be a true hard cutoff (eps=0 -> the
+# `distance >= 0.0` branch in IC::PNG::Add, not the tanh branch -- see
+# src/IC/PNG.H) instead of a soft taper with a never-quite-zero tail.
+AP_solid.density.ic.png.plane.normal = 0.0 -1.0 0.0
+AP_solid.density.ic.png.plane.point = 0.0_mm 0.0_mm 0.0_mm
+AP_solid.density.ic.png.plane.eps = 0.0_um
+AP_solid.density.ic.png.value = 1950.0_kg/m^3
+
+HTPB_solid.density.ic.type = png
+HTPB_solid.density.ic.png.filename = AP-HTPB-Experimental-Image-Diffuse.png
+HTPB_solid.density.ic.png.channel = g
+HTPB_solid.density.ic.png.fit = coord
+HTPB_solid.density.ic.png.coord.lo = -0.4_mm -0.5325_mm
+HTPB_solid.density.ic.png.coord.hi =  0.4_mm  0.0_mm
+HTPB_solid.density.ic.png.flip.y = 1
+HTPB_solid.density.ic.png.invert = true
+# See the plane.eps comment on AP_solid above -- same fix, same reasoning.
+HTPB_solid.density.ic.png.plane.normal = 0.0 -1.0 0.0
+HTPB_solid.density.ic.png.plane.point = 0.0_mm 0.0_mm 0.0_mm
+HTPB_solid.density.ic.png.plane.eps = 0.0_um
+HTPB_solid.density.ic.png.value = 920.0_kg/m^3
+
+# Plane clipping above makes solid genuinely fill all of y<0 (and only
+# y<0), same as input.lm.ap_htpb_packed_elastic's sphere-packing IC -- so
+# this formula (copied unchanged from that file) is valid here too, no
+# pad_offset needed (see the header comment above for why earlier padded-
+# image versions of this file needed one).
+Final.density.ic.type = expression
+Final.density.ic.expression.constant.P = 3.0e6
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 100.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas))))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 100.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-y,0.0)/Lsolid-max(y,0.0)/Lgas)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 3000000.0
+
+# Localized ignition, following input.lm.ap_htpb_packed_ignition_10MWm2: a
+# Gaussian spot in x (z=0 in 2D) centered at x=0, restricted to the condensed
+# side of the interface by (0.5-0.5*tanh(y/width)), with a compensating
+# factor of 2.0 so qflux is still the flux integral through y. radius = 10um
+# is scaled down from that file's 100um so the spot stays clearly localized
+# within the crop rather than spanning most of it. NOTE: domain x half-width
+# is now 0.4mm (see amr.n_cell/geometry.prob_lo comments above), so
+# radius=10um is a much smaller fraction of the domain than originally tuned
+# (~2.5% vs. ~10%) -- revisit if/when heat_source is re-enabled (currently
+# qflux=0 for debugging, see below).
+# DEBUG: qflux forced to 0 to isolate whether the NaN blowup at step ~4 is
+# driven by the ignition heat source (active from t=0 -- the ramp factor
+# 0.5*(1-tanh((t-toff)/tramp)) is ~1, i.e. full heating, for all t << toff)
+# or by the elastic solve's loosened tolerance. Restore to 1.0e7_W/m^2 once
+# isolated.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 0.0_W/m^2
+heat_source.ic.expression.constant.radius = 10.0_um
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "2.0*qflux*exp(-(x*x)/(radius*radius))*exp(-(y/width)^2)/(norm*width)*(0.5-0.5*tanh(y/width))*0.5*(1.0-tanh((t-toff)/tramp))"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.type.zlo = neumann
+component_density.bc.constant.type.zhi = neumann
+
+velocity.bc.type = constant
+# Slip walls: reflect the wall-normal component oddly and tangential
+# components evenly. The z walls are the 3D analogues of the x walls.
+velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.type.zlo = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.type.zhi = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.val.ylo = 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.type.zlo = neumann
+temperature.bc.constant.type.zhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.type.zlo = neumann
+pressure.bc.constant.type.zhi = neumann
+pressure.bc.constant.val.yhi = 3000000.0
+
+# Elastic solve over the condensed (rigid_solid) phase, driven purely by the
+# local gas pressure (elastic.traction = 0, elastic.apply_fluid_pressure = 1
+# -- see LowMach::UpdateModel and tests/LowMachElasticPressure). The bed
+# regresses (mechanisms.names above), so rigid_eta moves and the elastic
+# solve must be re-run periodically to track it; elastic.interval throttles
+# this against the ~1e-7-5e-6s advective/chemistry timestep so the 1-Newton-
+# iteration MLMG solve (default elastic.nriters = 1, see
+# Base::Mechanics::Register) does not dominate runtime.
+elastic.type = static
+# Confirmed via output.lm.ap_htpb_packed_elastic_coarse_mesh (completed run
+# of input.lm.ap_htpb_packed_elastic, 68713 steps to t=25ms, DT steady at
+# ~3.7e-7 throughout): interval=1000 is what that run used and it never
+# diverged. elastic.interval=1 (re-solving every single step under this
+# file's real ~3 MPa forcing) was tested this session and reproducibly
+# diverges within 20-40 steps via an exponential MLMG/Newton blowup,
+# independent of void modulus, coarsening cap, zero_out_displacement, or the
+# PNG-vs-sphere-packing IC -- the tight per-step elastic/fluid coupling
+# itself is the compounding-error feedback loop.
+#elastic.interval = 1000
+# 500 elastic solves over the full 100ms stop_time, matching amr.plot_dt --
+# lower frequency than the interval=1000 setting above (~3.1e-5s period at
+# the steady DT~3.1e-8s), so it stays well clear of the interval=1
+# per-step-coupling divergence documented above.
+elastic.dt = 2.0e-4_s
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.verbose = 4
+# Tolerance-based (not elastic.solver.fixed_iter): a stalled/non-converged
+# solve should be visible rather than silently accepted at these moduli --
+# see input.lm.ap_htpb_packed_elastic's WARNING.
+# Tightened from the 1.0e-1 debug-testing value (see history above) now that
+# elastic re-solves are infrequent (elastic.dt=2e-4s, ~500 total over the
+# run) -- each one can afford to be much more accurate without hurting
+# runtime, and a loose 1e-1 tolerance risks a stale/inaccurate displacement
+# field persisting for ~0.2ms of simulated time between resolves.
+elastic.tol_rel = 1.0e-6
+elastic.tol_abs = 1.0e-6
+# Required alongside elastic.void.model.* above: MLMG coarsens right
+# through the diffuse solid/void interface, and at this modulus contrast
+# that produces garbage coarse-level operators (verified in
+# tests/LowMachElasticPressure's 2d-pressure-1Pa-softvoid sub-case, which
+# diverges outright without this cap). See input.lm.ap_htpb_packed_elastic's
+# WARNING -- raised from 2 to 3 (verified stable, ~2x faster); do not push
+# further (uncapped diverges within a handful of iterations).
+elastic.max_coarsening_level = 3
+elastic.solver.conservative_face_flux = 1
+elastic.solver.line_search = 1
+elastic.solver.resync_coeffs = 1
+# A single Newton iteration is exact for this problem regardless: from the
+# zeroed initial guess set by elastic.zero_out_displacement (Base::Mechanics
+# default), NeoHookeanPredeformed linearizes exactly about F = I (see
+# tests/LowMachElasticPressure/Readme.rst's derivation), so nriters > 1 buys
+# no accuracy here. It does cost stability -- see
+# input.lm.ap_htpb_packed_elastic's comment on this key for the full
+# derivation.
+elastic.solver.nriters = 1
+#elastic.solver.nrtolerance = 0
+# Raised from 1500 -- see input.lm.ap_htpb_packed_elastic's WARNING
+# (max_coarsening_level=3 caps MG effectiveness, so convergence to tol_rel is
+# slow, not divergent; verified needing ~1650-2050 iterations).
+elastic.solver.max_iter = 10000000
+elastic.solver.pre_smooth = 2
+elastic.solver.post_smooth = 2
+elastic.solver.bottom_solver = smoother
+elastic.zero_out_displacement = 1
+# Don't hard-abort if MLMG doesn't reach tol_rel/tol_abs within max_iter --
+# with max_coarsening_level=3 the solve converges very slowly (~200000
+# iterations observed) and MLMG throws right at/near convergence; continue
+# the timestep with whatever solution it has instead of killing the run.
+# Also auto-sets amrex.signal_handling=0 / amrex.throw_exception=1, which
+# this flag requires internally (see Solver::Nonlocal::Linear::Parse).
+elastic.solver.abort_on_fail = 0
+# Tried elastic.solver.fgmres=1 (restarted FGMRES w/ MLMG as preconditioner,
+# see Solver::Nonlocal::Linear::solveFGMRES) here: converged steadily and
+# much faster than plain MLMG in serial (residual 3.5e13 -> 5.3e6 in 9 outer
+# cycles, target 3.5e5), but failed when run in parallel (multiple MPI
+# ranks) -- not yet debugged, possibly a global-reduction issue in the
+# hand-rolled dot()/vnorm() helpers in solveFGMRES. Reverted to plain MLMG
+# below, which is confirmed working (just slow -- see the comment on
+# elastic.solver.max_iter above) in both serial and parallel.
+
+# BCs mirror the velocity slip-wall/open-top setup above, per component
+# (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear
+# traction-free, matching REFLECT_ODD/REFLECT_EVEN); ylo (solid substrate) is
+# fully clamped; yhi (open gas boundary) is fully traction-free. Edges and
+# corners take the per-component intersection of their adjacent faces
+# (displacement wins over traction where they conflict) -- see the
+# consistency warning in BC/Operator/Elastic/Constant.H.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp trac trac
+elastic.bc.constant.type.xhi = disp trac trac
+elastic.bc.constant.type.ylo = disp disp disp
+elastic.bc.constant.type.yhi = trac trac trac
+elastic.bc.constant.type.zlo = trac trac disp
+elastic.bc.constant.type.zhi = trac trac disp
+# 3D edges / 2D corners
+elastic.bc.constant.type.xloylo = disp disp disp
+elastic.bc.constant.type.xhiylo = disp disp disp
+elastic.bc.constant.type.xloyhi = disp trac trac
+elastic.bc.constant.type.xhiyhi = disp trac trac
+elastic.bc.constant.type.ylozlo = disp disp disp
+elastic.bc.constant.type.ylozhi = disp disp disp
+elastic.bc.constant.type.yhizlo = trac trac disp
+elastic.bc.constant.type.yhizhi = trac trac disp
+elastic.bc.constant.type.zloxlo = disp trac disp
+elastic.bc.constant.type.zloxhi = disp trac disp
+elastic.bc.constant.type.zhixlo = disp trac disp
+elastic.bc.constant.type.zhixhi = disp trac disp
+# 3D corners
+elastic.bc.constant.type.xloylozlo = disp disp disp
+elastic.bc.constant.type.xloylozhi = disp disp disp
+elastic.bc.constant.type.xhiylozlo = disp disp disp
+elastic.bc.constant.type.xhiylozhi = disp disp disp
+elastic.bc.constant.type.xloyhizlo = disp trac disp
+elastic.bc.constant.type.xloyhizhi = disp trac disp
+elastic.bc.constant.type.xhiyhizlo = disp trac disp
+elastic.bc.constant.type.xhiyhizhi = disp trac disp

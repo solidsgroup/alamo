@@ -34,6 +34,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (!(value.phase_field_cfl > 0.0))
         Util::Exception(INFO, "phase_field.cfl must be positive");
     pp.query_default("cfl_v", value.cfl_v, 1.0e100);
+    // Diffusion-number cap on the max thermal/species/viscous diffusivity,
+    // ALWAYS enforced (unlike the existing viscmax accumulation below, which
+    // skips conduction/species-diffusion whenever they're solved implicitly
+    // -- implicit diffusion is unconditionally linearly stable, but a
+    // temperature-dependent coefficient (e.g. Model::Gas::Transport::Rocfire's
+    // thermal_conductivity = lambda_a*T + lambda_b) can still spike fast
+    // enough during a runaway reaction to destabilize the *nonlinear*
+    // MLMG solve within a single timestep. Left disabled (1e100, i.e. no
+    // cap) by default so existing input files are unaffected; set a finite
+    // value here to bound how far the diffusion number can grow per step.
+    pp.query_default("conduction_cfl", value.conduction_cfl, 1.0e100);
+    if (!(value.conduction_cfl > 0.0))
+        Util::Exception(INFO, "conduction_cfl must be positive");
     pp.query_default("small", value.small, 1.0e-12);
     pp.query_default("density_floor", value.density_floor, value.small);
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
@@ -135,7 +148,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
 
         if (pp.contains(name + ".density.ic.type"))
-            pp.select<IC::Constant,IC::Expression,IC::PSRead>(
+            pp.select<IC::Constant,IC::Expression,IC::PSRead,IC::PNG>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
     }
@@ -321,11 +334,17 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         std::vector<std::string> rigid_species_suffix;
         for (const int n : value.rigid_solid_species)
             rigid_species_suffix.push_back(species_suffix[n]);
+        // Zero-Neumann (not bc_nothing) so ghost cells outside the physical
+        // domain extrapolate from the interior instead of defaulting to 0
+        // (void) -- see UpdateComponentState's fill of these BCs.
+        value.rigid_eta_bc = new BC::Constant::ZeroNeumann(1);
+        value.rigid_species_eta_bc = new BC::Constant::ZeroNeumann(
+            static_cast<int>(value.rigid_solid_species.size()));
         // 2 ghost cells (rather than 1) so that the elastic solver's
         // cell-to-node averaging of psi/model on grown boxes has valid data.
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 2, "rigid_eta", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, value.rigid_eta_bc, 1, 2, "rigid_eta", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(
-            value.rigid_species_eta_mf, &value.bc_nothing,
+            value.rigid_species_eta_mf, value.rigid_species_eta_bc,
             value.rigid_solid_species.size(), 2, "rigid_species_eta",
             true, false, rigid_species_suffix);
     }
@@ -629,6 +648,16 @@ LowMach::UpdateComponentState(int lev, const amrex::MultiFab& component_density_
                 *rigid_eta_mf[lev], 1.0, *rigid_species_eta_mf[lev],
                 m, 0, 1, rigid_nghost);
         }
+        // Zero-Neumann-fill the physical-domain ghost cells first (plain
+        // FillBoundary below only handles periodic/interior boundaries and
+        // leaves physical-wall ghost cells at their stale/zero setVal, which
+        // manufactures a fake solid/void interface at any wall touched by
+        // solid material -- see rigid_eta_bc's declaration in LowMach.H).
+        rigid_species_eta_bc->define(geom[lev]);
+        rigid_species_eta_bc->FillBoundary(*rigid_species_eta_mf[lev], 0,
+            static_cast<int>(rigid_solid_species.size()), 0.0, 0);
+        rigid_eta_bc->define(geom[lev]);
+        rigid_eta_bc->FillBoundary(*rigid_eta_mf[lev], 0, 1, 0.0, 0);
         rigid_species_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
@@ -2262,6 +2291,13 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         domain.convert(amrex::IntVect::TheNodeVector());
         const Set::Scalar* DX = geom[lev].CellSize();
 
+        // Zero-Neumann-fill physical-wall ghost cells before this function's
+        // grad(rigid_eta) RHS forcing reads them -- see the fix note on
+        // rigid_eta_bc in LowMach.H / UpdateComponentState.
+        rigid_eta_bc->define(geom[lev]);
+        rigid_eta_bc->FillBoundary(*rigid_eta_mf[lev], 0, 1, 0.0, 0);
+        rigid_species_eta_bc->define(geom[lev]);
+        rigid_species_eta_bc->FillBoundary(*rigid_species_eta_mf[lev], 0, nrigid, 0.0, 0);
         rigid_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         rigid_species_eta_mf[lev]->FillBoundary(geom[lev].periodicity());
         pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -2434,6 +2470,7 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
     Set::Scalar viscmax = 0.0;
     Set::Scalar elasticmax = 0.0;
     Set::Scalar phasefieldmax = 0.0;
+    Set::Scalar conductmax = 0.0;
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool explicit_solid_deviatoric_stress = deformable_solid &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
@@ -2484,26 +2521,32 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
             const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
 
             amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax,
-                            amrex::ReduceOpMax> reduce_op;
-            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
+                            amrex::ReduceOpMax, amrex::ReduceOpMax> reduce_op;
+            amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> reduce_data(reduce_op);
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
                 const Model::Gas::MoleFraction X = gas.MoleFractions(component_density, i, j, k);
                 Set::Scalar nu = 0.0;
+                // Thermal diffusivity, tracked unconditionally (even when
+                // conduction is solved implicitly) so conduction_cfl above
+                // can still bound how fast the diffusion number is allowed
+                // to grow -- e.g. Rocfire's thermal_conductivity = lambda_a*T
+                // + lambda_b spikes right alongside a runaway reaction.
+                Set::Scalar conduct_nu = 0.0;
+                if (include_conduction)
+                {
+                    const Set::Scalar cp = gas.cp_mass(T(i,j,k), X, i, j, k);
+                    const Set::Scalar kappa =
+                        gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+                    conduct_nu = kappa / (Util::Max(rho(i,j,k), rho_floor) * cp);
+                }
                 if (viscous)
                 {
                     Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
                     nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
-                if (conductive)
-                {
-                    const Set::Scalar cp = gas.cp_mass(T(i,j,k), X, i, j, k);
-                    const Set::Scalar kappa =
-                        gas.thermal_conductivity(T(i,j,k), X, i, j, k);
-                    nu = Util::Max(nu, kappa /
-                        (Util::Max(rho(i,j,k), rho_floor) * cp));
-                }
+                if (conductive) nu = Util::Max(nu, conduct_nu);
                 if (species_diffusive)
                     for (int n = 0; n < ngas; ++n)
                         nu = Util::Max(nu, gas.diffusion_coefficient(
@@ -2516,12 +2559,14 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
                     elastic_rate = wave_speed / dxmin;
                     nu = Util::Max(nu, (solid_viscosity + solid_interface_viscosity) / density);
                 }
-                return {nu / (dxmin * dxmin), elastic_rate, T(i,j,k)};
+                return {nu / (dxmin * dxmin), elastic_rate, T(i,j,k),
+                    conduct_nu / (dxmin * dxmin)};
             });
             ReduceTuple hv = reduce_data.value();
             viscmax = std::max(viscmax, amrex::get<0>(hv));
             elasticmax = std::max(elasticmax, amrex::get<1>(hv));
             temperaturemax = std::max(temperaturemax, amrex::get<2>(hv));
+            conductmax = std::max(conductmax, amrex::get<3>(hv));
         }
         for (const auto& mechanism : mechanisms)
             phasefieldmax = std::max(
@@ -2532,6 +2577,7 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
     amrex::ParallelDescriptor::ReduceRealMax(viscmax);
     amrex::ParallelDescriptor::ReduceRealMax(elasticmax);
     amrex::ParallelDescriptor::ReduceRealMax(phasefieldmax);
+    amrex::ParallelDescriptor::ReduceRealMax(conductmax);
 
     Set::Scalar adv_dt = cfl_v;
     if (advmax > 0.0) adv_dt = cfl / advmax;
@@ -2539,7 +2585,12 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
     Set::Scalar elastic_dt = elasticmax > 0.0 ? cfl / elasticmax : cfl_v;
     Set::Scalar phasefield_dt = phasefieldmax > 0.0 ?
         phase_field_cfl / phasefieldmax : cfl_v;
-    DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt}));
+    // Diffusion-number cap -- see the conduction_cfl comment in Parse() --
+    // active even when conduction is implicit; no-op (conduct_dt = cfl_v)
+    // unless conduction_cfl was explicitly set below its 1e100 default.
+    Set::Scalar conduct_dt = conductmax > 0.0 ?
+        0.5 * conduction_cfl / conductmax : cfl_v;
+    DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt, conduct_dt}));
     DynamicTimestep_Update();
 }
 

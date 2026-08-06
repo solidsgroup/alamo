@@ -11,6 +11,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -54,6 +55,8 @@ public:
         delete component_density_bc;
         delete pressure_bc;
         delete xi_bc;
+        delete rigid_eta_bc;
+        delete rigid_species_eta_bc;
 
         delete velocity_ic;
         delete temperature_ic;
@@ -148,6 +151,13 @@ protected:
     BC::BC<Set::Scalar>* component_density_bc = nullptr;
     BC::BC<Set::Scalar>* pressure_bc = nullptr;
     BC::BC<Set::Scalar>* xi_bc = nullptr;
+    // Zero-Neumann so ghost cells outside the physical domain extrapolate
+    // rigid_eta/rigid_species_eta from the interior instead of defaulting to
+    // 0 (void) -- see UpdateComponentState. Previously bc_nothing, which
+    // never fills physical-boundary ghost cells, silently manufactured a
+    // fake solid/void interface at any wall touched by solid material.
+    BC::BC<Set::Scalar>* rigid_eta_bc = nullptr;
+    BC::BC<Set::Scalar>* rigid_species_eta_bc = nullptr;
     BC::Nothing bc_nothing;
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
@@ -213,6 +223,7 @@ protected:
     Set::Scalar cfl = NAN;
     Set::Scalar phase_field_cfl = NAN;
     Set::Scalar cfl_v = 1.0e100;
+    Set::Scalar conduction_cfl = 1.0e100;
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;

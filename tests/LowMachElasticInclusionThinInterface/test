@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+reference = sys.argv[2] if len(sys.argv) > 2 else None
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LowMachElasticInclusion requires initial and final plotfiles")
+
+# Analytic validation of a circular AP inclusion embedded inside a square
+# HTPB block, top-loaded through a Gas layer via elastic.apply_fluid_
+# pressure's interfacial traction on the Gas/HTPB interface -- a confined
+# ("oedometer") compression of the block plus a classical circular-
+# inhomogeneity-under-remote-stress correction near the AP inclusion. See
+# Readme.rst and generate_reference.py's module docstring for the full
+# derivation:
+#
+#   sigma_yy_inf = -P, sigma_xx_inf = -P*lambda1/(lambda1+2*mu1)   (far field)
+#   p0 = mean(sigma_inf), s = (sigma_xx_inf-sigma_yy_inf)/2
+#   isotropic: A1=p0/k1, A2=p0*(k1+2*mu1)/(k1*(k2+2*mu1)), B1=a^2*(A2-p0/k1)
+#   deviatoric: B=s*a^2*(mu1-mu2)/(mu1+kM1*mu2), D3=a^2*B,
+#               gamma2p=-s*mu2*(1+kM1)/(mu1+kM1*mu2), kM1=3-4*nu1
+
+mu1, kappa1 = 1.67e6, 8.33e8   # HTPB (matrix)
+mu2, kappa2 = 9.47e6, 1.00e8   # AP (inclusion)
+a = 1.5e-4
+w = 2.0e-5  # THIN-INTERFACE variant: half the baseline test's 4.0e-5
+
+lambda1 = kappa1 - (2.0 / 3.0) * mu1
+k1 = 2.0 * kappa1 + (2.0 / 3.0) * mu1
+k2 = 2.0 * kappa2 + (2.0 / 3.0) * mu2
+nu1 = (3.0 * kappa1 - 2.0 * mu1) / (2.0 * (3.0 * kappa1 + mu1))
+kM1 = 3.0 - 4.0 * nu1
+
+# Applied pressure and whether the fluid-pressure traction path is enabled,
+# read from the run's metadata (same idiom as tests/LowMachElasticPressure).
+pressure = None
+apply_fluid_pressure = None
+with open(f"{outdir}/metadata") as f:
+    for line in f:
+        if "pressure.ic.constant.value" in line:
+            pressure = float(line.split("=")[-1].strip())
+        if "elastic.apply_fluid_pressure" in line:
+            apply_fluid_pressure = float(line.split("=")[-1].strip())
+if pressure is None or apply_fluid_pressure is None:
+    raise RuntimeError("could not find pressure/apply_fluid_pressure in metadata")
+
+sigma_yy_inf = -pressure
+sigma_xx_inf = -pressure * lambda1 / (lambda1 + 2.0 * mu1)
+p0 = 0.5 * (sigma_xx_inf + sigma_yy_inf)
+s = 0.5 * (sigma_xx_inf - sigma_yy_inf)
+
+A1 = p0 / k1
+A2 = p0 * (k1 + 2.0 * mu1) / (k1 * (k2 + 2.0 * mu1))
+B1 = a * a * (A2 - p0 / k1)
+sigma_in_iso = k2 * A2
+
+Bdev = s * a * a * (mu1 - mu2) / (mu1 + kM1 * mu2)
+D3dev = a * a * Bdev
+gamma2p = -s * mu2 * (1.0 + kM1) / (mu1 + kM1 * mu2)
+
+sigma_xx_in = sigma_in_iso - gamma2p
+sigma_yy_in = sigma_in_iso + gamma2p
+
+final = plotfiles[-1]
+
+# THIN-INTERFACE variant of tests/LowMachElasticInclusion (see Readme.rst):
+# the domain is unchanged from the baseline test, but the diffuse eta
+# interface width w is halved and the mesh refined to match (dx halved), so
+# the interface stays ~2.1 dx wide while sharpening physically -- checking
+# whether this shrinks the disagreement between the analytic sharp-
+# interface jump and the simulation's smoothed eta transition.
+#
+# Sample a ray through the domain interior along y~=0, crossing the
+# inclusion; the HTPB block spans x in [-1.5e-3,1.5e-3], so
+# [-1.3e-3,1.3e-3] stays well clear of the side walls (and far below the
+# Gas layer at y=1.5e-3). y is offset by half a cell (dx/2 at
+# amr.n_cell=320 over a 3.0e-3-wide domain, half the baseline test's dx)
+# rather than sitting exactly on y=0.0: a ray exactly on that grid line
+# degenerates (yt's ray/AMR-grid intersection returns zero cells at y=0.0
+# on this even-n_cell, domain-centered grid). The resulting
+# <0.4% cos^2(theta)/sin^2(theta) mixing this introduces into the theta=0
+# formulas below is negligible next to the tolerances used.
+x_lo, x_hi = -1.3e-3, 1.3e-3
+y_ray = 4.6875e-6
+
+df = testlib.readContours(
+    path=final,
+    start=[x_lo, y_ray, 0.0],
+    end=[x_hi, y_ray, 0.0],
+    vars=["disp_x", "disp_y", "stress_xx", "stress_yy"],
+)
+x = df["x"].to_numpy()
+r = testlib.numpy.abs(x)
+
+# Exclude a band around the diffuse interface (r=a) -- >3 interface widths --
+# where the analytic sharp-interface jump and the simulation's smoothed eta
+# transition necessarily disagree.
+band = 3.0 * w
+mask = testlib.numpy.abs(r - a) > band
+if mask.sum() < 20:
+    raise RuntimeError(f"too few sample points after excluding interface band: {mask.sum()}")
+
+x_s = x[mask]
+disp_x = df["disp_x"].to_numpy()[mask]
+disp_y = df["disp_y"].to_numpy()[mask]
+stress_xx = df["stress_xx"].to_numpy()[mask]
+stress_yy = df["stress_yy"].to_numpy()[mask]
+
+for name, arr in (("disp_x", disp_x), ("disp_y", disp_y),
+                   ("stress_xx", stress_xx), ("stress_yy", stress_yy)):
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+
+if apply_fluid_pressure == 0.0:
+    # Control case: pressure branch disabled and the boundary traction
+    # zeroed too (see input), so the RHS is identically zero everywhere ->
+    # zero displacement.
+    if disp_mag_max > 1.0e-12:
+        raise RuntimeError(
+            f"apply_fluid_pressure=0 case shows nonzero displacement: "
+            f"max|disp|={disp_mag_max}")
+    print("LowMachElasticInclusion control case (pressure off) passed: "
+          f"max|disp|={disp_mag_max:.3g}")
+    sys.exit(0)
+
+# --- Pressure-driven case ---------------------------------------------------
+
+r_s = testlib.numpy.abs(x_s)
+inside = r_s < a
+x_safe = testlib.numpy.where(x_s != 0.0, x_s, 1.0)
+r_safe = testlib.numpy.where(r_s > 0.0, r_s, 1.0)
+
+ux_iso_exact = testlib.numpy.where(inside, A2 * x_s, A1 * x_s + B1 / x_safe)
+ux_dev_exact = testlib.numpy.where(
+    inside,
+    -gamma2p * x_s / (2.0 * mu2),
+    ((kM1 + 1.0) * Bdev / x_safe + s * x_s - D3dev / x_safe**3) / (2.0 * mu1),
+)
+disp_x_exact = ux_iso_exact + ux_dev_exact
+
+sigma_rr_iso_exact = testlib.numpy.where(inside, sigma_in_iso, p0 - 2.0 * mu1 * B1 / r_safe**2)
+sigma_tt_iso_exact = testlib.numpy.where(inside, sigma_in_iso, p0 + 2.0 * mu1 * B1 / r_safe**2)
+sigma_xx_dev_exact = testlib.numpy.where(inside, -gamma2p, -4.0 * Bdev / r_safe**2 + s + 3.0 * D3dev / r_safe**4)
+sigma_yy_dev_exact = testlib.numpy.where(inside, gamma2p, -s - 3.0 * D3dev / r_safe**4)
+# Along y=0 (theta=0/pi): sigma_xx = sigma_rr, sigma_yy = sigma_tt for the
+# isotropic part; the deviatoric formulas are already written directly in
+# terms of sigma_xx/sigma_yy (see generate_reference.py).
+stress_xx_exact = sigma_rr_iso_exact + sigma_xx_dev_exact
+stress_yy_exact = sigma_tt_iso_exact + sigma_yy_dev_exact
+
+# NOTE on why absolute (not relative) tolerances are used below: near the
+# domain boundary the exterior dipole/quadrupole corrections decay to a
+# small fraction of P, while the bulk far-field stress (sigma_xx_inf,
+# sigma_yy_inf, both O(1)*P) does NOT decay to zero the way the original
+# equibiaxial version of this test's exterior field did -- but the
+# correction terms this test is actually validating (the AP inclusion's
+# local perturbation) are still small far from the inclusion, so a relative
+# metric on those specific terms would still be dominated by numerical
+# noise. Absolute tolerances, scaled to the interior stress magnitude,
+# avoid that pathology.
+
+if reference is not None:
+    testlib.validate(
+        path=final,
+        outdir=outdir,
+        start=[x_lo, y_ray, 0.0],
+        end=[x_hi, y_ray, 0.0],
+        vars=["disp_x", "stress_xx", "stress_yy"],
+        reference=reference,
+        tolerance=[1.0, 1.0, 1.0],             # relative tol effectively disabled, see note above
+        abs_tolerance=[5.0e-7, 6.0e4, 6.0e4],  # disp_x/stress scale linearly with P=1e6 Pa
+        coord="x",
+    )
+
+# 1. Interior stress: uniform sigma_xx, sigma_yy inside the inclusion
+# (distinct from each other here, unlike the original equibiaxial version of
+# this test, since the far-field loading is confined-compression, not
+# equibiaxial), pinning the stress-concentration magnitude/sign.
+in_mask = r_s < (a - band)
+if in_mask.sum() < 4:
+    raise RuntimeError(f"too few interior sample points: {in_mask.sum()}")
+sigma_xx_in_mean = float(stress_xx[in_mask].mean())
+sigma_yy_in_mean = float(stress_yy[in_mask].mean())
+tol_in = 0.08 * abs(sigma_in_iso)
+for name, val, exact in (("stress_xx", sigma_xx_in_mean, sigma_xx_in),
+                          ("stress_yy", sigma_yy_in_mean, sigma_yy_in)):
+    if abs(val - exact) > tol_in:
+        raise RuntimeError(
+            f"interior {name}={val:.6g}, expected {exact:.6g} (tol {tol_in:.3g})")
+
+# 2. Full-profile absolute error against the closed-form solution (interior
+# + exterior branches, interface band excluded) -- see note above on why
+# absolute rather than relative.
+def abserr_rms(numeric, exact):
+    diff2 = (numeric - exact) ** 2
+    return float(testlib.numpy.sqrt(testlib.integrate(x_s, diff2) / (x_s[-1] - x_s[0])))
+
+abserr_disp_x = abserr_rms(disp_x, disp_x_exact)
+abserr_stress_xx = abserr_rms(stress_xx, stress_xx_exact)
+abserr_stress_yy = abserr_rms(stress_yy, stress_yy_exact)
+
+tol_disp_abs = 5.0e-7
+tol_stress_abs = 6.0e4
+if abserr_disp_x > tol_disp_abs:
+    raise RuntimeError(f"disp_x RMS abs error {abserr_disp_x:.4g} exceeds tolerance {tol_disp_abs}")
+if abserr_stress_xx > tol_stress_abs:
+    raise RuntimeError(f"stress_xx RMS abs error {abserr_stress_xx:.4g} exceeds tolerance {tol_stress_abs}")
+if abserr_stress_yy > tol_stress_abs:
+    raise RuntimeError(f"stress_yy RMS abs error {abserr_stress_yy:.4g} exceeds tolerance {tol_stress_abs}")
+
+# 3. disp_y should match the uniform rigid-body compaction offset of the
+# confined-compression far field, NOT zero: unlike the original equibiaxial
+# version of this test (traction-free boundary, so u_y(y=0)=0 by symmetry),
+# here the bottom face is a roller (u_y=0 at y=ylo) and the block undergoes
+# a genuine net vertical compaction under the top load, so u_y grows
+# linearly away from ylo even ignoring the AP inclusion entirely: u_y_base
+# = eps_yy*(y-ylo), eps_yy = sigma_yy_inf/(lambda1+2*mu1). The inclusion's
+# own perturbation to u_y vanishes along y=0 by symmetry (same as before);
+# at y_ray (a small offset from 0) that perturbation is negligible, so
+# disp_y should be uniform along the ray, equal to u_y_base(y_ray).
+ylo = -1.5e-3  # geometry.prob_lo[1] == ylo of the roller-clamped (u_y=0) HTPB block bottom
+eps_yy = sigma_yy_inf / (lambda1 + 2.0 * mu1)
+disp_y_exact = eps_yy * (y_ray - ylo)
+disp_y_err_max = float(testlib.numpy.abs(disp_y - disp_y_exact).max())
+tol_disp_y_abs = 5.0e-7
+if disp_y_err_max > tol_disp_y_abs:
+    raise RuntimeError(
+        f"disp_y does not match the rigid compaction offset along y=0: "
+        f"max|disp_y-disp_y_exact|={disp_y_err_max:.3g} (expected {disp_y_exact:.3g}) "
+        f"exceeds tolerance {tol_disp_y_abs}")
+
+print(f"LowMachElasticInclusion passed (P={pressure}, "
+      f"expected stress_xx_in={sigma_xx_in:.6g}, stress_yy_in={sigma_yy_in:.6g}, "
+      f"interior stress_xx={sigma_xx_in_mean:.6g}, stress_yy={sigma_yy_in_mean:.6g}, "
+      f"disp_x RMS abserr={abserr_disp_x:.3g}, stress_xx RMS abserr={abserr_stress_xx:.3g}, "
+      f"stress_yy RMS abserr={abserr_stress_yy:.3g})")

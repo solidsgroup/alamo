@@ -1,0 +1,304 @@
+#@ [2d-*]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 300
+#@
+#@ [2d-inclusion]
+#@ check-file = reference/inclusion.csv
+#@
+#@ [2d-pressure-off]
+#@ check-file = reference/pressure-off.csv
+#@ args = elastic.apply_fluid_pressure=0
+
+# Analytic validation of a circular AP inclusion embedded inside a square
+# HTPB block, itself sitting in a slightly taller rectangular domain with a
+# Gas layer above it -- exercises the elastic solver with THREE species
+# coexisting in the domain (AP_solid, HTPB_solid, Gas) rather than the
+# two-phase circular-inhomogeneity-in-void setup this test started as. See
+# Readme.rst for the full derivation. The Gas layer's only role is to
+# deliver elastic.apply_fluid_pressure's interfacial traction onto the top
+# face of the HTPB block, pushing straight down -- a uniaxial-strain
+# ("confined compression"/oedometer) loading of the block, NOT the
+# equibiaxial loading the original circular-inclusion-in-infinite-Gas
+# version of this test used. AP_solid.elastic.model.mu/kappa and
+# HTPB_solid.elastic.model.mu/kappa below are both the real (rescaled)
+# moduli from input.lm.ap_htpb_packed_elastic (AP: E~21.6GPa, nu~0.14;
+# HTPB: nu~0.499, nearly incompressible rubbery binder).
+#
+# Loading enters the elastic solve ONLY through elastic.apply_fluid_
+# pressure's interfacial body force at the HTPB/Gas top interface -- there
+# is no separately hand-derived boundary traction. The domain's side and
+# bottom faces carry rollers (normal displacement clamped, tangential
+# traction-free), matching the HTPB block's own side/bottom faces exactly
+# since the block spans the full domain width; the top face (Gas's own free
+# surface) is fully traction-free. AP/HTPB is an ordinary bonded elastic
+# interface (ordinary traction/displacement continuity -- ONLY the Gas/HTPB
+# interface gets the special fluid-pressure jump).
+#
+# The [2d-pressure-off] sub-case is a wiring control: with
+# elastic.apply_fluid_pressure=0, the interfacial RHS is identically zero
+# and none of the boundaries carry any loading of their own (rollers are
+# zero-traction tangentially/zero-displacement normally; the top is simply
+# traction-free), so the solve must return zero displacement everywhere.
+
+plot_file = tests/LowMachElasticInclusionLargeDomain/output
+amr.plot_dt = 2.0e-7_s
+amr.max_level = 0
+# LARGE-DOMAIN variant of tests/LowMachElasticInclusion: the HTPB block is
+# widened 3x, from 3.0mm x 3.0mm (a/L=1/10) to 9.0mm x 9.0mm (a/L=1/30), to
+# shrink the Saint-Venant/image-charge correction (O((a/L)^2), see Readme.rst
+# and generate_reference.py) the analytic circular-inhomogeneity-in-
+# "infinite"-matrix solution neglects. dx is held fixed at the original
+# test's 1.875e-5 m (n_cell 480 in x, vs. 160 there) so this isolates the
+# domain-size effect from resolution -- NOT a convergence/refinement study.
+# The 0.6mm Gas layer on top keeps its original physical thickness (n_cell
+# 32 more in y at the same dx) to deliver the top-face pressure loading. See
+# "Setup" in Readme.rst.
+amr.n_cell = 480 512
+amr.max_grid_size = 40
+amr.blocking_factor = 2
+amr.regrid_int = -1
+# Write elastic fields (disp/stress/strain, nodal) into the *cell* plotfiles
+# too, so the analytic comparison can use the same ray-extraction path
+# (testlib.readContours) used by tests/LowMachElasticPressure.
+amr.cell.all = 1
+
+timestep = 1.0e-7_s
+stop_time = 3.0e-7_s
+dynamictimestep.on = 0
+
+geometry.prob_lo = -4.5e-3 -4.5e-3 0.0
+geometry.prob_hi =  4.5e-3  5.1e-3 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 29.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas AP_solid HTPB_solid
+Gas.mechanics       = fluid
+AP_solid.mechanics   = rigid_solid
+HTPB_solid.mechanics = rigid_solid
+
+AP_solid.reference_density   = 1950.0_kg/m^3
+HTPB_solid.reference_density =  920.0_kg/m^3
+
+# Real (rescaled) AP crystal moduli, reused verbatim from
+# input.lm.ap_htpb_packed_elastic: E ~ 21.6 GPa, nu ~ 0.14 -> mu ~ 9.47 GPa,
+# kappa ~ 10.0 GPa, then scaled by 1e-4 (true SI mu=9.47e9, kappa=1.00e10)
+# for the same reason documented there -- literal SI moduli push the
+# modulus/dx^2 ratio far out of the MLMG solver's well-behaved range.
+AP_solid.elastic.model.mu    = 9.47e6
+AP_solid.elastic.model.kappa = 1.00e8
+
+# Real (rescaled) HTPB binder moduli, reused verbatim from
+# input.lm.ap_htpb_packed_elastic: nu ~ 0.499 (nearly incompressible
+# rubbery binder), same 1e-4 rescale as AP above.
+HTPB_solid.elastic.model.mu    = 1.67e6
+HTPB_solid.elastic.model.kappa = 8.33e8
+
+# Gas is a soft ersatz modulus, needed purely so MLMG stays well-conditioned
+# at the real AP/HTPB contrast -- see Readme.rst. Because Gas here only
+# occupies a thin layer above the HTPB block (not touching the AP
+# inclusion), its exact value does not enter the analytic reference at all
+# (the Gas layer's stress state is statically determinate given its free
+# top and roller sides -- see Readme.rst); it is a pure numerical
+# convenience. Stiffer than the original circular-inclusion-in-void version
+# of this test (5.0e3/4.0e5) -- with HTPB's real, nearly-incompressible
+# kappa=8.33e8 now a first-class matrix material rather than AP alone, the
+# HTPB/void kappa contrast at the old value is ~2,082x, well above the
+# ~[250x,2100x] stability window input.lm.ap_htpb_packed_elastic verified
+# (see its WARNING); MLMG genuinely diverges at elastic.max_coarsening_
+# level=3 with the old value (verified directly: it converges cleanly, if
+# slowly, at max_coarsening_level=0, confirming this is a coarsening
+# instability, not a physically singular setup). This value brings the
+# HTPB/void kappa contrast down to ~208x, back in the verified window --
+# confirmed directly by the max_coarsening_level sweep below elastic.
+# solver.max_iter: with this retuned contrast, level=3 now converges
+# cleanly (no crash), and the instability cliff has moved out to
+# level=4/5 MG levels instead.
+elastic.void.model.mu    = 5.0e4
+elastic.void.model.kappa = 4.0e6
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+# Freeze pressure_mf at its IC -- see tests/LowMachElasticPressure/Readme.rst.
+projection.update_pressure = 0
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diagnostics.interval = 0
+
+# A circular AP inclusion of radius R at the origin, embedded in an HTPB
+# block that fills [-4.5e-3,4.5e-3] in both x and y (i.e. the full domain
+# width, and up to y=ytop in the vertical -- 3x wider than the baseline
+# tests/LowMachElasticInclusion test, see Readme.rst), with Gas filling the
+# rest of the domain above y=ytop. eta_AP depends only on distance from the
+# origin (it is always deep inside the block, far from ytop, so no explicit
+# ytop dependence is needed there); eta_HTPB and eta_Gas both split on the
+# ytop transition in addition to the circular one, so that
+# eta_AP+eta_HTPB+eta_Gas = 1 exactly everywhere -- see
+# tests/LowMachElastic/input's volume-fraction-consistency note. The
+# diffuse interface width w=4.0e-5 (~2.1 dx at this grid, unchanged from the
+# baseline test) must match generate_reference.py's `w` if changed.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.rho = 1950.0
+AP_solid.density.ic.expression.constant.R   = 1.5e-4
+AP_solid.density.ic.expression.constant.w   = 4.0e-5
+AP_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt(x^2+y^2)-R)/w))"
+
+HTPB_solid.density.ic.type = expression
+HTPB_solid.density.ic.expression.constant.rho  = 920.0
+HTPB_solid.density.ic.expression.constant.R    = 1.5e-4
+HTPB_solid.density.ic.expression.constant.w    = 4.0e-5
+HTPB_solid.density.ic.expression.constant.ytop = 4.5e-3
+HTPB_solid.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt(x^2+y^2)-R)/w))*0.5*(1.0-tanh((y-ytop)/w))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P    = 1.0e6
+Gas.density.ic.expression.constant.Rgas = 286.7  # ~8314.4 J/kmol/K / 29.0 g/mol
+Gas.density.ic.expression.constant.T    = 300.0
+Gas.density.ic.expression.constant.R    = 1.5e-4
+Gas.density.ic.expression.constant.w    = 4.0e-5
+Gas.density.ic.expression.constant.ytop = 4.5e-3
+Gas.density.ic.expression.region0 = "(P/(Rgas*T))*0.5*(1.0+tanh((sqrt(x^2+y^2)-R)/w))*0.5*(1.0+tanh((y-ytop)/w))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e6
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = dirichlet dirichlet
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# Dirichlet P on all four faces keeps the (already time-frozen,
+# projection.update_pressure=0 below) fluid pressure field at a uniform P
+# everywhere, including right at the HTPB/Gas interface that
+# elastic.apply_fluid_pressure samples -- this is what makes the
+# interfacial elastic loading equal to a clean, spatially uniform P rather
+# than something that varies with the (here nonexistent) flow field.
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = dirichlet
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = dirichlet
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.xlo = 1.0e6
+pressure.bc.constant.val.xhi = 1.0e6
+pressure.bc.constant.val.ylo = 1.0e6
+pressure.bc.constant.val.yhi = 1.0e6
+
+# Elastic solve over the whole domain (AP + HTPB + Gas, all first-class
+# elastic phases), driven by the local fluid pressure at the Gas/HTPB
+# interface (elastic.apply_fluid_pressure, see LowMach::UpdateModel and
+# tests/LowMachElasticPressure). elastic.traction is left at zero so the
+# pressure term is the only interfacial driver.
+elastic.type = static
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.print_model = 1
+elastic.solver.verbose = 4
+# One Newton iteration from a zeroed initial guess linearizes about F = I,
+# giving the exact plane-strain linear-elastic solution -- see
+# tests/LowMachElasticPressure/Readme.rst's derivation, which applies
+# unchanged here (same NeoHookeanPredeformed model).
+elastic.solver.nriters = 1
+elastic.zero_out_displacement = 1
+# Tried elastic.solver.fgmres=1 (restarted FGMRES w/ MLMG preconditioner)
+# here, but with verbose=4 diagnostics it stagnated (residual dropped
+# <2% per 30-iteration restart cycle, nowhere near tol_rel) instead of
+# converging -- reverted to plain MLMG below.
+# Required alongside the elastic.void.model.* value above -- see its
+# comment for the specific contrast/coarsening-instability tradeoff this
+# cap and that value were tuned together against. Swept 0/1/2/3/4/20 with
+# max_iter effectively unbounded to find the actual stability/speed
+# tradeoff (with the retuned void model above, ~208x contrast):
+#   level 0: converges but stalls to a ~0.99994/iter factor (residual
+#            still ~0.011 after 8900 iterations) -- no coarse-grid
+#            acceleration at all, impractically slow.
+#   level 1: steady ~0.9995/iter -- resid 1.99e-4 after 10000 iterations.
+#   level 2: resid 3.11e-6 after 10000 iterations.
+#   level 3: resid 1.47e-7 after 10000 iterations (~15,000 iterations
+#            total to reach tol_rel=1.0e-8 by extrapolation) -- stable,
+#            by far the fastest working level.
+#   level 4 (5 MG levels) and level 20 (6 MG levels, uncapped): MLMG
+#            diverges outright (residual blows up >1e30 within 2-5
+#            iterations) instead of merely failing to converge -- a hard
+#            stability cliff, not a gradual slowdown. Root cause is
+#            presumably a coarse cell straddling AP/Gas-diffuse-interface
+#            material with too extreme a coefficient jump for the
+#            Galerkin coarse-grid operator to represent well.
+# So level=3 is the correct value: the fastest level that stays on the
+# stable side of that cliff.
+elastic.max_coarsening_level = 3
+elastic.solver.bottom_solver = smoother
+elastic.tol_rel = 1.0e-8
+elastic.tol_abs = 1.0e-8
+elastic.solver.max_iter = 20000
+
+# Rollers on the sides and bottom (normal displacement clamped, tangential
+# traction-free), matching the HTPB block's own side/bottom faces exactly
+# since the block spans the full domain width and its bottom coincides with
+# the domain bottom. The top face is Gas's own free surface -- fully
+# traction-free, not a roller -- since nothing supports the domain from
+# above; the only load anywhere is elastic.apply_fluid_pressure's
+# interfacial body force at the Gas/HTPB interface below it. This makes the
+# system statically DETERMINATE (unlike the old equibiaxial/all-rollers
+# version, which needed rollers everywhere purely to remove rigid-body
+# modes from a self-equilibrated load): the net downward force from the
+# pressure interface is genuinely reacted by the bottom roller, not merely
+# constrained against drift.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp trac
+elastic.bc.constant.type.xhi = disp trac
+elastic.bc.constant.type.ylo = trac disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = disp trac
+elastic.bc.constant.type.xhiyhi = disp trac

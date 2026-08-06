@@ -75,6 +75,8 @@ private:
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
     int max_order = 2;
+    int max_coarsening_level = -1;
+    bool abort_on_fail = true;
     amrex::Vector<amrex::Geometry> geometry;
     amrex::Vector<amrex::IntVect> refinement_ratio;
     amrex::Vector<amrex::BoxArray> grids;

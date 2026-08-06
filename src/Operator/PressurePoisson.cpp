@@ -16,6 +16,18 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    // [-1, i.e. uncapped] Cap on MLMG coarsening depth, mirroring
+    // elastic.max_coarsening_level. Without this, MLMG coarsens straight
+    // through any thin diffuse rigid/fluid interface in the mobility-scaled
+    // coefficient field (beta = mobility/density in LowMach.cpp), producing
+    // garbage coarse operators -- the same failure mode documented for the
+    // elastic solver in input.lm.ap_htpb_packed_elastic's WARNING.
+    pp.query_default("max_coarsening_level", value.max_coarsening_level, -1);
+    // [true] If set to false, do not hard-abort when the pressure Poisson
+    // solve fails to converge -- continue the timestep with whatever
+    // (unconverged) solution MLMG has instead. Mirrors
+    // elastic.solver.abort_on_fail (see Solver::Nonlocal::Linear::Parse).
+    pp.query_default("abort_on_fail", value.abort_on_fail, true);
 }
 
 void
@@ -166,6 +178,7 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     }
 
     amrex::LPInfo info;
+    if (max_coarsening_level >= 0) info.setMaxCoarseningLevel(max_coarsening_level);
     amrex::MLABecLaplacian poisson(geometry, grids, distribution_mapping, info);
     poisson.setMaxOrder(max_order);
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_lo;
@@ -206,8 +219,16 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     amrex::MLMG solver(poisson);
     solver.setVerbose(verbose);
     solver.setFinalFillBC(true);
-    solver.solve(solution_ptr, rhs_ptr,
-                tolerance_relative, tolerance_absolute);
+    try
+    {
+        solver.solve(solution_ptr, rhs_ptr,
+                    tolerance_relative, tolerance_absolute);
+    }
+    catch (const std::exception& e)
+    {
+        if (abort_on_fail) Util::Abort(INFO, e.what());
+        else Util::Warning(INFO, "PressurePoisson::Solve did not converge: ", e.what());
+    }
 }
 
 void

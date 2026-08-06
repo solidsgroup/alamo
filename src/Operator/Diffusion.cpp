@@ -303,6 +303,15 @@ Diffusion::Parse(Diffusion& value, IO::ParmParse& pp)
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    // [-1, i.e. uncapped] Cap on MLMG coarsening depth, mirroring
+    // elastic.max_coarsening_level and PressurePoisson's own
+    // max_coarsening_level -- see that file's comment for the rationale.
+    pp.query_default("max_coarsening_level", value.max_coarsening_level, -1);
+    // [true] If set to false, do not hard-abort when the diffusion solve
+    // fails to converge -- continue the timestep with whatever
+    // (unconverged) solution MLMG has instead. Mirrors
+    // elastic.solver.abort_on_fail (see Solver::Nonlocal::Linear::Parse).
+    pp.query_default("abort_on_fail", value.abort_on_fail, true);
 }
 
 Diffusion::System&
@@ -650,6 +659,7 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         semicoarsening_direction == 1;
 
     amrex::LPInfo info;
+    if (max_coarsening_level >= 0) info.setMaxCoarseningLevel(max_coarsening_level);
     if (anisotropic)
         info.setSemicoarsening(true)
             .setMaxSemicoarseningLevel(100)
@@ -698,8 +708,16 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         solver.setPreSmooth(8);
         solver.setPostSmooth(8);
     }
-    solver.solve(state_pointer, rhs_pointer,
-                tolerance_relative, tolerance_absolute);
+    try
+    {
+        solver.solve(state_pointer, rhs_pointer,
+                    tolerance_relative, tolerance_absolute);
+    }
+    catch (const std::exception& e)
+    {
+        if (abort_on_fail) Util::Abort(INFO, e.what());
+        else Util::Warning(INFO, "Diffusion::Solve did not converge: ", e.what());
+    }
 }
 
 void
