@@ -113,6 +113,7 @@ Al_solid.rigid.max_iterations = 3
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
 
+interface.thickness = 20.0_um
 mechanisms.names = AP_decomposition HTPB_pyrolysis Al_sublimation
 
 # Use the AP and HTPB PhaseChange configurations from input.lm.ap_htpb_packed.
@@ -121,41 +122,36 @@ AP_decomposition.type = phase_change
 AP_decomposition.phase_change.phase0 = AP_solid
 AP_decomposition.phase_change.phase1 = AP_gas
 AP_decomposition.phase_change.latent_heat = 100.0_cal/g
-AP_decomposition.phase_change.rate_multiplier = 2.75e6
+AP_decomposition.phase_change.kinetics = arrhenius_surface_flux
+AP_decomposition.phase_change.reference_mass_flux = 11.70_kg/m^2/s
+AP_decomposition.phase_change.reference_pressure = 3.0e6_Pa
+AP_decomposition.phase_change.pressure_exponent = 0.4
 AP_decomposition.phase_change.activation_temperature = 3145.0_K
-AP_decomposition.phase_change.temperature_cutoff = 360.0_K
-AP_decomposition.phase_change.phase_field.type = allencahn
-AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
-AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
-AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
-AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+AP_decomposition.phase_change.reference_temperature = 600.0_K
 
 HTPB_pyrolysis.type = phase_change
 HTPB_pyrolysis.phase_change.phase0 = HTPB_solid
 HTPB_pyrolysis.phase_change.phase1 = HTPB_gas
 HTPB_pyrolysis.phase_change.latent_heat = 300.0_cal/g
-HTPB_pyrolysis.phase_change.rate_multiplier = 1.85e5
+HTPB_pyrolysis.phase_change.kinetics = arrhenius_surface_flux
+HTPB_pyrolysis.phase_change.reference_mass_flux = 5.52_kg/m^2/s
+HTPB_pyrolysis.phase_change.reference_pressure = 3.0e6_Pa
+HTPB_pyrolysis.phase_change.pressure_exponent = 0.4
 HTPB_pyrolysis.phase_change.activation_temperature = 3145.0_K
-HTPB_pyrolysis.phase_change.temperature_cutoff = 360.0_K
-HTPB_pyrolysis.phase_change.phase_field.type = allencahn
-HTPB_pyrolysis.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-HTPB_pyrolysis.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
-HTPB_pyrolysis.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w0 = 0.0
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w12 = 2.0
-HTPB_pyrolysis.phase_change.phase_field.allencahn.w1 = 1.0
+HTPB_pyrolysis.phase_change.reference_temperature = 600.0_K
 
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_gas
+Al_sublimation.phase_change.kinetics = arrhenius_surface_flux
 Al_sublimation.phase_change.reversible = false
 # This deliberately elevated 0.8 mm/s regression speed shrinks the nominal
 # 70 um particle radius by 20 um over the 25 ms simulation.
-Al_sublimation.phase_change.prescribed_speed = 0.8_mm/s
-Al_sublimation.phase_change.temperature_cutoff = 700.0_K
-Al_sublimation.phase_change.phase_field.type = allencahn
+Al_sublimation.phase_change.reference_mass_flux = 2.16_kg/m^2/s
+Al_sublimation.phase_change.reference_pressure = 3.0e6_Pa
+Al_sublimation.phase_change.pressure_exponent = 0.0
+Al_sublimation.phase_change.activation_temperature = 3145.0_K
+Al_sublimation.phase_change.reference_temperature = 700.0_K
 
 # Flow, projection, and diffusion
 advection.type = muscl

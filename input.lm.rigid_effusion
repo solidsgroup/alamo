@@ -1,4 +1,4 @@
-# Allen-Cahn recession of a dense diffuse rigid sphere in a cross flow
+# Surface-flux recession of a dense diffuse rigid sphere in a cross flow
 # Run with: mpirun -np 2 ./bin/lowmach-2d-clang++ input.lm.rigid_effusion
 
 plot_file = output.lm.rigid_effusion
@@ -48,17 +48,19 @@ Al_solid.mechanics = rigid_solid
 Al_solid.reference_density = 100.0_kg/m^3
 Al_solid.rigid.motion = free
 
+interface.thickness = 0.025
 mechanisms.names = Al_sublimation
 Al_sublimation.type = phase_change
 Al_sublimation.phase_change.phase0 = Al_solid
 Al_sublimation.phase_change.phase1 = Al_gas
-Al_sublimation.phase_change.phase_field.type = allencahn
+Al_sublimation.phase_change.kinetics = arrhenius_surface_flux
+Al_sublimation.phase_change.reference_mass_flux = 5.0_kg/m^2/s
+Al_sublimation.phase_change.reference_pressure = 1.0e5_Pa
+Al_sublimation.phase_change.pressure_exponent = 0.0
+Al_sublimation.phase_change.activation_temperature = 0.0_K
+Al_sublimation.phase_change.reference_temperature = 300.0_K
 
 Al_solid.rigid.relaxation_time = 5.0e-5_s
-
-Al_sublimation.phase_change.phase_field.allencahn.mobility = 20.0_1/Pa/s
-Al_sublimation.phase_change.phase_field.allencahn.sigma = 0.02_J/m^2
-Al_sublimation.phase_change.phase_field.allencahn.epsilon = 0.025_m
 
 advection.type = muscl
 advection.muscl.limiter.type = minmod
@@ -74,8 +76,7 @@ projection.update_pressure = 1
 diagnostics.interval = 20
 diagnostics.extended_fields = 0
 
-# This is the equilibrium planar-interface profile for the sigma/epsilon
-# conversion used by Model::PhaseField::AllenCahn.
+# Smooth initial diffuse interface for the surface-flux measure.
 ambient_gas.density.ic.type = expression
 ambient_gas.density.ic.expression.constant.rhog = 1.12254198039921
 ambient_gas.density.ic.expression.constant.x0 = 0.5

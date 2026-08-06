@@ -104,15 +104,6 @@ temperature.ic.constant.value = 300.0
 pressure.ic.type = constant
 pressure.ic.constant.value = 100000.0
 
-mechanisms.names = solid_phase_field
-solid_phase_field.type = phase_change
-solid_phase_field.phase_change.phase0 = solid
-solid_phase_field.phase_change.phase1 = ambient_gas
-solid_phase_field.phase_change.phase_field.type = allencahn
-solid_phase_field.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
-solid_phase_field.phase_change.phase_field.allencahn.sigma = 0.01_J/m^2
-solid_phase_field.phase_change.phase_field.allencahn.epsilon = 0.015_m
-
 xi.ic.type = expression
 xi.ic.expression.region0 = "x"
 xi.ic.expression.region1 = "y"
