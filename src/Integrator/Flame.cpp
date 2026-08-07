@@ -813,6 +813,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
+            // Eta may not burn below the fuel fraction: where phi=0 (casing,
+            // inert regions) the front is pinned instead of consuming material.
+            if (etanew(i, j, k) < 1.0 - phi_avg) etanew(i, j, k) = 1.0 - phi_avg;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
             if (std::isnan(etanew(i, j, k)) || std::isinf(etanew(i, j, k)))
             {
