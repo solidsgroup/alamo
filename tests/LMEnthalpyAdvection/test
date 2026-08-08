@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMEnthalpyAdvection requires initial and final plotfiles")
+
+
+def state(path):
+    data = testlib.yt.load(path).all_data()
+    density = data["component_density_ambient_gas"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    pressure = density * 296.945093505 * temperature
+    sensible_enthalpy = density * (29.1 / 0.028) * temperature
+    return {
+        "enthalpy": (sensible_enthalpy * volume).sum(),
+        "pressure_error": testlib.numpy.max(
+            testlib.numpy.abs(pressure / 1.0e5 - 1.0)),
+    }
+
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+relative_enthalpy_error = abs(final["enthalpy"] / initial["enthalpy"] - 1.0)
+if relative_enthalpy_error > 2.0e-5:
+    raise RuntimeError(
+        "Sensible enthalpy was not conserved: relative error "
+        f"{relative_enthalpy_error:.12g}; maximum thermodynamic-pressure "
+        f"error {final['pressure_error']:.12g}")
+if final["pressure_error"] > 2.0e-3:
+    raise RuntimeError(
+        "The advected thermal contact violates rho*R*T = p0: maximum "
+        f"relative error {final['pressure_error']:.12g}")
+
+print("LowMach conservative sensible-enthalpy advection regression passed")

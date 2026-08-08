@@ -94,7 +94,7 @@ public:
     void ApplyEquilibriumPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
-    void UpdateFreeRigidBodyState();
+    void UpdateFreeRigidBodyStates();
 
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
@@ -154,7 +154,6 @@ protected:
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> fixed_rigid_eta_mf;
-    Set::Field<Set::Scalar> free_rigid_eta_mf;
     Set::Field<Set::Scalar> liquid_species_eta_mf;
     Set::Field<Set::Scalar> interfacial_volume_fraction_mf;
     Set::Field<Set::Scalar> gas_volume_fraction_mf;
@@ -228,8 +227,8 @@ protected:
     std::vector<Set::Scalar> rigid_coupling_relative_tolerance;
     std::vector<Set::Scalar> rigid_coupling_absolute_tolerance;
     std::vector<int> fixed_rigid_solid_species;
-    int free_rigid_solid_species = -1;
-    int free_rigid_solid_component = -1;
+    std::vector<int> free_rigid_solid_species;
+    std::vector<int> free_rigid_solid_components;
     std::vector<int> liquid_species;
     std::vector<int> interfacial_solid_species;
     Model::PhaseField::MultiphaseInterface interfacial_model;
@@ -244,6 +243,20 @@ protected:
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
     Set::Scalar phase_field_cfl = NAN;
+    enum class ChemistryTimestepMode
+    {
+        Off,
+        Report,
+        Limit
+    };
+    ChemistryTimestepMode chemistry_timestep_mode =
+        ChemistryTimestepMode::Off;
+    // Both controls below are normalized fractions and therefore
+    // intentionally nondimensional.
+    Set::Scalar chemistry_max_fractional_change = 0.1;
+    Set::Scalar chemistry_reactant_mass_fraction_floor = 1.0e-4;
+    Set::Scalar chemistry_timescale_min = NAN;
+    Set::Scalar chemistry_timestep_candidate = NAN;
     Set::Scalar cfl_v = 1.0e100;
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
@@ -284,11 +297,7 @@ protected:
     Set::Scalar interfacial_reference_density_min = 1.0e100;
     Set::Scalar interfacial_thickness = 0.0;
     Set::Scalar conservative_allen_cahn_diffusivity = 0.0;
-    int last_free_rigid_coupling_iterations = 0;
-    Set::Scalar last_free_rigid_coupling_residual = 0.0;
-    bool last_free_rigid_coupling_converged = false;
     Set::Scalar previous_free_rigid_dt = NAN;
-    Set::Scalar free_rigid_body_time = NAN;
 
     struct FreeRigidBodyState
     {
@@ -300,8 +309,12 @@ protected:
         Set::Scalar radius_of_gyration = 0.0;
         bool valid = false;
     };
-    FreeRigidBodyState free_rigid_body;
-    FreeRigidBodyState previous_free_rigid_projection_increment;
+    std::vector<int> last_free_rigid_coupling_iterations;
+    std::vector<Set::Scalar> last_free_rigid_coupling_residual;
+    std::vector<bool> last_free_rigid_coupling_converged;
+    std::vector<Set::Scalar> free_rigid_body_time;
+    std::vector<FreeRigidBodyState> free_rigid_bodies;
+    std::vector<FreeRigidBodyState> previous_free_rigid_projection_increments;
 
     Numeric::Advect::Advect<Numeric::Advect::MUSCL,
                             Numeric::Advect::Upwind,

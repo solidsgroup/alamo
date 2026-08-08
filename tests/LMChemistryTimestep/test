@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMChemistryTimestep requires initial and final plotfiles")
+
+final_time = float(testlib.yt.load(plotfiles[-1]).current_time)
+if "report" in outdir:
+    testlib.numpy.testing.assert_allclose(final_time, 1.0e-7, rtol=1.0e-12)
+else:
+    if not 1.0e-10 < final_time < 1.0e-8:
+        raise AssertionError(
+            "Chemistry timestep limiter did not reduce the first step: "
+            f"dt={final_time:.12g}")
+
+print(f"Chemistry timestep mode produced dt={final_time:.12g} s")

@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def moments(path, species):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    rho = data[f"component_density_{species}"].to_ndarray()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    ux = data["velocityx"].to_ndarray()
+    uy = data["velocityy"].to_ndarray()
+    weight = rho * volume
+    mass = weight.sum()
+    center_x = (weight * x).sum() / mass
+    center_y = (weight * y).sum() / mass
+    core = weight * (rho > 4.0)
+    core_mass = core.sum()
+    velocity_x = (core * ux).sum() / core_mass
+    velocity_y = (core * uy).sum() / core_mass
+    return mass, center_x, center_y, velocity_x, velocity_y
+
+
+plotfiles = sorted(glob.glob(f"{sys.argv[1]}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("LMMultiFreeRigidParticle requires initial and final plotfiles")
+
+initial_a = moments(plotfiles[0], "solid_a")
+initial_b = moments(plotfiles[0], "solid_b")
+final_a = moments(plotfiles[-1], "solid_a")
+final_b = moments(plotfiles[-1], "solid_b")
+
+for name, initial, final in (
+        ("solid_a", initial_a, final_a), ("solid_b", initial_b, final_b)):
+    mass_error = abs(final[0] - initial[0]) / initial[0]
+    if mass_error > 1.0e-2:
+        raise RuntimeError(f"{name} mass changed by {mass_error:.3e}")
+    if abs(final[2] - initial[2]) > 2.0e-3 or abs(final[4]) > 2.0e-3:
+        raise RuntimeError(f"{name} developed excessive transverse motion")
+
+if not final_a[3] > initial_a[3] + 1.0e-3:
+    raise RuntimeError(
+        f"lower body did not accelerate independently in +x: "
+        f"{initial_a[3]:.6e} -> {final_a[3]:.6e}")
+if not final_b[3] < initial_b[3] - 1.0e-3:
+    raise RuntimeError(
+        f"upper body did not accelerate independently in -x: "
+        f"{initial_b[3]:.6e} -> {final_b[3]:.6e}")
+if not final_a[1] > initial_a[1] or not final_b[1] < initial_b[1]:
+    raise RuntimeError("free rigid centers did not move in opposite directions")
+
+print("LowMach multiple freely moving rigid particle regression passed")

@@ -1,0 +1,140 @@
+#@ [2d]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=180
+
+# Two dense particles occupy opposite sides of a periodic shear flow.  The
+# lower particle must accelerate in +x while the upper particle accelerates
+# in -x; treating them as one rigid body would instead give nearly zero
+# translation and a single aggregate rotation.
+plot_file = tests/LMMultiFreeRigidParticle/output
+amr.plot_int = 50
+amr.max_level = 0
+amr.regrid_int = -1
+amr.max_grid_size = 32
+amr.blocking_factor = 8
+amr.n_cell = 64 64
+
+timestep = 2.0e-4_s
+stop_time = 0.02_s
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 1.0_m 1.0_m 0.0_m
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0_J/mol
+gas.thermo.cpconstant.s0 = 0.0_J/mol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 5.0e-2_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient solid_a solid_b
+ambient.mechanics = fluid
+solid_a.mechanics = rigid_solid
+solid_b.mechanics = rigid_solid
+solid_a.reference_density = 5.0_kg/m^3
+solid_b.reference_density = 5.0_kg/m^3
+solid_a.rigid.motion = free
+solid_b.rigid.motion = free
+solid_a.rigid.relaxation_time = 1.0e-5_s
+solid_b.rigid.relaxation_time = 1.0e-5_s
+solid_a.rigid.coupling = anderson
+solid_b.rigid.coupling = anderson
+solid_a.rigid.max_iterations = 3
+solid_b.rigid.max_iterations = 3
+solid_a.rigid.relative_tolerance = 1.0e-3
+solid_b.rigid.relative_tolerance = 1.0e-3
+solid_a.rigid.absolute_tolerance = 1.0e-6_m/s
+solid_b.rigid.absolute_tolerance = 1.0e-6_m/s
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.2
+include_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diagnostics.interval = 25
+diagnostics.extended_fields = 0
+
+ambient.density.ic.type = expression
+ambient.density.ic.expression.constant.rho = 1.12254198039921_kg/m^3
+ambient.density.ic.expression.constant.xa = 0.30_m
+ambient.density.ic.expression.constant.ya = 0.25_m
+ambient.density.ic.expression.constant.xb = 0.70_m
+ambient.density.ic.expression.constant.yb = 0.75_m
+ambient.density.ic.expression.constant.R = 0.10_m
+ambient.density.ic.expression.constant.eps = 0.025_m
+ambient.density.ic.expression.region0 = "rho*max(0.0,1.0-(0.5-0.5*tanh((sqrt((x-xa)^2+(y-ya)^2)-R)/eps))-(0.5-0.5*tanh((sqrt((x-xb)^2+(y-yb)^2)-R)/eps)))"
+
+solid_a.density.ic.type = expression
+solid_a.density.ic.expression.constant.rho = 5.0_kg/m^3
+solid_a.density.ic.expression.constant.x0 = 0.30_m
+solid_a.density.ic.expression.constant.y0 = 0.25_m
+solid_a.density.ic.expression.constant.R = 0.10_m
+solid_a.density.ic.expression.constant.eps = 0.025_m
+solid_a.density.ic.expression.region0 = "rho*(0.5-0.5*tanh((sqrt((x-x0)^2+(y-y0)^2)-R)/eps))"
+
+solid_b.density.ic.type = expression
+solid_b.density.ic.expression.constant.rho = 5.0_kg/m^3
+solid_b.density.ic.expression.constant.x0 = 0.70_m
+solid_b.density.ic.expression.constant.y0 = 0.75_m
+solid_b.density.ic.expression.constant.R = 0.10_m
+solid_b.density.ic.expression.constant.eps = 0.025_m
+solid_b.density.ic.expression.region0 = "rho*(0.5-0.5*tanh((sqrt((x-x0)^2+(y-y0)^2)-R)/eps))"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.U = 1.0_m/s
+velocity.ic.expression.constant.xa = 0.30_m
+velocity.ic.expression.constant.ya = 0.25_m
+velocity.ic.expression.constant.xb = 0.70_m
+velocity.ic.expression.constant.yb = 0.75_m
+velocity.ic.expression.constant.R = 0.10_m
+velocity.ic.expression.constant.eps = 0.025_m
+velocity.ic.expression.region0 = "U*sin(6.283185307179586*y)*(1.0-(0.5-0.5*tanh((sqrt((x-xa)^2+(y-ya)^2)-R)/eps))-(0.5-0.5*tanh((sqrt((x-xb)^2+(y-yb)^2)-R)/eps)))"
+velocity.ic.expression.region1 = "0.0"
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0_K
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0_Pa
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = periodic
+component_density.bc.constant.type.yhi = periodic
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = periodic
+velocity.bc.constant.type.yhi = periodic
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
