@@ -191,6 +191,50 @@ not retained as a compatibility layer.
   simulated time.  Its cost per simulated time was therefore about 13% lower;
   the raw 14% per-step difference is not evidence of added stiffness.
 
+### 2026-08-07: flame-temperature transport and chemistry subcycling
+
+- Retained the calibrated constant-heat-capacity GrossModel unchanged.  A
+  proposed temperature-dependent heat capacity was removed rather than using
+  thermodynamic retuning to suppress the aluminum-case ignition transient.
+- Gas temperature transport now advects volumetric sensible enthalpy with the
+  same conservative operator as the gas partial densities and converts that
+  balance back to temperature.  The periodic thermal-contact regression
+  conserves sensible enthalpy to its `2e-5` relative tolerance and avoids the
+  heat created by independently mixing temperature and density.
+- In the production aluminum case, the pre-ignition timestep of
+  `1.683608338e-7 s` equals the explicit capillary estimate to the printed
+  precision.  That limiter uses the configured maximum interfacial stiffness,
+  minimum reference density, and finest-cell spacing; it does not represent a
+  chemical timescale.
+- Fresh, matched runs through 0.321 ms compared one and four implicit
+  Backward-Euler chemistry substeps per Strang half-step.  Four substeps raised
+  the 0.31 ms maximum temperature from 5578.8 K to 5752.5 K (`+3.11%`), raised
+  the 99.9th percentile from 5449.1 K to 5575.4 K (`+2.32%`), and raised the
+  maximum speed from 49.83 to 53.60 m/s (`+7.57%`).  The minimum global step
+  fell from `2.86e-8 s` to `2.62e-8 s`.  Fixed local chemistry subcycling was
+  therefore rejected as a flame-spike mitigation: it removes some
+  backward-Euler damping and resolves a sharper reaction/expansion impulse,
+  while leaving transport and pressure projection at the global-step cadence.
+- Added an optional source-based chemistry timestep informer.  It reports the
+  minimum timescale for a fractional temperature rise or major-reactant
+  depletion, using `chemistry.timestep.reactant_mass_fraction_floor` to keep
+  trace reactants from setting the global step.  `chemistry.timestep.mode` is
+  `off`, `report`, or `limit`; only `limit` participates in dynamic timestep
+  selection.  The corresponding allowed change is configured with
+  `chemistry.timestep.max_fractional_change`.  This is explicitly an accuracy
+  indicator for split implicit chemistry, not an explicit stability CFL.
+- Aluminum-flame restart samples show that this is primarily a flame-growth
+  restriction rather than a permanent chemical CFL.  With a 0.1 fractional
+  change, the candidate was `8.59e-11 s` at 0.310 ms and `2.53e-10 s` at
+  0.350 ms, versus accepted hydrodynamic steps of `7.36e-8 s` and `6.28e-8 s`.
+  At 6.300 ms, the candidate had relaxed to `2.98e-7 s`, above the accepted
+  `1.0e-7 s` step.  A hard chemical limit would therefore dominate initial
+  flame development, but it need not dominate a mature flame indefinitely.
+- LowMach dimensional timestep bounds, refinement criteria, gravity, and
+  initial/boundary field values now use the unit-aware input path.  Bare SI
+  values remain valid.  CFL values, phase fractions, and the two normalized
+  chemistry timestep controls remain intentionally nondimensional.
+
 # Current model
 
 ## Conserved state and phase reconstruction
@@ -407,6 +451,21 @@ volume changes.  Since the state already contains those changes, the residual
 mixture-volume defect first subtracts their contributions; the projection then
 adds each exact split dilatation once.  This avoids treating physical
 solid--liquid or liquid--gas expansion twice.
+
+For reactive cases, `chemistry.timestep.mode=report` evaluates a local
+source-based chemical timescale without changing the step.  `limit` multiplies
+that timescale by `chemistry.timestep.max_fractional_change` and includes the
+result in dynamic timestep selection.  The normalized rate is the larger of
+the fractional temperature-rise rate and the destruction rate of each
+reactant above `chemistry.timestep.reactant_mass_fraction_floor`.  Since the
+chemistry solve is implicit, this is an optional splitting-accuracy control;
+it is not required for nonlinear stability.
+
+Both `chemistry.timestep.max_fractional_change` and
+`chemistry.timestep.reactant_mass_fraction_floor` are nondimensional fractions.
+All associated times reported in diagnostics, as well as
+`dynamictimestep.min` and `dynamictimestep.max`, are in seconds internally and
+accept unit-bearing time inputs.
 
 ## Input contract
 
