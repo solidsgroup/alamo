@@ -65,6 +65,20 @@ GetStencil(const int i, const int j, const int k, const amrex::Box domain)
     return sten;
 }
 
+[[nodiscard]]
+static
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+std::array<StencilType, AMREX_SPACEDIM>
+GetStencil(const int i, const int j, const int k, const amrex::Box domain,
+    const amrex::GpuArray<int, AMREX_SPACEDIM>& periodic)
+{
+    auto sten = GetStencil(i, j, k, domain);
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        if (periodic[d]) sten[d] = StencilType::Central;
+    return sten;
+}
+
 template<class T, int x, int y, int z>
 struct Stencil
 {};

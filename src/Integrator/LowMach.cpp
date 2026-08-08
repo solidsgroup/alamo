@@ -928,6 +928,9 @@ LowMach::UpdateSolidStress(int lev,
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
+    amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        periodic[d] = geom[lev].isPeriodic(d);
     const Model::Solid::Finite::NeoHookean solid_model = finite_solid_model;
     const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
     const Set::Scalar stress_eta_min =
@@ -959,7 +962,7 @@ LowMach::UpdateSolidStress(int lev,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, domain, periodic);
             Set::Matrix F = Set::Matrix::Identity();
             Set::Matrix grad_u =
                 Numeric::Gradient(u, i, j, k, dx.data(), sten);
@@ -1245,6 +1248,9 @@ LowMach::UpdateInterfacialChemicalPotential(int lev)
         interfacial_model.InterfaceThickness();
     const Set::Scalar* DX = geom[lev].CellSize();
     const amrex::Box domain = geom[lev].Domain();
+    amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        periodic[d] = geom[lev].isPeriodic(d);
     amrex::MultiFab& chemical_potential =
         *interfacial_chemical_potential_mf[lev];
     chemical_potential.setVal(0.0, 0, nphase,
@@ -1272,8 +1278,8 @@ LowMach::UpdateInterfacialChemicalPotential(int lev)
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                        const auto stencil =
-                            Numeric::GetStencil(i, j, k, domain);
+                        const auto stencil = Numeric::GetStencil(
+                            i, j, k, domain, periodic);
                         mu(i,j,k,a) +=
                             Model::PhaseField::MultiphaseInterface::
                                 PairChemicalPotential(
@@ -1337,6 +1343,9 @@ LowMach::ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt)
         {
             const Set::Scalar* DX = geom[lev].CellSize();
             const amrex::Box domain = geom[lev].Domain();
+            amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                periodic[d] = geom[lev].isPeriodic(d);
             for (int liquid = 0; liquid < nliquid; ++liquid)
             {
                 amrex::MultiFab compression_flux(
@@ -1354,8 +1363,8 @@ LowMach::ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt)
                     amrex::ParallelFor(
                         bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
-                            const auto stencil =
-                                Numeric::GetStencil(i,j,k,domain);
+                            const auto stencil = Numeric::GetStencil(
+                                i, j, k, domain, periodic);
                             const Set::Scalar eta = Util::Clamp(
                                 volume_fraction(i,j,k,liquid), 0.0, 1.0);
                             const Set::Vector gradient = Numeric::Gradient(
@@ -1388,8 +1397,8 @@ LowMach::ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt)
                     amrex::ParallelFor(
                         bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
-                            const auto stencil =
-                                Numeric::GetStencil(i,j,k,domain);
+                            const auto stencil = Numeric::GetStencil(
+                                i, j, k, domain, periodic);
                             Set::Scalar divergence = 0.0;
                             for (int d = 0; d < AMREX_SPACEDIM; ++d)
                                 divergence += Numeric::Gradient(
@@ -1438,6 +1447,9 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
+    amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        periodic[d] = geom[lev].isPeriodic(d);
     const int ngas = ngas_species;
     const int number_of_species = nspecies;
     const Set::Scalar rho_floor = density_floor;
@@ -1482,7 +1494,7 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
                 gas_data, density, M(i,j,k,0), M(i,j,k,1),
                 T(i,j,k), component_density, i, j, k);
 
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, domain, periodic);
             Set::Matrix grad_u =
                 Numeric::Gradient(u, i, j, k, dx.data(), sten);
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
@@ -3065,6 +3077,16 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const int number_of_species = nspecies;
     const Set::Scalar* liquid_inverse_density =
         amrex::get<9>(thermal_data);
+    const amrex::BCRec pressure_boundary = pressure_bc->GetBCRec();
+    amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_lo{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_hi{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        pressure_outlet_lo[d] = !geom[0].isPeriodic(d) &&
+            BC::BCUtil::IsDirichlet(pressure_boundary.lo(d));
+        pressure_outlet_hi[d] = !geom[0].isPeriodic(d) &&
+            BC::BCUtil::IsDirichlet(pressure_boundary.hi(d));
+    }
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> projection_source(nlev);
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> provisional_velocity(nlev);
@@ -3136,6 +3158,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     for (int lev = 0; lev < nlev; ++lev)
     {
         const auto dx = geom[lev].CellSizeArray();
+        const amrex::Dim3 domain_lo = amrex::lbound(geom[lev].Domain());
+        const amrex::Dim3 domain_hi = amrex::ubound(geom[lev].Domain());
         amrex::MultiFab& beta_mf = pressure_poisson.Coefficient(lev);
         const Set::Scalar rho_floor = density_floor;
 
@@ -3234,7 +3258,48 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                     if (split_diffusion)
                         unexplained_volume_defect -=
                             diffusion_dilatation(i,j,k);
-                    rhs(i,j,k) += unexplained_volume_defect * inverse_dt /
+                    // A prescribed-pressure boundary is an open boundary for
+                    // the mixture constraint.  A diffuse phase clipped there
+                    // has an algebraic volume defect that must leave with the
+                    // phase; forcing it to zero locally in one shrinking time
+                    // step creates an unbounded outlet velocity.  Fade only
+                    // this drift-control term where the diffuse interface can
+                    // overlap the outlet, then restore it smoothly over the
+                    // next physical interface thickness.  The
+                    // thermochemical and phase-change divergence sources
+                    // above remain active at the outlet.
+                    Set::Scalar outlet_weight = 1.0;
+                    if (interfacial_thickness > 0.0)
+                    {
+                        const int index[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(i,j,k)};
+                        const int lo[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(domain_lo.x,domain_lo.y,domain_lo.z)};
+                        const int hi[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(domain_hi.x,domain_hi.y,domain_hi.z)};
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        {
+                            // Two interface thicknesses represent the
+                            // fully restored correction.  Only a physical
+                            // pressure outlet can reduce this distance;
+                            // periodic directions and closed boundaries must
+                            // leave the weight unchanged.
+                            Set::Scalar distance =
+                                2.0 * interfacial_thickness;
+                            if (pressure_outlet_lo[d])
+                                distance = Util::Min(distance,
+                                    (index[d] - lo[d] + 0.5) * dx[d]);
+                            if (pressure_outlet_hi[d])
+                                distance = Util::Min(distance,
+                                    (hi[d] - index[d] + 0.5) * dx[d]);
+                            const Set::Scalar q = Util::Clamp(
+                                distance / interfacial_thickness - 1.0,
+                                0.0, 1.0);
+                            outlet_weight *= q * q * (3.0 - 2.0 * q);
+                        }
+                    }
+                    rhs(i,j,k) += outlet_weight *
+                        unexplained_volume_defect * inverse_dt /
                         Util::Max(volume_fraction, 0.1);
                 }
             });
@@ -3988,6 +4053,10 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
+    amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        periodic[d] = geom[lev].isPeriodic(d);
+    const auto gas_data = gas_device_data;
     const auto thermal = thermal_data;
     const auto thermochemical = thermochemical_data;
     const auto advect_scheme = advect;
@@ -4048,7 +4117,7 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, domain, periodic);
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
             Set::Scalar mu = explicit_viscosity ?
                 ComputeViscosity(
@@ -4151,7 +4220,7 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, domain, periodic);
 
             auto [species,temperature,dilatation] =
                 ComputeThermochemicalSource(
@@ -4463,8 +4532,17 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
-                Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
-                return {speed / dxmin};
+                // The cell-centered MUSCL operator applies all directional
+                // fluxes in one unsplit update.  Its multidimensional CFL
+                // rate is therefore the sum of the directional Courant
+                // rates, not |u| divided by the smallest cell width.  The
+                // latter can underpredict the rate by sqrt(dim) for diagonal
+                // flow and is especially visible when a curved interface
+                // crosses a periodic seam.
+                Set::Scalar advection_rate = 0.0;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    advection_rate += Util::Abs(u(i,j,k,d)) / dx[d];
+                return {advection_rate};
             });
             ReduceTuple hv = reduce_data.value();
             advmax = std::max(advmax, amrex::get<0>(hv));
@@ -4586,6 +4664,9 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
     {
         const auto dx = geom[lev].CellSizeArray();
         amrex::Box domain = geom[lev].Domain();
+        amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            periodic[d] = geom[lev].isPeriodic(d);
 
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -4618,7 +4699,8 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
-                auto sten = Numeric::GetStencil(i, j, k, domain);
+                auto sten = Numeric::GetStencil(
+                    i, j, k, domain, periodic);
                 Set::Matrix grad_u =
                     Numeric::Gradient(u, i, j, k, dx.data(), sten);
                 Set::Scalar div = 0.0;
@@ -4744,6 +4826,9 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
     const Set::Scalar rho_floor = density_floor;
     const ThermochemicalData reaction_data = {
         thermal_data, chemistry_device_data, true, false, true};
+    amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        periodic[d] = geom[lev].isPeriodic(d);
 
     for (amrex::MFIter mfi(*temperature_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -4767,7 +4852,7 @@ LowMach::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i, j, k, domain);
+            auto sten = Numeric::GetStencil(i, j, k, domain, periodic);
             Set::Matrix grad_u =
                 Numeric::Gradient(u, i, j, k, dx.data(), sten);
             Set::Vector grad_p =

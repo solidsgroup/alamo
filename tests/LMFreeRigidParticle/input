@@ -33,6 +33,7 @@
 #@ [2d-periodic-crossing]
 #@ exe=lowmach
 #@ dim=2
+#@ nprocs=2
 #@ timeout=240
 #@ args=Al_solid.density.ic.expression.constant.x0=0.94
 #@ args=ambient_gas.density.ic.expression.constant.x0=0.94
@@ -40,6 +41,7 @@
 #@ args=velocity.ic.expression.constant.U=5.0
 #@ args=amr.max_level=0
 #@ args=amr.regrid_int=-1
+#@ args=advection.muscl.limiter.type=superbee
 
 # A dense aluminum disk starts at rest in a periodic moving gas.  Its velocity
 # is not prescribed: viscous and pressure coupling must accelerate it.

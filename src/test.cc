@@ -289,6 +289,21 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
         subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
         subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
+        const amrex::Box domain(
+            amrex::IntVect::TheZeroVector(),
+            amrex::IntVect(AMREX_D_DECL(7, 7, 7)));
+        const amrex::GpuArray<int,AMREX_SPACEDIM> periodic =
+            {AMREX_D_DECL(1, 0, 0)};
+        const auto physical_boundary =
+            ::Numeric::GetStencil(0, 3, 0, domain);
+        const auto periodic_boundary =
+            ::Numeric::GetStencil(0, 3, 0, domain, periodic);
+        subfailed += Util::Test::SubMessage(
+            "physical boundary is one-sided",
+            physical_boundary[0] != ::Numeric::StencilType::Hi);
+        subfailed += Util::Test::SubMessage(
+            "periodic boundary remains centered",
+            periodic_boundary[0] != ::Numeric::StencilType::Central);
 #if AMREX_SPACEDIM>2
         // first order
         subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));

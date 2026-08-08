@@ -118,6 +118,9 @@ PressurePoisson::PrepareCoefficients(Set::Scalar time)
             face_ptr[d] = &face_coefficient[lev][d];
         amrex::average_cellcenter_to_face(
             face_ptr, *coefficient[lev], geometry[lev], 1, true, 0);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            face_coefficient[lev][d].OverrideSync(
+                geometry[lev].periodicity());
     }
 }
 
@@ -153,7 +156,13 @@ PressurePoisson::PrepareRHS(
                     face(i,j,k) += dt * capillary_acceleration(i,j,k);
             });
         }
-        face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());
+        // Face-centered BoxArrays overlap at patch boundaries and contain
+        // two valid representations of a periodic seam.  FillBoundary alone
+        // updates ghost cells but does not reconcile those valid nodal
+        // values.  Keep one flux on every geometric face before taking its
+        // divergence so the periodic cells see equal and opposite fluxes.
+        face_velocity[lev][d].FillBoundaryAndSync(
+            geometry[lev].periodicity());
     }
     amrex::computeDivergence(
         *divergence[lev], face_velocity_const_ptr, geometry[lev]);
@@ -252,7 +261,11 @@ PressurePoisson::ApplyCorrection(
                     (phi(i,j,k) - phi(i-di,j-dj,k-dk)) / dx[d];
             });
         }
-        face_velocity[lev][d].FillBoundary(geometry[lev].periodicity());
+        // The pressure correction is also evaluated independently on each
+        // overlapping face.  Synchronize the valid copies as well as the
+        // ghosts before reconstructing the cell-centered increment.
+        face_velocity[lev][d].FillBoundaryAndSync(
+            geometry[lev].periodicity());
     }
 
     // Retain the pre-projection cell field so the pressure-induced face
