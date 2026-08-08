@@ -109,10 +109,14 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
         // dynamic teimstep CFL condition
         pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
-        // minimum timestep size allowed shen stepping dynamically
-        pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
-        // maximum timestep size allowed shen stepping dynamically
-        pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
+        // minimum timestep size allowed when stepping dynamically
+        value.dynamictimestep.min = value.timestep;
+        pp.queryunit("dynamictimestep.min", value.dynamictimestep.min,
+                     Unit::Time());
+        // maximum timestep size allowed when stepping dynamically
+        value.dynamictimestep.max = value.timestep;
+        pp.queryunit("dynamictimestep.max", value.dynamictimestep.max,
+                     Unit::Time());
 
     });
 

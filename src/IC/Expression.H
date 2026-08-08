@@ -244,6 +244,8 @@ class Expression::X : public Expression
 {
 public:
     X(amrex::Vector<amrex::Geometry>& _geom) : Expression(_geom) {}
+    X(amrex::Vector<amrex::Geometry>& _geom, Unit /*unit*/) :
+        Expression(_geom) {}
 
     virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar /*a_time*/ = 0.0) override
     {

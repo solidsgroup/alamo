@@ -100,8 +100,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Util::Exception(INFO, "phase_field.cfl must be positive");
     pp.query_default("cfl_v", value.cfl_v, 1.0e100);
     pp.query_default("small", value.small, 1.0e-12);
-    pp.query_default("density_floor", value.density_floor, value.small);
-    pp.query_default("pressure_floor", value.pressure_floor, value.small);
+    pp.query_default("density_floor", value.density_floor,
+        "1.0e-12_kg/m^3", Unit::Density());
+    pp.query_default("pressure_floor", value.pressure_floor,
+        "1.0e-12_Pa", Unit::Pressure());
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
     pp.query_default("projection.enabled", value.projection_enabled, true);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
@@ -604,9 +606,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.advect.VelocityLocation() != Set::HC::Cell)
         Util::Exception(INFO, "LowMach currently requires cell-centered phi and velocity advection data");
 
-    pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 1.0e100);
-    pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 1.0e100);
-    pp.query_default("temperature_refinement_criterion", value.temperature_refinement_criterion, 1.0e100);
+    pp.query_default("velocity_refinement_criterion",
+        value.velocity_refinement_criterion, "1.0e100_m/s",
+        Unit::Velocity());
+    pp.query_default("pressure_refinement_criterion",
+        value.pressure_refinement_criterion, "1.0e100_Pa",
+        Unit::Pressure());
+    pp.query_default("temperature_refinement_criterion",
+        value.temperature_refinement_criterion, "1.0e100_K",
+        Unit::Temperature());
     pp.query_default("reaction_refinement_criterion",
                     value.reaction_refinement_criterion,
                     "1.0e100_1/s", 1.0 / Unit::Time());
@@ -635,7 +643,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                     "amr.reinitialize_condensed_composition requires a density IC for ",
                     value.species_names[n]);
     }
-    pp.queryarr_default("g", value.g, Set::Vector::Zero());
+    pp.queryarr_default("g", value.g, "0.0_m/s^2 0.0_m/s^2 0.0_m/s^2",
+        Unit::Length() / Unit::Time() / Unit::Time());
 
     int kinetic_diffuse_moment_nghost = 0;
     if (value.has_kinetic_phase_change)
@@ -657,22 +666,41 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
     int nghost = value.advect.NGhost();
     if (nghost < 3) nghost = 3;
-    pp.select_default<BC::Constant,BC::Expression>("velocity.bc", value.velocity_bc, pp.forward_args(AMREX_SPACEDIM));
-    pp.select_default<BC::Constant,BC::Expression>("temperature.bc", value.temperature_bc, pp.forward_args(1));
-    pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("component_density.bc", value.component_density_bc, pp.forward_args(value.nspecies));
-    pp.select_default<BC::Constant,BC::Expression>("pressure.bc", value.pressure_bc, pp.forward_args(1));
+    pp.select_default<BC::Constant,BC::Expression>(
+        "velocity.bc", value.velocity_bc,
+        pp.forward_args(AMREX_SPACEDIM,
+            Unit::Length() / Unit::Time()));
+    pp.select_default<BC::Constant,BC::Expression>(
+        "temperature.bc", value.temperature_bc,
+        pp.forward_args(1, Unit::Temperature()));
+    pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>(
+        "component_density.bc", value.component_density_bc,
+        pp.forward_args(value.nspecies, Unit::Density()));
+    pp.select_default<BC::Constant,BC::Expression>(
+        "pressure.bc", value.pressure_bc,
+        pp.forward_args(1, Unit::Pressure()));
 
-    pp.select_default<IC::Constant,IC::Expression>("velocity.ic", value.velocity_ic, pp.forward_args(value.geom));
-    pp.select_default<IC::Constant,IC::Expression>("temperature.ic", value.temperature_ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Constant,IC::Expression>(
+        "velocity.ic", value.velocity_ic,
+        pp.forward_args(value.geom, Unit::Length() / Unit::Time()));
+    pp.select_default<IC::Constant,IC::Expression>(
+        "temperature.ic", value.temperature_ic,
+        pp.forward_args(value.geom, Unit::Temperature()));
     if (pp.contains("heat_source.ic.type"))
         pp.select<IC::Constant,IC::Expression>(
             "heat_source.ic", value.heat_source_ic,
             pp.forward_args(value.geom,Unit::Power() / Unit::Volume()));
-    pp.select_default<IC::Constant,IC::Expression>("pressure.ic", value.pressure_ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Constant,IC::Expression>(
+        "pressure.ic", value.pressure_ic,
+        pp.forward_args(value.geom, Unit::Pressure()));
     if (value.deformable_solid_species >= 0)
     {
-        pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>("xi.bc", value.xi_bc, pp.forward_args(AMREX_SPACEDIM));
-        pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>("xi.ic", value.xi_ic, pp.forward_args(value.geom));
+        pp.select_default<BC::Constant::ZeroNeumann,BC::Constant,BC::Expression>(
+            "xi.bc", value.xi_bc,
+            pp.forward_args(AMREX_SPACEDIM, Unit::Length()));
+        pp.select_default<IC::Expression::X,IC::Constant,IC::Expression>(
+            "xi.ic", value.xi_ic,
+            pp.forward_args(value.geom, Unit::Length()));
     }
 
     std::vector<std::string> species_suffix(value.nspecies);
