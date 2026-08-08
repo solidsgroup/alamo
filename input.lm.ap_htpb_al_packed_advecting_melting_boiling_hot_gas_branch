@@ -1,0 +1,203 @@
+# Three-phase aluminum branch in a preheated AP/HTPB product-gas environment.
+# This case inherits the transport, chemistry, phase-change, and packed-bed
+# configuration from the single-particle melting/boiling case, then replaces
+# its ignition source and initial aluminum/gas state below.
+FILE = input.lm.ap_htpb_al_packed_advecting_melting_boiling
+
+plot_file = output.lm.ap_htpb_al_packed_advecting_melting_boiling_hot_gas_branch
+# The three remaining solid cores are separate rigid species.  They melt into
+# one shared liquid phase, whose surface tension controls the aggregate's
+# external shape without locking the cores to one translation or rotation.
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final Al_gas Al2O3_gas AP_solid HTPB_solid Al_solid Al_solid_2 Al_solid_3 Al_liquid
+Al_solid_2.mechanics = rigid_solid
+Al_solid_3.mechanics = rigid_solid
+Al_solid_2.reference_density = 2700.0_kg/m^3
+Al_solid_3.reference_density = 2700.0_kg/m^3
+Al_solid_2.specific_heat = 900.0_J/kg/K
+Al_solid_3.specific_heat = 900.0_J/kg/K
+Al_solid_2.thermal_conductivity = 237.0_W/m/K
+Al_solid_3.thermal_conductivity = 237.0_W/m/K
+Al_solid_2.temperature_override = 925.0_K
+Al_solid_3.temperature_override = 925.0_K
+Al_solid_2.rigid.motion = free
+Al_solid_3.rigid.motion = free
+Al_solid_2.rigid.relaxation_time = 1.0e-8_s
+Al_solid_3.rigid.relaxation_time = 1.0e-8_s
+Al_solid_2.rigid.coupling = anderson
+Al_solid_3.rigid.coupling = anderson
+Al_solid_2.rigid.max_iterations = 6
+Al_solid_3.rigid.max_iterations = 6
+Al_solid_2.rigid.relative_tolerance = 1.0e-3
+Al_solid_3.rigid.relative_tolerance = 1.0e-3
+Al_solid_2.rigid.absolute_tolerance = 1.0e-5_m/s
+Al_solid_3.rigid.absolute_tolerance = 1.0e-5_m/s
+interface.liquid_solid.regularization.Al_liquid_Al_solid_2 = 0.10_J/m^2
+interface.liquid_solid.regularization.Al_liquid_Al_solid_3 = 0.10_J/m^2
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid_2 = 0.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid_3 = 0.0_deg
+
+mechanisms.names = AP_decomposition HTPB_pyrolysis Al_melting Al_melting_2 Al_melting_3 Al_evaporation
+Al_melting_2.type = phase_change
+Al_melting_2.phase_change.phase0 = Al_solid_2
+Al_melting_2.phase_change.phase1 = Al_liquid
+Al_melting_2.phase_change.kinetics = equilibrium_enthalpy
+Al_melting_2.phase_change.reversible = false
+Al_melting_2.phase_change.latent_heat = 2.0e5_J/kg
+Al_melting_2.phase_change.transition_temperature = 933.45_K
+Al_melting_3.type = phase_change
+Al_melting_3.phase_change.phase0 = Al_solid_3
+Al_melting_3.phase_change.phase1 = Al_liquid
+Al_melting_3.phase_change.kinetics = equilibrium_enthalpy
+Al_melting_3.phase_change.reversible = false
+Al_melting_3.phase_change.latent_heat = 2.0e5_J/kg
+Al_melting_3.phase_change.transition_temperature = 933.45_K
+
+temperature_refinement_criterion = 500.0_K
+dynamictimestep.min = 5.0_ns
+dynamictimestep.max = 500.0_us
+AP_solid.rigid.velocity = 0.0_m/s 0.0_m/s
+HTPB_solid.rigid.velocity = 0.0_m/s 0.0_m/s
+pressure.ic.constant.value = 3.0_MPa
+pressure.bc.constant.val.yhi = 3.0_MPa
+velocity.bc.constant.val.ylo = 0.0_m/s 0.0_m/s
+
+# Remove every inherited laser-source entry.  Heating comes only from the
+# initially hot product gas and subsequent GrossModel chemistry.
+ignore = heat_source.ic.type \
+         heat_source.ic.expression.unit \
+         heat_source.ic.expression.constant.surface_y \
+         heat_source.ic.expression.constant.qflux \
+         heat_source.ic.expression.constant.width \
+         heat_source.ic.expression.constant.norm \
+         heat_source.ic.expression.constant.toff \
+         heat_source.ic.expression.constant.tramp \
+         heat_source.ic.expression.region0 \
+         Al_liquid.density.ic.constant.value
+
+# Keep the propellant at 300 K and initialize the fused aluminum branch just
+# below its 933.45 K melting point.  Diffuse condensed volume fractions blend
+# these overrides smoothly into the surrounding gas temperature.
+AP_solid.temperature_override = 300.0_K
+HTPB_solid.temperature_override = 300.0_K
+Al_solid.temperature_override = 925.0_K
+Al_liquid.temperature_override = 925.0_K
+
+# Three unequal, slightly overlapping disks form one connected, bent branch.
+# Their centers are non-collinear and their unequal radii eliminate radial and
+# reflection symmetry.  Coordinates are relative to the propellant surface.
+# The initial 25 um molten layer replaces material inside the original branch:
+# the outer condensed envelope is unchanged, while the solid-core boundary is
+# displaced inward by melt_depth.
+Al_solid.density.ic.expression.constant.al_x1 = -95.0_um
+Al_solid.density.ic.expression.constant.al_y1 = 300.0_um
+Al_solid.density.ic.expression.constant.al_r1 = 82.0_um
+Al_solid.density.ic.expression.constant.al_x2 = 35.0_um
+Al_solid.density.ic.expression.constant.al_y2 = 355.0_um
+Al_solid.density.ic.expression.constant.al_r2 = 78.0_um
+Al_solid.density.ic.expression.constant.al_x3 = 82.0_um
+Al_solid.density.ic.expression.constant.al_y3 = 477.0_um
+Al_solid.density.ic.expression.constant.al_r3 = 70.0_um
+Al_solid.density.ic.expression.constant.melt_depth = 25.0_um
+Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-(al_r1-melt_depth))/al_eps)))"
+
+Al_solid_2.density.ic.type = expression
+Al_solid_2.density.ic.expression.constant.surface_y = -0.0003_m
+Al_solid_2.density.ic.expression.constant.surface_eps = 20.0_um
+Al_solid_2.density.ic.expression.constant.al_eps = 20.0_um
+Al_solid_2.density.ic.expression.constant.al_x = 35.0_um
+Al_solid_2.density.ic.expression.constant.al_y = 355.0_um
+Al_solid_2.density.ic.expression.constant.al_r = 78.0_um
+Al_solid_2.density.ic.expression.constant.melt_depth = 25.0_um
+Al_solid_2.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-(al_r-melt_depth))/al_eps)))"
+
+Al_solid_3.density.ic.type = expression
+Al_solid_3.density.ic.expression.constant.surface_y = -0.0003_m
+Al_solid_3.density.ic.expression.constant.surface_eps = 20.0_um
+Al_solid_3.density.ic.expression.constant.al_eps = 20.0_um
+Al_solid_3.density.ic.expression.constant.al_x = 82.0_um
+Al_solid_3.density.ic.expression.constant.al_y = 477.0_um
+Al_solid_3.density.ic.expression.constant.al_r = 70.0_um
+Al_solid_3.density.ic.expression.constant.melt_depth = 25.0_um
+Al_solid_3.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-(al_r-melt_depth))/al_eps)))"
+
+# Use the difference between the original and eroded union indicators for the
+# initial melt.  Dividing each partial density by its own reference density
+# makes solid eta + liquid eta exactly recover the original branch indicator.
+Al_liquid.density.ic.type = expression
+Al_liquid.density.ic.expression.constant.surface_y = -0.0003_m
+Al_liquid.density.ic.expression.constant.surface_eps = 20.0_um
+Al_liquid.density.ic.expression.constant.al_eps = 20.0_um
+Al_liquid.density.ic.expression.constant.al_x1 = -95.0_um
+Al_liquid.density.ic.expression.constant.al_y1 = 300.0_um
+Al_liquid.density.ic.expression.constant.al_r1 = 82.0_um
+Al_liquid.density.ic.expression.constant.al_x2 = 35.0_um
+Al_liquid.density.ic.expression.constant.al_y2 = 355.0_um
+Al_liquid.density.ic.expression.constant.al_r2 = 78.0_um
+Al_liquid.density.ic.expression.constant.al_x3 = 82.0_um
+Al_liquid.density.ic.expression.constant.al_y3 = 477.0_um
+Al_liquid.density.ic.expression.constant.al_r3 = 70.0_um
+Al_liquid.density.ic.expression.constant.melt_depth = 25.0_um
+Al_liquid.density.ic.expression.region0 = "max(0.0,2375.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*((0.5-0.5*tanh(2.0*min(min(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1,sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2),sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)/al_eps))-(0.5-0.5*tanh(2.0*(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-(al_r1-melt_depth))/al_eps))-(0.5-0.5*tanh(2.0*(sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-(al_r2-melt_depth))/al_eps))-(0.5-0.5*tanh(2.0*(sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-(al_r3-melt_depth))/al_eps))))"
+
+# Fill the gas-side domain with inert Final products at 3 MPa.  The gas EOS
+# uses the same smooth 300--2500 K profile as temperature.ic and excludes the
+# complete fused aluminum branch using its diffuse union signed distance.
+Final.density.ic.expression.constant.Rgas = 319.787_J/kg/K
+Final.density.ic.expression.constant.P = 3.0_MPa
+Final.density.ic.expression.constant.Tsolid = 300.0_K
+Final.density.ic.expression.constant.Tgas = 2500.0_K
+Final.density.ic.expression.constant.temperature_center = 20.0_um
+Final.density.ic.expression.constant.temperature_width = 40.0_um
+Final.density.ic.expression.constant.Tal = 925.0_K
+Final.density.ic.expression.constant.al_thermal_shell = 40.0_um
+Final.density.ic.expression.constant.al_thermal_width = 20.0_um
+Final.density.ic.expression.constant.al_x1 = -95.0_um
+Final.density.ic.expression.constant.al_y1 = 300.0_um
+Final.density.ic.expression.constant.al_r1 = 82.0_um
+Final.density.ic.expression.constant.al_x2 = 35.0_um
+Final.density.ic.expression.constant.al_y2 = 355.0_um
+Final.density.ic.expression.constant.al_r2 = 78.0_um
+Final.density.ic.expression.constant.al_x3 = 82.0_um
+Final.density.ic.expression.constant.al_y3 = 477.0_um
+Final.density.ic.expression.constant.al_r3 = 70.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*min(min(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1,sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2),sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)/al_eps))*P/(Rgas*(Tal+((Tsolid+(Tgas-Tsolid)*(0.5+0.5*tanh(2.0*((y-surface_y)-temperature_center)/temperature_width)))-Tal)*(0.5+0.5*tanh(2.0*(min(min(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1,sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2),sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)-al_thermal_shell)/al_thermal_width)))))"
+
+# Initialize the product gas with the inherited gentle upward velocity while
+# keeping the propellant and all three fused aluminum lobes at rest.
+velocity.ic.expression.constant.al_x1 = -95.0_um
+velocity.ic.expression.constant.al_y1 = 300.0_um
+velocity.ic.expression.constant.al_r1 = 82.0_um
+velocity.ic.expression.constant.al_x2 = 35.0_um
+velocity.ic.expression.constant.al_y2 = 355.0_um
+velocity.ic.expression.constant.al_r2 = 78.0_um
+velocity.ic.expression.constant.al_x3 = 82.0_um
+velocity.ic.expression.constant.al_y3 = 477.0_um
+velocity.ic.expression.constant.al_r3 = 70.0_um
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5+0.5*tanh(2.0*min(min(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1,sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2),sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)/al_eps))"
+
+# Place the smooth propellant-to-product ramp across the resolved gas side of
+# the regression interface.  The unconstrained gas profile is about 560 K at
+# the nominal surface, reaches 1400 K 20 um above it, and exceeds 2200 K by
+# 40 um.  Condensed AP/HTPB temperature overrides keep the underlying
+# propellant at 300 K while this nearby hot-product layer initiates regression.
+# A second smooth gas-side thermal layer keeps the complete diffuse aluminum
+# interface at 925 K initially; otherwise equilibrium melting consumes the
+# heat stored in a 2500 K mixed interface instantaneously at t=0.
+temperature.ic.expression.constant.Tsolid = 300.0_K
+temperature.ic.expression.constant.Tgas = 2500.0_K
+temperature.ic.expression.constant.temperature_center = 20.0_um
+temperature.ic.expression.constant.temperature_width = 40.0_um
+temperature.ic.expression.constant.Tal = 925.0_K
+temperature.ic.expression.constant.al_thermal_shell = 40.0_um
+temperature.ic.expression.constant.al_thermal_width = 20.0_um
+temperature.ic.expression.constant.al_x1 = -95.0_um
+temperature.ic.expression.constant.al_y1 = 300.0_um
+temperature.ic.expression.constant.al_r1 = 82.0_um
+temperature.ic.expression.constant.al_x2 = 35.0_um
+temperature.ic.expression.constant.al_y2 = 355.0_um
+temperature.ic.expression.constant.al_r2 = 78.0_um
+temperature.ic.expression.constant.al_x3 = 82.0_um
+temperature.ic.expression.constant.al_y3 = 477.0_um
+temperature.ic.expression.constant.al_r3 = 70.0_um
+temperature.ic.expression.region0 = "Tal+((Tsolid+(Tgas-Tsolid)*(0.5+0.5*tanh(2.0*((y-surface_y)-temperature_center)/temperature_width)))-Tal)*(0.5+0.5*tanh(2.0*(min(min(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1,sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2),sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)-al_thermal_shell)/al_thermal_width))"
