@@ -1,0 +1,212 @@
+# =====================================================================
+# NOVA 3D PILOT -- geometry: rod_and_tube (QUARTER cross-section,
+# periodic-z slab)
+# =====================================================================
+# Purpose: cost-per-step measurement ONLY, to extrapolate a full-length
+# (L = 2*D = 0.3508 m) 3D motor run. NOT a physics production deck.
+#
+# Derived from input_nova_cross_section_rod_and_tube. The (x,y) plane is
+# unchanged (top-left quarter, dx = 0.0877/128 = 6.85e-4 m). The z slab
+# is 128 cubic cells = 0.0877 m with periodic z, i.e. 1/4 of the target
+# full length; per-step cost scales ~linearly in z cells, so multiply
+# measured cost by 4 for the full-length motor (plus z-end BC effects,
+# which this pilot deliberately excludes).
+#
+# stop_time = 0.05 s -> 200 steps, elastic solves at interval 40 after
+# tstart 0.01 s (~5 solves). Plotfile I/O suppressed so wall time is
+# compute, not I/O. Read cost/step from the step log + tiny profiler.
+# =====================================================================
+
+alamo.program = flame
+plot_file = output_nova_3d_pilot_rod_and_tube
+
+# ---- AMR / domain ----------------------------------------------------
+amr.plot_dt = -1
+amr.plot_int = 10000
+amr.max_level = 1
+amr.nsubsteps = 2
+amr.blocking_factor = 16
+amr.max_grid_size = 32
+amr.base_regrid_int = 200
+amr.grid_eff = 0.7
+amr.node.all = 1
+
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
+amr.phi_refinement_criterion = 0.05
+amr.n_cell = 128 128 128
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+
+geometry.prob_lo = 0.0_m 0.0877_m 0.0_m
+geometry.prob_hi = 0.0877_m 0.1754_m 0.0877_m
+geometry.is_periodic = 0 0 1
+
+system.length = m
+system.time = s
+
+# ---- Time ------------------------------------------------------------
+timestep = 2.5e-4_s
+stop_time = 0.05_s
+
+# ---- Phase field -----------------------------------------------------
+pf.eps = 1.25e-4_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.phi_pin_threshold = 0.9
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+# BMP IC samples (x,y) only -> pure z-extrusion of the 2D grain.
+pf.eta.ic.type = bmp
+pf.eta.ic.bmp.filename = blur5_rod_and_tube.bmp
+pf.eta.ic.bmp.fit = coord
+pf.eta.ic.bmp.coord.lo = 0.0 0.0 0.0
+pf.eta.ic.bmp.coord.hi = 0.1754 0.1754 0.0877
+pf.eta.ic.bmp.channel = g
+pf.eta.ic.bmp.min = 0
+pf.eta.ic.bmp.max = 255
+
+phi.ic.type = expression
+phi.ic.expression.coord = cartesian
+phi.ic.expression.constant.cx = 0.0877_m
+phi.ic.expression.constant.cy = 0.0877_m
+phi.ic.expression.constant.radius = 0.0785_m
+phi.ic.expression.constant.width = 1.5e-3_m
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((radius - sqrt((x-cx)^2 + (y-cy)^2))/width)"
+
+chi.ic.type = expression
+chi.ic.expression.constant.cx = 0.0877
+chi.ic.expression.constant.cy = 0.0877
+chi.ic.expression.constant.a4 = 0.0825_m
+chi.ic.expression.constant.w = 1.5e-3_m
+chi.ic.expression.region0 = "0.5 + 0.5*tanh((a4 - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# eta BCs: in-plane faces only (z periodic).
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 1.0
+
+# ---- Propellant (homogenized) ---------------------------------------
+propellant.type = homogenize
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 3.0e6_W/m^2
+propellant.homogenize.h2 = 9.0e6_W/m^2
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 21000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3750.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# ---- Thermal ---------------------------------------------------------
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.hc = 1.0
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 300_K
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.1) * 180926000 * exp(-t/0.0194)"
+
+# ---- Chamber pressure (ballistic) -----------------------------------
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa
+# 2D quarter At (2.85e-4) is per-1m-depth; ballistic dpdt scales as At/V, so
+# the 0.0877 m z slab needs At x Lz = 2.85e-4*0.0877 = 2.50e-5. Full-length
+# (L=0.3508 m) production run: At = 1.0e-4_m^2.
+chamber.ballistic.At = 2.50e-5_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# ---- Thermoelasticity ------------------------------------------------
+elastic.on = 1
+elastic.type = static
+elastic.interval = 40
+elastic.tstart = 0.01
+elastic.phirefinement = 100
+elastic.elastic_ref_threshold = 0.01
+elastic.print_model = 0
+elastic.chi_refinement_criterion = 0.05
+
+elastic.use_psi = 0
+elastic.psi_floor = 0.00
+elastic.zero_out_displacement = 1
+elastic.max_coarsening_level = 3
+elastic.tol_rel = 2e-5
+elastic.tol_abs = 1e-8
+
+elastic.solver.abort_on_fail = 0
+elastic.solver.max_iter = 2500
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
+elastic.solver.nriters = 1
+elastic.solver.nrtolerance = 1e5
+elastic.solver.line_search = 1
+elastic.solver.resync_coeffs = 1
+elastic.solver.bottom_solver = bigcgstab
+elastic.solver.nr_convergence = update
+elastic.solver.nr_diagnostics = 1
+elastic.solver.verbose = 4
+
+elastic.plot_disp = 0
+elastic.plot_psi = 0
+elastic.plot_strain = 0
+elastic.plot_stress = 0
+elastic.plot_rhs = 0
+
+elastic.traction = 1.0_MPa
+elastic.traction_from_chamber = 1
+
+# ---- Elastic material models ----------------------------------------
+model_prop.eps0 = 1.0e-4 0.0 0.0 0.0 1.0e-4 0.0 0.0 0.0 1.0e-4
+model_prop.kappa = 162_MPa
+model_prop.mu = 113.6_MPa
+
+model_void.eps0 = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+model_void.kappa = 0.1_MPa
+model_void.mu = 0.1_MPa
+
+model_casing.eps0 = 2.0e-5 0.0 0.0 0.0 2.0e-5 0.0 0.0 0.0 2.0e-5
+model_casing.kappa = 7.0_GPa
+model_casing.mu = 2.6_GPa
+
+# ---- Elastic BCs (quarter symmetry, 3 components, z periodic) --------
+# xlo/yhi outer casing clamped; xhi/ylo symmetry planes: normal disp
+# fixed, tangential traction-free. Edge/corner combos default to disp.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp disp disp
+elastic.bc.constant.type.xhi = disp trac trac
+elastic.bc.constant.type.ylo = trac disp trac
+elastic.bc.constant.type.yhi = disp disp disp
+
+# ---- Phi mixing ------------------------------------------------------
+phi.cell_centered_mixing = false
