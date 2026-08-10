@@ -64,6 +64,12 @@ fi
 
 OUTDIR="$(grep -E '^plot_file' "${INPUT}" | awk -F'= *' '{print $2}').${TAG}_${SLURM_JOB_ID}"
 OVERRIDES+=("plot_file=${OUTDIR}")
+# EXTRA: space-separated additional deck overrides, e.g.
+#   EXTRA="elastic.solver.bottom_solver=smoother"
+if [[ -n "${EXTRA:-}" ]]; then
+    read -r -a EXTRA_ARR <<< "${EXTRA}"
+    OVERRIDES+=("${EXTRA_ARR[@]}")
+fi
 
 echo "=== 3D pilot ==="
 echo "input:   ${INPUT}"
