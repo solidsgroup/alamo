@@ -72,13 +72,18 @@ small = 1E-4
 # relaxed: W = 9.12*eps); an off-equilibrium width makes step 1 snap the
 # interface and register as burned mass.
 #
-# The end bands are gated by phi_burn = clamp((phi - pt)/(1 - pt), 0, 1),
-# the SAME quantity Flame.cpp uses for the phi pin, evaluated with phi's
-# own radius/width (rg, wp). This puts the IC exactly on the pin floor
-# eta >= 1 - phi_burn, so the pin clamp cannot fire at t=0. Gating on the
-# raw grain mask instead let eta dive to ~0 where phi < pt; the pin then
-# healed it back to 1 in one step and mdot (which counts |d eta|) read
-# 5.9e6 kg/m^2/s, firing a spurious ~5 MPa pressure spike.
+# The end bands are gated by the same phi_burn ramp Flame.cpp uses for the
+# phi pin, but closing at pg = 0.95 rather than the pin's own 0.9. The
+# offset is required: phi is NODAL here (phi.cell_centered_mixing=false),
+# so the pin evaluates NodeToCellAverage(phi), which sits up to 0.010 below
+# the cell-centre phi this expression sees -- and the pin's 1/(1-0.9)
+# divide amplifies that into a 0.10 eta discrepancy. Closing the gate at
+# 0.95 keeps the IC above the pin floor for any phi discrepancy up to 0.08.
+#
+# Without this the pin clamp healed eta from ~0 back to 1 in a single step,
+# and mdot (which counts |d eta|) read 5.9e6 kg/m^2/s -- a spurious 5 MPa
+# pressure spike at t=0.0005 s. Gating at the pin's own 0.9 cut that to
+# 4.5e5 / 0.28 MPa; the 0.95 offset removes the remainder.
 pf.eta.ic.type = expression
 pf.eta.ic.expression.coord = cartesian
 pf.eta.ic.expression.constant.cx = 0.0877_m
@@ -87,10 +92,10 @@ pf.eta.ic.expression.constant.rb = 0.04125_m
 pf.eta.ic.expression.constant.rg = 0.0765_m
 pf.eta.ic.expression.constant.w = 1.1405e-3_m
 pf.eta.ic.expression.constant.wp = 1.5e-3_m
-pf.eta.ic.expression.constant.pt = 0.9
+pf.eta.ic.expression.constant.pg = 0.95
 pf.eta.ic.expression.constant.zc = 3.0e-3_m
 pf.eta.ic.expression.constant.zl = 0.277_m
-pf.eta.ic.expression.region0 = "(0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)) * (1 - max(0.0, ((0.5 + 0.5*tanh((rg - sqrt((x-cx)^2 + (y-cy)^2))/wp)) - pt)/(1.0 - pt)) * (1 - (0.5 + 0.5*tanh((z - zc)/w)) * (0.5 + 0.5*tanh((zl - zc - z)/w))))"
+pf.eta.ic.expression.region0 = "(0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)) * (1 - max(0.0, ((0.5 + 0.5*tanh((rg - sqrt((x-cx)^2 + (y-cy)^2))/wp)) - pg)/(1.0 - pg)) * (1 - (0.5 + 0.5*tanh((z - zc)/w)) * (0.5 + 0.5*tanh((zl - zc - z)/w))))"
 
 # phi: fuel inside the grain OD (z-invariant; the eta end bands mark the
 # end faces as already-open chamber, phi still says fuel is present).
