@@ -18,6 +18,9 @@ cd "$(dirname "$0")/.."
 
 DECKS=(input_nova_3d_pilot_rod_and_tube input_nova_3d_pilot_cross)
 SLURM=benchmark/nova_3d_pilot.slurm
+# Optional: DEP=<jobid> gates every job on a build job (afterok).
+DEPFLAG=()
+[[ -n "${DEP:-}" ]] && DEPFLAG=(--dependency=afterok:"${DEP}")
 DO=echo
 [[ "${1:-}" == "--submit" ]] && DO=""
 
@@ -26,23 +29,23 @@ for INPUT in "${DECKS[@]}"; do
 
     # -- CPU ---------------------------------------------------------------
     ${DO} env INPUT="${INPUT}" BACKEND=cpu TAG=cpu64 \
-        sbatch --nodes=1 --ntasks=64 --cpus-per-task=1 --mem=180G \
+        sbatch "${DEPFLAG[@]}" --nodes=1 --ntasks=64 --cpus-per-task=1 --mem=180G \
         --export=ALL,INPUT="${INPUT}",BACKEND=cpu,TAG=cpu64 "${SLURM}"
 
     ${DO} env INPUT="${INPUT}" BACKEND=cpu TAG=cpu128 \
-        sbatch --nodes=2 --ntasks=128 --ntasks-per-node=64 --cpus-per-task=1 --mem=180G \
+        sbatch "${DEPFLAG[@]}" --nodes=2 --ntasks=128 --ntasks-per-node=64 --cpus-per-task=1 --mem=180G \
         --export=ALL,INPUT="${INPUT}",BACKEND=cpu,TAG=cpu128 "${SLURM}"
 
     # -- GPU (1 rank per GPU) ---------------------------------------------
-    ${DO} env sbatch --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=120G \
+    ${DO} env sbatch "${DEPFLAG[@]}" --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=120G \
         --gres=gpu:a100:1 \
         --export=ALL,INPUT="${INPUT}",BACKEND=gpu,ARCH=80,TAG=a100x1 "${SLURM}"
 
-    ${DO} env sbatch --nodes=1 --ntasks=2 --cpus-per-task=8 --mem=180G \
+    ${DO} env sbatch "${DEPFLAG[@]}" --nodes=1 --ntasks=2 --cpus-per-task=8 --mem=180G \
         --gres=gpu:a100:2 \
         --export=ALL,INPUT="${INPUT}",BACKEND=gpu,ARCH=80,TAG=a100x2 "${SLURM}"
 
-    ${DO} env sbatch --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=120G \
+    ${DO} env sbatch "${DEPFLAG[@]}" --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=120G \
         --gres=gpu:h200:1 \
         --export=ALL,INPUT="${INPUT}",BACKEND=gpu,ARCH=90,TAG=h200x1 "${SLURM}"
 done
