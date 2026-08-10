@@ -33,7 +33,7 @@ for INPUT in "${DECKS[@]}"; do
         --export=ALL,INPUT="${INPUT}",BACKEND=cpu,TAG=cpu64 "${SLURM}"
 
     ${DO} env INPUT="${INPUT}" BACKEND=cpu TAG=cpu128 \
-        sbatch "${DEPFLAG[@]}" --nodes=2 --ntasks=128 --ntasks-per-node=64 --cpus-per-task=1 --mem=180G \
+        sbatch "${DEPFLAG[@]}" --nodes=1 --ntasks=128 --cpus-per-task=1 --mem=180G \
         --export=ALL,INPUT="${INPUT}",BACKEND=cpu,TAG=cpu128 "${SLURM}"
 
     # -- GPU (1 rank per GPU) ---------------------------------------------
