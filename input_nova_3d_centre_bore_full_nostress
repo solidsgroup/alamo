@@ -1,0 +1,188 @@
+# =====================================================================
+# NOVA 3D FULL-LENGTH centre-bore motor (QUARTER x-y plane, open ends, NO ELASTICITY)
+# =====================================================================
+# Motor: length 277 mm, bore ID 82.5 mm (r=0.04125), grain OD 153 mm
+# (r=0.0765), thin casing annulus outside the grain (chi band, same
+# 1.5e-3 tanh construction as the 2D sweep decks, 4 mm standoff).
+#
+# Burn topology: radially outward from the bore AND from both end caps
+# toward the middle. The eta IC is the product of the radial bore tanh
+# and two z-end tanh bands (same 1.5e-3 blur width), so the end faces
+# carry the eta gradient the laser flux needs to ignite them.
+#
+# z is NOT periodic: end caps are open to the chamber (eta dirichlet 0,
+# thermal neumann, elastic traction faces). In-plane BCs are the proven
+# quarter-symmetry recipe (xlo/yhi clamped casing, xhi/ylo symmetry).
+#
+# Throat: full-motor At = 1.02921717e-3 m^2 -> quarter symmetry models
+# 1/4 of chamber volume and burn area, so At/4 = 2.57304e-4 m^2.
+#
+# Grid: dx = dy = 0.0877/128 = 6.851e-4 m; nz=416 -> dz = 6.659e-4 m
+# (2.8% off cubic, divisible by blocking_factor 32). Base 6.8M cells +
+# 1 AMR level. GPU box settings (max_grid_size 128 / blocking 32) from
+# the 2026-08-10 pilot: -9.4% vs 64/16 on A100.
+# Elastic: bottom_solver=smoother is REQUIRED in 3D (bigcgstab bottom
+# detonates the MLMG -- Mode B; verified in the 3D pilot).
+# =====================================================================
+
+alamo.program = flame
+plot_file = output_nova_3d_centre_bore_full_nostress
+
+# ---- AMR / domain ----------------------------------------------------
+amr.plot_dt = -1
+amr.plot_int = 200
+amr.max_level = 0
+amr.nsubsteps = 2
+amr.blocking_factor = 32
+amr.max_grid_size = 128
+amr.base_regrid_int = 200
+amr.grid_eff = 0.7
+amr.node.all = 1
+
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 15.0_K
+amr.phi_refinement_criterion = 0.05
+amr.n_cell = 128 128 416
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+
+geometry.prob_lo = 0.0_m 0.0877_m 0.0_m
+geometry.prob_hi = 0.0877_m 0.1754_m 0.277_m
+geometry.is_periodic = 0 0 0
+
+system.length = m
+system.time = s
+
+# ---- Time ------------------------------------------------------------
+timestep = 2.5e-4_s
+stop_time = 6.5_s
+
+# ---- Phase field -----------------------------------------------------
+pf.eps = 1.25e-4_m
+pf.lambda = 0.001_J/m^2
+pf.kappa = 1.0_J/m^2
+pf.phi_pin_threshold = 0.9
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
+small = 1E-4
+
+# eta = (radial bore band) x (z end bands gated to the grain annulus).
+# Each band is the same 1.5e-3 m tanh blur; zc puts the end gradients a
+# few cells inside the domain so the laser sees them. The grain mask g
+# (1 inside the OD, 0 outside) confines the end bands to actual fuel:
+# beyond the OD (casing/void) eta stays 1 so there is NO eta gradient
+# and therefore no laser heat outside the propellant.
+pf.eta.ic.type = expression
+pf.eta.ic.expression.coord = cartesian
+pf.eta.ic.expression.constant.cx = 0.0877_m
+pf.eta.ic.expression.constant.cy = 0.0877_m
+pf.eta.ic.expression.constant.rb = 0.04125_m
+pf.eta.ic.expression.constant.rg = 0.0765_m
+pf.eta.ic.expression.constant.w = 1.5e-3_m
+pf.eta.ic.expression.constant.zc = 3.0e-3_m
+pf.eta.ic.expression.constant.zl = 0.277_m
+pf.eta.ic.expression.region0 = "(0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)) * (1 - (0.5 + 0.5*tanh((rg - sqrt((x-cx)^2 + (y-cy)^2))/w)) * (1 - (0.5 + 0.5*tanh((z - zc)/w)) * (0.5 + 0.5*tanh((zl - zc - z)/w))))"
+
+# phi: fuel inside the grain OD (z-invariant; the eta end bands mark the
+# end faces as already-open chamber, phi still says fuel is present).
+phi.ic.type = expression
+phi.ic.expression.coord = cartesian
+phi.ic.expression.constant.cx = 0.0877_m
+phi.ic.expression.constant.cy = 0.0877_m
+phi.ic.expression.constant.radius = 0.0765_m
+phi.ic.expression.constant.width = 1.5e-3_m
+phi.ic.expression.region0 = "0.5 + 0.5*tanh((radius - sqrt((x-cx)^2 + (y-cy)^2))/width)"
+
+# chi: casing annulus, same band construction, 4 mm outside the grain OD.
+chi.ic.type = expression
+chi.ic.expression.constant.cx = 0.0877
+chi.ic.expression.constant.cy = 0.0877
+chi.ic.expression.constant.a4 = 0.0805_m
+chi.ic.expression.constant.w = 1.5e-3_m
+chi.ic.expression.region0 = "0.5 + 0.5*tanh((a4 - sqrt((x-cx)^2 + (y-cy)^2))/w)"
+
+# eta BCs: outer edges solid (dirichlet 1), symmetry planes neumann,
+# end caps open chamber (dirichlet 0).
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 1.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+# ---- Propellant (homogenized) ---------------------------------------
+propellant.type = homogenize
+propellant.homogenize.P_reference = 1_MPa
+propellant.homogenize.dispersion1 = 0.025_W/m/K
+propellant.homogenize.dispersion2 = 1.2_kg/m^3
+propellant.homogenize.dispersion3 = 1000_J/kg/K
+propellant.homogenize.h1 = 3.0e6_W/m^2
+propellant.homogenize.h2 = 9.0e6_W/m^2
+propellant.homogenize.rho_prop = 1745.0_kg/m^3
+propellant.homogenize.k_prop = 1.5_W/m/K
+propellant.homogenize.cp_prop = 1476.0_J/kg/K
+propellant.homogenize.m_prop = 21000_cm/s
+propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
+propellant.homogenize.E_prop = 3750.0_K
+propellant.homogenize.mob_prop = true
+propellant.homogenize.pressure_exponent = 0.372531
+propellant.homogenize.bound = 0_K
+propellant.homogenize.bound_width = 50_K
+
+# ---- Thermal ---------------------------------------------------------
+# End caps neumann (open to chamber gas; flame physics governs).
+thermal.on = 1
+thermal.Tref = 300
+thermal.Tfluid = 300
+thermal.hc = 1.0
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = dirichlet
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 300_K
+thermal.temp.bc.constant.val.zlo = 0.0
+thermal.temp.bc.constant.val.zhi = 0.0
+
+temp.ic.type = constant
+temp.ic.constant.value = 300_K
+
+# Laser masked to r < rc (just inside the grain OD): the eta seam ring at
+# the OD near the open ends is chamber/casing interface, not fuel, and must
+# receive no ignition flux. Bore wall and end-face fuel annulus still fire.
+laser.ic.type = expression
+laser.ic.expression.coord = cartesian
+laser.ic.expression.constant.cx = 0.0877_m
+laser.ic.expression.constant.cy = 0.0877_m
+laser.ic.expression.constant.rc = 0.0750_m
+laser.ic.expression.constant.wm = 1.0e-3_m
+laser.ic.expression.region0 = "(t < 0.1) * 180926000 * exp(-t/0.0194) * (0.5 + 0.5*tanh((rc - sqrt((x-cx)^2 + (y-cy)^2))/wm))"
+
+# ---- Chamber pressure (ballistic) -----------------------------------
+variable_pressure = 1
+chamber.pressure = 0.101325_MPa
+# Full-motor At = 1.02921717e-3 m^2; quarter-symmetry model -> /4.
+chamber.ballistic.At = 2.57304e-4_m^2
+chamber.ballistic.T0 = 3200_K
+chamber.ballistic.R = 287_J/kg/K
+chamber.ballistic.gamma = 1.25
+chamber.ballistic.pressure = 4.0e6_Pa
+
+# ---- Thermoelasticity: DISABLED (_nostress variant) -------------------
+elastic.on = 0
+elastic.type = disable
+# ---- Phi mixing ------------------------------------------------------
+phi.cell_centered_mixing = false
