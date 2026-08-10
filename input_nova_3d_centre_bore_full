@@ -67,12 +67,18 @@ pf.w12 = 2.0_1
 pf.w0 = 0.0_1
 small = 1E-4
 
-# eta = (radial bore band) x (z end bands gated to the grain annulus).
-# Each band is the same 1.5e-3 m tanh blur; zc puts the end gradients a
-# few cells inside the domain so the laser sees them. The grain mask g
-# (1 inside the OD, 0 outside) confines the end bands to actual fuel:
-# beyond the OD (casing/void) eta stays 1 so there is NO eta gradient
-# and therefore no laser heat outside the propellant.
+# eta = (radial bore band) x (z end bands gated by the phi-pin fraction).
+# w is the Allen-Cahn EQUILIBRIUM tanh width for pf.eps (numerically
+# relaxed: W = 9.12*eps); an off-equilibrium width makes step 1 snap the
+# interface and register as burned mass.
+#
+# The end bands are gated by phi_burn = clamp((phi - pt)/(1 - pt), 0, 1),
+# the SAME quantity Flame.cpp uses for the phi pin, evaluated with phi's
+# own radius/width (rg, wp). This puts the IC exactly on the pin floor
+# eta >= 1 - phi_burn, so the pin clamp cannot fire at t=0. Gating on the
+# raw grain mask instead let eta dive to ~0 where phi < pt; the pin then
+# healed it back to 1 in one step and mdot (which counts |d eta|) read
+# 5.9e6 kg/m^2/s, firing a spurious ~5 MPa pressure spike.
 pf.eta.ic.type = expression
 pf.eta.ic.expression.coord = cartesian
 pf.eta.ic.expression.constant.cx = 0.0877_m
@@ -80,9 +86,11 @@ pf.eta.ic.expression.constant.cy = 0.0877_m
 pf.eta.ic.expression.constant.rb = 0.04125_m
 pf.eta.ic.expression.constant.rg = 0.0765_m
 pf.eta.ic.expression.constant.w = 1.1405e-3_m
+pf.eta.ic.expression.constant.wp = 1.5e-3_m
+pf.eta.ic.expression.constant.pt = 0.9
 pf.eta.ic.expression.constant.zc = 3.0e-3_m
 pf.eta.ic.expression.constant.zl = 0.277_m
-pf.eta.ic.expression.region0 = "(0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)) * (1 - (0.5 + 0.5*tanh((rg - sqrt((x-cx)^2 + (y-cy)^2))/w)) * (1 - (0.5 + 0.5*tanh((z - zc)/w)) * (0.5 + 0.5*tanh((zl - zc - z)/w))))"
+pf.eta.ic.expression.region0 = "(0.5 + 0.5*tanh((sqrt((x-cx)^2 + (y-cy)^2) - rb)/w)) * (1 - max(0.0, ((0.5 + 0.5*tanh((rg - sqrt((x-cx)^2 + (y-cy)^2))/wp)) - pt)/(1.0 - pt)) * (1 - (0.5 + 0.5*tanh((z - zc)/w)) * (0.5 + 0.5*tanh((zl - zc - z)/w))))"
 
 # phi: fuel inside the grain OD (z-invariant; the eta end bands mark the
 # end faces as already-open chamber, phi still says fuel is present).
@@ -124,12 +132,12 @@ propellant.homogenize.P_reference = 1_MPa
 propellant.homogenize.dispersion1 = 0.025_W/m/K
 propellant.homogenize.dispersion2 = 1.2_kg/m^3
 propellant.homogenize.dispersion3 = 1000_J/kg/K
-propellant.homogenize.h1 = 3.0e6_W/m^2
-propellant.homogenize.h2 = 9.0e6_W/m^2
+propellant.homogenize.h1 = 3.5e6_W/m^2
+propellant.homogenize.h2 = 1.0e7_W/m^2
 propellant.homogenize.rho_prop = 1745.0_kg/m^3
 propellant.homogenize.k_prop = 1.5_W/m/K
 propellant.homogenize.cp_prop = 1476.0_J/kg/K
-propellant.homogenize.m_prop = 21000_cm/s
+propellant.homogenize.m_prop = 23000_cm/s
 propellant.homogenize.mlocal_prop = 0.1_kg/m^2/s
 propellant.homogenize.E_prop = 3750.0_K
 propellant.homogenize.mob_prop = true
