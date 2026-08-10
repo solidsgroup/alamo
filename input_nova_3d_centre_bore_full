@@ -14,8 +14,8 @@
 # thermal neumann, elastic traction faces). In-plane BCs are the proven
 # quarter-symmetry recipe (xlo/yhi clamped casing, xhi/ylo symmetry).
 #
-# Throat: full-motor At = 1.02921717e-3 m^2 -> quarter symmetry models
-# 1/4 of chamber volume and burn area, so At/4 = 2.57304e-4 m^2.
+# Throat: full-motor At = 2.57304292e-4 m^2 (18.1 mm dia) -> quarter models
+# 1/4 of chamber volume and burn area, so At/4 = 6.4326e-5 m^2.
 #
 # Grid: dx = dy = 0.0877/128 = 6.851e-4 m; nz=416 -> dz = 6.659e-4 m
 # (2.8% off cubic, divisible by blocking_factor 32). Base 6.8M cells +
@@ -174,8 +174,8 @@ laser.ic.expression.region0 = "(t < 0.1) * 180926000 * exp(-t/0.0194) * (0.5 + 0
 # ---- Chamber pressure (ballistic) -----------------------------------
 variable_pressure = 1
 chamber.pressure = 0.101325_MPa
-# Full-motor At = 1.02921717e-3 m^2; quarter-symmetry model -> /4.
-chamber.ballistic.At = 2.57304e-4_m^2
+# Full-motor At = 2.57304292e-4 m^2 (throat dia 18.1 mm); quarter -> /4.
+chamber.ballistic.At = 6.4326073e-5_m^2
 chamber.ballistic.T0 = 3200_K
 chamber.ballistic.R = 287_J/kg/K
 chamber.ballistic.gamma = 1.25
