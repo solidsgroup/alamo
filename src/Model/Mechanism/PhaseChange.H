@@ -17,7 +17,6 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Model/PhaseField/PhaseField.H"
-#include "Numeric/Stencil.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -109,16 +108,20 @@ public:
                         "0.0_K", Unit::Temperature());
         if (value.activation_temperature < 0.0 || value.temperature_cutoff < 0.0)
             Util::Exception(INFO, "phase-change temperatures must be nonnegative");
-        value.use_prescribed_speed = pp.contains("prescribed_speed");
-        if (value.use_prescribed_speed)
-        {
-            pp.query_required("prescribed_speed", value.prescribed_speed,
-                            Unit::Velocity());
-            if (value.prescribed_speed < 0.0)
-                Util::Exception(INFO,
-                    "phase-change prescribed_speed must be nonnegative");
-        }
-        pp.select<Model::PhaseField::AllenCahn>("phase_field", value.model);
+        pp.select<Model::PhaseField::AllenCahn>(
+            "phase_field", value.phase_field);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar operator()(const State& state,
+                           const int i, const int j, const int k,
+                           const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        const Set::Scalar weight = Weight(state, i, j, k);
+        return weight * (input_is_rigid ?
+            phase_field(state.rigid_eta, 0, 1.0, i, j, k, DX) :
+            phase_field(state.component_density, input,
+                        1.0 / reference_density, i, j, k, DX));
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -126,7 +129,9 @@ public:
                             const int i, const int j, const int k,
                             const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
-        const Set::Scalar source = MassSource(state, i, j, k, DX);
+        if (input_is_rigid) return 0.0;
+        const Set::Scalar source =
+            reference_density * (*this)(state, i, j, k, DX);
         const Set::Scalar product_specific_volume =
             product_gas_constant * state.temperature / state.pressure;
         return source * (1.0 / reference_density - product_specific_volume);
@@ -138,99 +143,54 @@ public:
                 const int i, const int j, const int k,
                 const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
-        const Set::Scalar source = MassSource(state, i, j, k, DX);
-        component_density_rhs(i,j,k,input) += source;
-        for (int n = 0; n < nproducts; ++n)
-            component_density_rhs(i,j,k,products[n]) -= mass_fractions[n] * source;
+        if (input_is_rigid) return;
+        Transfer(component_density_rhs, state,
+                 (*this)(state, i, j, k, DX), i, j, k);
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx,
                             const Set::Scalar temperature) const
     {
-        if (!(temperature > temperature_cutoff)) return 0.0;
-        if (use_prescribed_speed) return prescribed_speed / dx;
-        const Set::Scalar temperature_factor = activation_temperature > 0.0 ?
-            std::exp(-activation_temperature / temperature) : 1.0;
-        return rate_multiplier * temperature_factor *
-            (input_is_rigid ? model.LocalStabilityRate() :
-                              model.StabilityRate(dx));
+        return KineticFactor(temperature) * phase_field.StabilityRate(dx);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar LocalRate(
+    Set::Scalar Local(
         const State& state, const int i, const int j, const int k) const
     {
-        if (!input_is_rigid || use_prescribed_speed ||
-            !(state.temperature > temperature_cutoff))
-            return 0.0;
-
-        const Set::Scalar eta =
-            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-        if (!(eta > 0.0)) return 0.0;
-        const Set::Scalar input_eta = Util::Clamp(
-            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
-        const Set::Scalar composition =
-            Model::PhaseField::H(input_eta / eta);
-        Set::Scalar rate = composition *
-            model.Local(state.rigid_eta, 0, 1.0, i, j, k);
-        if (activation_temperature > 0.0)
-            rate *= std::exp(
-                -activation_temperature / state.temperature);
-        return rate_multiplier * rate;
+        const Set::Scalar weight = Weight(state, i, j, k);
+        return weight * (input_is_rigid ?
+            phase_field.Local(state.rigid_eta, 0, 1.0, i, j, k) :
+            phase_field.Local(state.component_density, input,
+                              1.0 / reference_density, i, j, k));
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar LocalStabilityRate(
         const State& state, const int i, const int j, const int k) const
     {
-        if (!input_is_rigid || use_prescribed_speed ||
-            !(state.temperature > temperature_cutoff))
+        if (input_is_rigid &&
+            !(Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0) < 1.0))
             return 0.0;
-
-        const Set::Scalar eta =
-            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-        if (!(eta > 0.0) || !(eta < 1.0)) return 0.0;
-        const Set::Scalar input_eta = Util::Clamp(
-            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
-        const Set::Scalar composition =
-            Model::PhaseField::H(input_eta / eta);
-        const Set::Scalar temperature_factor =
-            activation_temperature > 0.0 ?
-                std::exp(-activation_temperature / state.temperature) : 1.0;
-        return composition * rate_multiplier * temperature_factor *
-            model.LocalStabilityRate();
+        return Weight(state, i, j, k) *
+            phase_field.LocalStabilityRate();
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar GradientCoefficient(
         const State& state, const int i, const int j, const int k) const
     {
-        if (!input_is_rigid || use_prescribed_speed ||
-            !(state.temperature > temperature_cutoff))
-            return 0.0;
-
-        const Set::Scalar eta =
-            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-        if (!(eta > 0.0)) return 0.0;
-        const Set::Scalar input_eta = Util::Clamp(
-            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
-        const Set::Scalar composition =
-            Model::PhaseField::H(input_eta / eta);
-        const Set::Scalar temperature_factor =
-            activation_temperature > 0.0 ?
-                std::exp(-activation_temperature / state.temperature) : 1.0;
-        return composition * rate_multiplier * temperature_factor *
-            model.GradientCoefficient();
+        return Weight(state, i, j, k) *
+            phase_field.GradientCoefficient();
     }
 
     int RigidComponent() const
     {
-        return input_is_rigid && !use_prescribed_speed ?
-            rigid_component : -1;
+        return rigid_component;
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyImplicitChange(
+    Set::Scalar Transfer(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
         const int i, const int j, const int k) const
@@ -249,43 +209,29 @@ public:
 
 private:
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar MassSource(const State& state,
-                            const int i, const int j, const int k,
-                            const Set::Scalar DX[AMREX_SPACEDIM]) const
+    Set::Scalar KineticFactor(const Set::Scalar temperature) const
     {
-        if (!(state.temperature > temperature_cutoff)) return 0.0;
-
-        Set::Scalar eta_dot = 0.0;
-        if (input_is_rigid)
-        {
-            const Set::Scalar eta =
-                Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
-            if (eta > 0.0 && use_prescribed_speed)
-            {
-                const Set::Scalar input_eta = Util::Clamp(
-                    state.rigid_species_eta(i,j,k,rigid_component),
-                    0.0, eta);
-                eta_dot = -input_eta / eta * prescribed_speed *
-                    Numeric::Gradient(
-                        state.rigid_eta, i, j, k, 0, DX).norm();
-            }
-        }
-        else
-        {
-            if (use_prescribed_speed)
-                eta_dot = -prescribed_speed / reference_density *
-                    Numeric::Gradient(
-                        state.component_density, i, j, k, input, DX).norm();
-            else
-                eta_dot = model(state.component_density, input,
-                                1.0 / reference_density, i, j, k, DX);
-        }
-        if (activation_temperature > 0.0)
-            eta_dot *= std::exp(-activation_temperature / state.temperature);
-        return rate_multiplier * reference_density * eta_dot;
+        if (!(temperature > temperature_cutoff)) return 0.0;
+        return rate_multiplier * (activation_temperature > 0.0 ?
+            std::exp(-activation_temperature / temperature) : 1.0);
     }
 
-    Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn> model;
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar Weight(const State& state,
+                       const int i, const int j, const int k) const
+    {
+        const Set::Scalar factor = KineticFactor(state.temperature);
+        if (!input_is_rigid || !(factor > 0.0)) return factor;
+
+        const Set::Scalar eta =
+            Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0);
+        if (!(eta > 0.0)) return 0.0;
+        const Set::Scalar input_eta = Util::Clamp(
+            state.rigid_species_eta(i,j,k,rigid_component), 0.0, eta);
+        return factor * Model::PhaseField::H(input_eta / eta);
+    }
+
+    Model::PhaseField::PhaseField<Model::PhaseField::AllenCahn> phase_field;
     int input = -1;
     int rigid_component = -1;
     int nproducts = 0;
@@ -296,9 +242,7 @@ private:
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
-    Set::Scalar prescribed_speed = 0.0;
     bool input_is_rigid = false;
-    bool use_prescribed_speed = false;
 };
 }
 }

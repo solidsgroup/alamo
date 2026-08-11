@@ -29,6 +29,23 @@ class Mechanism
 public:
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar operator()(const State& state,
+                           const int i, const int j, const int k,
+                           const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj)(state, i, j, k, DX);
+            return this->template operator()<I + 1>(
+                state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar VolumeSource(const State& state,
                             const int i, const int j, const int k,
                             const Set::Scalar DX[AMREX_SPACEDIM]) const
@@ -80,14 +97,14 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar LocalRate(
+    Set::Scalar Local(
         const State& state, const int i, const int j, const int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).LocalRate(state, i, j, k);
-            return LocalRate<I + 1>(state, i, j, k);
+                return std::get<I>(obj).Local(state, i, j, k);
+            return Local<I + 1>(state, i, j, k);
         }
         Util::Abort(INFO, selected);
         return NAN;
@@ -127,7 +144,7 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyImplicitChange(
+    Set::Scalar Transfer(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
         const int i, const int j, const int k) const
@@ -135,9 +152,9 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ApplyImplicitChange(
+                return std::get<I>(obj).Transfer(
                     component_density, state, eta_change, i, j, k);
-            return ApplyImplicitChange<I + 1>(
+            return Transfer<I + 1>(
                 component_density, state, eta_change, i, j, k);
         }
         Util::Abort(INFO, selected);

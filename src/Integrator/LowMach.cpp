@@ -890,7 +890,11 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 }
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-amrex::GpuTuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+amrex::GpuTuple<Set::Scalar /* gas volume fraction*/,  // \eta_{gas} = 1 - \eta_{condensed}
+                Set::Scalar /*gas heat capacity*/,     // heat capacity of gas part
+                Set::Scalar /*heat capacity*/,         // total mixed heat capacity based on \eta
+                Set::Scalar /*conductivity*/,          // total mixed conductivity based on \eta
+                Set::Scalar /*cp*/>                    // gas cp based on mass
 LowMach::ComputeThermalState(
     Set::Patch<const Set::Scalar> component_density,
     Set::Scalar temperature, int i, int j, int k,
@@ -912,6 +916,7 @@ LowMach::ComputeThermalState(
     const Set::Scalar gas_conductivity =
         Model::Gas::Gas::ThermalConductivity(
             gas_data, temperature, component_density, i, j, k);
+
     Set::Scalar gas_volume_fraction = 0.0;
     if (gas_density > density_floor && temperature > 0.0 &&
         pressure_reference > 0.0)
@@ -1083,7 +1088,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         coefficient(i,j,k) +=
                             mechanism.GradientCoefficient(state, i, j, k);
                         local_rate(i,j,k) +=
-                            mechanism.LocalRate(state, i, j, k);
+                            mechanism.Local(state, i, j, k);
                     });
             }
         }
@@ -1143,24 +1148,16 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                 mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> component_density =
-                    component_density_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> component_density_state =
-                    component_density_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> rigid_eta =
-                    rigid_eta_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> rigid_species_eta =
-                    rigid_species_eta_mf.Patch(lev,mfi);
-                Set::Patch<const Set::Scalar> eta_new =
-                    diffusion.State(lev, 1).array(mfi);
-                Set::Patch<const Set::Scalar> inverse_coefficient =
-                    diffusion.Mass(lev, 1).array(mfi);
-                Set::Patch<const Set::Scalar> scaled_local_rate =
-                    diffusion.Source(lev, 1).array(mfi);
-                Set::Patch<const Set::Scalar> T =
-                    temperature_mf.Patch(lev,mfi);
-                Set::Patch<Set::Scalar> integrated_dilatation =
-                    phase_change_dilatation_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> component_density_state = component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> eta_new = diffusion.State(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> inverse_coefficient = diffusion.Mass(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> scaled_local_rate = diffusion.Source(lev, 1).array(mfi);
+                Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+
+                Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> integrated_dilatation = phase_change_dilatation_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1182,11 +1179,11 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                             (eta_change / dt - aggregate_local_rate) /
                             aggregate_coefficient;
                         const Set::Scalar mechanism_eta_change = dt *
-                            (mechanism.LocalRate(state, i, j, k) +
+                            (mechanism.Local(state, i, j, k) +
                              mechanism.GradientCoefficient(
                                 state, i, j, k) * laplacian);
                         integrated_dilatation(i,j,k) +=
-                            mechanism.ApplyImplicitChange(
+                            mechanism.Transfer(
                                 component_density, state,
                                 mechanism_eta_change, i, j, k);
                     });
@@ -2423,6 +2420,9 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void
 LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
 {
+    //
+    // Manage restart data if starting from another simulation
+    // 
     if (synchronize_restart_state)
     {
         if (!(pressure_reference == pressure_reference))
@@ -2452,23 +2452,27 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         }
         synchronize_restart_state = false;
     }
+
+    //
+    // The rest of this routine is all dynamic timestep calculation
+    // 
     if (!dynamictimestep.on) return;
 
-    const bool deformable_solid = deformable_solid_species >= 0;
-    const bool explicit_solid_deviatoric_stress = deformable_solid &&
+    const bool elastic = (deformable_solid_species >= 0) &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
     const auto gas_data = gas_device_data;
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        Set::Scalar advmax = 0.0;
-        Set::Scalar viscmax = 0.0;
-        Set::Scalar elasticmax = 0.0;
-        Set::Scalar phasefieldmax = 0.0;
+        Set::Scalar advmax = 0.0;         // maximum advection speed
+        Set::Scalar viscmax = 0.0;        // maximum viscous speed
+        Set::Scalar elasticmax = 0.0;     // maximum elastic speed
+        Set::Scalar phasefieldmax = 0.0;  // maximum phase field speed
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
         Set::Scalar dxmin = std::min(dx[0], dx[1]);
         Set::Scalar temperaturemax = 0.0;
 
+        // Determine the maximum advection rate
         for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
@@ -2485,6 +2489,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             advmax = std::max(advmax, amrex::get<0>(hv));
         }
 
+        // Determine maximum diffusion rates
         for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
@@ -2499,7 +2504,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                 include_conduction && !implicit_thermal_diffusion;
             const bool species_diffusive =
                 ngas_species > 1 && !implicit_species_diffusion;
-            const bool elastic = explicit_solid_deviatoric_stress;
+            //const bool elastic = explicit_solid_deviatoric_stress;
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
             const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
@@ -2553,6 +2558,8 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             elasticmax = std::max(elasticmax, amrex::get<1>(hv));
             temperaturemax = std::max(temperaturemax, amrex::get<2>(hv));
         }
+
+        // Update dynamic timesteps
         amrex::ParallelDescriptor::ReduceRealMax(advmax);
         amrex::ParallelDescriptor::ReduceRealMax(viscmax);
         amrex::ParallelDescriptor::ReduceRealMax(elasticmax);
