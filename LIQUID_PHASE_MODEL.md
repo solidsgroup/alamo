@@ -235,6 +235,84 @@ not retained as a compatibility layer.
   values remain valid.  CFL values, phase fractions, and the two normalized
   chemistry timestep controls remain intentionally nondimensional.
 
+### 2026-08-10: unresolved liquid-surface heating
+
+- The branched aluminum history showed that increasing the Hertz--Knudsen
+  accommodation coefficient could not initiate appreciable evaporation while
+  the highly conductive melt remained near the 933.45 K melting plateau.
+- Added `interfacial_heat_source`, a prescribed unresolved heat flux localized
+  by the diffuse liquid--gas surface measure.  It follows a moving liquid,
+  selects no sharp contour, changes no species mass, and is distinct from a
+  conservative `interphase_reaction`.
+- The branched demonstration now deposits 100 MW/m2 on exposed molten aluminum
+  and no longer attaches oxidation heat to the amount already evaporated.
+  This removes the former vapor--heat bootstrap and avoids counting the same
+  unresolved oxidation energy in two closures.
+- The focused regression heats only an exposed liquid--gas interface, leaves
+  a buried liquid--solid boundary unheated, and conserves component mass to
+  machine precision.  The existing interphase-reaction, Hertz--Knudsen, and
+  complete three-phase aluminum regressions remain unchanged and pass.
+
+### 2026-08-10: pressure-outlet consistency and backflow stability
+
+- Traced a spurious outlet impulse to the algebraic mixture-volume correction.
+  A small gas equation-of-state defect was divided by the global timestep and
+  retained at a prescribed-pressure face, converting density drift into a
+  strong inward pressure correction.  Fresh states now reconcile gas partial
+  density once with the low-Mach pressure, temperature, composition, and
+  available condensed volume.  Runtime valid cells remain conservative.
+- Pressure-outlet ghost cells now contain an equation-of-state-consistent gas
+  reservoir and do not extrapolate condensed material back into the domain.
+  Explicitly prescribed component Dirichlet data still take precedence.
+  The algebraic mixture-drift correction fades over the configured physical
+  interface thickness at an open boundary; periodic and closed faces are
+  unchanged.  Capillarity instead uses a zero unresolved exterior traction.
+- Added the energy-stable open-boundary traction
+  `0.5 rho min(u.n,0) u` wherever a pressure outlet with extrapolated velocity
+  has local backflow.  It cancels the incoming kinetic-energy flux without a
+  velocity threshold, a magnitude cap, or a prohibition on physical
+  backflow.  Explicit velocity boundary data bypass this treatment.
+- `LMPressureOutletVolume` reduces the former 443.55 m/s startup suction to
+  less than `1e-12 m/s`.  `LMPressureOutletBackflow` removes about 20% of the
+  kinetic energy carried by an imposed incoming oblique stream instead of
+  recycling its tangential momentum.  `LMOpenBoundaryPhase` still conserves
+  liquid mass while a diffuse phase leaves an open boundary, and the complete
+  `LMThreePhaseAluminum` transition still passes.
+
+### 2026-08-12: conservative capillary momentum coupling
+
+- A matched branched-aluminum restart isolated the persistent loss of upward
+  translation and increasing liquid rotation to capillarity, rather than the
+  pressure outlet or a downward bulk-gas recirculation.  Over 20 microseconds,
+  the former facewise `sum(mu_i grad(eta_i))` discretization reduced liquid
+  vertical speed by about 0.27 m/s and increased its angular rate, while the
+  identical capillary-disabled restart retained its upward translation.
+- Replaced that nonconservative face body force with the finite-volume
+  divergence of the symmetric Korteweg stress derived from the same pair and
+  signed liquid--solid free energies.  Every interior traction is now shared
+  by its neighboring cells, face tractions are averaged down before AMR
+  divergence, and stress symmetry prevents capillarity from supplying an
+  internal torque.
+- A physical domain boundary now uses the natural zero unresolved exterior
+  capillary traction.  This works for open, closed, and periodic geometries
+  without the former distance-dependent capillary fade.  The separate
+  mixture-volume correction and energy-stable pressure-outlet backflow
+  treatment are unchanged.
+- Added checks for stress symmetry, discrete net force, discrete net torque,
+  static-droplet translation and rotation, translating-droplet velocity, and
+  capillary behavior across an AMR coarse/fine interface.
+- Repeating the matched 250--270 microsecond production restart retained an
+  upward liquid speed of 1.075 m/s.  The capillary-disabled reference was
+  0.997 m/s, while the former force fell to 0.731 m/s.  Liquid angular rate was
+  5.20e3 1/s versus 4.06e3 1/s disabled and 5.48e3 1/s formerly.  The remaining
+  liquid rotation can change as surface tension reshapes the nonspherical
+  melt, but the conservative symmetric stress cannot inject net mixture
+  angular momentum.  Accepted steps remained approximately
+  0.09--0.17 microseconds instead of collapsing from force-generated speed.
+- The tensor is evaluated once per cell and then averaged to faces.  This
+  avoids recomputing every phase-pair gradient on both sides of every face,
+  while producing the same synchronized conservative tractions.
+
 # Current model
 
 ## Conserved state and phase reconstruction
@@ -320,19 +398,68 @@ Solid--gas energy is the reference zero, and no solid--solid or solid--gas
 pair force is added.  All pair and surface terms are reduction-consistent:
 terms involving an absent phase vanish.
 
-## Chemical potential and capillary projection
+## Chemical potential and capillary momentum coupling
 
-The code evaluates the variational derivatives of the full free energy and
-constructs
+The chemical potentials remain the variational derivatives of the full free
+energy and drive optional interfacial transport.  Momentum coupling uses the
+equivalent Korteweg stress.  For a pair, define
 
 $$
-\mathbf f_{\mathrm{cap}}=\sum_i\mu_i\nabla\eta_i.
+\mathbf w_{ij}=\eta_i\nabla\eta_j-\eta_j\nabla\eta_i,
 $$
 
-`capillary_acceleration` is evaluated on faces with the same inverse density
-and gradient stencil used by the variable-coefficient pressure projection.
-This balanced-force placement lets pressure cancel a static capillary load and
-avoids the ambiguous former name `acceleration`.
+$$
+f_{ij}=\frac{3\ell\kappa_{ij}}{4}|\mathbf w_{ij}|^2
+       +\frac{12\kappa_{ij}}{\ell}\eta_i^2\eta_j^2,
+$$
+
+where \(\kappa_{ij}\) is a fluid surface tension or a liquid--solid
+regularization as appropriate.  Its pressure-reduced symmetric stress is
+
+$$
+\widetilde{\mathbf T}_{ij}=
+-\frac{3\ell\kappa_{ij}}{2}\mathbf w_{ij}\otimes\mathbf w_{ij}.
+$$
+
+The signed liquid--solid correction contributes
+
+$$
+\widetilde{\mathbf T}_\Delta=
+-2\Delta h(\eta_L)
+\frac{\nabla\eta_S\otimes\nabla\eta_S}
+{\sqrt{|\nabla\eta_S|^2+r^2}},
+\qquad \Delta=\Delta\gamma_{LS}-\kappa_{LS}.
+$$
+
+The omitted scalar free-energy terms multiply \(\mathbf I\) and are absorbed
+into the mechanical pressure.  In the continuum, the full stress and this
+pressure-reduced stress therefore differ only by a pressure gradient:
+
+$$
+\nabla\cdot\widetilde{\mathbf T}
+=\sum_i\mu_i\nabla\eta_i-\nabla f.
+$$
+
+Leaving that gauge term to the pressure projection avoids differencing the
+same large isotropic load once as capillary stress and again as pressure on a
+variable-density AMR mesh.
+
+The finite-volume code constructs one traction
+\(\widetilde{\mathbf T}\mathbf n\) per
+face, averages fine tractions onto covered coarse faces, and then takes their
+conservative divergence.  Consequently internal forces cancel exactly.  The
+stress is symmetric, so internal capillarity also has zero torque.  The
+resulting conservative cell force is interpolated to faces with the same
+inverse-density/rigid mobility used by the variable-density pressure
+projection.  It enters the face velocity predictor before the pressure solve,
+so pressure can balance its gradient part while the deviatoric capillary
+response remains.  Rigid fixed-point iterations reuse the same predictor and
+do not accumulate the force more than once per iterate.
+
+At a physical domain boundary the unresolved exterior capillary traction is
+zero.  Periodic boundary faces share the same synchronized traction.  No
+level-set surface, outlet-distance fade, velocity cap, or hard-coded force
+cutoff is used.
 
 Capillarity remains explicit.  The capillary-wave estimate is
 
@@ -433,10 +560,46 @@ and reduce the advective timestep.
 `latent_heat` is positive for endothermic forward conversion.  The optional
 signed `coupled_enthalpy_change` represents an unresolved process tied only to
 forward conversion: negative is exothermic and positive is endothermic.  In
-the current aluminum demonstration, inert aluminum vapor is retained while a
-negative coupled enthalpy approximates a selected fraction of unresolved
-oxidation heat.  This shortcut is explicitly not aluminum combustion
-chemistry.
+cases that use it, inert aluminum vapor can be retained while a negative
+coupled enthalpy approximates a selected fraction of unresolved oxidation
+heat.  This shortcut is explicitly not aluminum combustion chemistry.
+
+## Prescribed unresolved interfacial heating
+
+`interfacial_heat_source` supplies a positive prescribed `heat_flux` on the
+exposed diffuse boundary of one named liquid:
+
+$$
+\dot q'''=\dot q'' A(T)
+|\eta_g\nabla\eta_L-\eta_L\nabla\eta_g|.
+$$
+
+The bounded activation
+
+$$
+A(T)=\frac{1}{2}\left[1+\tanh\left(
+\frac{T-T_a}{\Delta T_a}\right)\right]
+$$
+
+uses dimensional `activation_temperature` and `activation_width`.  It lets the
+hot gas-side portion of the diffuse boundary initiate unresolved heating while
+making the source negligible on a cold melt, without imposing a discontinuous
+temperature cutoff.
+
+Its volume integral converges to heat flux times liquid--gas area.  It vanishes
+in bulk phases and at a buried liquid--solid boundary, follows the advected
+partial-density field, and requires neither a level set nor an `eta` contour.
+The mechanism changes no species.  It is therefore appropriate only for an
+energy-producing process deliberately omitted from the resolved chemistry;
+when reactants and products are represented, `interphase_reaction` provides
+the conservative model instead.  Positive `heat_flux` adds thermal energy,
+following the usual source-flux convention rather than the signed enthalpy-
+change convention used by `coupled_enthalpy_change`.
+
+The activation is smooth, bounded, and saturates at `heat_flux`, so it creates
+no unbounded Arrhenius feedback.  It is integrated by the Runge--Kutta source
+update, while thermal diffusion remains implicit when configured.  Its gas
+thermal expansion is included in the low-Mach projection source.
 
 ## Time advancement and volume constraint
 
@@ -451,6 +614,11 @@ volume changes.  Since the state already contains those changes, the residual
 mixture-volume defect first subtracts their contributions; the projection then
 adds each exact split dilatation once.  This avoids treating physical
 solid--liquid or liquid--gas expansion twice.
+
+At a prescribed-pressure boundary, outflow transports the conservative
+interior state.  Backflow receives an equation-of-state-consistent gas ghost
+state, excludes unprescribed condensed inflow, and uses an energy-stable
+momentum traction so extrapolated velocity cannot inject kinetic energy.
 
 For reactive cases, `chemistry.timestep.mode=report` evaluates a local
 source-based chemical timescale without changing the step.  `limit` multiplies
@@ -496,13 +664,21 @@ The model is covered at three levels:
 
 - Unit tests check pair-energy normalization, the signed liquid--solid surface
   correction, Young's-equation conversion, zero bulk force, flat-interface
-  force balance, and reduction consistency.
+  force balance, reduction consistency, Korteweg-stress symmetry, and
+  discrete force/torque conservation.
 - `LMLiquidCapillary` checks static and advected droplets, liquid--liquid and
   liquid--solid interfaces, contact angles, mass conservation, positivity,
-  and 500-step transport.
+  zero capillary translation/rotation, AMR traction consistency, and 500-step
+  transport without loss of bulk velocity.
 - `LMEquilibriumPhaseChange`, `LMPhaseChange`, and
   `LMHertzKnudsenPhaseChange` check enthalpy conservation, coupled-heat signs,
   coarse/fine vapor production, and exterior-only evaporation.
+- `LMInterfacialHeatSource` checks exposed-interface localization, zero heating
+  at a buried liquid--solid boundary, and exact component-mass invariance.
+- `LMPressureOutletVolume`, `LMPressureOutletBackflow`, and
+  `LMOpenBoundaryPhase` check equation-of-state reconciliation, kinetic-energy
+  stability during local backflow, and diffuse-phase transport across an open
+  boundary.
 - `LMThreePhaseAluminum` heats a cold solid particle long enough to complete
   melting and produce exterior vapor.  Its accelerated laser flux is a
   validation device, not a production motor calibration.  The production
@@ -530,5 +706,6 @@ Tests must consume every input; none may use `allow_unused`.
 
 Primary implementation locations are
 `src/Model/PhaseField/MultiphaseInterface.H`,
-`src/Model/Mechanism/PhaseChange.H`, `src/Integrator/LowMach.cpp`, and
-`src/Operator/PressurePoisson.cpp`.
+`src/Model/Mechanism/PhaseChange.H`,
+`src/Model/Mechanism/InterfacialHeatSource.H`,
+`src/Integrator/LowMach.cpp`, and `src/Operator/PressurePoisson.cpp`.
