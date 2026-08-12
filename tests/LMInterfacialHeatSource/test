@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def state(path):
+    data = testlib.yt.load(path).all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    radius = ((x - 0.5)**2 + (y - 0.5)**2)**0.5
+    temperature = data["temperature"].to_ndarray()
+    gas = data["component_density_ambient_gas"].to_ndarray()
+    solid = data["component_density_inert_solid"].to_ndarray()
+    liquid = data["component_density_test_liquid"].to_ndarray()
+
+    def mean_temperature(mask):
+        return (temperature[mask] * volume[mask]).sum() / volume[mask].sum()
+
+    return {
+        "mass": ((gas + solid + liquid) * volume).sum(),
+        "exposed_temperature": mean_temperature(
+            (radius > 0.27) & (radius < 0.33)),
+        "buried_temperature": mean_temperature(
+            (radius > 0.12) & (radius < 0.18)),
+        "interior_temperature": mean_temperature(
+            (radius > 0.20) & (radius < 0.24)),
+    }
+
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError(
+        "LMInterfacialHeatSource requires initial and final plotfiles")
+
+initial = state(plotfiles[0])
+final = state(plotfiles[-1])
+exposed_rise = (
+    final["exposed_temperature"] - initial["exposed_temperature"])
+buried_rise = (
+    final["buried_temperature"] - initial["buried_temperature"])
+interior_rise = (
+    final["interior_temperature"] - initial["interior_temperature"])
+relative_mass_error = abs(final["mass"] - initial["mass"]) / initial["mass"]
+
+if exposed_rise < 1.0:
+    raise RuntimeError(
+        f"Diffuse liquid-gas heat source was inactive: dT={exposed_rise:.6e}")
+if abs(buried_rise) > 0.02 * exposed_rise:
+    raise RuntimeError(
+        "Heat was deposited on the buried liquid-solid interface: "
+        f"exposed dT={exposed_rise:.6e}, buried dT={buried_rise:.6e}")
+if abs(interior_rise) > 0.02 * exposed_rise:
+    raise RuntimeError(
+        "Heat was deposited away from the liquid-gas interface: "
+        f"exposed dT={exposed_rise:.6e}, interior dT={interior_rise:.6e}")
+if relative_mass_error > 1.0e-10:
+    raise RuntimeError(
+        f"Interfacial heat source altered mass by {relative_mass_error:.3e}")
+
+print(
+    "Diffuse interfacial heat source passed: "
+    f"exposed dT={exposed_rise:.6e}, mass error={relative_mass_error:.3e}")

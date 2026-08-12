@@ -1,0 +1,129 @@
+#@ [2d-diffuse-liquid-gas-heating]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+
+# A liquid annulus surrounds an inert solid core.  The prescribed heat flux
+# must heat only the exposed diffuse liquid-gas boundary, leave the buried
+# liquid-solid boundary unheated, and change no component mass.
+plot_file = tests/LMInterfacialHeatSource/output
+amr.plot_int = 100
+amr.max_level = 0
+amr.max_grid_size = 32
+amr.blocking_factor = 8
+amr.n_cell = 64 64
+
+timestep = 1.0e-5_s
+stop_time = 1.0e-3_s
+dynamictimestep.on = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 1.0_m 1.0_m 0.0_m
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 2.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient_gas inert_solid test_liquid
+ambient_gas.mechanics = fluid
+inert_solid.mechanics = rigid_solid
+inert_solid.reference_density = 2.0_kg/m^3
+inert_solid.specific_heat = 1000.0_J/kg/K
+inert_solid.thermal_conductivity = 0.1_W/m/K
+inert_solid.rigid.motion = fixed
+inert_solid.rigid.relaxation_time = 1.0e-4_s
+inert_solid.rigid.velocity = 0.0_m/s 0.0_m/s
+test_liquid.mechanics = liquid
+test_liquid.reference_density = 2.0_kg/m^3
+test_liquid.dynamic_viscosity = 1.0e-2_Pa*s
+test_liquid.specific_heat = 1000.0_J/kg/K
+test_liquid.thermal_conductivity = 0.1_W/m/K
+
+interface.enabled = 0
+interface.thickness = 0.05_m
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+mechanisms.names = exposed_surface_heating
+exposed_surface_heating.type = interfacial_heat_source
+exposed_surface_heating.interfacial_heat_source.liquid = test_liquid
+exposed_surface_heating.interfacial_heat_source.heat_flux = 1.0e6_W/m^2
+exposed_surface_heating.interfacial_heat_source.activation_temperature = 300.0_K
+exposed_surface_heating.interfacial_heat_source.activation_width = 10.0_K
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.4
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.update_pressure = 0
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diagnostics.interval = 0
+
+ambient_gas.density.ic.type = expression
+ambient_gas.density.ic.expression.constant.rhog = 1.1225419804_kg/m^3
+ambient_gas.density.ic.expression.constant.x0 = 0.5_m
+ambient_gas.density.ic.expression.constant.y0 = 0.5_m
+ambient_gas.density.ic.expression.constant.R = 0.30_m
+ambient_gas.density.ic.expression.constant.eps = 0.025_m
+ambient_gas.density.ic.expression.region0 = "rhog*0.5*(1.0+tanh((sqrt((x-x0)^2+(y-y0)^2)-R)/eps))"
+inert_solid.density.ic.type = expression
+inert_solid.density.ic.expression.constant.rho = 2.0_kg/m^3
+inert_solid.density.ic.expression.constant.x0 = 0.5_m
+inert_solid.density.ic.expression.constant.y0 = 0.5_m
+inert_solid.density.ic.expression.constant.R = 0.15_m
+inert_solid.density.ic.expression.constant.eps = 0.025_m
+inert_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((sqrt((x-x0)^2+(y-y0)^2)-R)/eps))"
+test_liquid.density.ic.type = expression
+test_liquid.density.ic.expression.constant.rho = 2.0_kg/m^3
+test_liquid.density.ic.expression.constant.x0 = 0.5_m
+test_liquid.density.ic.expression.constant.y0 = 0.5_m
+test_liquid.density.ic.expression.constant.R0 = 0.15_m
+test_liquid.density.ic.expression.constant.R1 = 0.30_m
+test_liquid.density.ic.expression.constant.eps = 0.025_m
+test_liquid.density.ic.expression.region0 = "rho*0.5*(1.0+tanh((sqrt((x-x0)^2+(y-y0)^2)-R0)/eps))*0.5*(1.0-tanh((sqrt((x-x0)^2+(y-y0)^2)-R1)/eps))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0_m/s 0.0_m/s
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0_K
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e5_Pa
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic

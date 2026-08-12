@@ -22,6 +22,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Mechanism/InterphaseReaction.H"
+#include "Model/Mechanism/InterfacialHeatSource.H"
 #include "Model/PhaseField/MultiphaseInterface.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
@@ -206,7 +207,8 @@ protected:
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<
         Model::Mechanism::PhaseChange,
-        Model::Mechanism::InterphaseReaction>;
+        Model::Mechanism::InterphaseReaction,
+        Model::Mechanism::InterfacialHeatSource>;
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;

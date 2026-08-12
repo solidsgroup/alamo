@@ -615,7 +615,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
         pp.select<Model::Mechanism::PhaseChange,
-                Model::Mechanism::InterphaseReaction>(
+                Model::Mechanism::InterphaseReaction,
+                Model::Mechanism::InterfacialHeatSource>(
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
                             value.rigid_solid_species,
@@ -3114,6 +3115,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
     amrex::get<4>(thermal_data) = pressure_reference;
     amrex::get<0>(thermochemical_data) = thermal_data;
+    const auto thermal = thermal_data;
     const auto gas_data = gas_device_data;
     const auto thermochemical = thermochemical_data;
     const int number_of_species = nspecies;
@@ -3230,6 +3232,21 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                         T(i,j,k), p_reference, dt};
                     rhs(i,j,k) += mechanism.VolumeSource(
                         state, i, j, k, dx.data());
+                    const Set::Scalar heat_source = mechanism.HeatSource(
+                        state, i, j, k, dx.data());
+                    if (heat_source != 0.0 && T(i,j,k) > 0.0)
+                    {
+                        auto [gas_volume_fraction, gas_heat_capacity,
+                            heat_capacity, conductivity, cp] =
+                            ComputeThermalState(component_density,
+                                T(i,j,k), i, j, k, thermal);
+                        (void)gas_heat_capacity;
+                        (void)conductivity;
+                        (void)cp;
+                        if (heat_capacity > 0.0)
+                            rhs(i,j,k) += gas_volume_fraction * heat_source /
+                                (heat_capacity * T(i,j,k));
+                    }
                 });
             }
         }
