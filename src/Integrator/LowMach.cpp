@@ -3245,6 +3245,191 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         UpdateComponentState(lev, *component_density_mf[lev]);
     }
 
+    // Evaluate the diffuse-interface free energy as a symmetric Korteweg
+    // stress and apply its finite-volume divergence to momentum.  A shared
+    // face traction is equal and opposite for its two neighboring cells, so
+    // capillarity cannot create net force.  Stress symmetry likewise prevents
+    // internal capillary torque.  Averaging the face tractions down before
+    // taking their divergence preserves both properties across AMR
+    // coarse/fine interfaces.
+    using OwnedFaceField =
+        amrex::Array<std::unique_ptr<amrex::MultiFab>, AMREX_SPACEDIM>;
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> capillary_stress(nlev);
+    amrex::Vector<OwnedFaceField> capillary_face_traction(nlev);
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> capillary_force(nlev);
+    if (capillary)
+    {
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            const Set::Scalar* DX = geom[lev].CellSize();
+            const amrex::Box domain = geom[lev].Domain();
+            amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                periodic[d] = geom[lev].isPeriodic(d);
+
+            capillary_stress[lev] = std::make_unique<amrex::MultiFab>(
+                velocity_mf[lev]->boxArray(),
+                velocity_mf[lev]->DistributionMap(),
+                AMREX_SPACEDIM * AMREX_SPACEDIM, 1);
+            capillary_stress[lev]->setVal(0.0);
+
+            const int nphase = interfacial_model.NumberOfPhases();
+            for (int a = 0; a < nphase; ++a)
+                for (int b = a + 1; b < nphase; ++b)
+                {
+                    if (!interfacial_model.HasInterfacialEnergy(a,b))
+                        continue;
+                    const Set::Scalar pair_regularization =
+                        interfacial_model.PairRegularization(a,b);
+                    const Set::Scalar surface_correction =
+                        interfacial_model.SolidSurfaceCorrection(a,b);
+                    for (amrex::MFIter mfi(*capillary_stress[lev], false);
+                         mfi.isValid(); ++mfi)
+                    {
+                        const amrex::Box bx = mfi.fabbox() & domain;
+                        Set::Patch<const Set::Scalar> eta =
+                            interfacial_volume_fraction_mf.Patch(lev,mfi);
+                        Set::Patch<Set::Scalar> stress =
+                            capillary_stress[lev]->array(mfi);
+                        amrex::ParallelFor(
+                            bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                            {
+                                const auto stencil = Numeric::GetStencil(
+                                    i, j, k, domain, periodic);
+                                Set::Matrix pair_stress =
+                                    Model::PhaseField::
+                                        MultiphaseInterface::
+                                            PairCapillaryStress(
+                                                eta, a, b,
+                                                pair_regularization,
+                                                interfacial_thickness,
+                                                i, j, k, DX, stencil);
+                                if (surface_correction != 0.0)
+                                {
+                                    pair_stress += Model::PhaseField::
+                                        MultiphaseInterface::
+                                            SolidSurfaceCorrectionCapillaryStress(
+                                                eta, a, b,
+                                                surface_correction,
+                                                interfacial_thickness,
+                                                i, j, k, DX, stencil);
+                                }
+                                for (int row = 0;
+                                     row < AMREX_SPACEDIM; ++row)
+                                    for (int column = 0;
+                                         column < AMREX_SPACEDIM; ++column)
+                                        stress(i,j,k,
+                                            row * AMREX_SPACEDIM + column) +=
+                                                pair_stress(row,column);
+                            });
+                    }
+                }
+
+            capillary_stress[lev]->FillBoundary(geom[lev].periodicity());
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                amrex::BoxArray face_grids = velocity_mf[lev]->boxArray();
+                face_grids.surroundingNodes(d);
+                capillary_face_traction[lev][d] =
+                    std::make_unique<amrex::MultiFab>(
+                        face_grids, velocity_mf[lev]->DistributionMap(),
+                        AMREX_SPACEDIM, 0);
+                amrex::MultiFab& traction =
+                    *capillary_face_traction[lev][d];
+                traction.setVal(0.0);
+                const int di = d == 0;
+                const int dj = d == 1;
+                const int dk = d == 2;
+                const int domain_face_lo = domain.smallEnd(d);
+                const int domain_face_hi = domain.bigEnd(d) + 1;
+                const bool direction_periodic = geom[lev].isPeriodic(d);
+                for (amrex::MFIter mfi(traction,
+                        amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    const amrex::Box& bx = mfi.tilebox();
+                    Set::Patch<const Set::Scalar> stress =
+                        capillary_stress[lev]->const_array(mfi);
+                    Set::Patch<Set::Scalar> face_traction =
+                        traction.array(mfi);
+                    amrex::ParallelFor(
+                        bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            const int face_index = d == 0 ? i :
+                                (d == 1 ? j : k);
+                            // A phase meeting a physical domain boundary has
+                            // zero unresolved exterior capillary traction.
+                            if (!direction_periodic &&
+                                (face_index == domain_face_lo ||
+                                 face_index == domain_face_hi))
+                                return;
+                            for (int component = 0;
+                                 component < AMREX_SPACEDIM; ++component)
+                                face_traction(i,j,k,component) = 0.5 *
+                                    (stress(i-di,j-dj,k-dk,
+                                        component * AMREX_SPACEDIM + d) +
+                                     stress(i,j,k,
+                                        component * AMREX_SPACEDIM + d));
+                        });
+                }
+                capillary_face_traction[lev][d]->FillBoundaryAndSync(
+                    geom[lev].periodicity());
+            }
+        }
+
+        for (int lev = nlev - 1; lev > 0; --lev)
+        {
+            amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM> fine;
+            amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> coarse;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                fine[d] = capillary_face_traction[lev][d].get();
+                coarse[d] = capillary_face_traction[lev-1][d].get();
+            }
+            amrex::average_down_faces(
+                fine, coarse, refRatio(lev-1), geom[lev-1]);
+        }
+
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            const auto dx = geom[lev].CellSizeArray();
+            capillary_force[lev] = std::make_unique<amrex::MultiFab>(
+                velocity_mf[lev]->boxArray(),
+                velocity_mf[lev]->DistributionMap(),
+                AMREX_SPACEDIM, 1);
+            capillary_force[lev]->setVal(0.0);
+            for (amrex::MFIter mfi(*capillary_force[lev],
+                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> force =
+                    capillary_force[lev]->array(mfi);
+                amrex::GpuArray<Set::Patch<const Set::Scalar>,
+                    AMREX_SPACEDIM> traction;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    traction[d] =
+                        capillary_face_traction[lev][d]->const_array(mfi);
+                amrex::ParallelFor(
+                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        for (int component = 0;
+                             component < AMREX_SPACEDIM; ++component)
+                        {
+                            Set::Scalar divergence = 0.0;
+                            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                                divergence +=
+                                    (traction[d](
+                                        i + (d == 0),
+                                        j + (d == 1),
+                                        k + (d == 2), component) -
+                                     traction[d](i,j,k,component)) / dx[d];
+                            force(i,j,k,component) = divergence;
+                        }
+                    });
+            }
+            capillary_force[lev]->FillBoundary(geom[lev].periodicity());
+        }
+    }
+
     // Preserve the momentum already accumulated by advection and diffusion,
     // then predict only the missing pressure/constraint impulse from the
     // preceding step.  This is substantially more accurate than extrapolating
@@ -3521,25 +3706,13 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         }
     }
 
-    // Capillarity and pressure use the same face gradient and face mobility.
-    // The variational mu_i grad(eta_i) force is the discrete counterpart of
-    // the configured multiphase interfacial free energy.  It is well-defined
-    // where
-    // |grad eta| is small and remains balanced with the face-centered
-    // projection.
     pressure_poisson.PrepareCoefficients(time);
-    using OwnedFaceField =
-        amrex::Array<std::unique_ptr<amrex::MultiFab>, AMREX_SPACEDIM>;
     amrex::Vector<OwnedFaceField> capillary_face_acceleration(nlev);
     if (capillary)
     {
         for (int lev = 0; lev < nlev; ++lev)
         {
-            UpdateInterfacialChemicalPotential(lev);
-            const Set::Scalar* DX = geom[lev].CellSize();
             const amrex::Box domain = geom[lev].Domain();
-            const int nphase = interfacial_model.NumberOfPhases();
-
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
             {
                 amrex::BoxArray face_grids = velocity_mf[lev]->boxArray();
@@ -3547,56 +3720,45 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 capillary_face_acceleration[lev][d] =
                     std::make_unique<amrex::MultiFab>(
                         face_grids, velocity_mf[lev]->DistributionMap(), 1, 0);
-                amrex::MultiFab& capillary_acceleration =
+                amrex::MultiFab& face_acceleration =
                     *capillary_face_acceleration[lev][d];
-                const amrex::MultiFab& beta =
-                    pressure_poisson.FaceCoefficient(lev, d);
+                const amrex::MultiFab& face_beta =
+                    pressure_poisson.FaceCoefficient(lev,d);
                 const int di = d == 0;
                 const int dj = d == 1;
                 const int dk = d == 2;
                 const int domain_face_lo = domain.smallEnd(d);
                 const int domain_face_hi = domain.bigEnd(d) + 1;
                 const bool periodic = geom[lev].isPeriodic(d);
-
-                for (amrex::MFIter mfi(capillary_acceleration,
+                for (amrex::MFIter mfi(face_acceleration,
                         amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     const amrex::Box& bx = mfi.tilebox();
-                    Set::Patch<const Set::Scalar> eta =
-                        interfacial_volume_fraction_mf.Patch(lev,mfi);
-                    Set::Patch<const Set::Scalar> mu =
-                        interfacial_chemical_potential_mf.Patch(lev,mfi);
-                    Set::Patch<const Set::Scalar> face_beta =
-                        beta.const_array(mfi);
-                    Set::Patch<Set::Scalar> capillary_face_force =
-                        capillary_acceleration.array(mfi);
-
+                    Set::Patch<const Set::Scalar> force =
+                        capillary_force[lev]->const_array(mfi);
+                    Set::Patch<const Set::Scalar> beta =
+                        face_beta.const_array(mfi);
+                    Set::Patch<Set::Scalar> acceleration =
+                        face_acceleration.array(mfi);
                     amrex::ParallelFor(
                         bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
-                            const int face_index =
-                                d == 0 ? i : (d == 1 ? j : k);
-                            if (!periodic && (face_index == domain_face_lo ||
-                                             face_index == domain_face_hi))
+                            const int face_index = d == 0 ? i :
+                                (d == 1 ? j : k);
+                            if (!periodic &&
+                                (face_index == domain_face_lo ||
+                                 face_index == domain_face_hi))
                             {
-                                capillary_face_force(i,j,k) = 0.0;
+                                acceleration(i,j,k) = 0.0;
                                 return;
                             }
-
-                            Set::Scalar force = 0.0;
-                            for (int phase = 0; phase < nphase; ++phase)
-                            {
-                                const Set::Scalar mu_face = 0.5 *
-                                    (mu(i-di,j-dj,k-dk,phase) +
-                                     mu(i,j,k,phase));
-                                force += mu_face *
-                                    (eta(i,j,k,phase) -
-                                     eta(i-di,j-dj,k-dk,phase)) / DX[d];
-                            }
-                            capillary_face_force(i,j,k) =
-                                face_beta(i,j,k) * force;
+                            acceleration(i,j,k) = beta(i,j,k) * 0.5 *
+                                (force(i-di,j-dj,k-dk,d) +
+                                 force(i,j,k,d));
                         });
                 }
+                face_acceleration.FillBoundaryAndSync(
+                    geom[lev].periodicity());
             }
         }
     }

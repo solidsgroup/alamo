@@ -225,6 +225,119 @@ int main (int argc, char* argv[])
             "Flat-interface physical energy",
             std::abs(pair_energy + correction_energy -
                      surface_difference) > 2.0e-10);
+
+        const Set::Matrix flat_stress =
+            PhaseModel::PairCapillaryStress(
+                flat_const, liquid, solid, solid_regularization, ell,
+                ci, cj, ck, cell_size, central) +
+            PhaseModel::SolidSurfaceCorrectionCapillaryStress(
+                flat_const, liquid, solid, correction, ell,
+                ci, cj, ck, cell_size, central);
+        subfailed += Util::Test::SubMessage(
+            "Korteweg stress symmetry",
+            (flat_stress - flat_stress.transpose()).norm() > 1.0e-14);
+
+#if AMREX_SPACEDIM == 2
+        // Reproduce the finite-volume stress divergence used by LowMach on a
+        // deliberately off-center, nonspherical diffuse interface.  Shared
+        // face tractions must telescope to zero net force, and a symmetric
+        // stress must also give zero first moment without relying on radial
+        // symmetry of the phase field.
+        const amrex::Box conservation_domain(
+            amrex::IntVect(0,0), amrex::IntVect(32,28));
+        const amrex::Box phase_box = amrex::grow(conservation_domain, 1);
+        amrex::FArrayBox conservation_phase(phase_box, 2);
+        auto conservation_eta = conservation_phase.array();
+        const amrex::Dim3 phase_lo = amrex::lbound(phase_box);
+        const amrex::Dim3 phase_hi = amrex::ubound(phase_box);
+        for (int j = phase_lo.y; j <= phase_hi.y; ++j)
+            for (int i = phase_lo.x; i <= phase_hi.x; ++i)
+            {
+                const Set::Scalar x = (i - 12.3) / 6.0;
+                const Set::Scalar y = (j - 16.1) / 8.0;
+                const Set::Scalar radius = std::sqrt(
+                    x*x + y*y + 0.18*x*y);
+                Set::Scalar q = 0.0;
+                if (radius <= 0.65)
+                    q = 1.0;
+                else if (radius < 1.35)
+                {
+                    const Set::Scalar s =
+                        (radius - 0.65) / (1.35 - 0.65);
+                    q = 1.0 - s*s*(3.0 - 2.0*s);
+                }
+                conservation_eta(i,j,0,0) = q;
+                conservation_eta(i,j,0,1) = 1.0 - q;
+            }
+
+        amrex::FArrayBox cell_stress(conservation_domain, 4);
+        auto stress = cell_stress.array();
+        const auto conservation_const = conservation_phase.const_array();
+        const Set::Scalar conservation_dx[2] = {1.0, 1.0};
+        const amrex::Dim3 conservation_lo =
+            amrex::lbound(conservation_domain);
+        const amrex::Dim3 conservation_hi =
+            amrex::ubound(conservation_domain);
+        for (int j = conservation_lo.y; j <= conservation_hi.y; ++j)
+            for (int i = conservation_lo.x; i <= conservation_hi.x; ++i)
+            {
+                const Set::Matrix value = PhaseModel::PairCapillaryStress(
+                    conservation_const, 0, 1, 0.8, 4.0,
+                    i, j, 0, conservation_dx, central);
+                for (int row = 0; row < 2; ++row)
+                    for (int column = 0; column < 2; ++column)
+                        stress(i,j,0,2*row+column) = value(row,column);
+            }
+
+        amrex::FArrayBox x_traction(
+            amrex::surroundingNodes(conservation_domain, 0), 2);
+        amrex::FArrayBox y_traction(
+            amrex::surroundingNodes(conservation_domain, 1), 2);
+        x_traction.setVal(0.0);
+        y_traction.setVal(0.0);
+        auto tx = x_traction.array();
+        auto ty = y_traction.array();
+        for (int j = conservation_lo.y; j <= conservation_hi.y; ++j)
+            for (int i = conservation_lo.x + 1;
+                 i <= conservation_hi.x; ++i)
+                for (int component = 0; component < 2; ++component)
+                    tx(i,j,0,component) = 0.5 *
+                        (stress(i-1,j,0,2*component) +
+                         stress(i,j,0,2*component));
+        for (int j = conservation_lo.y + 1;
+             j <= conservation_hi.y; ++j)
+            for (int i = conservation_lo.x; i <= conservation_hi.x; ++i)
+                for (int component = 0; component < 2; ++component)
+                    ty(i,j,0,component) = 0.5 *
+                        (stress(i,j-1,0,2*component+1) +
+                         stress(i,j,0,2*component+1));
+
+        Set::Vector total_force = Set::Vector::Zero();
+        Set::Scalar total_torque = 0.0;
+        Set::Scalar absolute_force = 0.0;
+        for (int j = conservation_lo.y; j <= conservation_hi.y; ++j)
+            for (int i = conservation_lo.x; i <= conservation_hi.x; ++i)
+            {
+                Set::Vector force;
+                for (int component = 0; component < 2; ++component)
+                {
+                    force(component) =
+                        tx(i+1,j,0,component) - tx(i,j,0,component) +
+                        ty(i,j+1,0,component) - ty(i,j,0,component);
+                    absolute_force += std::abs(force(component));
+                }
+                total_force += force;
+                total_torque += (i + 0.5 - 12.3) * force(1) -
+                                (j + 0.5 - 16.1) * force(0);
+            }
+        subfailed += Util::Test::SubMessage(
+            "Conservative capillary force",
+            total_force.norm() > 1.0e-13 * absolute_force);
+        subfailed += Util::Test::SubMessage(
+            "Conservative capillary torque",
+            std::abs(total_torque) >
+                1.0e-12 * absolute_force * 33.0);
+#endif
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 

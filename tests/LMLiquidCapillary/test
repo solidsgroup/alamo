@@ -8,7 +8,9 @@ import testlib
 
 def fields(path):
     ds = testlib.yt.load(path)
-    grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
+    level = ds.index.max_level
+    dimensions = ds.domain_dimensions * ds.refine_by ** level
+    grid = ds.covering_grid(level, ds.domain_left_edge, dimensions)
     eta = grid[("boxlib", "liquid_species_eta_Al_liquid")].to_ndarray()[:, :, 0]
     eta_oxide = grid[("boxlib", "liquid_species_eta_Al2O3_liquid")].to_ndarray()[:, :, 0]
     eta_tracer = grid[("boxlib", "liquid_species_eta_tracer_liquid")].to_ndarray()[:, :, 0]
@@ -19,13 +21,16 @@ def fields(path):
     ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
     uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
     pressure = grid[("boxlib", "pressure")].to_ndarray()[:, :, 0]
+    density = grid[("boxlib", "density")].to_ndarray()[:, :, 0]
+    x = grid[("index", "x")].to_ndarray()[:, :, 0]
+    y = grid[("index", "y")].to_ndarray()[:, :, 0]
     eta_density_error = testlib.numpy.max(testlib.numpy.abs(
         testlib.numpy.stack((
             eta - rho / 10.0,
             eta_oxide - rho_oxide / 10.0,
             eta_tracer - rho_tracer / 10.0))))
     return (eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
-            eta_density_error)
+            density, x, y, eta_density_error)
 
 
 outdir = sys.argv[1]
@@ -33,9 +38,10 @@ plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) != 2:
     raise RuntimeError("Static-droplet regression requires initial and final plotfiles")
 
-eta0, _, _, _, _, _, _, eta_density_error0 = fields(plotfiles[0])
+(eta0, _, _, _, ux0, uy0, _, density0, x0, y0,
+ eta_density_error0) = fields(plotfiles[0])
 (eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
- eta_density_error) = fields(plotfiles[-1])
+ density, x, y, eta_density_error) = fields(plotfiles[-1])
 speed = testlib.numpy.sqrt(ux * ux + uy * uy)
 
 eta_density_error = max(eta_density_error0, eta_density_error)
@@ -79,14 +85,24 @@ if "transport" in outdir:
     mixing0 = (eta0 * (1.0 - eta0)).sum()
     mixing = (eta * (1.0 - eta)).sum()
     mixing_error = abs(mixing / mixing0 - 1.0)
+    target_ux = (eta0 * ux0).sum() / eta0.sum()
+    target_uy = (eta0 * uy0).sum() / eta0.sum()
+    liquid_velocity_error = testlib.numpy.sqrt(
+        (eta * ((ux - target_ux)**2 + (uy - target_uy)**2)).sum() /
+        eta.sum())
     if profile_error > 0.25:
         raise RuntimeError(
             f"Transported interface relative profile error {profile_error:.3e}")
     if mixing_error > 0.20:
         raise RuntimeError(
             f"Transported interface thickness error {mixing_error:.3e}")
+    if liquid_velocity_error > 3.0e-2:
+        raise RuntimeError(
+            "Capillarity changed translating-droplet velocity or generated "
+            f"spin: weighted error={liquid_velocity_error:.3e} m/s")
     print("LowMach long-time diffuse-interface transport regression passed: "
-        f"profile={profile_error:.6e}, mixing={mixing_error:.6e}")
+        f"profile={profile_error:.6e}, mixing={mixing_error:.6e}, "
+        f"velocity={liquid_velocity_error:.6e} m/s")
     sys.exit(0)
 
 pressure_jump = testlib.numpy.median(pressure[eta > 0.9]) - \
@@ -104,10 +120,39 @@ interface = (eta[1:-1, 1:-1] > 0.02) & (eta[1:-1, 1:-1] < 0.98)
 checkerboard_rms = testlib.numpy.sqrt(
     testlib.numpy.mean(high_pass[interface] ** 2))
 
+liquid_mean_ux = (eta * ux).sum() / eta.sum()
+liquid_mean_uy = (eta * uy).sum() / eta.sum()
+liquid_bulk_speed = testlib.numpy.sqrt(
+    liquid_mean_ux**2 + liquid_mean_uy**2)
+center_x = (eta * x).sum() / eta.sum()
+center_y = (eta * y).sum() / eta.sum()
+liquid_angular_rate = (
+    eta * ((x-center_x)*uy - (y-center_y)*ux)).sum() / (
+    eta * ((x-center_x)**2 + (y-center_y)**2)).sum()
+mixture_momentum_change = testlib.numpy.sqrt(
+    ((density * ux).sum() - (density0 * ux0).sum())**2 +
+    ((density * uy).sum() - (density0 * uy0).sum())**2) / density0.sum()
+
 if speed.max() > 8.0e-3:
     raise RuntimeError(f"Static droplet developed speed {speed.max():.3e}")
 if checkerboard_rms > 1.0e-3:
     raise RuntimeError(
         f"Static droplet checkerboard RMS {checkerboard_rms:.3e}")
+if liquid_bulk_speed > 1.0e-3:
+    raise RuntimeError(
+        f"Internal capillarity translated the droplet at "
+        f"{liquid_bulk_speed:.3e} m/s")
+if abs(liquid_angular_rate) > 1.0e-2:
+    raise RuntimeError(
+        f"Internal capillarity spun the droplet at "
+        f"{liquid_angular_rate:.3e} 1/s")
+if mixture_momentum_change > 1.0e-3:
+    raise RuntimeError(
+        f"Internal capillarity changed mixture momentum by "
+        f"{mixture_momentum_change:.3e} m/s")
 
-print("LowMach balanced liquid-capillary regression passed")
+print(
+    "LowMach conservative liquid-capillary regression passed: "
+    f"bulk={liquid_bulk_speed:.3e} m/s, "
+    f"rotation={liquid_angular_rate:.3e} 1/s, "
+    f"momentum={mixture_momentum_change:.3e} m/s")

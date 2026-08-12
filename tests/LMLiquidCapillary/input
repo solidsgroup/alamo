@@ -13,6 +13,14 @@
 #@ args=stop_time=1.0e-4
 #@ args=amr.plot_int=1
 #@
+#@ [2d-amr]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=amr.max_level=1
+#@ args=amr.regrid_int=1
+#@ args=eta_refinement_criterion=1.0e-4
+#@
 #@ [2d-transport-advected]
 #@ exe=lowmach
 #@ dim=2

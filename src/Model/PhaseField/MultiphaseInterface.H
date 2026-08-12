@@ -225,6 +225,64 @@ public:
         return -liquid_gas_surface_tension * std::cos(contact_angle);
     }
 
+    // Symmetric, pressure-reduced Korteweg stress associated with the pair
+    // free energy.  The omitted f I term is an isotropic pressure gauge; its
+    // discrete cancellation is handled by the pressure projection rather than
+    // represented as a second, separately differenced pressure.  Applying
+    // capillarity as the conservative divergence of this
+    // stress makes every internal face traction equal and opposite and, since
+    // the stress is symmetric, introduces no artificial capillary torque.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Matrix PairCapillaryStress(
+        const amrex::Array4<const Set::Scalar>& eta,
+        const int phase, const int other,
+        const Set::Scalar pair_regularization,
+        const Set::Scalar interface_thickness,
+        const int i, const int j, const int k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil)
+    {
+        const Set::Scalar eta_i = eta(i,j,k,phase);
+        const Set::Scalar eta_j = eta(i,j,k,other);
+        const Set::Vector grad_i = Numeric::Gradient(
+            eta, i, j, k, phase, dx, stencil);
+        const Set::Vector grad_j = Numeric::Gradient(
+            eta, i, j, k, other, dx, stencil);
+        const Set::Vector relative_gradient =
+            eta_i * grad_j - eta_j * grad_i;
+        return -1.5 * interface_thickness * pair_regularization *
+            relative_gradient * relative_gradient.transpose();
+    }
+
+    // Korteweg stress of the signed liquid-covered-solid surface correction
+    //
+    //   2 Delta h(eta_l) [sqrt(|grad eta_s|^2+r^2)-r].
+    //
+    // This is kept separate from PairCapillaryStress because the positive
+    // pair coefficient regularizes the liquid-solid profile whereas Delta
+    // selects the physical solid surface-energy difference/contact angle.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Matrix SolidSurfaceCorrectionCapillaryStress(
+        const amrex::Array4<const Set::Scalar>& eta,
+        const int liquid, const int solid,
+        const Set::Scalar surface_correction,
+        const Set::Scalar interface_thickness,
+        const int i, const int j, const int k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil)
+    {
+        const Set::Scalar h = Interpolation(eta(i,j,k,liquid));
+        const Set::Vector grad_solid = Numeric::Gradient(
+            eta, i, j, k, solid, dx, stencil);
+        const Set::Scalar regularization =
+            1.0e-12 / interface_thickness;
+        const Set::Scalar regularized_norm = std::sqrt(
+            grad_solid.dot(grad_solid) +
+            regularization * regularization);
+        return -2.0 * surface_correction * h / regularized_norm *
+            grad_solid * grad_solid.transpose();
+    }
+
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     static Set::Scalar PairChemicalPotential(
         const amrex::Array4<const Set::Scalar>& eta,
