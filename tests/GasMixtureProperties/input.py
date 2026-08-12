@@ -37,6 +37,11 @@ cppyy.cppdef(
         std::cout << "stdout:" << marker << std::endl;
         std::cerr << "stderr:" << marker << std::endl;
     }
+
+    bool CommonDiffusivity(const Model::Gas::Gas& gas)
+    {
+        return gas.transport.CommonDiffusivity();
+    }
     }
     """
 )
@@ -158,6 +163,23 @@ def make_gas(pp, prefix, case):
     return alamo.Model.Gas.Gas(pp, prefix)
 
 
+def make_gross_gas(pp, prefix, lewis, array_input=False):
+    add_strings(pp, f"{prefix}.mw", ["26.0_g/mol"] * 3)
+    add_string(pp, f"{prefix}.thermo.type", "gross_model")
+    add_string(pp, f"{prefix}.thermo.gross_model.cp_mass", "0.3_cal/g/K")
+    add_string(pp, f"{prefix}.thermo.gross_model.Tref", "273.15_K")
+    add_string(pp, f"{prefix}.transport.type", "gross_model")
+    if array_input:
+        pp.addarr(
+            f"{prefix}.transport.gross_model.lewis",
+            cpp_vector("double", lewis),
+        )
+    else:
+        pp.add(f"{prefix}.transport.gross_model.lewis", lewis[0])
+    add_string(pp, f"{prefix}.eos.type", "gross_model")
+    return alamo.Model.Gas.Gas(pp, prefix)
+
+
 output = Path(__file__).with_name("output")
 output.mkdir(exist_ok=True)
 output_log_path = output / "out.log"
@@ -220,6 +242,66 @@ try:
         ):
             results.append((name, property_name, reference, value))
 
+    gross_composition = Composition(
+        cpp_vector("double", [0.2, 0.3, 0.5])
+    )
+    gross_temperature = 2500.0
+    gross_pressure = 3.0e6
+    gross_cases = {
+        "scalar": make_gross_gas(pp, "gross_scalar", [2.0]),
+        "equal_array": make_gross_gas(
+            pp, "gross_equal_array", [2.0, 2.0, 2.0], array_input=True
+        ),
+        "species_array": make_gross_gas(
+            pp, "gross_species_array", [1.0, 2.0, 4.0], array_input=True
+        ),
+    }
+    gross_diffusion = {
+        name: numpy.array([
+            gas.diffusion_coefficient(
+                gross_temperature,
+                gross_pressure,
+                gross_composition,
+                0,
+                0,
+                0,
+                species,
+            )
+            for species in range(3)
+        ])
+        for name, gas in gross_cases.items()
+    }
+    numpy.testing.assert_allclose(
+        gross_diffusion["scalar"],
+        gross_diffusion["scalar"][0],
+        rtol=2.0e-12,
+        err_msg="A scalar GrossModel Lewis number was not broadcast",
+    )
+    numpy.testing.assert_allclose(
+        gross_diffusion["equal_array"],
+        gross_diffusion["scalar"],
+        rtol=2.0e-12,
+        err_msg="An equal GrossModel Lewis-number array changed diffusion",
+    )
+    numpy.testing.assert_allclose(
+        gross_diffusion["species_array"],
+        gross_diffusion["scalar"][0] * numpy.array([2.0, 1.0, 0.5]),
+        rtol=2.0e-12,
+        err_msg="GrossModel species diffusivities do not scale as 1/Le",
+    )
+    if not alamo.AlamoGasMixturePropertiesTest.CommonDiffusivity(
+        gross_cases["scalar"]
+    ):
+        raise RuntimeError("Scalar GrossModel Lewis input lost the common fast path")
+    if not alamo.AlamoGasMixturePropertiesTest.CommonDiffusivity(
+        gross_cases["equal_array"]
+    ):
+        raise RuntimeError("Equal GrossModel Lewis inputs lost the common fast path")
+    if alamo.AlamoGasMixturePropertiesTest.CommonDiffusivity(
+        gross_cases["species_array"]
+    ):
+        raise RuntimeError("Nonuniform GrossModel Lewis inputs used common diffusion")
+
     rows = [
         {
             "case": name,
@@ -255,6 +337,6 @@ try:
             raise RuntimeError(f"{variable} is missing from Slurm metadata")
 
     print(f"CSV: {csv_path}")
-    print("PASS: Gas mixture properties match the reference data")
+    print("PASS: Gas mixture properties and GrossModel Lewis inputs are correct")
 finally:
     alamo.Util.Finalize()

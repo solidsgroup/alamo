@@ -318,10 +318,14 @@ Diffusion::SetLayout(
     const amrex::Vector<amrex::Geometry>& a_geometry,
     const amrex::Vector<amrex::IntVect>& a_refinement_ratio,
     const Set::Field<Set::Scalar>& layout,
-    int number_of_levels, int number_of_components)
+    int number_of_levels, int number_of_components,
+    int number_of_mobility_components)
 {
     Util::Assert(INFO, TEST(number_of_levels > 0));
     Util::Assert(INFO, TEST(number_of_components > 0));
+    Util::Assert(INFO,
+        TEST(number_of_mobility_components == 1 ||
+             number_of_mobility_components == number_of_components));
     Util::Assert(INFO, TEST(number_of_levels <= static_cast<int>(a_geometry.size())));
     Util::Assert(INFO, TEST(number_of_levels <= static_cast<int>(layout.size())));
     Util::Assert(INFO, TEST(number_of_levels == 1 ||
@@ -335,7 +339,9 @@ Diffusion::SetLayout(
 
     auto& system_pointer = systems[number_of_components];
     bool layout_changed = !system_pointer ||
-        static_cast<int>(system_pointer->state.size()) != nlevels;
+        static_cast<int>(system_pointer->state.size()) != nlevels ||
+        (system_pointer && system_pointer->mobility[0]->nComp() !=
+             number_of_mobility_components);
     if (!layout_changed)
     {
         for (int lev = 0; lev < nlevels; ++lev)
@@ -368,7 +374,8 @@ Diffusion::SetLayout(
     system.rhs.Define(nlevels, grids, distribution_mapping,
                         number_of_components, 0);
     system.mass.Define(nlevels, grids, distribution_mapping, 1, 0);
-    system.mobility.Define(nlevels, grids, distribution_mapping, 1, 1);
+    system.mobility.Define(nlevels, grids, distribution_mapping,
+                            number_of_mobility_components, 1);
     system.face_mobility.resize(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
@@ -377,7 +384,8 @@ Diffusion::SetLayout(
             amrex::BoxArray face_grids = grids[lev];
             face_grids.surroundingNodes(d);
             system.face_mobility[lev][d].define(
-                face_grids, distribution_mapping[lev], 1, 0);
+                face_grids, distribution_mapping[lev],
+                number_of_mobility_components, 0);
         }
     }
 }
@@ -404,6 +412,14 @@ amrex::MultiFab&
 Diffusion::Mobility(int lev, int ncomp)
 {
     return *GetSystem(ncomp).mobility[lev];
+}
+
+amrex::MultiFab&
+Diffusion::FaceMobility(int lev, int ncomp, int direction)
+{
+    Util::Assert(INFO,
+        TEST(direction >= 0 && direction < AMREX_SPACEDIM));
+    return GetSystem(ncomp).face_mobility[lev][direction];
 }
 
 amrex::MultiFab&
@@ -447,16 +463,21 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     Util::Assert(INFO,
         TEST(static_cast<int>(boundary_conditions.size()) == ncomp));
     System& system = GetSystem(ncomp);
+    const int mobility_components = system.mobility[0]->nComp();
+    Util::Assert(INFO,
+        TEST(mobility_components == 1 || mobility_components == ncomp));
+    if (use_tensor_mobility)
+        Util::Assert(INFO, TEST(mobility_components == 1));
     if (use_tensor_mobility)
         Util::Assert(INFO, TEST(system.tensor_mobility.size() > 0));
-    BC::Constant::ZeroNeumann coefficient_bc(1);
+    BC::Constant::ZeroNeumann coefficient_bc(mobility_components);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         coefficient_bc.define(geometry[lev]);
         if (lev == 0)
         {
             coefficient_bc.FillBoundary(
-                *system.mobility[lev], 0, 1, time, 0);
+                *system.mobility[lev], 0, mobility_components, time, 0);
             system.mobility[lev]->FillBoundary(geometry[lev].periodicity());
         }
         else
@@ -467,11 +488,12 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 system.mobility[lev].get()};
             amrex::Vector<amrex::Real> coarse_time{time};
             amrex::Vector<amrex::Real> fine_time{time};
-            amrex::Vector<amrex::BCRec> bcs(1, coefficient_bc.GetBCRec());
+            amrex::Vector<amrex::BCRec> bcs(
+                mobility_components, coefficient_bc.GetBCRec());
             amrex::FillPatchTwoLevels(
                 *system.mobility[lev], time,
                 coarse, coarse_time, fine, fine_time,
-                0, 0, 1,
+                0, 0, mobility_components,
                 geometry[lev - 1], geometry[lev],
                 coefficient_bc, 0, coefficient_bc, 0,
                 refinement_ratio[lev - 1], &amrex::cell_cons_interp, bcs, 0);
@@ -532,7 +554,8 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                     &system.face_tensor_mobility[lev][d];
         }
         amrex::average_cellcenter_to_face(
-            face_pointer, *system.mobility[lev], geometry[lev], 1, true, 0);
+            face_pointer, *system.mobility[lev], geometry[lev],
+            mobility_components, true, 0);
         if (use_tensor_mobility)
         {
             for (int d = 0; d < AMREX_SPACEDIM; ++d)

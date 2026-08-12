@@ -45,6 +45,7 @@ class Mixture_Averaged // public Transport
 public:
     static constexpr const char* name = "mixture_averaged";
     static constexpr bool common_diffusivity = false;
+    static constexpr bool implicit_diffusivity = false;
 
 private:
     int nspecies;

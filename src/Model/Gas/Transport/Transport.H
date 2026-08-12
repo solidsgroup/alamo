@@ -49,8 +49,33 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::tuple_element_t<I, std::tuple<OBJ...>>::common_diffusivity;
+            {
+                using Model = std::tuple_element_t<I, std::tuple<OBJ...>>;
+                if constexpr (requires(const Model &model) {
+                    model.UsesCommonDiffusivity();
+                })
+                    return std::get<I>(obj).UsesCommonDiffusivity();
+                else
+                    return Model::common_diffusivity;
+            }
             return CommonDiffusivity<I+1>();
+        }
+        else
+        {
+            Util::Abort(INFO, selected);
+            return false;
+        }
+    }
+
+    template<int I = 0>
+    bool SupportsImplicitDiffusion() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::tuple_element_t<
+                    I, std::tuple<OBJ...>>::implicit_diffusivity;
+            return SupportsImplicitDiffusion<I+1>();
         }
         else
         {

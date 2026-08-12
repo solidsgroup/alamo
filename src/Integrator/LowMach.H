@@ -285,6 +285,7 @@ protected:
     bool implicit_momentum_diffusion = false;
     bool implicit_thermal_diffusion = false;
     bool implicit_species_diffusion = false;
+    bool common_species_diffusivity = false;
     bool has_equilibrium_phase_change = false;
     bool has_kinetic_phase_change = false;
     bool has_split_phase_change = false;

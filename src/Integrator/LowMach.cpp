@@ -277,8 +277,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             "dynamictimestep.on=1");
 
     value.implicit_thermal_diffusion = value.include_conduction;
-    value.implicit_species_diffusion = value.ngas_species > 1 &&
+    value.common_species_diffusivity =
         value.gas.transport.CommonDiffusivity();
+    value.implicit_species_diffusion = value.ngas_species > 1 &&
+        value.gas.transport.SupportsImplicitDiffusion();
     if (value.deformable_solid_species >= 0)
     {
         pp.queryclass("reference_map", value.reference_map_reconstruction);
@@ -2294,8 +2296,12 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
     //
     if (implicit_species_diffusion)
     {
+        const bool common_diffusivity = common_species_diffusivity;
+        const int mobility_components = common_diffusivity ?
+            1 : ngas_species;
         diffusion.SetLayout(
-            geom, refRatio(), component_density_mf, nlev, ngas_species);
+            geom, refRatio(), component_density_mf, nlev, ngas_species,
+            mobility_components);
         for (int lev = 0; lev < nlev; ++lev)
         {
             diffusion.State(lev, ngas_species).setVal(0.0);
@@ -2347,10 +2353,18 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                                 1.0, gas_accessibility /
                                     raw_gas_volume_fraction) : 0.0;
                         a(i,j,k) = Util::Max(gas_density, rho_floor);
-                        b(i,j,k) = diffusion_weight * gas_density *
-                            Model::Gas::Gas::DiffusionCoefficient(
-                                gas_data, T(i,j,k), p_reference,
-                                component_density, i, j, k, 0);
+                        if (mobility_components == 1)
+                            b(i,j,k) = diffusion_weight * gas_density *
+                                Model::Gas::Gas::DiffusionCoefficient(
+                                    gas_data, T(i,j,k), p_reference,
+                                    component_density, i, j, k, 0);
+                        else
+                            for (int n = 0; n < ngas; ++n)
+                                b(i,j,k,n) =
+                                    diffusion_weight * gas_density *
+                                    Model::Gas::Gas::DiffusionCoefficient(
+                                        gas_data, T(i,j,k), p_reference,
+                                        component_density, i, j, k, n);
                     });
             }
         }
@@ -2363,6 +2377,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         for (int lev = 0; lev < nlev; ++lev)
         {
             const amrex::MultiFab& state = diffusion.State(lev, ngas_species);
+            const auto dx = geom[lev].CellSizeArray();
             for (amrex::MFIter mfi(*component_density_mf[lev],
                                     amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -2371,14 +2386,101 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                     component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> Y = state.array(mfi);
                 const int ngas = ngas_species;
+                amrex::GpuArray<amrex::Array4<const Set::Scalar>,
+                                AMREX_SPACEDIM> face_mobility{};
+                if (!common_diffusivity)
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        face_mobility[d] = diffusion.FaceMobility(
+                            lev, ngas_species, d).const_array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar gas_density = 0.0;
                     for (int n = 0; n < ngas; ++n)
                         gas_density += component_density(i,j,k,n);
+                    if (common_diffusivity)
+                    {
+                        for (int n = 0; n < ngas; ++n)
+                            component_density(i,j,k,n) =
+                                gas_density * Y(i,j,k,n);
+                        return;
+                    }
+
+                    // MLMG has already treated each stiff diagonal flux
+                    //   Jn_raw = rho Dn grad(Yn)
+                    // implicitly in one multicomponent solve.  Complete the
+                    // mixture-averaged flux projection
+                    //   Jn = Jn_raw - Yn sum_m(Jm_raw)
+                    // at the new implicit state.  Cache each face total once,
+                    // making this correction O(number of species), rather
+                    // than the nested O(number of species squared) evaluation
+                    // used by the former explicit RHS path.
+                    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM>
+                        raw_flux_hi{};
+                    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM>
+                        raw_flux_lo{};
+                    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM>
+                        fraction_sum_hi{};
+                    amrex::GpuArray<Set::Scalar,AMREX_SPACEDIM>
+                        fraction_sum_lo{};
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    {
+                        const int di = d == 0;
+                        const int dj = d == 1;
+                        const int dk = d == 2;
+                        for (int n = 0; n < ngas; ++n)
+                        {
+                            raw_flux_hi[d] +=
+                                face_mobility[d](i+di,j+dj,k+dk,n) *
+                                (Y(i+di,j+dj,k+dk,n) - Y(i,j,k,n)) /
+                                dx[d];
+                            raw_flux_lo[d] +=
+                                face_mobility[d](i,j,k,n) *
+                                (Y(i,j,k,n) - Y(i-di,j-dj,k-dk,n)) /
+                                dx[d];
+                            fraction_sum_hi[d] +=
+                                Y(i,j,k,n) + Y(i+di,j+dj,k+dk,n);
+                            fraction_sum_lo[d] +=
+                                Y(i-di,j-dj,k-dk,n) + Y(i,j,k,n);
+                        }
+                    }
+
+                    Model::Chemistry::SpeciesArray corrected{};
+                    Set::Scalar corrected_sum = 0.0;
+                    const Set::Scalar mass =
+                        Util::Max(gas_density, rho_floor);
                     for (int n = 0; n < ngas; ++n)
-                        component_density(i,j,k,n) = gas_density * Y(i,j,k,n);
+                    {
+                        Set::Scalar correction_divergence = 0.0;
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        {
+                            const int di = d == 0;
+                            const int dj = d == 1;
+                            const int dk = d == 2;
+                            const Set::Scalar fraction_hi =
+                                fraction_sum_hi[d] > 0.0 ?
+                                (Y(i,j,k,n) + Y(i+di,j+dj,k+dk,n)) /
+                                    fraction_sum_hi[d] :
+                                (n == 0 ? 1.0 : 0.0);
+                            const Set::Scalar fraction_lo =
+                                fraction_sum_lo[d] > 0.0 ?
+                                (Y(i-di,j-dj,k-dk,n) + Y(i,j,k,n)) /
+                                    fraction_sum_lo[d] :
+                                (n == 0 ? 1.0 : 0.0);
+                            correction_divergence +=
+                                (fraction_hi * raw_flux_hi[d] -
+                                 fraction_lo * raw_flux_lo[d]) / dx[d];
+                        }
+                        corrected[n] = Util::Max(
+                            Y(i,j,k,n) - dt * correction_divergence / mass,
+                            0.0);
+                        corrected_sum += corrected[n];
+                    }
+                    for (int n = 0; n < ngas; ++n)
+                        component_density(i,j,k,n) = gas_density *
+                            (corrected_sum > 0.0 ?
+                                corrected[n] / corrected_sum :
+                                (n == 0 ? 1.0 : 0.0));
                 });
             }
         }

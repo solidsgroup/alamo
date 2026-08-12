@@ -1,0 +1,109 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+
+# GrossModel species diffusion with a nonuniform Lewis-number array.  The
+# 0.5 s step is about forty times the explicit diffusion stability limit on
+# this mesh, so a successful bounded update verifies that the species-dependent
+# transport remains on the implicit multicomponent path.
+
+plot_file = tests/LMGrossModelLewisDiffusion/output
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 128
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.n_cell = 64 8
+
+timestep = 0.5_s
+stop_time = 0.5_s
+dynamictimestep.on = 0
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 1.0_m 0.125_m 0.0_m
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 26.0_kg/kmol 26.0_kg/kmol 26.0_kg/kmol
+gas.thermo.type = gross_model
+gas.thermo.gross_model.cp_mass = 1000.0_J/kg/K
+gas.thermo.gross_model.Tref = 300.0_K
+gas.transport.type = gross_model
+gas.transport.gross_model.prandtl = 0.69
+gas.transport.gross_model.lewis = 1.0 1.0 5.0
+gas.transport.gross_model.lambda_a = 0.0_W/m/K^2
+gas.transport.gross_model.lambda_b = 10.0_W/m/K
+gas.eos.type = gross_model
+
+species.names = left right slow
+left.mechanics = fluid
+right.mechanics = fluid
+slow.mechanics = fluid
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = upwind
+cfl = 0.8
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 0
+diagnostics.extended_fields = 1
+
+left.density.ic.type = expression
+left.density.ic.expression.constant.P = 101325.0_Pa
+left.density.ic.expression.constant.MW = 26.0_kg/kmol
+left.density.ic.expression.constant.Rg = 8314.46261815324_J/kmol/K
+left.density.ic.expression.constant.T = 300.0_K
+left.density.ic.expression.region0 = "P*MW/Rg/T*(0.45+0.05*cos(194.77874452256717*x))"
+
+right.density.ic.type = expression
+right.density.ic.expression.constant.P = 101325.0_Pa
+right.density.ic.expression.constant.MW = 26.0_kg/kmol
+right.density.ic.expression.constant.Rg = 8314.46261815324_J/kmol/K
+right.density.ic.expression.constant.T = 300.0_K
+right.density.ic.expression.region0 = "P*MW/Rg/T*(0.45-0.1*cos(194.77874452256717*x))"
+
+slow.density.ic.type = expression
+slow.density.ic.expression.constant.P = 101325.0_Pa
+slow.density.ic.expression.constant.MW = 26.0_kg/kmol
+slow.density.ic.expression.constant.Rg = 8314.46261815324_J/kmol/K
+slow.density.ic.expression.constant.T = 300.0_K
+slow.density.ic.expression.region0 = "P*MW/Rg/T*(0.1+0.05*cos(194.77874452256717*x))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0_m/s 0.0_m/s
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0_K
+pressure.ic.type = constant
+pressure.ic.constant.value = 101325.0_Pa
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic
+
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0

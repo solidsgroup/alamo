@@ -32,12 +32,14 @@ public:
     void SetLayout(const amrex::Vector<amrex::Geometry>& geometry,
                     const amrex::Vector<amrex::IntVect>& refinement_ratio,
                     const Set::Field<Set::Scalar>& layout,
-                    int number_of_levels, int number_of_components);
+                    int number_of_levels, int number_of_components,
+                    int number_of_mobility_components = 1);
 
     amrex::MultiFab& State(int lev, int ncomp);
     amrex::MultiFab& Source(int lev, int ncomp);
     amrex::MultiFab& Mass(int lev, int ncomp);
     amrex::MultiFab& Mobility(int lev, int ncomp);
+    amrex::MultiFab& FaceMobility(int lev, int ncomp, int direction);
     amrex::MultiFab& TensorMobility(int lev, int ncomp);
 
     void Solve(Set::Scalar time, Set::Scalar dt,

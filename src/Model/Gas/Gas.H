@@ -222,8 +222,15 @@ public:
                      transport.model_name(), Transport::GrossModel::name) == 0)
         {
             transport_type = 2;
-            std::tie(lewis, prandtl, lambda_a, lambda_b) =
+            const auto& [species_lewis, model_prandtl,
+                         model_lambda_a, model_lambda_b] =
                 transport.Get<Transport::GrossModel>().DeviceData();
+            for (int n = 0; n < nspecies; ++n)
+                transport_value1[n] = species_lewis[n];
+            lewis = species_lewis[0];
+            prandtl = model_prandtl;
+            lambda_a = model_lambda_a;
+            lambda_b = model_lambda_b;
         }
         else
             Util::Exception(INFO,
@@ -587,7 +594,8 @@ public:
             return intrinsic_density > 0.0 && cp > 0.0 ?
                 ThermalConductivity(
                     data, temperature, partial_density, i, j, k) /
-                    (intrinsic_density * cp * amrex::get<14>(data)) :
+                    (intrinsic_density * cp *
+                     amrex::get<8>(data)[species]) :
                 0.0;
         }
 
