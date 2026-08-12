@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+import glob
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import testlib
+
+
+def state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    density = data["component_density_ambient_gas"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    velocity_x = data["velocityx"].to_ndarray()
+    velocity_y = data["velocityy"].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    gas_volume_fraction = density * 296.945093505 * temperature / 1.0e5
+    outlet = y > 0.90
+    return (
+        testlib.numpy.max(
+            testlib.numpy.abs(gas_volume_fraction[outlet] - 1.0)),
+        testlib.numpy.max(testlib.numpy.abs(velocity_x)),
+        testlib.numpy.max(testlib.numpy.abs(velocity_y)),
+    )
+
+
+plotfiles = sorted(glob.glob(f"{sys.argv[1]}/*cell/"))
+if len(plotfiles) < 3:
+    raise RuntimeError(
+        "LMPressureOutletVolume requires initial, intermediate, and final plots")
+
+initial_error, initial_ux, initial_uy = state(plotfiles[0])
+final_error, final_ux, final_uy = state(plotfiles[-1])
+if initial_error > 1.0e-10:
+    raise RuntimeError(
+        "Initial low-Mach EOS reconciliation failed: "
+        f"outlet error={initial_error:.6e}")
+if final_error > 1.0e-8:
+    raise RuntimeError(
+        "Gas EOS defect persisted at the pressure outlet: "
+        f"initial={initial_error:.6e}, final={final_error:.6e}")
+if max(initial_ux, initial_uy, final_ux, final_uy) > 1.0e-6:
+    raise RuntimeError(
+        "Pressure outlet generated flow while reconciling a stationary EOS "
+        f"state: initial=({initial_ux:.6e},{initial_uy:.6e}), "
+        f"final=({final_ux:.6e},{final_uy:.6e})")
+
+print(
+    "LowMach pressure-outlet EOS reconciliation passed: "
+    f"error {initial_error:.6e} -> {final_error:.6e}, "
+    f"speed <= {max(initial_ux, initial_uy, final_ux, final_uy):.6e}")

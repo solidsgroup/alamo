@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+import glob
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import testlib
+
+
+def kinetic_state(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    density = data["density"].to_ndarray()
+    velocity_x = data["velocityx"].to_ndarray()
+    velocity_y = data["velocityy"].to_ndarray()
+    mass = (density * volume).sum()
+    tangential_energy = (
+        0.5 * density * velocity_x * velocity_x * volume).sum()
+    kinetic_energy = (
+        0.5 * density *
+        (velocity_x * velocity_x + velocity_y * velocity_y) * volume).sum()
+    return mass, tangential_energy, kinetic_energy
+
+
+plotfiles = sorted(glob.glob(f"{sys.argv[1]}/*cell/"))
+if len(plotfiles) != 2:
+    raise RuntimeError(
+        "Pressure-outlet backflow regression requires initial and final plots")
+
+mass0, tangential0, kinetic0 = kinetic_state(plotfiles[0])
+mass, tangential, kinetic = kinetic_state(plotfiles[-1])
+if abs(mass / mass0 - 1.0) > 5.0e-3:
+    raise RuntimeError(
+        "Pressure-outlet backflow changed a uniform gas reservoir: "
+        f"mass ratio={mass / mass0:.12g}")
+if not tangential < 0.90 * tangential0:
+    raise RuntimeError(
+        "Pressure outlet recycled incoming tangential momentum: "
+        f"energy ratio={tangential / tangential0:.6e}")
+if kinetic > kinetic0 * (1.0 + 1.0e-8):
+    raise RuntimeError(
+        "Pressure-outlet backflow injected kinetic energy: "
+        f"energy ratio={kinetic / kinetic0:.6e}")
+
+print(
+    "LowMach pressure-outlet backflow stabilization passed: "
+    f"tangential energy={tangential / tangential0:.6e}, "
+    f"total energy={kinetic / kinetic0:.6e}")

@@ -3226,12 +3226,31 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     const amrex::BCRec pressure_boundary = pressure_bc->GetBCRec();
     amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_lo{};
     amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_hi{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> stabilize_backflow_lo{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> stabilize_backflow_hi{};
+    bool has_pressure_outlet = false;
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
     {
         pressure_outlet_lo[d] = !geom[0].isPeriodic(d) &&
             BC::BCUtil::IsDirichlet(pressure_boundary.lo(d));
         pressure_outlet_hi[d] = !geom[0].isPeriodic(d) &&
             BC::BCUtil::IsDirichlet(pressure_boundary.hi(d));
+        has_pressure_outlet = has_pressure_outlet ||
+            pressure_outlet_lo[d] || pressure_outlet_hi[d];
+        stabilize_backflow_lo[d] = pressure_outlet_lo[d];
+        stabilize_backflow_hi[d] = pressure_outlet_hi[d];
+    }
+    for (int n = 0; n < AMREX_SPACEDIM; ++n)
+    {
+        const amrex::BCRec velocity_boundary =
+            velocity_bc->GetBCRec(n);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            stabilize_backflow_lo[d] = stabilize_backflow_lo[d] &&
+                !BC::BCUtil::IsDirichlet(velocity_boundary.lo(d));
+            stabilize_backflow_hi[d] = stabilize_backflow_hi[d] &&
+                !BC::BCUtil::IsDirichlet(velocity_boundary.hi(d));
+        }
     }
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> projection_source(nlev);
@@ -3242,6 +3261,69 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         velocity_bc->define(geom[lev]);
         velocity_bc->FillBoundary(*velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
         velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        // The usual prescribed-pressure/zero-gradient-velocity condition is
+        // energy-neutral only for outflow.  Under local backflow it recycles
+        // extrapolated interior momentum and admits a negative kinetic-energy
+        // flux.  Apply the energy-stable open-boundary traction
+        //
+        //   0.5 rho min(u.n, 0) u
+        //
+        // to the already-advanced velocity before projection.  All velocity
+        // components scale together, and integrating this local quadratic
+        // damping exactly gives 1/(1-dt*rate), so no velocity threshold, cap,
+        // or extra explicit timestep restriction is introduced.  The
+        // subsequent projection restores the volume constraint before this
+        // velocity transports material on the next step.
+        if (has_pressure_outlet)
+        {
+            const amrex::Box domain = geom[lev].Domain();
+            const amrex::Dim3 domain_lo = amrex::lbound(domain);
+            const amrex::Dim3 domain_hi = amrex::ubound(domain);
+            const auto dx = geom[lev].CellSizeArray();
+            for (amrex::MFIter mfi(*velocity_mf[lev],
+                                    amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> velocity =
+                    velocity_mf.Patch(lev,mfi);
+                amrex::ParallelFor(
+                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        const int index[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(i,j,k)};
+                        const int lo[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(domain_lo.x,
+                                          domain_lo.y,
+                                          domain_lo.z)};
+                        const int hi[AMREX_SPACEDIM] =
+                            {AMREX_D_DECL(domain_hi.x,
+                                          domain_hi.y,
+                                          domain_hi.z)};
+                        Set::Scalar backflow_rate = 0.0;
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        {
+                            if (stabilize_backflow_lo[d] && index[d] == lo[d])
+                                backflow_rate += 0.5 * Util::Min(
+                                    -velocity(i,j,k,d), 0.0) / dx[d];
+                            if (stabilize_backflow_hi[d] && index[d] == hi[d])
+                                backflow_rate += 0.5 * Util::Min(
+                                    velocity(i,j,k,d), 0.0) / dx[d];
+                        }
+                        if (backflow_rate < 0.0)
+                        {
+                            const Set::Scalar scale =
+                                1.0 / (1.0 - dt * backflow_rate);
+                            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                                velocity(i,j,k,d) *= scale;
+                        }
+                    });
+            }
+            velocity_bc->FillBoundary(
+                *velocity_mf[lev], 0, AMREX_SPACEDIM, time, 0);
+            velocity_mf[lev]->FillBoundary(geom[lev].periodicity());
+        }
         UpdateComponentState(lev, *component_density_mf[lev]);
     }
 
@@ -3578,17 +3660,22 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                     Set::Scalar gas_density = 0.0;
                     for (int n = 0; n < ngas; ++n)
                         gas_density += component_density(i,j,k,n);
-                    Set::Scalar volume_fraction = gas_density *
+                    const Set::Scalar gas_volume_fraction = gas_density *
                         Model::Gas::Gas::GasConstant(
                             gas_data, component_density, i, j, k) *
                         T(i,j,k) / p_reference;
-                    if (deformable_solid) volume_fraction += eta(i,j,k);
-                    if (rigid_solid) volume_fraction += rigid_eta(i,j,k);
+                    Set::Scalar condensed_volume_fraction = 0.0;
+                    if (deformable_solid)
+                        condensed_volume_fraction += eta(i,j,k);
+                    if (rigid_solid)
+                        condensed_volume_fraction += rigid_eta(i,j,k);
                     if (liquid)
                         for (int n = ngas; n < number_of_species; ++n)
-                            volume_fraction += Util::Max(
+                            condensed_volume_fraction += Util::Max(
                                 component_density(i,j,k,n), 0.0) *
                                 liquid_inverse_density[n];
+                    const Set::Scalar volume_fraction =
+                        gas_volume_fraction + condensed_volume_fraction;
 
                     // Correct only the unexplained part of the mixture-volume
                     // defect.  Split operators have already placed their
@@ -3607,16 +3694,14 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                     if (split_diffusion)
                         unexplained_volume_defect -=
                             diffusion_dilatation(i,j,k);
-                    // A prescribed-pressure boundary is an open boundary for
-                    // the mixture constraint.  A diffuse phase clipped there
-                    // has an algebraic volume defect that must leave with the
-                    // phase; forcing it to zero locally in one shrinking time
-                    // step creates an unbounded outlet velocity.  Fade only
-                    // this drift-control term where the diffuse interface can
-                    // overlap the outlet, then restore it smoothly over the
-                    // next physical interface thickness.  The
-                    // thermochemical and phase-change divergence sources
-                    // above remain active at the outlet.
+                    // A prescribed-pressure boundary is open to every phase.
+                    // The exterior gas state is imposed in ghost cells below,
+                    // while outflow carries the conservative interior state
+                    // across the boundary.  Fade this algebraic drift control
+                    // for the complete mixture near the outlet.  Retaining the
+                    // gas share as defect/dt there turns small outlet EOS
+                    // errors into a downward pressure impulse and a global
+                    // recirculation cell.
                     Set::Scalar outlet_weight = 1.0;
                     if (interfacial_thickness > 0.0)
                     {
@@ -3647,6 +3732,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                             outlet_weight *= q * q * (3.0 - 2.0 * q);
                         }
                     }
+
                     rhs(i,j,k) += outlet_weight *
                         unexplained_volume_defect * inverse_dt /
                         Util::Max(volume_fraction, 0.1);
@@ -4198,6 +4284,10 @@ LowMach::Initialize(int lev)
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
     }
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
+    if (lev == 0 && !(pressure_reference == pressure_reference))
+        pressure_reference = pressure_mf[0]->sum(0, false) /
+                            static_cast<Set::Scalar>(
+                                geom[0].Domain().numPts());
 
     bool has_temperature_override = false;
     for (int n = ngas_species; n < nspecies; ++n)
@@ -4210,7 +4300,6 @@ LowMach::Initialize(int lev)
         const auto temperature_override = condensed_temperature_override;
         const int first_condensed = ngas_species;
         const int number_of_species = nspecies;
-        const int number_of_gas_species = ngas_species;
         for (amrex::MFIter mfi(*temperature_mf[lev],
                                 amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -4219,22 +4308,18 @@ LowMach::Initialize(int lev)
                 temperature_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> component_density =
                 component_density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> pressure =
-                pressure_mf.Patch(lev,mfi);
 
             amrex::ParallelFor(
-                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar override_volume = 0.0;
                     Set::Scalar override_temperature = 0.0;
-                    Set::Scalar condensed_volume = 0.0;
                     for (int n = first_condensed;
                          n < number_of_species; ++n)
                     {
                         const Set::Scalar volume = Util::Max(
                             component_density(i,j,k,n), 0.0) *
                             inverse_reference_density[n];
-                        condensed_volume += volume;
                         if (temperature_override[n] >= 0.0)
                         {
                             override_volume += volume;
@@ -4252,25 +4337,60 @@ LowMach::Initialize(int lev)
                     temperature(i,j,k) =
                         (1.0 - weight) * temperature(i,j,k) +
                         override_scale * override_temperature;
+                });
+        }
+    }
 
-                    if (!(pressure(i,j,k) > 0.0) ||
+    // A low-Mach initial state has one thermodynamic pressure, so its gas
+    // density is fixed by temperature, composition, and the volume left by
+    // condensed phases.  Reconcile every fresh initial condition once,
+    // preserving gas mass fractions.  Leaving an inconsistent gas density for
+    // the projection to repair converts the EOS defect into an impulsive
+    // velocity, which is especially severe next to a prescribed-pressure
+    // boundary.  Runtime transport remains conservative; this is only an
+    // initialization constraint.
+    if (ngas_species > 0)
+    {
+        const auto inverse_reference_density =
+            condensed_inverse_reference_density;
+        const int first_condensed = ngas_species;
+        const int number_of_species = nspecies;
+        const int number_of_gas_species = ngas_species;
+        const Set::Scalar p_reference = pressure_reference;
+        for (amrex::MFIter mfi(*temperature_mf[lev],
+                                amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<const Set::Scalar> temperature =
+                temperature_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> component_density =
+                component_density_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(
+                bx, [=,this] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (!(p_reference > 0.0) ||
                         !(temperature(i,j,k) > 0.0)) return;
+                    Set::Scalar condensed_volume = 0.0;
+                    for (int n = first_condensed;
+                         n < number_of_species; ++n)
+                        condensed_volume += Util::Max(
+                            component_density(i,j,k,n), 0.0) *
+                            inverse_reference_density[n];
+
                     Set::Scalar gas_molar_density = 0.0;
                     for (int n = 0; n < number_of_gas_species; ++n)
                         gas_molar_density += Util::Max(
                             component_density(i,j,k,n), 0.0) / gas.MW[n];
+                    if (!(gas_molar_density > 0.0)) return;
                     const Set::Scalar gas_volume = gas_molar_density *
                         Set::Constant::Rg * temperature(i,j,k) /
-                        pressure(i,j,k);
+                        p_reference;
                     const Set::Scalar available_volume =
                         Util::Max(1.0 - condensed_volume, 0.0);
-                    if (gas_volume > 0.0)
-                    {
-                        const Set::Scalar scale =
-                            available_volume / gas_volume;
-                        for (int n = 0; n < number_of_gas_species; ++n)
-                            component_density(i,j,k,n) *= scale;
-                    }
+                    const Set::Scalar scale = available_volume / gas_volume;
+                    for (int n = 0; n < number_of_gas_species; ++n)
+                        component_density(i,j,k,n) *= scale;
                 });
         }
     }
@@ -4285,9 +4405,6 @@ LowMach::Initialize(int lev)
         phase_change_dilatation_mf[lev]->setVal(0.0);
         phase_change_heat_mf[lev]->setVal(0.0);
     }
-    if (lev == 0 && !(pressure_reference == pressure_reference))
-        pressure_reference = pressure_mf[0]->sum(0, false) /
-                            static_cast<Set::Scalar>(geom[0].Domain().numPts());
     if (lev == 0)
     {
         amrex::get<4>(thermal_data) = pressure_reference;
@@ -4816,6 +4933,166 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (deformable_solid)
         xi_bc->define(geom[lev]);
 
+    // A pressure boundary exchanges material with an exterior gas reservoir.
+    // Extrapolation remains appropriate on outflow, but backflow must see a
+    // gas state consistent with the thermodynamic pressure and must not copy
+    // condensed material back into the domain.  Prepare only ghost cells;
+    // valid interior densities remain conservative.  Explicit component
+    // Dirichlet data remain an intentional prescribed inflow and are
+    // preserved.
+    const amrex::BCRec pressure_boundary = pressure_bc->GetBCRec();
+    amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_lo{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> pressure_outlet_hi{};
+    bool has_pressure_outlet = false;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        pressure_outlet_lo[d] = !geom[lev].isPeriodic(d) &&
+            BC::BCUtil::IsDirichlet(pressure_boundary.lo(d));
+        pressure_outlet_hi[d] = !geom[lev].isPeriodic(d) &&
+            BC::BCUtil::IsDirichlet(pressure_boundary.hi(d));
+        has_pressure_outlet = has_pressure_outlet ||
+            pressure_outlet_lo[d] || pressure_outlet_hi[d];
+    }
+    const amrex::Dim3 density_domain_lo =
+        amrex::lbound(geom[lev].Domain());
+    const amrex::Dim3 density_domain_hi =
+        amrex::ubound(geom[lev].Domain());
+    const int first_condensed_species = ngas_species;
+    const int condensed_species_count = nspecies - ngas_species;
+    std::array<Model::Chemistry::SpeciesArray, AMREX_SPACEDIM>
+        condensed_no_inflow_lo{};
+    std::array<Model::Chemistry::SpeciesArray, AMREX_SPACEDIM>
+        condensed_no_inflow_hi{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> normalize_gas_lo{};
+    amrex::GpuArray<int, AMREX_SPACEDIM> normalize_gas_hi{};
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+    {
+        normalize_gas_lo[d] = pressure_outlet_lo[d];
+        normalize_gas_hi[d] = pressure_outlet_hi[d];
+    }
+    for (int n = 0; n < ngas_species; ++n)
+    {
+        const amrex::BCRec density_boundary =
+            component_density_bc->GetBCRec(n);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            normalize_gas_lo[d] = normalize_gas_lo[d] &&
+                !BC::BCUtil::IsDirichlet(density_boundary.lo(d));
+            normalize_gas_hi[d] = normalize_gas_hi[d] &&
+                !BC::BCUtil::IsDirichlet(density_boundary.hi(d));
+        }
+    }
+    for (int n = first_condensed_species; n < nspecies; ++n)
+    {
+        const amrex::BCRec density_boundary =
+            component_density_bc->GetBCRec(n);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            // A configured Dirichlet state explicitly prescribes condensed
+            // inflow and must be honored.  Extrapolated outlet states instead
+            // use the exterior gas state below.
+            condensed_no_inflow_lo[d][n] =
+                !BC::BCUtil::IsDirichlet(density_boundary.lo(d));
+            condensed_no_inflow_hi[d][n] =
+                !BC::BCUtil::IsDirichlet(density_boundary.hi(d));
+        }
+    }
+    const auto outlet_gas_data = gas_device_data;
+    const auto outlet_inverse_reference_density =
+        condensed_inverse_reference_density;
+    const Set::Scalar outlet_pressure = pressure_reference;
+    const int outlet_gas_species = ngas_species;
+    const int outlet_species = nspecies;
+    auto PreparePressureOutletGhostState =
+        [&](amrex::MultiFab& component_density,
+            const amrex::MultiFab& temperature)
+    {
+        if (!has_pressure_outlet) return;
+        for (amrex::MFIter mfi(component_density, false);
+             mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.fabbox();
+            Set::Patch<Set::Scalar> density =
+                component_density.array(mfi);
+            Set::Patch<const Set::Scalar> T = temperature.const_array(mfi);
+            if (condensed_species_count > 0)
+                amrex::ParallelFor(
+                    bx, condensed_species_count,
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k, int n)
+                    {
+                        const int species = first_condensed_species + n;
+                        bool outside_pressure_outlet =
+                            (pressure_outlet_lo[0] &&
+                             condensed_no_inflow_lo[0][species] &&
+                             i < density_domain_lo.x) ||
+                            (pressure_outlet_hi[0] &&
+                             condensed_no_inflow_hi[0][species] &&
+                             i > density_domain_hi.x);
+#if AMREX_SPACEDIM > 1
+                        outside_pressure_outlet = outside_pressure_outlet ||
+                            (pressure_outlet_lo[1] &&
+                             condensed_no_inflow_lo[1][species] &&
+                             j < density_domain_lo.y) ||
+                            (pressure_outlet_hi[1] &&
+                             condensed_no_inflow_hi[1][species] &&
+                             j > density_domain_hi.y);
+#endif
+#if AMREX_SPACEDIM > 2
+                        outside_pressure_outlet = outside_pressure_outlet ||
+                            (pressure_outlet_lo[2] &&
+                             condensed_no_inflow_lo[2][species] &&
+                             k < density_domain_lo.z) ||
+                            (pressure_outlet_hi[2] &&
+                             condensed_no_inflow_hi[2][species] &&
+                             k > density_domain_hi.z);
+#endif
+                        if (outside_pressure_outlet)
+                            density(i,j,k,species) = 0.0;
+                    });
+
+            amrex::ParallelFor(
+                bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    bool normalize =
+                        (normalize_gas_lo[0] && i < density_domain_lo.x) ||
+                        (normalize_gas_hi[0] && i > density_domain_hi.x);
+#if AMREX_SPACEDIM > 1
+                    normalize = normalize ||
+                        (normalize_gas_lo[1] && j < density_domain_lo.y) ||
+                        (normalize_gas_hi[1] && j > density_domain_hi.y);
+#endif
+#if AMREX_SPACEDIM > 2
+                    normalize = normalize ||
+                        (normalize_gas_lo[2] && k < density_domain_lo.z) ||
+                        (normalize_gas_hi[2] && k > density_domain_hi.z);
+#endif
+                    if (!normalize || !(T(i,j,k) > 0.0) ||
+                        !(outlet_pressure > 0.0)) return;
+
+                    Set::Scalar condensed_volume = 0.0;
+                    for (int n = outlet_gas_species;
+                         n < outlet_species; ++n)
+                        condensed_volume += Util::Max(
+                            density(i,j,k,n), 0.0) *
+                            outlet_inverse_reference_density[n];
+                    Set::Scalar gas_density = 0.0;
+                    for (int n = 0; n < outlet_gas_species; ++n)
+                        gas_density += Util::Max(density(i,j,k,n), 0.0);
+                    if (!(gas_density > 0.0)) return;
+                    const Set::Scalar gas_volume = gas_density *
+                        Model::Gas::Gas::GasConstant(
+                            outlet_gas_data, density, i, j, k) *
+                        T(i,j,k) / outlet_pressure;
+                    if (!(gas_volume > 0.0)) return;
+                    const Set::Scalar scale =
+                        Util::Max(1.0 - condensed_volume, 0.0) /
+                        gas_volume;
+                    for (int n = 0; n < outlet_gas_species; ++n)
+                        density(i,j,k,n) *= scale;
+                });
+        }
+    };
+
     amrex::TimeIntegrator timeintegrator(solution_new, time);
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab>& rhs_mf,
                                 amrex::Vector<amrex::MultiFab>& state_mf,
@@ -4827,6 +5104,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         state_mf[1].FillBoundary(geom[lev].periodicity());
         component_density_bc->FillBoundary(state_mf[2], 0, nspecies, rhs_time, 0);
         state_mf[2].FillBoundary(geom[lev].periodicity());
+        PreparePressureOutletGhostState(state_mf[2], state_mf[1]);
         if (deformable_solid)
         {
             xi_bc->FillBoundary(state_mf[3], 0, AMREX_SPACEDIM, rhs_time, 0);
@@ -4851,6 +5129,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         stage_mf[1].FillBoundary(geom[lev].periodicity());
         component_density_bc->FillBoundary(stage_mf[2], 0, nspecies, stage_time, 0);
         stage_mf[2].FillBoundary(geom[lev].periodicity());
+        PreparePressureOutletGhostState(stage_mf[2], stage_mf[1]);
         if (deformable_solid)
         {
             xi_bc->FillBoundary(stage_mf[3], 0, AMREX_SPACEDIM, stage_time, 0);
@@ -4876,6 +5155,8 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
     component_density_bc->FillBoundary(*component_density_mf[lev], 0, nspecies, new_time, 0);
     component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+    PreparePressureOutletGhostState(
+        *component_density_mf[lev], *temperature_mf[lev]);
     if (deformable_solid)
     {
         xi_bc->FillBoundary(*xi_mf[lev], 0, AMREX_SPACEDIM, new_time, 0);

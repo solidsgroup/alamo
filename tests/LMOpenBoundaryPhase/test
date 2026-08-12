@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+import glob
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import testlib
+
+
+def fields(path):
+    ds = testlib.yt.load(path)
+    grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
+    rho = grid[("boxlib", "component_density_test_liquid")].to_ndarray()[:, :, 0]
+    ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
+    uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
+    y = grid[("index", "y")].to_ndarray()[:, :, 0]
+    return rho, ux, uy, y
+
+
+plotfiles = sorted(glob.glob(f"{sys.argv[1]}/*cell/"))
+if len(plotfiles) != 2:
+    raise RuntimeError(
+        "Open-boundary phase regression requires initial and final plots")
+
+rho0, ux0, uy0, y0 = fields(plotfiles[0])
+rho, ux, uy, y = fields(plotfiles[-1])
+mass_ratio = rho.sum() / rho0.sum()
+centroid0 = (rho0 * y0).sum() / rho0.sum()
+centroid = (rho * y).sum() / rho.sum()
+kinetic_speed0 = testlib.numpy.sqrt(
+    (rho0 * (ux0 * ux0 + uy0 * uy0)).sum() / rho0.sum())
+kinetic_speed = testlib.numpy.sqrt(
+    (rho * (ux * ux + uy * uy)).sum() / rho.sum())
+edge_fraction0 = (rho0[:2, :].sum() + rho0[-2:, :].sum()) / rho0.sum()
+edge_fraction = (rho[:2, :].sum() + rho[-2:, :].sum()) / rho.sum()
+
+if abs(mass_ratio - 1.0) > 1.0e-10:
+    raise RuntimeError(
+        "Pressure outlet supplied or removed spurious liquid during backflow: "
+        f"mass ratio={mass_ratio:.8f}")
+if not centroid < centroid0:
+    raise RuntimeError(
+        "Liquid cap was not advected away from the outlet: "
+        f"centroid shift={centroid0-centroid:.6e}")
+if edge_fraction > edge_fraction0 + 1.0e-8:
+    raise RuntimeError(
+        "Outlet interaction spread liquid to the periodic side boundary: "
+        f"edge fraction={edge_fraction0:.6e} -> {edge_fraction:.6e}")
+
+print(
+    "LowMach open-boundary phase regression passed: "
+    f"mass={mass_ratio:.8f}, shift={centroid0-centroid:.6e}, "
+    f"liquid-rms-speed={kinetic_speed0:.6e} -> {kinetic_speed:.6e}, "
+    f"edge={edge_fraction0:.6e} -> {edge_fraction:.6e}")

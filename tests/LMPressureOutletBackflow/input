@@ -1,0 +1,95 @@
+#@ [2d]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+
+# Uniform oblique flow enters through the upper pressure boundary and exits
+# through the lower one.  A pressure outlet with extrapolated velocity must
+# remove the incoming kinetic-energy flux without a velocity cutoff; otherwise
+# its tangential momentum is recycled indefinitely.
+plot_file = tests/LMPressureOutletBackflow/output
+amr.plot_int = 200
+amr.plot_dt = -1
+amr.max_level = 0
+amr.n_cell = 64 64
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = -1
+
+max_step = 200
+timestep = 1.0e-3_s
+stop_time = 1.0_s
+dynamictimestep.on = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 1.0_m 1.0_m 0.0_m
+geometry.is_periodic = 1 0 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0_J/mol
+gas.thermo.cpconstant.s0 = 0.0_J/mol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient_gas
+ambient_gas.mechanics = fluid
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 0
+diagnostics.interval = 0
+
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 1.12254198039921_kg/m^3
+velocity.ic.type = constant
+velocity.ic.constant.value = 2.0_m/s -1.0_m/s
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0_K
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0e5_Pa
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = neumann
+velocity.bc.constant.type.yhi = neumann
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = dirichlet
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.ylo = 1.0e5_Pa
+pressure.bc.constant.val.yhi = 1.0e5_Pa
