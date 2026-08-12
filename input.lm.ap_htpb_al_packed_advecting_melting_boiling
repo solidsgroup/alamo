@@ -37,7 +37,7 @@ temperature_refinement_criterion = 500.0
 timestep = 1.0e-7_s
 stop_time = 8_ms
 dynamictimestep.on = 1
-dynamictimestep.min = 5.0e-9
+dynamictimestep.min = 1.0_ps
 dynamictimestep.max = 5.0e-4
 dynamictimestep.verbose = 0
 integration.type = RungeKutta
@@ -88,7 +88,7 @@ HTPB_solid.specific_heat = 2418.29_J/kg/K
 HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 Al_solid.specific_heat = 900.0_J/kg/K
 Al_solid.thermal_conductivity = 237.0_W/m/K
-Al_solid.temperature_override = 900.0_K
+Al_solid.temperature_override = 930.0_K
 
 # Use one physical diffuse thickness for the initialized propellant surface,
 # aluminum particle, capillary free energy, and kinetic surface state.  The
@@ -205,7 +205,7 @@ Al_melting.phase_change.phase0 = Al_solid
 Al_melting.phase_change.phase1 = Al_liquid
 Al_melting.phase_change.kinetics = equilibrium_enthalpy
 Al_melting.phase_change.reversible = false
-Al_melting.phase_change.latent_heat = 2.0e5_J/kg #3.9145e5_J/kg
+Al_melting.phase_change.latent_heat = 1.0e5_J/kg #3.9145e5_J/kg
 Al_melting.phase_change.transition_temperature = 933.45_K
 
 Al_evaporation.type = phase_change
@@ -284,7 +284,7 @@ Final.density.ic.expression.constant.al_height = 0.00035_m
 Final.density.ic.expression.constant.al_r = 100.0_um
 Final.density.ic.expression.constant.al_eps = 20.0_um
 Final.density.ic.expression.constant.P = 3.0e6
-Final.density.ic.expression.constant.Tambient = 900.0_K
+Final.density.ic.expression.constant.Tambient = 930.0_K
 # A modest interfacial preheat seeds the finite-rate GrossModel reactions;
 # the bulk gas remains cold and the laser must still establish the flame.
 Final.density.ic.expression.constant.Tignite = 400.0_K
@@ -312,7 +312,7 @@ velocity.ic.expression.region1 = "U*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps)
 
 temperature.ic.type = expression
 temperature.ic.expression.constant.surface_y = -0.0003_m
-temperature.ic.expression.constant.Tambient = 900.0_K
+temperature.ic.expression.constant.Tambient = 930.0_K
 temperature.ic.expression.constant.Tignite = 400.0_K
 temperature.ic.expression.constant.Lsolid = 100.0_um
 temperature.ic.expression.constant.Lgas = 250.0_um
