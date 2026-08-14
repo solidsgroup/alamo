@@ -2,6 +2,13 @@
 #@ exe = lowmach
 #@ dim = 2
 #@ timeout = 120
+#@
+#@ [2d-conservative-allen-cahn]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = interface.model.type=conservative_allen_cahn
+#@ args = interface.model.conservative_allen_cahn.relaxation_time=1.0_s
 
 # A liquid cap intersects an open pressure boundary while a uniform backflow
 # carries it into the domain.  The exterior state is gas: condensed material
@@ -53,7 +60,7 @@ chemistry.solver.type = forward_euler
 
 interface.enabled = 1
 interface.thickness = 6.25e-2_m
-interface.transport.type = advected
+interface.model.type = direct_surface_tension
 interface.surface_tension.test_liquid_gas = 1.0_J/m^2
 
 advection.type = muscl

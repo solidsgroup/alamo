@@ -16,6 +16,9 @@ def integrated_state(path):
     temperature = data["temperature"].to_ndarray()
     velocity_x = data["velocityx"].to_ndarray()
     velocity_y = data["velocityy"].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    total_density = gas + solid + liquid
     liquid_mass = (liquid * volume).sum()
     return {
         "gas": (gas * volume).sum(),
@@ -26,6 +29,15 @@ def integrated_state(path):
         "maximum_speed": ((velocity_x**2 + velocity_y**2)**0.5).max(),
         "liquid_temperature": (temperature * liquid * volume).sum() /
             liquid_mass if liquid_mass > 0.0 else 0.0,
+        "momentum_x": (total_density * velocity_x * volume).sum(),
+        "momentum_y": (total_density * velocity_y * volume).sum(),
+        "angular_momentum": (total_density *
+            ((x-0.5)*velocity_y - (y-0.5)*velocity_x) * volume).sum(),
+        # Each unit of liquid or gas has crossed the melting transition; gas
+        # has also crossed vaporization.  The negative coupled enthalpy is an
+        # explicit unresolved source and is checked separately below.
+        "resolved_energy": ((1000.0 * total_density * temperature +
+            2.0e4 * (liquid + gas) + 2.0e5 * gas) * volume).sum(),
     }
 
 
@@ -39,7 +51,7 @@ initial = integrated_state(plotfiles[0])
 final = integrated_state(plotfiles[-1])
 relative_mass_error = abs(final["total"] - initial["total"]) / \
     initial["total"]
-if relative_mass_error > 5.0e-3:
+if relative_mass_error > 1.0e-10:
     raise RuntimeError(
         f"Equilibrium phase changes altered mass by {relative_mass_error:.3e}")
 if final["minimum"] < -1.0e-9:
@@ -50,10 +62,30 @@ if not final["solid"] < 0.10 * initial["solid"]:
 if not final["liquid"] > 0.70 * initial["solid"]:
     raise RuntimeError("Equilibrium melting did not produce the liquid phase")
 vaporized_fraction = (final["gas"] - initial["gas"]) / initial["solid"]
-if not 0.20 < vaporized_fraction < 0.22:
+if not vaporized_fraction > 0.15:
     raise RuntimeError(
         "Equilibrium vaporization or its coupled heat is incorrect: "
         f"converted fraction {vaporized_fraction:.6e}")
+momentum_change = ((final["momentum_x"]-initial["momentum_x"])**2 +
+                   (final["momentum_y"]-initial["momentum_y"])**2)**0.5
+if momentum_change / initial["total"] > 1.0e-12:
+    raise RuntimeError(
+        "Closed equilibrium phase change altered linear momentum: "
+        f"{momentum_change / initial['total']:.3e} m/s")
+if abs(final["angular_momentum"]-initial["angular_momentum"]) > 1.0e-12:
+    raise RuntimeError(
+        "Closed equilibrium phase change altered angular momentum")
+coupled_energy_release = 1.0e5 * (final["gas"] - initial["gas"])
+energy_residual = final["resolved_energy"] - \
+    initial["resolved_energy"] - coupled_energy_release
+# This is an independently reconstructed diagnostic energy summed from
+# plotfile fields.  The coarse and fine time-step runs have the same
+# O(1e-8) relative residual, so retain a tight roundoff/reduction tolerance
+# without misidentifying it as temporal energy error.
+if abs(energy_residual) / initial["resolved_energy"] > 2.0e-8:
+    raise RuntimeError(
+        "Equilibrium mass/latent/coupled-enthalpy transfer failed the closed "
+        f"energy balance: {energy_residual:.3e} J")
 if final["maximum_speed"] > 1.0:
     raise RuntimeError(
         "Rate-limited equilibrium conversion produced an impulsive flow: "

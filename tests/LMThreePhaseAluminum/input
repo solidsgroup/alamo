@@ -64,6 +64,7 @@ interface.enabled = 0
 interface.thickness = 25.0_um
 interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
 interface.liquid_solid.enabled = 1
+interface.liquid_solid.surface_delta_regularization = 1.0e-12
 interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.10_J/m^2
 interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 0.0_deg
 

@@ -49,9 +49,11 @@ inert_solid.mechanics = rigid_solid
 inert_solid.reference_density = 2.0_kg/m^3
 inert_solid.specific_heat = 1000.0_J/kg/K
 inert_solid.thermal_conductivity = 0.1_W/m/K
-inert_solid.rigid.motion = fixed
+inert_solid.rigid.motion = free
 inert_solid.rigid.relaxation_time = 1.0e-4_s
-inert_solid.rigid.velocity = 0.0 0.0
+inert_solid.rigid.max_iterations = 6
+inert_solid.rigid.relative_tolerance = 1.0e-5
+inert_solid.rigid.absolute_tolerance = 1.0e-10_m/s
 test_liquid.mechanics = liquid
 test_liquid.reference_density = 2.0_kg/m^3
 test_liquid.dynamic_viscosity = 1.0e-2_Pa*s
@@ -80,7 +82,7 @@ advection.muscl.limiter.type = minmod
 cfl = 0.4
 include_viscosity = 0
 include_conduction = 0
-advect_temperature = 0
+advect_temperature = 1
 projection.enabled = 1
 projection.update_pressure = 0
 projection.tol_rel = 1.0e-10
@@ -91,7 +93,11 @@ diagnostics.interval = 0
 test_vapor.density.ic.type = constant
 test_vapor.density.ic.constant.value = 0.0
 ambient_gas.density.ic.type = expression
-ambient_gas.density.ic.expression.constant.rhog = 0.2806539502
+# Match the gas and condensed specific volumes at the initial temperature.
+# A fully periodic box cannot support a nonzero mean dilatation, so this
+# closed conservation test isolates phase-transfer balances from the separate
+# open-boundary expansion problem exercised by LMThreePhaseAluminum.
+ambient_gas.density.ic.expression.constant.rhog = 2.0
 ambient_gas.density.ic.expression.constant.x0 = 0.5
 ambient_gas.density.ic.expression.constant.y0 = 0.5
 ambient_gas.density.ic.expression.constant.R = 0.30
@@ -118,7 +124,7 @@ velocity.ic.constant.value = 0.0 0.0
 temperature.ic.type = constant
 temperature.ic.constant.value = 1200.0
 pressure.ic.type = constant
-pressure.ic.constant.value = 1.0e5
+pressure.ic.constant.value = 712668.0_Pa
 
 component_density.bc.type = constant
 component_density.bc.constant.type.xlo = periodic periodic periodic periodic

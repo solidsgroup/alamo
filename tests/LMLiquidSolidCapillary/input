@@ -1,0 +1,148 @@
+#@ [2d]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@
+#@ [2d-amr]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=amr.max_level=1
+#@ args=amr.regrid_int=1
+#@ args=eta_refinement_criterion=1.0e-3
+
+# An asymmetric liquid-coated free solid in a periodic domain.  Every
+# capillary and wetting load is internal, so the mixture may relax and the
+# phases may exchange momentum, but the diffuse-interface force cannot
+# generate bulk translation; its net rotational response must remain small
+# relative to the resolved shape-relaxation flow.
+plot_file = tests/LMLiquidSolidCapillary/output
+amr.plot_int = 100
+amr.plot_dt = -1_s
+amr.max_level = 0
+amr.max_grid_size = 32
+amr.blocking_factor = 8
+amr.n_cell = 32 32
+
+max_step = 100
+timestep = 2.0e-9_s
+stop_time = 2.0e-7_s
+dynamictimestep.on = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m
+geometry.prob_hi = 320.0_um 320.0_um 0.0_m
+geometry.is_periodic = 1 1 0
+
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_kJ/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 300.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 8.0e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.20_W/m/K
+gas.eos.type = cpg
+
+species.names = ambient Al_solid Al_liquid
+ambient.mechanics = fluid
+Al_solid.mechanics = rigid_solid
+Al_solid.reference_density = 2700.0_kg/m^3
+Al_solid.specific_heat = 900.0_J/kg/K
+Al_solid.thermal_conductivity = 237.0_W/m/K
+Al_solid.rigid.motion = free
+Al_solid.rigid.relaxation_time = 1.0e-8_s
+Al_solid.rigid.max_iterations = 4
+Al_solid.rigid.relative_tolerance = 1.0e-4
+Al_solid.rigid.absolute_tolerance = 1.0e-8_m/s
+Al_liquid.mechanics = liquid
+Al_liquid.reference_density = 2375.0_kg/m^3
+Al_liquid.dynamic_viscosity = 1.3e-3_Pa*s
+Al_liquid.specific_heat = 1177.0_J/kg/K
+Al_liquid.thermal_conductivity = 90.0_W/m/K
+
+interface.enabled = 1
+interface.thickness = 20.0_um
+interface.model.type = direct_surface_tension
+interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
+interface.liquid_solid.enabled = 1
+interface.liquid_solid.surface_delta_regularization = 1.0e-12
+interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.10_J/m^2
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 0.0_deg
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.20
+include_viscosity = 0
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-13
+projection.verbose = 0
+projection.update_pressure = 1
+diagnostics.interval = 0
+
+Al_solid.density.ic.type = expression
+Al_solid.density.ic.expression.constant.rho = 2700.0_kg/m^3
+Al_solid.density.ic.expression.constant.x0 = 145.0_um
+Al_solid.density.ic.expression.constant.y0 = 170.0_um
+Al_solid.density.ic.expression.constant.R = 48.0_um
+Al_solid.density.ic.expression.constant.eps = 20.0_um
+Al_solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+
+# The coating is deliberately offset from the core.  This supplies a strong,
+# non-axisymmetric wetting load without any external force.
+Al_liquid.density.ic.type = expression
+Al_liquid.density.ic.expression.constant.rho = 2375.0_kg/m^3
+Al_liquid.density.ic.expression.constant.xs = 145.0_um
+Al_liquid.density.ic.expression.constant.ys = 170.0_um
+Al_liquid.density.ic.expression.constant.Rs = 48.0_um
+Al_liquid.density.ic.expression.constant.xl = 174.0_um
+Al_liquid.density.ic.expression.constant.yl = 146.0_um
+Al_liquid.density.ic.expression.constant.Rl = 92.0_um
+Al_liquid.density.ic.expression.constant.eps = 20.0_um
+Al_liquid.density.ic.expression.region0 = "rho*max(0.0,0.5*(1.0-tanh(2.0*(sqrt((x-xl)*(x-xl)+(y-yl)*(y-yl))-Rl)/eps))-0.5*(1.0-tanh(2.0*(sqrt((x-xs)*(x-xs)+(y-ys)*(y-ys))-Rs)/eps)))"
+
+ambient.density.ic.type = expression
+ambient.density.ic.expression.constant.rho = 4.041_kg/m^3
+ambient.density.ic.expression.constant.x0 = 174.0_um
+ambient.density.ic.expression.constant.y0 = 146.0_um
+ambient.density.ic.expression.constant.R = 92.0_um
+ambient.density.ic.expression.constant.eps = 20.0_um
+ambient.density.ic.expression.region0 = "rho*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0_m/s 0.0_m/s
+temperature.ic.type = constant
+temperature.ic.constant.value = 2500.0_K
+pressure.ic.type = constant
+pressure.ic.constant.value = 3.0_MPa
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic periodic periodic
+component_density.bc.constant.type.xhi = periodic periodic periodic
+component_density.bc.constant.type.ylo = periodic periodic periodic
+component_density.bc.constant.type.yhi = periodic periodic periodic
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = periodic periodic
+velocity.bc.constant.type.yhi = periodic periodic
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic

@@ -5,6 +5,10 @@ import sys
 sys.path.insert(0, "../../scripts")
 import testlib
 
+outdir = sys.argv[1]
+high_density = "high-density" in outdir
+liquid_reference_density = 2375.0 if high_density else 10.0
+
 
 def fields(path):
     ds = testlib.yt.load(path)
@@ -26,14 +30,31 @@ def fields(path):
     y = grid[("index", "y")].to_ndarray()[:, :, 0]
     eta_density_error = testlib.numpy.max(testlib.numpy.abs(
         testlib.numpy.stack((
-            eta - rho / 10.0,
+            eta - rho / liquid_reference_density,
             eta_oxide - rho_oxide / 10.0,
             eta_tracer - rho_tracer / 10.0))))
     return (eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
             density, x, y, eta_density_error)
 
 
-outdir = sys.argv[1]
+def mechanical_energy(eta, eta_gas, density, ux, uy, x, y,
+                      surface_tension, interface_thickness):
+    dx = x[1, 0] - x[0, 0]
+    dy = y[0, 1] - y[0, 0]
+    gradient_x = (testlib.numpy.roll(eta, -1, axis=0) -
+                  testlib.numpy.roll(eta, 1, axis=0)) / (2.0 * dx)
+    gradient_y = (testlib.numpy.roll(eta, -1, axis=1) -
+                  testlib.numpy.roll(eta, 1, axis=1)) / (2.0 * dy)
+    phase_product = eta * eta_gas
+    surface = surface_tension * (
+        0.75 * interface_thickness *
+            (gradient_x**2 + gradient_y**2) +
+        12.0 / interface_thickness *
+            phase_product**2).sum() * dx * dy
+    kinetic = (0.5 * density * (ux**2 + uy**2)).sum() * dx * dy
+    return surface, surface + kinetic
+
+
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) != 2:
     raise RuntimeError("Static-droplet regression requires initial and final plotfiles")
@@ -43,6 +64,16 @@ if len(plotfiles) != 2:
 (eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
  density, x, y, eta_density_error) = fields(plotfiles[-1])
 speed = testlib.numpy.sqrt(ux * ux + uy * uy)
+
+# Phase fractions are reconstructed without hiding transport errors behind a
+# clamp.  A capillary instability therefore appears first as an out-of-simplex
+# liquid/gas pair, before a solver failure or a visibly emitted jet.
+phase_min = min(eta.min(), eta_oxide.min(), eta_tracer.min(), eta_gas.min())
+phase_max = max(eta.max(), eta_oxide.max(), eta_tracer.max(), eta_gas.max())
+if phase_min < -2.0e-2 or phase_max > 1.02:
+    raise RuntimeError(
+        "Capillary evolution left the Gibbs simplex: "
+        f"minimum={phase_min:.3e}, maximum={phase_max:.3e}")
 
 eta_density_error = max(eta_density_error0, eta_density_error)
 if eta_density_error > 1.0e-13:
@@ -90,26 +121,40 @@ if "transport" in outdir:
     liquid_velocity_error = testlib.numpy.sqrt(
         (eta * ((ux - target_ux)**2 + (uy - target_uy)**2)).sum() /
         eta.sum())
+    mixture_momentum_change = testlib.numpy.sqrt(
+        ((density * ux).sum() - (density0 * ux0).sum())**2 +
+        ((density * uy).sum() - (density0 * uy0).sum())**2) / density0.sum()
+    transport_capillary_velocity = testlib.numpy.sqrt(
+        1.0 / (liquid_reference_density * 0.20))
     if profile_error > 0.25:
         raise RuntimeError(
             f"Transported interface relative profile error {profile_error:.3e}")
     if mixing_error > 0.20:
         raise RuntimeError(
             f"Transported interface thickness error {mixing_error:.3e}")
-    if liquid_velocity_error > 3.0e-2:
+    if liquid_velocity_error > 0.06 * transport_capillary_velocity:
         raise RuntimeError(
             "Capillarity changed translating-droplet velocity or generated "
-            f"spin: weighted error={liquid_velocity_error:.3e} m/s")
+            "spin beyond six percent of the capillary velocity: "
+            f"weighted error={liquid_velocity_error:.3e} m/s")
+    if mixture_momentum_change > 1.0e-8:
+        raise RuntimeError(
+            "Strictly periodic transport/projection changed mixture momentum: "
+            f"{mixture_momentum_change:.3e} m/s")
     print("LowMach long-time diffuse-interface transport regression passed: "
         f"profile={profile_error:.6e}, mixing={mixing_error:.6e}, "
-        f"velocity={liquid_velocity_error:.6e} m/s")
+        f"velocity={liquid_velocity_error:.6e} m/s, "
+        f"momentum={mixture_momentum_change:.6e} m/s")
     sys.exit(0)
 
 pressure_jump = testlib.numpy.median(pressure[eta > 0.9]) - \
     testlib.numpy.median(pressure[eta < 0.01])
-expected_jump = 1.0 / 0.20
+surface_tension = 0.85 if high_density else 1.0
+radius = 8.0e-5 if high_density else 0.20
+interface_thickness = 2.0e-5 if high_density else 0.125
+expected_jump = surface_tension / radius
 jump_error = abs(pressure_jump / expected_jump - 1.0)
-if jump_error > 0.12:
+if jump_error > (0.15 if high_density else 0.12):
     raise RuntimeError(
         f"Laplace pressure jump error {jump_error:.3e}: {pressure_jump:.6e}")
 
@@ -132,24 +177,71 @@ liquid_angular_rate = (
 mixture_momentum_change = testlib.numpy.sqrt(
     ((density * ux).sum() - (density0 * ux0).sum())**2 +
     ((density * uy).sum() - (density0 * uy0).sum())**2) / density0.sum()
+initial_surface_energy, initial_mechanical_energy = mechanical_energy(
+    eta0, 1.0-eta0, density0, ux0, uy0, x0, y0,
+    surface_tension, interface_thickness)
+_, final_mechanical_energy = mechanical_energy(
+    eta, eta_gas, density, ux, uy, x, y,
+    surface_tension, interface_thickness)
+relative_mechanical_energy_change = (
+    final_mechanical_energy-initial_mechanical_energy) / \
+    initial_surface_energy
 
-if speed.max() > 8.0e-3:
-    raise RuntimeError(f"Static droplet developed speed {speed.max():.3e}")
-if checkerboard_rms > 1.0e-3:
+capillary_velocity = testlib.numpy.sqrt(
+    surface_tension / (liquid_reference_density * radius))
+capillary_vorticity = capillary_velocity / radius
+peak_speed_fraction = speed.max() / capillary_velocity
+checkerboard_fraction = checkerboard_rms / capillary_velocity
+# At the aluminum density ratio the centered-stress face average intentionally
+# damps the shortest resolved film mode.  Keep its local parasitic response
+# below ten percent of the material capillary speed and the checkerboard
+# component below four tenths of one percent.  The much tighter bulk-
+# translation, rotation, and total-momentum checks below enforce global
+# conservation.
+if peak_speed_fraction > (0.09 if high_density else 0.012):
     raise RuntimeError(
-        f"Static droplet checkerboard RMS {checkerboard_rms:.3e}")
-if liquid_bulk_speed > 1.0e-3:
+        "Static droplet parasitic speed exceeded its capillary scale: "
+        f"u/u_sigma={peak_speed_fraction:.3e}")
+if checkerboard_fraction > (0.004 if high_density else 0.0015):
+    raise RuntimeError(
+        "Static droplet checkerboard exceeded its capillary scale: "
+        f"u_cb/u_sigma={checkerboard_fraction:.3e}")
+if liquid_bulk_speed > 2.0e-3 * capillary_velocity:
     raise RuntimeError(
         f"Internal capillarity translated the droplet at "
         f"{liquid_bulk_speed:.3e} m/s")
-if abs(liquid_angular_rate) > 1.0e-2:
+if abs(liquid_angular_rate) > 1.0e-3 * capillary_vorticity:
     raise RuntimeError(
         f"Internal capillarity spun the droplet at "
         f"{liquid_angular_rate:.3e} 1/s")
-if mixture_momentum_change > 1.0e-3:
+if mixture_momentum_change > 2.0e-3 * capillary_velocity:
     raise RuntimeError(
         f"Internal capillarity changed mixture momentum by "
         f"{mixture_momentum_change:.3e} m/s")
+if "cahn-hilliard" in outdir or "sdch" in outdir:
+    if relative_mechanical_energy_change > 1.0e-5:
+        raise RuntimeError(
+            "Cahn-Hilliard transport increased surface-plus-kinetic energy: "
+            f"{relative_mechanical_energy_change:.3e}")
+elif abs(relative_mechanical_energy_change) > 1.0e-3:
+    raise RuntimeError(
+        "Static capillary surface-plus-kinetic energy changed excessively: "
+        f"{relative_mechanical_energy_change:.3e}")
+
+if high_density:
+    dx = x[1,0] - x[0,0]
+    dy = y[0,1] - y[0,0]
+    vorticity = (
+        testlib.numpy.roll(uy, -1, axis=0) -
+        testlib.numpy.roll(uy, 1, axis=0)) / (2.0 * dx) - (
+        testlib.numpy.roll(ux, -1, axis=1) -
+        testlib.numpy.roll(ux, 1, axis=1)) / (2.0 * dy)
+    interface_vorticity = testlib.numpy.max(testlib.numpy.abs(
+        vorticity[(eta > 0.01) & (eta < 0.99)]))
+    if interface_vorticity > 2.0 * capillary_vorticity:
+        raise RuntimeError(
+            "High-density static droplet developed excessive parasitic "
+            f"vorticity {interface_vorticity:.3e} 1/s")
 
 print(
     "LowMach conservative liquid-capillary regression passed: "

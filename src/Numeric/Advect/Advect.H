@@ -21,6 +21,16 @@ enum class Form
     Conservative
 };
 
+// LowMach's pressure projection currently constructs face velocities with an
+// arithmetic average of the two neighboring cell-centered values.  Every
+// advection scheme declares its face-velocity interpolation so LowMach can
+// warn when that projection/advection compatibility assumption is not met.
+enum class FaceVelocityInterpolation
+{
+    ArithmeticCellAverage,
+    Other
+};
+
 struct Options
 {
     Form form = Form::Advective;
@@ -148,6 +158,23 @@ public:
         {
             Util::Abort(INFO, selected);
             return Set::HC::Cell;
+        }
+    }
+
+    template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    FaceVelocityInterpolation FaceVelocityInterpolationType() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).face_velocity_interpolation;
+            return FaceVelocityInterpolationType<I + 1>();
+        }
+        else
+        {
+            Util::Abort(INFO, selected);
+            return FaceVelocityInterpolation::Other;
         }
     }
 };

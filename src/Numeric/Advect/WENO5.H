@@ -37,6 +37,8 @@ public:
     static constexpr const char* name = "weno5";
     static constexpr Set::HC phi_location = Set::HC::Cell;
     static constexpr Set::HC velocity_location = Set::HC::Cell;
+    static constexpr FaceVelocityInterpolation face_velocity_interpolation =
+        FaceVelocityInterpolation::ArithmeticCellAverage;
 
     Set::Scalar eps = 1.0e-12;
 

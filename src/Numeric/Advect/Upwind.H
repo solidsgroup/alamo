@@ -35,6 +35,8 @@ public:
     static constexpr const char* name = "upwind";
     static constexpr Set::HC phi_location = Set::HC::Cell;
     static constexpr Set::HC velocity_location = Set::HC::Cell;
+    static constexpr FaceVelocityInterpolation face_velocity_interpolation =
+        FaceVelocityInterpolation::ArithmeticCellAverage;
 
     static void Parse(Upwind&, IO::ParmParse&) {}
 

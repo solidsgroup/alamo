@@ -65,6 +65,7 @@ Al_liquid.thermal_conductivity = 0.1_W/m/K
 interface.thickness = 0.04_m
 interface.enabled = 1
 interface.liquid_solid.enabled = 1
+interface.liquid_solid.surface_delta_regularization = 1.0e-12
 interface.surface_tension.Al_liquid_gas = 0.01_J/m^2
 interface.liquid_solid.regularization.Al_liquid_Al_solid = 0.01_J/m^2
 

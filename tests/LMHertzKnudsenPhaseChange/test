@@ -15,10 +15,13 @@ def state(path):
     solid = data["component_density_inert_solid"].to_ndarray()
     liquid = data["component_density_test_liquid"].to_ndarray()
     temperature = data["temperature"].to_ndarray()
+    velocity_x = data["velocityx"].to_ndarray()
+    velocity_y = data["velocityy"].to_ndarray()
     x = data[("index", "x")].to_ndarray()
     y = data[("index", "y")].to_ndarray()
     radius = ((x - 0.5)**2 + (y - 0.5)**2)**0.5
     liquid_mass = (liquid * volume).sum()
+    total_density = vapor + ambient + solid + liquid
     return {
         "vapor": (vapor * volume).sum(),
         "total": ((vapor + ambient + solid + liquid) * volume).sum(),
@@ -26,6 +29,12 @@ def state(path):
         "inside_vapor": (vapor[radius < 0.22] * volume[radius < 0.22]).sum(),
         "liquid_temperature":
             (temperature * liquid * volume).sum() / liquid_mass,
+        "energy": ((1000.0 * total_density * temperature +
+                    2.0e5 * vapor) * volume).sum(),
+        "momentum_x": (total_density * velocity_x * volume).sum(),
+        "momentum_y": (total_density * velocity_y * volume).sum(),
+        "angular_momentum": (total_density *
+            ((x-0.5)*velocity_y - (y-0.5)*velocity_x) * volume).sum(),
     }
 
 
@@ -39,11 +48,11 @@ initial = state(plotfiles[0])
 final = state(plotfiles[-1])
 produced = final["vapor"] - initial["vapor"]
 relative_mass_error = abs(final["total"] - initial["total"]) / initial["total"]
-if not 1.5e-2 < produced < 1.8e-2:
+if not 1.4e-2 < produced < 1.5e-2:
     raise RuntimeError(
         "Hertz-Knudsen evaporation is outside its converged range: "
         f"vapor mass={produced:.12e}")
-if relative_mass_error > 2.0e-8:
+if relative_mass_error > 1.0e-10:
     raise RuntimeError(
         f"Hertz-Knudsen transfer altered mass by {relative_mass_error:.3e}")
 if final["minimum"] < -1.0e-10:
@@ -55,5 +64,20 @@ if final["inside_vapor"] > 0.01 * produced:
         f"inside fraction={final['inside_vapor'] / produced:.3e}")
 if not final["liquid_temperature"] < initial["liquid_temperature"] - 1.0:
     raise RuntimeError("Vaporization latent heat did not cool the liquid")
+relative_energy_error = abs(final["energy"] - initial["energy"]) / \
+    initial["energy"]
+if relative_energy_error > 1.0e-8:
+    raise RuntimeError(
+        "Hertz-Knudsen mass/latent-heat transfer failed the closed energy "
+        f"balance: {relative_energy_error:.3e}")
+momentum_change = ((final["momentum_x"]-initial["momentum_x"])**2 +
+                   (final["momentum_y"]-initial["momentum_y"])**2)**0.5
+if momentum_change / initial["total"] > 1.0e-7:
+    raise RuntimeError(
+        "Closed Hertz-Knudsen transfer altered linear momentum: "
+        f"{momentum_change / initial['total']:.3e} m/s")
+if abs(final["angular_momentum"]-initial["angular_momentum"]) > 1.0e-12:
+    raise RuntimeError(
+        "Closed Hertz-Knudsen transfer altered angular momentum")
 
 print(f"Hertz-Knudsen vapor mass {produced:.12e}")

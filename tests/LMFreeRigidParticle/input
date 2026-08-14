@@ -13,7 +13,6 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=Al_solid.rigid.coupling=picard
 #@ args=Al_solid.rigid.max_iterations=2
 #@ args=Al_solid.rigid.relative_tolerance=1.0e-8
 #@ args=Al_solid.rigid.absolute_tolerance=1.0e-10_m/s
@@ -106,7 +105,6 @@ Al_solid.rigid.relaxation_time = 1.0e-5_s
 # primary predictor. Anderson acceleration adds corrections only until this
 # combined absolute/relative tolerance is met. Picard remains available as a
 # reference coupling method.
-Al_solid.rigid.coupling = anderson
 Al_solid.rigid.max_iterations = 3
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-6_m/s

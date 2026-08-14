@@ -24,6 +24,60 @@ struct State
     Set::Scalar dt;
 };
 
+// Compile-time mechanism interface.  Models inherit these neutral operations
+// and define only the physics they actually supply; Mechanism below still
+// dispatches to a concrete tuple entry with no virtual calls in GPU kernels.
+class MechanismModel
+{
+public:
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    void Apply(const amrex::Array4<Set::Scalar>&, const State&,
+               const int, const int, const int,
+               const Set::Scalar[AMREX_SPACEDIM]) const {}
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar VolumeSource(const State&, const int, const int, const int,
+        const Set::Scalar[AMREX_SPACEDIM]) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar HeatSource(const State&, const int, const int, const int,
+        const Set::Scalar[AMREX_SPACEDIM]) const { return 0.0; }
+    Set::Scalar StabilityRate(const Set::Scalar,
+        const Set::Scalar) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalRate(const State&, const int, const int,
+        const int) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalStabilityRate(const State&, const int, const int,
+        const int) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar GradientCoefficient(const State&, const int, const int,
+        const int) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyImplicitChange(
+        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
+        Set::Scalar&, const int, const int, const int) const { return 0.0; }
+    int RigidComponent() const { return -1; }
+    bool Equilibrium() const { return false; }
+    bool Kinetic() const { return false; }
+    Set::Scalar EquilibriumTemperature() const { return NAN; }
+    Set::Scalar LatentHeat() const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar KineticDiffuseSurfaceMeasure(
+        const amrex::Array4<const Set::Scalar>&,
+        const int, const int, const int,
+        const Set::Scalar[AMREX_SPACEDIM]) const { return 0.0; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar>
+    ApplyEquilibriumChange(
+        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
+        const Set::Scalar, const Set::Scalar,
+        const int, const int, const int) const { return {0.0, 0.0, 0.0}; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar ApplyKineticChange(
+        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
+        const Set::Scalar, Set::Scalar&, Set::Scalar&,
+        const int, const int, const int) const { return 0.0; }
+};
+
 template<typename... OBJ>
 class Mechanism
 {
@@ -229,8 +283,7 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    amrex::GpuTuple<Set::Scalar,Set::Vector>
-    KineticDiffuseSurface(
+    Set::Scalar KineticDiffuseSurfaceMeasure(
         const amrex::Array4<const Set::Scalar>& component_density,
         const int i, const int j, const int k,
         const Set::Scalar DX[AMREX_SPACEDIM]) const
@@ -238,13 +291,13 @@ public:
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).KineticDiffuseSurface(
+                return std::get<I>(obj).KineticDiffuseSurfaceMeasure(
                     component_density, i, j, k, DX);
-            return KineticDiffuseSurface<I + 1>(
+            return KineticDiffuseSurfaceMeasure<I + 1>(
                 component_density, i, j, k, DX);
         }
         Util::Abort(INFO, selected);
-        return {NAN, Set::Vector::Zero()};
+        return NAN;
     }
 
     template<int I = 0>
@@ -278,8 +331,6 @@ public:
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar heat_capacity,
         const Set::Scalar surface_measure,
-        const Set::Scalar diffuse_temperature,
-        const Set::Scalar diffuse_thermal_response,
         Set::Scalar& temperature, Set::Scalar& integrated_heat,
         const int i, const int j, const int k) const
     {
@@ -288,13 +339,11 @@ public:
             if (selected == I)
                 return std::get<I>(obj).ApplyKineticChange(
                     component_density, state, heat_capacity,
-                    surface_measure, diffuse_temperature,
-                    diffuse_thermal_response,
+                    surface_measure,
                     temperature, integrated_heat, i, j, k);
             return ApplyKineticChange<I + 1>(
                 component_density, state, heat_capacity,
-                surface_measure, diffuse_temperature,
-                diffuse_thermal_response,
+                surface_measure,
                 temperature, integrated_heat, i, j, k);
         }
         Util::Abort(INFO, selected);

@@ -29,7 +29,9 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Chemistry/GrossModel.H"
-#include "Model/PhaseField/MultiphaseInterface.H"
+#include "Model/Capillarity/MultiphaseFreeEnergy.H"
+#include "Model/Capillarity/ConservativeAllenCahn.H"
+#include "Model/Capillarity/SinglyDegenerateCahnHilliard.H"
 
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/ODE/BackwardEuler.H"
@@ -84,10 +86,10 @@ int main (int argc, char* argv[])
     }
 
     Util::Test::Message(
-        "Model::PhaseField::MultiphaseInterface surface energy test");
+        "Model::Capillarity::MultiphaseFreeEnergy surface energy test");
     {
         int subfailed = 0;
-        using PhaseModel = Model::PhaseField::MultiphaseInterface;
+        using PhaseModel = Model::Capillarity::MultiphaseFreeEnergy;
         constexpr int liquid = 0;
         constexpr int solid = 1;
         constexpr int gas = 2;
@@ -113,7 +115,11 @@ int main (int argc, char* argv[])
 
         PhaseModel model;
         const Set::Scalar ell = 0.7;
+        const Set::Scalar surface_delta_regularization = 1.0e-12;
+        const Set::Scalar regularization_gradient =
+            surface_delta_regularization / ell;
         model.Define({"liquid", "solid", "gas"}, 1, true, ell,
+                     surface_delta_regularization,
                      surface_tension, regularization, difference);
         subfailed += Util::Test::SubMessage(
             "Surface tension excludes liquid-solid",
@@ -149,7 +155,60 @@ int main (int argc, char* argv[])
             std::abs(normalized_interpolation - 1.0) > 1.0e-13);
         subfailed += Util::Test::SubMessage(
             "Bulk surface delta is zero",
-            PhaseModel::RegularizedSurfaceDelta(0.0, ell) != 0.0);
+            PhaseModel::SurfaceDelta(
+                0.0, regularization_gradient) != 0.0);
+        subfailed += Util::Test::SubMessage(
+            "Allen-Cahn profile flux vanishes at pure phases",
+            Model::Capillarity::ConservativeAllenCahn::
+                    CompressionMagnitude(0.0, ell) != 0.0 ||
+            Model::Capillarity::ConservativeAllenCahn::
+                    CompressionMagnitude(1.0, ell) != 0.0);
+        subfailed += Util::Test::SubMessage(
+            "Singly-degenerate pair mobility",
+            Model::Capillarity::SinglyDegenerateCahnHilliard::
+                    PairMobilityWeight(0.0, 1.0) != 0.0 ||
+            Model::Capillarity::SinglyDegenerateCahnHilliard::
+                    PairMobilityWeight(1.0, 0.0) != 0.0 ||
+            std::abs(Model::Capillarity::SinglyDegenerateCahnHilliard::
+                    PairMobilityWeight(0.5, 0.5) - 1.0) > 1.0e-14);
+
+        // A diffuse tail can retain a nonzero gradient whose cube underflows
+        // even though both phases are exactly absent.  The regularized
+        // surface functional and all of its variations must remain finite in
+        // that bulk state.
+        const amrex::Box tail_domain(
+            amrex::IntVect::TheZeroVector(),
+            amrex::IntVect(AMREX_D_DECL(4, 4, 4)));
+        amrex::FArrayBox tail_phase(tail_domain, nphase);
+        tail_phase.setVal(0.0);
+        auto tail = tail_phase.array();
+        const amrex::Dim3 tail_lo = amrex::lbound(tail_domain);
+        const amrex::Dim3 tail_hi = amrex::ubound(tail_domain);
+        for (int k = tail_lo.z; k <= tail_hi.z; ++k)
+            for (int j = tail_lo.y; j <= tail_hi.y; ++j)
+                for (int i = tail_lo.x; i <= tail_hi.x; ++i)
+                {
+                    tail(i,j,k,solid) = 1.0e-110 * (i + 1.0);
+                    tail(i,j,k,gas) = 1.0 - tail(i,j,k,solid);
+                }
+        const Set::Scalar tail_dx[AMREX_SPACEDIM] =
+            {AMREX_D_DECL(1.0, 1.0, 1.0)};
+        const auto tail_const = tail_phase.const_array();
+        const Set::Scalar tail_mu =
+            PhaseModel::SolidSurfaceCorrectionChemicalPotential(
+                tail_const, liquid, solid, correction,
+                regularization_gradient, 2, 2,
+                AMREX_SPACEDIM > 2 ? 2 : 0, tail_dx,
+                Numeric::DefaultType());
+        const Set::Matrix tail_stress =
+            PhaseModel::SolidSurfaceCorrectionCapillaryStress(
+                tail_const, liquid, solid, correction,
+                regularization_gradient, 2, 2,
+                AMREX_SPACEDIM > 2 ? 2 : 0, tail_dx,
+                Numeric::DefaultType());
+        subfailed += Util::Test::SubMessage(
+            "Finite liquid-solid bulk-tail variation",
+            !std::isfinite(tail_mu) || !std::isfinite(tail_stress.norm()));
 
         const amrex::Box flat_domain(
             amrex::IntVect::TheZeroVector(),
@@ -179,11 +238,13 @@ int main (int argc, char* argv[])
         const auto central = Numeric::DefaultType();
         const Set::Scalar mu_liquid =
             PhaseModel::LiquidSurfaceCorrectionChemicalPotential(
-                flat_const, liquid, solid, correction, ell,
+                flat_const, liquid, solid, correction,
+                regularization_gradient,
                 ci, cj, ck, cell_size, central);
         const Set::Scalar mu_solid =
             PhaseModel::SolidSurfaceCorrectionChemicalPotential(
-                flat_const, liquid, solid, correction, ell,
+                flat_const, liquid, solid, correction,
+                regularization_gradient,
                 ci, cj, ck, cell_size, central);
         const Set::Vector grad_liquid = Numeric::Gradient(
             flat_const, ci, cj, ck, liquid, cell_size, central);
@@ -194,6 +255,17 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage(
             "Flat binary surface correction force",
             flat_force.lpNorm<2>() > 1.0e-10);
+        const Set::Scalar pair_mu_liquid =
+            PhaseModel::PairChemicalPotential(
+                flat_const, liquid, solid, solid_regularization, ell,
+                ci, cj, ck, cell_size, central);
+        const Set::Scalar pair_mu_solid =
+            PhaseModel::PairChemicalPotential(
+                flat_const, solid, liquid, solid_regularization, ell,
+                ci, cj, ck, cell_size, central);
+        subfailed += Util::Test::SubMessage(
+            "Equilibrium binary constrained chemical potential",
+            std::abs(pair_mu_liquid - pair_mu_solid) > 1.0e-12);
 
         constexpr int profile_points = 10000;
         const Set::Scalar dx = 16.0 * ell / profile_points;
@@ -215,8 +287,8 @@ int main (int argc, char* argv[])
                  12.0 / ell * q * q * s * s) * dx;
             correction_energy += 2.0 * correction *
                 PhaseModel::Interpolation(q) *
-                PhaseModel::RegularizedSurfaceDelta(
-                    std::abs(grad_s), ell) * dx;
+                PhaseModel::SurfaceDelta(
+                    std::abs(grad_s), regularization_gradient) * dx;
         }
         subfailed += Util::Test::SubMessage(
             "Flat-interface regularization energy",
@@ -226,12 +298,23 @@ int main (int argc, char* argv[])
             std::abs(pair_energy + correction_energy -
                      surface_difference) > 2.0e-10);
 
-        const Set::Matrix flat_stress =
+        const Set::Matrix flat_pair_stress =
             PhaseModel::PairCapillaryStress(
                 flat_const, liquid, solid, solid_regularization, ell,
-                ci, cj, ck, cell_size, central) +
+                ci, cj, ck, cell_size, central);
+        const Set::Vector relative_gradient =
+            flat_const(ci,cj,ck,liquid) * grad_solid -
+            flat_const(ci,cj,ck,solid) * grad_liquid;
+        const Set::Matrix expected_pair_stress =
+            -1.5 * ell * solid_regularization *
+            relative_gradient * relative_gradient.transpose();
+        subfailed += Util::Test::SubMessage(
+            "Korteweg stress",
+            (flat_pair_stress - expected_pair_stress).norm() > 1.0e-14);
+        const Set::Matrix flat_stress = flat_pair_stress +
             PhaseModel::SolidSurfaceCorrectionCapillaryStress(
-                flat_const, liquid, solid, correction, ell,
+                flat_const, liquid, solid, correction,
+                regularization_gradient,
                 ci, cj, ck, cell_size, central);
         subfailed += Util::Test::SubMessage(
             "Korteweg stress symmetry",

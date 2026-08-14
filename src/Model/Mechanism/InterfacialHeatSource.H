@@ -29,7 +29,7 @@ namespace Model
 {
 namespace Mechanism
 {
-class InterfacialHeatSource
+class InterfacialHeatSource : public MechanismModel
 {
 public:
     static constexpr const char* name = "interfacial_heat_source";
@@ -98,43 +98,28 @@ public:
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    void Apply(const amrex::Array4<Set::Scalar>&,
-               const State&, const int, const int, const int,
-               const Set::Scalar[AMREX_SPACEDIM]) const
-    {}
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar VolumeSource(const State&, const int, const int, const int,
-                            const Set::Scalar[AMREX_SPACEDIM]) const
-    {
-        return 0.0;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar HeatSource(const State& state,
                            const int i, const int j, const int k,
                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         if (!(heat_flux > 0.0) || !(state.temperature > 0.0)) return 0.0;
-        const Set::Scalar liquid_eta = Util::Clamp(
+        const Set::Scalar liquid_eta =
             state.component_density(i,j,k,liquid_species_index) *
-                liquid_inverse_reference_density,
-            0.0, 1.0);
+                liquid_inverse_reference_density;
         if (!(liquid_eta > 0.0)) return 0.0;
 
         Set::Scalar condensed_eta = 0.0;
         Set::Vector condensed_gradient = Set::Vector::Zero();
         for (int n = ngas_species; n < nspecies; ++n)
         {
-            condensed_eta += Util::Max(
-                state.component_density(i,j,k,n), 0.0) *
+            condensed_eta += state.component_density(i,j,k,n) *
                 inverse_reference_density[n];
             condensed_gradient += Numeric::Gradient(
                 state.component_density, i, j, k, n, DX) *
                 inverse_reference_density[n];
         }
-        const Set::Scalar gas_eta = Util::Clamp(
-            1.0 - condensed_eta, 0.0, 1.0);
+        const Set::Scalar gas_eta = 1.0 - condensed_eta;
+        if (!(gas_eta > 0.0)) return 0.0;
         const Set::Vector liquid_gradient = Numeric::Gradient(
             state.component_density, i, j, k, liquid_species_index, DX) *
             liquid_inverse_reference_density;
@@ -144,76 +129,6 @@ public:
         return heat_flux * activation *
             (gas_eta * liquid_gradient +
              liquid_eta * condensed_gradient).norm();
-    }
-
-    Set::Scalar StabilityRate(const Set::Scalar,
-                              const Set::Scalar) const
-    {
-        // Smooth activation is bounded and saturates at the prescribed flux;
-        // it introduces no unbounded thermal feedback rate.
-        return 0.0;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar LocalRate(const State&, const int, const int, const int) const
-    {
-        return 0.0;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar LocalStabilityRate(
-        const State&, const int, const int, const int) const
-    {
-        return 0.0;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar GradientCoefficient(
-        const State&, const int, const int, const int) const
-    {
-        return 0.0;
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyImplicitChange(
-        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
-        Set::Scalar&, const int, const int, const int) const
-    {
-        return 0.0;
-    }
-
-    int RigidComponent() const { return -1; }
-    bool Equilibrium() const { return false; }
-    bool Kinetic() const { return false; }
-    Set::Scalar EquilibriumTemperature() const { return NAN; }
-    Set::Scalar LatentHeat() const { return 0.0; }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    amrex::GpuTuple<Set::Scalar,Set::Vector> KineticDiffuseSurface(
-        const amrex::Array4<const Set::Scalar>&,
-        const int, const int, const int,
-        const Set::Scalar[AMREX_SPACEDIM]) const
-    {
-        return {0.0, Set::Vector::Zero()};
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar>
-    ApplyEquilibriumChange(
-        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
-        const Set::Scalar, const Set::Scalar,
-        const int, const int, const int) const
-    {
-        return {0.0, 0.0, 0.0};
-    }
-
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyKineticChange(
-        const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
-        const Set::Scalar, const Set::Scalar, const Set::Scalar,
-        Set::Scalar&, Set::Scalar&, const int, const int, const int) const
-    {
-        return 0.0;
     }
 
 private:

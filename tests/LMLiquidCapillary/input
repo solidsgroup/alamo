@@ -21,11 +21,35 @@
 #@ args=amr.regrid_int=1
 #@ args=eta_refinement_criterion=1.0e-4
 #@
+#@ [2d-conservative-allen-cahn]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.model.type=conservative_allen_cahn
+#@ args=interface.model.conservative_allen_cahn.relaxation_time=0.01_s
+#@
+#@ [2d-singly-degenerate-cahn-hilliard]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.model.type=singly_degenerate_cahn_hilliard
+#@ args=interface.model.singly_degenerate_cahn_hilliard.relaxation_time=0.01_s
+#@
+#@ [2d-singly-degenerate-cahn-hilliard-amr]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.model.type=singly_degenerate_cahn_hilliard
+#@ args=interface.model.singly_degenerate_cahn_hilliard.relaxation_time=0.01_s
+#@ args=amr.max_level=1
+#@ args=amr.regrid_int=1
+#@ args=eta_refinement_criterion=1.0e-4
+#@
 #@ [2d-transport-advected]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=interface.transport.type=advected
+#@ args=interface.model.type=direct_surface_tension
 #@ args=advection.muscl.limiter.type=superbee
 #@ args=velocity.ic.expression.constant.U=0.5
 #@ args=timestep=2.0e-3
@@ -37,14 +61,45 @@
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=240
-#@ args=interface.transport.type=conservative_allen_cahn
+#@ args=interface.model.type=conservative_allen_cahn
 #@ args=advection.muscl.limiter.type=superbee
-#@ args=interface.transport.diffusivity=1.0e-5_m^2/s
+#@ args=interface.model.conservative_allen_cahn.relaxation_time=1562.5_s
 #@ args=velocity.ic.expression.constant.U=0.5
 #@ args=timestep=2.0e-3
 #@ args=stop_time=1.0
 #@ args=max_step=500
 #@ args=amr.plot_int=500
+#@
+#@ [2d-high-density]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=amr.n_cell=128 128
+#@ args=amr.max_grid_size=64
+#@ args=max_step=100
+#@ args=timestep=1.0e-8_s
+#@ args=stop_time=1.0e-6_s
+#@ args=amr.plot_int=100
+#@ args=geometry.prob_hi=3.2e-4 3.2e-4 0
+#@ args=Al_liquid.reference_density=2375_kg/m^3
+#@ args=Al2O3_liquid.reference_density=2375_kg/m^3
+#@ args=tracer_liquid.reference_density=2375_kg/m^3
+#@ args=Al_liquid.dynamic_viscosity=1.3e-3_Pa*s
+#@ args=gas.transport.mixture_averaged.mu=8.0e-5_Pa*s
+#@ args=interface.thickness=2.0e-5_m
+#@ args=interface.surface_tension.Al_liquid_gas=0.85_N/m
+#@ args=Al_liquid.density.ic.expression.constant.rho=2375
+#@ args=Al_liquid.density.ic.expression.constant.x0=1.6e-4
+#@ args=Al_liquid.density.ic.expression.constant.y0=1.6e-4
+#@ args=Al_liquid.density.ic.expression.constant.R=8.0e-5
+#@ args=Al_liquid.density.ic.expression.constant.eps=2.0e-5
+#@ args=ambient.density.ic.expression.constant.rho=4.0
+#@ args=ambient.density.ic.expression.constant.x0=1.6e-4
+#@ args=ambient.density.ic.expression.constant.y0=1.6e-4
+#@ args=ambient.density.ic.expression.constant.R=8.0e-5
+#@ args=ambient.density.ic.expression.constant.eps=2.0e-5
+#@ args=temperature.ic.constant.value=2500_K
+#@ args=pressure.ic.constant.value=3.0e6_Pa
 
 # Static diffuse droplet used to validate the face-balanced capillary force.
 plot_file = tests/LMLiquidCapillary/output
@@ -99,6 +154,7 @@ tracer_liquid.specific_heat = 1000.0_J/kg/K
 tracer_liquid.thermal_conductivity = 1.0_W/m/K
 
 interface.thickness = 0.125
+interface.model.type = direct_surface_tension
 interface.surface_tension.Al_liquid_gas = 1.0
 interface.surface_tension.Al2O3_liquid_gas = 1.0
 interface.surface_tension.Al_liquid_Al2O3_liquid = 1.0

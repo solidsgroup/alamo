@@ -23,7 +23,11 @@
 #include "Model/Mechanism/PhaseChange.H"
 #include "Model/Mechanism/InterphaseReaction.H"
 #include "Model/Mechanism/InterfacialHeatSource.H"
-#include "Model/PhaseField/MultiphaseInterface.H"
+#include "Model/Capillarity/Capillarity.H"
+#include "Model/Capillarity/ConservativeAllenCahn.H"
+#include "Model/Capillarity/DirectSurfaceTension.H"
+#include "Model/Capillarity/MultiphaseFreeEnergy.H"
+#include "Model/Capillarity/SinglyDegenerateCahnHilliard.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
@@ -88,6 +92,8 @@ public:
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateInterfacialChemicalPotential(int lev);
     void ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt);
+    void ApplyConservativeAllenCahn(Set::Scalar time, Set::Scalar dt);
+    void ApplySinglyDegenerateCahnHilliard(Set::Scalar time, Set::Scalar dt);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
@@ -95,7 +101,7 @@ public:
     void ApplyEquilibriumPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
-    void UpdateFreeRigidBodyStates();
+    void UpdateFreeRigidBodyStates(bool penalty_force_moments = false);
 
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
@@ -169,7 +175,6 @@ protected:
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_heat_mf;
-    Set::Field<Set::Scalar> kinetic_diffuse_moment_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -224,7 +229,6 @@ protected:
     std::vector<int> rigid_solid_species;
     std::vector<Set::Scalar> rigid_relaxation_time;
     std::vector<Set::Vector> rigid_velocity;
-    std::vector<bool> rigid_anderson_coupling;
     std::vector<int> rigid_coupling_max_iterations;
     std::vector<Set::Scalar> rigid_coupling_relative_tolerance;
     std::vector<Set::Scalar> rigid_coupling_absolute_tolerance;
@@ -233,14 +237,12 @@ protected:
     std::vector<int> free_rigid_solid_components;
     std::vector<int> liquid_species;
     std::vector<int> interfacial_solid_species;
-    Model::PhaseField::MultiphaseInterface interfacial_model;
-    enum class InterfacialTransport
-    {
-        Advected,
-        ConservativeAllenCahn
-    };
-    InterfacialTransport interfacial_transport =
-        InterfacialTransport::Advected;
+    Model::Capillarity::MultiphaseFreeEnergy capillary_free_energy;
+    using CapillarityModel = Model::Capillarity::Capillarity<
+        Model::Capillarity::DirectSurfaceTension,
+        Model::Capillarity::ConservativeAllenCahn,
+        Model::Capillarity::SinglyDegenerateCahnHilliard>;
+    CapillarityModel capillarity_model;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;
@@ -299,8 +301,6 @@ protected:
     Set::Scalar finite_solid_deviatoric_stress_divergence_sign = 0.0;
     Set::Scalar interfacial_reference_density_min = 1.0e100;
     Set::Scalar interfacial_thickness = 0.0;
-    Set::Scalar conservative_allen_cahn_diffusivity = 0.0;
-    Set::Scalar previous_free_rigid_dt = NAN;
 
     struct FreeRigidBodyState
     {
@@ -317,7 +317,6 @@ protected:
     std::vector<bool> last_free_rigid_coupling_converged;
     std::vector<Set::Scalar> free_rigid_body_time;
     std::vector<FreeRigidBodyState> free_rigid_bodies;
-    std::vector<FreeRigidBodyState> previous_free_rigid_projection_increments;
 
     Numeric::Advect::Advect<Numeric::Advect::MUSCL,
                             Numeric::Advect::Upwind,

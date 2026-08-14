@@ -12,9 +12,11 @@ namespace Operator
 {
 /// Composite AMR variable-coefficient Poisson solve used by pressure projections.
 ///
-/// The caller supplies the cell-centered right-hand side and coefficient. This
-/// class owns the solve scratch data and handles coarse/fine coefficient fills,
-/// cell-to-face conversion, and the AMReX MLMG setup.
+/// The caller supplies the cell-centered volume source and inverse-density
+/// coefficient.  The projection forms the same arithmetic face velocity used
+/// by finite-volume transport, solves its variable-coefficient divergence
+/// constraint, and synchronizes the one value on each periodic face.  It does
+/// not constrain or modify the domain-mean flow.
 class PressurePoisson
 {
 public:
@@ -35,11 +37,11 @@ public:
     const amrex::MultiFab& Solution(int lev) const { return *solution[lev]; }
 
     using FaceField =
-        amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>;
+        amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>;
 
     void PrepareCoefficients(Set::Scalar time);
     void PrepareRHS(int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
-                    const FaceField* face_capillary_acceleration = nullptr);
+                    const FaceField* face_acceleration = nullptr);
     void Solve(Set::Scalar time, const amrex::BCRec& pressure_bc);
     void ApplyCorrection(int lev, amrex::MultiFab& velocity, Set::Scalar dt);
 
@@ -58,8 +60,10 @@ private:
     Set::Field<Set::Scalar> coefficient;
     Set::Field<Set::Scalar> divergence;
     Set::Field<Set::Scalar> cell_velocity_predictor;
-    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_coefficient;
-    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> face_velocity;
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
+        face_coefficient;
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
+        face_velocity;
 };
 }
 

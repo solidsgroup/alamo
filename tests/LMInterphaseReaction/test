@@ -9,6 +9,11 @@ import testlib
 def integrated_state(path):
     data = testlib.yt.load(path).all_data()
     volume = data[("index", "cell_volume")].to_ndarray()
+    velocity_x = data["velocityx"].to_ndarray()
+    velocity_y = data["velocityy"].to_ndarray()
+    temperature = data["temperature"].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
 
     def mass(name):
         density = data[f"component_density_{name}"].to_ndarray()
@@ -23,6 +28,16 @@ def integrated_state(path):
         minimum = min(minimum, species_minimum)
     values["total"] = sum(values.values())
     values["minimum"] = minimum
+    total_density = sum(
+        data[f"component_density_{name}"].to_ndarray()
+        for name in ["donor_A", "donor_B", "ambient_gas", "gas_product",
+                     "primary_liquid", "condensed_product"])
+    values["momentum_x"] = (total_density * velocity_x * volume).sum()
+    values["momentum_y"] = (total_density * velocity_y * volume).sum()
+    values["angular_momentum"] = (total_density *
+        ((x-0.5)*velocity_y - (y-0.5)*velocity_x) * volume).sum()
+    values["sensible_energy"] = (
+        1000.0 * total_density * temperature * volume).sum()
     return values
 
 
@@ -57,12 +72,27 @@ if abs(gas_produced / product_produced - 0.40) > 5.0e-3:
     raise RuntimeError("Gas product mass fraction is not 0.40")
 
 relative_mass_error = abs(final["total"] - initial["total"]) / initial["total"]
-if relative_mass_error > 5.0e-5:
+if relative_mass_error > 1.0e-10:
     raise RuntimeError(
         f"Interphase reaction altered total mass by {relative_mass_error:.3e}")
 if final["minimum"] < -1.0e-9:
     raise RuntimeError(
         f"Interphase reaction produced negative density "
         f"{final['minimum']:.3e}")
+momentum_change = ((final["momentum_x"]-initial["momentum_x"])**2 +
+                   (final["momentum_y"]-initial["momentum_y"])**2)**0.5
+if momentum_change / initial["total"] > 1.0e-12:
+    raise RuntimeError(
+        "Closed interphase reaction altered linear momentum: "
+        f"{momentum_change / initial['total']:.3e} m/s")
+if abs(final["angular_momentum"]-initial["angular_momentum"]) > 1.0e-12:
+    raise RuntimeError("Closed interphase reaction altered angular momentum")
+relative_energy_error = abs(
+    final["sensible_energy"]-initial["sensible_energy"]) / \
+    initial["sensible_energy"]
+if relative_energy_error > 1.0e-10:
+    raise RuntimeError(
+        "Zero-heat interphase reaction altered sensible energy: "
+        f"{relative_energy_error:.3e}")
 
 print("LowMach interphase-reaction regression passed")

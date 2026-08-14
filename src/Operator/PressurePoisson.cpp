@@ -6,6 +6,7 @@
 #include <AMReX_MultiFabUtil.H>
 
 #include "BC/Constant.H"
+#include "Unit/Unit.H"
 
 namespace Operator
 {
@@ -13,9 +14,15 @@ void
 PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
 {
     pp.query_default("tol_rel", value.tolerance_relative, 1.0e-11);
-    pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
+    pp.query_default("tol_abs", value.tolerance_absolute,
+                     "1.0e-12_1/s", 1.0 / Unit::Time());
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    if (!(value.tolerance_relative > 0.0) ||
+        !(value.tolerance_absolute >= 0.0))
+        Util::Exception(INFO,
+            "projection.tol_rel must be positive and projection.tol_abs "
+            "must be nonnegative");
 }
 
 void
@@ -72,6 +79,7 @@ PressurePoisson::SetLayout(
         rhs[lev]->setVal(0.0);
         coefficient[lev]->setVal(0.0);
         divergence[lev]->setVal(0.0);
+        cell_velocity_predictor[lev]->setVal(0.0);
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
             amrex::BoxArray face_grids = grids[lev];
@@ -110,7 +118,6 @@ PressurePoisson::PrepareCoefficients(Set::Scalar time)
                 refinement_ratio[lev - 1], &amrex::cell_cons_interp, bcs, 0);
         }
     }
-
     for (int lev = 0; lev < nlevels; ++lev)
     {
         amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> face_ptr;
@@ -126,58 +133,57 @@ PressurePoisson::PrepareCoefficients(Set::Scalar time)
 
 void
 PressurePoisson::PrepareRHS(
-    int lev, const amrex::MultiFab& velocity, Set::Scalar dt,
-    const FaceField* face_capillary_acceleration)
+    int lev, const amrex::MultiFab& cell_velocity, Set::Scalar dt,
+    const FaceField* face_acceleration)
 {
-    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_velocity_const_ptr;
+    amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM> face_ptr;
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
     {
-        face_velocity_const_ptr[d] = &face_velocity[lev][d];
+        face_ptr[d] = &face_velocity[lev][d];
         const int di = d == 0;
         const int dj = d == 1;
         const int dk = d == 2;
-        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
-            mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(face_velocity[lev][d],
+                amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
-            const auto u = velocity.const_array(mfi);
+            const auto u = cell_velocity.const_array(mfi);
             const auto face = face_velocity[lev][d].array(mfi);
-            amrex::Array4<const Set::Scalar> capillary_acceleration;
-            const bool has_capillary_acceleration =
-                face_capillary_acceleration != nullptr;
-            if (has_capillary_acceleration)
-                capillary_acceleration =
-                    (*face_capillary_acceleration)[d]->const_array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                face(i,j,k) = 0.5 *
-                    (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
-                if (has_capillary_acceleration)
-                    face(i,j,k) += dt * capillary_acceleration(i,j,k);
-            });
+            amrex::Array4<const Set::Scalar> acceleration;
+            const bool has_face_acceleration = face_acceleration != nullptr;
+            if (has_face_acceleration)
+                acceleration = (*face_acceleration)[d]->const_array(mfi);
+            amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    face(i,j,k) = 0.5 *
+                        (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
+                    if (has_face_acceleration)
+                        face(i,j,k) += dt * acceleration(i,j,k);
+                });
         }
-        // Face-centered BoxArrays overlap at patch boundaries and contain
-        // two valid representations of a periodic seam.  FillBoundary alone
-        // updates ghost cells but does not reconcile those valid nodal
-        // values.  Keep one flux on every geometric face before taking its
-        // divergence so the periodic cells see equal and opposite fluxes.
+        // A periodic seam is one geometric face.  Reconcile overlapping valid
+        // copies before taking the divergence; this is synchronization, not a
+        // mean-flow or pressure-gradient correction.
         face_velocity[lev][d].FillBoundaryAndSync(
             geometry[lev].periodicity());
     }
-    amrex::computeDivergence(
-        *divergence[lev], face_velocity_const_ptr, geometry[lev]);
+    amrex::computeDivergence(*divergence[lev], face_ptr, geometry[lev]);
 
-    const Set::Scalar inv_dt = 1.0 / dt;
-    for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    const Set::Scalar inverse_dt = 1.0 / dt;
+    for (amrex::MFIter mfi(*rhs[lev], amrex::TilingIfNotGPU());
+         mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
         const auto source = rhs[lev]->const_array(mfi);
         const auto div = divergence[lev]->const_array(mfi);
         const auto projection_rhs = rhs[lev]->array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            projection_rhs(i,j,k) = (div(i,j,k) - source(i,j,k)) * inv_dt;
-        });
+        amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                projection_rhs(i,j,k) =
+                    (div(i,j,k) - source(i,j,k)) * inverse_dt;
+            });
     }
 }
 
@@ -186,15 +192,15 @@ PressurePoisson::Solve(Set::Scalar /*time*/, const amrex::BCRec& pressure_bc)
 {
     BL_PROFILE("Operator::PressurePoisson::Solve");
 
-    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> face_coefficient_ptr(nlevels);
+    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>>
+        face_coefficient_ptr(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
-    {
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
             face_coefficient_ptr[lev][d] = &face_coefficient[lev][d];
-    }
 
     amrex::LPInfo info;
-    amrex::MLABecLaplacian poisson(geometry, grids, distribution_mapping, info);
+    amrex::MLABecLaplacian poisson(
+        geometry, grids, distribution_mapping, info);
     poisson.setMaxOrder(max_order);
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_lo;
     amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> boundary_hi;
@@ -240,7 +246,7 @@ PressurePoisson::Solve(Set::Scalar /*time*/, const amrex::BCRec& pressure_bc)
 
 void
 PressurePoisson::ApplyCorrection(
-    int lev, amrex::MultiFab& velocity, Set::Scalar dt)
+    int lev, amrex::MultiFab& cell_velocity, Set::Scalar dt)
 {
     const auto dx = geometry[lev].CellSizeArray();
     for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -248,61 +254,57 @@ PressurePoisson::ApplyCorrection(
         const int di = d == 0;
         const int dj = d == 1;
         const int dk = d == 2;
-        for (amrex::MFIter mfi(face_velocity[lev][d], amrex::TilingIfNotGPU());
-            mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(face_velocity[lev][d],
+                amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             const auto phi = solution[lev]->const_array(mfi);
             const auto beta = face_coefficient[lev][d].const_array(mfi);
             const auto face = face_velocity[lev][d].array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                face(i,j,k) -= dt * beta(i,j,k) *
-                    (phi(i,j,k) - phi(i-di,j-dj,k-dk)) / dx[d];
-            });
+            amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    face(i,j,k) -= dt * beta(i,j,k) *
+                        (phi(i,j,k) - phi(i-di,j-dj,k-dk)) / dx[d];
+                });
         }
-        // The pressure correction is also evaluated independently on each
-        // overlapping face.  Synchronize the valid copies as well as the
-        // ghosts before reconstructing the cell-centered increment.
         face_velocity[lev][d].FillBoundaryAndSync(
             geometry[lev].periodicity());
     }
 
-    // Retain the pre-projection cell field so the pressure-induced face
-    // increment can be applied without modifying the predictor itself.
     amrex::MultiFab& predictor = *cell_velocity_predictor[lev];
-    amrex::MultiFab::Copy(
-        predictor, velocity, 0, 0, AMREX_SPACEDIM, 1);
-    for (amrex::MFIter mfi(velocity, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    amrex::MultiFab::Copy(predictor, cell_velocity, 0, 0,
+        AMREX_SPACEDIM, 1);
+    for (amrex::MFIter mfi(cell_velocity, amrex::TilingIfNotGPU());
+         mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
-        const auto u = velocity.array(mfi);
+        const auto u = cell_velocity.array(mfi);
         const auto u_predictor = predictor.const_array(mfi);
         amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM>
             projected_face;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
             projected_face[d] = face_velocity[lev][d].const_array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                const int di = d == 0;
-                const int dj = d == 1;
-                const int dk = d == 2;
-                const Set::Scalar predictor_face_lo = 0.5 *
-                    (u_predictor(i-di,j-dj,k-dk,d) +
-                     u_predictor(i,j,k,d));
-                const Set::Scalar predictor_face_hi = 0.5 *
-                    (u_predictor(i,j,k,d) +
-                     u_predictor(i+di,j+dj,k+dk,d));
-                const Set::Scalar face_increment = 0.5 *
-                    ((projected_face[d](i,j,k) - predictor_face_lo) +
-                     (projected_face[d](i+di,j+dj,k+dk) -
-                      predictor_face_hi));
-
-                u(i,j,k,d) = u_predictor(i,j,k,d) + face_increment;
-            }
-        });
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                {
+                    const int di = d == 0;
+                    const int dj = d == 1;
+                    const int dk = d == 2;
+                    const Set::Scalar predictor_face_lo = 0.5 *
+                        (u_predictor(i-di,j-dj,k-dk,d) +
+                         u_predictor(i,j,k,d));
+                    const Set::Scalar predictor_face_hi = 0.5 *
+                        (u_predictor(i,j,k,d) +
+                         u_predictor(i+di,j+dj,k+dk,d));
+                    u(i,j,k,d) = u_predictor(i,j,k,d) + 0.5 *
+                        ((projected_face[d](i,j,k) - predictor_face_lo) +
+                         (projected_face[d](i+di,j+dj,k+dk) -
+                          predictor_face_hi));
+                }
+            });
     }
 }
 }

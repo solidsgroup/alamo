@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+def moments(path):
+    ds = testlib.yt.load(path)
+    data = ds.all_data()
+    volume = data[("index", "cell_volume")].to_ndarray()
+    density = data[("boxlib", "density")].to_ndarray()
+    ux = data[("boxlib", "velocityx")].to_ndarray()
+    uy = data[("boxlib", "velocityy")].to_ndarray()
+    x = data[("index", "x")].to_ndarray()
+    y = data[("index", "y")].to_ndarray()
+    mass = (density * volume).sum()
+    momentum_x = (density * ux * volume).sum()
+    momentum_y = (density * uy * volume).sum()
+    center_x = 0.5 * float(ds.domain_width[0])
+    center_y = 0.5 * float(ds.domain_width[1])
+    angular_momentum = (density *
+        ((x-center_x)*uy - (y-center_y)*ux) * volume).sum()
+    inertia = (density *
+        ((x-center_x)**2 + (y-center_y)**2) * volume).sum()
+    return (mass, momentum_x, momentum_y, angular_momentum, inertia,
+            testlib.numpy.sqrt(ux*ux + uy*uy).max())
+
+
+plotfiles = sorted(glob.glob(f"{sys.argv[1]}/*cell/"))
+if len(plotfiles) != 2:
+    raise RuntimeError(
+        "Liquid-solid capillary regression requires initial and final plotfiles")
+
+initial = moments(plotfiles[0])
+final = moments(plotfiles[-1])
+mean_velocity_change = testlib.numpy.hypot(
+    final[1]-initial[1], final[2]-initial[2]) / initial[0]
+angular_rate_change = abs(final[3]-initial[3]) / initial[4]
+capillary_velocity = (0.85 / (2375.0 * 92.0e-6))**0.5
+capillary_rate = capillary_velocity / 92.0e-6
+
+if mean_velocity_change > 1.0e-4 * capillary_velocity:
+    raise RuntimeError(
+        "Internal liquid-solid wetting generated mixture translation: "
+        f"{mean_velocity_change:.3e} m/s")
+if angular_rate_change > 1.0e-5 * capillary_rate:
+    raise RuntimeError(
+        "Internal liquid-solid wetting generated mixture rotation: "
+        f"{angular_rate_change:.3e} 1/s")
+if final[5] < 1.0e-5:
+    raise RuntimeError(
+        "Asymmetric coated particle did not exercise the capillary force")
+
+print("LowMach conservative liquid-solid wetting regression passed: "
+      f"translation={mean_velocity_change:.3e} m/s, "
+      f"rotation={angular_rate_change:.3e} 1/s, "
+      f"peak_speed={final[5]:.3e} m/s")
