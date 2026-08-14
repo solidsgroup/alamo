@@ -23,7 +23,7 @@ public:
     ~PNG() = default;
 
     //enum Type {XYZ, XY, YZ, XZ};
-    enum Fit { Stretch, FitWidth, FitHeight, Coord };
+    enum Fit { Stretch, FitWidth, FitHeight, Coord, Cell };
     enum Channel { R = 0, G = 1, B = 2, A = 3 };
 
 #ifndef ALAMO_NOPNG
@@ -94,10 +94,22 @@ public:
                 ximg(0) -= 0.5 - 0.5 / aspect_ratio;
                 ximg(0) *= aspect_ratio;
             }
-            else
+            else if (fit == Fit::Coord)
             {
                 ximg(0) = (x(0) - coord_lo(0)) / (coord_hi(0) - coord_lo(0));
                 ximg(1) = (x(1) - coord_lo(1)) / (coord_hi(1) - coord_lo(1));
+            }
+            else
+            {
+                // Treat pixels as cell-centered samples spanning the domain.
+                // Fine-grid cell centers then land exactly on pixels; other
+                // resolutions receive the corresponding bilinear average.
+                ximg(0) = ((x(0) - domain_lo(0)) /
+                    (domain_hi(0) - domain_lo(0)) * width - 0.5) /
+                    img_width;
+                ximg(1) = ((x(1) - domain_lo(1)) /
+                    (domain_hi(1) - domain_lo(1)) * height - 0.5) /
+                    img_height;
             }
 
             if (flip_x) ximg(0) = 1.0 - ximg(0);
@@ -223,6 +235,9 @@ public:
                                 "PNG coord.hi must be greater than coord.lo "
                                 "in each direction; use flip.x or flip.y "
                                 "to reverse an image");
+                }},
+                {"cell", [&]() {
+                    value.fit = Fit::Cell;
                 }}
             });
 

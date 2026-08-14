@@ -1,5 +1,5 @@
 // 
-// Initialize a field using a PNG image. (2D only)
+// Initialize one or more field components using PNG image channels. (2D only)
 //
 
 #ifndef IC_PNG_H
@@ -61,7 +61,19 @@ public:
 
         png.setDomain(domlo, domhi);
         const Channel selected_channel = channel;
+        const Set::Scalar output_offset = field_offset;
         const Set::Scalar output_value = field_value;
+        const bool map_components = use_component_channels;
+        const std::array<Channel, 4> component_channel = channels;
+        const int channel_precision = precision;
+        const std::array<Set::Scalar, 4> component_offset = field_offsets;
+        const std::array<Set::Scalar, 4> component_value = field_values;
+        const int ncomp = a_field[lev]->nComp();
+        if (map_components)
+            Util::AssertException(
+                INFO, TEST(ncomp == component_count),
+                "PNG channels must provide exactly the channels required "
+                "for each field component");
         const bool invert_image = invert;
         const bool threshold_image = use_threshold;
         const Set::Scalar image_threshold = threshold;
@@ -96,11 +108,6 @@ public:
 
 
                 std::array<Set::Scalar, 4> val = image(x);
-                Set::Scalar indicator = val[selected_channel];
-                if (threshold_image)
-                    indicator = indicator >= image_threshold ? 1.0 : 0.0;
-                if (invert_image) indicator = 1.0 - indicator;
-
                 Set::Scalar mask = 1.0;
                 if (mask_with_plane)
                 {
@@ -112,10 +119,38 @@ public:
                         static_cast<Set::Scalar>(distance >= 0.0);
                 }
 
-                field(i,j,k,0) = output_value * mask * indicator;
-                if (field.nComp() > 1)
-                    field(i,j,k,1) =
-                        output_value * mask * (1.0 - indicator);
+                if (map_components)
+                {
+                    for (int n = 0; n < ncomp; ++n)
+                    {
+                        Set::Scalar indicator;
+                        if (channel_precision == 16)
+                            indicator =
+                                (256.0 * val[component_channel[2*n]] +
+                                 val[component_channel[2*n+1]]) / 257.0;
+                        else
+                            indicator = val[component_channel[n]];
+                        if (threshold_image)
+                            indicator = indicator >= image_threshold ?
+                                1.0 : 0.0;
+                        if (invert_image) indicator = 1.0 - indicator;
+                        field(i,j,k,n) = mask *
+                            (component_offset[n] +
+                             component_value[n] * indicator);
+                    }
+                }
+                else
+                {
+                    Set::Scalar indicator = val[selected_channel];
+                    if (threshold_image)
+                        indicator = indicator >= image_threshold ? 1.0 : 0.0;
+                    if (invert_image) indicator = 1.0 - indicator;
+                    field(i,j,k,0) = mask *
+                        (output_offset + output_value * indicator);
+                    if (field.nComp() > 1)
+                        field(i,j,k,1) = mask *
+                            (output_offset + output_value * (1.0 - indicator));
+                }
 
             });
         }
@@ -132,7 +167,15 @@ private:
     Util::PNG png;
     Channel channel = Channel::G;
     Unit unit = Unit::Less();
+    Set::Scalar field_offset = 0.0;
     Set::Scalar field_value = 1.0;
+    bool use_component_channels = false;
+    int component_count = 0;
+    int precision = 8;
+    std::array<Channel, 4> channels = {
+        Channel::R, Channel::G, Channel::B, Channel::A};
+    std::array<Set::Scalar, 4> field_offsets = {0.0, 0.0, 0.0, 0.0};
+    std::array<Set::Scalar, 4> field_values = {1.0, 1.0, 1.0, 1.0};
     bool invert = false;
     bool use_threshold = false;
     Set::Scalar threshold = 0.5;
@@ -156,8 +199,77 @@ public:
         else if (channel == "a" || channel == "A") value.channel = Channel::A;
         else Util::Abort(INFO, "Invalid value for bmp channel - should be r/g/b/a but received '", channel, "'");
 
-        pp.query_default(
-            "value", value.field_value, "1.0", value.unit);
+        value.use_component_channels = pp.contains("channels");
+        if (value.use_component_channels)
+        {
+            pp.query_default("precision", value.precision, 8);
+            if (value.precision != 8 && value.precision != 16)
+                Util::Exception(INFO, "PNG precision must be 8 or 16 bits");
+            std::vector<std::string> channel_names;
+            pp.queryarr_required("channels", channel_names);
+            if (channel_names.empty() || channel_names.size() > 4)
+                Util::Exception(
+                    INFO, "PNG channels must contain between one and four "
+                    "entries");
+            const int channel_count =
+                static_cast<int>(channel_names.size());
+            for (int n = 0; n < channel_count; ++n)
+            {
+                if (channel_names[n] == "r" || channel_names[n] == "R")
+                    value.channels[n] = Channel::R;
+                else if (channel_names[n] == "g" || channel_names[n] == "G")
+                    value.channels[n] = Channel::G;
+                else if (channel_names[n] == "b" || channel_names[n] == "B")
+                    value.channels[n] = Channel::B;
+                else if (channel_names[n] == "a" || channel_names[n] == "A")
+                    value.channels[n] = Channel::A;
+                else
+                    Util::Exception(
+                        INFO, "Invalid PNG channel '", channel_names[n],
+                        "'; expected r, g, b, or a");
+            }
+            const int channels_per_component = value.precision / 8;
+            if (channel_names.size() % channels_per_component != 0)
+                Util::Exception(
+                    INFO, "PNG channels must provide ",
+                    channels_per_component, " channel(s) per component for ",
+                    value.precision, "-bit precision");
+            value.component_count =
+                static_cast<int>(channel_names.size()) /
+                channels_per_component;
+
+            std::vector<Set::Scalar> offsets;
+            if (pp.contains("offset"))
+                pp.queryarr_required("offset", offsets, value.unit);
+            else
+                offsets = {0.0};
+            std::vector<Set::Scalar> values;
+            pp.queryarr_required("value", values, value.unit);
+            if (offsets.size() != 1 && offsets.size() !=
+                    static_cast<std::size_t>(value.component_count))
+                Util::Exception(
+                    INFO, "PNG offset must contain either one value or one "
+                    "value per field component");
+            if (values.size() != 1 && values.size() !=
+                    static_cast<std::size_t>(value.component_count))
+                Util::Exception(
+                    INFO, "PNG value must contain either one value or one "
+                    "value per field component");
+            for (int n = 0; n < value.component_count; ++n)
+            {
+                value.field_offsets[n] =
+                    offsets.size() == 1 ? offsets[0] : offsets[n];
+                value.field_values[n] =
+                    values.size() == 1 ? values[0] : values[n];
+            }
+        }
+        else
+        {
+            pp.query_default(
+                "offset", value.field_offset, "0.0", value.unit);
+            pp.query_default(
+                "value", value.field_value, "1.0", value.unit);
+        }
         pp.query_default("invert", value.invert, false);
         value.use_threshold = pp.contains("threshold");
         if (value.use_threshold)
