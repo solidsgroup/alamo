@@ -108,7 +108,6 @@ Al_solid.rigid.relaxation_time = 1.0e-8_s
 # Retain the fresh provisional body momentum and predict the pressure impulse
 # from the preceding step. Anderson corrections are used only when that cheap
 # predictor misses the requested coupling tolerance.
-Al_solid.rigid.coupling = anderson
 Al_solid.rigid.max_iterations = 3
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s

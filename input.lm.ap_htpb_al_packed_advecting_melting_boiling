@@ -109,8 +109,9 @@ interface.enabled = 1
 # Conservatively advect the material partial densities.  Superbee below is
 # the accepted bounded transport path; no independent level-set field or
 # explicit interface-restoration equation is used in this production case.
-interface.transport.type = advected
+interface.model.type = direct_surface_tension
 interface.liquid_solid.enabled = 1
+interface.liquid_solid.surface_delta_regularization = 1.0e-12
 # Surface tension is reserved for liquid-gas and liquid-liquid interfaces.
 interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
 # Each liquid-solid interface gets a positive diffuse-interface regularizer.
@@ -154,7 +155,6 @@ Al_solid.rigid.relaxation_time = 1.0e-8_s
 # Retain the fresh provisional body momentum and predict the pressure impulse
 # from the preceding step. Anderson corrections are used only when that cheap
 # predictor misses the requested coupling tolerance.
-Al_solid.rigid.coupling = anderson
 Al_solid.rigid.max_iterations = 6
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
