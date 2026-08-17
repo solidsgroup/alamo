@@ -43,7 +43,7 @@
 
 plot_file = tests/LowMachElasticInclusion/output
 amr.plot_dt = 2.0e-7_s
-amr.max_level = 0
+amr.max_level = 1
 # Domain is a slight rectangle: the HTPB block is the same 3.0mm x 3.0mm
 # square as before (n_cell 160 in x), with a 0.6mm Gas layer stacked on top
 # (n_cell 32 more in y at the same dx) to deliver the top-face pressure
