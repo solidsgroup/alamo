@@ -2251,27 +2251,13 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
 }
 
-//
-// Build the elastic model field and interfacial body force (rhs) from the
-// rigid solid species composition. Called from
-// Base::Mechanics<elastic_model_type>::TimeStepBegin.
-//
-// - model_mf is set to the volume-fraction-weighted mixture of each rigid
-//   solid species' elastic constants (normalized so the weights sum to 1
-//   inside the solid). Outside the solid the model is either masked out by
-//   psi = rigid_eta_mf, or -- when elastic.void.model.* is set -- blended
-//   down to a soft void model as the rigid fraction goes to zero, with psi
-//   disabled (see Parse). The latter avoids the O(1e-8) psi floor
-//   reintroducing the full solid/void modulus contrast.
-// - rhs_mf is set to a constant traction acting normal to the solid/fluid
-//   interface, plus (when elastic.apply_fluid_pressure is set) the local
-//   fluid pressure: rhs = elastic.traction * grad(rigid_eta)
-//   - pressure * grad(rigid_eta). The minus sign is needed because
-//   grad(rigid_eta) points from fluid into solid, so a positive
-//   (compressive) fluid pressure must push back against that gradient.
-//   This is still one-way (fluid -> solid): the resulting displacement/
-//   stress is not yet fed back into the momentum equation.
-//
+// Builds model_mf (volume-fraction-weighted mixture of the rigid solid
+// species, normalized to sum to 1 inside the solid; blended down to
+// elastic.void_model as the rigid fraction -> 0 when void_model_on, else
+// masked out by psi = rigid_eta_mf) and rhs_mf (a constant traction plus,
+// optionally, the local fluid pressure acting normal to the solid/fluid
+// interface -- still one-way, not fed back into the momentum equation).
+// Called from Base::Mechanics<elastic_model_type>::TimeStepBegin.
 void
 LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
@@ -2279,8 +2265,7 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
     const int nrigid = static_cast<int>(rigid_solid_species.size());
 
-    // Fixed-size, capture-by-value copy: std::vector is not usable in a
-    // device lambda.
+    // std::vector isn't usable in a device lambda, so copy into a fixed-size array.
     std::array<elastic_model_type, Model::Chemistry::MAX_SPECIES> models{};
     for (int m = 0; m < nrigid; ++m)
         models[m] = elastic_model[rigid_solid_species[m]];
@@ -2308,19 +2293,19 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             amrex::Box bx       = mfi.grownnodaltilebox() & domain;
 
             Set::Patch<elastic_model_type> model = model_mf.Patch(lev, mfi);
-            Set::Patch<Set::Vector>        rhs   = rhs_mf.Patch(lev, mfi);
-            Set::Patch<const Set::Scalar>  rigid_eta   = rigid_eta_mf.Patch(lev, mfi);
-            Set::Patch<const Set::Scalar>  species_eta = rigid_species_eta_mf.Patch(lev, mfi);
-            Set::Patch<const Set::Scalar>  pressure    = pressure_mf.Patch(lev, mfi);
+            Set::Patch<Set::Vector> rhs = rhs_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> species_eta = rigid_species_eta_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev, mfi);
 
-            const Set::Scalar traction  = elastic.traction;
+            const Set::Scalar traction = elastic.traction;
             const Set::Scalar etacutoff = elastic.etacutoff;
             const Set::Scalar eta_small = small;
-            const bool use_fluid_pressure = (elastic.apply_fluid_pressure != 0.0);
+            const bool use_fluid_pressure = elastic.apply_fluid_pressure != 0.0;
             const elastic_model_type void_model = elastic.void_model;
             const bool void_on = elastic.void_model_on;
-            const bool use_hs_mixing = (elastic.mixing_rule == "hashin-shtrikman");
-            const bool use_reuss_mixing = (elastic.mixing_rule == "reuss");
+            const bool use_hs_mixing = elastic.mixing_rule == "hashin-shtrikman";
+            const bool use_reuss_mixing = elastic.mixing_rule == "reuss";
 
             // Interfacial body force: a constant traction plus, optionally,
             // the local fluid pressure. grad_eta points from fluid into the
@@ -2329,19 +2314,12 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             // Flame::UpdateModel's chamber-pressure term.
             amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector grad_eta =
-                    Numeric::CellGradientOnNode(rigid_eta, i, j, k, 0, DX);
-                Set::Scalar eta_node =
-                    Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0);
-                if (eta_node > etacutoff)
-                {
-                    Set::Scalar p_node = use_fluid_pressure
-                        ? Numeric::Interpolate::CellToNodeAverage(pressure, i, j, k, 0)
-                        : 0.0;
-                    rhs(i,j,k) = traction * grad_eta - p_node * grad_eta;
-                }
-                else
-                    rhs(i,j,k) = Set::Vector::Zero();
+                Set::Vector grad_eta = Numeric::CellGradientOnNode(rigid_eta, i, j, k, 0, DX);
+                Set::Scalar eta_node = Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0);
+                if (eta_node <= etacutoff) { rhs(i,j,k) = Set::Vector::Zero(); return; }
+                Set::Scalar p_node = use_fluid_pressure
+                    ? Numeric::Interpolate::CellToNodeAverage(pressure, i, j, k, 0) : 0.0;
+                rhs(i,j,k) = (traction - p_node) * grad_eta;
             });
 
             // Composition-weighted model
@@ -2351,8 +2329,7 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 Set::Scalar total = 0.0;
                 for (int m = 0; m < nrigid; ++m)
                 {
-                    w[m] = Util::Max(Numeric::Interpolate::CellToNodeAverage(
-                                         species_eta, i, j, k, m), 0.0);
+                    w[m] = Util::Max(Numeric::Interpolate::CellToNodeAverage(species_eta, i, j, k, m), 0.0);
                     total += w[m];
                 }
                 // Normalize so the weights sum to exactly 1 inside the solid.
