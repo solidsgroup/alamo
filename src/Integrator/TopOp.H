@@ -23,6 +23,7 @@
 #include "IC/Voronoi.H"
 #include "IC/Constant.H"
 #include "IC/BMP.H"
+#include "IC/Expression.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -79,7 +80,7 @@ public:
         }
 
         // Initial condition for psi field
-        pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
+        pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
 
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01); // Refinement threshold based on eta
         pp_query_default("alpha", value.alpha, 1.0); // :math:`\alpha` parameter

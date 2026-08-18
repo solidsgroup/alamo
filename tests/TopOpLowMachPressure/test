@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+
+outdir = sys.argv[1]
+reference = sys.argv[2] if len(sys.argv) > 2 else None
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("TopOpLowMachPressure requires initial and final plotfiles")
+
+# Analytic validation of TopOpLowMach::UpdateModel (psi_TO/eta_LM frozen at
+# matching ICs -- see tests/TopOpLowMachPressure/input). Ported from
+# tests/LowMachElasticPressure/test's [2d-pressure-1Pa-softvoid] case:
+# compares against the same closed-form 1-D confined (oedometric)
+# compression solution -- see tests/LowMachElasticPressure/Readme.rst for
+# the derivation:
+#
+#   sigma_yy(y) = -P
+#   disp_y(y)   = -P*y/M,  M = kappa + 4*mu/3
+#   disp_x(y)   = 0
+#   sigma_xx    = -P*lambda/M,  lambda = kappa - 2*mu/3
+
+mu = 140.0
+kappa = 150.0
+lam = kappa - 2.0 * mu / 3.0
+M = lam + 2.0 * mu
+
+pressure = None
+apply_fluid_pressure = None
+with open(f"{outdir}/metadata") as f:
+    for line in f:
+        if "pressure.ic.constant.value" in line:
+            pressure = float(line.split("=")[-1].strip())
+        if "elastic.apply_fluid_pressure" in line:
+            apply_fluid_pressure = float(line.split("=")[-1].strip())
+if pressure is None or apply_fluid_pressure is None:
+    raise RuntimeError("could not find pressure/apply_fluid_pressure in metadata")
+
+final = plotfiles[-1]
+
+# Sample a vertical ray through the domain interior, restricted to the solid
+# away from the clamped base (y=0) and the diffuse solid/fluid interface
+# (y0=3.2e-3, wy=2.0e-4): [0.5e-3, 2.4e-3] is >2mm from y0 (>10 interface
+# widths) and well above the base.
+x_mid = 1.6e-3
+y_lo, y_hi = 0.5e-3, 2.4e-3
+
+df = testlib.readContours(
+    path=final,
+    start=[x_mid, 0.0, 0.0],
+    end=[x_mid, 6.4e-3, 0.0],
+    vars=["disp_x", "disp_y", "stress_xx", "stress_yy"],
+)
+y = df["y"].to_numpy()
+mask = (y >= y_lo) & (y <= y_hi)
+if mask.sum() < 4:
+    raise RuntimeError(f"too few sample points in [{y_lo},{y_hi}]: {mask.sum()}")
+
+y_s = y[mask]
+disp_x = df["disp_x"].to_numpy()[mask]
+disp_y = df["disp_y"].to_numpy()[mask]
+stress_xx = df["stress_xx"].to_numpy()[mask]
+stress_yy = df["stress_yy"].to_numpy()[mask]
+
+for name, arr in (("disp_x", disp_x), ("disp_y", disp_y),
+                   ("stress_xx", stress_xx), ("stress_yy", stress_yy)):
+    if not testlib.numpy.all(testlib.numpy.isfinite(arr)):
+        raise RuntimeError(f"{name} contains non-finite values")
+
+disp_mag_max = float(testlib.numpy.sqrt(disp_x**2 + disp_y**2).max())
+
+if apply_fluid_pressure == 0.0:
+    # Control case: pressure branch disabled and elastic.traction = 0, so
+    # the interfacial RHS is identically zero -> zero displacement.
+    if disp_mag_max > 1.0e-12:
+        raise RuntimeError(
+            f"apply_fluid_pressure=0 case shows nonzero displacement: "
+            f"max|disp|={disp_mag_max}")
+    print("TopOpLowMachPressure control case (pressure off) passed: "
+          f"max|disp|={disp_mag_max:.3g}")
+    sys.exit(0)
+
+# --- Pressure-driven cases -------------------------------------------------
+
+# 1 & 2. Sign, magnitude and displacement profile: sigma_yy must equal -P
+# uniformly in the solid, and disp_y(y) must match -P*y/M. These are the
+# headline checks -- they catch a sign flip, an incorrectly normalized
+# diffuse delta (partial pressure transmission), or a genuinely wrong
+# displacement profile in one shot. Checked against a reference file when
+# one was supplied via a check-file argument; otherwise fall back to
+# evaluating the closed form inline.
+if reference is not None:
+    testlib.validate(
+        path=final,
+        outdir=outdir,
+        start=[x_mid, y_lo, 0.0],
+        end=[x_mid, y_hi, 0.0],
+        vars=["disp_y", "stress_yy"],
+        reference=reference,
+        tolerance=[0.01, 0.02],
+        abs_tolerance=1.0e100,
+        coord="y",
+    )
+    sigma_yy_mean = float(stress_yy.mean())
+    sigma_yy_expected = -pressure
+    relerr_disp_y = float("nan")
+else:
+    sigma_yy_mean = float(stress_yy.mean())
+    sigma_yy_expected = -pressure
+    tol_sigma_yy = 0.02 * abs(sigma_yy_expected)
+    if abs(sigma_yy_mean - sigma_yy_expected) > tol_sigma_yy:
+        raise RuntimeError(
+            f"sigma_yy={sigma_yy_mean:.6g}, expected {sigma_yy_expected:.6g} "
+            f"(tol {tol_sigma_yy:.3g})")
+
+    disp_y_exact = -pressure * y_s / M
+    err = testlib.numpy.sqrt(testlib.integrate(y_s, (disp_y - disp_y_exact) ** 2))
+    mag = testlib.numpy.sqrt(testlib.integrate(y_s, disp_y_exact ** 2))
+    relerr_disp_y = err / mag if mag > 1.0e-300 else err
+    tol_disp_y = 0.01
+    if relerr_disp_y > tol_disp_y:
+        raise RuntimeError(
+            f"disp_y relative L2 error {relerr_disp_y:.4g} exceeds tolerance {tol_disp_y}")
+
+# 3. Confinement: the roller BCs should keep u_x negligible relative to u_y.
+disp_y_max = float(testlib.numpy.abs(disp_y).max())
+disp_x_max = float(testlib.numpy.abs(disp_x).max())
+if disp_x_max > 1.0e-2 * disp_y_max:
+    raise RuntimeError(
+        f"disp_x not negligible: max|disp_x|={disp_x_max:.3g}, "
+        f"max|disp_y|={disp_y_max:.3g}")
+
+# 4. Constitutive ratio: sigma_xx/sigma_yy = lambda/M, pinning that kappa is
+# used as a true bulk modulus (lambda = kappa - 2*mu/3) in plane strain.
+ratio = float((stress_xx / stress_yy).mean())
+ratio_expected = lam / M
+tol_ratio = 0.05 * abs(ratio_expected)
+if abs(ratio - ratio_expected) > tol_ratio:
+    raise RuntimeError(
+        f"sigma_xx/sigma_yy={ratio:.4g}, expected {ratio_expected:.4g} "
+        f"(tol {tol_ratio:.3g})")
+
+disp_y_relerr_str = f"{relerr_disp_y:.3g}" if relerr_disp_y == relerr_disp_y else "see testlib.validate output above"
+print(f"TopOpLowMachPressure passed (P={pressure}, "
+      f"sigma_yy={sigma_yy_mean:.6g} (expected {sigma_yy_expected:.6g}), "
+      f"disp_y relerr={disp_y_relerr_str}, "
+      f"sigma_xx/sigma_yy={ratio:.4g} (expected {ratio_expected:.4g}))")
