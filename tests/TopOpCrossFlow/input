@@ -1,0 +1,298 @@
+#@ [2d-smoke]
+#@ exe = topop
+#@ dim = 2
+#@ timeout = 1800
+#@ check = false
+
+# End-to-end validation of Integrator::TopOpLowMach (src/Integrator/TopOpLowMach.H)
+# under a real cross-flow load: a unit square with fluid entering at xlo and
+# leaving at xhi, no-slip channel walls at ylo/yhi, Re = 1, and topology
+# optimization driven toward 20% solid volume fraction.
+#
+# This is a smoke/exploratory test (check = false): it proves the coupled
+# FLOW/TOPOP/RELAX cycle (see TopOpLowMach.H's class comment) runs stably to
+# completion under a live, non-frozen pressure load and that psi_TO's mean
+# moves from its uniform 0.2 IC toward the volume constraint under real flow
+# forcing. It does not check a converged optimum -- reaching one is a
+# many-cycle, problem-tuning exercise, not a fixed regression target.
+# tests/TopOpLowMachPressure validates UpdateModel's pressure coupling
+# analytically with fields frozen; tests/TopOpLowMachRelax validates
+# eta_LM's void-safety; tests/TopOpLowMach validates the phase counter
+# itself. This test is the first one that runs all three together with the
+# fields actually alive.
+#
+# Reynolds number: Re = rho*U*L/mu. Domain L = 1, inlet velocity U = 1 (as
+# in tests/LMDrivenCavity). Air at P = 1e5 Pa, T = 300 K, MW = 28 g/mol
+# gives rho ~= 1.12254198039921 kg/m^3 (same ideal-gas state as
+# LMDrivenCavity). Re = 1 therefore requires mu = rho*U*L = rho.
+#
+# amr.max_level IS KEPT AT 0, not the requested 1. Root-caused (see
+# tests/TopOpLowMachPressure/input, reproduced there with only
+# amr.max_level=1 overridden): NOT a TopOpLowMach coupling bug -- ruled out
+# both original suspects. (1) Forcing the level-1 patch through LowMach's
+# own velocity_refinement_criterion instead of TopOp's psi-gradient tagging
+# reproduces the identical divergence, so it isn't TopOp's tagging kernel.
+# (2) model_mf/rhs_mf are finite and physically reasonable at both levels
+# right before the failing solve (checked via a temporary debug print), so
+# it isn't psi_mf-reuse/psi_on-toggle data corruption.
+#
+# It is a genuine interface-resolution requirement for the composite
+# (coarse+fine) MLMG elastic solve: at this test's dx_level0 = 1e-4, the
+# usual diffuse-interface width (wy = 2e-4, i.e. 2 coarse cells) diverges,
+# but widening it converges cleanly -- bisected the threshold directly on
+# tests/TopOpLowMachPressure/input at amr.max_level=1: wy=7.0e-4 fails,
+# wy=7.5e-4 succeeds (~7.5 coarse / ~15 fine cells across the interface).
+# This threshold barely moves with void contrast (fails the same way at
+# both the 200x contrast validated by tests/LowMachElasticInclusion and
+# the ~1e4x this test's elastic.void.model uses), so it's specifically
+# about cells-per-interface at the coarse-fine AMR boundary, not modulus
+# contrast. Matches, in kind, the codebase's own documented MLMG
+# sensitivity to under-resolved interfaces in
+# tests/LowMachElasticInclusionThinInterface -- just showing up at the AMR
+# level boundary instead of MG coarsening within one level, with a much
+# tighter margin once a second level is involved. Every existing
+# TopOpLowMach test (including this one) uses wy=2e-4, fine at
+# amr.max_level=0 but well under the ~7.5e-4 threshold amr.max_level=1
+# needs here. amr.regrid_int is left at 100 below so flipping max_level
+# back to 1 (with a wider interface, or a finer dx_level0) requires no
+# other input change.
+
+alamo.program = topop_lowmach
+plot_file = tests/TopOpCrossFlow/output
+
+amr.plot_int = 205
+amr.max_level = 0
+amr.n_cell = 64 64
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = 100
+amr.grid_eff = 0.7
+amr.cell.all = 1
+
+# 300 full FLOW/TOPOP/RELAX cycles (41 steps each = 12300 steps). Originally
+# this test was capped at one cycle because the second cycle's mandatory
+# elastic solve failed to converge; that turned out to be a consequence of
+# the mis-scaled moduli documented below (Solid.elastic.model), not the
+# mass-backfill gap it was first attributed to -- once the moduli were
+# rescaled, multi-cycle runs (verified out to 30 cycles by hand, then this
+# 300-cycle run) are stable throughout. The mass-backfill gap is still
+# real and still deferred; it just isn't what was breaking cycle 2.
+timestep = 4.0e-3
+stop_time = 49.2
+dynamictimestep.on = 0
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+# rho ~= 1.12254198039921 kg/m^3 for P=1e5 Pa, T=300 K, MW=28 g/mol (see
+# tests/LMDrivenCavity/input). With U = L = 1, mu = rho gives Re = 1.
+gas.transport.mixture_averaged.mu = 1.12254198039921_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas Solid
+Gas.mechanics   = fluid
+Solid.mechanics = rigid_solid
+
+Solid.reference_density = 1950.0_kg/m^3
+# Moduli rescaled well above the applied pressure (1e5 Pa) -- see the note
+# by elastic.void.model below. mu/kappa=140/150 (matching the other
+# TopOpLowMach tests, which apply pressure~1) made the pressure ~700x the
+# material stiffness here, producing a grossly unphysical single-Newton-
+# iteration displacement (disp_y ~ -107 in a domain of size 1) that flooded
+# AdvancePsi's strain-energy driving force and slammed psi_TO to 0/1 in a
+# single step instead of moving it incrementally.
+Solid.elastic.model.mu    = 1.4e7
+Solid.elastic.model.kappa = 1.5e7
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-3_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.update_pressure = 1
+diagnostics.interval = 0
+diagnostics.extended_fields = 1
+
+velocity_refinement_criterion = 5.0e-2
+
+# Initial guess: a solid strip along the ylo wall, height matched to
+# volume0frac = 0.2 (y0 = 0.2 of a unit-height domain). A full circular blob
+# centered in the channel (tried first) blocks ~50% of the Re=1 channel and
+# reliably triggers a genuine flow-solver blowup (CFL collapses to the
+# dynamictimestep floor within ~15 steps even with dynamic timestepping
+# enabled) well before AMR or the coupling logic are even implicated -- an
+# IC severity problem, not a bug. A near-wall strip still breaks symmetry
+# (elastic BCs clamp ylo/yhi; the strip interacts differently with the
+# no-slip bottom wall's boundary layer than a free top) without the extreme
+# blockage.
+Solid.density.ic.type = expression
+Solid.density.ic.expression.constant.rho = 1950.0
+Solid.density.ic.expression.constant.y0  = 0.2
+Solid.density.ic.expression.constant.w   = 0.04
+Solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/w))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 100000.0
+Gas.density.ic.expression.constant.R  = 296.9
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.y0 = 0.2
+Gas.density.ic.expression.constant.w  = 0.04
+Gas.density.ic.expression.region0 = "(P/(R*T))*0.5*(1.0+tanh((y-y0)/w))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+
+# Cross flow: uniform inflow at xlo, natural outflow at xhi, no-slip
+# channel walls at ylo/yhi.
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = neumann neumann
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = dirichlet dirichlet
+velocity.bc.constant.val.xlo = 1.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# Outlet pressure pinned at the IC value; all other faces Neumann (velocity
+# is prescribed there instead).
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = neumann
+pressure.bc.constant.val.xhi = 100000.0
+
+elastic.type = static
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.solver.verbose = 0
+elastic.solver.nriters = 1
+elastic.zero_out_displacement = 0
+# 200x void contrast, matching the window validated by
+# tests/LowMachElasticInclusion (not the ~1e4x contrast the other
+# TopOpLowMach tests use, which is fine at their much smaller pressure/
+# modulus ratio but was one of several factors ruled out during the
+# amr.max_level=1 divergence investigation above).
+elastic.void.model.mu    = 7.0e4
+elastic.void.model.kappa = 7.5e4
+elastic.max_coarsening_level = 2
+
+# One full FLOW/TOPOP/RELAX cycle (see TopOpLowMach.H's class comment):
+# 30 FLOW steps (~1 channel residence time at Re=1, dt~4e-3, L=1, U=1),
+# then 1 TOPOP step, then 10 RELAX steps, then repeat.
+elastic.interval = 41
+
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = trac trac
+elastic.bc.constant.type.xhi = trac trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = disp disp
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = disp disp
+elastic.bc.constant.type.xhiyhi = disp disp
+
+topop.n_flow  = 30
+topop.n_relax = 10
+# Explicit-Euler diffusion stability for AdvancePsi's -beta*Laplacian(psi)
+# term needs L*beta*dt <= dx^2/4 = (1/64)^2/4 = 6.1e-5, i.e. dt <= 0.061
+# with L.str=1e-3, beta=1 below. dt=0.1 (used originally) was already 1.6x
+# over that limit on its own, on top of the much larger effect the
+# mis-scaled moduli were having on the driving force (see the note by
+# Solid.elastic.model above); 0.02 leaves ~3x margin.
+topop.dt = 0.02
+topop.relax.dt = 1.0e-2
+
+topop.model.mu    = 1.4e7
+topop.model.kappa = 1.5e7
+
+topop.psi.ic.type = expression
+topop.psi.ic.expression.constant.y0 = 0.2
+topop.psi.ic.expression.constant.w  = 0.04
+topop.psi.ic.expression.region0 = "0.5*(1.0-tanh((y-y0)/w))"
+topop.psi.bc.type.xlo = NEUMANN
+topop.psi.bc.type.xhi = NEUMANN
+topop.psi.bc.type.ylo = NEUMANN
+topop.psi.bc.type.yhi = NEUMANN
+
+topop.alpha = 1.0
+topop.beta  = 1.0
+topop.gamma = 1.0
+topop.L.str = 1.0e-3
+# Time-dependent volume constraint (topop.lambda is a
+# Numeric::Interpolator::Linear, see src/Numeric/Interpolator/Linear.H;
+# keyed on m_topop_time, which advances by topop.dt = 0.02 per TOPOP step,
+# one per 41-step cycle -- so this is really "per cycle", not per physical
+# second). A constant lambda.str = 1.0 left psi_TO drifting monotonically
+# away from volume0frac (0.200 -> 0.207 over 30 cycles, never turning
+# back): at this modulus scale the elastic-energy driving-force term
+# (gamma*StrainEnergy*psi, mean ~1e4) outweighs lambda*(volume-volume0)
+# (~1e-2 with lambda=1) by ~1e6x, so the constraint was numerically inert.
+#
+# First attempt ramped lambda.str up to 1.0e6 (matching the elastic term's
+# own magnitude) and blew up the flow at cycle ~107: unlike the elastic/
+# interface terms, lambda*(volume-volume0) is spatially UNIFORM (volume is
+# a single scalar, not a per-cell field), so it shifts every cell of psi_TO
+# by the same amount in one step -- L*dt*lambda*volume_error. At lambda=1e6
+# with a ~0.015 volume error that shift is ~0.3 in a single cycle: the same
+# saturating-step pathology as the original mis-scaled moduli, just from a
+# different term, and it injected a large enough density jump via
+# PushEtaToComponentDensity to blow up the flow's projection solve.
+#
+# The volume term only needs to be strong enough to reverse the ~0.0002/
+# cycle drift measured with lambda=1 -- not to match the elastic term's
+# absolute size. lambda.str = 5.0e4 gives L*dt*lambda*volume_error ~
+# 1e-3*0.02*0.02*5e4 ~ 0.02 per cycle at a representative ~0.02 volume
+# error early on: a correction a few times larger than the drift it needs
+# to cancel, not two orders of magnitude larger. Ramped over the full
+# 300-cycle run (topop_time 0 -> 6.0) rather than the first half, so the
+# constraint strengthens gradually alongside the shape's own evolution
+# instead of stepping in abruptly.
+topop.lambda.str = (0.0,6.0:1.0,5.0e4)
+topop.volume0frac = 0.2
+
+eta_lm.ic.type = expression
+eta_lm.ic.expression.constant.y0 = 0.2
+eta_lm.ic.expression.constant.w  = 0.04
+eta_lm.ic.expression.region0 = "0.5*(1.0-tanh((y-y0)/w))"
