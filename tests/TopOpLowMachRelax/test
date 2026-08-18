@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+import glob
+import sys
+
+sys.path.insert(0, "../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+if len(plotfiles) < 2:
+    raise RuntimeError("TopOpLowMachRelax requires initial and final plotfiles")
+final = plotfiles[-1]
+
+# See input for the full setup. psi_TO = solid below y0_psi=3.2e-3, minus a
+# circular hole (center (3.2e-3,1.6e-3), radius 8.0e-4) well inside the
+# solid. eta_LM starts as the same solid-below-y0 profile, no hole, offset
+# to y0_eta=3.4e-3.
+
+y0_psi = 3.2e-3
+xc, yc, R = 3.2e-3, 1.6e-3, 8.0e-4
+
+# --- 1. Interior hole must NOT nucleate in eta_LM -------------------------
+# Sample a horizontal ray straight through the hole's center. eta_LM there
+# started uniform (=1, from the no-hole IC) with zero gradient, so it must
+# stay close to 1 even though psi_TO is ~0 across most of this ray.
+df_hole = testlib.readContours(
+    path=final,
+    start=[0.0, yc, 0.0],
+    end=[6.4e-3, yc, 0.0],
+    vars=["eta_LM", "psi"],
+)
+x_hole = df_hole["x"].to_numpy()
+eta_hole = df_hole["eta_LM"].to_numpy()
+psi_hole = df_hole["psi"].to_numpy()
+
+mask_in_hole = (x_hole - xc) ** 2 <= (0.5 * R) ** 2  # well inside the hole
+if mask_in_hole.sum() < 2:
+    raise RuntimeError(f"too few sample points inside the hole: {mask_in_hole.sum()}")
+psi_in_hole = float(psi_hole[mask_in_hole].mean())
+eta_in_hole_min = float(eta_hole[mask_in_hole].min())
+if psi_in_hole > 0.1:
+    raise RuntimeError(
+        f"psi_TO inside the hole is {psi_in_hole:.3g}, expected ~0 -- "
+        f"test setup is wrong, not the thing under test")
+if eta_in_hole_min < 0.95:
+    raise RuntimeError(
+        f"eta_LM dipped to {eta_in_hole_min:.4g} inside the interior hole "
+        f"(psi_TO={psi_in_hole:.3g} there) -- RelaxEtaLM let a void "
+        f"nucleate where eta_LM had zero gradient, which the "
+        f"|grad(eta_LM)| factor is supposed to prevent")
+
+# --- 2. eta_LM range: the clamp in RelaxEtaLM must hold everywhere -------
+eta_all = df_hole["eta_LM"].to_numpy()
+if eta_all.min() < -1.0e-8 or eta_all.max() > 1.0 + 1.0e-8:
+    raise RuntimeError(
+        f"eta_LM out of [0,1]: min={eta_all.min():.4g}, max={eta_all.max():.4g}")
+
+# --- 3. Outer front must move to converge onto psi_TO's front ------------
+# Sample a vertical ray far from the hole (x=0.5e-3, >2mm from xc +/- R).
+# At y=y0_psi, eta_LM started near 0.5*(1+tanh(-1))~0.88 (still deep in its
+# own, offset solid region); after relaxation it should have moved close to
+# psi_TO's own value there, ~0.5 (the interface midpoint).
+x_far = 0.5e-3
+df_front = testlib.readContours(
+    path=final,
+    start=[x_far, 0.0, 0.0],
+    end=[x_far, 6.4e-3, 0.0],
+    vars=["eta_LM"],
+)
+y_front = df_front["y"].to_numpy()
+eta_front = df_front["eta_LM"].to_numpy()
+idx = int(testlib.numpy.argmin(testlib.numpy.abs(y_front - y0_psi)))
+eta_at_psi_front = float(eta_front[idx])
+if not (0.3 <= eta_at_psi_front <= 0.7):
+    raise RuntimeError(
+        f"eta_LM(x={x_far}, y=y0_psi={y0_psi}) = {eta_at_psi_front:.4g}, "
+        f"expected ~0.5 (converged onto psi_TO's front) -- started at "
+        f"~0.88 (unconverged); relaxation did not move the outer front")
+
+print(
+    "TopOpLowMachRelax passed: "
+    f"eta_LM inside interior hole stayed >= {eta_in_hole_min:.4g} (psi_TO~{psi_in_hole:.3g} there), "
+    f"outer front converged to eta_LM(y0_psi)={eta_at_psi_front:.4g} (target ~0.5)"
+)

@@ -81,8 +81,16 @@ public:
         value.eta_LM_bc = new BC::Constant::ZeroNeumann(1);
         value.AddField<Set::Scalar, Set::HC::Cell>(
             value.eta_LM_mf, value.eta_LM_bc, 1, 2, "eta_LM", true, false);
+        value.AddField<Set::Scalar, Set::HC::Cell>(
+            value.eta_LM_old_mf, value.eta_LM_bc, 1, 2, "eta_LM_old", false, false);
         pp.select<IC::Constant, IC::Expression>(
             "eta_lm.ic", value.ic_eta_LM, pp.forward_args(value.geom));
+        // TEMPORARY (see Advance below): the relaxation pseudo-time
+        // increment applied every physical step. dt = 0 (default) leaves
+        // eta_LM at its IC, matching commit 3's frozen-field behavior.
+        pp.pushPrefix("topop");
+        pp_query_default("relax.dt", value.topop_relax_dt, 0.0);
+        pp.popPrefix();
 
         LowMach::Parse(value, pp);
 
@@ -130,10 +138,87 @@ protected:
 
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
-        // No phase logic yet: psi_TO and eta_LM stay at their ICs until a
-        // later commit wires in AdvancePsi / eta_LM relaxation on their own
-        // pseudo-time schedule.
         LowMach::Advance(lev, time, dt);
+
+        // TEMPORARY: exercises RelaxEtaLM/PushEtaToComponentDensity every
+        // physical step (gated on topop.relax.dt > 0, default off) so they
+        // are reachable through the ordinary topop binary + input file --
+        // see tests/TopOpLowMachRelax. A later commit replaces this with
+        // real FLOW/TOPOP/RELAX phase dispatch, which calls these only
+        // during the RELAX phase on their own pseudo-time schedule (and
+        // also drives AdvancePsi during the TOPOP phase; psi_TO stays at
+        // its IC until then).
+        if (topop_relax_dt > 0.0)
+        {
+            RelaxEtaLM(lev, topop_relax_dt);
+            PushEtaToComponentDensity(lev);
+        }
+    }
+
+    // d(eta_LM)/dt = (psi_TO - eta_LM) * |grad(eta_LM)|, explicit Euler.
+    // The |grad(eta_LM)| factor means eta_LM can only move where it
+    // already has an interface: a cell interior to a uniform eta_LM region
+    // (grad = 0) stays exactly put regardless of what psi_TO does there,
+    // so psi_TO developing an interior void cannot nucleate one in eta_LM
+    // -- see tests/TopOpLowMachRelax, which checks exactly this.
+    void RelaxEtaLM(int lev, Set::Scalar dt)
+    {
+        BL_PROFILE("TopOpLowMach::RelaxEtaLM");
+        std::swap(eta_LM_old_mf[lev], eta_LM_mf[lev]);
+        const Set::Scalar* DX = geom[lev].CellSize();
+        amrex::Box domain = geom[lev].Domain();
+
+        for (amrex::MFIter mfi(*eta_LM_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(1);
+            bx = bx & domain;
+            amrex::Array4<const Set::Scalar> const& eta_old = (*eta_LM_old_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& psi = (*psi_mf[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const& eta_new = (*eta_LM_mf[lev]).array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Scalar grad_mag = Numeric::Gradient(eta_old, i, j, k, 0, DX).lpNorm<2>();
+                Set::Scalar val = eta_old(i, j, k) + dt * (psi(i, j, k) - eta_old(i, j, k)) * grad_mag;
+                eta_new(i, j, k) = Util::Clamp(val, 0.0, 1.0);
+            });
+        }
+        eta_LM_bc->define(geom[lev]);
+        eta_LM_bc->FillBoundary(*eta_LM_mf[lev], 0, 1, 0.0, 0);
+        eta_LM_mf[lev]->FillBoundary(geom[lev].periodicity());
+    }
+
+    // Writes eta_LM into component_density_mf for each rigid_solid species,
+    // the exact inverse of LowMach::UpdateComponentState's reconstruction
+    // (LowMach.cpp:630-641: rigid_species_eta = component_density /
+    // reference_density). LowMach then rebuilds rigid_eta_mf/
+    // rigid_species_eta_mf from this every step with no LowMach changes.
+    //
+    // This does not conserve mass: it removes/adds condensed mass without
+    // touching any other species, so the volume fractions LowMach's inputs
+    // assume sum to 1 will not, wherever eta_LM changes. Deliberately
+    // deferred -- see the "Mass backfill" deferral in the coupling plan.
+    void PushEtaToComponentDensity(int lev)
+    {
+        BL_PROFILE("TopOpLowMach::PushEtaToComponentDensity");
+        for (amrex::MFIter mfi(*eta_LM_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.growntilebox(eta_LM_mf[lev]->nGrow());
+            amrex::Array4<const Set::Scalar> const& eta_LM = (*eta_LM_mf[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const& component_density = (*component_density_mf[lev]).array(mfi);
+            for (const int n : rigid_solid_species)
+            {
+                const Set::Scalar rho_ref = reference_density[n];
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    component_density(i, j, k, n) = eta_LM(i, j, k) * rho_ref;
+                });
+            }
+        }
+        component_density_bc->define(geom[lev]);
+        component_density_bc->FillBoundary(*component_density_mf[lev], 0, nspecies, 0.0, 0);
+        component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
@@ -224,8 +309,10 @@ protected:
 
 protected:
     Set::Field<Set::Scalar> eta_LM_mf;
+    Set::Field<Set::Scalar> eta_LM_old_mf;
     BC::BC<Set::Scalar>* eta_LM_bc = nullptr;
     IC::IC<Set::Scalar>* ic_eta_LM = nullptr;
+    Set::Scalar topop_relax_dt = 0.0;
 };
 } // namespace Integrator
 #endif
