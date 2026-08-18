@@ -52,12 +52,21 @@ public:
         delete bc_psi;
     }
 
-    // The mechanics integrator manages the solution of an elastic 
-    // solve using the MLMG solver. 
+    // The mechanics integrator manages the solution of an elastic
+    // solve using the MLMG solver.
     static void Parse(TopOp& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
+        ParseCommon(value, pp);
+    }
 
+    // Everything TopOp needs beyond the elastic solve itself (the psi field,
+    // the phase-field parameters, the volume constraint). Split out from
+    // Parse so a coupled integrator (e.g. TopOpLowMach) can call
+    // Base::Mechanics<MODEL>::Parse exactly once -- from whichever base owns
+    // it -- and then bring in this half under its own prefix.
+    static void ParseCommon(TopOp& value, IO::ParmParse& pp)
+    {
         pp.queryclass<MODEL>("model", value.model);
 
         // Read in IC for psi
@@ -127,6 +136,15 @@ public:
     {
         BL_PROFILE("TopOp::Advance");
         Base::Mechanics<MODEL>::Advance(lev, time, dt);
+        AdvancePsi(lev, time, dt);
+    }
+
+    // The phase-field (psi) update, factored out of Advance so a coupled
+    // integrator can drive it on its own pseudo-time/dt rather than the
+    // physical clock (see TopOpLowMach).
+    void AdvancePsi(int lev, Set::Scalar time, Set::Scalar dt)
+    {
+        BL_PROFILE("TopOp::AdvancePsi");
         std::swap(psi_old_mf[lev], psi_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
@@ -141,6 +159,7 @@ public:
             bx = bx & domain;
             amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
             amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+            amrex::Array4<const MODEL> const& model_arr = (*model_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& psi = (*psi_old_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& psinew = (*psi_mf[lev]).array(mfi);
 
@@ -151,10 +170,7 @@ public:
                 driving_force += alpha * 2.0 * psi(i, j, k) * (2.0 * psi(i, j, k) * psi(i, j, k) - 3.0 * psi(i, j, k) + 1.0);
                 driving_force += -beta * Numeric::Laplacian(psi, i, j, k, 0, DX);
 
-                Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig, i, j, k, 0);
-                Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k, 0);
-
-                driving_force += -gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i, j, k);
+                driving_force += -gamma * StrainEnergy(model_arr, sig, eps, i, j, k) * psi(i, j, k);
 
                 driving_force += lambdaT * (volume - volume0);
 
@@ -162,6 +178,39 @@ public:
                 if (psinew(i, j, k) < 0.0) psinew(i, j, k) = 0.0;
                 if (psinew(i, j, k) > 1.0) psinew(i, j, k) = 1.0;
             });
+        }
+    }
+
+    // Cell-averaged strain energy at (i,j,k), used both for the psi driving
+    // force and for the integrated w_elastic diagnostic.
+    //
+    // For small-strain models (kinvar != F), stress/strain are the Cauchy
+    // stress / infinitesimal strain and 0.5*(sig^T*eps).trace() is twice the
+    // strain energy density (the pre-existing behavior, unchanged here).
+    //
+    // For finite-strain models (kinvar == F), Base::Mechanics stores
+    // strain_mf = F (the deformation gradient, = I at zero displacement) and
+    // stress_mf = DW(F) (the first Piola-Kirchhoff stress). 0.5*(sig^T*eps)
+    // then evaluates to a spurious nonzero trace(P) even with no
+    // displacement, so use the model's own strain energy density W(F)
+    // instead. This branches on MODEL::kinvar, a static constexpr/const, so
+    // it compiles away to whichever branch is live for MODEL.
+    AMREX_FORCE_INLINE static AMREX_GPU_DEVICE
+    Set::Scalar StrainEnergy(amrex::Array4<const MODEL> const& model_arr,
+        amrex::Array4<const Set::Matrix> const& sig,
+        amrex::Array4<const Set::Matrix> const& eps,
+        int i, int j, int k)
+    {
+        if constexpr (MODEL::kinvar == Model::Solid::KinematicVariable::F)
+        {
+            Set::Matrix F_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k, 0);
+            return model_arr(i, j, k).W(F_avg);
+        }
+        else
+        {
+            Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig, i, j, k, 0);
+            Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k, 0);
+            return 0.5 * (sig_avg.transpose() * eps_avg).trace();
         }
     }
 
@@ -177,15 +226,14 @@ public:
         amrex::Array4<amrex::Real> const& psi = (*psi_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[amrlev]).array(mfi);
+        amrex::Array4<const MODEL> const& model_arr = (*model_mf[amrlev]).array(mfi);
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             volume += psi(i, j, k, 0) * dv;
             w_chem_potential += alpha * psi(i, j, k, 0) * psi(i, j, k, 0) * (1. - psi(i, j, k, 0) * psi(i, j, k, 0)) * dv;
             w_bndry += beta * 0.5 * Numeric::Gradient(psi, i, j, k, 0, DX).squaredNorm() * dv;
 
-            Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig, i, j, k, 0);
-            Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k, 0);
-            w_elastic += gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i, j, k) * dv;
+            w_elastic += gamma * StrainEnergy(model_arr, sig, eps, i, j, k) * psi(i, j, k) * dv;
         });
     }
 
