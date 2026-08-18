@@ -36,6 +36,26 @@ namespace Integrator
 // The elastic mask (model_mf's stiffness blend) uses psi_TO, not eta_LM, so
 // the two fields being slightly out of step is an inherent, accepted
 // approximation of this design -- not a bug to chase.
+//
+// Scheduling: one global alamo step is one phase. A cycle is
+// topop.n_flow FLOW steps, then 1 TOPOP step, then topop.n_relax RELAX
+// steps, repeating (see Phase/PhaseForStep below); TOPOP is placed at the
+// start of each cycle (not after FLOW) so it lines up with
+// Base::Mechanics's own elastic.interval gate, which fires whenever
+// (global step) % elastic.interval == 0 -- Parse requires
+// elastic.interval == topop.n_flow + 1 + topop.n_relax so the solve fires
+// exactly once per cycle. Consequence: a TOPOP step uses the flow state
+// left over from the FLOW phase at the *end of the previous* cycle (fully
+// stabilized, for every cycle but the first -- the first TOPOP, at global
+// step 0, necessarily uses the IC pressure field, same as how
+// Base::Mechanics always performs one solve at step 0 regardless of
+// elastic.interval; this is an accepted edge case, not a bug).
+// FLOW runs LowMach::Advance/TimeStepComplete normally; RELAX runs
+// RelaxEtaLM + PushEtaToComponentDensity and freezes the rest of the flow
+// (LowMach::Advance/TimeStepComplete are not called) so eta_LM alone
+// moves; TOPOP runs TopOp::AdvancePsi on its own topop.dt pseudo-time
+// clock (m_topop_time), not the physical clock, since the flow's dt and
+// the phase-field's natural pseudo-timestep are unrelated scales.
 class TopOpLowMach :
     virtual public TopOp<Model::Solid::Finite::NeoHookeanPredeformed>,
     virtual public LowMach
@@ -85,11 +105,13 @@ public:
             value.eta_LM_old_mf, value.eta_LM_bc, 1, 2, "eta_LM_old", false, false);
         pp.select<IC::Constant, IC::Expression>(
             "eta_lm.ic", value.ic_eta_LM, pp.forward_args(value.geom));
-        // TEMPORARY (see Advance below): the relaxation pseudo-time
-        // increment applied every physical step. dt = 0 (default) leaves
-        // eta_LM at its IC, matching commit 3's frozen-field behavior.
+
+        // Phase schedule -- see the class comment above.
         pp.pushPrefix("topop");
-        pp_query_default("relax.dt", value.topop_relax_dt, 0.0);
+        pp_query_default("n_flow", value.topop_n_flow, 0);   // FLOW steps per cycle
+        pp_query_default("n_relax", value.topop_n_relax, 0); // RELAX steps per cycle
+        pp_query_default("dt", value.topop_dt, 0.0);         // TOPOP phase-field pseudo-dt
+        pp_query_default("relax.dt", value.topop_relax_dt, 0.0); // RELAX pseudo-dt
         pp.popPrefix();
 
         LowMach::Parse(value, pp);
@@ -104,6 +126,19 @@ public:
                 "masking the elastic operator with psi directly -- see the "
                 "class comment in TopOpLowMach.H.");
         }
+
+        const int cycle_length = value.topop_n_flow + 1 + value.topop_n_relax;
+        if (value.m_type != Base::Mechanics<elastic_model_type>::Type::Disable &&
+            value.m_interval != cycle_length)
+        {
+            Util::Abort(INFO,
+                "TopOpLowMach requires elastic.interval == topop.n_flow + 1 "
+                "+ topop.n_relax (the phase cycle length), so the elastic "
+                "solve fires exactly once per cycle, at the TOPOP step. Got "
+                "elastic.interval=", value.m_interval, " but topop.n_flow=",
+                value.topop_n_flow, " + 1 + topop.n_relax=", value.topop_n_relax,
+                " = ", cycle_length, ".");
+        }
     }
 
 protected:
@@ -117,8 +152,24 @@ protected:
         ic_eta_LM->Initialize(lev, eta_LM_mf);
     }
 
+    enum class Phase { Flow, TopOpSolve, Relax };
+
+    // See the class comment above for the schedule and why TOPOP sits at
+    // the start of each cycle rather than after FLOW.
+    Phase PhaseForStep(int step) const
+    {
+        const int cycle_length = topop_n_flow + 1 + topop_n_relax;
+        if (cycle_length <= 0) return Phase::Flow; // degenerate/unconfigured
+        const int s = step % cycle_length;
+        if (s == 0) return Phase::TopOpSolve;
+        if (s <= topop_n_relax) return Phase::Relax;
+        return Phase::Flow;
+    }
+
     void TimeStepBegin(Set::Scalar time, int iter) override
     {
+        m_phase = PhaseForStep(iter);
+
         // Base::Mechanics::TimeStepBegin (reached via LowMach::TimeStepBegin)
         // calls solver.setPsi(psi_mf) whenever psi_on is true, multiplying
         // the elastic operator by psi_TO on top of the ersatz void blend
@@ -130,6 +181,11 @@ protected:
         // elastic.void_model_on branch). Clear psi_on only around this call;
         // TopOp::Initialize and TagCellsForRefinement need it back on
         // afterward, since it also gates whether psi_mf exists at all.
+        //
+        // Called every step regardless of phase (UpdateModel is cheap, and
+        // the elastic.interval gate inside this call is what actually
+        // restricts the solve to the TOPOP step -- see Parse's check that
+        // elastic.interval equals the cycle length).
         bool psi_on_saved = psi_on;
         psi_on = false;
         LowMach::TimeStepBegin(time, iter);
@@ -138,21 +194,38 @@ protected:
 
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
-        LowMach::Advance(lev, time, dt);
-
-        // TEMPORARY: exercises RelaxEtaLM/PushEtaToComponentDensity every
-        // physical step (gated on topop.relax.dt > 0, default off) so they
-        // are reachable through the ordinary topop binary + input file --
-        // see tests/TopOpLowMachRelax. A later commit replaces this with
-        // real FLOW/TOPOP/RELAX phase dispatch, which calls these only
-        // during the RELAX phase on their own pseudo-time schedule (and
-        // also drives AdvancePsi during the TOPOP phase; psi_TO stays at
-        // its IC until then).
-        if (topop_relax_dt > 0.0)
+        switch (m_phase)
         {
+        case Phase::Flow:
+            LowMach::Advance(lev, time, dt);
+            break;
+        case Phase::TopOpSolve:
+            // Reads stress_mf/strain_mf from the solve TimeStepBegin just
+            // performed (Evolve() runs TimeStepBegin, then IntegrateVariables
+            // to refresh `volume`, then Advance -- exactly the order
+            // AdvancePsi's driving force needs).
+            TopOpBase::AdvancePsi(lev, m_topop_time, topop_dt);
+            break;
+        case Phase::Relax:
             RelaxEtaLM(lev, topop_relax_dt);
             PushEtaToComponentDensity(lev);
+            break;
         }
+    }
+
+    void TimeStepComplete(Set::Scalar time, int iter) override
+    {
+        // FLOW's own postprocessing (implicit diffusion/phase-change,
+        // pressure projection, diagnostics) only runs during FLOW: RELAX's
+        // entire point is that everything except eta_LM stays frozen (the
+        // "old flow domain" the next FLOW phase restarts from), and running
+        // a projection against RELAX's un-backfilled component_density_mf
+        // (see PushEtaToComponentDensity) is exactly the instability
+        // tests/TopOpLowMachRelax's earlier, pre-phase-counter version hit.
+        if (m_phase == Phase::Flow)
+            LowMach::TimeStepComplete(time, iter);
+        else if (m_phase == Phase::TopOpSolve)
+            m_topop_time += topop_dt;
     }
 
     // d(eta_LM)/dt = (psi_TO - eta_LM) * |grad(eta_LM)|, explicit Euler.
@@ -312,7 +385,13 @@ protected:
     Set::Field<Set::Scalar> eta_LM_old_mf;
     BC::BC<Set::Scalar>* eta_LM_bc = nullptr;
     IC::IC<Set::Scalar>* ic_eta_LM = nullptr;
+
+    int topop_n_flow = 0;
+    int topop_n_relax = 0;
+    Set::Scalar topop_dt = 0.0;
     Set::Scalar topop_relax_dt = 0.0;
+    Set::Scalar m_topop_time = 0.0;
+    Phase m_phase = Phase::Flow;
 };
 } // namespace Integrator
 #endif

@@ -178,6 +178,12 @@ elastic.bc.constant.type.xhiylo = disp disp
 elastic.bc.constant.type.xloyhi = disp trac
 elastic.bc.constant.type.xhiyhi = disp trac
 
+# topop.n_flow/n_relax default to 0 (cycle length 1): every step is a
+# TOPOP step, matching this test's frozen psi_TO/eta_LM -- the elastic
+# solve fires every step (harmless; model_mf/rhs_mf don't change between
+# steps here) and AdvancePsi is a no-op since topop.L.str = 0 below.
+elastic.interval = 1
+
 # TopOp: uniform solid model matching Solid.elastic.model above.
 topop.model.mu    = 140.0
 topop.model.kappa = 150.0

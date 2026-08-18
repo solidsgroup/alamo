@@ -1,64 +1,45 @@
-#@ [2d-relax]
+#@ [2d-cycles]
 #@ exe = topop
 #@ dim = 2
 #@ timeout = 300
+#@ check = false
 
-# Validates the core safety property of TopOpLowMach's eta_LM relaxation
-# (RelaxEtaLM in src/Integrator/TopOpLowMach.H):
+# End-to-end smoke test for the full TopOpLowMach FLOW/TOPOP/RELAX cycle
+# (see src/Integrator/TopOpLowMach.H's class comment): 3 cycles of
+# 3 FLOW steps, 1 TOPOP step (elastic solve + psi_TO update), and
+# 3 RELAX steps (eta_LM relaxation + injection into component_density),
+# 21 steps total. check = false: this only proves the full cycle runs
+# without crashing across multiple repetitions -- it is not yet a
+# validated regression reference. tests/TopOpLowMachCompile,
+# tests/TopOpLowMachPressure, and tests/TopOpLowMachRelax validate the
+# individual pieces (construction, the pressure-driven elastic solve, and
+# eta_LM relaxation) in isolation with real tolerances.
 #
-#   d(eta_LM)/dt = (psi_TO - eta_LM) * |grad(eta_LM)|
-#
-# The |grad(eta_LM)| factor means eta_LM can only move where it already
-# has an interface -- a cell interior to a uniform eta_LM region has
-# grad = 0 and stays exactly put regardless of what psi_TO does there. So
-# psi_TO developing an interior void cannot nucleate one in eta_LM. This
-# is what makes LowMach's flow geometry safe to drive from a topology
-# field that is allowed to open interior voids.
-#
-# Setup (elastic solve enabled but otherwise irrelevant to what's under
-# test here -- kept on because TopOp::Integrate unconditionally reads
-# stress_mf/strain_mf/model_mf, which Base::Mechanics::Parse never
-# registers when m_type == Disable; a pre-existing gap, out of scope for
-# this plan):
-#   - psi_TO: solid below y0_psi, MINUS a circular hole of radius R
-#     centered well inside the solid, away from both the y0 front and the
-#     domain edges.
-#   - eta_LM (IC): solid below y0_eta (no hole), with y0_eta offset from
-#     y0_psi by one interface width -- so the outer front genuinely needs
-#     to move, while the interior hole region starts (and, if the design
-#     works, stays) uniformly solid.
-#
-# One cycle, all RELAX: topop.n_flow = 0, topop.n_relax = 45, so the run's
-# 46 steps are TOPOP (step 0) then 45 RELAX steps -- see
-# src/Integrator/TopOpLowMach.H's class comment for the schedule.
-# topop.relax.dt = 1e-4 applied each RELAX step gives 4.5e-3 of pseudo-time
-# against an interface relaxation time constant of ~1/|grad(eta_LM)| ~
-# 4e-4 -- enough for the outer front to converge. Because TopOpLowMach
-# freezes the rest of the flow during RELAX (LowMach::Advance/
-# TimeStepComplete aren't called -- see the class comment), the
-# PushEtaToComponentDensity mass drift that used to destabilize LowMach's
-# pressure projection around ~65 unconditional pushes (the deliberately
-# deferred "Mass backfill" item in the coupling plan) no longer
-# accumulates through a live projection solve; RELAX steps are cheap and
-# this run could go well beyond 45 if a tighter tolerance were wanted.
+# psi_TO and eta_LM both start at the same solid-below-y0 profile as
+# Solid.density.ic (so the flow's initial geometry is self-consistent),
+# with topop.volume0frac = 0.5 matching that profile's actual solid
+# fraction, so the volume-constraint term starts near zero. topop.L.str
+# and topop.lambda.str are small but nonzero so psi_TO actually moves a
+# little at each TOPOP step, rather than being frozen as in
+# tests/TopOpLowMachPressure/Compile.
 
 alamo.program = topop_lowmach
-plot_file = tests/TopOpLowMachRelax/output
+plot_file = tests/TopOpLowMach/output
 
-amr.plot_dt = 1.0e-6_s
+amr.plot_int = 7
 amr.max_level = 0
-amr.n_cell = 64 64
+amr.n_cell = 32 64
 amr.max_grid_size = 64
 amr.blocking_factor = 2
 amr.regrid_int = -1
 amr.cell.all = 1
 
 timestep = 1.0e-7_s
-stop_time = 4.6e-6_s
+stop_time = 2.1e-6_s
 dynamictimestep.on = 0
 
 geometry.prob_lo = 0.0    0.0     0.0
-geometry.prob_hi = 6.4e-3 6.4e-3  0.0
+geometry.prob_hi = 3.2e-3 6.4e-3  0.0
 geometry.is_periodic = 0 0 0
 
 system.amount = kmol
@@ -103,9 +84,6 @@ diffusion.tol_rel = 1.0e-10
 diffusion.tol_abs = 1.0e-12
 diagnostics.interval = 0
 
-# Complementary density profiles matching psi_TO's solid extent (so the
-# flow's own state is self-consistent -- not otherwise exercised by this
-# test, since the elastic solve is disabled).
 Solid.density.ic.type = expression
 Solid.density.ic.expression.constant.rho = 1950.0
 Solid.density.ic.expression.constant.y0  = 3.2e-3
@@ -157,11 +135,15 @@ pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
 pressure.bc.constant.val.yhi = 1.0
 
-# Elastic solve: enabled (see note above) but its output isn't checked by
-# this test. apply_fluid_pressure=0/traction=0 so the RHS is identically
-# zero regardless of eta_LM's evolution -- the solve just has to run.
 elastic.type = static
 elastic.traction = 0.0
+# Off (unlike tests/TopOpLowMachPressure): FLOW phases here run on top of
+# a component_density_mf perturbed by RELAX's un-backfilled mass removal
+# (the deliberately deferred "Mass backfill" item in the coupling plan),
+# and pressure_mf inherits that perturbation. Feeding it into the elastic
+# RHS compounds across cycles and destabilizes MLMG; this test's purpose
+# is proving the phase machinery itself runs across multiple cycles, not
+# validating the flow under a coupling gap the plan already defers.
 elastic.apply_fluid_pressure = 0
 elastic.etacutoff = 0.0
 elastic.solver.verbose = 0
@@ -170,7 +152,9 @@ elastic.zero_out_displacement = 0
 elastic.void.model.mu    = 0.014
 elastic.void.model.kappa = 0.015
 elastic.max_coarsening_level = 2
-elastic.interval = 46
+
+# One full cycle every 7 steps: 3 FLOW, 1 TOPOP, 3 RELAX.
+elastic.interval = 7
 
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = disp trac
@@ -182,18 +166,18 @@ elastic.bc.constant.type.xhiylo = disp disp
 elastic.bc.constant.type.xloyhi = disp trac
 elastic.bc.constant.type.xhiyhi = disp trac
 
-# TopOp: psi_TO = solid below y0_psi, minus a circular hole.
+topop.n_flow  = 3
+topop.n_relax = 3
+topop.dt = 0.01
+topop.relax.dt = 1.0e-4
+
 topop.model.mu    = 140.0
 topop.model.kappa = 150.0
 
 topop.psi.ic.type = expression
 topop.psi.ic.expression.constant.y0 = 3.2e-3
 topop.psi.ic.expression.constant.wy = 2.0e-4
-topop.psi.ic.expression.constant.xc = 3.2e-3
-topop.psi.ic.expression.constant.yc = 1.6e-3
-topop.psi.ic.expression.constant.R  = 8.0e-4
-topop.psi.ic.expression.constant.wr = 1.0e-4
-topop.psi.ic.expression.region0 = "(0.5*(1.0-tanh((y-y0)/wy))) * (1.0 - 0.5*(1.0-tanh((sqrt((x-xc)^2+(y-yc)^2)-R)/wr)))"
+topop.psi.ic.expression.region0 = "0.5*(1.0-tanh((y-y0)/wy))"
 topop.psi.bc.type.xlo = NEUMANN
 topop.psi.bc.type.xhi = NEUMANN
 topop.psi.bc.type.ylo = NEUMANN
@@ -202,17 +186,11 @@ topop.psi.bc.type.yhi = NEUMANN
 topop.alpha = 1.0
 topop.beta  = 1.0
 topop.gamma = 1.0
-topop.L.str = 0.0
-topop.lambda.str = 0.0
+topop.L.str = 1.0e-3
+topop.lambda.str = 1.0
 topop.volume0frac = 0.5
 
-topop.n_flow  = 0
-topop.n_relax = 45
-topop.relax.dt = 1.0e-4
-
-# eta_LM (IC): the same solid-below-y0 profile, no hole, offset one
-# interface width (2.0e-4) from psi_TO's front so it has to move.
 eta_lm.ic.type = expression
-eta_lm.ic.expression.constant.y0 = 3.4e-3
+eta_lm.ic.expression.constant.y0 = 3.2e-3
 eta_lm.ic.expression.constant.wy = 2.0e-4
 eta_lm.ic.expression.region0 = "0.5*(1.0-tanh((y-y0)/wy))"
