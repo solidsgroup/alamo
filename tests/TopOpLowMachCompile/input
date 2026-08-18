@@ -1,0 +1,187 @@
+#@ [2d-smoke]
+#@ exe = topop
+#@ dim = 2
+#@ timeout = 300
+#@ check = false
+
+# Compile/construction smoke test for Integrator::TopOpLowMach -- the
+# coupling of Integrator::TopOp (phase-field topology optimization) with
+# Integrator::LowMach (reacting low-Mach flow with its own elastic solve),
+# see src/Integrator/TopOpLowMach.H.
+#
+# This is deliberately not a physics test (check = false): it only proves
+# the composed integrator parses, allocates every field, and runs a few
+# steps without crashing. At this stage psi_TO and eta_LM both stay at
+# their (uniform) ICs -- TopOpLowMach::UpdateModel still just delegates to
+# LowMach::UpdateModel and TopOpLowMach::Advance still just delegates to
+# LowMach::Advance. tests/TopOpLowMachPressure exercises the coupled
+# UpdateModel once it lands; a later test exercises psi_TO/eta_LM motion.
+#
+# Base geometry/BCs/species/elastic setup are a trimmed copy of
+# tests/LowMachElasticPressure/input's [2d-pressure-off] case (single
+# rigid_solid species, spatially uniform elastic model -- the case that
+# maps directly onto TopOp's own single uniform `model`).
+
+alamo.program = topop_lowmach
+plot_file = tests/TopOpLowMachCompile/output
+
+amr.plot_dt = 2.0e-7_s
+amr.max_level = 0
+amr.n_cell = 32 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+amr.cell.all = 1
+
+timestep = 1.0e-7_s
+stop_time = 3.0e-7_s
+dynamictimestep.on = 0
+
+geometry.prob_lo = 0.0    0.0     0.0
+geometry.prob_hi = 3.2e-3 6.4e-3  0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 29.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29113.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1.8e-5_Pa*s
+gas.transport.mixture_averaged.k = 3.0_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas Solid
+Gas.mechanics   = fluid
+Solid.mechanics = rigid_solid
+
+Solid.reference_density = 1950.0_kg/m^3
+
+# Single rigid_solid species -> the elastic model field is spatially
+# uniform (see tests/LowMachElasticPressure/input for why).
+Solid.elastic.model.mu    = 140.0
+Solid.elastic.model.kappa = 150.0
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.update_pressure = 0
+diffusion.tol_rel = 1.0e-10
+diffusion.tol_abs = 1.0e-12
+diagnostics.interval = 0
+
+Solid.density.ic.type = expression
+Solid.density.ic.expression.constant.rho = 1950.0
+Solid.density.ic.expression.constant.y0  = 3.2e-3
+Solid.density.ic.expression.constant.wy  = 2.0e-4
+Solid.density.ic.expression.region0 = "rho*0.5*(1.0-tanh((y-y0)/wy))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 1.0
+Gas.density.ic.expression.constant.R  = 286.7
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.y0 = 3.2e-3
+Gas.density.ic.expression.constant.wy = 2.0e-4
+Gas.density.ic.expression.region0 = "(P/(R*T))*0.5*(1.0+tanh((y-y0)/wy))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 1.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet dirichlet
+velocity.bc.constant.type.xhi = dirichlet dirichlet
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = neumann neumann
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 1.0
+
+# Elastic solve over the rigid solid phase, pressure-driven.
+elastic.type = static
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.solver.verbose = 0
+elastic.solver.nriters = 1
+elastic.zero_out_displacement = 0
+
+# Required by TopOpLowMach -- the topology void is masked by this soft
+# ersatz model blended by psi_TO, not by psi-masking the elastic operator.
+# max_coarsening_level follows tests/LowMachElasticPressure's
+# [2d-pressure-1Pa-softvoid] case: at this dx and modulus contrast, MLMG
+# genuinely diverges (not just converges slowly) unless coarsening is
+# capped -- see that test's Readme.rst/input for the full explanation.
+elastic.void.model.mu    = 0.014
+elastic.void.model.kappa = 0.015
+elastic.max_coarsening_level = 2
+
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = disp trac
+elastic.bc.constant.type.xhi = disp trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = disp trac
+elastic.bc.constant.type.xhiyhi = disp trac
+
+# TopOp: psi_TO field, phase-field parameters, volume constraint. Uniform
+# IC and zero mobility (L.str = 0) so psi_TO cannot move yet -- Advance
+# still just delegates to LowMach::Advance at this stage.
+topop.model.mu    = 140.0
+topop.model.kappa = 150.0
+
+topop.psi.ic.type = constant
+topop.psi.ic.constant.value = 1.0
+topop.psi.bc.type.xlo = NEUMANN
+topop.psi.bc.type.xhi = NEUMANN
+topop.psi.bc.type.ylo = NEUMANN
+topop.psi.bc.type.yhi = NEUMANN
+
+topop.alpha = 1.0
+topop.beta  = 1.0
+topop.gamma = 1.0
+topop.L.str = 0.0
+topop.lambda.str = 0.0
+topop.volume0frac = 0.5
