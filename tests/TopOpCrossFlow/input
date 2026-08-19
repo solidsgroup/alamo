@@ -64,8 +64,9 @@
 #    much tighter margin once a second level is involved.)
 #
 # The 2050-step validation above covers ~1/6 of this test's full
-# stop_time = 49.2 (300 cycles, 12300 steps); the full run had not finished
-# by the time this change landed.
+# stop_time = 49.2 (300 cycles, 12300 steps). The full run has since been
+# completed separately: all 12300 steps ran to TIME = 49.2 with zero MLMG
+# failures/aborts anywhere in the log.
 
 alamo.program = topop_lowmach
 plot_file = tests/TopOpCrossFlow/output
