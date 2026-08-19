@@ -225,7 +225,6 @@ topop.n_relax = 10
 # TOPOP-step pseudo-dt every cycle via topop.max_dpsidt. See
 # tests/TopOpCrossFlow/input's note for why.
 topop.dt = 0.02
-topop.max_dpsidt = 0.01
 topop.relax.dt = 1.0e-2
 
 topop.model.mu    = 1.4e7
@@ -261,21 +260,34 @@ topop.alpha = 4.0
 topop.beta  = 1.0
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
-# Same ramped constraint schedule as tests/TopOpCrossFlow (see that input's
-# extended note on why lambda needs to ramp rather than stay constant, and
-# why 5.0e4 rather than 1.0 or 1.0e6). This soft, domain-wide equality
-# constraint is the closest thing this codebase has to a volume cap, so the
-# requested limit -- at most 25% of the original 0.5m x 0.5m design square,
-# i.e. 0.25 * 0.25 m^2 = 0.0625 m^2 -- is enforced by setting volume0 to
-# exactly that fill, plus the frozen wall's fixed 0.05*0.45 = 0.0225 m^2,
-# over the 3.0 m^2 domain: (0.0225+0.0625)/3.0 = 0.0283(3).
+# Volume cap, same mechanism as tests/TopOpCrossFlow: at most 25% of the
+# original 0.5m x 0.5m design square (0.25*0.25 = 0.0625 m^2), plus the
+# frozen wall's fixed 0.05*0.45 = 0.0225 m^2, over the 3.0 m^2 domain:
+# (0.0225+0.0625)/3.0 = 0.0283(3).
 #
-# volfrac0 above is 1.0, not 0.25: the square now starts fully solid
-# (0.25 m^2), well above this target, so the constraint has to carve
-# material away rather than merely hold the IC in place -- exactly the
-# void-forming behavior this test is meant to exercise, unlike the earlier
-# revision where the IC was seeded already at the target fill.
-topop.lambda.str = (0.0,6.0:1.0,5.0e4)
+# volfrac0 above is 1.0, not 0.25: the square starts fully solid, ~0.19 m^2
+# away from this target, so the constraint has to carve material away
+# rather than merely hold the IC in place -- the void-forming behavior
+# this test is meant to exercise.
+#
+# lambda.str ramps 10x slower than tests/TopOpCrossFlow's schedule
+# (end time 60.0, not 6.0) -- that schedule was tuned for a volume error
+# that starts near zero and drifts slowly (~0.0002/cycle); here the error
+# starts at ~0.19, two orders of magnitude larger. At the original 6.0
+# end-time, lambda(topop_time=0.04, i.e. cycle 2) was already ~334, so
+# lambda*(volume-volume0) contributed a uniform driving-force term of
+# ~334*0.19 ~= 63 -- on top of whatever local term set the dynamic dt via
+# ComputePsiDt, which does not itself bound this term's absolute
+# contribution to the driving force, only the fastest-moving cell's total
+# rate. A run with amr.max_level=1 diverged (genuine MLMG failure) at the
+# start of cycle 3, right after this term's second application -- ruled in
+# by the failing solve's backtrace (Solver::Nonlocal::Newton::solve, the
+# elastic solve, not the flow's projection solve) landing exactly one
+# TOPOP step after lambda first became non-negligible. At end time 60.0,
+# lambda(0.04) ~= 34 instead of ~334, a 10x weaker uniform push while the
+# volume error is still this large.
+topop.max_dpsidt = 0.002
+topop.lambda.str = (0.0,60.0:1.0,5.0e4)
 topop.volume0frac = 0.028333333333333333
 
 eta_lm.ic.type = expression
