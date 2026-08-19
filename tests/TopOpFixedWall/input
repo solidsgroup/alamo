@@ -1,0 +1,279 @@
+#@ [2d-smoke]
+#@ exe = topop
+#@ dim = 2
+#@ timeout = 1800
+#@ check = false
+
+# Second Integrator::TopOpLowMach validation domain (see tests/TopOpCrossFlow
+# for the first): a 3m x 1m channel with a rigid, non-design wall standing
+# 1m from the inlet, and a 0.5m x 0.5m design region immediately behind it
+# (in the flow direction) that the optimizer is free to fill with a
+# supporting structure. Re = 1, parabolic inlet profile, slip top/bottom
+# channel walls (unlike TopOpCrossFlow's no-slip walls), and the elastic
+# solve fixed (disp) only on the floor -- the wall/support are cantilevered
+# off the bottom, not clamped top and bottom.
+#
+# This is the first real use of topop.design_mask (src/Integrator/TopOp.H,
+# "TopOp: add optional design_mask for passive elements"): design_mask = 0
+# everywhere except the 0.5m square, which freezes psi = 1 in the wall
+# (permanently solid, never touched by the optimizer) and psi = 0 in the
+# open channel (permanently void), while only the square is left free to
+# evolve. The wall still fully participates in the elastic solve -- it is
+# masked out of AdvancePsi's driving force, not out of UpdateModel -- so it
+# loads the support structure behind it exactly like any other solid.
+#
+# Smoke test (check = false): proves the coupled FLOW/TOPOP/RELAX cycle
+# runs stably on this more complex, two-region-with-a-frozen-obstacle
+# geometry. Not a converged-optimum reference; see tests/TopOpCrossFlow's
+# header for why that's a separate, much longer exercise. Reuses
+# TopOpCrossFlow's validated constants wherever this domain doesn't force a
+# change (moduli, void contrast, alpha/beta/gamma, L, air properties) rather
+# than re-deriving them.
+
+alamo.program = topop_lowmach
+plot_file = tests/TopOpFixedWall/output
+
+amr.plot_int = 101
+amr.max_level = 0
+amr.n_cell = 240 80
+amr.max_grid_size = 40
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.cell.all = 1
+
+# 20 full FLOW/TOPOP/RELAX cycles (101 steps each = 2020 steps) -- a smoke
+# run, not the full-length validation; see tests/TopOpCrossFlow's header for
+# that pattern (short run committed, full run validated separately).
+timestep = 4.0e-3
+stop_time = 8.08
+dynamictimestep.on = 0
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 3.0 1.0 0.0
+geometry.is_periodic = 0 0 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+# rho ~= 1.12254198039921 kg/m^3 for P=1e5 Pa, T=300 K, MW=28 g/mol (see
+# tests/TopOpCrossFlow/input). Re = rho*U*L/mu with the channel height
+# L = 1.0 and the parabolic inlet's centerline velocity Umax = 1.0 as the
+# characteristic velocity, so mu = rho gives Re = 1, same as TopOpCrossFlow.
+gas.transport.mixture_averaged.mu = 1.12254198039921_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+
+species.names = Gas Solid
+Gas.mechanics   = fluid
+Solid.mechanics = rigid_solid
+
+Solid.reference_density = 1950.0_kg/m^3
+# Same rescaled moduli as tests/TopOpCrossFlow -- see that input's note by
+# elastic.void.model for why (keeps the fluid pressure well below the
+# material stiffness so the elastic solve doesn't saturate AdvancePsi's
+# driving force in a single step).
+Solid.elastic.model.mu    = 1.4e7
+Solid.elastic.model.kappa = 1.5e7
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+
+rigid.relaxation_time = 1.0e-3_s
+rigid.velocity = 0.0 0.0
+
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 0
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.update_pressure = 1
+diagnostics.interval = 0
+diagnostics.extended_fields = 1
+
+# Geometry: rigid wall spans x in [1.0,1.05], y in [0,0.45] (1m from the
+# inlet, 0.05m wide, 0.45m tall). The design region -- the support the wall
+# stands on -- is the 0.5m square immediately behind it, x in [1.05,1.55],
+# y in [0,0.5]. w is the tanh smoothing width shared by every field IC
+# below so the density/psi/eta interfaces all line up; design_mask itself
+# doesn't need smoothing (see TopOp.H -- it's a pointwise multiplier on the
+# driving force, no gradient of it is ever taken), so that one IC uses a
+# sharp boolean box instead.
+Solid.density.ic.type = expression
+Solid.density.ic.expression.constant.rho = 1950.0
+Solid.density.ic.expression.constant.x0  = 1.0
+Solid.density.ic.expression.constant.x1  = 1.05
+Solid.density.ic.expression.constant.x2  = 1.55
+Solid.density.ic.expression.constant.hw  = 0.45
+Solid.density.ic.expression.constant.hs  = 0.50
+Solid.density.ic.expression.constant.w   = 0.02
+Solid.density.ic.expression.constant.volfrac0 = 0.25
+Solid.density.ic.expression.region0 = "rho*((0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w))))"
+
+Gas.density.ic.type = expression
+Gas.density.ic.expression.constant.P  = 100000.0
+Gas.density.ic.expression.constant.R  = 296.9
+Gas.density.ic.expression.constant.T  = 300.0
+Gas.density.ic.expression.constant.x0  = 1.0
+Gas.density.ic.expression.constant.x1  = 1.05
+Gas.density.ic.expression.constant.x2  = 1.55
+Gas.density.ic.expression.constant.hw  = 0.45
+Gas.density.ic.expression.constant.hs  = 0.50
+Gas.density.ic.expression.constant.w   = 0.02
+Gas.density.ic.expression.constant.volfrac0 = 0.25
+Gas.density.ic.expression.region0 = "(P/(R*T))*(1.0 - ((0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))))"
+
+# Parabolic inlet: 0 at ylo/yhi, Umax at the centerline y = H/2. Outlet
+# (xhi) natural (neumann). Top/bottom channel walls (ylo/yhi) are slip: the
+# tangential (x) component is neumann (free), the normal (y) component is
+# dirichlet 0 -- see src/BC/Expression.H's "type.<face>" ordering, which is
+# always x-component-then-y-component regardless of which face it's on.
+velocity.bc.type = expression
+velocity.bc.expression.constant.Umax = 1.0
+velocity.bc.expression.constant.H    = 1.0
+velocity.bc.expression.type.xlo = dirichlet dirichlet
+velocity.bc.expression.val.xlo  = "4.0*Umax*(y/H)*(1.0-y/H)" "0.0"
+velocity.bc.expression.type.xhi = neumann neumann
+velocity.bc.expression.val.xhi  = "0.0" "0.0"
+velocity.bc.expression.type.ylo = neumann dirichlet
+velocity.bc.expression.val.ylo  = "0.0" "0.0"
+velocity.bc.expression.type.yhi = neumann dirichlet
+velocity.bc.expression.val.yhi  = "0.0" "0.0"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann neumann
+component_density.bc.constant.type.xhi = neumann neumann
+component_density.bc.constant.type.ylo = neumann neumann
+component_density.bc.constant.type.yhi = neumann neumann
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+
+# Outlet pressure pinned at the IC value; slip walls get neumann pressure
+# same as TopOpCrossFlow's no-slip walls (velocity is prescribed there
+# instead, not pressure).
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = neumann
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = neumann
+pressure.bc.constant.val.xhi = 100000.0
+
+elastic.type = static
+elastic.traction = 0.0
+elastic.apply_fluid_pressure = 1
+elastic.etacutoff = 0.0
+elastic.solver.verbose = 0
+elastic.solver.nriters = 1
+elastic.zero_out_displacement = 0
+# 20x void contrast, same as tests/TopOpCrossFlow (see that input's note).
+elastic.void.model.mu    = 7.0e5
+elastic.void.model.kappa = 7.5e5
+elastic.max_coarsening_level = 2
+
+# One full FLOW/TOPOP/RELAX cycle: 90 FLOW steps, 1 TOPOP step, 10 RELAX
+# steps, 101 total. n_flow scaled up 3x from TopOpCrossFlow's 30 to match
+# this domain's 3x longer length (same dt, same Umax).
+elastic.interval = 101
+
+# Only the floor (ylo) is a displacement BC -- the wall and its support are
+# cantilevered off the bottom of the channel, not clamped at yhi too (unlike
+# TopOpCrossFlow, where the solid strip spans and touches both channel
+# walls). xlo/xhi/yhi are traction-free: nothing in this geometry reaches
+# those boundaries.
+elastic.bc.type = constant
+elastic.bc.constant.type.xlo = trac trac
+elastic.bc.constant.type.xhi = trac trac
+elastic.bc.constant.type.ylo = disp disp
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = disp disp
+elastic.bc.constant.type.xhiylo = disp disp
+elastic.bc.constant.type.xloyhi = trac trac
+elastic.bc.constant.type.xhiyhi = trac trac
+
+topop.n_flow  = 90
+topop.n_relax = 10
+# Parse placeholder only -- TopOp::ComputePsiDt overwrites the actual
+# TOPOP-step pseudo-dt every cycle via topop.max_dpsidt. See
+# tests/TopOpCrossFlow/input's note for why.
+topop.dt = 0.02
+topop.max_dpsidt = 0.01
+topop.relax.dt = 1.0e-2
+
+topop.model.mu    = 1.4e7
+topop.model.kappa = 1.5e7
+
+topop.psi.ic.type = expression
+topop.psi.ic.expression.constant.x0  = 1.0
+topop.psi.ic.expression.constant.x1  = 1.05
+topop.psi.ic.expression.constant.x2  = 1.55
+topop.psi.ic.expression.constant.hw  = 0.45
+topop.psi.ic.expression.constant.hs  = 0.50
+topop.psi.ic.expression.constant.w   = 0.02
+topop.psi.ic.expression.constant.volfrac0 = 0.25
+topop.psi.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
+topop.psi.bc.type.xlo = NEUMANN
+topop.psi.bc.type.xhi = NEUMANN
+topop.psi.bc.type.ylo = NEUMANN
+topop.psi.bc.type.yhi = NEUMANN
+
+# design_mask = 1 only inside the 0.5m support square (x in [1.05,1.55],
+# y in [0,0.5]); 0 everywhere else, which freezes the wall permanently
+# solid and the open channel permanently void. Sharp boolean box (see the
+# class comment on design_mask in TopOp.H): no gradient of this field is
+# ever taken, so it doesn't need the tanh smoothing the density/psi ICs
+# above use for the elastic solve's sake.
+topop.design_mask.ic.type = expression
+topop.design_mask.ic.expression.constant.x1 = 1.05
+topop.design_mask.ic.expression.constant.x2 = 1.55
+topop.design_mask.ic.expression.constant.hs = 0.50
+topop.design_mask.ic.expression.region0 = "(x>x1)*(x<x2)*(y<hs)"
+
+topop.alpha = 4.0
+topop.beta  = 1.0
+topop.gamma = 1.0
+topop.L.str = 1.0e-3
+# Same ramped constraint schedule as tests/TopOpCrossFlow (see that input's
+# extended note on why lambda needs to ramp rather than stay constant, and
+# why 5.0e4 rather than 1.0 or 1.0e6). This soft, domain-wide equality
+# constraint is the closest thing this codebase has to a volume cap, so the
+# requested limit -- at most 25% of the original 0.5m x 0.5m design square,
+# i.e. 0.25 * 0.25 m^2 = 0.0625 m^2 -- is enforced by setting volume0 to
+# exactly that fill (volfrac0 above matches it, so the IC starts satisfied
+# rather than fighting the constraint from step 1) plus the frozen wall's
+# fixed 0.05*0.45 = 0.0225 m^2, over the 3.0 m^2 domain:
+# (0.0225+0.0625)/3.0 = 0.0283(3).
+topop.lambda.str = (0.0,6.0:1.0,5.0e4)
+topop.volume0frac = 0.028333333333333333
+
+eta_lm.ic.type = expression
+eta_lm.ic.expression.constant.x0  = 1.0
+eta_lm.ic.expression.constant.x1  = 1.05
+eta_lm.ic.expression.constant.x2  = 1.55
+eta_lm.ic.expression.constant.hw  = 0.45
+eta_lm.ic.expression.constant.hs  = 0.50
+eta_lm.ic.expression.constant.w   = 0.02
+eta_lm.ic.expression.constant.volfrac0 = 0.25
+eta_lm.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
