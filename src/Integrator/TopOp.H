@@ -52,6 +52,7 @@ public:
     {
         delete ic_psi;
         delete bc_psi;
+        delete ic_design_mask;
     }
 
     // The mechanics integrator manages the solution of an elastic
@@ -82,6 +83,21 @@ public:
 
         // Initial condition for psi field
         pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
+
+        // Optional passive-element mask: freezes psi (and therefore the
+        // structure the elastic solve sees) wherever mask == 0, e.g. a
+        // fixed support that must stay solid, or a hole that must stay
+        // void, while it still fully participates in the elastic solve
+        // (stiffness, load transfer) like any other cell. Off by default
+        // -- the whole domain is design space, unchanged from before this
+        // was added. Set the corresponding psi.ic to the value you want
+        // frozen (1 for solid, 0 for void) in the masked region.
+        value.design_mask_on = pp.contains("design_mask.ic.type");
+        if (value.design_mask_on)
+        {
+            value.template AddField<Set::Scalar, Set::Hypercube::Cell>(value.design_mask_mf, nullptr, 1, 2, "design_mask", true, false);
+            pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("design_mask.ic",value.ic_design_mask,pp.forward_args(value.geom));
+        }
 
         // Target maximum |d(psi)/dt|, opt-in via presence of this key.
         // When set, standalone TopOp::Advance drives AdvancePsi with a
@@ -130,6 +146,11 @@ public:
         Base::Mechanics<MODEL>::Initialize(lev);
         if (psi_on) ic_psi->Initialize(lev, psi_mf);
         if (psi_on) ic_psi->Initialize(lev, psi_old_mf);
+        if (design_mask_on)
+        {
+            ic_design_mask->Initialize(lev, design_mask_mf);
+            Util::RealFillBoundary(*design_mask_mf[lev], geom[lev]);
+        }
     }
 
     virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
@@ -185,6 +206,7 @@ public:
         Set::Scalar lambdaT = lambda(time);
         Set::Scalar alpha_ = alpha, beta_ = beta, gamma_ = gamma;
         Set::Scalar vol = volume, vol0 = volume0;
+        bool mask_on = design_mask_on;
 
         Set::Scalar max_rate = 0.0;
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -200,6 +222,7 @@ public:
                 amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
                 amrex::Array4<const MODEL> const& model_arr = (*model_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& psi = (*psi_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& mask = mask_on ? (*design_mask_mf[lev]).array(mfi) : amrex::Array4<const Set::Scalar>();
 
                 amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
                 amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
@@ -211,6 +234,7 @@ public:
                     driving_force += -beta_ * Numeric::Laplacian(psi, i, j, k, 0, DX);
                     driving_force += -gamma_ * StrainEnergy(model_arr, sig, eps, i, j, k) * psi(i, j, k);
                     driving_force += lambdaT * (vol - vol0);
+                    if (mask_on) driving_force *= mask(i, j, k);
                     return { std::abs(driving_force) };
                 });
                 ReduceTuple hv = reduce_data.value();
@@ -252,6 +276,8 @@ public:
             amrex::Array4<const MODEL> const& model_arr = (*model_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& psi = (*psi_old_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& psinew = (*psi_mf[lev]).array(mfi);
+            bool mask_on = design_mask_on;
+            amrex::Array4<const Set::Scalar> const& mask = mask_on ? (*design_mask_mf[lev]).array(mfi) : amrex::Array4<const Set::Scalar>();
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -263,6 +289,8 @@ public:
                 driving_force += -gamma * StrainEnergy(model_arr, sig, eps, i, j, k) * psi(i, j, k);
 
                 driving_force += lambdaT * (volume - volume0);
+
+                if (mask_on) driving_force *= mask(i, j, k);
 
                 psinew(i, j, k) = psi(i, j, k) - Lnow * dt * driving_force;
                 if (psinew(i, j, k) < 0.0) psinew(i, j, k) = 0.0;
@@ -362,6 +390,9 @@ protected:
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;
+    bool design_mask_on = false;
+    IC::IC<Set::Scalar>* ic_design_mask = nullptr;
+    Set::Field<Set::Scalar> design_mask_mf;
     bool m_dynamic_dt = false;
     Set::Scalar m_max_dpsidt = NAN;
     Set::Scalar m_psi_dt = NAN;
