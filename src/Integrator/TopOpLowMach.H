@@ -29,13 +29,27 @@ namespace Integrator
 //     which is where LowMach reconstructs rigid_eta_mf/rigid_species_eta_mf
 //     from every step (LowMach::UpdateComponentState).
 //
-// UpdateModel below reads eta_LM_mf, not rigid_eta_mf, for the interfacial
-// pressure traction: eta_LM is the controlled target geometry, while
+// UpdateModel below reads eta_LM_mf, not LowMach's own rigid_eta_mf (the
+// reconstruction off component_density_mf), for the interfacial pressure
+// traction: eta_LM is the controlled target geometry, while LowMach's
 // rigid_eta_mf can drift slightly from it between TOPOP-phase solves as the
 // flow's own advection/diffusion/chemistry perturb component_density_mf.
 // The elastic mask (model_mf's stiffness blend) uses psi_TO, not eta_LM, so
 // the two fields being slightly out of step is an inherent, accepted
 // approximation of this design -- not a bug to chase.
+//
+// A third, optional field, TopOp::rigid_eta_mf, marks geometry that must
+// stay solid unconditionally (e.g. a fixed support wall) -- see the class
+// comment in TopOp.H. It is never written to by AdvancePsi, RelaxEtaLM, or
+// PushEtaToComponentDensity below; wherever this class needs "what's solid
+// here", it computes a union of rigid_eta with psi_TO (for the model blend)
+// or eta_LM (for the traction and the LowMach density push) *at the point
+// of use*, rather than folding rigid_eta into eta_LM_mf itself. Storing the
+// union back into eta_LM_mf would expose it to RelaxEtaLM's gradient-based
+// relaxation and to the interior-node BC fill in UpdateModel's preamble --
+// boundary/interpolation effects that were exactly the mechanism behind the
+// original mask leakage this design replaces. Combining only at the point
+// of use means rigid_eta itself is never touched by any of that.
 //
 // Scheduling: one global alamo step is one phase. A cycle is
 // topop.n_flow FLOW steps, then 1 TOPOP step, then topop.n_relax RELAX
@@ -276,30 +290,39 @@ protected:
         eta_LM_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
 
-    // Writes eta_LM into component_density_mf for each rigid_solid species,
-    // the exact inverse of LowMach::UpdateComponentState's reconstruction
-    // (LowMach.cpp:630-641: rigid_species_eta = component_density /
-    // reference_density). LowMach then rebuilds rigid_eta_mf/
-    // rigid_species_eta_mf from this every step with no LowMach changes.
+    // Writes union(rigid_eta, eta_LM) into component_density_mf for each
+    // rigid_solid species -- the exact inverse of
+    // LowMach::UpdateComponentState's reconstruction (LowMach.cpp:630-641:
+    // rigid_species_eta = component_density / reference_density). LowMach
+    // then rebuilds rigid_eta_mf/rigid_species_eta_mf from this every step
+    // with no LowMach changes. rigid_eta is combined in here (not folded
+    // into eta_LM_mf) so it never passes through RelaxEtaLM -- see the
+    // class comment above.
     //
     // This does not conserve mass: it removes/adds condensed mass without
     // touching any other species, so the volume fractions LowMach's inputs
-    // assume sum to 1 will not, wherever eta_LM changes. Deliberately
-    // deferred -- see the "Mass backfill" deferral in the coupling plan.
+    // assume sum to 1 will not, wherever the combined field changes.
+    // Deliberately deferred -- see the "Mass backfill" deferral in the
+    // coupling plan.
     void PushEtaToComponentDensity(int lev)
     {
         BL_PROFILE("TopOpLowMach::PushEtaToComponentDensity");
+        const bool use_rigid = rigid_eta_on;
         for (amrex::MFIter mfi(*eta_LM_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.growntilebox(eta_LM_mf[lev]->nGrow());
             amrex::Array4<const Set::Scalar> const& eta_LM = (*eta_LM_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& rigid_eta =
+                use_rigid ? (*TopOpBase::rigid_eta_mf[lev]).array(mfi) : amrex::Array4<const Set::Scalar>();
             amrex::Array4<Set::Scalar> const& component_density = (*component_density_mf[lev]).array(mfi);
             for (const int n : rigid_solid_species)
             {
                 const Set::Scalar rho_ref = reference_density[n];
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    component_density(i, j, k, n) = eta_LM(i, j, k) * rho_ref;
+                    Set::Scalar eta_val = eta_LM(i, j, k);
+                    if (use_rigid) eta_val = rigid_eta(i, j, k) + eta_val * (1.0 - rigid_eta(i, j, k));
+                    component_density(i, j, k, n) = eta_val * rho_ref;
                 });
             }
         }
@@ -344,12 +367,14 @@ protected:
             eta_LM_mf[lev]->FillBoundary(geom[lev].periodicity());
             Util::RealFillBoundary(*psi_mf[lev], geom[lev]);
             pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
+            if (rigid_eta_on) Util::RealFillBoundary(*TopOpBase::rigid_eta_mf[lev], geom[lev]);
 
             const elastic_model_type solid_model = model;
             const elastic_model_type void_model = elastic.void_model;
             const Set::Scalar traction = elastic.traction;
             const Set::Scalar etacutoff = elastic.etacutoff;
             const bool use_fluid_pressure = elastic.apply_fluid_pressure != 0.0;
+            const bool use_rigid = rigid_eta_on;
 
             for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -361,32 +386,61 @@ protected:
                 Set::Patch<const Set::Scalar> eta_LM = eta_LM_mf.Patch(lev, mfi);
                 Set::Patch<const Set::Scalar> psi = psi_mf.Patch(lev, mfi);
                 Set::Patch<const Set::Scalar> pressure = pressure_mf.Patch(lev, mfi);
+                amrex::Array4<const Set::Scalar> rigid_eta =
+                    use_rigid ? (*TopOpBase::rigid_eta_mf[lev]).array(mfi) : amrex::Array4<const Set::Scalar>();
 
                 // Interfacial body force: a constant traction plus,
                 // optionally, the local fluid pressure. grad_eta points from
                 // fluid into the solid, so a positive (compressive) fluid
                 // pressure must push back against that gradient -- hence the
                 // minus sign, matching LowMach::UpdateModel.
+                //
+                // "eta" here is union(rigid_eta, eta_LM), not eta_LM alone,
+                // so a fixed rigid wall gets the same interfacial pressure
+                // traction as the design boundary. The union's node value
+                // and gradient are formed analytically via the product rule
+                // on combined = rigid + eta_LM*(1-rigid) -- this reads both
+                // fields directly rather than materializing a combined
+                // field, so rigid_eta itself is never written to (see the
+                // class comment above).
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta_LM, i, j, k, 0, DX);
-                    Set::Scalar eta_node = Numeric::Interpolate::CellToNodeAverage(eta_LM, i, j, k, 0);
+                    Set::Vector grad_eta_lm = Numeric::CellGradientOnNode(eta_LM, i, j, k, 0, DX);
+                    Set::Scalar eta_lm_node = Numeric::Interpolate::CellToNodeAverage(eta_LM, i, j, k, 0);
+                    Set::Vector grad_eta = grad_eta_lm;
+                    Set::Scalar eta_node = eta_lm_node;
+                    if (use_rigid)
+                    {
+                        Set::Vector grad_rigid = Numeric::CellGradientOnNode(rigid_eta, i, j, k, 0, DX);
+                        Set::Scalar rigid_node = Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0);
+                        eta_node = rigid_node + eta_lm_node * (1.0 - rigid_node);
+                        grad_eta = grad_rigid * (1.0 - eta_lm_node) + grad_eta_lm * (1.0 - rigid_node);
+                    }
+                    eta_node = Util::Clamp(eta_node, 0.0, 1.0);
                     if (eta_node <= etacutoff) { rhs(i,j,k) = Set::Vector::Zero(); return; }
                     Set::Scalar p_node = use_fluid_pressure
                         ? Numeric::Interpolate::CellToNodeAverage(pressure, i, j, k, 0) : 0.0;
                     rhs(i,j,k) = (traction - p_node) * grad_eta;
                 });
 
-                // Soft ersatz void blend, weighted by psi_TO. The clamp is
-                // load-bearing, not defensive: NeoHookeanPredeformed's
-                // operator* scales F0, so this affine combination is only
-                // valid while the two weights sum to exactly 1 (cf.
-                // LowMach.cpp:2338-2342, the same reasoning for its
-                // rigid-fraction blend).
+                // Soft ersatz void blend, weighted by union(rigid_eta,
+                // psi_TO) -- a fixed rigid region reads as solid regardless
+                // of what psi_TO does underneath it (see the class comment
+                // above). The clamp is load-bearing, not defensive:
+                // NeoHookeanPredeformed's operator* scales F0, so this
+                // affine combination is only valid while the two weights
+                // sum to exactly 1 (cf. LowMach.cpp:2338-2342, the same
+                // reasoning for its rigid-fraction blend).
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar psi_node = Util::Clamp(
                         Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0), 0.0, 1.0);
+                    if (use_rigid)
+                    {
+                        Set::Scalar rigid_node = Util::Clamp(
+                            Numeric::Interpolate::CellToNodeAverage(rigid_eta, i, j, k, 0), 0.0, 1.0);
+                        psi_node = Util::Clamp(rigid_node + psi_node * (1.0 - rigid_node), 0.0, 1.0);
+                    }
                     model_arr(i,j,k) = solid_model * psi_node + void_model * (1.0 - psi_node);
                 });
             }

@@ -53,6 +53,8 @@ public:
         delete ic_psi;
         delete bc_psi;
         delete ic_design_mask;
+        delete ic_rigid_eta;
+        delete bc_rigid_eta;
     }
 
     // The mechanics integrator manages the solution of an elastic
@@ -97,6 +99,32 @@ public:
         {
             value.template AddField<Set::Scalar, Set::Hypercube::Cell>(value.design_mask_mf, nullptr, 1, 2, "design_mask", true, false);
             pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("design_mask.ic",value.ic_design_mask,pp.forward_args(value.geom));
+        }
+
+        // Optional permanently-fixed geometry (e.g. a rigid support wall)
+        // that must participate in the elastic solve as solid material
+        // regardless of what psi does. Unlike design_mask, which freezes
+        // psi's own *rate* (dpsi/dt *= mask) and can still leak wherever
+        // the diffuse interface terms or a node/cell interpolation cross
+        // the mask boundary, rigid_eta is a wholly separate static field:
+        // psi never writes to it (it has no "old" copy, no AdvancePsi/
+        // ComputePsiDt term references it), so there is nothing for psi's
+        // dynamics to leak into. Wherever downstream code needs "is this
+        // solid", combine the two with a union -- e.g.
+        // rigid + psi*(1-rigid) -- so the rigid region reads as solid no
+        // matter what psi is doing underneath it. Off by default; see
+        // TopOpLowMach::UpdateModel for the combination in practice.
+        value.rigid_eta_on = pp.contains("rigid_eta.ic.type");
+        if (value.rigid_eta_on)
+        {
+            value.bc_rigid_eta = new BC::Constant(1, pp, "rigid_eta.bc");
+            // Plotfile name is "topop_rigid_eta", not "rigid_eta" -- LowMach
+            // (when this class is composed with it, e.g. TopOpLowMach)
+            // already registers its own, differently-computed rigid_eta_mf
+            // under the plain "rigid_eta" name (LowMach.cpp:345); reusing it
+            // here would make one silently unreadable in plotfiles.
+            value.template AddField<Set::Scalar, Set::Hypercube::Cell>(value.rigid_eta_mf, value.bc_rigid_eta, 1, 2, "topop_rigid_eta", true, false);
+            pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("rigid_eta.ic",value.ic_rigid_eta,pp.forward_args(value.geom));
         }
 
         // Target maximum |d(psi)/dt|, opt-in via presence of this key.
@@ -150,6 +178,11 @@ public:
         {
             ic_design_mask->Initialize(lev, design_mask_mf);
             Util::RealFillBoundary(*design_mask_mf[lev], geom[lev]);
+        }
+        if (rigid_eta_on)
+        {
+            ic_rigid_eta->Initialize(lev, rigid_eta_mf);
+            Util::RealFillBoundary(*rigid_eta_mf[lev], geom[lev]);
         }
     }
 
@@ -393,6 +426,10 @@ protected:
     bool design_mask_on = false;
     IC::IC<Set::Scalar>* ic_design_mask = nullptr;
     Set::Field<Set::Scalar> design_mask_mf;
+    bool rigid_eta_on = false;
+    IC::IC<Set::Scalar>* ic_rigid_eta = nullptr;
+    BC::BC<Set::Scalar>* bc_rigid_eta = nullptr;
+    Set::Field<Set::Scalar> rigid_eta_mf;
     bool m_dynamic_dt = false;
     Set::Scalar m_max_dpsidt = NAN;
     Set::Scalar m_psi_dt = NAN;
