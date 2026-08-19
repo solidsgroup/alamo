@@ -26,42 +26,52 @@
 # gives rho ~= 1.12254198039921 kg/m^3 (same ideal-gas state as
 # LMDrivenCavity). Re = 1 therefore requires mu = rho*U*L = rho.
 #
-# amr.max_level IS KEPT AT 0, not the requested 1. Root-caused (see
-# tests/TopOpLowMachPressure/input, reproduced there with only
-# amr.max_level=1 overridden): NOT a TopOpLowMach coupling bug -- ruled out
-# both original suspects. (1) Forcing the level-1 patch through LowMach's
-# own velocity_refinement_criterion instead of TopOp's psi-gradient tagging
-# reproduces the identical divergence, so it isn't TopOp's tagging kernel.
-# (2) model_mf/rhs_mf are finite and physically reasonable at both levels
-# right before the failing solve (checked via a temporary debug print), so
-# it isn't psi_mf-reuse/psi_on-toggle data corruption.
+# amr.max_level = 1, enabled by two changes together (neither alone is
+# enough):
 #
-# It is a genuine interface-resolution requirement for the composite
-# (coarse+fine) MLMG elastic solve: at this test's dx_level0 = 1e-4, the
-# usual diffuse-interface width (wy = 2e-4, i.e. 2 coarse cells) diverges,
-# but widening it converges cleanly -- bisected the threshold directly on
-# tests/TopOpLowMachPressure/input at amr.max_level=1: wy=7.0e-4 fails,
-# wy=7.5e-4 succeeds (~7.5 coarse / ~15 fine cells across the interface).
-# This threshold barely moves with void contrast (fails the same way at
-# both the 200x contrast validated by tests/LowMachElasticInclusion and
-# the ~1e4x this test's elastic.void.model uses), so it's specifically
-# about cells-per-interface at the coarse-fine AMR boundary, not modulus
-# contrast. Matches, in kind, the codebase's own documented MLMG
-# sensitivity to under-resolved interfaces in
-# tests/LowMachElasticInclusionThinInterface -- just showing up at the AMR
-# level boundary instead of MG coarsening within one level, with a much
-# tighter margin once a second level is involved. Every existing
-# TopOpLowMach test (including this one) uses wy=2e-4, fine at
-# amr.max_level=0 but well under the ~7.5e-4 threshold amr.max_level=1
-# needs here. amr.regrid_int is left at 100 below so flipping max_level
-# back to 1 (with a wider interface, or a finer dx_level0) requires no
-# other input change.
+# 1. TopOp's phase-field pseudo-dt is now dynamic (topop.max_dpsidt below,
+#    see TopOp::ComputePsiDt in src/Integrator/TopOp.H): a fixed topop.dt
+#    let AdvancePsi's driving force outrun stability as the interface's
+#    length scale shrank over many cycles, producing psi checkerboarding
+#    that eventually broke the elastic solve -- confirmed by direct A/B
+#    run: this exact config (then at 20x void contrast, see #2) diverged
+#    with a genuine MLMG failure at step 1384/cycle 34 with a fixed
+#    topop.dt = 0.02, and ran clean to completion (2050/2050 steps,
+#    stop_time = 8.2, zero MLMG failures) with topop.max_dpsidt = 0.05
+#    instead.
+#
+# 2. Void contrast dropped from 200x to 20x (elastic.void.model.mu/kappa
+#    below). This is unrelated to (1) -- it fixes a *first-step* MLMG
+#    divergence, before psi ever moves, so no pseudo-dt choice touches it.
+#    200x still fails immediately at amr.max_level=1 even with dynamic dt
+#    (confirmed directly). This is the genuine interface-resolution
+#    requirement for the composite (coarse+fine) MLMG elastic solve
+#    described in the investigation below: at this test's dx_level0 = 1e-4
+#    and wy = 0.04, 200x contrast is past what the AMR coarse-fine boundary
+#    can resolve; 20x is not. (Root-caused earlier, see
+#    tests/TopOpLowMachPressure/input, reproduced there with only
+#    amr.max_level=1 overridden: NOT a TopOpLowMach coupling bug -- ruled
+#    out both original suspects. (a) Forcing the level-1 patch through
+#    LowMach's own velocity_refinement_criterion instead of TopOp's
+#    psi-gradient tagging reproduces the identical divergence, so it isn't
+#    TopOp's tagging kernel. (b) model_mf/rhs_mf are finite and physically
+#    reasonable at both levels right before the failing solve (checked via
+#    a temporary debug print), so it isn't psi_mf-reuse/psi_on-toggle data
+#    corruption. Matches, in kind, the codebase's own documented MLMG
+#    sensitivity to under-resolved interfaces in
+#    tests/LowMachElasticInclusionThinInterface -- just showing up at the
+#    AMR level boundary instead of MG coarsening within one level, with a
+#    much tighter margin once a second level is involved.)
+#
+# The 2050-step validation above covers ~1/6 of this test's full
+# stop_time = 49.2 (300 cycles, 12300 steps); the full run had not finished
+# by the time this change landed.
 
 alamo.program = topop_lowmach
 plot_file = tests/TopOpCrossFlow/output
 
 amr.plot_int = 205
-amr.max_level = 0
+amr.max_level = 1
 amr.n_cell = 64 64
 amr.max_grid_size = 32
 amr.blocking_factor = 4
@@ -209,13 +219,11 @@ elastic.etacutoff = 0.0
 elastic.solver.verbose = 0
 elastic.solver.nriters = 1
 elastic.zero_out_displacement = 0
-# 200x void contrast, matching the window validated by
-# tests/LowMachElasticInclusion (not the ~1e4x contrast the other
-# TopOpLowMach tests use, which is fine at their much smaller pressure/
-# modulus ratio but was one of several factors ruled out during the
-# amr.max_level=1 divergence investigation above).
-elastic.void.model.mu    = 7.0e4
-elastic.void.model.kappa = 7.5e4
+# 20x void contrast (not the 200x validated by tests/LowMachElasticInclusion,
+# and not the ~1e4x contrast the other TopOpLowMach tests use) -- required
+# at amr.max_level=1, see the note above.
+elastic.void.model.mu    = 7.0e5
+elastic.void.model.kappa = 7.5e5
 elastic.max_coarsening_level = 2
 
 # One full FLOW/TOPOP/RELAX cycle (see TopOpLowMach.H's class comment):
@@ -235,13 +243,14 @@ elastic.bc.constant.type.xhiyhi = disp disp
 
 topop.n_flow  = 30
 topop.n_relax = 10
-# Explicit-Euler diffusion stability for AdvancePsi's -beta*Laplacian(psi)
-# term needs L*beta*dt <= dx^2/4 = (1/64)^2/4 = 6.1e-5, i.e. dt <= 0.061
-# with L.str=1e-3, beta=1 below. dt=0.1 (used originally) was already 1.6x
-# over that limit on its own, on top of the much larger effect the
-# mis-scaled moduli were having on the driving force (see the note by
-# Solid.elastic.model above); 0.02 leaves ~3x margin.
+# topop.dt is now only a parse placeholder (kept so it doesn't trip
+# LowMach::Parse's unused-input check) -- TopOp::ComputePsiDt overwrites the
+# actual TOPOP-step pseudo-dt dynamically every cycle. topop.max_dpsidt is
+# the input that now controls it: the target maximum |d(psi)/dt|, uniform
+# across the whole domain, that the dynamic dt is scaled to respect. See
+# the amr.max_level note above for why this replaced a fixed topop.dt.
 topop.dt = 0.02
+topop.max_dpsidt = 0.05
 topop.relax.dt = 1.0e-2
 
 topop.model.mu    = 1.4e7

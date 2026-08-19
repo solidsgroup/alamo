@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iomanip>
 #include <numeric>
+#include <cmath>
 
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
@@ -82,6 +83,21 @@ public:
         // Initial condition for psi field
         pp.select_default<IC::Constant::One,IC::Ellipse,IC::Constant,IC::Expression>("psi.ic",value.ic_psi,pp.forward_args(value.geom));
 
+        // Target maximum |d(psi)/dt|, opt-in via presence of this key.
+        // When set, standalone TopOp::Advance drives AdvancePsi with a
+        // dynamically computed pseudo-dt (see ComputePsiDt) instead of the
+        // physical dt, picking a single domain-wide dt each step so this
+        // bound holds everywhere, uniformly in space (never per-cell).
+        // Guards against the checkerboarding a fixed dt produces once the
+        // interface's length scale shrinks enough that the reaction/
+        // diffusion driving force outruns it. Off by default so existing
+        // TopOp inputs/references (e.g. tests/TopOp) are unaffected;
+        // TopOpLowMach always computes it, regardless of this flag, since
+        // its TOPOP phase never shared a timescale with the physical dt to
+        // begin with.
+        value.m_dynamic_dt = pp.contains("max_dpsidt");
+        pp_query_default("max_dpsidt", value.m_max_dpsidt, 0.05);
+
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01); // Refinement threshold based on eta
         pp_query_default("alpha", value.alpha, 1.0); // :math:`\alpha` parameter
         pp_query_default("beta", value.beta, 1.0); // :math:`\beta` parameter
@@ -133,11 +149,84 @@ public:
     }
 
 
+    // Computes the driving force once per (global, not per-level) step, via
+    // TimeStepBegin below -- see the class comment on Advance for why this
+    // must not be recomputed per level.
+    void TimeStepBegin(Set::Scalar time, int iter) override
+    {
+        Base::Mechanics<MODEL>::TimeStepBegin(time, iter);
+        if (psi_on && m_dynamic_dt) ComputePsiDt(time);
+    }
+
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("TopOp::Advance");
         Base::Mechanics<MODEL>::Advance(lev, time, dt);
-        AdvancePsi(lev, time, dt);
+        // Dynamic mode (topop.max_dpsidt set): drive AdvancePsi with the
+        // computed pseudo-dt (see ComputePsiDt) instead of the physical dt
+        // argument -- psi's stability limit and the flow/mechanics
+        // timestep are unrelated scales. Otherwise, unchanged legacy
+        // behavior: psi advances on the physical dt.
+        AdvancePsi(lev, time, m_dynamic_dt ? m_psi_dt : dt);
+    }
+
+    // Scans the driving force (the same formula AdvancePsi applies) across
+    // every level and cell and returns a single, domain-wide pseudo-dt such
+    // that max(|L * driving_force|) * dt == max_dpsidt. Must be called once
+    // per step, before any level's psi has been advanced -- AdvancePsi is
+    // applied independently per level (AMR subcycling), and computing this
+    // per-level would mix already-updated psi from earlier levels into the
+    // scan for later ones. TimeStepBegin above is the call site for
+    // standalone TopOp; TopOpLowMach calls it directly from its own
+    // TimeStepBegin, once per cycle, on the TOPOP step.
+    Set::Scalar ComputePsiDt(Set::Scalar time)
+    {
+        Set::Scalar Lnow = L(time);
+        Set::Scalar lambdaT = lambda(time);
+        Set::Scalar alpha_ = alpha, beta_ = beta, gamma_ = gamma;
+        Set::Scalar vol = volume, vol0 = volume0;
+
+        Set::Scalar max_rate = 0.0;
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            const Set::Scalar* DX = geom[lev].CellSize();
+            amrex::Box domain = geom[lev].Domain();
+            for (amrex::MFIter mfi(*psi_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.tilebox();
+                bx.grow(1);
+                bx = bx & domain;
+                amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                amrex::Array4<const MODEL> const& model_arr = (*model_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& psi = (*psi_mf[lev]).array(mfi);
+
+                amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+                amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+                using ReduceTuple = typename decltype(reduce_data)::Type;
+                reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    Set::Scalar driving_force = 0.0;
+                    driving_force += alpha_ * 2.0 * psi(i, j, k) * (2.0 * psi(i, j, k) * psi(i, j, k) - 3.0 * psi(i, j, k) + 1.0);
+                    driving_force += -beta_ * Numeric::Laplacian(psi, i, j, k, 0, DX);
+                    driving_force += -gamma_ * StrainEnergy(model_arr, sig, eps, i, j, k) * psi(i, j, k);
+                    driving_force += lambdaT * (vol - vol0);
+                    return { std::abs(driving_force) };
+                });
+                ReduceTuple hv = reduce_data.value();
+                max_rate = std::max(max_rate, amrex::get<0>(hv));
+            }
+        }
+        amrex::ParallelDescriptor::ReduceRealMax(max_rate);
+
+        Set::Scalar rate = Lnow * max_rate;
+        // rate ~ 0: the driving force is uniformly zero everywhere (e.g.
+        // L.str = 0, a frozen psi, or a fully converged field) -- psi will
+        // not move this step regardless of dt, so leave the last computed
+        // dt in place (or seed it with max_dpsidt on the very first call).
+        if (rate > 1.0e-12) m_psi_dt = m_max_dpsidt / rate;
+        else if (std::isnan(m_psi_dt)) m_psi_dt = m_max_dpsidt;
+        return m_psi_dt;
     }
 
     // The phase-field (psi) update, factored out of Advance so a coupled
@@ -273,6 +362,9 @@ protected:
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;
+    bool m_dynamic_dt = false;
+    Set::Scalar m_max_dpsidt = NAN;
+    Set::Scalar m_psi_dt = NAN;
 
 
     using Base::Mechanics<MODEL>::m_type;

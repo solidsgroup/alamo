@@ -110,7 +110,11 @@ public:
         pp.pushPrefix("topop");
         pp_query_default("n_flow", value.topop_n_flow, 0);   // FLOW steps per cycle
         pp_query_default("n_relax", value.topop_n_relax, 0); // RELAX steps per cycle
-        pp_query_default("dt", value.topop_dt, 0.0);         // TOPOP phase-field pseudo-dt
+        // TOPOP phase-field pseudo-dt: parsed only so existing inputs that
+        // set it don't trip LowMach::Parse's unused-input check. The actual
+        // value used each TOPOP step is overwritten dynamically in
+        // TimeStepBegin -- see TopOp::ComputePsiDt/topop.max_dpsidt.
+        pp_query_default("dt", value.topop_dt, 0.0);
         pp_query_default("relax.dt", value.topop_relax_dt, 0.0); // RELAX pseudo-dt
         pp.popPrefix();
 
@@ -190,6 +194,16 @@ protected:
         psi_on = false;
         LowMach::TimeStepBegin(time, iter);
         psi_on = psi_on_saved;
+
+        // Dynamic pseudo-dt for the upcoming AdvancePsi call (see
+        // TopOp::ComputePsiDt): scans the driving force -- now current,
+        // since the elastic solve above just refreshed stress_mf/strain_mf
+        // -- across every level and picks a single dt so max(|d(psi)/dt|)
+        // stays under topop.max_dpsidt. Only meaningful on the TOPOP step;
+        // computed here (once per cycle) rather than per-level in Advance,
+        // since it must be uniform across the whole domain.
+        if (m_phase == Phase::TopOpSolve)
+            topop_dt = TopOpBase::ComputePsiDt(m_topop_time);
     }
 
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
