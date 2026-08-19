@@ -262,8 +262,16 @@ topop.design_mask.ic.expression.constant.x2 = 1.55
 topop.design_mask.ic.expression.constant.hs = 0.50
 topop.design_mask.ic.expression.region0 = "(x>x1)*(x<x2)*(y<hs)"
 
-topop.alpha = 4.0
-topop.beta  = 1.0
+# alpha/beta from prior group work (not TopOpCrossFlow's 4.0/1.0): sets the
+# equilibrium interface width to sqrt(beta/alpha) = sqrt(0.01/200) ~= 0.007m
+# (vs. ~0.5m at 4.0/1.0 -- essentially unbounded relative to this domain,
+# which is why the interface was smearing across the whole back end of the
+# design region instead of forming a sharp psi = 0/1 shape). 0.007m is
+# close to one cell at this run's finest level (dx_level1 = 0.00625m), so
+# this may itself be at the edge of what amr.max_level=1 can resolve --
+# watch for it if MLMG instability reappears.
+topop.alpha = 200.0
+topop.beta  = 0.01
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
 # Volume cap, same mechanism as tests/TopOpCrossFlow: at most 25% of the
@@ -292,7 +300,14 @@ topop.L.str = 1.0e-3
 # TOPOP step after lambda first became non-negligible. At end time 60.0,
 # lambda(0.04) ~= 34 instead of ~334, a 10x weaker uniform push while the
 # volume error is still this large.
-topop.max_dpsidt = 0.002
+#
+# max_dpsidt raised from 0.002 to 0.0075 (interface evolves ~3.75x faster
+# per cycle) after the alpha/beta change above sharpened the interface --
+# swept by hand at fixed alpha=200/beta=0.01: 0.005 and 0.0075 both ran 6
+# full cycles (610 steps) clean; 0.01 produced a genuine MLMG failure in
+# the elastic solve at the cycle-6 TOPOP step (step 607). 0.0075 is the
+# largest value tried that stayed on the stable side of that boundary.
+topop.max_dpsidt = 0.0075
 topop.lambda.str = (0.0,60.0:1.0,5.0e4)
 topop.volume0frac = 0.028333333333333333
 
