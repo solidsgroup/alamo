@@ -34,12 +34,18 @@ alamo.program = topop_lowmach
 plot_file = tests/TopOpFixedWall/output
 
 amr.plot_int = 101
-amr.max_level = 0
+amr.max_level = 1
 amr.n_cell = 240 80
 amr.max_grid_size = 40
 amr.blocking_factor = 4
-amr.regrid_int = -1
+amr.regrid_int = 100
+amr.grid_eff = 0.7
 amr.cell.all = 1
+amr.node.any = 0
+
+# Required once amr.max_level > 0 -- see tests/TopOpCrossFlow/input's note:
+# tags cells for refinement wherever the velocity gradient exceeds this.
+velocity_refinement_criterion = 5.0e-2
 
 # 20 full FLOW/TOPOP/RELAX cycles (101 steps each = 2020 steps) -- a smoke
 # run, not the full-length validation; see tests/TopOpCrossFlow's header for
@@ -117,7 +123,7 @@ Solid.density.ic.expression.constant.x2  = 1.55
 Solid.density.ic.expression.constant.hw  = 0.45
 Solid.density.ic.expression.constant.hs  = 0.50
 Solid.density.ic.expression.constant.w   = 0.02
-Solid.density.ic.expression.constant.volfrac0 = 0.25
+Solid.density.ic.expression.constant.volfrac0 = 1.0
 Solid.density.ic.expression.region0 = "rho*((0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w))))"
 
 Gas.density.ic.type = expression
@@ -130,7 +136,7 @@ Gas.density.ic.expression.constant.x2  = 1.55
 Gas.density.ic.expression.constant.hw  = 0.45
 Gas.density.ic.expression.constant.hs  = 0.50
 Gas.density.ic.expression.constant.w   = 0.02
-Gas.density.ic.expression.constant.volfrac0 = 0.25
+Gas.density.ic.expression.constant.volfrac0 = 1.0
 Gas.density.ic.expression.region0 = "(P/(R*T))*(1.0 - ((0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))))"
 
 # Parabolic inlet: 0 at ylo/yhi, Umax at the centerline y = H/2. Outlet
@@ -232,7 +238,7 @@ topop.psi.ic.expression.constant.x2  = 1.55
 topop.psi.ic.expression.constant.hw  = 0.45
 topop.psi.ic.expression.constant.hs  = 0.50
 topop.psi.ic.expression.constant.w   = 0.02
-topop.psi.ic.expression.constant.volfrac0 = 0.25
+topop.psi.ic.expression.constant.volfrac0 = 1.0
 topop.psi.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
 topop.psi.bc.type.xlo = NEUMANN
 topop.psi.bc.type.xhi = NEUMANN
@@ -261,10 +267,14 @@ topop.L.str = 1.0e-3
 # constraint is the closest thing this codebase has to a volume cap, so the
 # requested limit -- at most 25% of the original 0.5m x 0.5m design square,
 # i.e. 0.25 * 0.25 m^2 = 0.0625 m^2 -- is enforced by setting volume0 to
-# exactly that fill (volfrac0 above matches it, so the IC starts satisfied
-# rather than fighting the constraint from step 1) plus the frozen wall's
-# fixed 0.05*0.45 = 0.0225 m^2, over the 3.0 m^2 domain:
-# (0.0225+0.0625)/3.0 = 0.0283(3).
+# exactly that fill, plus the frozen wall's fixed 0.05*0.45 = 0.0225 m^2,
+# over the 3.0 m^2 domain: (0.0225+0.0625)/3.0 = 0.0283(3).
+#
+# volfrac0 above is 1.0, not 0.25: the square now starts fully solid
+# (0.25 m^2), well above this target, so the constraint has to carve
+# material away rather than merely hold the IC in place -- exactly the
+# void-forming behavior this test is meant to exercise, unlike the earlier
+# revision where the IC was seeded already at the target fill.
 topop.lambda.str = (0.0,6.0:1.0,5.0e4)
 topop.volume0frac = 0.028333333333333333
 
@@ -275,5 +285,5 @@ eta_lm.ic.expression.constant.x2  = 1.55
 eta_lm.ic.expression.constant.hw  = 0.45
 eta_lm.ic.expression.constant.hs  = 0.50
 eta_lm.ic.expression.constant.w   = 0.02
-eta_lm.ic.expression.constant.volfrac0 = 0.25
+eta_lm.ic.expression.constant.volfrac0 = 1.0
 eta_lm.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
