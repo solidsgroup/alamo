@@ -38,9 +38,7 @@
 alamo.program = topop_lowmach
 plot_file = tests/TopOpFixedWall/output
 
-# Every 10th cycle, not every cycle (unlike the 20-cycle run) -- ~495
-# cycles at 1 plotfile/cycle would be excessive I/O for this domain size.
-amr.plot_int = 1010
+amr.plot_int = 500
 amr.max_level = 1
 amr.n_cell = 240 80
 amr.max_grid_size = 40
@@ -54,13 +52,11 @@ amr.node.any = 0
 # tags cells for refinement wherever the velocity gradient exceeds this.
 velocity_refinement_criterion = 5.0e-2
 
-# ~495 full FLOW/TOPOP/RELAX cycles (101 steps each, ~49995 steps): long
-# enough, at topop.max_dpsidt = 0.002/cycle, to actually see psi move --
-# the first 20-cycle run (stop_time = 8.08) barely changed at all, since
-# 20 cycles * 0.002 is only a ~4% bound on psi's total possible drift
-# anywhere. Not the full-length validation; see tests/TopOpCrossFlow's
-# header for that pattern (short run committed, full run validated
-# separately).
+# ~820 full FLOW/TOPOP/RELAX cycles (61 steps each -- see topop.n_flow
+# below -- ~50000 steps): long enough, at topop.max_dpsidt = 0.005/cycle,
+# to actually see psi move. Not the full-length validation; see
+# tests/TopOpCrossFlow's header for that pattern (short run committed,
+# full run validated separately).
 timestep = 4.0e-3
 stop_time = 200.0
 dynamictimestep.on = 0
@@ -215,7 +211,11 @@ elastic.solver.nriters = 1
 # with a much higher bottom_max_iter fixes the bottom-solve stall. Verified
 # clean past step 7500 (vs. failing by step ~1600 before) with both fixes.
 elastic.zero_out_displacement = 1
-elastic.solver.max_iter = 500
+# Raised from 500 -> 5000 for extra margin against the hollow-box IC below:
+# its inner cavity gives the elastic solve a sharper, more complex modulus
+# geometry (an interior void surface in addition to the outer one) than the
+# solid-square IC this was originally tuned against.
+elastic.solver.max_iter = 5000
 elastic.solver.bottom_solver = smoother
 elastic.solver.bottom_max_iter = 1000
 
@@ -231,10 +231,11 @@ elastic.max_coarsening_level = 2
 # destabilize the elastic MLMG solve independent of amr.regrid_int.
 modulus_refinement_criterion = 2.0
 
-# One full FLOW/TOPOP/RELAX cycle: 90 FLOW steps, 1 TOPOP step, 10 RELAX
-# steps, 101 total. n_flow scaled up 3x from TopOpCrossFlow's 30 to match
-# this domain's 3x longer length (same dt, same Umax).
-elastic.interval = 101
+# One full FLOW/TOPOP/RELAX cycle: 50 FLOW steps, 1 TOPOP step, 10 RELAX
+# steps, 61 total. Lowered from 90 FLOW steps (101 total) so the elastic
+# solve -- and therefore psi -- updates more often relative to the flow,
+# at the cost of the flow having less time to re-settle between solves.
+elastic.interval = 61
 
 # Only the floor (ylo) is a displacement BC -- the wall and its support are
 # cantilevered off the bottom of the channel, not clamped at yhi too (unlike
@@ -251,7 +252,7 @@ elastic.bc.constant.type.xhiylo = disp disp
 elastic.bc.constant.type.xloyhi = trac trac
 elastic.bc.constant.type.xhiyhi = trac trac
 
-topop.n_flow  = 90
+topop.n_flow  = 50
 topop.n_relax = 10
 # Parse placeholder only -- TopOp::ComputePsiDt overwrites the actual
 # TOPOP-step pseudo-dt every cycle via topop.max_dpsidt. See
@@ -262,18 +263,33 @@ topop.relax.dt = 1.0e-2
 topop.model.mu    = 1.4e7
 topop.model.kappa = 1.5e7
 
-# Design-square term only (dropped the wall term that used to live here) --
-# psi_TO now represents only the evolvable support, not the wall. Nothing
-# masks its evolution anymore; the wall staying fixed is now rigid_eta's
-# job entirely (below), combined with psi via a union wherever the model,
-# traction, or LowMach's density are built.
+# Hollow box, not a filled square: psi's Allen-Cahn dynamics only move
+# where there's already an interface (the alpha/beta double-well term acts
+# pointwise, and the beta*Laplacian term only pushes where there's a
+# gradient), so a filled square only ever evolves from its outer boundary.
+# Carving an enclosed cavity out of the middle -- outer box minus a smaller
+# inner box, both tanh-smoothed -- gives it an *inner* interface too,
+# roughly doubling the perimeter available to evolve from in the same
+# number of cycles. The shell wall thickness t=0.075 is chosen well above
+# alpha=7.0's ~0.038m equilibrium interface width (see below) so the outer
+# and inner interfaces don't merge into each other as they relax.
+#
+# Resulting shell area = outer (0.25 m^2) - inner (0.35*0.35 = 0.1225 m^2)
+# = 0.1275 m^2, about 2x topop.volume0frac's target (0.0625 m^2) -- fine to
+# start off-target; the point here is exercising topology through the
+# extra interface, not matching the volume constraint immediately.
 topop.psi.ic.type = expression
 topop.psi.ic.expression.constant.x1  = 1.05
 topop.psi.ic.expression.constant.x2  = 1.55
 topop.psi.ic.expression.constant.hs  = 0.50
 topop.psi.ic.expression.constant.w   = 0.02
+topop.psi.ic.expression.constant.t   = 0.075
+topop.psi.ic.expression.constant.xi1 = 1.125
+topop.psi.ic.expression.constant.xi2 = 1.475
+topop.psi.ic.expression.constant.yi0 = 0.075
+topop.psi.ic.expression.constant.hsi = 0.425
 topop.psi.ic.expression.constant.volfrac0 = 1.0
-topop.psi.ic.expression.region0 = "volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
+topop.psi.ic.expression.region0 = "volfrac0*((0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w))) - (0.5*(1.0+tanh((x-xi1)/w))*0.5*(1.0-tanh((x-xi2)/w))*0.5*(1.0+tanh((y-yi0)/w))*0.5*(1.0-tanh((y-hsi)/w))))"
 topop.psi.bc.type.xlo = NEUMANN
 topop.psi.bc.type.xhi = NEUMANN
 topop.psi.bc.type.ylo = NEUMANN
@@ -354,10 +370,14 @@ topop.max_dpsidt = 0.005
 topop.lambda.str = (0.0,60.0:1.0,5.0e4)
 topop.volume0frac = 0.020833333333333333
 
-# Design-square term only, matching topop.psi.ic above -- eta_LM relaxes
-# toward psi_TO (RelaxEtaLM), which no longer carries the wall. The wall
-# reaches LowMach's density via the union with rigid_eta in
-# PushEtaToComponentDensity, not through eta_LM's own IC/relaxation.
+# Filled square, NOT hollow like topop.psi.ic above -- deliberately kept
+# solid so LowMach's flow always sees a single, void-free structure from
+# t=0, even while psi_TO is exploring the hollow topology underneath it.
+# RelaxEtaLM only lets eta_LM move where it already has an interface (see
+# TopOpLowMach.H's class comment), so it will follow psi_TO's outer
+# boundary but cannot spontaneously develop the interior cavity psi_TO
+# starts with -- it would have to erode in from the outer surface instead,
+# same as LowMach's own no-interior-voids requirement demands.
 eta_lm.ic.type = expression
 eta_lm.ic.expression.constant.x1  = 1.05
 eta_lm.ic.expression.constant.x2  = 1.55

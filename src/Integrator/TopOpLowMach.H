@@ -132,7 +132,24 @@ public:
         pp_query_default("relax.dt", value.topop_relax_dt, 0.0); // RELAX pseudo-dt
         pp.popPrefix();
 
+        // Gate on gas mole fraction, RelaxEtaLM below: LowMach requires
+        // extended fields for mole_fraction_mf to even be allocated.
+        pp.pushPrefix("topop");
+        pp_query_default("eta_lm_fluid_threshold", value.m_eta_lm_fluid_threshold, 1.0e-3);
+        pp.popPrefix();
+
         LowMach::Parse(value, pp);
+
+        if (value.m_type != Base::Mechanics<elastic_model_type>::Type::Disable &&
+            !value.diagnostics_extended_fields)
+        {
+            Util::Abort(INFO,
+                "TopOpLowMach requires diagnostics.extended_fields = 1: "
+                "RelaxEtaLM reads LowMach's mole_fraction_mf (only allocated "
+                "when extended fields are on) to gate eta_LM's void-forming "
+                "direction on physically-detected fluid presence -- see the "
+                "class comment on RelaxEtaLM.");
+        }
 
         if (value.m_type != Base::Mechanics<elastic_model_type>::Type::Disable &&
             !value.elastic.void_model_on)
@@ -256,18 +273,44 @@ protected:
             m_topop_time += topop_dt;
     }
 
-    // d(eta_LM)/dt = (psi_TO - eta_LM) * |grad(eta_LM)|, explicit Euler.
-    // The |grad(eta_LM)| factor means eta_LM can only move where it
-    // already has an interface: a cell interior to a uniform eta_LM region
-    // (grad = 0) stays exactly put regardless of what psi_TO does there,
-    // so psi_TO developing an interior void cannot nucleate one in eta_LM
-    // -- see tests/TopOpLowMachRelax, which checks exactly this.
+    // d(eta_LM)/dt = (psi_TO - eta_LM) * |grad(eta_LM)|, explicit Euler,
+    // with the void-forming half of that (eta_LM decreasing, i.e. psi_TO <
+    // eta_LM) additionally gated on LowMach's own gas mole_fraction_mf.
+    //
+    // The |grad(eta_LM)| factor alone only guarantees eta_LM can't move
+    // where it has no interface *yet* -- it does not, by itself, stop an
+    // enclosed cavity in psi_TO from slowly eroding eta_LM once *any* of
+    // its own transition-zone tail (or later regridding/interpolation)
+    // gives that interior a nonzero-but-tiny gradient; LowMach cannot
+    // tolerate a void there regardless of how it got created (see the
+    // TopOpLowMach class comment).
+    //
+    // mole_fraction_mf is a physical answer to the same question the
+    // gradient gate was trying to approximate geometrically: is this cell
+    // actually reachable by the fluid? mole_fraction(n) is defined as
+    // gas_volume_fraction * X(n) (LowMach.cpp:597-618), where X are the
+    // gas-phase mole fractions (sum to 1 over the ngas_species gas
+    // species -- LowMach.cpp:103-122 requires the first ngas_species
+    // entries of species.names to be "fluid"), so summing mole_fraction's
+    // components gives exactly gas_volume_fraction with no name lookup
+    // needed: the actual fraction of this cell's volume open to fluid, a
+    // more direct signal than a mass-weighted fraction would be. As long
+    // as eta_LM starts fully closed (no input should ever give it a hole
+    // in its IC), an enclosed cavity in psi_TO has no advective/diffusive
+    // path for gas to reach it, so this sum stays ~0 there indefinitely
+    // -- while a genuinely-connected void fills with gas through the
+    // FLOW-phase solve LowMach is already running, and only THEN is
+    // eta_LM allowed to open up to match it. Solid-forming (psi_TO >
+    // eta_LM) is never gated this way -- closing a gap is never a problem
+    // for LowMach, only opening one is.
     void RelaxEtaLM(int lev, Set::Scalar dt)
     {
         BL_PROFILE("TopOpLowMach::RelaxEtaLM");
         std::swap(eta_LM_old_mf[lev], eta_LM_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
+        const int n_gas = ngas_species;
+        const Set::Scalar fluid_threshold = m_eta_lm_fluid_threshold;
 
         for (amrex::MFIter mfi(*eta_LM_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -276,12 +319,20 @@ protected:
             bx = bx & domain;
             amrex::Array4<const Set::Scalar> const& eta_old = (*eta_LM_old_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& psi = (*psi_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& mole_fraction = (*mole_fraction_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& eta_new = (*eta_LM_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
+                Set::Scalar driving = psi(i, j, k) - eta_old(i, j, k);
+                if (driving < 0.0)
+                {
+                    Set::Scalar gas_frac = 0.0;
+                    for (int n = 0; n < n_gas; ++n) gas_frac += mole_fraction(i, j, k, n);
+                    if (gas_frac < fluid_threshold) driving = 0.0;
+                }
                 Set::Scalar grad_mag = Numeric::Gradient(eta_old, i, j, k, 0, DX).lpNorm<2>();
-                Set::Scalar val = eta_old(i, j, k) + dt * (psi(i, j, k) - eta_old(i, j, k)) * grad_mag;
+                Set::Scalar val = eta_old(i, j, k) + dt * driving * grad_mag;
                 eta_new(i, j, k) = Util::Clamp(val, 0.0, 1.0);
             });
         }
@@ -460,6 +511,7 @@ protected:
     Set::Scalar topop_relax_dt = 0.0;
     Set::Scalar m_topop_time = 0.0;
     Phase m_phase = Phase::Flow;
+    Set::Scalar m_eta_lm_fluid_threshold = 1.0e-3;
 };
 } // namespace Integrator
 #endif
