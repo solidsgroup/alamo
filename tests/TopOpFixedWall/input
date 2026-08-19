@@ -1,7 +1,7 @@
 #@ [2d-smoke]
 #@ exe = topop
 #@ dim = 2
-#@ timeout = 1800
+#@ timeout = 3600
 #@ check = false
 
 # Second Integrator::TopOpLowMach validation domain (see tests/TopOpCrossFlow
@@ -33,7 +33,9 @@
 alamo.program = topop_lowmach
 plot_file = tests/TopOpFixedWall/output
 
-amr.plot_int = 101
+# Every 10th cycle, not every cycle (unlike the 20-cycle run) -- ~495
+# cycles at 1 plotfile/cycle would be excessive I/O for this domain size.
+amr.plot_int = 1010
 amr.max_level = 1
 amr.n_cell = 240 80
 amr.max_grid_size = 40
@@ -47,11 +49,15 @@ amr.node.any = 0
 # tags cells for refinement wherever the velocity gradient exceeds this.
 velocity_refinement_criterion = 5.0e-2
 
-# 20 full FLOW/TOPOP/RELAX cycles (101 steps each = 2020 steps) -- a smoke
-# run, not the full-length validation; see tests/TopOpCrossFlow's header for
-# that pattern (short run committed, full run validated separately).
+# ~495 full FLOW/TOPOP/RELAX cycles (101 steps each, ~49995 steps): long
+# enough, at topop.max_dpsidt = 0.002/cycle, to actually see psi move --
+# the first 20-cycle run (stop_time = 8.08) barely changed at all, since
+# 20 cycles * 0.002 is only a ~4% bound on psi's total possible drift
+# anywhere. Not the full-length validation; see tests/TopOpCrossFlow's
+# header for that pattern (short run committed, full run validated
+# separately).
 timestep = 4.0e-3
-stop_time = 8.08
+stop_time = 200.0
 dynamictimestep.on = 0
 
 geometry.prob_lo = 0.0 0.0 0.0
