@@ -13,14 +13,19 @@
 # solve fixed (disp) only on the floor -- the wall/support are cantilevered
 # off the bottom, not clamped top and bottom.
 #
-# This is the first real use of topop.design_mask (src/Integrator/TopOp.H,
-# "TopOp: add optional design_mask for passive elements"): design_mask = 0
-# everywhere except the 0.5m square, which freezes psi = 1 in the wall
-# (permanently solid, never touched by the optimizer) and psi = 0 in the
-# open channel (permanently void), while only the square is left free to
-# evolve. The wall still fully participates in the elastic solve -- it is
-# masked out of AdvancePsi's driving force, not out of UpdateModel -- so it
-# loads the support structure behind it exactly like any other solid.
+# This is the first real use of topop.rigid_eta (src/Integrator/TopOp.H):
+# the wall is a separate, permanently-solid field that psi never writes to
+# and no mask ever gates -- unlike the design_mask approach tried earlier
+# (freezing psi's own rate wherever mask == 0), which turned out to leak at
+# its diffuse-interpolation boundary and let the "frozen" wall region
+# actually change. psi itself is left completely unmasked and free to
+# evolve everywhere; wherever the elastic model, the interfacial pressure
+# traction, and the density LowMach sees are built (TopOpLowMach::
+# UpdateModel / PushEtaToComponentDensity), they union rigid_eta with
+# psi_TO/eta_LM, so the wall reads as solid unconditionally regardless of
+# what psi is doing underneath it. This still fully participates in the
+# elastic solve like any other solid, loading the support structure behind
+# it exactly as before.
 #
 # Smoke test (check = false): proves the coupled FLOW/TOPOP/RELAX cycle
 # runs stably on this more complex, two-region-with-a-frozen-obstacle
@@ -116,11 +121,8 @@ diagnostics.extended_fields = 1
 # Geometry: rigid wall spans x in [1.0,1.05], y in [0,0.45] (1m from the
 # inlet, 0.05m wide, 0.45m tall). The design region -- the support the wall
 # stands on -- is the 0.5m square immediately behind it, x in [1.05,1.55],
-# y in [0,0.5]. w is the tanh smoothing width shared by every field IC
-# below so the density/psi/eta interfaces all line up; design_mask itself
-# doesn't need smoothing (see TopOp.H -- it's a pointwise multiplier on the
-# driving force, no gradient of it is ever taken), so that one IC uses a
-# sharp boolean box instead.
+# y in [0,0.5]. w is the tanh smoothing width shared by every field IC in
+# this file (density, psi, rigid_eta, eta_LM) so all the interfaces line up.
 Solid.density.ic.type = expression
 Solid.density.ic.expression.constant.rho = 1950.0
 Solid.density.ic.expression.constant.x0  = 1.0
@@ -197,13 +199,37 @@ elastic.type = static
 elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0
-elastic.solver.verbose = 0
+elastic.solver.verbose = 4
 elastic.solver.nriters = 1
-elastic.zero_out_displacement = 0
+
+# The repeated elastic-solve MLMG failures (steps ~910/1516/1617 across
+# several parameter sweeps) traced to two independent causes, not to the
+# psi/mask geometry: (1) the Newton solve warm-starts disp_mf from the
+# previous cycle's converged displacement (Base/Mechanics.H:243), which let
+# the residual blow up outright at cycle 9 once the RHS drifted enough
+# between cycles; (2) once that was fixed, a slower stall remained where
+# the *bottom* solve specifically failed to converge (repeated "MLMG:
+# Bottom solve failed") -- the default bicgstab bottom solver couldn't
+# handle the ~20x void/solid modulus contrast at the coarsest level.
+# zero_out_displacement removes the bad warm start; bottom_solver=smoother
+# with a much higher bottom_max_iter fixes the bottom-solve stall. Verified
+# clean past step 7500 (vs. failing by step ~1600 before) with both fixes.
+elastic.zero_out_displacement = 1
+elastic.solver.max_iter = 500
+elastic.solver.bottom_solver = smoother
+elastic.solver.bottom_max_iter = 1000
+
 # 20x void contrast, same as tests/TopOpCrossFlow (see that input's note).
 elastic.void.model.mu    = 7.0e5
 elastic.void.model.kappa = 7.5e5
 elastic.max_coarsening_level = 2
+
+# Force AMR refinement wherever adjacent nodes' mu or kappa differ by more
+# than 2x, so coarse-fine boundaries track the solid/void modulus contrast
+# (including as it moves inside the solid) instead of landing on top of
+# it -- crossing a large modulus jump at a refinement boundary can
+# destabilize the elastic MLMG solve independent of amr.regrid_int.
+modulus_refinement_criterion = 2.0
 
 # One full FLOW/TOPOP/RELAX cycle: 90 FLOW steps, 1 TOPOP step, 10 RELAX
 # steps, 101 total. n_flow scaled up 3x from TopOpCrossFlow's 30 to match
@@ -236,48 +262,65 @@ topop.relax.dt = 1.0e-2
 topop.model.mu    = 1.4e7
 topop.model.kappa = 1.5e7
 
+# Design-square term only (dropped the wall term that used to live here) --
+# psi_TO now represents only the evolvable support, not the wall. Nothing
+# masks its evolution anymore; the wall staying fixed is now rigid_eta's
+# job entirely (below), combined with psi via a union wherever the model,
+# traction, or LowMach's density are built.
 topop.psi.ic.type = expression
-topop.psi.ic.expression.constant.x0  = 1.0
 topop.psi.ic.expression.constant.x1  = 1.05
 topop.psi.ic.expression.constant.x2  = 1.55
-topop.psi.ic.expression.constant.hw  = 0.45
 topop.psi.ic.expression.constant.hs  = 0.50
 topop.psi.ic.expression.constant.w   = 0.02
 topop.psi.ic.expression.constant.volfrac0 = 1.0
-topop.psi.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
+topop.psi.ic.expression.region0 = "volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
 topop.psi.bc.type.xlo = NEUMANN
 topop.psi.bc.type.xhi = NEUMANN
 topop.psi.bc.type.ylo = NEUMANN
 topop.psi.bc.type.yhi = NEUMANN
 
-# design_mask = 1 only inside the 0.5m support square (x in [1.05,1.55],
-# y in [0,0.5]); 0 everywhere else, which freezes the wall permanently
-# solid and the open channel permanently void. Sharp boolean box (see the
-# class comment on design_mask in TopOp.H): no gradient of this field is
-# ever taken, so it doesn't need the tanh smoothing the density/psi ICs
-# above use for the elastic solve's sake.
-topop.design_mask.ic.type = expression
-topop.design_mask.ic.expression.constant.x1 = 1.05
-topop.design_mask.ic.expression.constant.x2 = 1.55
-topop.design_mask.ic.expression.constant.hs = 0.50
-topop.design_mask.ic.expression.region0 = "(x>x1)*(x<x2)*(y<hs)"
+# rigid_eta: the wall, x in [1.0,1.05], y in [0,0.45]. Permanently solid --
+# never written to by AdvancePsi, RelaxEtaLM, or PushEtaToComponentDensity
+# (see TopOp.H / TopOpLowMach.H class comments). tanh-smoothed with the same
+# width w as every other field IC in this file, since its gradient is now
+# actually taken (for the interfacial pressure traction in UpdateModel), not
+# just pointwise-multiplied the way the old design_mask was.
+topop.rigid_eta.ic.type = expression
+topop.rigid_eta.ic.expression.constant.x0 = 1.0
+topop.rigid_eta.ic.expression.constant.x1 = 1.05
+topop.rigid_eta.ic.expression.constant.hw = 0.45
+topop.rigid_eta.ic.expression.constant.w  = 0.02
+topop.rigid_eta.ic.expression.region0 = "0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))"
+topop.rigid_eta.bc.type.xlo = NEUMANN
+topop.rigid_eta.bc.type.xhi = NEUMANN
+topop.rigid_eta.bc.type.ylo = NEUMANN
+topop.rigid_eta.bc.type.yhi = NEUMANN
 
-# alpha/beta from prior group work (not TopOpCrossFlow's 4.0/1.0): sets the
-# equilibrium interface width to sqrt(beta/alpha) = sqrt(0.01/200) ~= 0.007m
-# (vs. ~0.5m at 4.0/1.0 -- essentially unbounded relative to this domain,
-# which is why the interface was smearing across the whole back end of the
-# design region instead of forming a sharp psi = 0/1 shape). 0.007m is
-# close to one cell at this run's finest level (dx_level1 = 0.00625m), so
-# this may itself be at the edge of what amr.max_level=1 can resolve --
-# watch for it if MLMG instability reappears.
-topop.alpha = 200.0
+# alpha/beta from prior group work, alpha then re-tuned down from 200.0: at
+# 200.0 the equilibrium interface width sqrt(beta/alpha) = sqrt(0.01/200)
+# ~= 0.007m was only ~1 cell wide at this run's finest level
+# (dx_level1 = 0.00625m) -- an under-resolved interface, which is what
+# caused a genuine MLMG failure in the elastic solve at cycle 9 (STEP 910)
+# once the interface actually started moving under max_dpsidt=0.0075 (see
+# below). alpha=10.0 gave a ~5-cell-wide interface (sqrt(0.01/10)/dx_level1
+# = 0.0316/0.00625 ~= 5.06), the low edge of the 5-7 cell band wanted for
+# the elastic solve to resolve the modulus contrast smoothly without
+# smearing it across the whole design region. Retuned to alpha=7.0 to
+# center it instead: sqrt(0.01/7) ~= 0.0378m, ~6.05 cells at
+# dx_level1 = 0.00625m -- same beta, same reasoning, just more margin on
+# both sides (still far sharper than the original 4.0/1.0, which gave a
+# 0.5m-wide interface that smeared across the whole back end of the design
+# region instead of forming a sharp psi = 0/1 shape).
+topop.alpha = 7.0
 topop.beta  = 0.01
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
 # Volume cap, same mechanism as tests/TopOpCrossFlow: at most 25% of the
-# original 0.5m x 0.5m design square (0.25*0.25 = 0.0625 m^2), plus the
-# frozen wall's fixed 0.05*0.45 = 0.0225 m^2, over the 3.0 m^2 domain:
-# (0.0225+0.0625)/3.0 = 0.0283(3).
+# original 0.5m x 0.5m design square (0.25*0.25 = 0.0625 m^2), over the
+# 3.0 m^2 domain: 0.0625/3.0 = 0.02083(3). Unlike before, the frozen wall's
+# area is not added here -- psi_TO (and therefore the integrated `volume`
+# variable this constrains) no longer includes the wall at all, since the
+# wall is rigid_eta now, a field the volume integral never reads.
 #
 # volfrac0 above is 1.0, not 0.25: the square starts fully solid, ~0.19 m^2
 # away from this target, so the constraint has to carve material away
@@ -301,22 +344,24 @@ topop.L.str = 1.0e-3
 # lambda(0.04) ~= 34 instead of ~334, a 10x weaker uniform push while the
 # volume error is still this large.
 #
-# max_dpsidt raised from 0.002 to 0.0075 (interface evolves ~3.75x faster
-# per cycle) after the alpha/beta change above sharpened the interface --
-# swept by hand at fixed alpha=200/beta=0.01: 0.005 and 0.0075 both ran 6
-# full cycles (610 steps) clean; 0.01 produced a genuine MLMG failure in
-# the elastic solve at the cycle-6 TOPOP step (step 607). 0.0075 is the
-# largest value tried that stayed on the stable side of that boundary.
-topop.max_dpsidt = 0.0075
+# max_dpsidt: 0.0075 (tuned at alpha=200/beta=0.01) let the elastic solve
+# diverge at cycle 9 once alpha=200 sharpened the interface below the grid
+# resolution (see the alpha comment above). Dropped to 0.005 alongside the
+# alpha=10.0 change, both to add margin against the now-resolved-but-still
+# sharp interface and because 0.005 was already confirmed stable for 6
+# full cycles in the earlier alpha=200/beta=0.01 sweep.
+topop.max_dpsidt = 0.005
 topop.lambda.str = (0.0,60.0:1.0,5.0e4)
-topop.volume0frac = 0.028333333333333333
+topop.volume0frac = 0.020833333333333333
 
+# Design-square term only, matching topop.psi.ic above -- eta_LM relaxes
+# toward psi_TO (RelaxEtaLM), which no longer carries the wall. The wall
+# reaches LowMach's density via the union with rigid_eta in
+# PushEtaToComponentDensity, not through eta_LM's own IC/relaxation.
 eta_lm.ic.type = expression
-eta_lm.ic.expression.constant.x0  = 1.0
 eta_lm.ic.expression.constant.x1  = 1.05
 eta_lm.ic.expression.constant.x2  = 1.55
-eta_lm.ic.expression.constant.hw  = 0.45
 eta_lm.ic.expression.constant.hs  = 0.50
 eta_lm.ic.expression.constant.w   = 0.02
 eta_lm.ic.expression.constant.volfrac0 = 1.0
-eta_lm.ic.expression.region0 = "(0.5*(1.0+tanh((x-x0)/w))*0.5*(1.0-tanh((x-x1)/w))*0.5*(1.0-tanh((y-hw)/w))) + volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
+eta_lm.ic.expression.region0 = "volfrac0*(0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w)))"
