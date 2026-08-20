@@ -79,6 +79,7 @@ amr.blocking_factor = 4
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.cell.all = 1
+amr.node.any = 0
 
 # 300 full FLOW/TOPOP/RELAX cycles (41 steps each = 12300 steps). Originally
 # this test was capped at one cycle because the second cycle's mandatory
@@ -251,7 +252,7 @@ topop.n_relax = 10
 # across the whole domain, that the dynamic dt is scaled to respect. See
 # the amr.max_level note above for why this replaced a fixed topop.dt.
 topop.dt = 0.02
-topop.max_dpsidt = 0.05
+topop.max_dpsidt = 0.01
 topop.relax.dt = 1.0e-2
 
 topop.model.mu    = 1.4e7
@@ -266,7 +267,7 @@ topop.psi.bc.type.xhi = NEUMANN
 topop.psi.bc.type.ylo = NEUMANN
 topop.psi.bc.type.yhi = NEUMANN
 
-topop.alpha = 1.0
+topop.alpha = 4.0
 topop.beta  = 1.0
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
