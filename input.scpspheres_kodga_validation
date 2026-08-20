@@ -57,6 +57,7 @@ pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
 # pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_void.xyzr
 # pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/small_pores/A/A_00_void_r20.xyzr
+pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/A_vf_11/A_00_void.xyzr
 pf.eta.ic.psread.eps = 1.0_um
 pf.eta.ic.psread.invert = 1
 
@@ -77,6 +78,7 @@ phi.ic.psread.file.unit = m
 # phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
 phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_AP.xyzr
 # phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/small_pores/A/A_00_AP_r20.xyzr
+phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/A_vf_11/A_00_AP.xyzr
 phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
@@ -110,8 +112,8 @@ propellant.fullfeedback.E_htpb    = 7500.0_K
 # thermal transport parameters
 propellant.fullfeedback.rho_ap      =  1950.0_kg/m^3
 propellant.fullfeedback.rho_htpb    =   930.0_kg/m^3
-propellant.fullfeedback.k_ap        =  0.4186_W/m/K
-propellant.fullfeedback.k_htpb      =  0.1300_W/m/K 
+propellant.fullfeedback.k_ap        =  0.04186_W/m/K # Lowered by a factor of 10
+propellant.fullfeedback.k_htpb      =  0.01300_W/m/K # Lowered by a factor of 10
 propellant.fullfeedback.cp_ap       = 1297.90_J/kg/K 
 propellant.fullfeedback.cp_htpb     = 2418.29_J/kg/K
 propellant.fullfeedback.mlocal_ap   =  1000.0_kg/m^3/s
