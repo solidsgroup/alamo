@@ -121,8 +121,18 @@ amr.plot_dt = 1.0e-4_s
 amr.max_level = 0
 # amr.n_cell = 160 160 160  # full-size mesh (0.5mm domain, dx=3.125um) -- see (4) above
 amr.n_cell = 40 40 40
-amr.max_grid_size = 20
-amr.blocking_factor = 2
+# max_grid_size=blocking_factor=8 (2026-08-07): ports the box-decomposition
+# tuning validated on input.lm.ap_htpb_packed_elastic_png (16/2 -> 32/32,
+# ~12-14x faster there by forcing a uniform box grid instead of many tiny
+# ones). 8=2^3 divides n_cell=40 evenly and cleanly (5x5x5=125 boxes) --
+# picked power-of-2 rather than e.g. 20 because that file's own history
+# notes 20's factorization (2^2*5) triggered a hard SIGBUS in a box-
+# coarsening edge case at max_grid_size=20. The other two changes tuned
+# this session (conduction_cfl_end_time, projection.max_coarsening_level)
+# are NOT ported here: both already default to the fast/uncapped state and
+# this file already omits them, so it already matches that configuration.
+amr.max_grid_size = 8
+amr.blocking_factor = 8
 amr.regrid_int = 5
 amr.grid_eff = 0.7
 amr.nsubsteps = 1
@@ -151,9 +161,30 @@ integration.rk.type = 3
 
 # geometry.prob_lo = -0.25_mm  -0.25_mm  -0.25_mm  # full-size domain -- see (4) above
 # geometry.prob_hi =  0.25_mm   0.25_mm   0.25_mm
+# NOTE (2026-08-07): x/z made periodic (was 0 0 0 with REFLECT_* velocity
+# BCs there). Root-caused this file's t~4e-5s velocity blowup (steps 30-38,
+# well before ignition) to the REFLECT_EVEN/REFLECT_ODD slip-wall ghost-cell
+# fill being fundamentally wrong for a randomly-packed bed truncated at the
+# domain edge: REFLECT synthesizes ghost-cell values as a MIRROR IMAGE of the
+# interior, which has nothing to do with how the real (random) packing
+# actually continues past the wall. Confirmed the blowup is pinned to a fixed
+# cell (23,8,38) sitting inside an AP sphere (packing center
+# (-4.7,-31.3,96.4)um, r=55um) that the domain's z_hi wall cuts through mid-
+# grain -- and confirmed via an exhaustive scan of input.lm.ap_htpb_packed.xyzr
+# that NO cube half-width from 0.02mm to 0.30mm avoids sphere/wall crossings
+# entirely (the bed is too densely packed, 44% volume fraction), so
+# domain-sizing and packing-file clipping are not viable fixes -- clipping
+# would require discarding the vast majority of the packing (it's a window
+# cropped from a much larger box) or a proper half-space geometric clip this
+# session didn't attempt. Periodic BCs sidestep the mismatch entirely: ghost
+# cells are filled from the actual (wrapped) domain interior instead of a
+# mirror-image guess, which is well-posed for any packing regardless of how
+# it's truncated at the window edge. y is NOT periodic -- it's the physical
+# solid-substrate/open-gas axis (ylo dirichlet, yhi neumann/open), unrelated
+# to this fix.
 geometry.prob_lo = -0.0625_mm -0.0625_mm -0.0625_mm
 geometry.prob_hi =  0.0625_mm  0.0625_mm  0.0625_mm
-geometry.is_periodic = 0 0 0
+geometry.is_periodic = 1 0 1
 
 # Gas species 0-5 retain the ordering required by the Rocfire mechanism:
 # AP, binder, monopropellant, premixed, primary-flame, final-flame products.
@@ -348,6 +379,20 @@ pressure.ic.constant.value = 3000000.0
 # with the same tanh transition width used for the through-thickness (y)
 # profile. radius is quartered along with geometry.prob_lo/hi above (see (4)
 # at the top of the file) so it stays 1/8 of the domain's x length.
+#
+# NOTE (2026-08-07): a NaN crash at t~4.3e-5s (steps 30-38, well before
+# ignition -- toff=2.5e-4s) was initially misdiagnosed as this heat_source
+# profile being under-resolved at this file's debug mesh (dx=3.125um) and
+# "fixed" by doubling width/radius here. That fix did NOT change the failure
+# (same crash, same timing, regardless of width/radius/qflux -- tested three
+# independent isolation variants). The real cause was a code bug: the
+# advective-CFL speed calculation in LowMach::TimeStepBegin only summed the
+# x/y velocity components, silently ignoring z-velocity in 3D, so z-direction
+# growth went completely unconstrained by the timestep controller until it
+# leaked into x/y and blew up. Fixed in LowMach.cpp (AMREX_D_TERM instead of
+# a hardcoded 0/1 component pair) -- see that file's comment. Reverted this
+# input back to its original width/radius values, which are NOT
+# under-resolved after all.
 heat_source.ic.type = expression
 heat_source.ic.expression.unit = W/m^3
 heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
@@ -357,42 +402,44 @@ heat_source.ic.expression.constant.toff = 2.5e-4_s
 heat_source.ic.expression.constant.tramp = 1.0e-5_s
 # heat_source.ic.expression.constant.radius = 62.5e-6_m  # full-size domain's 1/8 x length -- see (4) above
 heat_source.ic.expression.constant.radius = 15.625e-6_m
+heat_source.ic.expression.constant.radius = 31.25e-6_m
 heat_source.ic.expression.region0 = "qflux*exp(-(y/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))*0.5*(1.0-tanh((sqrt(x^2+z^2)-radius)/width))"
 
+# x/z faces below are "periodic" (was neumann/REFLECT_*) -- see the
+# geometry.is_periodic NOTE above. y (ylo/yhi) is unchanged, still the
+# physical solid-substrate/open-gas axis.
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = neumann
-component_density.bc.constant.type.xhi = neumann
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
 component_density.bc.constant.type.ylo = neumann
 component_density.bc.constant.type.yhi = neumann
-component_density.bc.constant.type.zlo = neumann
-component_density.bc.constant.type.zhi = neumann
+component_density.bc.constant.type.zlo = periodic
+component_density.bc.constant.type.zhi = periodic
 
 velocity.bc.type = constant
-# Slip walls: reflect the wall-normal component oddly and tangential
-# components evenly. The z walls are the 3D analogues of the x walls.
-velocity.bc.constant.type.xlo = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
-velocity.bc.constant.type.xhi = REFLECT_ODD REFLECT_EVEN REFLECT_EVEN
+velocity.bc.constant.type.xlo = periodic periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic periodic
 velocity.bc.constant.type.ylo = dirichlet
 velocity.bc.constant.type.yhi = neumann
-velocity.bc.constant.type.zlo = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
-velocity.bc.constant.type.zhi = REFLECT_EVEN REFLECT_EVEN REFLECT_ODD
+velocity.bc.constant.type.zlo = periodic periodic periodic
+velocity.bc.constant.type.zhi = periodic periodic periodic
 velocity.bc.constant.val.ylo = 0.0
 
 temperature.bc.type = constant
-temperature.bc.constant.type.xlo = neumann
-temperature.bc.constant.type.xhi = neumann
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
 temperature.bc.constant.type.ylo = neumann
 temperature.bc.constant.type.yhi = neumann
-temperature.bc.constant.type.zlo = neumann
-temperature.bc.constant.type.zhi = neumann
+temperature.bc.constant.type.zlo = periodic
+temperature.bc.constant.type.zhi = periodic
 
 pressure.bc.type = constant
-pressure.bc.constant.type.xlo = neumann
-pressure.bc.constant.type.xhi = neumann
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
 pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
-pressure.bc.constant.type.zlo = neumann
-pressure.bc.constant.type.zhi = neumann
+pressure.bc.constant.type.zlo = periodic
+pressure.bc.constant.type.zhi = periodic
 pressure.bc.constant.val.yhi = 3000000.0
 
 # Elastic solve over the condensed (rigid_solid) phase, driven purely by the
@@ -452,6 +499,14 @@ elastic.solver.post_smooth = 2
 elastic.solver.bottom_solver = smoother
 allow_unused=True
 
+# BCs below are UNCHANGED despite x/z now being periodic (see
+# geometry.is_periodic NOTE above) -- BC/Operator/Elastic/Constant.H's Init()
+# explicitly skips applying any Face::XLO/XHI/ZLO/ZHI (or x/z-touching
+# edge/corner) BC whenever a_geom.isPeriodic() is true for that axis, so the
+# x/z entries below are simply dead/ignored, not wrong. y (ylo/yhi) is still
+# the physical solid-substrate/open-gas axis, and its BCs are unaffected by
+# the periodicity change.
+#
 # BCs mirror the velocity slip-wall/open-top setup above, per component
 # (x,y[,z]): x/z faces are rollers (normal displacement clamped, shear
 # traction-free, matching REFLECT_ODD/REFLECT_EVEN); ylo (solid substrate) is

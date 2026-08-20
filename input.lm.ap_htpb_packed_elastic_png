@@ -106,8 +106,18 @@ amr.n_cell = 320 320
 # printed) -- a memory fault, not a numerical divergence, consistent with a
 # box-coarsening edge case. 16=2^4 halves cleanly 4 times; both n_cell
 # values (320, 320) are still evenly divisible by it (20, 20 boxes).
-amr.max_grid_size = 16
-amr.blocking_factor = 2
+# max_grid_size/blocking_factor bumped 16/2 -> 32/32 (2026-08-06) for
+# performance: with max_level=0 (no refinement), small 16x16 boxes gave
+# (320/16)^2=400 boxes for a 64-rank run (~6/rank), which is communication-
+# bound (ghost-cell exchange / MLMG per-box overhead dominates real compute
+# on such small boxes). 32=2^5 still halves cleanly 5 times, comfortably
+# above the 3 halvings required by elastic/projection/diffusion's
+# max_coarsening_level=3 (more margin than the previous 16=2^4). Setting
+# blocking_factor=max_grid_size=32 forces a perfectly uniform 10x10=100-box
+# decomposition (still ~1.5 boxes/rank for 64 ranks -- enough for load
+# balancing) with no partial/remainder boxes.
+amr.max_grid_size = 32
+amr.blocking_factor = 32
 amr.regrid_int = 5
 amr.grid_eff = 0.7
 amr.nsubsteps = 1
@@ -282,7 +292,27 @@ phase_field.cfl = 1.5
 # the nonlinear diffusion MLMG solve even though the linear operator itself
 # is unconditionally stable. Same 0.5 safety factor as the existing
 # (explicit-only) viscous/conductive check.
-conduction_cfl = 0.5
+# UPDATED (2026-08-06): bisected the actual stability threshold by running
+# the ignition transient (t~0.4-0.7ms) at conduction_cfl = 0.5/0.6/0.75/
+# 0.85/0.9/0.95/1.0/2.0/unbounded. Stable through the transient (3000-6000
+# steps) at every value up to and including 0.95; 1.0, 2.0, and unbounded all
+# diverge (DT collapses to the dynamictimestep.min=1e-12 floor and aborts) by
+# step ~620-637 -- a sharp cliff between 0.95 and 1.0, not a gradual
+# degradation. 0.9 keeps a real margin below that cliff while giving DT
+# ~5.56e-8 near the post-ignition plateau vs. ~3.1e-8 at 0.5 -- roughly a
+# 1.8x per-step speedup. Only verified through the first ignition transient
+# (t<0.7ms), not the full 100ms run -- revisit if instability reappears
+# later in the trajectory.
+conduction_cfl = 0.9
+# ADDED (2026-08-07): conduction_cfl_end_time reverts the cap to disabled
+# (1e100) once past the ignition transient -- see conduction_cfl_end_time
+# comment in LowMach.H/Parse(). Confirmed via a 1ms-threshold test: DT jumps
+# ~5x right at the threshold (5.6e-8 -> 4.2e-7) and stays stable through at
+# least t=1.8ms with no sign of the divergence conduction_cfl exists to
+# prevent. Matches how the (uncapped) packed-sphere sibling input behaves
+# once past its own transient. Not verified beyond t~1.8ms of the 100ms
+# target -- revisit if instability reappears later in the trajectory.
+conduction_cfl_end_time = 1.0e-3_s
 include_viscosity = 1
 implicit_viscosity = 1
 include_conduction = 1
@@ -311,7 +341,18 @@ projection.abort_on_fail = 1
 # coarse operators -- the same failure mode elastic was already protected
 # against. Added matching max_coarsening_level ParmParse handling to both
 # operators (src/Operator/PressurePoisson.cpp, src/Operator/Diffusion.cpp).
-projection.max_coarsening_level = 3
+# UPDATED (2026-08-07): relaxed from 3 to uncapped (-1). Directly re-tested
+# the historical divergence this cap was added to prevent (pressure growth
+# 3e6 -> 2.5e11 over 21 steps, garbage coarse operators through the diffuse
+# interface): ran 5000 steps uncapped with projection.verbose=2 -- every
+# solve genuinely converges (16 iterations to resid/bnorm ~2.9e-12, well
+# past tol_rel=1e-11), divmax settles into a stable plateau (no runaway),
+# no NaN/abort. ~18% faster per step (0.137s vs 0.168s/step baseline) than
+# the capped=3 setting. diffusion.max_coarsening_level left at 3 (untested
+# uncapped). Not verified past t~0.67ms of the 100ms target, and elastic
+# was solving every step throughout that test (matching production) --
+# revisit if the original divergence symptom reappears later in the run.
+projection.max_coarsening_level = -1
 diffusion.tol_rel = 1.0e-11
 diffusion.tol_abs = 1.0e-12
 diffusion.verbose = 0

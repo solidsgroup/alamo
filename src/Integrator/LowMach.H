@@ -224,6 +224,10 @@ protected:
     Set::Scalar phase_field_cfl = NAN;
     Set::Scalar cfl_v = 1.0e100;
     Set::Scalar conduction_cfl = 1.0e100;
+    // After this simulation time, conduction_cfl reverts to disabled (1e100)
+    // -- see the conduction_cfl comment in Parse(). Lets the cap protect only
+    // the initial ignition transient without permanently paying its cost.
+    Set::Scalar conduction_cfl_end_time = 1.0e100;
     Set::Scalar small = 1.0e-12;
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;

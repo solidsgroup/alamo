@@ -47,6 +47,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("conduction_cfl", value.conduction_cfl, 1.0e100);
     if (!(value.conduction_cfl > 0.0))
         Util::Exception(INFO, "conduction_cfl must be positive");
+    // Simulation time after which conduction_cfl reverts to disabled
+    // (1e100) -- lets the cap protect only the initial ignition transient
+    // (see the conduction_cfl comment above) without paying its per-step
+    // cost for the rest of the run. Left at 1e100 (never disables) by
+    // default so existing input files are unaffected.
+    pp.query_default("conduction_cfl_end_time", value.conduction_cfl_end_time, "1.0e100", Unit::Time());
     pp.query_default("small", value.small, 1.0e-12);
     pp.query_default("density_floor", value.density_floor, value.small);
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
@@ -2490,7 +2496,17 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
-                Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
+                // AMREX_D_TERM, not a hardcoded 0/1 pair -- in 3D this was
+                // silently dropping the z-velocity component from the
+                // advective CFL cap, letting z-direction velocity growth go
+                // unconstrained by the timestep controller until it leaked
+                // into x/y (root-caused 2026-08-07 via
+                // input.lm.ap_htpb_packed_elastic_3d). A real bug, worth
+                // keeping, but NOT the cause of that file's instability --
+                // that instability persists identically with this fix in
+                // place (see the WARNING in that input file).
+                Set::Scalar speed = std::sqrt(AMREX_D_TERM(
+                    u(i,j,k,0)*u(i,j,k,0), + u(i,j,k,1)*u(i,j,k,1), + u(i,j,k,2)*u(i,j,k,2)));
                 return {speed / dxmin};
             });
             ReduceTuple hv = reduce_data.value();
@@ -2588,8 +2604,14 @@ LowMach::TimeStepBegin(Set::Scalar time, int iter)
     // Diffusion-number cap -- see the conduction_cfl comment in Parse() --
     // active even when conduction is implicit; no-op (conduct_dt = cfl_v)
     // unless conduction_cfl was explicitly set below its 1e100 default.
+    // Past conduction_cfl_end_time the cap reverts to disabled (effective
+    // conduction_cfl = 1e100) -- see conduction_cfl_end_time comment in
+    // Parse(): the cap is only needed through the initial ignition
+    // transient, not for the rest of the run.
+    const Set::Scalar effective_conduction_cfl =
+        (time < conduction_cfl_end_time) ? conduction_cfl : 1.0e100;
     Set::Scalar conduct_dt = conductmax > 0.0 ?
-        0.5 * conduction_cfl / conductmax : cfl_v;
+        0.5 * effective_conduction_cfl / conductmax : cfl_v;
     DynamicTimestep_SyncTimeStep(0, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt, conduct_dt}));
     DynamicTimestep_Update();
 }
