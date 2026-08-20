@@ -263,33 +263,48 @@ topop.relax.dt = 1.0e-2
 topop.model.mu    = 1.4e7
 topop.model.kappa = 1.5e7
 
-# Hollow box, not a filled square: psi's Allen-Cahn dynamics only move
-# where there's already an interface (the alpha/beta double-well term acts
+# Window, not a plain hollow box: psi's Allen-Cahn dynamics only move where
+# there's already an interface (the alpha/beta double-well term acts
 # pointwise, and the beta*Laplacian term only pushes where there's a
-# gradient), so a filled square only ever evolves from its outer boundary.
-# Carving an enclosed cavity out of the middle -- outer box minus a smaller
-# inner box, both tanh-smoothed -- gives it an *inner* interface too,
-# roughly doubling the perimeter available to evolve from in the same
-# number of cycles. The shell wall thickness t=0.075 is chosen well above
-# alpha=7.0's ~0.038m equilibrium interface width (see below) so the outer
-# and inner interfaces don't merge into each other as they relax.
+# gradient), so a filled square only ever evolves from its outer boundary,
+# and a plain hollow box (outer frame minus one inner cavity) only adds a
+# single inner interface. Splitting that one cavity into four with a
+# solid "+" crossbar spanning the full cavity both ways gives the field
+# four separate window panes, each with its own perimeter, roughly
+# doubling the interior interface length again versus the single-cavity
+# version for the same design area.
 #
-# Resulting shell area = outer (0.25 m^2) - inner (0.35*0.35 = 0.1225 m^2)
-# = 0.1275 m^2, about 2x topop.volume0frac's target (0.0625 m^2) -- fine to
-# start off-target; the point here is exercising topology through the
-# extra interface, not matching the volume constraint immediately.
+# t=0.09 is the thickness of both the outer frame and the crossbar --
+# widened from the single-cavity version's t=0.075 to keep pace with
+# beta's increase below: equilibrium interface width sqrt(beta/alpha) =
+# sqrt(0.02/7) ~= 0.0535m, so t/width ~= 1.68, close to the single-cavity
+# version's margin (0.075/0.0378 ~= 1.98) so the frame/crossbar don't get
+# thin enough for their two opposing interfaces to merge. Each of the
+# four resulting window panes is ((0.32-0.09)/2)^2 = 0.115m x 0.115m,
+# ~2.15x the interface width -- enough for each pane's own interface loop
+# to stay distinct from the crossbar's.
+#
+# Built as max(frame, plus) rather than frame + plus: the crossbar sits
+# entirely inside the cavity the frame already subtracts out (frame is 0
+# there), so the two terms don't overlap, but max() keeps that true by
+# construction instead of relying on that observation staying correct if
+# these numbers are retuned later.
 topop.psi.ic.type = expression
 topop.psi.ic.expression.constant.x1  = 1.05
 topop.psi.ic.expression.constant.x2  = 1.55
 topop.psi.ic.expression.constant.hs  = 0.50
 topop.psi.ic.expression.constant.w   = 0.02
-topop.psi.ic.expression.constant.t   = 0.075
-topop.psi.ic.expression.constant.xi1 = 1.125
-topop.psi.ic.expression.constant.xi2 = 1.475
-topop.psi.ic.expression.constant.yi0 = 0.075
-topop.psi.ic.expression.constant.hsi = 0.425
+topop.psi.ic.expression.constant.t   = 0.09
+topop.psi.ic.expression.constant.xi1 = 1.14
+topop.psi.ic.expression.constant.xi2 = 1.46
+topop.psi.ic.expression.constant.yi0 = 0.09
+topop.psi.ic.expression.constant.hsi = 0.41
+topop.psi.ic.expression.constant.xv1 = 1.255
+topop.psi.ic.expression.constant.xv2 = 1.345
+topop.psi.ic.expression.constant.yh1 = 0.205
+topop.psi.ic.expression.constant.yh2 = 0.295
 topop.psi.ic.expression.constant.volfrac0 = 1.0
-topop.psi.ic.expression.region0 = "volfrac0*((0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w))) - (0.5*(1.0+tanh((x-xi1)/w))*0.5*(1.0-tanh((x-xi2)/w))*0.5*(1.0+tanh((y-yi0)/w))*0.5*(1.0-tanh((y-hsi)/w))))"
+topop.psi.ic.expression.region0 = "volfrac0*max( (0.5*(1.0+tanh((x-x1)/w))*0.5*(1.0-tanh((x-x2)/w))*0.5*(1.0-tanh((y-hs)/w))) - (0.5*(1.0+tanh((x-xi1)/w))*0.5*(1.0-tanh((x-xi2)/w))*0.5*(1.0+tanh((y-yi0)/w))*0.5*(1.0-tanh((y-hsi)/w))), max( (0.5*(1.0+tanh((x-xv1)/w))*0.5*(1.0-tanh((x-xv2)/w))*0.5*(1.0+tanh((y-yi0)/w))*0.5*(1.0-tanh((y-hsi)/w))), (0.5*(1.0+tanh((x-xi1)/w))*0.5*(1.0-tanh((x-xi2)/w))*0.5*(1.0+tanh((y-yh1)/w))*0.5*(1.0-tanh((y-yh2)/w))) ))"
 topop.psi.bc.type.xlo = NEUMANN
 topop.psi.bc.type.xhi = NEUMANN
 topop.psi.bc.type.ylo = NEUMANN
@@ -323,12 +338,25 @@ topop.rigid_eta.bc.type.yhi = NEUMANN
 # the elastic solve to resolve the modulus contrast smoothly without
 # smearing it across the whole design region. Retuned to alpha=7.0 to
 # center it instead: sqrt(0.01/7) ~= 0.0378m, ~6.05 cells at
-# dx_level1 = 0.00625m -- same beta, same reasoning, just more margin on
-# both sides (still far sharper than the original 4.0/1.0, which gave a
-# 0.5m-wide interface that smeared across the whole back end of the design
-# region instead of forming a sharp psi = 0/1 shape).
+# dx_level1 = 0.00625m.
+#
+# beta then raised 0.01 -> 0.02 (alpha unchanged): the nominal ~6-cell
+# width above is only the *equilibrium* width of the alpha/beta double
+# well balanced against beta*Laplacian(psi) alone -- with beta this weak
+# relative to alpha, the gamma*StrainEnergy(psi)*psi term (and, later, the
+# uniform lambda*(volume-volume0) term) can locally overwhelm the
+# Laplacian's smoothing wherever the elastic solve concentrates stress,
+# collapsing the interface to 1-2 cells right there even though the
+# nominal width is ~6 (observed directly in a 50000-step run of this
+# input: the psi profile at x=1.30 was a clean ~8-cell transition on one
+# side of the design region and a 1-2 cell step on the other, at points of
+# higher local strain energy). Doubling beta to 0.02 raises the nominal
+# width to sqrt(0.02/7) ~= 0.0535m (~8.55 cells at dx_level1), buying
+# margin against that local collapse without weakening the double well
+# enough to blur the interface everywhere -- see the psi IC comment below
+# for how the window/crossbar thickness was widened to match.
 topop.alpha = 7.0
-topop.beta  = 0.01
+topop.beta  = 0.02
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
 # Volume cap, same mechanism as tests/TopOpCrossFlow: at most 25% of the
