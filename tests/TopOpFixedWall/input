@@ -58,7 +58,7 @@ velocity_refinement_criterion = 5.0e-2
 # tests/TopOpCrossFlow's header for that pattern (short run committed,
 # full run validated separately).
 timestep = 4.0e-3
-stop_time = 200.0
+stop_time = 2000.0
 dynamictimestep.on = 0
 
 geometry.prob_lo = 0.0 0.0 0.0
@@ -355,7 +355,7 @@ topop.rigid_eta.bc.type.yhi = NEUMANN
 # margin against that local collapse without weakening the double well
 # enough to blur the interface everywhere -- see the psi IC comment below
 # for how the window/crossbar thickness was widened to match.
-topop.alpha = 7.0
+topop.alpha = 1.0
 topop.beta  = 0.02
 topop.gamma = 1.0
 topop.L.str = 1.0e-3
