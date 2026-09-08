@@ -21,8 +21,9 @@
 # those fields, preserving their diffuse-interface balance and low-Mach
 # divergence.  Above the sampled flame, residual intermediates transition
 # smoothly to uniform 2554 K Final products and 1.70 m/s coflow so the old
-# aluminum particle and its wake are not copied.  The cold branch and its
-# initial coflow are then restored at the original location.  Chemistry remains
+# aluminum particle and its wake are not copied.  The cold branch is restored
+# at the original location at rest, providing the initial slip needed for newly
+# formed aluminum vapor to be entrained into an upward trail.  Chemistry remains
 # implicit and reports its scale without forcing the globally coupled step down
 # to the smaller chemical scale.
 #
@@ -116,19 +117,25 @@ Al_solid_3.thermal_conductivity = 237.0_W/m/K
 # 933.45 K melting point.
 AP_solid.temperature_override = -1.0_K
 HTPB_solid.temperature_override = -1.0_K
-Al_solid.temperature_override = 930.0_K
-Al_solid_2.temperature_override = 930.0_K
-Al_solid_3.temperature_override = 930.0_K
-Al_liquid.temperature_override = 930.0_K
+Al_solid.temperature_override = 933.0_K
+Al_solid_2.temperature_override = 933.0_K
+Al_solid_3.temperature_override = 933.0_K
+Al_liquid.temperature_override = 933.0_K
 
 # Diffuse liquid interfaces
 interface.thickness = 20.0_um
 Al_liquid.reference_density = 2375.0_kg/m^3
-Al_liquid.dynamic_viscosity = 1.3e-3_Pa*s
+Al_liquid.dynamic_viscosity = 0.03_Pa*s #1.3e-3_Pa*s
 Al_liquid.specific_heat = 1177.0_J/kg/K
 Al_liquid.thermal_conductivity = 237.0_W/m/K
 interface.enabled = 1
 interface.model.type = direct_surface_tension
+# Alternative implicit morphology model:
+#interface.model.type = singly_degenerate_cahn_hilliard
+#interface.model.singly_degenerate_cahn_hilliard.relaxation_time = 0.1_us
+#interface.model.singly_degenerate_cahn_hilliard.momentum_coupling = overdamped
+#interface.model.type = conservative_allen_cahn
+#interface.model.conservative_allen_cahn.relaxation_time = 20.0_us
 interface.liquid_solid.enabled = 1
 interface.liquid_solid.surface_delta_regularization = 1.0e-12
 interface.surface_tension.Al_liquid_gas = 0.85_J/m^2
@@ -144,9 +151,9 @@ interface.liquid_solid.contact_angle.Al_liquid_HTPB_solid = 90.0_deg
 # therefore provides the initial shape constraint; as the cores melt, the
 # physical liquid-gas tension can retract the connected melt toward a rounded
 # aggregate without an artificial time-dependent surface tension.
-interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 30.0_deg
-interface.liquid_solid.contact_angle.Al_liquid_Al_solid_2 = 30.0_deg
-interface.liquid_solid.contact_angle.Al_liquid_Al_solid_3 = 30.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid = 60.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid_2 = 60.0_deg
+interface.liquid_solid.contact_angle.Al_liquid_Al_solid_3 = 60.0_deg
 
 # Gas chemistry
 chemistry.model.type = gross_model_aluminized
@@ -174,17 +181,19 @@ HTPB_solid.rigid.relaxation_time = 1.0e-8_s
 HTPB_solid.rigid.velocity = 0.0_m/s 0.0_m/s
 Al_solid.rigid.motion = free
 Al_solid.rigid.relaxation_time = 1.0e-8_s
-Al_solid.rigid.max_iterations = 6
+# The initial high-slip projection requires about 21 Picard iterations.  Keep
+# margin for later capillary/melting transients; converged steps exit early.
+Al_solid.rigid.max_iterations = 32
 Al_solid.rigid.relative_tolerance = 1.0e-3
 Al_solid.rigid.absolute_tolerance = 1.0e-5_m/s
 Al_solid_2.rigid.motion = free
 Al_solid_2.rigid.relaxation_time = 1.0e-8_s
-Al_solid_2.rigid.max_iterations = 6
+Al_solid_2.rigid.max_iterations = 32
 Al_solid_2.rigid.relative_tolerance = 1.0e-3
 Al_solid_2.rigid.absolute_tolerance = 1.0e-5_m/s
 Al_solid_3.rigid.motion = free
 Al_solid_3.rigid.relaxation_time = 1.0e-8_s
-Al_solid_3.rigid.max_iterations = 6
+Al_solid_3.rigid.max_iterations = 32
 Al_solid_3.rigid.relative_tolerance = 1.0e-3
 Al_solid_3.rigid.absolute_tolerance = 1.0e-5_m/s
 
@@ -245,23 +254,28 @@ Al_melting_3.phase_change.transition_temperature = 933.45_K
 # soon as molten aluminum is exposed instead of requiring vapor to exist first.
 Al_surface_oxidation.type = interfacial_heat_source
 Al_surface_oxidation.interfacial_heat_source.liquid = Al_liquid
-Al_surface_oxidation.interfacial_heat_source.heat_flux = 120.0_MW/m^2
-Al_surface_oxidation.interfacial_heat_source.activation_temperature = 1200.0_K
-Al_surface_oxidation.interfacial_heat_source.activation_width = 100.0_K
+Al_surface_oxidation.interfacial_heat_source.heat_flux = 150.0_MW/m^2
+Al_surface_oxidation.interfacial_heat_source.activation_temperature = 1000.0_K
+Al_surface_oxidation.interfacial_heat_source.activation_width = 200.0_K
 
 Al_evaporation.type = phase_change
 Al_evaporation.phase_change.phase0 = Al_liquid
 Al_evaporation.phase_change.phase1 = Al_gas
 Al_evaporation.phase_change.kinetics = hertz_knudsen
 Al_evaporation.phase_change.reversible = false
-Al_evaporation.phase_change.latent_heat = 0.5897e7_J/kg
+# Kinetic liquid-to-gas transfer automatically applies the gas-side Stefan
+# volume flux and its recoil pressure.
+Al_evaporation.phase_change.latent_heat = 0.2897e7_J/kg
 Al_evaporation.phase_change.accommodation_coefficient = 0.5
-Al_evaporation.phase_change.saturation_reference_temperature = 2743.0_K
+Al_evaporation.phase_change.saturation_reference_temperature = 2200.0_K #2743.0_K
 Al_evaporation.phase_change.saturation_reference_pressure = 101325.0_Pa
 
 # Flow, projection, and diffusion
 advection.type = muscl
-advection.muscl.limiter.type = superbee
+# Superbee's compressive extrema reinforce cell-aligned facets on a moving
+# four-cell diffuse interface.  Minmod is monotone and leaves the variational
+# capillary operator, rather than the transport limiter, to set the shape.
+advection.muscl.limiter.type = minmod
 cfl = 0.8
 phase_field.cfl = 1.5
 include_viscosity = 1
@@ -297,17 +311,17 @@ HTPB_solid.density.ic.png.precision = 16
 HTPB_solid.density.ic.png.value = 920.0_kg/m^3
 
 # Three unequal, slightly overlapping disks form one connected, bent branch.
-# A 25 um liquid layer penetrates into the original envelope rather than being
-# added outside it.
+# The solid-core radii remain 57, 53, and 45 um.  A 40 um liquid layer extends
+# outward from those unchanged cores; explicit core and outer radius names
+# prevent a future layer adjustment from silently changing the solid size.
 Al_solid.density.ic.type = expression
 Al_solid.density.ic.expression.constant.surface_y = -0.0003_m
 Al_solid.density.ic.expression.constant.surface_eps = 20.0_um
 Al_solid.density.ic.expression.constant.al_eps = 20.0_um
 Al_solid.density.ic.expression.constant.al_x1 = -95.0_um
 Al_solid.density.ic.expression.constant.al_y1 = 300.0_um
-Al_solid.density.ic.expression.constant.al_r1 = 82.0_um
-Al_solid.density.ic.expression.constant.melt_depth = 25.0_um
-Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-(al_r1-melt_depth))/al_eps)))"
+Al_solid.density.ic.expression.constant.al_core_r1 = 57.0_um
+Al_solid.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_core_r1)/al_eps)))"
 
 Al_solid_2.density.ic.type = expression
 Al_solid_2.density.ic.expression.constant.surface_y = -0.0003_m
@@ -315,9 +329,8 @@ Al_solid_2.density.ic.expression.constant.surface_eps = 20.0_um
 Al_solid_2.density.ic.expression.constant.al_eps = 20.0_um
 Al_solid_2.density.ic.expression.constant.al_x = 35.0_um
 Al_solid_2.density.ic.expression.constant.al_y = 355.0_um
-Al_solid_2.density.ic.expression.constant.al_r = 78.0_um
-Al_solid_2.density.ic.expression.constant.melt_depth = 25.0_um
-Al_solid_2.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-(al_r-melt_depth))/al_eps)))"
+Al_solid_2.density.ic.expression.constant.al_core_r = 53.0_um
+Al_solid_2.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-al_core_r)/al_eps)))"
 
 Al_solid_3.density.ic.type = expression
 Al_solid_3.density.ic.expression.constant.surface_y = -0.0003_m
@@ -325,9 +338,8 @@ Al_solid_3.density.ic.expression.constant.surface_eps = 20.0_um
 Al_solid_3.density.ic.expression.constant.al_eps = 20.0_um
 Al_solid_3.density.ic.expression.constant.al_x = 82.0_um
 Al_solid_3.density.ic.expression.constant.al_y = 477.0_um
-Al_solid_3.density.ic.expression.constant.al_r = 70.0_um
-Al_solid_3.density.ic.expression.constant.melt_depth = 25.0_um
-Al_solid_3.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-(al_r-melt_depth))/al_eps)))"
+Al_solid_3.density.ic.expression.constant.al_core_r = 45.0_um
+Al_solid_3.density.ic.expression.region0 = "max(0.0,2700.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*(0.5-0.5*tanh(2.0*(sqrt((x-al_x)^2+(y-surface_y-al_y)^2)-al_core_r)/al_eps)))"
 
 Al_liquid.density.ic.type = expression
 Al_liquid.density.ic.expression.constant.surface_y = -0.0003_m
@@ -335,20 +347,25 @@ Al_liquid.density.ic.expression.constant.surface_eps = 20.0_um
 Al_liquid.density.ic.expression.constant.al_eps = 20.0_um
 Al_liquid.density.ic.expression.constant.al_x1 = -95.0_um
 Al_liquid.density.ic.expression.constant.al_y1 = 300.0_um
-Al_liquid.density.ic.expression.constant.al_r1 = 82.0_um
+Al_liquid.density.ic.expression.constant.al_outer_r1 = 97.0_um
+Al_liquid.density.ic.expression.constant.al_core_r1 = 57.0_um
 Al_liquid.density.ic.expression.constant.al_x2 = 35.0_um
 Al_liquid.density.ic.expression.constant.al_y2 = 355.0_um
-Al_liquid.density.ic.expression.constant.al_r2 = 78.0_um
+Al_liquid.density.ic.expression.constant.al_outer_r2 = 93.0_um
+Al_liquid.density.ic.expression.constant.al_core_r2 = 53.0_um
 Al_liquid.density.ic.expression.constant.al_x3 = 82.0_um
 Al_liquid.density.ic.expression.constant.al_y3 = 477.0_um
-Al_liquid.density.ic.expression.constant.al_r3 = 70.0_um
-Al_liquid.density.ic.expression.constant.melt_depth = 25.0_um
-Al_liquid.density.ic.expression.constant.union_smoothing = 20.0_um
-# Use the same smooth union for the outer envelope and the inset solid-core
-# envelope.  Their difference is a connected penetrated melt layer without
-# the derivative kinks and double-subtracted overlap holes produced by min()
-# and by subtracting three independent core indicators.
-Al_liquid.density.ic.expression.region0 = "max(0.0,2375.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*((0.5-0.5*tanh(2.0*(-union_smoothing*log(exp(-(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_r1)/union_smoothing)+exp(-(sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_r2)/union_smoothing)+exp(-(sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_r3)/union_smoothing))/al_eps))-(0.5-0.5*tanh(2.0*(-union_smoothing*log(exp(-(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-(al_r1-melt_depth))/union_smoothing)+exp(-(sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-(al_r2-melt_depth))/union_smoothing)+exp(-(sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-(al_r3-melt_depth))/union_smoothing))/al_eps))))))"
+Al_liquid.density.ic.expression.constant.al_outer_r3 = 85.0_um
+Al_liquid.density.ic.expression.constant.al_core_r3 = 45.0_um
+Al_liquid.density.ic.expression.constant.union_smoothing = 40.0_um
+Al_liquid.density.ic.expression.constant.core_union_smoothing = 20.0_um
+# The broader outer smooth union rounds the two lobe junctions and reduces
+# their maximum concave curvature by about a factor of four while changing the
+# outer bounding dimensions by less than five microns.  A separate, narrower
+# smooth union follows the unchanged solid cores without manufacturing an
+# artificial core bridge.  Their difference remains a connected penetrated
+# melt layer with no min() derivative kinks or overlap holes.
+Al_liquid.density.ic.expression.region0 = "max(0.0,2375.0*(0.5+0.5*tanh(2.0*(y-surface_y)/surface_eps))*((0.5-0.5*tanh(2.0*(-union_smoothing*log(exp(-(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_outer_r1)/union_smoothing)+exp(-(sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_outer_r2)/union_smoothing)+exp(-(sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_outer_r3)/union_smoothing))/al_eps))-(0.5-0.5*tanh(2.0*(-core_union_smoothing*log(exp(-(sqrt((x-al_x1)^2+(y-surface_y-al_y1)^2)-al_core_r1)/core_union_smoothing)+exp(-(sqrt((x-al_x2)^2+(y-surface_y-al_y2)^2)-al_core_r2)/core_union_smoothing)+exp(-(sqrt((x-al_x3)^2+(y-surface_y-al_y3)^2)-al_core_r3)/core_union_smoothing))/al_eps))))))"
 
 # Initially inert aluminum-bearing gases
 Al_gas.density.ic.type = constant
@@ -408,8 +425,10 @@ Final.density.ic.png.fit = cell
 Final.density.ic.png.channels = B A
 Final.density.ic.png.precision = 16
 Final.density.ic.png.value = 1.0_kg/m^3
-# Full 2-D developed velocity, including the correlated transverse component.
-# RG and BA encode 16-bit ux in [-20,20] m/s and uy in [-20,30] m/s.
+# Full 2-D developed gas velocity, including the correlated transverse
+# component.  The generated raster smoothly brings both components to rest over
+# the complete initial aluminum aggregate.  RG and BA encode 16-bit ux in
+# [-20,20] m/s and uy in [-20,30] m/s.
 velocity.ic.type = png
 velocity.ic.png.filename = ap_htpb_developed_flame_velocity.png
 velocity.ic.png.fit = cell
