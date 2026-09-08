@@ -118,6 +118,7 @@ int main (int argc, char* argv[])
         const Set::Scalar surface_delta_regularization = 1.0e-12;
         const Set::Scalar regularization_gradient =
             surface_delta_regularization / ell;
+        const amrex::GpuArray<int,AMREX_SPACEDIM> nonperiodic{};
         model.Define({"liquid", "solid", "gas"}, 1, true, ell,
                      surface_delta_regularization,
                      surface_tension, regularization, difference);
@@ -158,11 +159,13 @@ int main (int argc, char* argv[])
             PhaseModel::SurfaceDelta(
                 0.0, regularization_gradient) != 0.0);
         subfailed += Util::Test::SubMessage(
-            "Allen-Cahn profile flux vanishes at pure phases",
+            "Allen-Cahn pair mobility is interfacial",
             Model::Capillarity::ConservativeAllenCahn::
-                    CompressionMagnitude(0.0, ell) != 0.0 ||
+                    PairMobilityWeight(0.0, 1.0) != 0.0 ||
             Model::Capillarity::ConservativeAllenCahn::
-                    CompressionMagnitude(1.0, ell) != 0.0);
+                    PairMobilityWeight(1.0, 0.0) != 0.0 ||
+            std::abs(Model::Capillarity::ConservativeAllenCahn::
+                    PairMobilityWeight(0.5, 0.5) - 1.0) > 1.0e-14);
         subfailed += Util::Test::SubMessage(
             "Singly-degenerate pair mobility",
             Model::Capillarity::SinglyDegenerateCahnHilliard::
@@ -199,7 +202,7 @@ int main (int argc, char* argv[])
                 tail_const, liquid, solid, correction,
                 regularization_gradient, 2, 2,
                 AMREX_SPACEDIM > 2 ? 2 : 0, tail_dx,
-                Numeric::DefaultType());
+                tail_domain, nonperiodic);
         const Set::Matrix tail_stress =
             PhaseModel::SolidSurfaceCorrectionCapillaryStress(
                 tail_const, liquid, solid, correction,
@@ -209,6 +212,93 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage(
             "Finite liquid-solid bulk-tail variation",
             !std::isfinite(tail_mu) || !std::isfinite(tail_stress.norm()));
+
+        // A disappearing solid can leave one isolated cell with a zero
+        // centered gradient and a finite Laplacian.  The continuum-expanded
+        // curvature formerly divided that Laplacian by the tiny surface-delta
+        // regularization.  The discrete energy variation must instead remain
+        // bounded independently of that regularization, agree with a finite
+        // difference of the discrete energy, and exert a force that vanishes
+        // continuously with the remnant amplitude.
+        const amrex::Box remnant_domain(
+            amrex::IntVect::TheZeroVector(),
+            amrex::IntVect(AMREX_D_DECL(8, 8, 8)));
+        amrex::FArrayBox remnant_phase(remnant_domain, nphase);
+        remnant_phase.setVal(0.0);
+        auto remnant = remnant_phase.array();
+        const amrex::Dim3 remnant_lo = amrex::lbound(remnant_domain);
+        const amrex::Dim3 remnant_hi = amrex::ubound(remnant_domain);
+        for (int k = remnant_lo.z; k <= remnant_hi.z; ++k)
+            for (int j = remnant_lo.y; j <= remnant_hi.y; ++j)
+                for (int i = remnant_lo.x; i <= remnant_hi.x; ++i)
+                {
+                    remnant(i,j,k,liquid) = 0.9;
+                    remnant(i,j,k,gas) = 0.1;
+                }
+        const int ri = 4;
+        const int rj = AMREX_SPACEDIM > 1 ? 4 : 0;
+        const int rk = AMREX_SPACEDIM > 2 ? 4 : 0;
+        const Set::Scalar remnant_dx[AMREX_SPACEDIM] =
+            {AMREX_D_DECL(1.0, 1.0, 1.0)};
+        const Set::Scalar remnant_amplitude = 0.028917;
+        remnant(ri,rj,rk,solid) = remnant_amplitude;
+        const auto remnant_const = remnant_phase.const_array();
+        const Set::Scalar remnant_mu =
+            PhaseModel::SolidSurfaceCorrectionChemicalPotential(
+                remnant_const, liquid, solid, correction,
+                regularization_gradient, ri, rj, rk, remnant_dx,
+                remnant_domain, nonperiodic);
+        Set::Scalar inverse_spacing_sum = 0.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            inverse_spacing_sum += 1.0 / remnant_dx[d];
+        const Set::Scalar remnant_mu_bound =
+            2.0 * std::abs(correction) * inverse_spacing_sum;
+        subfailed += Util::Test::SubMessage(
+            "Bounded isolated-remnant wetting variation",
+            !std::isfinite(remnant_mu) ||
+            std::abs(remnant_mu) >
+                remnant_mu_bound * (1.0 + 1.0e-12));
+
+        const auto remnant_energy = [&]()
+        {
+            Set::Scalar energy = 0.0;
+            for (int k = remnant_lo.z; k <= remnant_hi.z; ++k)
+                for (int j = remnant_lo.y; j <= remnant_hi.y; ++j)
+                    for (int i = remnant_lo.x; i <= remnant_hi.x; ++i)
+                        energy += PhaseModel::
+                            SolidSurfaceCorrectionEnergyDensity(
+                                remnant_const, liquid, solid, correction,
+                                regularization_gradient, i, j, k,
+                                remnant_dx, Numeric::GetStencil(
+                                    i, j, k, remnant_domain, nonperiodic));
+            return energy;
+        };
+        const Set::Scalar remnant_perturbation = 1.0e-7;
+        remnant(ri,rj,rk,solid) =
+            remnant_amplitude + remnant_perturbation;
+        const Set::Scalar energy_plus = remnant_energy();
+        remnant(ri,rj,rk,solid) =
+            remnant_amplitude - remnant_perturbation;
+        const Set::Scalar energy_minus = remnant_energy();
+        remnant(ri,rj,rk,solid) = remnant_amplitude;
+        const Set::Scalar remnant_energy_derivative =
+            (energy_plus - energy_minus) /
+            (2.0 * remnant_perturbation);
+        subfailed += Util::Test::SubMessage(
+            "Discrete wetting energy variation",
+            std::abs(remnant_mu - remnant_energy_derivative) >
+                1.0e-8 * (1.0 + std::abs(remnant_mu)));
+
+        remnant(ri,rj,rk,solid) = 0.5 * remnant_amplitude;
+        const Set::Scalar half_remnant_mu =
+            PhaseModel::SolidSurfaceCorrectionChemicalPotential(
+                remnant_const, liquid, solid, correction,
+                regularization_gradient, ri, rj, rk, remnant_dx,
+                remnant_domain, nonperiodic);
+        subfailed += Util::Test::SubMessage(
+            "Vanishing isolated-remnant wetting force",
+            std::abs(half_remnant_mu * 0.5 * remnant_amplitude) >
+                0.51 * std::abs(remnant_mu * remnant_amplitude));
 
         const amrex::Box flat_domain(
             amrex::IntVect::TheZeroVector(),
@@ -245,16 +335,63 @@ int main (int argc, char* argv[])
             PhaseModel::SolidSurfaceCorrectionChemicalPotential(
                 flat_const, liquid, solid, correction,
                 regularization_gradient,
-                ci, cj, ck, cell_size, central);
+                ci, cj, ck, cell_size, flat_domain, nonperiodic);
         const Set::Vector grad_liquid = Numeric::Gradient(
             flat_const, ci, cj, ck, liquid, cell_size, central);
         const Set::Vector grad_solid = Numeric::Gradient(
             flat_const, ci, cj, ck, solid, cell_size, central);
-        const Set::Vector flat_force =
-            mu_liquid * grad_liquid + mu_solid * grad_solid;
+        const auto flat_surface_energy = [&]()
+        {
+            Set::Scalar energy = 0.0;
+            for (int k = flat_lo.z; k <= flat_hi.z; ++k)
+                for (int j = flat_lo.y; j <= flat_hi.y; ++j)
+                    for (int i = flat_lo.x; i <= flat_hi.x; ++i)
+                        energy += PhaseModel::
+                            SolidSurfaceCorrectionEnergyDensity(
+                                flat_const, liquid, solid, correction,
+                                regularization_gradient, i, j, k,
+                                cell_size, Numeric::GetStencil(
+                                    i, j, k, flat_domain, nonperiodic));
+            return energy;
+        };
+        const Set::Scalar flat_perturbation = 1.0e-7;
+        const Set::Scalar flat_liquid = flat(ci,cj,ck,liquid);
+        flat(ci,cj,ck,liquid) = flat_liquid + flat_perturbation;
+        const Set::Scalar flat_liquid_energy_plus = flat_surface_energy();
+        flat(ci,cj,ck,liquid) = flat_liquid - flat_perturbation;
+        const Set::Scalar flat_liquid_energy_minus = flat_surface_energy();
+        flat(ci,cj,ck,liquid) = flat_liquid;
+        const Set::Scalar flat_solid = flat(ci,cj,ck,solid);
+        flat(ci,cj,ck,solid) = flat_solid + flat_perturbation;
+        const Set::Scalar flat_solid_energy_plus = flat_surface_energy();
+        flat(ci,cj,ck,solid) = flat_solid - flat_perturbation;
+        const Set::Scalar flat_solid_energy_minus = flat_surface_energy();
+        flat(ci,cj,ck,solid) = flat_solid;
+        const Set::Scalar flat_mu_liquid_fd =
+            (flat_liquid_energy_plus - flat_liquid_energy_minus) /
+            (2.0 * flat_perturbation);
+        const Set::Scalar flat_mu_solid_fd =
+            (flat_solid_energy_plus - flat_solid_energy_minus) /
+            (2.0 * flat_perturbation);
         subfailed += Util::Test::SubMessage(
-            "Flat binary surface correction force",
-            flat_force.lpNorm<2>() > 1.0e-10);
+            "Flat-interface discrete wetting variation",
+            std::abs(mu_liquid - flat_mu_liquid_fd) >
+                1.0e-8 * (1.0 + std::abs(mu_liquid)) ||
+            std::abs(mu_solid - flat_mu_solid_fd) >
+                1.0e-8 * (1.0 + std::abs(mu_solid)));
+        const Set::Matrix surface_stress =
+            PhaseModel::SolidSurfaceCorrectionCapillaryStress(
+                flat_const, liquid, solid, correction,
+                regularization_gradient,
+                ci, cj, ck, cell_size, central);
+        Set::Scalar transverse_surface_stress = 0.0;
+        for (int d = 1; d < AMREX_SPACEDIM; ++d)
+            transverse_surface_stress = std::max(
+                transverse_surface_stress,
+                std::abs(surface_stress(d,d)));
+        subfailed += Util::Test::SubMessage(
+            "Liquid-solid stress uses pressure-reduced gauge",
+            transverse_surface_stress > 1.0e-14);
         const Set::Scalar pair_mu_liquid =
             PhaseModel::PairChemicalPotential(
                 flat_const, liquid, solid, solid_regularization, ell,

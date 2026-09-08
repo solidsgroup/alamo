@@ -11,14 +11,23 @@ namespace Model
 {
 namespace Capillarity
 {
-// Locally conservative second-order profile restoration
+// Volume-constrained Allen--Cahn gradient flow of the configured multiphase
+// free energy.  For every mobile pair (i,j), LowMach advances
 //
-//   d eta/dt = div[D (grad eta - 4 eta(1-eta)n/ell)],
-//   D = ell^2/tau.
+//   d eta_i/dt = -L w_ij [mu_i-mu_j-lambda_ij],
+//   d eta_j/dt = -d eta_i/dt,
 //
-// The diffusion is treated implicitly by LowMach and the bounded compression
-// flux is lagged.  This restores the declared tanh profile without changing
-// the integral of a liquid phase.
+// where w_ij=4 eta_i eta_j and lambda_ij is its weighted composite-domain
+// average.  The pair exchange conserves both phase volumes, preserves the
+// Gibbs sum locally, and dissipates free energy:
+//
+//   dF/dt = -L integral w_ij
+//                    (mu_i-mu_j-lambda_ij)^2 dV <= 0.
+//
+// LowMach treats the stiff local and gradient curvatures implicitly and uses
+// a free-energy line search for the nonlinear remainder.  Unlike the former
+// profile-compression equation, every force driving this model is a variation
+// of the same free energy used by the capillary stress.
 class ConservativeAllenCahn
 {
 public:
@@ -32,16 +41,21 @@ public:
             Util::Exception(INFO, "relaxation_time must be positive");
     }
 
-    Set::Scalar Diffusivity(const Set::Scalar interface_thickness) const
+    Set::Scalar Mobility(
+        const Set::Scalar interface_thickness,
+        const Set::Scalar reference_surface_energy) const
     {
-        return interface_thickness * interface_thickness / relaxation_time;
+        Util::Assert(INFO, TEST(interface_thickness > 0.0));
+        Util::Assert(INFO, TEST(reference_surface_energy > 0.0));
+        return interface_thickness /
+            (reference_surface_energy * relaxation_time);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    static Set::Scalar CompressionMagnitude(
-        const Set::Scalar eta, const Set::Scalar interface_thickness)
+    static Set::Scalar PairMobilityWeight(
+        const Set::Scalar eta, const Set::Scalar other)
     {
-        return 4.0 * eta * (1.0 - eta) / interface_thickness;
+        return 4.0 * eta * other;
     }
 
 private:

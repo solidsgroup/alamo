@@ -1,6 +1,8 @@
 #ifndef MODEL_CAPILLARITY_SINGLYDEGENERATECAHNHILLIARD_H
 #define MODEL_CAPILLARITY_SINGLYDEGENERATECAHNHILLIARD_H
 
+#include <string>
+
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
@@ -18,8 +20,13 @@ namespace Capillarity
 //   M0 = ell^3/(sigma_ref tau).
 //
 // The single zeros of g suppress diffusion in pure phases while retaining
-// finite interfacial mobility.  LowMach uses an energy-stabilized implicit
-// treatment of the fourth-order gradient contribution.
+// finite interfacial mobility.  LowMach treats the fourth-order chemical-
+// potential stiffness with a linearly implicit two-factor Helmholtz solve.
+// By default, mechanical capillarity remains in the momentum equation and
+// retains its resolved capillary-wave timestep restriction.  The optional
+// overdamped coupling uses this gradient flow alone to relax morphology.  It
+// conserves liquid volume but deliberately omits capillary acceleration and
+// the associated mechanical timestep restriction.
 class SinglyDegenerateCahnHilliard
 {
 public:
@@ -33,6 +40,22 @@ public:
                           Unit::Time());
         if (!(value.relaxation_time > 0.0))
             Util::Exception(INFO, "relaxation_time must be positive");
+
+        std::string momentum_coupling;
+        pp.query_default("momentum_coupling", momentum_coupling,
+                         "korteweg");
+        if (momentum_coupling == "korteweg")
+            value.couple_capillary_momentum = true;
+        else if (momentum_coupling == "overdamped")
+            value.couple_capillary_momentum = false;
+        else
+            Util::Exception(INFO, "momentum_coupling must be korteweg or "
+                "overdamped");
+    }
+
+    bool CouplesCapillaryMomentum() const
+    {
+        return couple_capillary_momentum;
     }
 
     Set::Scalar ReferenceMobility(
@@ -53,6 +76,7 @@ public:
 
 private:
     Set::Scalar relaxation_time = 0.0;
+    bool couple_capillary_momentum = true;
 };
 }
 }

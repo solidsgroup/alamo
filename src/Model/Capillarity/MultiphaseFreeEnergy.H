@@ -231,7 +231,10 @@ public:
         const Set::Scalar regularized_norm = std::sqrt(
             gradient_norm * gradient_norm +
             regularization_gradient * regularization_gradient);
-        return regularized_norm - regularization_gradient;
+        // Rationalizing the difference retains the quadratic small-gradient
+        // limit without subtracting two nearly equal positive numbers.
+        return gradient_norm * gradient_norm /
+            (regularized_norm + regularization_gradient);
     }
 
     static Set::Scalar SurfaceEnergyDifferenceFromContactAngle(
@@ -308,7 +311,8 @@ public:
             relative_gradient * relative_gradient.transpose();
     }
 
-    // Korteweg stress of the signed liquid-covered-solid surface correction
+    // Pressure-reduced Korteweg stress of the signed liquid-covered-solid
+    // surface correction
     //
     //   2 Delta h(eta_l)
     //       [sqrt(|grad eta_s|^2 + r^2) - r].
@@ -332,11 +336,8 @@ public:
         const Set::Scalar norm = std::sqrt(
             grad_solid.dot(grad_solid) +
             regularization_gradient * regularization_gradient);
-        const Set::Scalar surface_delta =
-            norm - regularization_gradient;
-        return 2.0 * surface_correction * h *
-            (surface_delta * Set::Matrix::Identity() -
-             grad_solid * grad_solid.transpose() / norm);
+        return -2.0 * surface_correction * h *
+            grad_solid * grad_solid.transpose() / norm;
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -399,35 +400,89 @@ public:
         const Set::Scalar regularization_gradient,
         const int i, const int j, const int k,
         const Set::Scalar dx[AMREX_SPACEDIM],
-        std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil)
+        const amrex::Box domain,
+        const amrex::GpuArray<int,AMREX_SPACEDIM>& periodic)
     {
-        const Set::Scalar q = eta(i,j,k,liquid);
-        const Set::Scalar h = Interpolation(q);
-        const Set::Scalar hprime = InterpolationDerivative(q);
-        const Set::Vector grad_liquid = Numeric::Gradient(
-            eta, i, j, k, liquid, dx, stencil);
-        const Set::Vector grad_solid = Numeric::Gradient(
-            eta, i, j, k, solid, dx, stencil);
-        const Set::Matrix hessian_solid = Numeric::Hessian(
-            eta, i, j, k, solid, dx, stencil);
-        const Set::Scalar regularized_norm = std::sqrt(
-            grad_solid.dot(grad_solid) +
-            regularization_gradient * regularization_gradient);
-        const Set::Vector normal = grad_solid / regularized_norm;
-        Set::Scalar projected_hessian = 0.0;
-        Set::Scalar laplacian = 0.0;
+        // This is the discrete variation of
+        //
+        //   2 Delta h(eta_l) [sqrt(|G eta_s|^2+r^2)-r].
+        //
+        // Apply -G^T to the bounded flux h G eta_s/|G eta_s|_r directly.
+        // Expanding the continuum divergence into Laplacian and Hessian terms
+        // is not a discrete identity: at a one-cell phase remnant the centered
+        // gradient is zero while the Laplacian is finite, producing an
+        // artificial O(1/r) chemical potential.  Every flux component below
+        // has magnitude at most one, so its discrete divergence remains
+        // bounded independently of r and the remnant force vanishes with its
+        // phase amplitude.
+        const auto stencil = Numeric::GetStencil(
+            i, j, k, domain, periodic);
+        Set::Scalar divergence = 0.0;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
-            laplacian += hessian_solid(d,d);
-            for (int e = 0; e < AMREX_SPACEDIM; ++e)
-                projected_hessian += grad_solid(d) *
-                    hessian_solid(d,e) * grad_solid(e);
+            int ilo = i;
+            int jlo = j;
+            int klo = k;
+            int ihi = i;
+            int jhi = j;
+            int khi = k;
+            Set::Scalar inverse_spacing = 1.0 / dx[d];
+            if (stencil[d] == Numeric::StencilType::Central)
+            {
+                if (d == 0) { --ilo; ++ihi; }
+#if AMREX_SPACEDIM > 1
+                if (d == 1) { --jlo; ++jhi; }
+#endif
+#if AMREX_SPACEDIM > 2
+                if (d == 2) { --klo; ++khi; }
+#endif
+                inverse_spacing *= 0.5;
+            }
+            else if (stencil[d] == Numeric::StencilType::Hi)
+            {
+                if (d == 0) ++ihi;
+#if AMREX_SPACEDIM > 1
+                if (d == 1) ++jhi;
+#endif
+#if AMREX_SPACEDIM > 2
+                if (d == 2) ++khi;
+#endif
+            }
+            else
+            {
+                if (d == 0) --ilo;
+#if AMREX_SPACEDIM > 1
+                if (d == 1) --jlo;
+#endif
+#if AMREX_SPACEDIM > 2
+                if (d == 2) --klo;
+#endif
+            }
+
+            const auto lo_stencil = Numeric::GetStencil(
+                ilo, jlo, klo, domain, periodic);
+            const Set::Vector grad_lo = Numeric::Gradient(
+                eta, ilo, jlo, klo, solid, dx, lo_stencil);
+            const Set::Scalar norm_lo = std::sqrt(
+                grad_lo.dot(grad_lo) +
+                regularization_gradient * regularization_gradient);
+            const Set::Scalar flux_lo =
+                Interpolation(eta(ilo,jlo,klo,liquid)) * grad_lo(d) /
+                norm_lo;
+
+            const auto hi_stencil = Numeric::GetStencil(
+                ihi, jhi, khi, domain, periodic);
+            const Set::Vector grad_hi = Numeric::Gradient(
+                eta, ihi, jhi, khi, solid, dx, hi_stencil);
+            const Set::Scalar norm_hi = std::sqrt(
+                grad_hi.dot(grad_hi) +
+                regularization_gradient * regularization_gradient);
+            const Set::Scalar flux_hi =
+                Interpolation(eta(ihi,jhi,khi,liquid)) * grad_hi(d) /
+                norm_hi;
+            divergence += (flux_hi - flux_lo) * inverse_spacing;
         }
-        const Set::Scalar curvature = laplacian / regularized_norm -
-            projected_hessian /
-                (regularized_norm * regularized_norm * regularized_norm);
-        return -2.0 * surface_correction *
-            (hprime * grad_liquid.dot(normal) + h * curvature);
+        return -2.0 * surface_correction * divergence;
     }
 
 private:

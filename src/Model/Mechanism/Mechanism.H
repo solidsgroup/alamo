@@ -61,21 +61,32 @@ public:
     Set::Scalar EquilibriumTemperature() const { return NAN; }
     Set::Scalar LatentHeat() const { return 0.0; }
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar KineticDiffuseSurfaceMeasure(
-        const amrex::Array4<const Set::Scalar>&,
-        const int, const int, const int,
-        const Set::Scalar[AMREX_SPACEDIM]) const { return 0.0; }
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar>
     ApplyEquilibriumChange(
         const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
         const Set::Scalar, const Set::Scalar,
         const int, const int, const int) const { return {0.0, 0.0, 0.0}; }
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyKineticChange(
+    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar>
+    ApplyKineticChange(
         const amrex::Array4<Set::Scalar>&, const State&, const Set::Scalar,
         const Set::Scalar, Set::Scalar&, Set::Scalar&,
-        const int, const int, const int) const { return 0.0; }
+        const int, const int, const int) const
+    {
+        return {0.0, 0.0, 0.0, 0.0};
+    }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::GpuTuple<Set::Scalar,Set::Vector>
+    KineticDiffuseSurfaceGeometry(
+        const amrex::Array4<const Set::Scalar>&,
+        const int, const int, const int,
+        const Set::Scalar[AMREX_SPACEDIM]) const
+    {
+        return {0.0, Set::Vector::Zero()};
+    }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar RecoilPressure(const Set::Scalar, const Set::Scalar,
+        const Set::Scalar) const { return 0.0; }
 };
 
 template<typename... OBJ>
@@ -283,25 +294,6 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar KineticDiffuseSurfaceMeasure(
-        const amrex::Array4<const Set::Scalar>& component_density,
-        const int i, const int j, const int k,
-        const Set::Scalar DX[AMREX_SPACEDIM]) const
-    {
-        if constexpr (I < sizeof...(OBJ))
-        {
-            if (selected == I)
-                return std::get<I>(obj).KineticDiffuseSurfaceMeasure(
-                    component_density, i, j, k, DX);
-            return KineticDiffuseSurfaceMeasure<I + 1>(
-                component_density, i, j, k, DX);
-        }
-        Util::Abort(INFO, selected);
-        return NAN;
-    }
-
-    template<int I = 0>
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar>
     ApplyEquilibriumChange(
         const amrex::Array4<Set::Scalar>& component_density,
@@ -327,7 +319,45 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyKineticChange(
+    amrex::GpuTuple<Set::Scalar,Set::Vector>
+    KineticDiffuseSurfaceGeometry(
+        const amrex::Array4<const Set::Scalar>& component_density,
+        const int i, const int j, const int k,
+        const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).KineticDiffuseSurfaceGeometry(
+                    component_density, i, j, k, DX);
+            return KineticDiffuseSurfaceGeometry<I + 1>(
+                component_density, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return {NAN, Set::Vector::Zero()};
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar RecoilPressure(const Set::Scalar mass_flux,
+        const Set::Scalar temperature, const Set::Scalar pressure) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).RecoilPressure(
+                    mass_flux, temperature, pressure);
+            return RecoilPressure<I + 1>(
+                mass_flux, temperature, pressure);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar>
+    ApplyKineticChange(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar heat_capacity,
         const Set::Scalar surface_measure,
@@ -347,7 +377,7 @@ public:
                 temperature, integrated_heat, i, j, k);
         }
         Util::Abort(INFO, selected);
-        return NAN;
+        return {NAN, NAN, NAN, NAN};
     }
 
 private:

@@ -52,6 +52,7 @@ PressurePoisson::SetLayout(
         }
     }
 
+    const bool had_mixed_velocity_state = mixed_velocity_state_initialized;
     nlevels = number_of_levels;
     geometry.assign(a_geometry.begin(), a_geometry.begin() + nlevels);
     refinement_ratio.assign(a_refinement_ratio.begin(), a_refinement_ratio.begin() + nlevels - 1);
@@ -71,8 +72,13 @@ PressurePoisson::SetLayout(
     divergence.Define(nlevels, grids, distribution_mapping, 1, 0);
     cell_velocity_predictor.Define(
         nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 1);
+    cell_velocity_reference.Define(
+        nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 1);
     face_coefficient.resize(nlevels);
     face_velocity.resize(nlevels);
+    face_velocity_base.resize(nlevels);
+    face_momentum_exchange.resize(nlevels);
+    mixed_velocity_state_initialized = had_mixed_velocity_state;
     for (int lev = 0; lev < nlevels; ++lev)
     {
         solution[lev]->setVal(0.0);
@@ -80,6 +86,10 @@ PressurePoisson::SetLayout(
         coefficient[lev]->setVal(0.0);
         divergence[lev]->setVal(0.0);
         cell_velocity_predictor[lev]->setVal(0.0);
+        cell_velocity_reference[lev]->setVal(0.0);
+        if (had_mixed_velocity_state)
+            amrex::MultiFab::Copy(*cell_velocity_reference[lev], *layout[lev],
+                0, 0, AMREX_SPACEDIM, 1);
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
             amrex::BoxArray face_grids = grids[lev];
@@ -88,6 +98,13 @@ PressurePoisson::SetLayout(
                 face_grids, distribution_mapping[lev], 1, 0);
             face_velocity[lev][d].define(
                 face_grids, distribution_mapping[lev], 1, 1);
+            face_velocity_base[lev][d].define(
+                face_grids, distribution_mapping[lev], 1, 1);
+            face_momentum_exchange[lev][d].define(
+                face_grids, distribution_mapping[lev], 1, 0);
+            face_velocity[lev][d].setVal(0.0);
+            face_velocity_base[lev][d].setVal(0.0);
+            face_momentum_exchange[lev][d].setVal(0.0);
         }
     }
 }
@@ -149,6 +166,7 @@ PressurePoisson::PrepareRHS(
             const amrex::Box& bx = mfi.tilebox();
             const auto u = cell_velocity.const_array(mfi);
             const auto face = face_velocity[lev][d].array(mfi);
+            const auto base = face_velocity_base[lev][d].array(mfi);
             amrex::Array4<const Set::Scalar> acceleration;
             const bool has_face_acceleration = face_acceleration != nullptr;
             if (has_face_acceleration)
@@ -156,8 +174,9 @@ PressurePoisson::PrepareRHS(
             amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    face(i,j,k) = 0.5 *
+                    base(i,j,k) = 0.5 *
                         (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
+                    face(i,j,k) = base(i,j,k);
                     if (has_face_acceleration)
                         face(i,j,k) += dt * acceleration(i,j,k);
                 });
@@ -166,6 +185,8 @@ PressurePoisson::PrepareRHS(
         // copies before taking the divergence; this is synchronization, not a
         // mean-flow or pressure-gradient correction.
         face_velocity[lev][d].FillBoundaryAndSync(
+            geometry[lev].periodicity());
+        face_velocity_base[lev][d].FillBoundaryAndSync(
             geometry[lev].periodicity());
     }
     amrex::computeDivergence(*divergence[lev], face_ptr, geometry[lev]);
@@ -283,8 +304,13 @@ PressurePoisson::ApplyCorrection(
         const auto u_predictor = predictor.const_array(mfi);
         amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM>
             projected_face;
+        amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM>
+            base_face;
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
             projected_face[d] = face_velocity[lev][d].const_array(mfi);
+            base_face[d] = face_velocity_base[lev][d].const_array(mfi);
+        }
         amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -293,18 +319,149 @@ PressurePoisson::ApplyCorrection(
                     const int di = d == 0;
                     const int dj = d == 1;
                     const int dk = d == 2;
-                    const Set::Scalar predictor_face_lo = 0.5 *
-                        (u_predictor(i-di,j-dj,k-dk,d) +
-                         u_predictor(i,j,k,d));
-                    const Set::Scalar predictor_face_hi = 0.5 *
-                        (u_predictor(i,j,k,d) +
-                         u_predictor(i+di,j+dj,k+dk,d));
-                    u(i,j,k,d) = u_predictor(i,j,k,d) + 0.5 *
-                        ((projected_face[d](i,j,k) - predictor_face_lo) +
-                         (projected_face[d](i+di,j+dj,k+dk) -
-                          predictor_face_hi));
+                    u(i,j,k,d) = u_predictor(i,j,k,d) +
+                        0.5 *
+                            ((projected_face[d](i,j,k) -
+                              base_face[d](i,j,k)) +
+                             (projected_face[d](i+di,j+dj,k+dk) -
+                              base_face[d](i+di,j+dj,k+dk)));
                 }
             });
     }
+}
+
+void
+PressurePoisson::ReconcileCellVelocity(
+    Set::Field<Set::Scalar>& velocity,
+    const Set::Field<Set::Scalar>& density,
+    bool projection_increment,
+    const CompositeFaceField* face_weight)
+{
+    // Arithmetic cell-to-face interpolation has an exact alternating-cell
+    // nullspace.  Exchange only the newly accumulated normal momentum between
+    // adjacent cells.  On a uniform field this is the compact [1/4,1/2,1/4]
+    // compatible reconstruction; writing it as a shared face flux preserves
+    // linear momentum, angular momentum, periodic seams, and coarse/fine
+    // conservation without damping the previously projected velocity state.
+    // An optional composite face weight localizes that same conservative
+    // exchange without changing its equal-and-opposite momentum transfer.
+    for (int lev = 0; lev < nlevels; ++lev)
+    {
+        const auto dx = geometry[lev].CellSizeArray();
+        const amrex::Box domain = geometry[lev].Domain();
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            const int di = d == 0;
+            const int dj = d == 1;
+            const int dk = d == 2;
+            const int domain_face_lo = domain.smallEnd(d);
+            const int domain_face_hi = domain.bigEnd(d) + 1;
+            const bool periodic = geometry[lev].isPeriodic(d);
+            const bool weighted = face_weight != nullptr;
+            amrex::MultiFab& exchange = face_momentum_exchange[lev][d];
+            for (amrex::MFIter mfi(exchange, amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                const auto cell_velocity = velocity[lev]->const_array(mfi);
+                const auto reference = projection_increment ?
+                    cell_velocity_predictor[lev]->const_array(mfi) :
+                    cell_velocity_reference[lev]->const_array(mfi);
+                const auto rho = density[lev]->const_array(mfi);
+                const auto flux = exchange.array(mfi);
+                amrex::Array4<const Set::Scalar> weight;
+                if (weighted)
+                    weight = (*face_weight)[lev][d]->const_array(mfi);
+                const bool has_mixed_velocity_state =
+                    projection_increment || mixed_velocity_state_initialized;
+                amrex::ParallelFor(
+                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        const int face_index = d == 0 ? i :
+                            (d == 1 ? j : k);
+                        if (!periodic &&
+                            (face_index == domain_face_lo ||
+                             face_index == domain_face_hi))
+                        {
+                            flux(i,j,k) = 0.0;
+                            return;
+                        }
+                        const Set::Scalar increment_lo =
+                            cell_velocity(i-di,j-dj,k-dk,d) -
+                            (has_mixed_velocity_state ?
+                                reference(i-di,j-dj,k-dk,d) : 0.0);
+                        const Set::Scalar increment_hi =
+                            cell_velocity(i,j,k,d) -
+                            (has_mixed_velocity_state ?
+                                reference(i,j,k,d) : 0.0);
+                        const Set::Scalar rho_lo =
+                            rho(i-di,j-dj,k-dk);
+                        const Set::Scalar rho_hi = rho(i,j,k);
+                        const Set::Scalar face_density =
+                            2.0 * rho_lo * rho_hi / (rho_lo + rho_hi);
+                        const Set::Scalar localization = weighted ?
+                            weight(i,j,k) : 1.0;
+                        flux(i,j,k) = 0.25 * localization * dx[d] *
+                            face_density *
+                            (increment_hi - increment_lo);
+                    });
+            }
+            exchange.FillBoundaryAndSync(geometry[lev].periodicity());
+        }
+    }
+
+    for (int lev = nlevels - 1; lev > 0; --lev)
+    {
+        amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM> fine;
+        amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM> coarse;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            fine[d] = &face_momentum_exchange[lev][d];
+            coarse[d] = &face_momentum_exchange[lev-1][d];
+        }
+        amrex::average_down_faces(
+            fine, coarse, refinement_ratio[lev-1], geometry[lev-1]);
+    }
+
+    for (int lev = 0; lev < nlevels; ++lev)
+    {
+        const auto dx = geometry[lev].CellSizeArray();
+        for (amrex::MFIter mfi(*velocity[lev], amrex::TilingIfNotGPU());
+             mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            const auto u = velocity[lev]->array(mfi);
+            const auto rho = density[lev]->const_array(mfi);
+            amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM>
+                exchange;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                exchange[d] =
+                    face_momentum_exchange[lev][d].const_array(mfi);
+            amrex::ParallelFor(
+                bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    {
+                        const int di = d == 0;
+                        const int dj = d == 1;
+                        const int dk = d == 2;
+                        u(i,j,k,d) +=
+                            (exchange[d](i+di,j+dj,k+dk) -
+                             exchange[d](i,j,k)) /
+                            (dx[d] * rho(i,j,k));
+                    }
+                });
+        }
+    }
+}
+
+void
+PressurePoisson::CommitVelocityState(
+    const Set::Field<Set::Scalar>& velocity)
+{
+    for (int lev = 0; lev < nlevels; ++lev)
+        amrex::MultiFab::Copy(*cell_velocity_reference[lev], *velocity[lev],
+            0, 0, AMREX_SPACEDIM, 1);
+    mixed_velocity_state_initialized = true;
 }
 }

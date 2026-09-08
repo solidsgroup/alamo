@@ -91,9 +91,14 @@ public:
                             bool write_diagnostics = false);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateInterfacialChemicalPotential(int lev);
+    using InterfacialFaceField = amrex::Vector<amrex::Array<
+        std::unique_ptr<amrex::MultiFab>, AMREX_SPACEDIM>>;
+    void ComputeCapillaryFaceForce(InterfacialFaceField& force);
     void ApplyInterfacialTransport(Set::Scalar time, Set::Scalar dt);
-    void ApplyConservativeAllenCahn(Set::Scalar time, Set::Scalar dt);
-    void ApplySinglyDegenerateCahnHilliard(Set::Scalar time, Set::Scalar dt);
+    void ApplyConservativeAllenCahn(
+        Set::Scalar time, Set::Scalar dt, InterfacialFaceField& volume_flux);
+    void ApplySinglyDegenerateCahnHilliard(
+        Set::Scalar time, Set::Scalar dt, InterfacialFaceField& volume_flux);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
@@ -165,6 +170,7 @@ protected:
     Set::Field<Set::Scalar> interfacial_volume_fraction_mf;
     Set::Field<Set::Scalar> gas_volume_fraction_mf;
     Set::Field<Set::Scalar> interfacial_chemical_potential_mf;
+    Set::Field<Set::Scalar> interfacial_dilatation_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
 
@@ -175,6 +181,7 @@ protected:
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_heat_mf;
+    InterfacialFaceField phase_change_recoil_face_force;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -291,6 +298,9 @@ protected:
     bool has_equilibrium_phase_change = false;
     bool has_kinetic_phase_change = false;
     bool has_split_phase_change = false;
+    int enthalpy_max_iterations = 50;
+    Set::Scalar enthalpy_relative_tolerance = 1.0e-7;
+    Set::Scalar enthalpy_absolute_tolerance = 1.0e-8;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
     Set::Scalar finite_solid_reference_density = 1.0;

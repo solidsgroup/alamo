@@ -8,16 +8,22 @@
 //   hertz_knudsen            vapor-pressure-driven liquid/gas mass flux
 //
 // The kinetic closures multiply their dimensional surface flux by the local,
-// reduction-consistent diffuse phase0/gas surface measure
+// reduction-consistent diffuse phase0/phase1 surface measure
 //
-//   delta_0g = |eta_g grad(eta_0) - eta_0 grad(eta_g)|.
+//   delta_01 = |eta_1 grad(eta_0) - eta_0 grad(eta_1)|.
 //
 // This measure integrates to one across an isolated binary interface and
-// vanishes on phase0/condensed interfaces that are not exposed to gas.  The
+// vanishes on interfaces that do not contain both selected phases.  The
 // constitutive flux uses the local diffuse-mixture temperature.  No contour,
 // normal extrapolation, signed distance, or sharp-interface state is
 // reconstructed.  The local mass/enthalpy system is solved implicitly after
 // transport, so kinetic stiffness does not impose an explicit global step.
+// A kinetic transition applies its specific-volume jump as a phase1-side
+// Stefan flux and supplies the associated recoil pressure.  The
+// Stefan current uses the unnormalized phase-pair gradient, which is exactly
+// eta_0 eta_1 n on the equilibrium profile and vanishes continuously where
+// there is no resolved interface.  No product diffusion or carrier-gas
+// counterflux is introduced.
 //
 // latent_heat is positive for an endothermic forward transition.  The signed
 // coupled_enthalpy_change represents an unresolved process tied only to
@@ -262,10 +268,12 @@ public:
         }
     }
 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool Equilibrium() const
     {
         return kinetics == Kinetics::EquilibriumEnthalpy;
     }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool Kinetic() const
     {
         return kinetics == Kinetics::ArrheniusSurfaceFlux ||
@@ -276,19 +284,20 @@ public:
         return transition_temperature;
     }
     Set::Scalar LatentHeat() const { return latent_heat; }
-
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar KineticDiffuseSurfaceMeasure(
+    amrex::GpuTuple<Set::Scalar,Set::Vector>
+    KineticDiffuseSurfaceGeometry(
         const amrex::Array4<const Set::Scalar>& component_density,
         const int i, const int j, const int k,
         const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
-        if (!Kinetic()) return 0.0;
+        if (!Kinetic())
+            return {0.0, Set::Vector::Zero()};
 
         const Set::Scalar eta0 =
             component_density(i,j,k,phase0) / phase0_reference_density;
         if (!(eta0 > 0.0))
-            return 0.0;
+            return {0.0, Set::Vector::Zero()};
 
         const Set::Vector gradient0 = Numeric::Gradient(
             component_density, i, j, k, phase0, DX) /
@@ -304,11 +313,30 @@ public:
                     component_density, i, j, k, n, DX) *
                     inverse_reference_density[n];
             }
-        const Set::Scalar gas_fraction = 1.0 - condensed_fraction;
-        if (!(gas_fraction > 0.0)) return 0.0;
-        const Set::Vector surface_vector =
-            gas_fraction * gradient0 + eta0 * condensed_gradient;
-        return surface_vector.norm();
+        Set::Scalar eta1 = 0.0;
+        Set::Vector gradient1 = Set::Vector::Zero();
+        if (phase1_is_gas)
+        {
+            eta1 = 1.0 - condensed_fraction;
+            gradient1 = -condensed_gradient;
+        }
+        else
+        {
+            const int phase1 = phase1_species[0];
+            eta1 = component_density(i,j,k,phase1) *
+                inverse_reference_density[phase1];
+            gradient1 = Numeric::Gradient(
+                component_density, i, j, k, phase1, DX) *
+                inverse_reference_density[phase1];
+        }
+        if (!(eta1 > 0.0))
+            return {0.0, Set::Vector::Zero()};
+        const Set::Vector phase_pair_gradient =
+            eta1 * gradient0 - eta0 * gradient1;
+        const Set::Scalar surface_measure = phase_pair_gradient.norm();
+        if (!(surface_measure > 0.0))
+            return {0.0, Set::Vector::Zero()};
+        return {surface_measure, phase_pair_gradient};
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -358,7 +386,8 @@ public:
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyKineticChange(
+    amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar>
+    ApplyKineticChange(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar heat_capacity,
         const Set::Scalar surface_measure,
@@ -368,11 +397,11 @@ public:
         if (!Kinetic() || !(state.dt > 0.0) ||
             !(heat_capacity > 0.0) || !(temperature > 0.0) ||
             !(surface_measure > 0.0))
-            return 0.0;
+            return {0.0, 0.0, 0.0, 0.0};
 
         const Set::Scalar old_temperature = temperature;
         const Set::Scalar phase0_mass = component_density(i,j,k,phase0);
-        if (!(phase0_mass > 0.0)) return 0.0;
+        if (!(phase0_mass > 0.0)) return {0.0, 0.0, 0.0, 0.0};
         Set::Scalar reverse_mass = 0.0;
         if (reversible)
         {
@@ -384,18 +413,19 @@ public:
                             phase1_mass_fractions[n]);
         }
 
-        const auto residual = [=] AMREX_GPU_DEVICE(Set::Scalar mass_change)
+        const auto kinetic_mass_flux =
+            [=] AMREX_GPU_DEVICE(Set::Scalar mass_change)
         {
             const Set::Scalar heat = latent_heat * mass_change +
                 coupled_enthalpy_change * Util::Min(mass_change, 0.0);
             const Set::Scalar kinetic_temperature =
                 old_temperature + heat / heat_capacity;
-            if (!(kinetic_temperature > 0.0)) return mass_change;
+            if (!(kinetic_temperature > 0.0)) return 0.0;
 
             Set::Scalar mass_flux = 0.0;
             if (kinetics == Kinetics::ArrheniusSurfaceFlux)
             {
-                if (!(state.pressure > 0.0)) return mass_change;
+                if (!(state.pressure > 0.0)) return 0.0;
                 const Set::Scalar pressure_ratio =
                     state.pressure / reference_pressure;
                 const Set::Scalar exponent = -activation_temperature *
@@ -437,27 +467,39 @@ public:
                               gas_specific_constant * kinetic_temperature);
                 if (!reversible) mass_flux = Util::Max(mass_flux, 0.0);
             }
-            return mass_change +
-                mass_flux * surface_measure * state.dt;
+            return mass_flux;
+        };
+        const auto residual = [=] AMREX_GPU_DEVICE(Set::Scalar mass_change)
+        {
+            return mass_change + kinetic_mass_flux(mass_change) *
+                surface_measure * state.dt;
         };
 
-        Set::Scalar lower = -phase0_mass;
-        Set::Scalar upper = reversible ? reverse_mass : 0.0;
+        Set::Scalar lower = 0.0;
+        Set::Scalar upper = 0.0;
         const Set::Scalar zero_residual = residual(0.0);
         if (zero_residual > 0.0)
         {
-            upper = 0.0;
+            // Endothermic forward transfer reduces its own kinetic rate, so
+            // its zero-state increment is the natural local root bracket.
+            lower = Util::Max(-phase0_mass, -zero_residual);
             if (residual(lower) > 0.0)
-                upper = lower;
+            {
+                lower = -phase0_mass;
+                if (residual(lower) > 0.0) upper = lower;
+            }
         }
         else if (zero_residual < 0.0)
         {
-            lower = 0.0;
+            upper = Util::Min(reverse_mass, -zero_residual);
             if (residual(upper) < 0.0)
-                lower = upper;
+            {
+                upper = reverse_mass;
+                if (residual(upper) < 0.0) lower = upper;
+            }
         }
         else
-            return 0.0;
+            return {0.0, 0.0, 0.0, 0.0};
 
         for (int iteration = 0;
              iteration < nonlinear_max_iterations && lower < upper;
@@ -474,7 +516,7 @@ public:
             if (upper - lower <= tolerance) break;
         }
         const Set::Scalar mass_change = 0.5 * (lower + upper);
-        if (mass_change == 0.0) return 0.0;
+        if (mass_change == 0.0) return {0.0, 0.0, 0.0, 0.0};
 
         component_density(i,j,k,phase0) += mass_change;
         for (int n = 0; n < nphase1_species; ++n)
@@ -489,8 +531,31 @@ public:
         if (phase1_is_gas)
             phase1_specific_volume = phase1_gas_constant *
                 temperature / state.pressure;
-        return mass_change *
-            (1.0 / phase0_reference_density - phase1_specific_volume);
+        const Set::Scalar specific_volume_jump =
+            phase1_specific_volume - 1.0 / phase0_reference_density;
+        Set::Scalar surface_mass_flux = kinetic_mass_flux(mass_change);
+        if (mass_change == -phase0_mass ||
+            (reversible && mass_change == reverse_mass))
+            surface_mass_flux = -mass_change /
+                (surface_measure * state.dt);
+        return {mass_change, -mass_change * specific_volume_jump,
+            surface_mass_flux, surface_mass_flux * specific_volume_jump};
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar RecoilPressure(const Set::Scalar mass_flux,
+        const Set::Scalar temperature, const Set::Scalar pressure) const
+    {
+        Set::Scalar phase1_specific_volume =
+            phase1_inverse_reference_density;
+        if (phase1_is_gas)
+        {
+            if (!(temperature > 0.0) || !(pressure > 0.0)) return 0.0;
+            phase1_specific_volume =
+                phase1_gas_constant * temperature / pressure;
+        }
+        return mass_flux * mass_flux *
+            (phase1_specific_volume - 1.0 / phase0_reference_density);
     }
 
 private:
@@ -500,7 +565,6 @@ private:
         ArrheniusSurfaceFlux,
         HertzKnudsen
     };
-
     Kinetics kinetics = Kinetics::EquilibriumEnthalpy;
     int nspecies = 0;
     int ngas_species = 0;
