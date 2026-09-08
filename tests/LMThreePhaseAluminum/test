@@ -73,7 +73,10 @@ if maximum_vapor_fraction < 1.0e-5 or converted_or_exited_fraction < 1.0e-4:
         f"converted/exited={converted_or_exited_fraction:.3e}")
 maximum_core_vapor_fraction = max(
     state["core_vapor"] / state["vapor"]
-    for state in history if state["vapor"] > 1.0e-14 * initial_aluminum)
+    # A ratio of two vanishing diffuse tails is not an interface-location
+    # metric.  Apply the spatial check once evaporation reaches the same
+    # appreciable 1e-5 fraction required above.
+    for state in history if state["vapor"] >= 1.0e-5 * initial_aluminum)
 if maximum_core_vapor_fraction > 0.01:
     raise RuntimeError(
         "Hertz-Knudsen transfer formed vapor in the particle core: "

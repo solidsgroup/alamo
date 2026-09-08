@@ -11,6 +11,11 @@ def moments(path):
     data = ds.all_data()
     volume = data[("index", "cell_volume")].to_ndarray()
     density = data[("boxlib", "density")].to_ndarray()
+    liquid_density = data[(
+        "boxlib", "component_density_Al_liquid")].to_ndarray()
+    solid_density = data[(
+        "boxlib", "component_density_Al_solid")].to_ndarray()
+    temperature = data[("boxlib", "temperature")].to_ndarray()
     ux = data[("boxlib", "velocityx")].to_ndarray()
     uy = data[("boxlib", "velocityy")].to_ndarray()
     x = data[("index", "x")].to_ndarray()
@@ -25,6 +30,9 @@ def moments(path):
     inertia = (density *
         ((x-center_x)**2 + (y-center_y)**2) * volume).sum()
     return (mass, momentum_x, momentum_y, angular_momentum, inertia,
+            (liquid_density * volume).sum(),
+            (solid_density * volume).sum(),
+            temperature.min(), temperature.max(),
             testlib.numpy.sqrt(ux*ux + uy*uy).max())
 
 
@@ -35,25 +43,99 @@ if len(plotfiles) != 2:
 
 initial = moments(plotfiles[0])
 final = moments(plotfiles[-1])
+moving_long = "moving-long" in sys.argv[1]
 mean_velocity_change = testlib.numpy.hypot(
     final[1]-initial[1], final[2]-initial[2]) / initial[0]
 angular_rate_change = abs(final[3]-initial[3]) / initial[4]
 capillary_velocity = (0.85 / (2375.0 * 92.0e-6))**0.5
 capillary_rate = capillary_velocity / 92.0e-6
 
-if mean_velocity_change > 1.0e-4 * capillary_velocity:
+if abs(final[0] / initial[0] - 1.0) > 1.0e-10:
+    raise RuntimeError("Liquid-solid capillarity changed total mass")
+if abs(final[5] / initial[5] - 1.0) > 1.0e-10:
+    raise RuntimeError("Liquid-solid capillarity changed liquid mass")
+if abs(final[6] / initial[6] - 1.0) > 1.0e-10:
+    raise RuntimeError("Liquid-solid capillarity changed solid mass")
+temperature_error = max(
+    abs(final[7] / initial[7] - 1.0),
+    abs(final[8] / initial[8] - 1.0))
+if temperature_error > (1.0e-9 if moving_long else 2.0e-12):
+    raise RuntimeError(
+        "Liquid-solid capillarity changed a uniform temperature: "
+        f"relative error={temperature_error:.3e}")
+if mean_velocity_change > (0.06 if moving_long else 1.0e-4) * \
+        capillary_velocity:
     raise RuntimeError(
         "Internal liquid-solid wetting generated mixture translation: "
         f"{mean_velocity_change:.3e} m/s")
-if angular_rate_change > 1.0e-5 * capillary_rate:
+if angular_rate_change > (0.01 if moving_long else 1.0e-5) * \
+        capillary_rate:
     raise RuntimeError(
         "Internal liquid-solid wetting generated mixture rotation: "
         f"{angular_rate_change:.3e} 1/s")
-if final[5] < 1.0e-5:
+if final[9] < 1.0e-5:
     raise RuntimeError(
         "Asymmetric coated particle did not exercise the capillary force")
+
+if moving_long:
+    checkerboard = []
+    checkerboard_peak = []
+    for path in plotfiles:
+        ds = testlib.yt.load(path)
+        level = ds.index.max_level
+        dimensions = ds.domain_dimensions * ds.refine_by ** level
+        grid = ds.covering_grid(level, ds.domain_left_edge, dimensions)
+        ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
+        uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
+        liquid = grid[(
+            "boxlib", "component_density_Al_liquid")].to_ndarray()[:, :, 0] \
+            / 2375.0
+        solid = grid[(
+            "boxlib", "component_density_Al_solid")].to_ndarray()[:, :, 0] \
+            / 2700.0
+        particle = liquid + solid > 0.02
+
+        # A collocated projection cannot see ux=(-1)^i or uy=(-1)^j.
+        # Measure those component-normal modes directly rather than folding
+        # physical tangential shear into a generic smoothness norm.
+        high_pass_x = 0.5 * ux - 0.25 * (
+            testlib.numpy.roll(ux, 1, axis=0) +
+            testlib.numpy.roll(ux, -1, axis=0))
+        high_pass_y = 0.5 * uy - 0.25 * (
+            testlib.numpy.roll(uy, 1, axis=1) +
+            testlib.numpy.roll(uy, -1, axis=1))
+        magnitude = testlib.numpy.sqrt(
+            high_pass_x**2 + high_pass_y**2)
+        checkerboard.append(testlib.numpy.sqrt(
+            testlib.numpy.mean(magnitude[particle]**2)))
+        checkerboard_peak.append(magnitude[particle].max())
+
+    final_time = float(testlib.yt.load(plotfiles[-1]).current_time.to_value())
+    if final_time < 14.9e-6:
+        raise RuntimeError(
+            f"Moving liquid-solid regression stopped early at {final_time:.3e} s")
+    if checkerboard[0] < 0.20:
+        raise RuntimeError(
+            "Moving liquid-solid regression did not seed the projection "
+            "null mode")
+    if checkerboard[-1] > 0.25 * checkerboard[0]:
+        raise RuntimeError(
+            "Moving liquid-solid projection retained a face-invisible "
+            f"velocity mode: final/initial={checkerboard[-1]/checkerboard[0]:.3e}")
+    if checkerboard[-1] > 0.06 * capillary_velocity or \
+            checkerboard_peak[-1] > 0.25 * capillary_velocity:
+        raise RuntimeError(
+            "Moving liquid-solid contact generated grid-scale recirculation: "
+            f"rms={checkerboard[-1]:.3e} m/s, "
+            f"peak={checkerboard_peak[-1]:.3e} m/s")
+    print("LowMach long moving liquid-solid regression passed: "
+          f"time={final_time:.3e} s, "
+          f"checkerboard={checkerboard[-1]:.3e} m/s, "
+          f"reduction={checkerboard[-1]/checkerboard[0]:.3e}, "
+          f"translation={mean_velocity_change:.3e} m/s")
+    sys.exit(0)
 
 print("LowMach conservative liquid-solid wetting regression passed: "
       f"translation={mean_velocity_change:.3e} m/s, "
       f"rotation={angular_rate_change:.3e} 1/s, "
-      f"peak_speed={final[5]:.3e} m/s")
+      f"peak_speed={final[9]:.3e} m/s")

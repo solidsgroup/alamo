@@ -9,6 +9,13 @@
 #@ timeout = 120
 #@ args = interface.model.type=conservative_allen_cahn
 #@ args = interface.model.conservative_allen_cahn.relaxation_time=1.0_s
+#@
+#@ [2d-singly-degenerate-cahn-hilliard]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = interface.model.type=singly_degenerate_cahn_hilliard
+#@ args = interface.model.singly_degenerate_cahn_hilliard.relaxation_time=1.0_s
 
 # A liquid cap intersects an open pressure boundary while a uniform backflow
 # carries it into the domain.  The exterior state is gas: condensed material

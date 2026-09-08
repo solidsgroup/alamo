@@ -10,6 +10,33 @@
 #@ args=amr.max_level=1
 #@ args=amr.regrid_int=1
 #@ args=eta_refinement_criterion=1.0e-3
+#@
+#@ [2d-conservative-allen-cahn]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.model.type=conservative_allen_cahn
+#@ args=interface.model.conservative_allen_cahn.relaxation_time=20.0_us
+#@
+#@ [2d-singly-degenerate-cahn-hilliard]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=interface.model.type=singly_degenerate_cahn_hilliard
+#@ args=interface.model.singly_degenerate_cahn_hilliard.relaxation_time=20.0_us
+#@
+#@ [2d-moving-long]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=240
+#@ args=max_step=300
+#@ args=timestep=5.0e-8_s
+#@ args=stop_time=15.0_us
+#@ args=amr.plot_int=300
+#@ args=cfl=0.8
+#@ args=velocity.ic.expression.constant.U=0.3_m/s
+#@ args=velocity.ic.expression.constant.V=0.2_m/s
+#@ args=velocity.ic.expression.constant.A=0.4_m/s
 
 # An asymmetric liquid-coated free solid in a periodic domain.  Every
 # capillary and wetting load is internal, so the mixture may relax and the
@@ -119,8 +146,14 @@ ambient.density.ic.expression.constant.R = 92.0_um
 ambient.density.ic.expression.constant.eps = 20.0_um
 ambient.density.ic.expression.region0 = "rho*0.5*(1.0+tanh(2.0*(sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))-R)/eps))"
 
-velocity.ic.type = constant
-velocity.ic.constant.value = 0.0_m/s 0.0_m/s
+velocity.ic.type = expression
+velocity.ic.expression.constant.U = 0.0_m/s
+velocity.ic.expression.constant.V = 0.0_m/s
+velocity.ic.expression.constant.A = 0.0_m/s
+velocity.ic.expression.constant.dx = 10.0_um
+velocity.ic.expression.constant.pi = 3.141592653589793
+velocity.ic.expression.region0 = "U+A*cos(pi*(x-0.5*dx)/dx)"
+velocity.ic.expression.region1 = "V+A*cos(pi*(y-0.5*dx)/dx)"
 temperature.ic.type = constant
 temperature.ic.constant.value = 2500.0_K
 pressure.ic.type = constant

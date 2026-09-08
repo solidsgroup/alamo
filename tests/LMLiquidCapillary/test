@@ -7,6 +7,8 @@ import testlib
 
 outdir = sys.argv[1]
 high_density = "high-density" in outdir
+four_cell_interface = "four-cell" in outdir
+overdamped = "overdamped" in outdir
 liquid_reference_density = 2375.0 if high_density else 10.0
 
 
@@ -21,11 +23,13 @@ def fields(path):
     rho = grid[("boxlib", "component_density_Al_liquid")].to_ndarray()[:, :, 0]
     rho_oxide = grid[("boxlib", "component_density_Al2O3_liquid")].to_ndarray()[:, :, 0]
     rho_tracer = grid[("boxlib", "component_density_tracer_liquid")].to_ndarray()[:, :, 0]
+    rho_ambient = grid[("boxlib", "component_density_ambient")].to_ndarray()[:, :, 0]
     eta_gas = grid[("boxlib", "gas_eta")].to_ndarray()[:, :, 0]
     ux = grid[("boxlib", "velocityx")].to_ndarray()[:, :, 0]
     uy = grid[("boxlib", "velocityy")].to_ndarray()[:, :, 0]
     pressure = grid[("boxlib", "pressure")].to_ndarray()[:, :, 0]
     density = grid[("boxlib", "density")].to_ndarray()[:, :, 0]
+    temperature = grid[("boxlib", "temperature")].to_ndarray()[:, :, 0]
     x = grid[("index", "x")].to_ndarray()[:, :, 0]
     y = grid[("index", "y")].to_ndarray()[:, :, 0]
     eta_density_error = testlib.numpy.max(testlib.numpy.abs(
@@ -33,8 +37,9 @@ def fields(path):
             eta - rho / liquid_reference_density,
             eta_oxide - rho_oxide / 10.0,
             eta_tracer - rho_tracer / 10.0))))
-    return (eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
-            density, x, y, eta_density_error)
+    return (eta, eta_oxide, eta_tracer, eta_gas, rho, rho_oxide,
+            rho_tracer, rho_ambient, ux, uy, pressure, density, temperature,
+            x, y, eta_density_error)
 
 
 def mechanical_energy(eta, eta_gas, density, ux, uy, x, y,
@@ -59,10 +64,12 @@ plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if len(plotfiles) != 2:
     raise RuntimeError("Static-droplet regression requires initial and final plotfiles")
 
-(eta0, _, _, _, ux0, uy0, _, density0, x0, y0,
+(eta0, _, _, _, rho0, rho_oxide0, rho_tracer0, rho_ambient0,
+ ux0, uy0, _, density0, temperature0, x0, y0,
  eta_density_error0) = fields(plotfiles[0])
-(eta, eta_oxide, eta_tracer, eta_gas, ux, uy, pressure,
- density, x, y, eta_density_error) = fields(plotfiles[-1])
+(eta, eta_oxide, eta_tracer, eta_gas, rho, rho_oxide, rho_tracer,
+ rho_ambient, ux, uy, pressure, density, temperature, x, y,
+ eta_density_error) = fields(plotfiles[-1])
 speed = testlib.numpy.sqrt(ux * ux + uy * uy)
 
 # Phase fractions are reconstructed without hiding transport errors behind a
@@ -89,6 +96,17 @@ if simplex_error > 1.0e-12:
 if testlib.numpy.max(testlib.numpy.abs(eta_tracer)) > 1.0e-14:
     raise RuntimeError("An absent liquid phase was spuriously generated")
 
+# Interface-profile and chemical-potential fluxes move a material's sensible
+# enthalpy with the same face flux used for its partial density.  A uniform
+# thermal state must therefore remain uniform even though local heat capacity
+# changes as the diffuse interface relaxes.
+temperature_error = testlib.numpy.max(testlib.numpy.abs(
+    temperature - temperature0.mean())) / temperature0.mean()
+if not overdamped and temperature_error > 5.0e-11:
+    raise RuntimeError(
+        "Interfacial transport did not preserve uniform temperature: "
+        f"relative error={temperature_error:.3e}")
+
 if "no-capillary" in outdir:
     if speed.max() > 1.0e-10:
         raise RuntimeError(
@@ -104,6 +122,75 @@ if "no-capillary" in outdir:
 mass_drift = abs(eta.sum() / eta0.sum() - 1.0)
 if mass_drift > 2.0e-4:
     raise RuntimeError(f"Liquid phase volume changed by {mass_drift:.3e}")
+
+if overdamped:
+    initial_surface_energy, initial_mechanical_energy = mechanical_energy(
+        eta0, 1.0-eta0, density0, ux0, uy0, x0, y0, 1.0, 0.125)
+    final_surface_energy, final_mechanical_energy = mechanical_energy(
+        eta, eta_gas, density, ux, uy, x, y, 1.0, 0.125)
+    relative_mechanical_energy_change = (
+        final_mechanical_energy-initial_mechanical_energy) / \
+        initial_surface_energy
+    final_dataset = testlib.yt.load(plotfiles[-1])
+    final_time = float(final_dataset.current_time.to_value())
+    if final_time < 5.0e-3:
+        raise RuntimeError(
+            "Overdamped Cahn-Hilliard retained the explicit capillary "
+            f"timestep restriction: time={final_time:.3e} s")
+    capillary_velocity = testlib.numpy.sqrt(1.0 / (10.0 * 0.20))
+    if speed.max() > 0.05 * capillary_velocity:
+        raise RuntimeError(
+            "Overdamped gas displacement generated excessive motion: "
+            f"speed={speed.max():.3e} m/s")
+    if speed.max() <= 1.0e-6:
+        raise RuntimeError(
+            "Overdamped Cahn-Hilliard did not displace the surrounding gas")
+    pressure_span = pressure.max() - pressure.min()
+    capillary_pressure = 1.0 / 0.20
+    if pressure_span > 0.20 * capillary_pressure:
+        raise RuntimeError(
+            "Overdamped gas displacement generated excessive pressure: "
+            f"span={pressure_span:.3e} Pa")
+    if relative_mechanical_energy_change > 1.0e-5:
+        raise RuntimeError(
+            "Overdamped Cahn-Hilliard increased interfacial energy: "
+            f"{relative_mechanical_energy_change:.3e}")
+    dx = x[1, 0] - x[0, 0]
+    dy = y[0, 1] - y[0, 0]
+    gas_cp = 29100.0 / 28.0
+    initial_sensible_enthalpy = (
+        rho_ambient0 * gas_cp * (temperature0 - 300.0) +
+        (rho0 + rho_oxide0 + rho_tracer0) * 1000.0 * temperature0
+    ).sum() * dx * dy
+    final_sensible_enthalpy = (
+        rho_ambient * gas_cp * (temperature - 300.0) +
+        (rho + rho_oxide + rho_tracer) * 1000.0 * temperature
+    ).sum() * dx * dy
+    total_energy_error = abs(
+        final_sensible_enthalpy - initial_sensible_enthalpy +
+        final_surface_energy - initial_surface_energy) / \
+        initial_surface_energy
+    if total_energy_error > 2.0e-8:
+        raise RuntimeError(
+            "Overdamped Cahn-Hilliard did not return lost free energy "
+            f"to sensible enthalpy: error={total_energy_error:.3e}")
+    ambient_mass_drift = abs(
+        rho_ambient.sum() / rho_ambient0.sum() - 1.0)
+    if ambient_mass_drift > 2.0e-12:
+        raise RuntimeError(
+            "Cahn-Hilliard gas displacement changed gas mass: "
+            f"drift={ambient_mass_drift:.3e}")
+    if temperature.max() <= temperature0.max():
+        raise RuntimeError(
+            "Overdamped Cahn-Hilliard did not thermalize free-energy "
+            "dissipation")
+    print(
+        "LowMach overdamped Cahn-Hilliard regression passed: "
+        f"time={final_time:.3e} s, mass={mass_drift:.3e}, "
+        f"speed={speed.max():.3e} m/s, "
+        f"gas_mass={ambient_mass_drift:.3e}, "
+        f"energy={total_energy_error:.3e}")
+    sys.exit(0)
 
 if "transport" in outdir:
     shifted_errors = []
@@ -192,17 +279,21 @@ capillary_velocity = testlib.numpy.sqrt(
 capillary_vorticity = capillary_velocity / radius
 peak_speed_fraction = speed.max() / capillary_velocity
 checkerboard_fraction = checkerboard_rms / capillary_velocity
-# At the aluminum density ratio the centered-stress face average intentionally
-# damps the shortest resolved film mode.  Keep its local parasitic response
-# below ten percent of the material capillary speed and the checkerboard
-# component below four tenths of one percent.  The much tighter bulk-
-# translation, rotation, and total-momentum checks below enforce global
-# conservation.
-if peak_speed_fraction > (0.09 if high_density else 0.012):
+# Run the aluminum-density cases for five microseconds so the checks detect a
+# secular parasitic-current instability, rather than only its quiet first
+# microsecond.  The face-balanced operator keeps even the four-cell profile
+# below six percent of the material capillary speed and its checkerboard
+# component below half a percent.  The tighter bulk-translation, rotation,
+# total-momentum, and m=4 checks enforce the internal-force constraints.
+peak_speed_limit = (0.06 if four_cell_interface else 0.02) \
+    if high_density else 0.012
+checkerboard_limit = (0.005 if four_cell_interface else 0.001) \
+    if high_density else 0.0015
+if peak_speed_fraction > peak_speed_limit:
     raise RuntimeError(
         "Static droplet parasitic speed exceeded its capillary scale: "
         f"u/u_sigma={peak_speed_fraction:.3e}")
-if checkerboard_fraction > (0.004 if high_density else 0.0015):
+if checkerboard_fraction > checkerboard_limit:
     raise RuntimeError(
         "Static droplet checkerboard exceeded its capillary scale: "
         f"u_cb/u_sigma={checkerboard_fraction:.3e}")
@@ -218,10 +309,11 @@ if mixture_momentum_change > 2.0e-3 * capillary_velocity:
     raise RuntimeError(
         f"Internal capillarity changed mixture momentum by "
         f"{mixture_momentum_change:.3e} m/s")
-if "cahn-hilliard" in outdir or "sdch" in outdir:
+if ("cahn-hilliard" in outdir or "sdch" in outdir or
+        "allen-cahn" in outdir or "cac" in outdir):
     if relative_mechanical_energy_change > 1.0e-5:
         raise RuntimeError(
-            "Cahn-Hilliard transport increased surface-plus-kinetic energy: "
+            "Energy-gradient transport increased surface-plus-kinetic energy: "
             f"{relative_mechanical_energy_change:.3e}")
 elif abs(relative_mechanical_energy_change) > 1.0e-3:
     raise RuntimeError(
@@ -238,13 +330,41 @@ if high_density:
         testlib.numpy.roll(ux, 1, axis=1)) / (2.0 * dy)
     interface_vorticity = testlib.numpy.max(testlib.numpy.abs(
         vorticity[(eta > 0.01) & (eta < 0.99)]))
-    if interface_vorticity > 2.0 * capillary_vorticity:
+    vorticity_limit = 1.0 if four_cell_interface else 2.0
+    if interface_vorticity > vorticity_limit * capillary_vorticity:
         raise RuntimeError(
             "High-density static droplet developed excessive parasitic "
             f"vorticity {interface_vorticity:.3e} 1/s")
+
+    radius_from_center = testlib.numpy.sqrt(
+        (x-center_x)**2 + (y-center_y)**2)
+    theta = testlib.numpy.arctan2(y-center_y, x-center_x)
+    annulus = ((radius_from_center > 0.625 * radius) &
+               (radius_from_center < 1.375 * radius))
+    tangential_velocity = (
+        (x-center_x)*uy - (y-center_y)*ux) / testlib.numpy.where(
+            radius_from_center > 0.0, radius_from_center, 1.0)
+    cardinal_cosine = 2.0 * testlib.numpy.mean(
+        tangential_velocity[annulus] *
+        testlib.numpy.cos(4.0 * theta[annulus]))
+    cardinal_sine = 2.0 * testlib.numpy.mean(
+        tangential_velocity[annulus] *
+        testlib.numpy.sin(4.0 * theta[annulus]))
+    cardinal_fraction = testlib.numpy.hypot(
+        cardinal_cosine, cardinal_sine) / capillary_velocity
+    if four_cell_interface and cardinal_fraction > 0.005:
+        raise RuntimeError(
+            "Four-cell interface developed a cardinal capillary mode: "
+            f"u_theta,m4/u_sigma={cardinal_fraction:.3e}")
+else:
+    cardinal_fraction = 0.0
 
 print(
     "LowMach conservative liquid-capillary regression passed: "
     f"bulk={liquid_bulk_speed:.3e} m/s, "
     f"rotation={liquid_angular_rate:.3e} 1/s, "
-    f"momentum={mixture_momentum_change:.3e} m/s")
+    f"momentum={mixture_momentum_change:.3e} m/s, "
+    f"peak={peak_speed_fraction:.3e} u_sigma, "
+    f"checkerboard={checkerboard_fraction:.3e} u_sigma, "
+    f"cardinal={cardinal_fraction:.3e} u_sigma, "
+    f"energy={relative_mechanical_energy_change:.3e}")
