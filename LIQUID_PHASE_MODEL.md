@@ -67,6 +67,76 @@ not retained as a compatibility layer.
   provide.  The failed candidate and its input mode were removed rather than
   retaining a nominal option that is either unstable or ineffective.
 
+### 2026-08-14: conservative phase/momentum/energy coupling
+
+- The Allen--Cahn and Cahn--Hilliard relaxation fluxes now transport liquid
+  mass, mixture momentum, and sensible enthalpy with the same finite-volume
+  face flux.  Uniform velocity and temperature therefore remain uniform as a
+  diffuse profile relaxes.
+- Rejected an unweighted segregated capillary mobility after it gave trace
+  liquid a bulk `dt/rho` response and destabilized the aluminum wetting case.
+  Chemical-potential stiffness is treated implicitly with positive composite
+  Helmholtz solves, while mechanical capillarity remains in momentum.
+- Every mechanically coupled capillarity model retains an explicit
+  free-energy-derived momentum force and resolved capillary-wave timestep
+  informer.  All models use the same pressure-face variational force; the
+  projection pressure absorbs its irrotational part.  The same chemical
+  potentials drive Allen--Cahn and Cahn--Hilliard relaxation.
+- Static-droplet regressions check phase bounds, mass, pressure jump, momentum,
+  rotation, checkerboarding, and nonincreasing surface-plus-kinetic energy.
+
+### 2026-08-17: common discrete capillary pressure path
+
+- The production aluminum branch remained smooth through 10 microseconds but
+  developed cell-scale serrations by 20 microseconds with either energy-gradient
+  model.  Controls with SDCH relaxation but no mechanical capillarity and with
+  direct surface tension remained smooth.  Increasing the SDCH relaxation time
+  to one second did not remove the instability.
+- Removed the energy-model-only chemical-pressure reconstruction.  Its
+  continuum contribution is an isotropic pressure gradient, but the former
+  cell-stress to face-traction to cell-force to face-acceleration sequence was
+  not the gradient used by the pressure operator.  The residual solenoidal
+  grid mode corrugated the liquid interface.
+- Direct surface tension, conservative Allen--Cahn, and singly degenerate
+  Cahn--Hilliard now share one pressure-reduced variational force and one
+  projection-pressure definition.  This keeps the Laplace pressure in the
+  projection solution without an auxiliary scalar gauge.
+
+### 2026-08-18: density-consistent capillary-traction experiment (superseded)
+
+- A four-cell-thick aluminum--gas static droplet isolated the observed
+  cardinal eddies as a density-contrast amplification of the residual
+  anisotropy in the centered Korteweg stress.  The effect persists without
+  advection, phase change, AMR, or phase-field relaxation and converges under
+  refinement, so it is not an odd/even pressure mode.
+- In this interim experiment, each pairwise gradient stress was redistributed
+  through the diffuse
+  layer in proportion to the local pair density, without changing its
+  integrated sharp-interface tension.
+  Its finite-volume divergence remains a conservative symmetric stress, while
+  avoiding the disproportionate acceleration formerly applied to the light
+  side of a liquid--gas interface.  The signed solid wetting correction is
+  deliberately left unweighted so the specified Young-law contact angle is
+  unchanged.  The later face-variational formulation below supersedes this
+  density weighting after the five-microsecond static-drop audit showed its
+  secular grid mode.
+- The capillary-wave timestep now includes the resolved-wave \(4\pi\)
+  coefficient.  This limit still applies because the Korteweg momentum force
+  is explicit; the implicit Allen--Cahn and Cahn--Hilliard solves remove their
+  profile-relaxation stiffness, not the mechanical capillary-wave stiffness.
+- Singly degenerate Cahn--Hilliard now also has an explicit `overdamped`
+  momentum-coupling mode.  It retains conservative implicit free-energy
+  relaxation but omits Korteweg acceleration and its timestep restriction.
+  The default remains the physically coupled `korteweg` mode.
+- Interfacial relaxation now reports its accepted change in liquid and gas
+  equation-of-state volume to the LowMach pressure projection.  The resulting
+  common velocity displaces the surrounding gas without an explicit gas
+  counter-flux or an additional gas-remap timestep restriction.
+- In overdamped Cahn--Hilliard mode, the decrease in the discrete interfacial
+  free energy is returned locally to sensible enthalpy.  The composite-domain
+  energy loss is distributed only where the local free energy decreased, and
+  its associated thermal expansion is included in the same projection source.
+
 ### 2026-08-05: dimensional phase-change closures
 
 - Removed inferred Allen--Cahn/prescribed-speed phase-change behavior and the
@@ -480,6 +550,68 @@ not retained as a compatibility layer.
   its unchanged `1.79e-7 s` global step; with simplex restoration its liquid,
   gas, and five solid fractions sum to one within `2.22e-16`.
 
+### 2026-08-18: face-variational capillarity and rounded branch initialization
+
+- The symmetric cell-stress discretization documented in the August 12--14
+  investigation was conservative, but a long aluminum-density static-drop
+  test showed a secular four-fold parasitic mode.  The extra
+  cell-stress--face-traction--cell-divergence--pressure-face interpolation
+  changed the shortest resolved wavelength and reached `0.681 u_sigma` after
+  five microseconds for an interface only four cells thick.
+- Momentum now evaluates `sum(mu_i grad(eta_i))` once, directly on the faces
+  constrained by the variable-density pressure projection.  The chemical
+  potentials and phase fractions use the same centered free-energy stencil as
+  Allen--Cahn and Cahn--Hilliard.  A constant equilibrium chemical potential
+  is therefore an exact face pressure gradient, with no density-dependent
+  stress weighting or intermediate cell-force interpolation.
+- A smooth interface-local Lagrange projection removes the resultant force
+  and torque that variable face mobility and cell reconstruction would
+  otherwise leave.  Its basis is weighted by squared phase mixedness, so it
+  vanishes continuously in every bulk phase and changes only rigid components
+  of the capillary acceleration.  It is not a force threshold, velocity
+  correction, or magnitude clamp.
+- The five-microsecond, 594:1 density-ratio static tests now give peak speeds
+  of `0.0294 u_sigma` with four cells across the interface and
+  `0.00639 u_sigma` with eight.  Their four-fold tangential modes are
+  `4.38e-4 u_sigma` and `9.98e-6 u_sigma`, respectively, with mixture
+  translation and rotation at roundoff.  The asymmetric freely moving
+  liquid--solid case retains nonzero wetting relaxation while satisfying its
+  mixture force and torque checks.
+- The quasi-steady three-lobe input now uses a 40 micrometer melt layer and a
+  40 micrometer outer smooth-union length.  The solid-core radii remain 57,
+  53, and 45 micrometers; the outer melt radii expand to 97, 93, and 85
+  micrometers.  The worst initialized junction curvature decreases from
+  approximately `-3.65e4` to `-7.94e3 1/m`; a separate 20 micrometer
+  core-union length avoids bridging the unchanged solid cores.  Minmod
+  replaces Superbee so transport does not reinforce cell-aligned facets.
+
+### 2026-08-19: discrete wetting variation for disappearing solids
+
+- The heated quasi-steady branch exposed a late liquid--solid failure when a
+  melting solid left an isolated cell with zero centered gradient and finite
+  Laplacian.  Expanding the continuum surface-normal divergence into separate
+  Hessian terms divided the finite discrete Laplacian by
+  `surface_delta_regularization/interface.thickness`; the default `1e-12`
+  regularization produced a `-1.09e17` solid chemical potential, a 282 m/s
+  cardinal velocity impulse, and a subsequent momentum-diffusion failure.
+- The solid wetting chemical potential is now evaluated as the discrete
+  adjoint divergence of the bounded flux
+  `h(eta_l) grad(eta_s)/sqrt(|grad(eta_s)|^2+r^2)`.  The continuum-expanded
+  Hessian identity is no longer discretized independently.  This is the
+  variation of the same discrete surface energy used by diagnostics, remains
+  GPU local, introduces no phase threshold, and makes the remnant force vanish
+  continuously with its amplitude.
+- The surface-delta energy uses the cancellation-safe equivalent
+  `|grad(eta_s)|^2/(sqrt(|grad(eta_s)|^2+r^2)+r)`.  Unit tests compare both a
+  resolved flat interface and an isolated solid remnant against finite
+  differences of the discrete energy and enforce the regularization-independent
+  chemical-potential bound.
+- Replaying the failing step-3768 checkpoint through step 3780 retained the
+  62.63 ns capillary timestep, 3.37--3.52 m/s peak velocity, 300--2673 K
+  temperature range, converged rigid coupling, and converged multigrid solves.
+  At the former impulse step, the third-solid chemical potential remained
+  between `-3.76e5` and `1.42e5` instead of reaching `-1.09e17`.
+
 # Current model
 
 ## Conserved state and phase reconstruction
@@ -498,11 +630,11 @@ $$
 \eta_g=1-\sum_{k\in\mathrm{condensed}}\eta_k.
 $$
 
-With direct surface tension, the diagnostic liquid and solid fractions are
-not independently clamped or normalized:
+The diagnostic liquid and solid fractions are always direct reconstructions
+of the conserved partial densities:
 `liquid_species_eta_<species>` and
-`rigid_species_eta_<species>` remain direct reconstructions of the conserved
-partial densities, so transport errors stay visible.  The private
+`rigid_species_eta_<species>` are therefore not independently clamped or
+normalized.  The private
 constitutive phase vector used by the multiphase free energy is projected onto
 the Gibbs simplex by clipping negative material fractions and, only when their
 sum exceeds one, scaling all condensed fractions by the same factor.  Its gas
@@ -510,14 +642,19 @@ entry is the nonnegative complement and is reported as `gas_eta`.  This keeps
 the free-energy model inside its admissible phase space without altering any
 conserved partial density or hiding the raw liquid/solid diagnostics.  Gas
 species share one aggregate mechanical gas phase while retaining their
-individual thermochemical partial densities.
+individual thermochemical partial densities.  When interface mechanics are
+enabled, a separate conservative admissibility step described below corrects
+an evolved partial-density state that actually leaves the physical simplex.
+Disabling direct interface mechanics leaves that evolution untouched.
 
-When either optional profile-relaxation model is selected, its update is
-followed by a conservative Gibbs-simplex projection.  This changes the local
-partial-density distribution, as any phase-field relaxation must, but exactly
-restores every liquid integral recorded before relaxation.  Its redistribution
-weight is `eta_liquid eta_gas`, so a correction remains on the existing
-diffuse liquid--gas support and cannot seed liquid into a pure-gas region.
+Every enabled interface model finishes with a conservative Gibbs-simplex
+projection.  For the two phase-field models it admits the relaxation update;
+for direct surface tension it acts only when high-order conservative advection
+has produced a bound violation.  This changes the local partial-density
+distribution but exactly restores every liquid integral recorded before the
+admissibility operation.  Its redistribution weight is
+`eta_liquid eta_gas`, so a correction remains on the existing diffuse
+liquid--gas support and cannot seed liquid into a pure-gas region.
 This admissibility operation is unrelated to the constitutive-only projection
 above: the former makes the evolved phase state physical and conservative;
 the latter only supplies a safe phase vector to local free-energy kernels.
@@ -575,6 +712,28 @@ negligible at the default value.  The same regularized functional is varied
 for both chemical potentials and used in the capillary stress; it is not a
 force cutoff or a phase-fraction threshold.
 
+Numerically, the equivalent rationalized form
+
+$$
+\delta_{\ell,\alpha}=
+\frac{|\nabla\eta_S|^2}
+{\sqrt{|\nabla\eta_S|^2+(\alpha/\ell)^2}+\alpha/\ell}
+$$
+
+avoids cancellation in the quadratic small-gradient limit.  The solid
+chemical potential applies the negative adjoint of the discrete gradient to
+the bounded flux
+
+$$
+h(\eta_L)\frac{G_h\eta_S}
+{\sqrt{|G_h\eta_S|^2+(\alpha/\ell)^2}}.
+$$
+
+It does not expand that divergence into separately discretized Laplacian and
+Hessian terms.  Consequently, a grid-cell extremum has a bounded variation
+even when its centered gradient is zero, and an isolated trace-phase force
+vanishes continuously as the trace disappears.
+
 The positive \(\kappa_{LS}\) maintains a bounded diffuse interface even when
 the referenced physical surface-energy difference is negative.  It is a
 numerical regularization with physical units, not a second independently
@@ -595,100 +754,135 @@ terms involving an absent phase vanish.
 ## Chemical potential and capillary momentum coupling
 
 The chemical potentials are the variational derivatives of the full free
-energy.  Their fluid-interface terms provide capillary momentum coupling and
-the full values are available as diagnostics:
+energy.  Their full values provide both phase relaxation and capillary
+momentum coupling and are available as diagnostics:
 
 $$
 \mu_i=\frac{\delta F}{\delta\eta_i}.
 $$
 
-For the pair free-energy density \(f_{ij}\), define
-\(\mathbf A_{ij}=\eta_i\nabla\eta_j-\eta_j\nabla\eta_i\).  The momentum
-equation uses the pressure-reduced Korteweg stress
+Every mechanically coupled capillarity model uses the pressure-equivalent
+variational force \(\sum_a\mu_a\nabla\eta_a\).  On a face normal to direction
+\(d\), LowMach evaluates it as
 
 $$
-\mathbf T_{ij}=-\frac{3\ell c_{ij}}{2}
-\mathbf A_{ij}\otimes\mathbf A_{ij}.
+f_{d,i+1/2}=\sum_a
+\frac{\mu_{a,i+1}+\mu_{a,i}}{2}
+\frac{\eta_{a,i+1}-\eta_{a,i}}{\Delta x_d}.
 $$
 
-The omitted isotropic part of the canonical stress is a pressure gauge.  It is
-not evaluated as a second capillary force or added to the reported mechanical
-pressure.  The phase dependence is already contained in \(\mathbf A_{ij}\),
-which vanishes when either member of a pair is absent and decays smoothly in a
-diffuse tail without a volume-fraction threshold.
-
-For the signed liquid-covered-solid correction
-\(C_{LS}=\Delta\gamma_{LS}-\kappa_{LS}\),
+This is the same face on which the pressure operator stores its mobility
+\(\beta_f\), so the capillary predictor is simply
+\(a_f=\beta_f f_f\).  The discrete product identity
 
 $$
-\mathbf T^{\mathrm{surface}}_{LS}=2C_{LS}h(\eta_L)
-\left[\left(s_\alpha-\frac{\alpha}{\ell}\right)\mathbf I-
-\frac{\nabla\eta_S\otimes\nabla\eta_S}{s_\alpha}\right],
-\qquad
-s_\alpha=\sqrt{|\nabla\eta_S|^2+(\alpha/\ell)^2}.
+\overline\mu\,\Delta\eta
+=\Delta(\mu\eta)-\overline\eta\,\Delta\mu
 $$
 
-Phase gradients and stresses are evaluated with the same
-centered cell stencil used by the established diffuse-interface operator,
-then neighboring stresses are averaged to their shared face.
+shows that this is exactly pressure-equivalent to
+\(-\sum_a\eta_a\nabla\mu_a\) on the same stencil.  In particular, a constant
+equilibrium chemical potential produces an exact pressure-face gradient that
+the projection absorbs.  No cell-centered force is reconstructed and
+re-interpolated, and no density-dependent factor modifies the free energy or
+surface tension.
 
-The shared traction is synchronized across periodic/patch seams and averaged
-down at AMR interfaces.  Its conservative divergence is converted with the
-projection face mobility and added to the exact face predictor that pressure
-constrains.  Interior stress impulses telescope exactly, and the constitutive
-stress is symmetric.  No phase receives a separate capillary body force.
+The face force is synchronized across periodic and patch seams and averaged
+down at coarse/fine boundaries.  At a physical domain boundary the unresolved
+exterior capillary force is zero.  The full chemical potential includes the
+regularized signed liquid--solid energy above, so contacts among liquids,
+solids, and gases use the same variational operation rather than separate
+pair-specific momentum formulas.
+
+Capillarity is internal and must have zero mixture resultant and torque.  The
+raw face acceleration does not preserve these identities exactly after
+variable face mobility and arithmetic reconstruction to cell velocity.  Let
+\(B\) contain the dimensionless rigid translation and rotation modes and let
+\(M\) be cell mass.  LowMach solves the small Lagrange system
+
+$$
+(B^T M W B)\lambda=B^T M a,
+\qquad a\leftarrow a-WB\lambda,
+$$
+
+where the face-local weight is the average squared phase mixedness,
+
+$$
+W_f=\frac12\sum_a\left[
+  (\eta_a^+(1-\eta_a^+))^2+
+  (\eta_a^-(1-\eta_a^-))^2\right].
+$$
+
+Thus the constraint is smooth, lives only on the diffuse interface, and
+removes only the rigid acceleration components responsible for spurious bulk
+translation or rotation.  Relative capillary motion, deformation, the
+Laplace pressure, and conversion of surface energy to resolved kinetic energy
+remain.  There is no phase cutoff, force cap, or post-step velocity-mean
+correction.
 
 The pressure projection constrains the same arithmetic finite-volume face
 velocity used by transport.  This avoids the conservative-form error produced
 when projection and advection use different divergence stencils.  It does not
-alter the mean velocity or impose an affine pressure component.  Rigid
+impose an affine pressure component.  Rigid
 fixed-point iterations reuse the same predictor and do not accumulate the
-capillary traction more than once per iterate.
+capillary acceleration more than once per iterate.  No level-set surface,
+outlet-distance fade, velocity cap, or hard-coded force cutoff is used.
 
-At a physical domain boundary the unresolved exterior capillary traction is
-zero.  Periodic boundary faces share exactly the same synchronized traction.
-No level-set surface, outlet-distance fade, velocity cap, or hard-coded force
-cutoff is used.
-
-Capillarity remains explicit, so the dynamic timestep retains the established
-resolved-wave estimate
+The mechanical Korteweg update is explicit for every capillarity model, so the
+dynamic timestep retains the established resolved-wave estimate
 
 $$
 \Delta t_\sigma \le C_{mathrm{CFL}}
 \sqrt{\frac{\rho_{\mathrm{ref,min}}\,\Delta x^3}
-{c_{\max}}}.
+{4\pi c_{\max}}}.
 $$
 
 Here, \(c_{\max}\) conservatively includes fluid surface tensions and the
 magnitude of liquid--solid surface-correction stiffness, and
-\(C_{\mathrm{CFL}}\) is the normal `cfl` input.  The projection removes the
-pressure-like part of the capillary impulse on those same faces; it does not
-make physical, shape-changing capillary motion implicit.
-
-An implicit momentum-capillary method would require a coupled nonlinear
-phase/velocity/pressure solve; the existing scalar implicit diffusion
-operators cannot provide that coupling.  The optional phase-field kinetics
-below treat their stiff interface-profile response implicitly, but do not make
-the physical capillary-wave force implicit.
+\(C_{\mathrm{CFL}}\) is the normal `cfl` input.  Allen--Cahn and
+Cahn--Hilliard still treat their chemical-potential stiffness implicitly, but
+that scalar solve does not make the physical capillary wave implicit.  Doing
+so requires a coupled phase/velocity/pressure solve using the actual transport
+velocity.  The estimate is omitted only for an interface model that does not
+apply a mechanical Korteweg force, such as overdamped Cahn--Hilliard.
 
 ## Interface transport
 
 `interface.model.type=direct_surface_tension` is the default and least
 expensive option.  It transports partial densities with the normal conservative
 LowMach advection operator and applies the common Korteweg stress, with no
-additional profile kinetics.
+additional profile kinetics.  If a high-order advection update leaves the
+physical Gibbs simplex, the common conservative admissibility operation
+restores it and transports momentum and sensible enthalpy with the matching
+face correction.
 
-`conservative_allen_cahn` adds the locally conservative profile flux
+`conservative_allen_cahn` uses the volume-constrained pairwise gradient flow
 
 $$
-\partial_t\eta=\nabla\cdot\left[D\left(\nabla\eta-
-\frac{4\eta(1-\eta)}{\ell}\mathbf n\right)\right],
-\qquad D=\ell^2/\tau.
+\partial_t\eta_i=-\sum_j L\,w_{ij}
+\left[(\mu_i-\mu_j)-\lambda_{ij}\right],
+\qquad
+w_{ij}=4\eta_i\eta_j,
+\qquad L=\frac{\ell}{\sigma_{\rm ref}\tau},
 $$
 
-Its diffusion is one composite backward-Euler solve and its conservative
-face-compression flux is lagged.  It restores the declared tanh thickness
-without a contour or signed-distance reconstruction.
+where \(\lambda_{ij}\) is the weighted composite-domain mean of
+\(\mu_i-\mu_j\).  Each pair exchange has zero integral and satisfies
+
+$$
+\frac{dF}{dt}=-L\sum_{i<j}\int w_{ij}
+[(\mu_i-\mu_j)-\lambda_{ij}]^2\,dV\le0.
+$$
+
+The stiff free-energy curvature is treated with composite Helmholtz solves and
+a discrete free-energy line search.  The accepted nonlocal exchange is
+represented by a conservative minimum-norm face flux before it transports
+momentum and sensible enthalpy.
+Here energy consistency means that the isothermal interfacial free energy is a
+Lyapunov functional: Allen--Cahn relaxation dissipates it.  Conserving that
+free energy identically would eliminate the relaxation.  The present thermal
+equation conservatively transports sensible enthalpy but does not return this
+modeled isothermal dissipation as heat.
 
 `singly_degenerate_cahn_hilliard` instead advances each liquid with
 
@@ -700,22 +894,70 @@ $$
 
 The single mobility zeros suppress diffusion in either pure phase while
 retaining finite interfacial mobility.  Liquid--liquid pair fluxes are equal
-and opposite, physical boundaries use zero chemical flux, and AMR faces share
-one averaged flux.  A linear energy stabilization factors the stiff
+and opposite, and liquid--gas flux changes the complementary gas occupancy.
+Solid phases enter the free energy, chemical potential, capillary traction,
+and wetting condition, but are excluded from the Cahn--Hilliard mass mobility;
+liquid therefore cannot diffuse through a solid.  Physical boundaries use
+zero chemical flux, and AMR faces share one averaged flux.  A linear energy
+stabilization factors the stiff
 fourth-order gradient response into two positive composite Helmholtz solves.
 The nonlinear chemical potential and degenerate mobility are lagged, so this
 is a linearly implicit energy-stabilized update rather than a fully coupled
 nonlinear Cahn--Hilliard solve.
 
-Both phase-field options update the conserved liquid partial densities,
-preserve each liquid integral, and retain local mixture momentum through the
-constitutive remap before projection.  They introduce no explicit
-fourth-order stability limit, although `relaxation_time` still controls the
+Its momentum coupling is selected independently:
+
+```text
+interface.model.singly_degenerate_cahn_hilliard.momentum_coupling = korteweg
+```
+
+`korteweg` is the default and applies the common conservative capillary stress,
+Laplace pressure, liquid--solid reaction, and explicit capillary-wave timestep.
+`overdamped` omits all four while retaining the same implicit Cahn--Hilliard
+energy, wetting potential, liquid-volume conservation, and conservative
+momentum/enthalpy transport by the phase flux.  Liquid motion produced by this
+mode is diffusive free-energy relaxation plus ordinary one-fluid advection,
+not inertial capillary motion.  Gas volume remains the local complement of the
+condensed phases.  The accepted change in liquid volume, together with the gas
+equation-of-state volume change, enters the LowMach projection as an integrated
+dilatation.  Its common projected velocity displaces and subsequently advects
+the gas, while each gas species remains mass conservative.  This avoids a
+separate explicit gas counter-flux and its positivity/timestep restriction;
+there is no separate gas velocity.
+
+Overdamped relaxation is a dissipative physical limit rather than an
+isothermal deletion of energy.  After each accepted update, the decrease in
+the same discrete pair and solid-wetting free energy used by the phase solver
+is added to sensible enthalpy.  The global energy decrease is distributed over
+cells whose local free energy decreased, so total sensible-plus-interfacial
+energy is conserved while the local temperature is free to rise.  That
+temperature response and its gas expansion are included before projection.
+The Korteweg option retains its mechanical conversion path and therefore does
+not also receive this overdamped heat source.
+
+Consequently, `overdamped` is appropriate for quasi-static morphology when
+capillary waves are intentionally outside the resolved dynamics.  Its
+`relaxation_time` sets the rounding and coalescence rate.  It must not be used
+when Laplace pressure, capillary recoil, force on a free solid, or conversion
+of surface energy into kinetic motion is required.
+
+Both phase-field options update the conserved liquid partial densities and
+preserve each liquid integral.  Their finite-volume relaxation flux also
+transports mixture momentum and sensible enthalpy.  A uniform
+velocity or temperature therefore remains uniform as a diffuse interface
+relaxes, and interior face contributions telescope on periodic and closed
+domains.  After Gibbs admissibility, a zero-Neumann scalar-potential solve
+corrects the face flux so its divergence exactly matches the final accepted
+liquid-density change.  No cell-local mass, momentum, or heat repair is used.
+They introduce no explicit fourth-order
+relaxation limit, although `relaxation_time` still controls the
 physical/numerical rate and temporal accuracy.
 
 Because the common polynomial pair energy has finite derivatives at the
-simplex boundary, neither linearly implicit profile update is mathematically
-bound-preserving by itself.  Their shared conservative Gibbs projection
+simplex boundary, neither linearly implicit update is mathematically
+bound-preserving by itself.  Each solver first scales its complete zero-mean
+increment by the largest global factor that remains on the Gibbs simplex.
+The shared conservative Gibbs projection then removes roundoff excursions and
 enforces nonnegative liquid and gas volume after relaxation.  It first uses
 the volume not occupied by solids as the local simplex capacity, then restores
 each liquid's pre-relaxation integral through the diffuse weight
@@ -834,11 +1076,13 @@ thermal expansion is included in the low-Mach projection source.
 ## Time advancement and volume constraint
 
 A global step performs advection and explicit sources, implicit conduction
-and viscosity when enabled, optional conservative interface restoration,
-equilibrium phase projections, and then kinetic surface phase changes.  The
-partial densities and mixture momentum remain conservative Runge--Kutta state;
-the pressure solve constrains the transport face velocity rather than
-algebraically changing material mass.
+and viscosity when enabled, equilibrium and kinetic phase change, conservative
+interface restoration/admissibility, and then the final capillary pressure
+projection.  This ordering lets newly melted or evaporating material enter the
+same end-of-step interface and momentum state.  The partial densities and
+mixture momentum remain conservative Runge--Kutta state; the pressure solve
+constrains the transport face velocity rather than algebraically changing
+material mass.
 
 Chemistry, diffusion, and phase change report their physical integrated volume
 changes.  The projection includes each corresponding dilatation once.  It does
@@ -926,6 +1170,12 @@ interface.model.type = singly_degenerate_cahn_hilliard
 interface.model.singly_degenerate_cahn_hilliard.relaxation_time = 20.0_us
 ```
 
+For quasi-static morphology without mechanical capillary waves, add
+
+```text
+interface.model.singly_degenerate_cahn_hilliard.momentum_coupling = overdamped
+```
+
 Both relaxation times are dimensional.  Diffusivity or mobility is derived
 from the declared interface thickness rather than tuned against the grid.
 
@@ -940,10 +1190,15 @@ The model is covered at three levels:
 - `LMLiquidCapillary` checks static and advected droplets, liquid--liquid
   interfaces, mass conservation, positivity, zero capillary
   translation/rotation, surface-plus-kinetic-energy behavior, AMR face
-  consistency, and 500-step transport without loss of bulk velocity.  Its
+  consistency, uniform-temperature preservation, and 500-step transport
+  without loss of bulk velocity.  Its
   aluminum-scale variant also
   checks a 594:1 density ratio, physical aluminum surface tension, the Laplace
-  jump, checkerboard amplitude, and parasitic interfacial vorticity.
+  jump, checkerboard amplitude, parasitic interfacial vorticity, and the
+  cardinal tangential mode at a four-cell interface thickness.
+  An overdamped Cahn--Hilliard variant verifies zero mechanical capillary
+  motion and pressure jump, nonincreasing interfacial energy, conserved liquid
+  volume, and removal of the explicit capillary timestep restriction.
 - `LMLiquidSolidCapillary` applies strong wetting to an asymmetric liquid-coated
   freely moving solid and checks that internal capillarity excites resolved
   shape relaxation without generating bulk translation or excessive net
@@ -976,7 +1231,9 @@ Tests must consume every input; none may use `allow_unused`.
   fracture, and subgrid lubrication are not modeled.
 - Thin liquid or oxide layers must span enough cells to resolve the diffuse
   profile; three to five cells is a practical minimum.
-- Capillarity is explicit and scales approximately as \(\Delta x^{3/2}\).
+- Mechanical capillarity is explicit for every model and scales approximately
+  as \(\Delta x^{3/2}\).  The phase-field chemical-potential stiffness remains
+  implicit.
 - LowMach evolves conservative sensible enthalpy rather than a conservative
   total-energy variable.  Phase-change energy and short-time
   surface-plus-kinetic-energy balances are regression tested, but viscous
