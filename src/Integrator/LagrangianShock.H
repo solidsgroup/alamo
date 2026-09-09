@@ -1,3 +1,6 @@
+//This is a 1d shock hydrocode.
+//The conservation laws + EOS (equation of state: Mei Gruneisen equation of state) are solved
+//artificial viscosity is used (1d - different forms tried)
 #ifndef INTEGRATOR_LAGRANGIANSHOCK_H
 #define INTEGRATOR_LAGRANGIANSHOCK_H
 

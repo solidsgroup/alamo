@@ -1,3 +1,6 @@
+//The damage model: damage + cp + shock 
+// this has 2 damage models: double well and at1;
+//double well might be physically incorrect way to nucleate voids; at1: more physical but may not be the best for spallation
 #ifndef INTEGRATOR_LAGRANGIANSHOCKCPDAMAGE_H
 #define INTEGRATOR_LAGRANGIANSHOCKCPDAMAGE_H
 

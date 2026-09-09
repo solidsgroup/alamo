@@ -1,3 +1,6 @@
+//coupling of the crystal plasticity model and shock hydrocode
+//the cp model is from Nguyen et al; it is a dynamic crystal plasticity model  coupled with the shock hydrocode via the Cauchy stres
+//
 #ifndef INTEGRATOR_LAGRANGIANSHOCKCP_H
 #define INTEGRATOR_LAGRANGIANSHOCKCP_H
 
