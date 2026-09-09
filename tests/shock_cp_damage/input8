@@ -24,10 +24,10 @@ amr.n_error_buff     = 0
 amr.max_level        = 0             
 amr.max_grid_size    = 128                        
 
-timestep  = 1e-11          
+timestep  = 1e-10          
 stop_time = 2.5e-6
 
-plot_file = tests/shock_cp_damage/output_at1_1024
+plot_file = tests/shock_cp_damage/output_at1_1024_damageM0.1_growthM_0
 
 type = dynamic
 time_evolving = true
@@ -150,7 +150,7 @@ damage.ell   = 1.625e-5
 damage.small = 1e-3
 damage.d_seed_floor = 0.96
 
-growth.M              = 1e-1
+growth.M              = 0
 
 eta_ref_threshold = 1e-2
 

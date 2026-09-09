@@ -1,7 +1,7 @@
 alamo.program = lagrangian_shock_cp
 alamo.program.mechanics.model = finite.crystalplastic
 
-amr.n_cell           = 64 64
+amr.n_cell           = 32 16
 #amr.n_cell           = 32 16
 geometry.prob_lo      = 0.0   0.0
 #geometry.prob_hi      = 0.00504 0.00504
@@ -19,7 +19,7 @@ amr.max_level     = 0
 amr.max_grid_size = 256
 
 
-timestep  = 1e-9
+timestep  = 1e-8
 #stop_time = 1.85e-6
 stop_time = 1e-6
 
@@ -118,7 +118,7 @@ cfl   = 0.4
 #Temperature (Taylor-Quinney)
 taylor_quinney = 0.69
 theta_init     = 294.0
-hg_coeff       = 0.5
+hg_coeff       = 0.0
 
 
 #Diagnostic

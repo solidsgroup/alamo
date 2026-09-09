@@ -40,6 +40,7 @@ public:
 
         value.RegisterNewFab(value.cell_stress_mf,     &value.bc_nothing, 4, nghost, "cell_stress",    false, false);
 
+        //
         value.RegisterNewFab(value.cell_stress_raw_mf, &value.bc_nothing, 4, nghost, "cell_stress_raw", false, false);
 
         pp_query_default("stress_scale", value.stress_scale, 1e9);
@@ -48,10 +49,15 @@ public:
 
         pp_query_default("hg_coeff", value.hg_coeff, 0.1);
 
+        // Diagnostic: report the nodal-sync residual after each stage of Advance.
+        // Nonzero => duplicated valid nodes disagree across ranks at that stage.
+        pp_query_default("check_sync", value.check_sync, 0);
+
         Util::Message(INFO, "LagrangianShockCP: TQ=", value.taylor_quinney,
                       " theta0=", value.theta_init, " stress_scale=", value.stress_scale,
                       " cp_substeps=", value.cp_substeps_max,
-                      " hg_coeff=", value.hg_coeff);
+                      " hg_coeff=", value.hg_coeff,
+                      " check_sync=", value.check_sync);
 
         if (pp.contains("euler.ic.type"))
         {
@@ -78,20 +84,19 @@ public:
         cell_stress_mf[lev]->setVal(0.0);
         cell_stress_raw_mf[lev]->setVal(0.0);
 
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        //
 
-        bool needs_manual_init = false;
-        for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi) {
-            auto const& m = (*model_mf[lev]).array(mfi);
-            amrex::Box bx = mfi.validbox();
-            auto lo = bx.smallEnd();
-            if constexpr (MODEL::kinvar == Model::Solid::KinematicVariable::F) {
-                if (m(lo[0],lo[1],0).Fp(0,0) == 0.0) needs_manual_init = true;
-            }
-            break;
-        }
+        disp_mf[lev]->setVal(Set::Vector::Zero());
+        disp_old_mf[lev]->setVal(Set::Vector::Zero());
+        vel_old_mf[lev]->setVal(Set::Vector::Zero());
+        stress_mf[lev]->setVal(Set::Matrix::Zero());
+        strain_mf[lev]->setVal(Set::Matrix::Zero());
+        // vel_mf is set by Base::Mechanics ONLY if velocity_ic exists.  
+        if (!velocity_ic) vel_mf[lev]->setVal(Set::Vector::Zero());
 
-        if (needs_manual_init) {
+        
+        //
+        {
             MODEL model_template;
             IO::ParmParse pp("model1");
             MODEL::Parse(model_template, pp);
@@ -102,9 +107,9 @@ public:
                     marr(i,j,k) = model_template;
                 });
             }
-            Util::Message(INFO, "LagrangianShockCP: manually initialized model_mf from model1.*");
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            Util::Message(INFO, "LagrangianShockCP: initialized model_mf from model1.* on lev ", lev);
         }
+        SyncModel(lev);
 
         if (use_euler_image && ic_euler)
         {
@@ -135,7 +140,7 @@ public:
                     }
                 });
             }
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            SyncModel(lev);
             Util::Message(INFO, "LagrangianShockCP: stamped euler orientations on lev ", lev);
         }
     }
@@ -147,7 +152,8 @@ public:
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            euler_mf[lev]->FillBoundary();
+           
+            euler_mf[lev]->FillBoundary(geom[lev].periodicity());
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -175,7 +181,8 @@ public:
                     }
                 });
             }
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+
+            SyncModel(lev);
         }
     }
 
@@ -200,8 +207,10 @@ public:
 
         std::swap(*disp_mf[lev], *disp_old_mf[lev]);
         std::swap(*vel_mf[lev],  *vel_old_mf[lev]);
-        vel_old_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        SyncNodal(vel_old_mf,  lev);
+        SyncNodal(disp_old_mf, lev);
+        AssertSynced(disp_old_mf, lev, "disp_old @ entry");
 
         ComputePressureAndViscosity2D(lev, DX0, DX1, local_eos, local_rho0,
                                       local_CQ, local_CL, disp_old_mf, vel_old_mf,
@@ -217,10 +226,13 @@ public:
                                disp_old_mf, pressure_mf, artvisc2d_mf);
         cell_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        UpdateVelocityAndDisplacement2D(lev, DX0, DX1, half_dt, nlo, nhi, ndomain,
-            local_rho0, vel_old_mf, disp_old_mf, vel_mf, disp_mf);
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        UpdateVelocityAndDisplacement2D(lev, DX0, DX1, half_dt, a_dt, nlo, nhi, ndomain,
+            local_rho0, vel_old_mf, disp_old_mf, vel_old_mf, vel_mf, disp_mf);
+
+        AssertSynced(vel_mf, lev, "vel after half-step update (pre-sync)");
+        SyncNodal(vel_mf,  lev);
+        SyncNodal(disp_mf, lev);
 
         ComputeHalfStepEnergy2D(lev, DX0, DX1, local_eos, local_rho0, local_CQ, local_CL);
         pressure_half_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -232,12 +244,18 @@ public:
                                disp_mf, pressure_half_mf, artvisc2d_half_mf);
         cell_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        UpdateVelocityAndDisplacement2D(lev, DX0, DX1, a_dt, nlo, nhi, ndomain,
-            local_rho0, vel_old_mf, disp_old_mf, vel_mf, disp_mf);
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        UpdateVelocityAndDisplacement2D(lev, DX0, DX1, a_dt, a_dt, nlo, nhi, ndomain,
+            local_rho0, vel_old_mf, disp_old_mf, vel_mf, vel_mf, disp_mf);
+
+        AssertSynced(vel_mf, lev, "vel after full-step update (pre-sync)");
+        SyncNodal(vel_mf,  lev);
+        SyncNodal(disp_mf, lev);
 
         ApplyHourglassControl(lev, DX0, DX1, a_dt, nlo, nhi, ndomain, local_rho0);
+        AssertSynced(vel_mf, lev, "vel after hourglass control (pre-sync)");
+ 
+        SyncNodal(vel_mf, lev);
 
         for (amrex::MFIter mfi(*density_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             amrex::Box cbx = mfi.tilebox();
@@ -273,9 +291,20 @@ public:
                                            +(u_new_arr(i+1,j+1,k)(1)-u_new_arr(i+1,j,k)(1))) / lDX1;
                 Set::Scalar d_exx = dExx_new - dExx_old;
                 Set::Scalar d_eyy = dEyy_new - dEyy_old;
+                // engineering shear-strain increment (shear-AV work; zero unless av.model=tensor)
+                Set::Scalar gam_old = 0.5*((u_old_arr(i,j+1,k)(0)-u_old_arr(i,j,k)(0))
+                                          +(u_old_arr(i+1,j+1,k)(0)-u_old_arr(i+1,j,k)(0))) / lDX1
+                                    + 0.5*((u_old_arr(i+1,j,k)(1)-u_old_arr(i,j,k)(1))
+                                          +(u_old_arr(i+1,j+1,k)(1)-u_old_arr(i,j+1,k)(1))) / lDX0;
+                Set::Scalar gam_new = 0.5*((u_new_arr(i,j+1,k)(0)-u_new_arr(i,j,k)(0))
+                                          +(u_new_arr(i+1,j+1,k)(0)-u_new_arr(i+1,j,k)(0))) / lDX1
+                                    + 0.5*((u_new_arr(i+1,j,k)(1)-u_new_arr(i,j,k)(1))
+                                          +(u_new_arr(i+1,j+1,k)(1)-u_new_arr(i,j+1,k)(1))) / lDX0;
+                Set::Scalar d_gam = gam_new - gam_old;
 
                 Set::Scalar de = -ph_arr(i,j,k) * dJ / lrho0;
                 de -= (q2dh_arr(i,j,k,0) * d_exx + q2dh_arr(i,j,k,1) * d_eyy) / lrho0;
+                de += q2dh_arr(i,j,k,2) * d_gam / lrho0;
                 if (std::isfinite(de)) e_arr(i,j,k) += de;
             });
         }
@@ -283,19 +312,30 @@ public:
 
         AdvanceCPModelAllNodes(lev, DX0, DX1, a_dt, t_full, nlo, nhi, ndomain,
                                disp_mf, disp_old_mf);
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        SyncModel(lev);
 
         UpdateTemperature(lev, DX0, DX1, a_dt, nlo, nhi, disp_old_mf, disp_mf);
 
         PopulateVisualizationFields(lev, DX, nlo, nhi, ndomain, disp_mf, pressure_mf);
 
-        Set::Scalar dt_local = 1e100, max_p = -1e100, min_p = 1e100, fs_vel = 0.0;
+        //
+
+        //
+        Set::Scalar dt_local = 1e100, max_p = -1e100, min_p = 1e100;
+        Set::Scalar fs_vel = 0.0, fs_cnt = 0.0;
         for (amrex::MFIter mfi(*vel_mf[lev], false); mfi.isValid(); ++mfi) {
             amrex::Box nbx = mfi.nodaltilebox() & ndomain;
             auto const& v_arr = vel_mf[lev]->array(mfi);
-            if (nbx.contains(amrex::IntVect(AMREX_D_DECL(nhi.x, nlo.y, 0))))
-                fs_vel = v_arr(nhi.x, nlo.y, 0)(0);
+            if (nbx.contains(amrex::IntVect(AMREX_D_DECL(nhi.x, nlo.y, 0)))) {
+                fs_vel += v_arr(nhi.x, nlo.y, 0)(0);
+                fs_cnt += 1.0;
+            }
         }
+
+        amrex::ParallelDescriptor::ReduceRealSum(fs_vel);
+        amrex::ParallelDescriptor::ReduceRealSum(fs_cnt);
+        if (fs_cnt > 0.0) fs_vel /= fs_cnt;
+
         ComputePressureAndViscosity2D(lev, DX0, DX1, local_eos, local_rho0,
                                       local_CQ, local_CL, disp_mf, vel_mf,
                                       pressure_mf, artvisc2d_mf, density_mf, soundspeed_mf);
@@ -304,27 +344,93 @@ public:
             amrex::Box cbx = mfi.tilebox();
             auto const& p_arr = pressure_mf[lev]->array(mfi);
             auto const& c_arr = soundspeed_mf[lev]->array(mfi);
+            auto const& v_arr = vel_mf[lev]->array(mfi);
             amrex::Loop(cbx, [&](int i, int j, int k) {
                 Set::Scalar c = c_arr(i,j,k);
-                Set::Scalar dt_cfl = hydro_cfl * min_dx / (c + 1e-20);
+               
+                Set::Scalar dvx = std::abs(0.5*((v_arr(i+1,j,k)(0)-v_arr(i,j,k)(0))
+                                               +(v_arr(i+1,j+1,k)(0)-v_arr(i,j+1,k)(0))));
+                Set::Scalar dvy = std::abs(0.5*((v_arr(i,j+1,k)(1)-v_arr(i,j,k)(1))
+                                               +(v_arr(i+1,j+1,k)(1)-v_arr(i+1,j,k)(1))));
+                Set::Scalar dv  = std::max(dvx, dvy);
+                Set::Scalar dt_cfl = hydro_cfl * min_dx / (c + local_CQ * dv + 1e-20);
                 dt_local = std::min(dt_local, dt_cfl);
                 if (p_arr(i,j,k) > max_p) max_p = p_arr(i,j,k);
                 if (p_arr(i,j,k) < min_p) min_p = p_arr(i,j,k);
             });
         }
+        //
+       
+        //
+        amrex::ParallelDescriptor::ReduceRealMax(max_p);
+        amrex::ParallelDescriptor::ReduceRealMin(min_p);
+        amrex::ParallelDescriptor::ReduceRealMin(dt_local);
+
         diag_fs_vel = fs_vel; diag_max_pressure = max_p; diag_min_pressure = min_p;
-        if (dt_local > 0.0 && dt_local < 1e90) timestep = dt_local;
-        if (lev == 0 && amrex::ParallelDescriptor::IOProcessor() && t_full >= next_diag_time) {
-            this->WriteDiagnostics(t_full, a_dt);
+
+        //
+       
+        //
+        if (dt_local > 0.0 && dt_local < 1e90)
+            this->DynamicTimestep_SyncTimeStep(lev, dt_local);
+
+        
+        if (lev == 0 && t_full >= next_diag_time) {
+            if (amrex::ParallelDescriptor::IOProcessor())
+                this->WriteDiagnostics(t_full, a_dt);
             next_diag_time = t_full + diag_dt;
         }
     }
 
 protected:
 
+   
+    template <class T>
+    void SyncNodal(Set::Field<T>& f, int lev)
+    {
+        if (!f.size() || !f[lev]) return;
+        f[lev]->setMultiGhost(true);
+        f[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+    }
+
+    void SyncModel(int lev)
+    {
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+    }
+
+
+    template <class T>
+    void AssertSynced(Set::Field<T>& f, int lev, const char* tag)
+    {
+        if (!check_sync) return;
+        amrex::FabArray<amrex::BaseFab<T>> cpy(f[lev]->boxArray(),
+                                               f[lev]->DistributionMap(),
+                                               f[lev]->nComp(), f[lev]->nGrowVect());
+        amrex::Copy(cpy, *f[lev], 0, 0, f[lev]->nComp(), f[lev]->nGrowVect());
+        cpy.setMultiGhost(true);
+        cpy.FillBoundaryAndSync(geom[lev].periodicity());
+
+        Set::Scalar diff = 0.0;
+        for (amrex::MFIter mfi(cpy, false); mfi.isValid(); ++mfi) {
+            amrex::Box bx = mfi.validbox();
+            auto const& a = f[lev]->const_array(mfi);
+            auto const& b = cpy.const_array(mfi);
+            amrex::Loop(bx, [&](int i, int j, int k) {
+                Set::Scalar d = (a(i,j,k) - b(i,j,k)).norm();
+                if (d > diff) diff = d;
+            });
+        }
+        amrex::ParallelDescriptor::ReduceRealMax(diff);
+        if (amrex::ParallelDescriptor::IOProcessor())
+            Util::Message(INFO, "sync residual [", tag, "] lev=", lev, " : ", diff);
+    }
+
     void CheckEOSReferenceState(int lev)
     {
 #ifndef NDEBUG
+        //
+       
         static bool checked = false;
         if (checked || lev != 0) return;
         checked = true;
@@ -357,8 +463,7 @@ protected:
         Set::Scalar duy_dx = 0.5*((u(i+1,j,k)(1)-u(i,j,k)(1))
                                  +(u(i+1,j+1,k)(1)-u(i,j+1,k)(1))) / DX0;
         Set::Scalar J = (1.0+dux_dx)*(1.0+duy_dy) - dux_dy*duy_dx;
-
-        if (!(J > 0.01)) J = 0.01;
+        if (J < 0.01) J = 0.01;
         return J;
     }
 
@@ -391,8 +496,9 @@ protected:
             Eigen::Matrix3d Fe3d = F3d * Fpinv;
             Eigen::Matrix3d Ce3d = Fe3d.transpose() * Fe3d;
             Eigen::Matrix3d Ee3d = 0.5 * (Ce3d - Eigen::Matrix3d::Identity());
-            mdl.q.normalize();
-            Eigen::Matrix3d R = mdl.q.toRotationMatrix();
+            //
+
+            Eigen::Matrix3d R = mdl.q.normalized().toRotationMatrix();
             Set::Scalar c11 = mdl.C11, c12 = mdl.C12, c44 = mdl.C44;
             Eigen::Matrix3d Ee_cryst = R.transpose() * Ee3d * R;
             Eigen::Matrix3d Te_cryst = Eigen::Matrix3d::Zero();
@@ -422,6 +528,7 @@ protected:
     Set::Matrix CellStressCorrected(
         const MODEL& mdl, Set::Matrix const& Fc,
         Set::Scalar P_eos, Set::Scalar qxx, Set::Scalar qyy,
+        Set::Scalar qxy,
         Set::Scalar stress_scale = 1.0)
     {
         if constexpr (MODEL::kinvar == Model::Solid::KinematicVariable::F) {
@@ -432,7 +539,7 @@ protected:
         Set::Scalar trT_3d = Compute3DCauchyTrace(mdl, Fc) * stress_scale;
         Set::Scalar pres_cpl = -(1.0/3.0) * trT_3d;
         Set::Scalar dp = P_eos - pres_cpl;
-
+        //Set::Scalar dp = 0;
         Set::Scalar Jc = Fc(0,0)*Fc(1,1) - Fc(0,1)*Fc(1,0);
         if (std::abs(Jc) < 1e-10) Jc = (Jc >= 0.0) ? 1e-10 : -1e-10;
         Set::Matrix FinvT;
@@ -441,7 +548,44 @@ protected:
         Set::Matrix Pcorr = Pc - dp * Jc * FinvT;
         Pcorr(0,0) -= qxx;
         Pcorr(1,1) -= qyy;
+        // Rung-2 Newtonian shear AV (signed sigma_xy); zero unless av.model=tensor.
+        Pcorr(0,1) += qxy;
+        Pcorr(1,0) += qxy;
         return Pcorr;
+    }
+
+
+    AMREX_GPU_HOST_DEVICE static void ComputeAVComponents(
+        int model, Set::Scalar CQ, Set::Scalar CL,
+        Set::Scalar rho, Set::Scalar c,
+        Set::Scalar dvx_dx, Set::Scalar dvy_dy,
+        Set::Scalar dvx_dy, Set::Scalar dvy_dx,
+        Set::Scalar DX0, Set::Scalar DX1,
+        Set::Scalar& qxx, Set::Scalar& qyy, Set::Scalar& qxy)
+    {
+        qxx = 0.0; qyy = 0.0; qxy = 0.0;
+        if (model == 0)
+        {
+            // directional: per-axis diagonal, compression-gated
+            if (dvx_dx < 0.0) { Set::Scalar dv = std::abs(dvx_dx)*DX0; qxx = CQ*rho*dv*dv + CL*rho*c*dv; }
+            if (dvy_dy < 0.0) { Set::Scalar dv = std::abs(dvy_dy)*DX1; qyy = CQ*rho*dv*dv + CL*rho*c*dv; }
+            return;
+        }
+        // models 1 and 2 share the volumetric (isotropic) diagonal
+        Set::Scalar L    = std::sqrt(DX0*DX1);
+        Set::Scalar divv = dvx_dx + dvy_dy;
+        if (divv < 0.0)
+        {
+            Set::Scalar dv = std::abs(divv)*L;
+            Set::Scalar q  = CQ*rho*dv*dv + CL*rho*c*dv;
+            qxx = q; qyy = q;
+        }
+        if (model == 2)
+        {
+
+            Set::Scalar eta = CL*rho*c*L;
+            qxy = eta * (dvx_dy + dvy_dx);
+        }
     }
 
     void ComputePressureAndViscosity2D(
@@ -452,6 +596,7 @@ protected:
         Set::Field<Set::Scalar>& p_out, Set::Field<Set::Scalar>& q2d_out,
         Set::Field<Set::Scalar>& rho_out, Set::Field<Set::Scalar>& cs_out)
     {
+        const int local_av_model = av_model;   // 0 = directional, 1 = divergence (Rung 1)
         for (amrex::MFIter mfi(*rho_out[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box cbx = mfi.tilebox();
@@ -476,17 +621,14 @@ protected:
                                          +(v_arr(i+1,j+1,k)(0)-v_arr(i,j+1,k)(0))) / DX0;
                 Set::Scalar dvy_dy = 0.5*((v_arr(i,j+1,k)(1)-v_arr(i,j,k)(1))
                                          +(v_arr(i+1,j+1,k)(1)-v_arr(i+1,j,k)(1))) / DX1;
-                Set::Scalar qxx = 0.0;
-                if (dvx_dx < 0.0) {
-                    Set::Scalar dv_abs = std::abs(dvx_dx)*DX0;
-                    qxx = local_CQ*rho*dv_abs*dv_abs + local_CL*rho*c_arr(i,j,k)*dv_abs;
-                }
-                Set::Scalar qyy = 0.0;
-                if (dvy_dy < 0.0) {
-                    Set::Scalar dv_abs = std::abs(dvy_dy)*DX1;
-                    qyy = local_CQ*rho*dv_abs*dv_abs + local_CL*rho*c_arr(i,j,k)*dv_abs;
-                }
-                q2d_arr(i,j,k,0) = qxx; q2d_arr(i,j,k,1) = qyy; q2d_arr(i,j,k,2) = 0.0;
+                Set::Scalar dvx_dy = 0.5*((v_arr(i,j+1,k)(0)-v_arr(i,j,k)(0))
+                                         +(v_arr(i+1,j+1,k)(0)-v_arr(i+1,j,k)(0))) / DX1;
+                Set::Scalar dvy_dx = 0.5*((v_arr(i+1,j,k)(1)-v_arr(i,j,k)(1))
+                                         +(v_arr(i+1,j+1,k)(1)-v_arr(i,j+1,k)(1))) / DX0;
+                Set::Scalar qxx, qyy, qxy;
+                ComputeAVComponents(local_av_model, local_CQ, local_CL, rho, c_arr(i,j,k),
+                                    dvx_dx, dvy_dy, dvx_dy, dvy_dx, DX0, DX1, qxx, qyy, qxy);
+                q2d_arr(i,j,k,0) = qxx; q2d_arr(i,j,k,1) = qyy; q2d_arr(i,j,k,2) = qxy;
                 q1d_arr(i,j,k) = qxx;
             });
         }
@@ -519,6 +661,7 @@ void ComputeCellStressField(
                 Set::Scalar P_eos_c = p_arr(ci, cj, ck);
                 Set::Scalar qxx_c   = q2d(ci, cj, ck, 0);
                 Set::Scalar qyy_c   = q2d(ci, cj, ck, 1);
+                Set::Scalar qxy_c   = q2d(ci, cj, ck, 2);
 
                 Set::Matrix Pcorr_avg = Set::Matrix::Zero();
                 int n_valid = 0;
@@ -548,17 +691,17 @@ void ComputeCellStressField(
                         Fp_avg *= (1.0 / (Set::Scalar)n_valid);
                         mdl_cell.Fp = Fp_avg;
                         Pcorr_avg = CellStressCorrected(
-                            mdl_cell, Fc, P_eos_c, qxx_c, qyy_c, lscale);
+                            mdl_cell, Fc, P_eos_c, qxx_c, qyy_c, qxy_c, lscale);
                     }
                 }
                 else
                 {
-
+                    // Non-F models: keep the original average-of-stress path.
                     for (int dj = 0; dj <= 1; ++dj)
                         for (int di = 0; di <= 1; ++di)
                         {
                             Pcorr_avg += CellStressCorrected(
-                                mdl(ci+di, cj+dj, ck), Fc, P_eos_c, qxx_c, qyy_c, lscale);
+                                mdl(ci+di, cj+dj, ck), Fc, P_eos_c, qxx_c, qyy_c, qxy_c, lscale);
                             ++n_valid;
                         }
                     if (n_valid > 0)
@@ -573,10 +716,13 @@ void ComputeCellStressField(
         }
     }
 
+
+    //
     void UpdateVelocityAndDisplacement2D(int lev,
-        Set::Scalar DX0, Set::Scalar DX1, Set::Scalar dt,
+        Set::Scalar DX0, Set::Scalar DX1, Set::Scalar dt, Set::Scalar dt_full,
         amrex::Dim3 nlo, amrex::Dim3 nhi, amrex::Box ndomain, Set::Scalar local_rho0,
         Set::Field<Set::Vector>& v_in, Set::Field<Set::Vector>& u_in,
+        Set::Field<Set::Vector>& v_drift,
         Set::Field<Set::Vector>& v_out, Set::Field<Set::Vector>& u_out)
     {
         auto bc_ptr = bc;
@@ -585,6 +731,7 @@ void ComputeCellStressField(
             amrex::Box nbx = mfi.nodaltilebox() & ndomain;
             auto const& v_old = v_in[lev]->array(mfi);
             auto const& u_old = u_in[lev]->array(mfi);
+            auto const& v_drf = v_drift[lev]->array(mfi);
             auto const& v_new = v_out[lev]->array(mfi);
             auto const& u_new = u_out[lev]->array(mfi);
             auto const& b_arr = rhs_mf[lev]->array(mfi);
@@ -594,6 +741,9 @@ void ComputeCellStressField(
             amrex::ParallelFor(nbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector vnew_vec = v_old(i,j,k);
                 Set::Vector unew_vec = u_old(i,j,k);
+                // Read the drift velocity 
+                // v_drift and v_out
+                Set::Vector vd_vec = v_drf(i,j,k);
                 bool AMREX_D_DECL(xmin=(i==nlo.x), ymin=(j==nlo.y), zmin=(k==nlo.z));
                 bool AMREX_D_DECL(xmax=(i==nhi.x), ymax=(j==nhi.y), zmax=(k==nhi.z));
                 if (y_periodic) { ymin = false; ymax = false; }
@@ -649,19 +799,26 @@ void ComputeCellStressField(
                     auto bctype = bc_ptr->getType(i,j,k,ndomain);
                     for (int d=0;d<AMREX_SPACEDIM;d++) {
                         if (bctype[d]==BC::Operator::Elastic::Elastic::Type::Displacement) {
-                            unew_vec(d) = b_arr(i,j,k)(d);
-                            vnew_vec(d) = (unew_vec(d)-u_old(i,j,k)(d))/dt;
+                            //
+                            // ### FIX (piston BC): b_arr holds the prescribed displacement
+
+                            Set::Scalar v_bc = (b_arr(i,j,k)(d)-u_old(i,j,k)(d))/dt_full;
+                            vnew_vec(d) = v_bc;
+                            unew_vec(d) = (dt == dt_full) ? b_arr(i,j,k)(d)
+                                                          : u_old(i,j,k)(d) + dt*v_bc;
                         } else {
                             Set::Scalar accel = force(d)/node_mass;
                             vnew_vec(d) = v_old(i,j,k)(d)+dt*accel;
-                            unew_vec(d) = u_old(i,j,k)(d)+dt*vnew_vec(d);
+                            unew_vec(d) = u_old(i,j,k)(d)+dt*vd_vec(d);
                         }
                     }
                 } else {
                     for (int d=0;d<AMREX_SPACEDIM;d++) {
                         Set::Scalar accel = force(d)/node_mass;
                         vnew_vec(d) = v_old(i,j,k)(d)+dt*accel;
-                        unew_vec(d) = u_old(i,j,k)(d)+dt*vnew_vec(d);
+                        //
+                        
+                        unew_vec(d) = u_old(i,j,k)(d)+dt*vd_vec(d);
                     }
                 }
                 v_new(i,j,k) = vnew_vec;
@@ -687,7 +844,7 @@ void ComputeCellStressField(
             auto const& u_old_arr = u_old_field[lev]->array(mfi);
             Set::Scalar lDX0 = DX0, lDX1 = DX1;
             int lnsub_max = nsub_max;
-            int lny = nhi.y - nlo.y;
+            
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 if constexpr (MODEL::kinvar == Model::Solid::KinematicVariable::F) {
@@ -708,19 +865,14 @@ void ComputeCellStressField(
                 int nvalid = (int)have_BL + (int)have_BR + (int)have_TL + (int)have_TR;
                 if (nvalid == 0) return;
 
-                auto wrap_j = [=] AMREX_GPU_HOST_DEVICE (int cj) -> int {
-                    if (!y_per) return cj;
-                    if (cj < nlo.y)        cj += lny;
-                    else if (cj > nhi.y-1) cj -= lny;
-                    return cj;
-                };
-
+                //
+               
+                //
                 Set::Matrix Fc_new = Set::Matrix::Zero();
                 Set::Matrix Fc_old = Set::Matrix::Zero();
                 Set::Matrix Ftmp;
 
                 auto accum = [&](int ci, int cj) {
-                    cj = wrap_j(cj);
                     if (ci < nlo.x)   ci = nlo.x;
                     if (ci > nhi.x-1) ci = nhi.x - 1;
                     CellF2D(u_new_arr, ci, cj, k, lDX0, lDX1, Ftmp);
@@ -752,6 +904,10 @@ void ComputeCellStressField(
 
                 Set::Scalar dt_sub = dt / (Set::Scalar)nsub;
 
+                
+                //
+                Set::Scalar wp_sum = 0.0;
+
                 for (int isub = 0; isub < nsub; isub++) {
                     Set::Scalar s = (Set::Scalar)(isub + 1) / (Set::Scalar)nsub;
                     Set::Matrix Fc_sub;
@@ -762,7 +918,12 @@ void ComputeCellStressField(
                     Set::Scalar t_sub = time - dt + s * dt;
                     Set::Matrix sig_dummy = Set::Matrix::Zero();
                     model(i,j,k).Advance(dt_sub, Fc_sub, sig_dummy, t_sub);
+                    if constexpr (has_wp_inc<MODEL>::value)
+                        wp_sum += model(i,j,k).wp_inc;
                 }
+
+                if constexpr (has_wp_inc<MODEL>::value)
+                    model(i,j,k).wp_inc = wp_sum;
             });
         }
     }
@@ -779,7 +940,10 @@ void ComputeCellStressField(
             amrex::IntVect(AMREX_D_DECL(nhi.x-1, nhi.y-1, 0)));
 
         Set::Scalar lhg     = hg_coeff;
-        Set::Scalar A_cell  = DX0 * DX1;
+        //
+        
+        //
+        Set::Scalar L_cell  = std::sqrt(DX0 * DX1);
         bool y_periodic     = geom[lev].isPeriodic(1);
 
         amrex::BoxArray nodal_ba = amrex::convert(this->boxArray(lev),
@@ -814,7 +978,8 @@ void ComputeCellStressField(
                                        -v_arr(iBR,jBR,k)(d)
                                        +v_arr(iTR,jTR,k)(d)
                                        -v_arr(iTL,jTL,k)(d));
-                    Set::Scalar coef = -0.25 * lhg * rho_c * cs_c * A_cell * h_d;
+                    // ### OLD: coef = -0.25 * lhg * rho_c * cs_c * A_cell * h_d;
+                    Set::Scalar coef = -0.25 * lhg * rho_c * cs_c * L_cell * h_d;
 
                     amrex::Gpu::Atomic::AddNoRet(&f_arr(iBL,jBL,k,d),  coef * (+1.0));
                     amrex::Gpu::Atomic::AddNoRet(&f_arr(iBR,jBR,k,d),  coef * (-1.0));
@@ -872,7 +1037,9 @@ void ComputeCellStressField(
                 v_arr(i,j,k) = vnew;
             });
         }
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
+        //
+        //  OLD: vel_mf[lev]->FillBoundary(geom[lev].periodicity());
+        SyncNodal(vel_mf, lev);
     }
 
     void UpdateTemperature(int lev,
@@ -941,6 +1108,7 @@ void ComputeCellStressField(
             auto const& u_arr  = u_field[lev]->array(mfi);
             auto const& cs_arr = cell_stress_mf[lev]->const_array(mfi);
             bool yper = yper_vis;
+            amrex::Box ldomain = ndomain;   // ### PARALLEL FIX (7), see below
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -968,13 +1136,16 @@ void ComputeCellStressField(
                 if (n_valid > 0) S *= (1.0 / (Set::Scalar)n_valid);
                 sig(i,j,k) = S;
 
-                auto sten = Numeric::GetStencil(i, j, k, bx);
+                //
+               
+                auto sten = Numeric::GetStencil(i, j, k, ldomain);
                 Set::Matrix gradu = Numeric::Gradient(u_arr, i, j, k, DX, sten);
                 eps(i,j,k) = Set::Matrix::Identity() + gradu;
             });
         }
-        stress_mf[lev]->setMultiGhost(true);
-        stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        //  strain_mf was never synced.
+        SyncNodal(stress_mf, lev);
+        SyncNodal(strain_mf, lev);
 
         for (amrex::MFIter mfi(*sigma_cp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -993,6 +1164,7 @@ void ComputeCellStressField(
         MieGruneisenEOS local_eos, Set::Scalar local_rho0,
         Set::Scalar local_CQ, Set::Scalar local_CL)
     {
+        const int local_av_model = av_model;
         for (amrex::MFIter mfi(*density_half_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box cbx = mfi.tilebox();
@@ -1025,8 +1197,19 @@ void ComputeCellStressField(
                                             +(u_half(i+1,j+1,k)(1)-u_half(i+1,j,k)(1))) / DX1;
                 Set::Scalar d_exx = dExx_half - dExx_old;
                 Set::Scalar d_eyy = dEyy_half - dEyy_old;
+
+                Set::Scalar gam_old  = 0.5*((u_old(i,j+1,k)(0)-u_old(i,j,k)(0))
+                                           +(u_old(i+1,j+1,k)(0)-u_old(i+1,j,k)(0))) / DX1
+                                     + 0.5*((u_old(i+1,j,k)(1)-u_old(i,j,k)(1))
+                                           +(u_old(i+1,j+1,k)(1)-u_old(i,j+1,k)(1))) / DX0;
+                Set::Scalar gam_half = 0.5*((u_half(i,j+1,k)(0)-u_half(i,j,k)(0))
+                                           +(u_half(i+1,j+1,k)(0)-u_half(i+1,j,k)(0))) / DX1
+                                     + 0.5*((u_half(i+1,j,k)(1)-u_half(i,j,k)(1))
+                                           +(u_half(i+1,j+1,k)(1)-u_half(i,j+1,k)(1))) / DX0;
+                Set::Scalar d_gam = gam_half - gam_old;
                 Set::Scalar e_new = e_old(i,j,k) - p_old(i,j,k) * dJ / local_rho0
-                                  - (q2d_old(i,j,k,0)*d_exx + q2d_old(i,j,k,1)*d_eyy) / local_rho0;
+                                  - (q2d_old(i,j,k,0)*d_exx + q2d_old(i,j,k,1)*d_eyy) / local_rho0
+                                  + q2d_old(i,j,k,2) * d_gam / local_rho0;
                 if (!std::isfinite(e_new)) e_new = e_old(i,j,k);
                 e_h(i,j,k) = e_new;
                 Set::Scalar p = local_eos.Pressure(rho, e_new);
@@ -1037,17 +1220,14 @@ void ComputeCellStressField(
                                          +(v_half(i+1,j+1,k)(0)-v_half(i,j+1,k)(0))) / DX0;
                 Set::Scalar dvy_dy = 0.5*((v_half(i,j+1,k)(1)-v_half(i,j,k)(1))
                                          +(v_half(i+1,j+1,k)(1)-v_half(i+1,j,k)(1))) / DX1;
-                Set::Scalar qxx = 0.0;
-                if (dvx_dx < 0.0) {
-                    Set::Scalar dv_abs = std::abs(dvx_dx)*DX0;
-                    qxx = local_CQ*rho*dv_abs*dv_abs + local_CL*rho*c_h(i,j,k)*dv_abs;
-                }
-                Set::Scalar qyy = 0.0;
-                if (dvy_dy < 0.0) {
-                    Set::Scalar dv_abs = std::abs(dvy_dy)*DX1;
-                    qyy = local_CQ*rho*dv_abs*dv_abs + local_CL*rho*c_h(i,j,k)*dv_abs;
-                }
-                q2d_h(i,j,k,0) = qxx; q2d_h(i,j,k,1) = qyy; q2d_h(i,j,k,2) = 0.0;
+                Set::Scalar dvx_dy = 0.5*((v_half(i,j+1,k)(0)-v_half(i,j,k)(0))
+                                         +(v_half(i+1,j+1,k)(0)-v_half(i+1,j,k)(0))) / DX1;
+                Set::Scalar dvy_dx = 0.5*((v_half(i+1,j,k)(1)-v_half(i,j,k)(1))
+                                         +(v_half(i+1,j+1,k)(1)-v_half(i,j+1,k)(1))) / DX0;
+                Set::Scalar qxx, qyy, qxy;
+                ComputeAVComponents(local_av_model, local_CQ, local_CL, rho, c_h(i,j,k),
+                                    dvx_dx, dvy_dy, dvx_dy, dvy_dx, DX0, DX1, qxx, qyy, qxy);
+                q2d_h(i,j,k,0) = qxx; q2d_h(i,j,k,1) = qyy; q2d_h(i,j,k,2) = qxy;
                 qh_1d(i,j,k) = qxx;
             });
         }
@@ -1064,6 +1244,8 @@ void ComputeCellStressField(
     Set::Scalar stress_scale = 1e9;
     int cp_substeps_max = 8;
     Set::Scalar hg_coeff = 0.1;
+    
+    int check_sync = 0;
 
     Set::Field<Set::Scalar> euler_mf;
     IC::IC<Set::Scalar>* ic_euler = nullptr;
@@ -1079,6 +1261,7 @@ void ComputeCellStressField(
     using LagrangianShock<MODEL>::hydro_rho0;
     using LagrangianShock<MODEL>::av_CQ;
     using LagrangianShock<MODEL>::av_CL;
+    using LagrangianShock<MODEL>::av_model;
     using LagrangianShock<MODEL>::hydro_cfl;
     using LagrangianShock<MODEL>::density_mf;
     using LagrangianShock<MODEL>::pressure_mf;
@@ -1109,6 +1292,7 @@ void ComputeCellStressField(
     using Base::Mechanics<MODEL>::strain_mf;
     using Base::Mechanics<MODEL>::model_mf;
     using Base::Mechanics<MODEL>::rhs_mf;
+    using Base::Mechanics<MODEL>::velocity_ic;
     using Base::Mechanics<MODEL>::rho;
     using Base::Mechanics<MODEL>::timestep;
     using Base::Mechanics<MODEL>::bc;

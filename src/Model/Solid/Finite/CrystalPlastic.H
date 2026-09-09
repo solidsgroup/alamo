@@ -4,9 +4,9 @@
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/LU>
-#include <eigen3/Eigen/SVD>
+#include </usr/include/eigen3/Eigen/Core>
+#include </usr/include/eigen3/Eigen/LU>
+#include </usr/include/eigen3/Eigen/SVD>
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 #include "PseudoLinear/Cubic.H"
@@ -19,6 +19,42 @@ struct DragResult {
     Set::Scalar dvr_dtau;
 };
 
+//
+// Relativistic phonon-drag velocity.
+//
+// Physics:  B(v) = B0 / (1 - v^2/cs^2)   (drag DIVERGES as v -> cs)
+//           tau* b = B(v) v
+//   =>      tau* b (1 - u^2) = B0 u cs,     u = v/cs
+//   =>      eta (1 - u^2) = u,              eta = tau* b/(B0 cs) = v_nr/cs
+//
+// This is a QUADRATIC in u:   eta u^2 + u - eta = 0
+//   =>  u = ( -1 + sqrt(1 + 4 eta^2) ) / (2 eta)
+// with the correct limits  u -> eta  (eta -> 0)  and  u -> 1  (eta -> inf).
+//
+// ### OLD: the previous implementation solved the TRANSPOSED equation
+// ###          u (1 - u^2) = eta      (i.e. eta and u swapped)
+// ### via the trigonometric depressed-cubic form u = (2/sqrt3) cos(theta/3 - 2pi/3),
+// ### theta = acos(-1.5 sqrt3 eta), which is the root of  u^3 - u + eta = 0.
+// ### That equation implies B(v) = B0 (1 - u^2), i.e. drag VANISHING at v -> cs,
+// ### and it has no real ascending-branch root past eta_max = 2/(3 sqrt3) = 0.385,
+// ### so the old code clamped u at u_max = 1/sqrt3 = 0.577.
+// ###
+// ### Three symptoms of the transposition, all now gone:
+// ###   (1) the correct law is not a cubic at all;
+// ###   (2) the old small-eta branch read u = eta(1 + eta^2) = eta + eta^3, whereas
+// ###       eta(1-u^2) = u gives u = eta(1 - eta^2) = eta - eta^3 (sign flip);
+// ###   (3) du/deta = 1/(1 - 3u^2) is singular at u = 1/sqrt3, which is why the old
+// ###       code needed the 0.95*u_max derivative clamp.  The correct derivative
+// ###       du/deta = (1-u^2)/(1 + 2 eta u) is regular for all u < 1, so no clamp.
+// ###
+// ### Impact: for Ta (b=2.86e-10 m, B0=2.96e-5 Pa.s, cs=1937 m/s) eta exceeds the
+// ### old eta_max at tau* ~ 0.077 GPa, but slip does not activate until tau* ~ 0.57
+// ### GPa -- so u was pinned at u_max for EVERY active slip event, giving a constant
+// ### v_r = 1118 m/s.  The correct law gives 1641 m/s at tau*=0.6 GPa and 1753 m/s at
+// ### tau*=1.0 GPa.  Since t_r >> t_w in that regime (5.2e-10 s vs 1.7e-11 s), drag is
+// ### rate-controlling and gdot = b rho_M v_mean ~ b rho_M v_r inherited the full
+// ### 32-36% deficit at the shock front.
+//
 AMREX_GPU_HOST_DEVICE
 static inline DragResult
 relativistic_drag_velocity(Set::Scalar tau_star_Pa,
@@ -29,38 +65,23 @@ relativistic_drag_velocity(Set::Scalar tau_star_Pa,
     DragResult out = {0.0, 0.0};
     if (tau_star_Pa <= 0.0 || B0_Pas <= 0.0 || cs_m <= 0.0) return out;
 
-    const Set::Scalar v_nr    = (b_m / B0_Pas) * tau_star_Pa;
-    const Set::Scalar eta     = v_nr / cs_m;
-    const Set::Scalar sqrt3   = 1.7320508075688772;
-    const Set::Scalar eta_max = 2.0 / (3.0 * sqrt3);
-    const Set::Scalar u_max   = 1.0 / sqrt3;
+    const Set::Scalar v_nr = (b_m / B0_Pas) * tau_star_Pa;
+    const Set::Scalar eta  = v_nr / cs_m;
 
     Set::Scalar u;
+    if (eta < 1.0e-6)
+        u = eta * (1.0 - eta * eta);          // series root of eta(1-u^2) = u
+    else
+        u = (std::sqrt(1.0 + 4.0 * eta * eta) - 1.0) / (2.0 * eta);
 
-    if (eta < 1.0e-6) {
-        u = eta * (1.0 + eta * eta);
-    }
-
-    else if (eta >= eta_max) {
-        u = u_max;
-    }
-
-    else {
-        const Set::Scalar arg   = -1.5 * sqrt3 * eta;
-        const Set::Scalar theta = std::acos(arg);
-        const Set::Scalar two_pi_over_3 = 2.0943951023931953;
-        u = (2.0 / sqrt3) * std::cos(theta / 3.0 - two_pi_over_3);
-
-        if (u < 0.0)    u = 0.0;
-        if (u > u_max)  u = u_max;
-    }
+    if (u < 0.0) u = 0.0;
+    if (u > 1.0 - 1.0e-12) u = 1.0 - 1.0e-12; // u -> 1 asymptotically; never reached
 
     out.v_r = u * cs_m;
 
-    const Set::Scalar u_deriv_cap = 0.95 * u_max;
-    const Set::Scalar u_for_deriv = (u < u_deriv_cap) ? u : u_deriv_cap;
-    const Set::Scalar denom = 1.0 - 3.0 * u_for_deriv * u_for_deriv;
-    out.dvr_dtau = (b_m / B0_Pas) / denom;
+    // dv_r/dtau* = cs * (du/deta) * (deta/dtau*) = (b/B0) * (1-u^2)/(1 + 2 eta u).
+    // Regular everywhere on u in [0,1): -> b/B0 as eta->0, -> 0 as eta->inf.
+    out.dvr_dtau = (b_m / B0_Pas) * (1.0 - u * u) / (1.0 + 2.0 * eta * u);
 
     return out;
 }
@@ -306,15 +327,28 @@ public:
         }
     }
 
+    //
+    // NOTE ON wp_inc / edot_p_eq SEMANTICS:
+    //   wp_inc    is an INCREMENT (plastic work over THIS call, GPa).
+    //   edot_p_eq is a RATE (equivalent plastic strain rate over THIS call, 1/s).
+    // Both are reset at entry, so a caller that substeps Advance() must SUM wp_inc
+    // across substeps to obtain the step total.  edot_p_eq, being a rate, is
+    // meaningful as-is from the final substep.  See
+    // LagrangianShockCP::AdvanceCPModelAllNodes.
+    //
     virtual void Advance(Set::Scalar dt, Set::Matrix F_in, Set::Matrix ,
                          Set::Scalar time)
     {
-        static int adv_count = 0;
-
+        //
+        // ### FIX: `static int adv_count = 0;` was a function-local static
+        // ### incremented from inside amrex::ParallelFor -- a non-atomic
+        // ### read-modify-write shared across OpenMP threads (data race), and
+        // ### unusable on device.  It fed only the debug fprintf below.  Removed.
+        //
         wp_inc = 0.0;
         edot_p_eq = 0.0;
 
-        if (time < tstart) { adv_count++; return; }
+        if (time < tstart) return;
 
         floor_and_cap_densities();
 
@@ -341,9 +375,9 @@ public:
         Eigen::Matrix3d F3 = expand_F(F_in);
 
         if (use_implicit > 0.5)
-            AdvanceNguyenImplicit3D(dt, F3, time, m0, n0, S0_3d, fam, adv_count);
+            AdvanceNguyenImplicit3D(dt, F3, time, m0, n0, S0_3d, fam, 0);
         else
-            AdvanceNguyen3D(dt, F3, time, m0, n0, S0_3d, fam, adv_count);
+            AdvanceNguyen3D(dt, F3, time, m0, n0, S0_3d, fam, 0);
 
         enforce_Fp_incompressibility();
 
@@ -354,20 +388,15 @@ public:
             Set::Scalar smin = svd.singularValues()(2);
             Set::Scalar cond = (smin > 1e-30) ? (smax / smin) : 1.0e30;
             Set::Scalar detFp = Fp.determinant();
-            static int warn_count = 0;
-            if ((!std::isfinite(detFp) || cond > 1.0e6) && warn_count < 50) {
+            if (!std::isfinite(detFp) || cond > 1.0e6) {
                 fprintf(stderr,
-                    "[CP-Fp] WARN advance#%d det(Fp)=%g cond(Fp)=%g "
-                    "smin=%g smax=%g\n",
-                    adv_count, detFp, cond, smin, smax);
-                warn_count++;
+                    "[CP-Fp] WARN det(Fp)=%g cond(Fp)=%g smin=%g smax=%g\n",
+                    detFp, cond, smin, smax);
             }
             AMREX_ASSERT_WITH_MESSAGE(std::isfinite(detFp) && cond < 1.0e10,
                 "CrystalPlastic: Fp ill-conditioned, would produce NaN downstream");
         }
 #endif
-
-        adv_count++;
     }
 
     void AdvanceNguyen3D(Set::Scalar dt, const Eigen::Matrix3d &F3,
@@ -1010,20 +1039,57 @@ public:
     Set::Scalar use_implicit = 0.0;
 
 public:
+    //
+    // ### FIX: Zero() must zero EVERY member named in OP_VARS.
+    // ###
+    // ### OP_VARS lists 48 members; the old Zero() set only 15.  The other 33
+    // ### (tau_p_110, tau_p_112T, tau_p_112AT, burg, B0, cs, DeltaG0_nguyen, CM, ...)
+    // ### retained their member-initializer defaults.  The generated operators in
+    // ### InClassOperators.H act on the full OP_VARS list, so ANY zero-then-accumulate
+    // ### path -- `acc = Zero(); acc += A; acc += B; acc *= 0.5;` -- returns those 33
+    // ### multiplied by the number of accumulations.  That is the yield-threshold
+    // ### doubling: tau_p_110 = 0.655 -> (0.655 + 0.655 + 0.655)*0.5 = 0.98.
+    // ###
+    // ### The current LagrangianShockCP does no MODEL arithmetic (ComputeCellStressField
+    // ### copies a node then overwrites Fp), so this is latent today.  It fires the
+    // ### moment AMR is enabled, because the interpolators take weighted averages of
+    // ### MODEL.  Fix it before the static-AMR work, not during.
+    //
     static CrystalPlastic Zero()
     {
         CrystalPlastic ret;
+        // --- elastic constants + orientation ---
         ret.C11 = 0; ret.C12 = 0; ret.C44 = 0;
         ret.q = Set::Quaternion(0,0,0,0);
+        // --- state ---
         ret.Fp = Set::Matrix3d::Zero();
         ret.gamma   = Eigen::Matrix<Set::Scalar,NSYS,1>::Zero();
         ret.rho_vec = Eigen::Matrix<Set::Scalar,NSYS,1>::Zero();
         ret.s_vec   = Eigen::Matrix<Set::Scalar,NSYS,1>::Zero();
         ret.rho_M   = Eigen::Matrix<Set::Scalar,NSYS,1>::Zero();
         ret.rho_I   = Eigen::Matrix<Set::Scalar,NSYS,1>::Zero();
-        ret.theta = 0; ret.gammadot0 = 0; ret.tstart = 0;
+        ret.theta = 0;
         ret.wp_inc = 0;
         ret.edot_p_eq = 0;
+        // --- kinetics ---
+        ret.gammadot0 = 0; ret.DeltaG = 0; ret.p_exp = 0; ret.q_exp = 0;
+        ret.burg = 0; ret.tstart = 0; ret.rho0_total = 0;
+        // --- slip resistance ---
+        ret.tau_a0 = 0; ret.tau_r0 = 0; ret.Cfor = 0; ret.Ccop = 0;
+        ret.tau_p_110 = 0; ret.tau_p_112T = 0; ret.tau_p_112AT = 0;
+        // --- thermal activation / drag ---
+        ret.fD = 0; ret.g0 = 0; ret.B0 = 0; ret.cs = 0;
+        ret.DeltaG0_nguyen = 0;
+        // --- density evolution ---
+        ret.CM = 0; ret.CT_ratio = 0; ret.rho0_sat = 0; ret.nrec = 0;
+        ret.varsigma = 0; ret.mob_frac0 = 0;
+        ret.A_sat = 0; ret.gdot0_sat = 0;
+        // --- switches ---
+        ret.use_modscaled_taur = 0;
+        ret.enable_nucleation = 0;
+        ret.rhodot_n0 = 0; ret.DeltaGn0 = 0; ret.tau_n0 = 0;
+        ret.pn_exp = 0; ret.qn_exp = 0;
+        ret.use_implicit = 0;
         return ret;
     }
     static CrystalPlastic Random()

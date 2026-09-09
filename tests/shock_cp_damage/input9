@@ -1,33 +1,28 @@
+
+
 alamo.program = lagrangian_shock_cp_damage
 alamo.program.mechanics.model = finite.crystalplastic
 
-
-amr.n_cell           = 1024 256            
+amr.n_cell           = 128 64       # dx = 13.69 um, dy = 8.125 um
 geometry.prob_lo     = 0.0   0.0
-#geometry.prob_hi     = 0.00504 0.00104
-#geometry.prob_hi     = 0.00504 0.0108
-#geometry.prob_hi     = 0.003504 0.00104
-### OLD: geometry.prob_hi     = 0.003504 0.0108
-### OLD: geometry.prob_hi     = 0.003504 0.00104    
-### OLD: geometry.prob_hi     = 0.003504 0.0007
-geometry.prob_hi     = 0.003504 0.00052            
+geometry.prob_hi     = 0.003504 0.00052
 geometry.is_periodic = 0 1
-#geometry.is_periodic = 0 0
-amr.blocking_factor  = 4                         
+amr.blocking_factor  = 4
 amr.regrid_int       = 100
 amr.grid_eff         = 1.0
-amr.node.all         = 1              
+amr.node.all         = 1
 amr.plot_int         = 100
 amr.nsubsteps        = 1
 ref_threshold.euler  = 0.005
 amr.n_error_buff     = 0
-amr.max_level        = 0             
-amr.max_grid_size    = 128                        
+amr.max_level        = 0
+amr.max_grid_size    = 512
 
-timestep  = 1e-11          
+
+timestep  = 1e-9
 stop_time = 2.5e-6
 
-plot_file = tests/shock_cp_damage/output_at1_1024
+plot_file = tests/shock_cp_damage/output_dw
 
 type = dynamic
 time_evolving = true
@@ -37,16 +32,8 @@ viscous.mu_newton  = 0
 euler.ic.type                 = eulerangles
 euler.ic.eulerangles.fit      = coord
 euler.ic.eulerangles.coord.lo = 0.00105 0.0
-### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.0108
-### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.00104
-### OLD: euler.ic.eulerangles.coord.hi = 0.003504 0.0007
-euler.ic.eulerangles.coord.hi = 0.003504 0.00052   
-#euler.ic.eulerangles.filename = tests/shock_cp_damage/target_test.png
-#euler.ic.eulerangles.filename = tests/shock_cp_damage/orientation_macro.png
-#euler.ic.eulerangles.filename = tests/shock_cp_damage/target_microstructure.png
+euler.ic.eulerangles.coord.hi = 0.003504 0.00052
 euler.ic.eulerangles.filename = tests/shock_cp_damage/target_microsmall.png
-#euler.ic.eulerangles.filename = tests/shock_cp_damage/orientation_macro_small.png
-#euler.ic.eulerangles.fit      = stretch
 
 nmodels = 1
 model1.C11 = 261.0
@@ -61,7 +48,6 @@ model1.p_exp       = 0.3387
 model1.q_exp       = 1.9519
 model1.burg        = 2.863e-7
 model1.theta       = 294.0
-#model1.tstart      = 1.3e-6
 model1.tstart      = 0
 model1.B0          = 2.9574e-5
 model1.cs          = 1.937e6
@@ -74,7 +60,6 @@ model1.tau_a0      = 0.027
 model1.tau_r0      = 0.525
 model1.Cfor        = 0.0
 model1.Ccop        = 0.5
-#model1.CM          = 0.98
 model1.CM          = 0.3502
 model1.CT_ratio    = 0.8836
 model1.nrec        = 4.0
@@ -83,10 +68,9 @@ model1.rho0_sat    = 2.6596e9
 model1.gdot0_sat   = 2.5143e9
 model1.A_sat       = 1.5762e-19
 model1.rho0_total  = 6.0e6
-#model1.mob_frac0   = 0.50
 model1.mob_frac0   = 0.015
 model1.use_modscaled_taur = 0
-model1.enable_nucleation  = 0
+model1.enable_nucleation  = 0     # CP dislocation nucleation (NOT void nucleation)
 model1.use_implicit       = 0
 
 eos.C0     = 3430.0
@@ -98,17 +82,15 @@ eos.Cv     = 140.0
 hydro.rho0 = 16580.0
 e_init     = 0.0
 
-#av.CQ = 2.0
-#av.CL = 0.5
 av.CQ = 2
-av.CL = 0.5
+av.CL = 1.0
 cfl   = 0.4
 
 taylor_quinney = 0.69
 theta_init     = 294.0
-hg_coeff       = 0.0
+hg_coeff       = 0.1              # hourglass control ON (was 0.0). 
 
-diag_file = lagshockcp_damage_diag_at1_1024.dat
+diag_file = lagshockcp_damage_diag_dw.dat
 diag_dt   = 1e-10
 
 stress_scale = 1e9
@@ -116,8 +98,6 @@ stress_scale = 1e9
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "196.0*(x<0.00105)"
 velocity.ic.expression.region1 = "0.0"
-
-geometry.is_periodic = 0 1
 
 bc.type = expression
 bc.expression.type.xlo    = trac trac
@@ -138,67 +118,54 @@ bc.expression.val.xloyhi  = 0.0 0.0
 bc.expression.val.xhiylo  = 0.0 0.0
 bc.expression.val.xhiyhi  = 0.0 0.0
 
+damage.model = double_well
 
-damage.model = at1
-#damage.model = double_well
+
 damage.barrier_height   = 1.0e7
-damage.M     = 0.1
-     
-damage.Gc    = 1.083333e4                
 
-damage.ell   = 1.625e-5                  
+damage.kappa            = 0.1199
+
+
+damage.M     = 0.1
+
 damage.small = 1e-3
 damage.d_seed_floor = 0.96
 
-growth.M              = 1e-1
-
+growth.M         = 1e-1
+growth.propagate = 1             
 eta_ref_threshold = 1e-2
 
 d.bc.constant.type.xlo = neumann
 d.bc.constant.type.xhi = neumann
 d.bc.constant.type.ylo = neumann
 d.bc.constant.type.yhi = neumann
-
 d.bc.constant.val.xlo = 0.0
 d.bc.constant.val.xhi = 0.0
 d.bc.constant.val.ylo = 0.0
 d.bc.constant.val.yhi = 0.0
 
-nucleation.enable                 =1
 
-
+nucleation.enable                 = 1
 nucleation.use_stress             = 5
-#nucleation.use_stress             = 4
-#nucleation.use_stress             = 0
 nucleation.heatmap_threshold      = 0.4
 
-### OLD: nucleation.void_radius            = 5e-6   
-nucleation.void_radius            = 1.4e-5           
-nucleation.eps                    = 1.5e-7
-### OLD: nucleation.exclusion_radius       = 2.0e-5  
-nucleation.exclusion_radius       = 3.0e-5           
+
+nucleation.void_radius            = 3.0e-5
+nucleation.eps                    = 4.0e-6
+nucleation.exclusion_radius       = 7.0e-5
 nucleation.check_frequency        = 10
 nucleation.boundary_exclude_cells = 2
 nucleation.max_voids              = 20
 nucleation.seed                   = 12345
 
-#nucleation.hm_beta = 0.0
-#nucleation.hm_alpha = 0.0
-
-
 nucleation.hm_alpha = 0.97
-nucleation.hm_beta = 2.0
+nucleation.hm_beta  = 2.0
 
 nucleation.p_ref       = 5.0e9
-nucleation.p_thresh    = 4.8e9   # needed for mode 5
-
+nucleation.p_thresh    = 4.5e9
 nucleation.base_rate   = 3.0e8
-
 nucleation.g1_ref      = 6.3
-
-# sigma_spall and m_exp are ignored in mode 5
 nucleation.sigma_spall = 6.0e9
-#nucleation.sigma_spall = 6.0e9
 nucleation.m_exp       = 1.0
 
 seed_void.enabled = 0
@@ -207,17 +174,20 @@ seed_void.y       = 0.00052
 seed_void.radius  = 1.5e-4
 
 heatmap.ic.type        = hm
-heatmap.ic.hm.fit       = coord
-heatmap.ic.hm.coord.lo  = 0.00105 0.0
-
-heatmap.ic.hm.coord.hi  = 0.003504 0.00052  
-
+heatmap.ic.hm.fit      = coord
+heatmap.ic.hm.coord.lo = 0.00105 0.0
+heatmap.ic.hm.coord.hi = 0.003504 0.00052
 heatmap.ic.hm.filename = tests/shock_cp_damage/target_heatmapsmall.png
 
-
-
-
 xt.enable = 1
-xt.file   = lagshockcp_damage_xt_at1_1024.dat
+xt.file   = lagshockcp_damage_xt_dw.dat
 xt.dt     = 1.0e-8
-xt.reduce = row,mean         
+xt.reduce = row,mean
+
+# Dynamic timestep left OFF
+ dynamictimestep.on  = 1
+ dynamictimestep.cfl = 0.3
+ dynamictimestep.min = 1e-11
+ dynamictimestep.max = 5e-10
+
+ damage.bypass = 0

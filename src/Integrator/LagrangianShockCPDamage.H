@@ -13,6 +13,7 @@
 #include "Util/Util.H"
 
 #include <random>
+#include <cstdint>   
 #include <vector>
 #include <utility>
 #include <cmath>
@@ -63,13 +64,11 @@ public:
             v.xt_enable = xt_on;
         }
         {
-
             int jprobe = -1;
-            pp_query_default("xt.jprobe", jprobe, -1);
+            pp_query_default("xt.jprobe", jprobe, -1);   // -1 => centerline
             v.xt_jprobe = jprobe;
         }
         {
-
             std::string red = "row";
             pp_query_default("xt.reduce", red, std::string("row"));
 
@@ -99,7 +98,6 @@ public:
                         "(e.g. xt.reduce = row,mean).");
                     continue;
                 }
-
                 bool dup = false;
                 for (XTReduce e : v.xt_modes) if (e == m) dup = true;
                 if (dup)
@@ -144,6 +142,7 @@ public:
         }
 
         pp_query_required("damage.M",            v.dmg.M);
+
 
         {
             std::string model_str = "double_well";
@@ -201,7 +200,7 @@ public:
                     "damage.cp.");
             }
         }
-        else
+        else // DamageModel::AT1
         {
 
             v.dmg.cw = 8.0 / 3.0;
@@ -214,14 +213,12 @@ public:
 
             if (has_Gc && has_ell)
             {
-
                 pp_query_required("damage.Gc",  v.dmg.Gc);
                 pp_query_required("damage.ell", v.dmg.ell);
                 if (v.dmg.Gc <= 0.0)
                     Util::Abort(INFO, "damage.Gc must be > 0");
                 if (v.dmg.ell <= 0.0)
                     Util::Abort(INFO, "damage.ell must be > 0");
-
                 v.dmg.barrier_height = v.dmg.Gc / (v.dmg.cw * v.dmg.ell);
                 v.dmg.cp    = 16.0 * v.dmg.barrier_height;
                 v.dmg.kappa = v.dmg.cp * v.dmg.ell * v.dmg.ell;
@@ -274,6 +271,16 @@ public:
 
         pp_query_default ("damage.d_void",       v.dmg.d_void, 0.95);
 
+        pp_query_default ("damage.void_res",     v.dmg.void_res, 0.02);
+        if (v.dmg.void_res <= 0.0 || v.dmg.void_res > 1.0)
+            Util::Abort(INFO,
+                "damage.void_res must lie in (0, 1]: residual stiffness "
+                "fraction of a locked spall void (sound speed, tensile "
+                "pressure, cell stress). Use a small positive value (e.g. "
+                "0.02); void_res -> 0 recovers the hard-vacuum stamp and its "
+                "mesh-refinement pressure runaway.");
+
+        
         pp_query_default ("damage.d_seed_floor", v.dmg.d_seed_floor, 0.55);
         if (v.dmg.model == DamageModel::DoubleWell)
         {
@@ -285,7 +292,7 @@ public:
                     "barrier d = 1/2 leave stamped cells to be driven back to "
                     "zero by the barrier.");
         }
-        else
+        else // AT1
         {
 
             if (v.dmg.d_seed_floor < 0.0 || v.dmg.d_seed_floor > 1.0)
@@ -307,6 +314,7 @@ public:
             Util::Abort(INFO,
                 "damage.p_tens_floor must be >= 0 (it is a tensile-pressure "
                 "floor, in the same units as the EOS pressure).");
+
 
         pp_query_default ("growth.M",          v.grow.M, 0.0);
         if (pp.contains("growth.M_plastic"))
@@ -338,6 +346,14 @@ public:
 
         pp_query_default ("growth.T_cap",      v.grow.T_cap, 3.0);
 
+        pp_query_default("damage.bypass", v.dbg_bypass, 0);   // ### BISECT SWITCH
+        if (v.dbg_bypass)
+            Util::Warning(INFO,
+                "LagrangianShockCPDamage: damage.bypass = 1 -- ALL damage-specific "
+                "work inside Advance is disabled. The time-stepping path is now "
+                "identical to LagrangianShockCP. Registrations/Initialize are "
+                "unchanged. DIAGNOSTIC ONLY.");
+
         pp_query_default("eta_ref_threshold", v.m_eta_ref_threshold, 1e-2);
 
         pp_query_default("nucleation.enable",            v.nuc.enable, 0);
@@ -348,6 +364,7 @@ public:
 
         pp_query_default("nucleation.hm_alpha",          v.nuc.hm_alpha, 0.0);
         pp_query_default("nucleation.hm_beta",           v.nuc.hm_beta, 0.0);
+
 
         pp_query_default("nucleation.sigma_spall",       v.nuc.sigma_spall, 0.0);
         pp_query_default("nucleation.g1_ref",            v.nuc.g1_ref, 0.0);
@@ -412,7 +429,6 @@ public:
 
         if (v.nuc.use_stress == 5)
         {
-
             if (v.nuc.g1_ref < 0.0)
                 Util::Abort(INFO,
                     "use_stress=5 (heatmap-only) requires nucleation.g1_ref "
@@ -474,7 +490,8 @@ public:
 
         v.RegisterNewFab(v.triaxiality_mf, v.bc_nothing_scalar, 1, nghost, "triaxiality", true, false);
 
-        v.RegisterNodalFab(v.ddw_mf, 3, nghost, "ddw", true);
+        
+        v.RegisterNodalFab(v.ddw_diag_mf, 3, nghost, "ddw_diag", true);
 
         v.RegisterNodalFab(v.d_node_mf, 1, nghost, "d_node", true);
 
@@ -520,6 +537,7 @@ public:
             const Set::Scalar dy0 = v.geom[0].CellSize(1);
             const Set::Scalar dx_min = std::min(dx0, dy0);
 
+
             const bool is_at1 = (v.dmg.model == DamageModel::AT1);
             const Set::Scalar ell = is_at1
                 ? v.dmg.ell
@@ -546,7 +564,8 @@ public:
                     : " AC interface ell=sqrt(kappa/cp)="),
                 ell,
                 " (ell/dx_min=", ell / dx_min, ")",
-                " d_void=", v.dmg.d_void);
+                " d_void=", v.dmg.d_void,
+                " void_res=", v.dmg.void_res);
 
             if (v.nuc.void_radius < dx_min)
             {
@@ -623,6 +642,7 @@ public:
             " ell=",                        v.dmg.ell,
             " cw=",                         v.dmg.cw,
             " d_void=",                     v.dmg.d_void,
+            " void_res=",                   v.dmg.void_res,
             " hist_seed_factor=",           v.dmg.hist_seed_factor,
             " growth.M=",                   v.grow.M,
             " growth.propagate=",           (v.grow.propagate ? 1 : 0),
@@ -650,7 +670,7 @@ public:
         p_drv_mf[lev]->setVal(0.0);
         pr_mf[lev]->setVal(0.0);
         nucleated_mf[lev]->setVal(0.0);
-        ddw_mf[lev]->setVal(0.0);
+        ddw_diag_mf[lev]->setVal(0.0);   // ### SHADOWING FIX: was ddw_mf
         psi_plus_mf[lev]->setVal(0.0);
         hist_mf[lev]->setVal(0.0);
         edot_p_eq_mf[lev]->setVal(0.0);
@@ -687,14 +707,16 @@ public:
                     }
                 });
             }
-            amrex::MultiFab::Copy(*d_old_mf[lev], *d_mf[lev], 0, 0, 1, 0);
+            
         }
 
-        d_mf[lev]->FillBoundary(geom[lev].periodicity());
+        FillDHalo(lev, 0.0);   
+        amrex::MultiFab::Copy(*d_old_mf[lev], *d_mf[lev], 0, 0, 1,
+                              d_mf[lev]->nGrow());
         d_old_mf[lev]->FillBoundary(geom[lev].periodicity());
 
         d_node_mf[lev]->setVal(0.0);
-        FillDNode(lev);
+        FillDNode(lev, 0.0);
     }
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
@@ -735,8 +757,10 @@ public:
 
         std::swap(*disp_mf[lev], *disp_old_mf[lev]);
         std::swap(*vel_mf[lev],  *vel_old_mf[lev]);
-        vel_old_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_old_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        this->SyncNodal(vel_old_mf,  lev);
+        this->SyncNodal(disp_old_mf, lev);
+        this->AssertSynced(disp_old_mf, lev, "disp_old @ entry");
 
         Base::ComputePressureAndViscosity2D(lev, DX0, DX1, local_eos, local_rho0,
                                             local_CQ, local_CL, disp_old_mf, vel_old_mf,
@@ -752,16 +776,19 @@ public:
 
         Base::CheckEOSReferenceState(lev);
 
+
         Base::ComputeCellStressField(lev, DX0, DX1, nlo, nhi,
                                      disp_old_mf, pressure_mf, artvisc2d_mf);
         DegradeDeviatoricStress(lev, disp_old_mf);
         SuppressStressInVoids(lev);
         cell_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+        AssertGhostConsistent(cell_stress_mf, lev, "cell_stress @ predictor");
 
-        Base::UpdateVelocityAndDisplacement2D(lev, DX0, DX1, half_dt, nlo, nhi, ndomain,
-            local_rho0, vel_old_mf, disp_old_mf, vel_mf, disp_mf);
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_mf[lev]->FillBoundary(geom[lev].periodicity());
+        Base::UpdateVelocityAndDisplacement2D(lev, DX0, DX1, half_dt, a_dt, nlo, nhi, ndomain,
+            local_rho0, vel_old_mf, disp_old_mf, vel_old_mf, vel_mf, disp_mf);
+        this->AssertSynced(vel_mf, lev, "vel after half-step update (pre-sync)");
+        this->SyncNodal(vel_mf,  lev);
+        this->SyncNodal(disp_mf, lev);
 
         Base::ComputeHalfStepEnergy2D(lev, DX0, DX1, local_eos, local_rho0, local_CQ, local_CL);
 
@@ -773,25 +800,31 @@ public:
         soundspeed_half_mf[lev]->FillBoundary(geom[lev].periodicity());
         density_half_mf[lev]->FillBoundary(geom[lev].periodicity());
 
+
         Base::ComputeCellStressField(lev, DX0, DX1, nlo, nhi,
                                      disp_mf, pressure_half_mf, artvisc2d_half_mf);
 
-        amrex::MultiFab::Copy(*cell_stress_raw_mf[lev], *cell_stress_mf[lev],
-                              0, 0, cell_stress_mf[lev]->nComp(),
-                              cell_stress_mf[lev]->nGrow());
-        cell_stress_raw_mf[lev]->FillBoundary(geom[lev].periodicity());
+        if (!dbg_bypass)   // ### BISECT SWITCH
+        {
+            amrex::MultiFab::Copy(*cell_stress_raw_mf[lev], *cell_stress_mf[lev],
+                                  0, 0, cell_stress_mf[lev]->nComp(),
+                                  cell_stress_mf[lev]->nGrow());
+            cell_stress_raw_mf[lev]->FillBoundary(geom[lev].periodicity());
+        }
         DegradeDeviatoricStress(lev, disp_mf);
         SuppressStressInVoids(lev);
         cell_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
+        AssertGhostConsistent(cell_stress_mf, lev, "cell_stress @ corrector");
 
-        Base::UpdateVelocityAndDisplacement2D(lev, DX0, DX1, a_dt, nlo, nhi, ndomain,
-            local_rho0, vel_old_mf, disp_old_mf, vel_mf, disp_mf);
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
-        disp_mf[lev]->FillBoundary(geom[lev].periodicity());
+        Base::UpdateVelocityAndDisplacement2D(lev, DX0, DX1, a_dt, a_dt, nlo, nhi, ndomain,
+            local_rho0, vel_old_mf, disp_old_mf, vel_mf, vel_mf, disp_mf);
+        this->AssertSynced(vel_mf, lev, "vel after full-step update (pre-sync)");
+        this->SyncNodal(vel_mf,  lev);
+        this->SyncNodal(disp_mf, lev);
 
         Base::ApplyHourglassControl(lev, DX0, DX1, a_dt, nlo, nhi, ndomain, local_rho0);
-
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
+        this->AssertSynced(vel_mf, lev, "vel after hourglass control (pre-sync)");
+        this->SyncNodal(vel_mf, lev);
 
         for (amrex::MFIter mfi(*density_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -831,24 +864,39 @@ public:
                 Set::Scalar d_exx = dExx_new - dExx_old;
                 Set::Scalar d_eyy = dEyy_new - dEyy_old;
 
+                
+                Set::Scalar gam_old = 0.5*((u_old_arr(i,j+1,k)(0)-u_old_arr(i,j,k)(0))
+                                          +(u_old_arr(i+1,j+1,k)(0)-u_old_arr(i+1,j,k)(0))) / lDX1
+                                    + 0.5*((u_old_arr(i+1,j,k)(1)-u_old_arr(i,j,k)(1))
+                                          +(u_old_arr(i+1,j+1,k)(1)-u_old_arr(i,j+1,k)(1))) / lDX0;
+                Set::Scalar gam_new = 0.5*((u_new_arr(i,j+1,k)(0)-u_new_arr(i,j,k)(0))
+                                          +(u_new_arr(i+1,j+1,k)(0)-u_new_arr(i+1,j,k)(0))) / lDX1
+                                    + 0.5*((u_new_arr(i+1,j,k)(1)-u_new_arr(i,j,k)(1))
+                                          +(u_new_arr(i+1,j+1,k)(1)-u_new_arr(i,j+1,k)(1))) / lDX0;
+                Set::Scalar d_gam = gam_new - gam_old;
+
                 Set::Scalar de = -ph_arr(i,j,k) * dJ / lrho0;
                 de -= (q2dh_arr(i,j,k,0) * d_exx + q2dh_arr(i,j,k,1) * d_eyy) / lrho0;
+                de += q2dh_arr(i,j,k,2) * d_gam / lrho0;   // ### STALE-FORK FIX
                 if (std::isfinite(de)) e_arr(i,j,k) += de;
             });
         }
         energy_mf[lev]->FillBoundary(geom[lev].periodicity());
+        AssertGhostConsistent(energy_mf,   lev, "energy @ full step");
+        AssertGhostConsistent(pressure_mf, lev, "pressure @ full step");
 
         SuppressEnergyInVoids(lev);
 
         Base::AdvanceCPModelAllNodes(lev, DX0, DX1, a_dt, t_full, nlo, nhi, ndomain,
                                      disp_mf, disp_old_mf);
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        this->SyncModel(lev);
 
         Base::UpdateTemperature(lev, DX0, DX1, a_dt, nlo, nhi, disp_old_mf, disp_mf);
 
         Base::PopulateVisualizationFields(lev, DX, nlo, nhi, ndomain, disp_mf, pressure_mf);
 
-        Set::Scalar dt_local = 1e100, max_p = -1e100, min_p = 1e100, fs_vel = 0.0;
+        Set::Scalar dt_local = 1e100, max_p = -1e100, min_p = 1e100;
+        Set::Scalar fs_vel = 0.0, fs_cnt = 0.0;
 
         Base::ComputePressureAndViscosity2D(lev, DX0, DX1, local_eos, local_rho0,
                                             local_CQ, local_CL, disp_mf, vel_mf,
@@ -859,16 +907,21 @@ public:
 
         pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
         soundspeed_mf[lev]->FillBoundary(geom[lev].periodicity());
-        vel_mf[lev]->FillBoundary(geom[lev].periodicity());
+        this->SyncNodal(vel_mf, lev);
 
         for (amrex::MFIter mfi(*vel_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box nbx = mfi.nodaltilebox() & ndomain;
-
             auto const& v_arr = vel_mf[lev]->array(mfi);
-            if (nbx.contains(amrex::IntVect(AMREX_D_DECL(nhi.x, nlo.y, 0))))
-                fs_vel = v_arr(nhi.x, nlo.y, 0)(0);
+            if (nbx.contains(amrex::IntVect(AMREX_D_DECL(nhi.x, nlo.y, 0)))) {
+                fs_vel += v_arr(nhi.x, nlo.y, 0)(0);
+                fs_cnt += 1.0;
+            }
         }
+
+        amrex::ParallelDescriptor::ReduceRealSum(fs_vel);
+        amrex::ParallelDescriptor::ReduceRealSum(fs_cnt);
+        if (fs_cnt > 0.0) fs_vel /= fs_cnt;
 
         Set::Scalar min_dx = std::min(DX0, DX1);
         for (amrex::MFIter mfi(*density_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -876,9 +929,15 @@ public:
             amrex::Box cbx = mfi.tilebox();
             auto const& p_arr = pressure_mf[lev]->array(mfi);
             auto const& c_arr = soundspeed_mf[lev]->array(mfi);
+            auto const& v_arr = vel_mf[lev]->array(mfi);
             amrex::Loop(cbx, [&](int i, int j, int k) {
                 Set::Scalar c = c_arr(i,j,k);
-                Set::Scalar dt_cfl = hydro_cfl * min_dx / (c + 1e-20);
+                Set::Scalar dvx = std::abs(0.5*((v_arr(i+1,j,k)(0)-v_arr(i,j,k)(0))
+                                               +(v_arr(i+1,j+1,k)(0)-v_arr(i,j+1,k)(0))));
+                Set::Scalar dvy = std::abs(0.5*((v_arr(i,j+1,k)(1)-v_arr(i,j,k)(1))
+                                               +(v_arr(i+1,j+1,k)(1)-v_arr(i+1,j,k)(1))));
+                Set::Scalar dv  = std::max(dvx, dvy);
+                Set::Scalar dt_cfl = hydro_cfl * min_dx / (c + local_CQ * dv + 1e-20);
                 dt_local = std::min(dt_local, dt_cfl);
                 if (p_arr(i,j,k) > max_p) max_p = p_arr(i,j,k);
                 if (p_arr(i,j,k) < min_p) min_p = p_arr(i,j,k);
@@ -887,23 +946,28 @@ public:
 
         amrex::ParallelDescriptor::ReduceRealMax(max_p);
         amrex::ParallelDescriptor::ReduceRealMin(min_p);
-        amrex::ParallelDescriptor::ReduceRealSum(fs_vel);
+        amrex::ParallelDescriptor::ReduceRealMin(dt_local);
 
         diag_fs_vel = fs_vel; diag_max_pressure = max_p; diag_min_pressure = min_p;
 
         if (dt_local > 0.0 && dt_local < 1e90)
             this->DynamicTimestep_SyncTimeStep(lev, dt_local);
 
-        if (lev == 0 && amrex::ParallelDescriptor::IOProcessor() && t_full >= next_diag_time) {
-            this->WriteDiagnostics(t_full, a_dt);
+        if (lev == 0 && t_full >= next_diag_time) {
+            if (amrex::ParallelDescriptor::IOProcessor())
+                this->WriteDiagnostics(t_full, a_dt);
             next_diag_time = t_full + diag_dt;
         }
+
 
         PopulatePlasticStrainRate(lev);
         ComputePsiPlus(lev, disp_mf);
         UpdateHistory(lev);
         ComputeTriaxiality(lev);
         AdvanceDamage(lev, time, a_dt);
+        AssertGhostConsistent(d_mf,        lev, "d after AdvanceDamage");
+        AssertGhostConsistent(psi_plus_mf, lev, "psi_plus after AdvanceDamage");
+        AssertGhostConsistent(hist_mf,     lev, "hist after AdvanceDamage");
         DegradeModuli(lev);
         PopulateDDWDiagnostic(lev);
         UpdateDamageDiagnostics(lev);
@@ -917,10 +981,12 @@ public:
         }
     }
 
+
     void WriteXTLineout(int lev, Set::Scalar time, XTReduce mode,
                        const std::string& fname, char& header_written)
     {
         BL_PROFILE("LagrangianShockCPDamage::WriteXTLineout");
+        if (dbg_bypass) return;   // 
 
         if (xt_enable <= 0) return;
 
@@ -951,8 +1017,8 @@ public:
             auto const& p_arr = pressure_mf[lev]->const_array(mfi);
             auto const& r_arr = density_mf [lev]->const_array(mfi);
             auto const& d_arr = d_mf       [lev]->const_array(mfi);
-            auto const& v_arr = vel_mf     [lev]->const_array(mfi);
-            auto const& u_arr = disp_mf    [lev]->const_array(mfi);
+            auto const& v_arr = vel_mf     [lev]->const_array(mfi);   // nodal
+            auto const& u_arr = disp_mf    [lev]->const_array(mfi);   // nodal
 
             amrex::Loop(cbx, [&](int i, int j, int k)
             {
@@ -981,7 +1047,6 @@ public:
                 }
                 else
                 {
-
                     vx[q] += vxc;
                     ux[q] += uxc;
                     pr[q] += pc;
@@ -993,7 +1058,6 @@ public:
 
         if (is_max)
         {
-
             amrex::ParallelDescriptor::ReduceRealMax(vx.data(), Nx);
             amrex::ParallelDescriptor::ReduceRealMax(ux.data(), Nx);
             amrex::ParallelDescriptor::ReduceRealMax(pr.data(), Nx);
@@ -1002,7 +1066,6 @@ public:
         }
         else
         {
-
             amrex::ParallelDescriptor::ReduceRealSum(vx.data(), Nx);
             amrex::ParallelDescriptor::ReduceRealSum(ux.data(), Nx);
             amrex::ParallelDescriptor::ReduceRealSum(pr.data(), Nx);
@@ -1014,7 +1077,6 @@ public:
 
         if (mode == XTReduce::Mean)
         {
-
             const Set::Scalar inv_Ny = 1.0 / (Set::Scalar)Ny;
             for (int q = 0; q < Nx; ++q)
             {
@@ -1026,7 +1088,6 @@ public:
         std::ofstream out;
         if (!header_written)
         {
-
             const char* red_name =
                 (mode == XTReduce::Mean) ? "mean_y"
               : (mode == XTReduce::Max)  ? "max_y" : "row";
@@ -1078,9 +1139,11 @@ public:
         out.close();
     }
 
+
     void PopulatePlasticStrainRate(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::PopulatePlasticStrainRate");
+        if (dbg_bypass) return;   // ### BISECT SWITCH
 
         if constexpr (MODEL::kinvar != Model::Solid::KinematicVariable::F)
         {
@@ -1123,9 +1186,11 @@ public:
         }
     }
 
+
     void UpdateHistory(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::UpdateHistory");
+        if (dbg_bypass) return;   // ### BISECT SWITCH
 
         const Set::Scalar lhsf = dmg.hist_seed_factor;
 
@@ -1158,16 +1223,24 @@ public:
         hist_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
 
+
+
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags,
                                Set::Scalar a_time, int a_ngrow) override
     {
         Base::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
+        if (dbg_bypass) return;   // ### BISECT SWITCH
         if (m_type == ::Integrator::Base::Mechanics<MODEL>::Type::Disable) return;
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
         Set::Scalar threshold = m_eta_ref_threshold;
+
+        //
+        
+        //
+        const amrex::Box& cdomain = geom[lev].Domain();
 
         for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -1176,7 +1249,7 @@ public:
             auto const& d    = d_mf[lev]->const_array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                auto sten = Numeric::GetStencil(i, j, k, bx);
+                auto sten = Numeric::GetStencil(i, j, k, cdomain);
                 Set::Vector g = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
                 if (g.lpNorm<2>() * DXnorm > threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
@@ -1193,10 +1266,12 @@ public:
 
 private:
 
+
     void DegradeDeviatoricStress(int lev,
                                  Set::Field<Set::Vector>& u_field)
     {
         BL_PROFILE("LagrangianShockCPDamage::DegradeDeviatoricStress");
+        if (dbg_bypass) return;   // 
 
         const Set::Scalar lsmall = dmg.small;
         const Set::Scalar* DX    = geom[lev].CellSize();
@@ -1220,10 +1295,12 @@ private:
                 Set::Scalar g = (1.0 - dv) * (1.0 - dv);
                 if (g < lsmall) g = lsmall;
 
+
                 Set::Matrix Fc;
                 Base::CellF2D(u, i, j, k, lDX0, lDX1, Fc);
                 Set::Scalar Jc = Fc(0,0)*Fc(1,1) - Fc(0,1)*Fc(1,0);
                 if (std::abs(Jc) < 1e-10) Jc = (Jc >= 0.0) ? 1e-10 : -1e-10;
+
 
                 Set::Matrix Pcorr;
                 Pcorr(0,0) = cs(i,j,k,0);
@@ -1231,18 +1308,23 @@ private:
                 Pcorr(0,1) = cs(i,j,k,2);
                 Pcorr(1,0) = cs(i,j,k,3);
 
+
                 Set::Matrix sigma = (1.0 / Jc) * Pcorr * Fc.transpose();
+
 
                 Set::Scalar p_mean_neg = 0.5 * (sigma(0,0) + sigma(1,1));
                 Set::Matrix s = sigma;
                 s(0,0) -= p_mean_neg;
                 s(1,1) -= p_mean_neg;
 
+
                 s *= g;
+
 
                 sigma = s;
                 sigma(0,0) += p_mean_neg;
                 sigma(1,1) += p_mean_neg;
+
 
                 Set::Matrix FinvT;
                 FinvT(0,0) =  Fc(1,1) / Jc; FinvT(0,1) = -Fc(1,0) / Jc;
@@ -1257,33 +1339,41 @@ private:
         }
     }
 
+
     void DegradeEOSPressure(int lev, Set::Field<Set::Scalar>& p_field)
     {
         BL_PROFILE("LagrangianShockCPDamage::DegradeEOSPressure");
+        if (dbg_bypass) return;   // 
 
-        const Set::Scalar lsmall = dmg.small;
-        const Set::Scalar ld_void = dmg.d_void;
+        const Set::Scalar lsmall    = dmg.small;
+        const Set::Scalar lvoid_res = dmg.void_res;   
+        const Set::Scalar lnuc_lock = 0.9;
 
         for (amrex::MFIter mfi(*p_field[lev], amrex::TilingIfNotGPU());
              mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            auto const& p_arr = p_field[lev]->array(mfi);
-            auto const& d_arr = d_mf[lev]->const_array(mfi);
+            auto const& p_arr   = p_field[lev]->array(mfi);
+            auto const& d_arr   = d_mf[lev]->const_array(mfi);
+            auto const& nuc_arr = nucleated_mf[lev]->const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Scalar dv = d_arr(i, j, k);
-                if (dv <= 0.0) return;
-
-                if (dv > ld_void)
+                
+                if (nuc_arr(i, j, k) > lnuc_lock)
                 {
-                    p_arr(i, j, k) = 0.0;
+                    if (p_arr(i, j, k) < 0.0) p_arr(i, j, k) *= lvoid_res;
                     return;
                 }
 
+                Set::Scalar dv = d_arr(i, j, k);
+                if (dv <= 0.0) return;
+                if (dv > 1.0) dv = 1.0;
+
+                // Compression carried unchanged
                 if (p_arr(i, j, k) >= 0.0) return;
 
+                // Continuous tensile softening 
                 Set::Scalar g = (1.0 - dv) * (1.0 - dv);
                 if (g < lsmall) g = lsmall;
 
@@ -1292,60 +1382,69 @@ private:
         }
     }
 
+
     void DegradeSoundSpeed(int lev, Set::Field<Set::Scalar>& c_field)
     {
         BL_PROFILE("LagrangianShockCPDamage::DegradeSoundSpeed");
+        if (dbg_bypass) return;   // 
 
-        const Set::Scalar lsmall  = dmg.small;
-        const Set::Scalar ld_void = dmg.d_void;
+        const Set::Scalar lsmall    = dmg.small;
+        const Set::Scalar lvoid_res = dmg.void_res;   // 
+        const Set::Scalar lnuc_lock = 0.9;
 
         for (amrex::MFIter mfi(*c_field[lev], amrex::TilingIfNotGPU());
              mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            auto const& c_arr = c_field[lev]->array(mfi);
-            auto const& d_arr = d_mf[lev]->const_array(mfi);
+            auto const& c_arr   = c_field[lev]->array(mfi);
+            auto const& d_arr   = d_mf[lev]->const_array(mfi);
+            auto const& nuc_arr = nucleated_mf[lev]->const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Scalar dv = d_arr(i, j, k);
-                if (dv <= 0.0) return;
-
-                if (dv > ld_void)
+                
+                if (nuc_arr(i, j, k) > lnuc_lock)
                 {
-                    c_arr(i, j, k) = 0.0;
+                    c_arr(i, j, k) *= lvoid_res;
                     return;
                 }
 
+                Set::Scalar dv = d_arr(i, j, k);
+                if (dv <= 0.0) return;
                 if (dv > 1.0) dv = 1.0;
-                Set::Scalar g = 1.0 - dv;
+                Set::Scalar g = 1.0 - dv;    // linear, not (1-d)^2
                 if (g < lsmall) g = lsmall;
                 c_arr(i, j, k) *= g;
             });
         }
     }
 
+
     void SuppressStressInVoids(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::SuppressStressInVoids");
+        if (dbg_bypass) return;   
 
-        const Set::Scalar ld_void = dmg.d_void;
+  
+        const Set::Scalar lnuc_lock = 0.9;
+        const Set::Scalar lvoid_res = dmg.void_res;   
 
         for (amrex::MFIter mfi(*cell_stress_mf[lev], amrex::TilingIfNotGPU());
              mfi.isValid(); ++mfi)
         {
             amrex::Box cbx = mfi.tilebox();
-            auto const& cs    = cell_stress_mf[lev]->array(mfi);
-            auto const& d_arr = d_mf[lev]->const_array(mfi);
+            auto const& cs      = cell_stress_mf[lev]->array(mfi);
+            auto const& nuc_arr = nucleated_mf[lev]->const_array(mfi);
 
             amrex::ParallelFor(cbx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (d_arr(i, j, k) > ld_void)
+               
+                if (nuc_arr(i, j, k) > lnuc_lock)
                 {
-                    cs(i, j, k, 0) = 0.0;
-                    cs(i, j, k, 1) = 0.0;
-                    cs(i, j, k, 2) = 0.0;
-                    cs(i, j, k, 3) = 0.0;
+                    cs(i, j, k, 0) *= lvoid_res;
+                    cs(i, j, k, 1) *= lvoid_res;
+                    cs(i, j, k, 2) *= lvoid_res;
+                    cs(i, j, k, 3) *= lvoid_res;
                 }
             });
         }
@@ -1354,31 +1453,38 @@ private:
     void SuppressEnergyInVoids(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::SuppressEnergyInVoids");
+        if (dbg_bypass) return;   // ### BISECT SWITCH
 
-        const Set::Scalar ld_void = dmg.d_void;
+       
+        const Set::Scalar lnuc_lock = 0.9;
 
         for (amrex::MFIter mfi(*energy_mf[lev], amrex::TilingIfNotGPU());
              mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            auto const& e_arr = energy_mf[lev]->array(mfi);
-            auto const& d_arr = d_mf[lev]->const_array(mfi);
+            auto const& e_arr   = energy_mf[lev]->array(mfi);
+            auto const& nuc_arr = nucleated_mf[lev]->const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (d_arr(i, j, k) > ld_void)
+               
+                if (nuc_arr(i, j, k) > lnuc_lock)
                     e_arr(i, j, k) = 0.0;
             });
         }
     }
 
+
+
     void ComputeTriaxiality(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::ComputeTriaxiality");
+        if (dbg_bypass) return;   // 
 
         const Set::Scalar* DX  = geom[lev].CellSize();
         const Set::Scalar lDX0 = DX[0];
         const Set::Scalar lDX1 = DX[1];
+
 
         const Set::Scalar svm_floor = 1.0e-6 * stress_scale;
 
@@ -1399,6 +1505,7 @@ private:
                 Pcorr(0,1) = cs_raw(i,j,k,2);
                 Pcorr(1,0) = cs_raw(i,j,k,3);
 
+
                 Set::Matrix Fc;
                 Base::CellF2D(u, i, j, k, lDX0, lDX1, Fc);
                 Set::Scalar Jc = Fc(0,0)*Fc(1,1) - Fc(0,1)*Fc(1,0);
@@ -1406,7 +1513,7 @@ private:
                 Set::Matrix sigma = (1.0 / Jc) * Pcorr * Fc.transpose();
 
                 Set::Scalar p_mean_neg = 0.5 * (sigma(0,0) + sigma(1,1));
-                Set::Scalar p_phys = -p_mean_neg;
+                Set::Scalar p_phys = -p_mean_neg;   // p > 0 compressive
 
                 Set::Matrix s = sigma;
                 s(0,0) -= p_mean_neg;
@@ -1416,6 +1523,7 @@ private:
                                  + s(0,1)*s(0,1) + s(1,0)*s(1,0);
                 Set::Scalar sigma_vM = std::sqrt(std::max(1.5 * s_dd, 0.0));
                 if (sigma_vM < svm_floor) sigma_vM = svm_floor;
+
 
                 Set::Scalar T = -p_phys / sigma_vM;
                 if (!std::isfinite(T)) T = 0.0;
@@ -1450,10 +1558,12 @@ private:
                 " T range: [", min_T, ", ", max_T, "]");
     }
 
+
     void ComputePsiPlus(int lev,
                         Set::Field<Set::Vector>& u_field)
     {
         BL_PROFILE("LagrangianShockCPDamage::ComputePsiPlus");
+        if (dbg_bypass) return;   //
 
         const Set::Scalar* DX    = geom[lev].CellSize();
         const Set::Scalar lDX0   = DX[0];
@@ -1487,9 +1597,9 @@ private:
 
             amrex::ParallelFor(cbx, [=] AMREX_GPU_DEVICE(int ci, int cj, int ck)
             {
-
                 Set::Matrix Fc;
                 Base::CellF2D(u, ci, cj, ck, lDX0, lDX1, Fc);
+
 
                 Eigen::Matrix3d F3d = Eigen::Matrix3d::Identity();
                 F3d(0,0) = Fc(0,0);  F3d(0,1) = Fc(0,1);
@@ -1518,14 +1628,15 @@ private:
                             Eigen::Matrix3d Ee3d = 0.5 *
                                 (Ce3d - Eigen::Matrix3d::Identity());
 
-                            m.q.normalize();
-                            Eigen::Matrix3d R = m.q.toRotationMatrix();
+                            
+                            Eigen::Matrix3d R = m.q.normalized().toRotationMatrix();
 
                             Eigen::Matrix3d Ee_cryst = R.transpose() * Ee3d * R;
 
                             Set::Scalar c11 = m.C11;
                             Set::Scalar c12 = m.C12;
                             Set::Scalar c44 = m.C44;
+
 
                             Set::Scalar trE =
                                 Ee_cryst(0,0) + Ee_cryst(1,1) + Ee_cryst(2,2);
@@ -1534,6 +1645,7 @@ private:
                                 (trE > 0.0) ? trE : 0.0;
                             Set::Scalar psi_vol_plus =
                                 0.5 * K_bulk * trE_plus * trE_plus;
+
 
                             Set::Scalar third_trE = trE / 3.0;
                             Eigen::Matrix3d Ed = Ee_cryst;
@@ -1585,15 +1697,51 @@ private:
         psi_plus_mf[lev]->FillBoundary(geom[lev].periodicity());
     }
 
-    void AdvanceDamage(int lev, Set::Scalar, Set::Scalar dt)
+    
+    void AssertGhostConsistent(Set::Field<Set::Scalar>& f, int lev, const char* tag)
+    {
+        if (!check_sync) return;
+        if (!f.size() || !f[lev]) return;
+
+        const int            nc = f[lev]->nComp();
+        const amrex::IntVect ng = f[lev]->nGrowVect();
+
+        amrex::MultiFab cpy(f[lev]->boxArray(), f[lev]->DistributionMap(), nc, ng);
+        amrex::MultiFab::Copy(cpy, *f[lev], 0, 0, nc, ng);
+        cpy.FillBoundary(geom[lev].periodicity());
+        amrex::MultiFab::Subtract(cpy, *f[lev], 0, 0, nc, ng);
+
+        Set::Scalar diff = 0.0;
+        for (int c = 0; c < nc; ++c)
+            diff = std::max(diff, cpy.norm0(c, f[lev]->nGrow()));
+
+        if (amrex::ParallelDescriptor::IOProcessor())
+            Util::Message(INFO, "ghost residual [", tag, "] lev=", lev, " : ", diff);
+    }
+
+    
+    void FillDHalo(int lev, Set::Scalar a_time)
+    {
+        d_mf[lev]->FillBoundary(geom[lev].periodicity());
+        if (bc_d)
+        {
+            bc_d->define(geom[lev]);
+            bc_d->FillBoundary(*d_mf[lev], 0, 0, a_time, 0);
+        }
+    }
+
+    void AdvanceDamage(int lev, Set::Scalar a_time, Set::Scalar dt)
     {
         BL_PROFILE("LagrangianShockCPDamage::AdvanceDamage");
+        if (dbg_bypass) return;   //
 
         pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
-        d_mf[lev]->FillBoundary(geom[lev].periodicity());
+        FillDHalo(lev, a_time);   // 
 
         amrex::MultiFab::Copy(*d_old_mf[lev], *d_mf[lev], 0, 0, 1,
                                d_mf[lev]->nGrow());
+        // d_old is a full copy of d INCLUDING the halo, which FillDHalo has just
+        // made correct, so d_old needs no separate boundary treatment.
         d_old_mf[lev]->FillBoundary(geom[lev].periodicity());
 
         const Set::Scalar* DX = geom[lev].CellSize();
@@ -1630,7 +1778,6 @@ private:
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-
                 Set::Scalar p_tens = -p_eos(i,j,k);
                 p_drv(i,j,k) = p_tens;
 
@@ -1670,7 +1817,7 @@ private:
                         d_dot = lM * std::max(Y_tot, 0.0);
                     }
                 }
-                else
+                else // DamageModel-AT1
                 {
 
                     Y_AC = -(lGc / (lcw * lell))
@@ -1681,9 +1828,9 @@ private:
                         d_dot = lM * std::max(Y_tot, 0.0);
                 }
 
+
                 if (lMg > 0.0)
                 {
-
                     bool growth_active = in_tension
                                        && (lpropagate
                                            ? true
@@ -1699,7 +1846,6 @@ private:
                             Set::Scalar T_gate = (T > 0.0) ? T : 0.0;
                             if (T_gate > 0.0)
                             {
-
                                 Set::Scalar T_amp =
                                     (T < lT_cap) ? T : lT_cap;
                                 Set::Scalar amp =
@@ -1708,6 +1854,7 @@ private:
                                 Set::Scalar d_dot_grow =
                                     lMg * (1.0 - dd) * edp
                                         * amp * T_gate;
+
 
                                 if (std::isfinite(d_dot_grow)
                                     && d_dot_grow > 0.0)
@@ -1724,21 +1871,25 @@ private:
                 d(i,j,k) = dnew;
             });
         }
-        d_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        FillDHalo(lev, a_time + dt);
     }
 
-    void FillDNode(int lev)
-    {
 
-        d_mf[lev]->FillBoundary(geom[lev].periodicity());
+    void FillDNode(int lev, Set::Scalar a_time)
+    {
+        if (dbg_bypass) return;  
+        FillDHalo(lev, a_time);
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
+
+        const int ng = std::max(0, d_mf[lev]->nGrow() - 1);
+
         for (amrex::MFIter mfi(*d_node_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.grownnodaltilebox(-1, ng) & domain;
             auto const& dn = d_node_mf[lev]->array(mfi);
             auto const& dc = d_mf[lev]->const_array(mfi);
 
@@ -1757,7 +1908,8 @@ private:
                 dn(i, j, k) = m;
             });
         }
-        d_node_mf[lev]->FillBoundary(geom[lev].periodicity());
+        
+        this->SyncNodal(d_node_mf, lev);
     }
 
     void TimeStepComplete(Set::Scalar a_time, int a_step) override
@@ -1765,27 +1917,31 @@ private:
         BL_PROFILE("LagrangianShockCPDamage::TimeStepComplete");
         Base::TimeStepComplete(a_time, a_step);
         for (int lev = 0; lev <= finest_level; ++lev)
-            FillDNode(lev);
+            FillDNode(lev, a_time);
     }
 
-    void DegradeModuli(int )
+
+    void DegradeModuli(int /*lev*/)
     {
         BL_PROFILE("LagrangianShockCPDamage::DegradeModuli");
 
     }
 
+
+
     void PopulateDDWDiagnostic(int lev)
     {
         BL_PROFILE("LagrangianShockCPDamage::PopulateDDWDiagnostic");
+        if (dbg_bypass) return;   
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        for (amrex::MFIter mfi(*ddw_mf[lev], false); mfi.isValid(); ++mfi)
+       
+        for (amrex::MFIter mfi(*ddw_diag_mf[lev], false); mfi.isValid(); ++mfi)
         {
-
-            amrex::Box bx = mfi.nodaltilebox();
-            auto const& ddw_arr = ddw_mf[lev]->array(mfi);
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
+            auto const& ddw_arr = ddw_diag_mf[lev]->array(mfi);
             auto const& model   = model_mf[lev]->const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1796,11 +1952,48 @@ private:
                 ddw_arr(i,j,k,2) = D(0,1,0,1);
             });
         }
-        ddw_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+        this->SyncNodal(ddw_diag_mf, lev);
     }
 
-    void NucleationCheck(Set::Scalar, int)
+    
+    static AMREX_FORCE_INLINE
+    Set::Scalar CellRand(std::uint64_t a_seed, int i, int j, int k, int a_step)
     {
+        auto mix = [](std::uint64_t x) -> std::uint64_t
+        {
+            x += 0x9e3779b97f4a7c15ULL;
+            x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+            x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+            return x ^ (x >> 31);
+        };
+        std::uint64_t h = mix(a_seed);
+        h = mix(h ^ (std::uint64_t)(std::uint32_t)i);
+        h = mix(h ^ (std::uint64_t)(std::uint32_t)j);
+        h = mix(h ^ (std::uint64_t)(std::uint32_t)k);
+        h = mix(h ^ (std::uint64_t)(std::uint32_t)a_step);
+        // 53-bit mantissa -> [0,1)
+        return (Set::Scalar)(h >> 11) * (1.0 / 9007199254740992.0);
+    }
+
+    void NucleationCheck(Set::Scalar a_time, int a_step)
+    {
+        
+#ifndef NDEBUG
+        {
+            int n_lo = n_voids_total, n_hi = n_voids_total;
+            amrex::ParallelDescriptor::ReduceIntMin(n_lo);
+            amrex::ParallelDescriptor::ReduceIntMax(n_hi);
+            Set::Scalar dt_lo = this->timestep, dt_hi = this->timestep;
+            amrex::ParallelDescriptor::ReduceRealMin(dt_lo);
+            amrex::ParallelDescriptor::ReduceRealMax(dt_hi);
+            Util::Assert(INFO, TEST(n_lo == n_hi),
+                "n_voids_total differs across ranks; the collectives below will hang");
+            Util::Assert(INFO, TEST(dt_lo == dt_hi),
+                "timestep differs across ranks; the collectives below will hang");
+        }
+#endif
+
         if (n_voids_total >= nuc.max_voids) return;
 
         const Set::Scalar p_thr     = nuc.p_thresh;
@@ -1811,9 +2004,9 @@ private:
         const Set::Scalar excl_r    = nuc.exclusion_radius;
         const Set::Scalar hm_alpha  = nuc.hm_alpha;
         const Set::Scalar hm_beta   = nuc.hm_beta;
-        const Set::Scalar sig_spall = nuc.sigma_spall;
-        const Set::Scalar g1_ref    = nuc.g1_ref;
-        const Set::Scalar m_exp     = nuc.m_exp;
+        const Set::Scalar sig_spall = nuc.sigma_spall;   // use_stress==4
+        const Set::Scalar g1_ref    = nuc.g1_ref;        // use_stress==4,5
+        const Set::Scalar m_exp     = nuc.m_exp;         // use_stress==4
         const int         use_stress = nuc.use_stress;
 
         if (base_rate <= 0.0) return;
@@ -1821,10 +2014,8 @@ private:
         const Set::Scalar dt_eff = this->timestep * (Set::Scalar)nuc.check_freq;
         if (dt_eff <= 0.0) return;
 
-        static thread_local std::mt19937 rng(
-            nuc.seed + (unsigned)amrex::ParallelDescriptor::MyProc());
-        static thread_local std::uniform_real_distribution<Set::Scalar>
-            udist(0.0, 1.0);
+        //  the mt19937 stream is gone; see CellRand above.
+        const std::uint64_t lseed = (std::uint64_t)nuc.seed;
 
         std::vector<std::pair<Set::Scalar, Set::Scalar>> candidates;
 
@@ -1875,7 +2066,6 @@ private:
                 if (x < xlo || x > xhi || y < ylo || y > yhi) continue;
 
                 ++n_eligible_total;
-
                 const int im1 = (i - 1 < cdlo_x) ? cdlo_x : i - 1;
                 const int ip1 = (i + 1 > cdhi_x) ? cdhi_x : i + 1;
                 Set::Scalar p_tens = -0.25 * (p_arr(im1,j,k)
@@ -1947,7 +2137,6 @@ private:
                 }
                 else if (use_stress == 5)
                 {
-
                     Set::Scalar dG1 = g1_ref * (1.0 - hm);
                     if (dG1 < 0.0)  dG1 = 0.0;
                     if (dG1 > 60.0) dG1 = 60.0;
@@ -1968,7 +2157,8 @@ private:
                 if (P_accept > max_P_accept) max_P_accept = P_accept;
                 if (P_accept <= 0.0) continue;
 
-                if (udist(rng) < P_accept)
+
+                if (CellRand(lseed, i, j, k, a_step) < P_accept)
                     candidates.emplace_back(x, y);
             }
             }
@@ -2096,7 +2286,7 @@ private:
                     });
                 }
             }
-            d_mf[ilev]->FillBoundary(geom[ilev].periodicity());
+            FillDHalo(ilev, a_time);   // ### BC FIX
             nucleated_mf[ilev]->FillBoundary(geom[ilev].periodicity());
         }
 
@@ -2110,6 +2300,7 @@ private:
 
     void UpdateDamageDiagnostics(int lev)
     {
+        if (dbg_bypass) return;   // ### BISECT SWITCH
         Set::Scalar local_max_d   = 0.0;
         Set::Scalar local_max_p   = -1.0e100;
         Set::Scalar local_max_psi = 0.0;
@@ -2128,6 +2319,12 @@ private:
                 if (psi_arr(i,j,k) > local_max_psi) local_max_psi = psi_arr(i,j,k);
             });
         }
+
+        //
+        amrex::ParallelDescriptor::ReduceRealMax(local_max_d);
+        amrex::ParallelDescriptor::ReduceRealMax(local_max_p);
+        amrex::ParallelDescriptor::ReduceRealMax(local_max_psi);
+
         diag_max_d        = local_max_d;
         diag_max_p_tens   = local_max_p;
         diag_max_psi_plus = local_max_psi;
@@ -2135,12 +2332,13 @@ private:
 
     Set::Field<Set::Scalar> d_mf;
     Set::Field<Set::Scalar> d_old_mf;
-    Set::Field<Set::Scalar> d_node_mf;
+    Set::Field<Set::Scalar> d_node_mf;   
     Set::Field<Set::Scalar> p_drv_mf;
     Set::Field<Set::Scalar> pr_mf;
     Set::Field<Set::Scalar> nucleated_mf;
     Set::Field<Set::Scalar> heatmap_mf;
-    Set::Field<Set::Scalar> ddw_mf;
+    
+    Set::Field<Set::Scalar> ddw_diag_mf;
     Set::Field<Set::Scalar> psi_plus_mf;
     Set::Field<Set::Scalar> hist_mf;
     Set::Field<Set::Scalar> edot_p_eq_mf;
@@ -2151,6 +2349,9 @@ private:
 
     BC::BC<Set::Scalar>* bc_d              = nullptr;
     BC::BC<Set::Scalar>* bc_nothing_scalar = nullptr;
+
+    
+    int dbg_bypass = 0;
 
     Set::Scalar m_eta_ref_threshold = 1e-2;
 
@@ -2175,12 +2376,17 @@ private:
 
         Set::Scalar d_void          = 0.95;
 
+        
+        Set::Scalar void_res        = 0.02;
+
+       
         Set::Scalar d_seed_floor    = 0.55;
 
         Set::Scalar hist_seed_factor = 0.0;
 
         Set::Scalar p_tens_floor    = 0.0;
     } dmg;
+
 
     struct {
 
@@ -2200,10 +2406,9 @@ private:
         Set::Scalar hm_alpha          = 0.0;
         Set::Scalar hm_beta           = 0.0;
         Set::Scalar hm_thresh         = 0.0;
-
-        Set::Scalar sigma_spall       = 0.0;
-        Set::Scalar g1_ref            = 0.0;
-        Set::Scalar m_exp             = 1.0;
+        Set::Scalar sigma_spall       = 0.0;   
+        Set::Scalar g1_ref            = 0.0;   // dG1 barrier height (modes 4,5)
+        Set::Scalar m_exp             = 1.0;   // overstress exponent m   (mode 4)
         Set::Scalar void_radius       = 0.0;
         Set::Scalar eps               = 0.0;
         Set::Scalar exclusion_radius  = 0.0;
@@ -2212,6 +2417,8 @@ private:
         int         max_voids         = 10;
         unsigned    seed              = 12345;
     } nuc;
+
+
 
     int n_voids_total = 0;
 
@@ -2229,9 +2436,8 @@ private:
     int         xt_enable         = 0;
     std::string xt_filename       = "lagshock_xt.dat";
     Set::Scalar xt_dt             = 1.0e-8;
-    int         xt_jprobe         = -1;
+    int         xt_jprobe         = -1;      // -1 => domain centerline
     Set::Scalar next_xt_time      = 0.0;
-
     std::vector<XTReduce>    xt_modes{XTReduce::Row};
     std::vector<std::string> xt_files;
     std::vector<char>        xt_header_written;
@@ -2273,6 +2479,7 @@ private:
     using Base::diag_min_pressure;
     using Base::next_diag_time;
     using Base::diag_dt;
+    using Base::check_sync;
 };
 
 }

@@ -36,7 +36,7 @@ struct MieGruneisenEOS
     Set::Scalar Gamma0 = 1.67;
     Set::Scalar rho0   = 16580.0;
     Set::Scalar Cv     = 140.0;
-    Set::Scalar J_min  = 0.8;   
+    Set::Scalar J_min  = 0.8;   // to prevent NAN
 
     AMREX_GPU_HOST_DEVICE
     Set::Scalar HugoniotPressure(Set::Scalar rho) const
@@ -109,7 +109,7 @@ struct MieGruneisenEOS
         Set::Scalar dp_drho_e = dpH_drho - Gamma0 * rho0 * deH_drho;
 
         // c^2 = (dp/drho)_e + (p/rho^2)(dp/de)_rho,  with (dp/de)_rho = Gamma0 rho0.
-        
+        // Use SIGNED pressure p (negative in tension) -- abs() is wrong here.
         Set::Scalar c2 = dp_drho_e + Gamma0 * rho0 * p / (rho_safe * rho_safe);
         c2 = std::max(c2, 0.25 * C0 * C0);
         return std::sqrt(c2);
@@ -122,7 +122,7 @@ struct MieGruneisenEOS
         pp_query_default("Gamma0", value.Gamma0, 1.67);
         pp_query_default("rho0",   value.rho0,   16580.0);
         pp_query_default("Cv",     value.Cv,     140.0);
-        pp_query_default("J_min",  value.J_min,  0.8);   
+        pp_query_default("J_min",  value.J_min,  0.8);   // ### OLD: no floor (denom<0.01 clamp only)
     }
 };
 
@@ -151,6 +151,16 @@ public:
 
         pp_query_default("av.CQ", value.av_CQ,     2.0);
         pp_query_default("av.CL", value.av_CL,     0.5);
+        // Artificial-viscosity tensor form:3 kinds used 
+        {
+            std::string av_model_str = "directional";
+            pp_query_default("av.model", av_model_str, std::string("directional"));
+            if      (av_model_str == "directional") value.av_model = 0;
+            else if (av_model_str == "divergence")  value.av_model = 1;
+            else if (av_model_str == "tensor")      value.av_model = 2;
+            else Util::Abort(INFO, "Unknown av.model '", av_model_str,
+                             "' -- use 'directional', 'divergence', or 'tensor'");
+        }
         pp_query_default("cfl",   value.hydro_cfl, 0.4);
 
         pp_query_default("e_init", value.e_init, 0.0);
@@ -242,7 +252,8 @@ public:
         soundspeed_mf[lev]->FillBoundary(geom[lev].periodicity());
         density_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        UpdateVelocityAndDisplacement(lev, DX0, half_dt, nlo, nhi, ndomain,
+
+        UpdateVelocityAndDisplacement(lev, DX0, half_dt, a_dt, nlo, nhi, ndomain,
                                        local_rho0,
                                        vel_old_mf, disp_old_mf,
                                        vel_old_mf,
@@ -260,7 +271,8 @@ public:
         soundspeed_half_mf[lev]->FillBoundary(geom[lev].periodicity());
         density_half_mf[lev]->FillBoundary(geom[lev].periodicity());
 
-        UpdateVelocityAndDisplacement(lev, DX0, a_dt, nlo, nhi, ndomain,
+
+        UpdateVelocityAndDisplacement(lev, DX0, a_dt, a_dt, nlo, nhi, ndomain,
                                        local_rho0,
                                        vel_old_mf, disp_old_mf,
                                        vel_mf,
@@ -386,7 +398,7 @@ public:
             });
         }
 
-        
+
         amrex::ParallelDescriptor::ReduceRealMax(max_p);
         amrex::ParallelDescriptor::ReduceRealMin(min_p);
         amrex::ParallelDescriptor::ReduceRealSum(fs_vel);
@@ -395,7 +407,7 @@ public:
         diag_max_pressure = max_p;
         diag_min_pressure = min_p;
 
- 
+
         if (dt_local > 0.0 && dt_local < 1e90)
             this->DynamicTimestep_SyncTimeStep(lev, dt_local);
 
@@ -453,7 +465,7 @@ protected:
     }
 
     void UpdateVelocityAndDisplacement(
-        int lev, Set::Scalar DX0, Set::Scalar dt,
+        int lev, Set::Scalar DX0, Set::Scalar dt, Set::Scalar dt_full,
         amrex::Dim3 nlo, amrex::Dim3 nhi, amrex::Box ndomain,
         Set::Scalar local_rho0,
         Set::Field<Set::Vector>& v_in,  Set::Field<Set::Vector>& u_in,
@@ -496,8 +508,10 @@ protected:
                     if (bctype[0] == BC::Operator::Elastic::Elastic::Type::Displacement)
                     {
 
-                        unew_vec(0) = b_arr(i,j,k)(0);
-                        vnew_vec(0) = (unew_vec(0) - u_i) / dt;
+                        Set::Scalar v_bc = (b_arr(i,j,k)(0) - u_i) / dt_full;
+                        vnew_vec(0) = v_bc;
+                        unew_vec(0) = (dt == dt_full) ? b_arr(i,j,k)(0)
+                                                      : u_i + dt * v_bc;
                     }
                     else
                     {
@@ -638,6 +652,7 @@ protected:
 
     Set::Scalar av_CQ     = 2.0;
     Set::Scalar av_CL     = 0.5;
+    int         av_model  = 0;   // 0 = directional (per-axis diagonal); 1 = divergence (Rung 1, isotropic scalar q)
     Set::Scalar hydro_cfl = 0.4;
 
     Set::Field<Set::Scalar> density_mf;
