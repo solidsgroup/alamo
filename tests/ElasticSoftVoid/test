@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import math
+import re
+import sys
+from pathlib import Path
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+require(len(sys.argv) == 2, "usage: test OUTPUT_DIRECTORY")
+outdir = Path(sys.argv[1])
+stdout = (outdir / "stdout").read_text()
+
+require("MLMG failed" not in stdout and "Failed to converge" not in stdout,
+        "the linear solver reported non-convergence")
+require(not re.search(r"\b(?:abort|nan|infinity)\b", stdout, re.IGNORECASE),
+        "solver output contains an abort or non-finite value")
+require("MLMG: # of AMR levels: 2" in stdout,
+        "the solve did not exercise two AMR levels")
+require("Newton elastic operator: conservative_face_flux=1" in stdout,
+        "the effective conservative face operator was not enabled")
+
+iterations = re.findall(
+    r"NR iteration\s+\d+,\s*alpha\s*=\s*([^,\s]+),\s*"
+    r"full max norm\(ddisp\)\s*=\s*([^,\s]+),\s*"
+    r"accepted max norm\(ddisp\)\s*=\s*([^\s]+)",
+    stdout,
+)
+require(len(iterations) == 3, "the fixed-iteration Newton path was not exercised")
+updates = []
+for alpha, full_update, accepted_update in iterations:
+    alpha = float(alpha)
+    full_update = float(full_update)
+    accepted_update = float(accepted_update)
+    require(math.isfinite(alpha) and 0.0 < alpha <= 1.0,
+            f"invalid line-search alpha {alpha:g}")
+    require(math.isfinite(full_update) and math.isfinite(accepted_update),
+            "Newton update is non-finite")
+    require(math.isclose(accepted_update, alpha * full_update,
+                         rel_tol=1.0e-5, abs_tol=1.0e-12),
+            "accepted Newton update does not match alpha times the full update")
+    updates.append(full_update)
+require(max(updates) > 1.0e-8, "the elastic displacement update is trivially zero")

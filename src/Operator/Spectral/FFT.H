@@ -48,8 +48,8 @@ public:
     }
 
     FFT (const amrex::Geometry& a_geom)
-        : m_geom(a_geom),
-          m_fft(a_geom.Domain())
+        :   m_geom(a_geom),
+            m_fft(a_geom.Domain())
     {
         auto const& layout = m_fft.getSpectralDataLayout();
         m_cba = layout.first;

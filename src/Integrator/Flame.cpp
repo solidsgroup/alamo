@@ -116,7 +116,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
 
     // Boundary conditions for phase field order params
-    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
+    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, pp.forward_args(1));
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
 
@@ -127,7 +127,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,pp.forward_args(value.geom));
 
 
     // Select reduced order model to capture heat feedback
@@ -137,14 +137,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         ("propellant",value.propellant);
 
 
-    // Whether to use the Thermal Transport Model
-    pp_query_default("thermal.on", value.thermal.on, false); 
-
     // Reference temperature
     // Used to set all other reference temperatures by default.
     pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature());
 
-    if (value.thermal.on) {
+    // Whether to use the Thermal Transport Model
+    pp.query_if("thermal.on", [&](){
+        value.thermal.on = true;
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
@@ -163,7 +162,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query_default("thermal.phi_refinement_criterion_inital", value.thermal.phi_refinement_criterion_inital, 1.0e100);
 
         //Temperature boundary condition
-        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
+        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, pp.forward_args(1, Unit::Temperature()));
             
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
@@ -183,15 +182,15 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // laser initial condition
         pp.select_default<  IC::Constant,
                             IC::Expression  >
-            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
+            ("laser.ic",value.ic_laser, pp.forward_args(value.geom, Unit::Power()/Unit::Area()));
 
         // thermal initial condition
         pp.select_default<  IC::Constant,
                             IC::Expression,
                             IC::BMP,
                             IC::PNG  >
-            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
-    }
+            ("temp.ic",value.thermal.ic_temp,pp.forward_args(value.geom, Unit::Temperature()));
+    });
 
 
     // Constant pressure value
@@ -221,7 +220,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Initial condition for $\phi$ field.
     pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
-        ("phi.ic",value.ic_phi,value.geom);
+        ("phi.ic",value.ic_phi,pp.forward_args(value.geom));
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
@@ -237,18 +236,21 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
     // Whether to use Neo-hookean Elastic model
-    pp_query_default("elastic.on", value.elastic.on, 0); 
+    value.m_type = Base::Mechanics<model_type>::Type::Disable;
+    pp.query_if("elastic.on", [&]() {
+        value.elastic.on = true;
 
-    // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
+        // Body force
+        pp_query_default("elastic.traction", value.elastic.traction, 0.0);
 
-    // Phi refinement criteria 
-    pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
+        // Phi refinement criteria
+        pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
 
-    pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
+        // Elastic integrator
+        pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
-    if (value.m_type != Type::Disable)
-    {
+
+
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
         pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
@@ -267,7 +269,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Use our current eta field as the psi field for the solver
         value.psi_on = false;
         value.solver.setPsi(value.eta_mf);
-    }
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        Util::AssertException(INFO, TEST(value.m_type != Disable), "You must specify elastic type to be dynamic or static");
+    });
+
+
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.

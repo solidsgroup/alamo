@@ -4,7 +4,14 @@
 #@  nprocs = 1
 #@  check  = true
 #@  check-file = reference/reference-2d-serial.csv
-#@  args   = stop_time=0.0001
+#@  args = stop_time=0.0001
+#@  args = alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
+#@  args = alpha.ic.pointlist.mult = 0.9
+#@  args = alpha.ic.pointlist.invert = 0
+#@  args = alpha.ic.pointlist.x0 = 0.05_m 0.05_m 0.0_m
+#@  args = alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m
+#@  args = alpha.ic.pointlist.rotation.angle = 45_deg
+#@  args = alpha.ic.pointlist.eps = 0.03_m
 
 #@  [2D-parallel]
 #@  dim    = 2
@@ -12,12 +19,31 @@
 #@  check  = true
 #@  check-file = reference/reference-2d-parallel.csv
 #@  args   = stop_time=0.0001
+#@  args = alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
+#@  args = alpha.ic.pointlist.mult = 0.9
+#@  args = alpha.ic.pointlist.invert = 0
+#@  args = alpha.ic.pointlist.x0 = 0.05_m 0.05_m 0.0_m
+#@  args = alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m
+#@  args = alpha.ic.pointlist.rotation.angle = 45_deg
+#@  args = alpha.ic.pointlist.eps = 0.03_m
+
+#@  [2D-serial-three-objs]
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = true
+#@  check-file = reference/reference-2d-serial-three-objs.csv
+#@  args   = stop_time=0.0001
+#@  args = alpha.ic.pointlist.file.name = tests/PointListIC/three_objs.xyzo
+#@  args = alpha.ic.pointlist.invert = 0 0 0 1
+#@  args = alpha.ic.pointlist.invert_all = 1
+#@  args = alpha.ic.pointlist.eps = 0.03_m
+#@  args = alpha.ic.pointlist.mult = 0.4
 
 alamo.program = allencahn
 
 ### OUTPUT ###
 
-plot_file = output
+plot_file = tests/PointListIC/output
 
 ### MESHING ###
 
@@ -30,7 +56,6 @@ amr.n_cell = 16 16 0
 
 geometry.prob_lo = -0.1_m -0.2_m 0.0_m # [ m ] 
 geometry.prob_hi =  0.9_m  0.8_m 0.0_m # [ m ]
-
 geometry.is_periodic = 0 0 0
 
 timestep  = 0.0001
@@ -46,15 +71,16 @@ alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
 
 alpha.ic.type = pointlist
-alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
 alpha.ic.pointlist.file.unit = m
-alpha.ic.pointlist.verbose = 0
-alpha.ic.pointlist.mult = 0.9 # Scaling factor on polygon size, happens BEFORE rotation
-alpha.ic.pointlist.invert = 0 # Don't invert the initial field
-alpha.ic.pointlist.x0 = 0.05_m 0.05_m 0.0_m # X-offset
-alpha.ic.pointlist.rotation.center = 0.1_m 0.1_m 0.1_m # Center of rotation of the polygon
-alpha.ic.pointlist.rotation.angle = 45_deg # Rotatation angle of polygon
-alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
+# alpha.ic.pointlist.file.name = tests/PointListIC/NACA9612.xy
+# alpha.ic.pointlist.file.name = tests/PointListIC/three_objs.xyzo
+# alpha.ic.pointlist.verbose = 0
+# alpha.ic.pointlist.mult = 1.0 # Scaling factor on polygon size, happens BEFORE rotation
+# alpha.ic.pointlist.invert = 0 0 0 1 # Don't invert the initial field
+# alpha.ic.pointlist.x0 = 0.0_m 0.0_m 0.0_m # X-offset
+# alpha.ic.pointlist.rotation.center = 0.0_m 0.0_m 0.0_m # Center of rotation of the polygon
+# alpha.ic.pointlist.rotation.angle = 0_deg # Rotatation angle of polygon
+# alpha.ic.pointlist.eps = 0.03_m # Diffuse boundary thickness
 
 ch.direction_tstart = 0.0
 ch.direction = 0

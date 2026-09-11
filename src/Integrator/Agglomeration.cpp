@@ -48,8 +48,8 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     pp.query_default("kappa_M", value.agglom.kappa_M, AMREX_SPACEDIM == 2 ? "1.0e-4_m^4/J/s" : "1.0e-4_m^5/J/s", (Unit::Length() ^ (AMREX_SPACEDIM + 2)) / Unit::Energy() / Unit::Time());
     pp.query_default("q", value.agglom.q, "3.0", Unit::Less());
 
-    pp.select_default<IC::Constant, IC::Random, IC::Ellipse, IC::Expression, IC::PSRead, IC::Voronoi>("alpha.ic", value.agglom.alpha_ic, value.geom);
-    pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, 1);
+    pp.select_default<IC::Constant, IC::Random, IC::Ellipse, IC::Expression, IC::PSRead, IC::Voronoi>("alpha.ic", value.agglom.alpha_ic, pp.forward_args(value.geom));
+    pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, pp.forward_args(1));
 
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);

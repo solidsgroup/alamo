@@ -37,6 +37,14 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
     }
+#ifdef AMREX_USE_HDF5
+    {
+        // These parameters are only used when Alamo
+        // is compiled with HDF5 support.
+        // The level of compression to use with HDF5's zlib compression algorithm (0-9)
+        pp.query_default("compression_level", value.compression_level, "6");
+    }
+#endif
     {
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
@@ -86,60 +94,49 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
             for (int lev = 1; lev <= value.maxLevel(); ++lev)
                 value.nsubsteps[lev] = value.MaxRefRatio(lev - 1);
     }
-    {
-        // activate dynamic CFL-based timestep
-        pp.query_default("dynamictimestep.on",value.dynamictimestep.on,false);
-        if (value.dynamictimestep.on)
+
+    // activate dynamic CFL-based timestep
+    pp.query_if("dynamictimestep.on", [&](){
+        value.dynamictimestep.on = true;
+        // how much information to print
+        pp.query_validate("dynamictimestep.verbose",value.dynamictimestep.verbose,{0,1});
+        // number of previous timesteps for rolling average
+        pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
+        // dynamic teimstep CFL condition
+        pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
+        // minimum timestep size allowed shen stepping dynamically
+        pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
+        // maximum timestep size allowed shen stepping dynamically
+        pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
+
+    });
+
+    // Information on how to generate thermodynamic
+    // data (to show up in thermo.dat)
+    pp.query_default("amr.thermo.int", value.thermo.interval, 1);               // Integration interval (1)
+    pp.query_default("amr.thermo.plot_int", value.thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
+    pp.query_default("amr.thermo.plot_dt", value.thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+
+
+    // Instead of using AMR, prescribe an explicit, user-defined
+    // set of grids to work on. This is pretty much always used
+    // for testing purposes only.
+    pp.query_if("explicitmesh.on", [&] () {
+        std::vector<std::vector<int>> los, his;
+
+        pp.queryarr_enumerate("explicitmesh.lo",los,value.maxLevel());
+        pp.queryarr_enumerate("explicitmesh.hi",his,value.maxLevel());
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        value.explicitmesh.on = true;
+        for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
         {
-            // how much information to print
-            pp.query_validate("dynamictimestep.verbose",value.dynamictimestep.verbose,{0,1});
-            // number of previous timesteps for rolling average
-            pp.query_default("dynamictimestep.nprevious",value.dynamictimestep.nprevious,5);
-            // dynamic teimstep CFL condition
-            pp.query_default("dynamictimestep.cfl",value.dynamictimestep.cfl,1.0);
-            // minimum timestep size allowed shen stepping dynamically
-            pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
-            // maximum timestep size allowed shen stepping dynamically
-            pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
-
-            Util::AssertException(INFO,TEST(value.dynamictimestep.max >= value.dynamictimestep.min));
+            amrex::IntVect lo(AMREX_D_DECL(los[ilev][0], los[ilev][1], los[ilev][2]));
+            amrex::IntVect hi(AMREX_D_DECL(his[ilev][0], his[ilev][1], his[ilev][2]));
+            value.explicitmesh.box.push_back(amrex::Box(lo, hi));
         }
-    }
-    {
-        // Information on how to generate thermodynamic
-        // data (to show up in thermo.dat)
-        value.thermo.interval = 1;                                       // Default: integrate every time.
-        pp.query_default("amr.thermo.int", value.thermo.interval, 1);               // Integration interval (1)
-        pp.query_default("amr.thermo.plot_int", value.thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp.query_default("amr.thermo.plot_dt", value.thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
-    }
-
-    {
-        // Instead of using AMR, prescribe an explicit, user-defined
-        // set of grids to work on. This is pretty much always used
-        // for testing purposes only.
-        pp.query_default("explicitmesh.on", value.explicitmesh.on, 0); // Use explicit mesh instead of AMR
-        if (value.explicitmesh.on)
-        {
-            for (int ilev = 0; ilev < value.maxLevel(); ++ilev)
-            {
-                std::string strlo = "explicitmesh.lo" + std::to_string(ilev + 1);
-                std::string strhi = "explicitmesh.hi" + std::to_string(ilev + 1);
-
-                Util::Assert(INFO, TEST(pp.contains(strlo.c_str())));
-                Util::Assert(INFO, TEST(pp.contains(strhi.c_str())));
-
-                amrex::Vector<int> lodata, hidata;
-                pp.queryarr(strlo.c_str(), lodata);
-                pp.queryarr(strhi.c_str(), hidata);
-                amrex::IntVect lo(AMREX_D_DECL(lodata[0], lodata[1], lodata[2]));
-                amrex::IntVect hi(AMREX_D_DECL(hidata[0], hidata[1], hidata[2]));
-
-                value.explicitmesh.box.push_back(amrex::Box(lo, hi));
-            }
-        }
-    }
-
+    }); 
 
     {
         //
@@ -154,12 +151,14 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         std::string str;
         // Type of time integration to use (see amrex::TimeIntegrator for more details)
         pp.query_validate("integration.type", str, {"ForwardEuler","RungeKutta"});
-        if (str == "RungeKutta")
-        {
-            int type;
-            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
-            pp.query_validate("integration.rk.type", type, {1,2,3,4});
-        }
+        pp.query_switch("integration.type", {
+                {"ForwardEuler", [&]() {}},
+                {"RungeKutta", [&]() {
+                    int type;
+                    // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
+                    pp.query_validate("integration.rk.type", type, {1,2,3,4});
+                }}
+            });
     }
 
     int nlevs_max = value.maxLevel() + 1;
@@ -170,8 +169,11 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
     value.t_old.resize(nlevs_max, -1.e100);
     value.SetTimestep(value.timestep);
 
-    value.plot_file = Util::GetFileName();
-    IO::WriteMetaData(value.plot_file, IO::Status::Running, 0);
+    if (!IO::ParmParse::InTraversalMode())
+    {
+        value.plot_file = Util::GetFileName();
+        IO::WriteMetaData(value.plot_file, IO::Status::Running, 0);
+    }
 }
 
 // Destructor
@@ -185,7 +187,8 @@ Integrator::~Integrator()
     }
 
     // Close out the metadata file and mark completed.
-    IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (!IO::ParmParse::InTraversalMode())
+        IO::WriteMetaData(plot_file, IO::Status::Complete);
 
     // De-initialize all of the base fields and clear the arrays.
     for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
@@ -491,6 +494,8 @@ Integrator::ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ng
 void
 Integrator::InitData()
 {
+    if (IO::ParmParse::InTraversalMode()) return;
+
     BL_PROFILE("Integrator::InitData");
 
     if (restart_file_cell == "" && restart_file_node == "")
@@ -1012,13 +1017,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             allnames.insert(allnames.end(), nnames.begin(), nnames.end());
             allnames.insert(allnames.end(), bfnames.begin(), bfnames.end());
         }
-        WriteMultiLevelPlotfile(plotfilename[0] + plotfilename[1] + "cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+        const std::string base = plotfilename[0] + plotfilename[1] + "cell";
+#ifdef AMREX_USE_HDF5
+        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
+            Geom(), time, iter, refRatio(),"ZLIB@" + compression_level);
+        const std::string chkptfilename = base + ".Checkpoint";
+#else
+        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
             Geom(), time, iter, refRatio());
-
-        std::ofstream chkptfile;
-        chkptfile.open(plotfilename[0] + plotfilename[1] + "cell/Checkpoint");
+        const std::string chkptfilename = base + "/Checkpoint";
+#endif
+        std::ofstream chkptfile(chkptfilename);
+        if (!chkptfile.good()) amrex::FileOpenFailed(chkptfilename);
         for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
         chkptfile.close();
+        if (chkptfile.fail()) amrex::FileOpenFailed(chkptfilename);
     }
 
     if (do_node_plotfile)
@@ -1026,13 +1039,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         amrex::Vector<std::string> allnames = nnames;
         allnames.insert(allnames.end(), bfnames.begin(), bfnames.end());
         if (node.all) allnames.insert(allnames.end(), cnames.begin(), cnames.end());
-        WriteMultiLevelPlotfile(plotfilename[0] + plotfilename[1] + "node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
+        const std::string base = plotfilename[0] + plotfilename[1] + "node";
+#ifdef AMREX_USE_HDF5
+        WriteMultiLevelPlotfileHDF5(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
+            Geom(), time, iter, refRatio(),"ZLIB@" + compression_level);
+        const std::string chkptfilename = base + ".Checkpoint";
+#else
+        WriteMultiLevelPlotfile(base, nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
             Geom(), time, iter, refRatio());
-
-        std::ofstream chkptfile;
-        chkptfile.open(plotfilename[0] + plotfilename[1] + "node/Checkpoint");
+        const std::string chkptfilename = base + "/Checkpoint";
+#endif
+        std::ofstream chkptfile(chkptfilename);
+        if (!chkptfile.good()) amrex::FileOpenFailed(chkptfilename);
         for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
         chkptfile.close();
+        if (chkptfile.fail()) amrex::FileOpenFailed(chkptfilename);
     }
 
     if (amrex::ParallelDescriptor::IOProcessor())
@@ -1048,14 +1069,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             if (do_cell_plotfile) coutfile.open(plot_file + "/celloutput.visit", std::ios_base::app);
             if (do_node_plotfile) noutfile.open(plot_file + "/nodeoutput.visit", std::ios_base::app);
         }
-        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
-        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
+#ifdef AMREX_USE_HDF5
+        const std::string header_suffix = ".h5";
+#else
+        const std::string header_suffix = "/Header";
+#endif
+        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + header_suffix << std::endl;
+        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + header_suffix << std::endl;
     }
 }
 
 void
 Integrator::Evolve()
 {
+    if (IO::ParmParse::InTraversalMode()) return;
+
     BL_PROFILE("Integrator::Evolve");
     amrex::Real cur_time = t_new[0];
     int last_plot_file_step = 0;

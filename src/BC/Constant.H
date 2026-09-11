@@ -79,37 +79,8 @@ public:
             amrex::Vector<amrex::Real> _bc_hi_2,
             amrex::Vector<amrex::Real> _bc_hi_3));
 
-    static Constant ZeroNeumann(int ncomp = 1, Unit unit = Unit::Less())
-    {
-        Constant ret = Constant(ncomp, unit);
-
-        for (int d = 0; d < m_nfaces; d++)
-        {
-            ret.m_bc_type[d].clear();
-            for (int n = 0; n < ncomp; n++)
-            {
-                ret.m_bc_type[d].push_back((int)amrex::LinOpBCType::Neumann);
-                ret.m_bc_val[d].push_back (0.0);;
-            }
-        }
-
-        return ret;
-    }
-
-    static Constant ZeroDirichlet(int ncomp = 1, Unit unit = Unit::Less())
-    {
-        Constant ret = Constant(ncomp, unit);
-
-        for (int d = 0; d < m_nfaces; d++)
-            for (int n = 0; n < ncomp; n++)
-            {
-                ret.m_bc_type[n][d] = (int)amrex::LinOpBCType::Dirichlet;
-                ret.m_bc_val [n][d]  = 0.0;
-            }
-
-        return ret;
-    }
-
+    class ZeroNeumann;
+    class ZeroDirichlet;
 
     virtual ~Constant() {};
 
@@ -135,7 +106,7 @@ public:
     }
 
 
-private:
+protected:
 #if AMREX_SPACEDIM==2
     static const int m_nfaces = 4;
 #elif AMREX_SPACEDIM==3
@@ -282,6 +253,34 @@ public:
 #endif
     }
 
+};
+
+class Constant::ZeroNeumann : public Constant
+{
+public:
+    ZeroNeumann(int ncomp = 1, Unit unit = Unit::Less()) :
+        Constant(ncomp, unit)
+    {
+        for (int d = 0; d < m_nfaces; d++)
+        {
+            m_bc_type[d].resize(ncomp, (int)amrex::LinOpBCType::Neumann);
+            m_bc_val[d].resize(ncomp, 0.0);
+        }
+    }
+};
+
+class Constant::ZeroDirichlet : public Constant
+{
+public:
+    ZeroDirichlet(int ncomp=1, Unit unit = Unit::Less()) :
+        Constant(ncomp,unit)
+    {
+        for (int d = 0; d < m_nfaces; d++)
+        {
+            m_bc_type[d].resize(ncomp, (int)amrex::LinOpBCType::Dirichlet);
+            m_bc_val[d].resize(ncomp, 0.0);
+        }
+    }
 };
 }
 #endif

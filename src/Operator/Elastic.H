@@ -32,7 +32,8 @@ public:
     Elastic (const Vector<Geometry>& a_geom,
         const Vector<BoxArray>& a_grids,
         const Vector<DistributionMapping>& a_dmap,
-        const LPInfo& a_info);
+        const LPInfo& a_info,
+        bool a_conservative_face_flux = false);
     virtual ~Elastic ();
     Elastic (const Elastic&) = delete;
     Elastic (Elastic&&) = delete;
@@ -43,7 +44,8 @@ public:
             const Vector<BoxArray>& a_grids,
             const Vector<DistributionMapping>& a_dmap,
             const LPInfo& a_info = LPInfo(),
-            const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
+            const Vector<FabFactory<FArrayBox> const*>& a_factory = {},
+            bool a_conservative_face_flux = false);
 
     virtual void SetHomogeneous (bool a_homogeneous) override {m_homogeneous = a_homogeneous;}
     void SetModel (Set::Matrix4<AMREX_SPACEDIM,SYM> &a_model);
@@ -122,6 +124,10 @@ protected:
 
     virtual int getNComp() const override {return AMREX_SPACEDIM;};
     virtual bool isCrossStencil () const { return false; }
+    bool useQuadraticAmrInterpolation() const override
+    { return m_conservative_face_flux; }
+    bool relaxCoarseFineGhostRows() const override
+    { return !m_conservative_face_flux; }
     virtual void prepareForSolve () override
     {
         if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
@@ -144,6 +150,7 @@ private:
     amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
     Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
+    bool m_conservative_face_flux = false;
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
