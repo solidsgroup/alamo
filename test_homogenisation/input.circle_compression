@@ -1,0 +1,83 @@
+# AP-sphere / HTPB-matrix compression test.  The normalized packing is scaled
+# uniformly from [0,1]^2 to a physical 50 um square by assigning 50_um to
+# file.unit.  system.length=um only nondimensionalizes the internal algebra:
+# this remains a 50 um physical specimen and all dimensional inputs/outputs
+# retain their micrometre/MPa interpretation.  Its mean radius is
+# 0.0325735007935 * 50 um = 1.62867503968 um.
+
+# Use micrometres as the internal length unit to avoid an ill-scaled operator
+# (Pa / m^2) while preserving the physical problem.
+system.length = um
+
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.neohookean
+
+plot_file = test_homogenisation/output.circle_compression
+
+# One static elastic solve.
+timestep  = 0.1
+stop_time = 0.1
+
+# No AMR.  dx = 50 um / 1280 = 0.0390625 um, so the 0.1628675 um
+# diffuse interface is 4.17 cells wide.
+amr.max_level = 0
+amr.n_cell = 1280 1280
+amr.blocking_factor = 8
+amr.max_grid_size = 128
+amr.regrid_int = -1
+amr.plot_int = 1
+amr.cell.all = 1
+amr.node.all = 1
+
+# 50 micrometer square, with no periodic boundaries.
+geometry.prob_lo = 0_um 0_um
+geometry.prob_hi = 50_um 50_um
+geometry.is_periodic = 0 0
+
+# AP is model 1 and occupies the packed spheres; model 2 is the complementary
+# HTPB matrix.  file.unit scales both coordinates and radii from the normalized
+# packing file.  eps is 10% of the scaled mean sphere radius.
+nmodels = 2
+ic.type = psread
+ic.psread.file.name = test_homogenisation/test_pack_1.txt
+ic.psread.file.unit = 50_um
+ic.psread.eps = 0.16286750396764_um
+
+# AP and HTPB properties from input.lm.ap_htpb_packed_elastic.
+model1.mu = 14191.0_MPa # AP
+model1.kappa = 15162.0_MPa # AP
+model2.mu = 2.465_MPa # HTPB
+model2.kappa = 1368.5_MPa # HTPB
+
+solver.verbose = 4
+solver.nriters = 1
+solver.nrtolerance = 0
+solver.max_iter = 3000
+solver.pre_smooth = 2
+solver.post_smooth = 2
+solver.bottom_solver = bicgstab
+solver.conservative_face_flux = 1
+solver.line_search = 1
+solver.resync_coeffs = 1
+
+# Do not coarsen through the high-contrast diffuse AP/HTPB interfaces.
+max_coarsening_level = 1
+tol_rel = 2.0e-5
+tol_abs = 1.0e-8
+
+# Compression: the left and bottom edges are rollers, the right edge is free,
+# and the top is moved downward by 0.01 * 50 um = 0.5 um.
+bc.type = constant
+bc.constant.type.xlo = disp trac
+bc.constant.type.xhi = trac trac
+bc.constant.type.ylo = trac disp
+bc.constant.type.yhi = trac disp
+bc.constant.val.yhi = 0.0 -0.5_um
+
+# Corner constraints are the intersections of their adjoining edge conditions.
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xhiylo = trac disp
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.xhiyhi = trac disp
+bc.constant.val.xloyhi = 0.0 -0.5_um
+bc.constant.val.xhiyhi = 0.0 -0.5_um

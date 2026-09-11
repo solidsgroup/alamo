@@ -218,7 +218,6 @@ HTPB_solid.elastic.model.kappa = 8.33e8 # = true SI value -- see WARNING above (
 # exactly (both sides scaled together).
 elastic.void.model.mu    = 5.0e3
 elastic.void.model.kappa = 4.0e5
->>>>>>> elastic-amr-reflux
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s

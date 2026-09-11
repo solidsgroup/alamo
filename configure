@@ -700,7 +700,7 @@ p = shellmessage("MPI","mpicxx -show")
 mpidiststr = p.stdout.decode('utf-8').replace('\n','')
 
 mpidist = None
-if "mpich" in mpidiststr.lower():
+if "mpich" in mpidiststr.lower() or ("-lmpi" in mpidiststr.lower() and shutil.which("mpichversion")):
     mpidist = "mpich"
 elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"

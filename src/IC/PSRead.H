@@ -10,6 +10,7 @@
 #include "IC/IC.H"
 #include "Unit/Unit.H"
 #include "AMReX_GpuAsyncArray.H"
+#include "AMReX_ParallelDescriptor.H"
 #include "Util/Util.H"
 using namespace std;
 #include <iostream>
@@ -210,19 +211,36 @@ public:
         Util::AssertException(  INFO,TEST(unit.isType(Unit::Length())), 
                                 "Unit must be of type length but got unit ",unit.normalized_unitstring());
         
-        std::ifstream datafile(filename);
-        std::string line;
-        if (datafile.is_open())
+        // Only the I/O processor touches the packing file.  This avoids
+        // stressing a shared filesystem and, more importantly, guarantees
+        // that every rank initializes from the exact same sphere list.
+        if (amrex::ParallelDescriptor::IOProcessor())
         {
+            std::ifstream datafile(filename);
+            std::string line;
+            if (!datafile.is_open())
+                Util::Abort(INFO, "Unable to open file ", filename);
+
             value.X.clear();
             value.R.clear();
-
             while (getline(datafile, line))
             {
                 std::istringstream in(line);
 
                 std::string strx, stry, strz, strR;
-                in >> strx >> stry >> strz >> strR;
+                in >> strx >> stry >> strz;
+#if AMREX_SPACEDIM == 2
+                // A 2-D packing conventionally stores x, y, and radius.
+                // Accept that three-column form while retaining support for
+                // x, y, z, radius files (the z coordinate is then ignored).
+                if (!(in >> strR))
+                {
+                    strR = strz;
+                    strz = "0";
+                }
+#else
+                in >> strR;
+#endif
 
                 Set::Scalar x = (std::stod(strx) * unit).normalized_value();
                 Set::Scalar y = (std::stod(stry) * unit).normalized_value();
@@ -247,9 +265,42 @@ public:
             }
             datafile.close();
         }
-        else
+
+        int sphere_count = static_cast<int>(value.X.size());
+        amrex::ParallelDescriptor::Bcast(
+            &sphere_count, 1,
+            amrex::ParallelDescriptor::IOProcessorNumber());
+
+        std::vector<Set::Scalar> sphere_data(
+            sphere_count * (AMREX_SPACEDIM + 1));
+        if (amrex::ParallelDescriptor::IOProcessor())
         {
-            Util::Abort(INFO, "Unable to open file ", filename);
+            for (int n = 0; n < sphere_count; ++n)
+            {
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    sphere_data[n * (AMREX_SPACEDIM + 1) + d] = value.X[n](d);
+                sphere_data[n * (AMREX_SPACEDIM + 1) + AMREX_SPACEDIM] =
+                    value.R[n];
+            }
+        }
+
+        if (!sphere_data.empty())
+            amrex::ParallelDescriptor::Bcast(
+                sphere_data.data(), static_cast<int>(sphere_data.size()),
+                amrex::ParallelDescriptor::IOProcessorNumber());
+
+        if (!amrex::ParallelDescriptor::IOProcessor())
+        {
+            value.X.resize(sphere_count);
+            value.R.resize(sphere_count);
+            for (int n = 0; n < sphere_count; ++n)
+            {
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    value.X[n](d) =
+                        sphere_data[n * (AMREX_SPACEDIM + 1) + d];
+                value.R[n] =
+                    sphere_data[n * (AMREX_SPACEDIM + 1) + AMREX_SPACEDIM];
+            }
         }
     }
 
