@@ -62,3 +62,9 @@ alamo
 setup.py
 alamo.py
 .alamo
+
+# Local rendered previews; keep their generating scripts in version control.
+/*.gif
+/*.webm
+/*_frames/
+/preview.html
