@@ -1,0 +1,32 @@
+{
+  "created_utc": "2026-09-15T00:55:25.649410+00:00",
+  "binary_sha256": "f2bc201ab63641fc1e2c95cb4076c9401f16dcb35c253075484c9a9be34dce6c",
+  "mpi_ranks": 4,
+  "monitor_heartbeat_max_age_s": 300,
+  "cases": [
+    {
+      "case": "validation_gross2013_miller/runs/M21_p34.0775_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "42d275246d43649d1ae01655c682aff00c8b7a84ddee726bb82fca9963e28418"
+    },
+    {
+      "case": "validation_gross2013_miller/runs/M24_p33.6723_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "15d9aaadf02de24ee5f648d86a44908d648b3a684a00a98881772b0b328a10dc"
+    },
+    {
+      "case": "validation_gross2013_miller/runs/M21_p6.7790_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "c59b68cd99e5add614ee0412e05dc96cb0d7ea1ee1907ffaed12416d44811e57"
+    },
+    {
+      "case": "validation_gross2013_miller/runs/M24_p6.7790_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "24364403f292b8e2df259daf885f4e301950980e46717278a750b65b61830587"
+    },
+    {
+      "case": "validation_gross2013_miller/runs/M21_p202.5319_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "bfb708cf2c8b1c9a169b1fc809926e0cdcf7973af012f88d079e7febb35aa3b3"
+    },
+    {
+      "case": "validation_gross2013_miller/runs/M24_p202.5319_seed101_compact_diffusion_transient_steady",
+      "input_sha256": "73ede3732e840117520785b40fb27ba963c2e788224dc29a9cae9c3763741901"
+    }
+  ]
+}

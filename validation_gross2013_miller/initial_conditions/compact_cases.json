@@ -1,0 +1,1820 @@
+[
+  {
+    "case": "M03_p6.8129_seed101_compact_diffusion",
+    "formulation": "M03",
+    "seed": 101,
+    "pressure_atm": 6.812920690579613,
+    "pressure_Pa": 690319.1889729793,
+    "reference_rate_cm_s": 0.5717440399740283,
+    "pilot": false,
+    "dx_m": 3.90625e-07,
+    "interface_width_m": 1.5625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478
+    },
+    "packing": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478,
+      "seed": 101,
+      "width_mm": 0.4,
+      "bed_height_mm": 0.4113502513949612,
+      "disk_count": 256,
+      "bins": {
+        "20": {
+          "count": 256,
+          "diameter_um": 20,
+          "realized_mass_fraction": 0.5579000000000001,
+          "target_mass_fraction": 0.5579,
+          "error_mass_fraction": 1.1102230246251565e-16
+        }
+      },
+      "minimum_gap_mm": 0.00010000856484218557,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "887173c2078911b1d5318db4c981d5637deea1c4219f6b05ccf224b2f3741081",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 6.67298045758366,
+      "surface_temperature_seed_K": 881.3730680419355,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.00849613764260962,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.5478515625,
+      "AP_surface_temperature_seed_K": 728.8912894982485,
+      "matrix_surface_temperature_seed_K": 881.3730680419355,
+      "AP_surface_mass_flux_seed_kg_m2_s": 0.9184724010954775,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 22.24947117905394,
+      "mean_mass_flux_seed_kg_m2_s": 10.563250168863805,
+      "mixing_diffusivity_m2_s": 0.00010806417179294412,
+      "mixing_speed_m_s": 8.808074143576313,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00015000000000000001,
+      "initial_gas_height_m": 0.00035,
+      "preserved_horizontal_width_m": 0.0004,
+      "preserved_finest_dx_m": 3.90625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M03_p6.8129_seed101_warm"
+  },
+  {
+    "case": "M03_p34.3921_seed101_compact_diffusion",
+    "formulation": "M03",
+    "seed": 101,
+    "pressure_atm": 34.392071368489404,
+    "pressure_Pa": 3484776.631412189,
+    "reference_rate_cm_s": 2.2165575534665622,
+    "pilot": false,
+    "dx_m": 3.90625e-07,
+    "interface_width_m": 1.5625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478
+    },
+    "packing": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478,
+      "seed": 101,
+      "width_mm": 0.4,
+      "bed_height_mm": 0.4113502513949612,
+      "disk_count": 256,
+      "bins": {
+        "20": {
+          "count": 256,
+          "diameter_um": 20,
+          "realized_mass_fraction": 0.5579000000000001,
+          "target_mass_fraction": 0.5579,
+          "error_mass_fraction": 1.1102230246251565e-16
+        }
+      },
+      "minimum_gap_mm": 0.00010000856484218557,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "59605b11589ea56845000cc287d330b88146f64e59df994269302b4330dbaf95",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 1.7548569821415112,
+      "surface_temperature_seed_K": 1005.644708735995,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.0033046001078312816,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.5478515625,
+      "AP_surface_temperature_seed_K": 801.5569605262032,
+      "matrix_surface_temperature_seed_K": 1005.644708735995,
+      "AP_surface_mass_flux_seed_kg_m2_s": 3.4925628958439066,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 71.91168691125227,
+      "mean_mass_flux_seed_kg_m2_s": 34.42816291452952,
+      "mixing_diffusivity_m2_s": 2.1407045363166105e-05,
+      "mixing_speed_m_s": 5.686856189240919,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00015000000000000001,
+      "initial_gas_height_m": 0.00015000000000000001,
+      "preserved_horizontal_width_m": 0.0004,
+      "preserved_finest_dx_m": 3.90625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M03_p34.3921_seed101_warm"
+  },
+  {
+    "case": "M03_p205.3525_seed101_compact_diffusion",
+    "formulation": "M03",
+    "seed": 101,
+    "pressure_atm": 205.3525026457146,
+    "pressure_Pa": 20807342.33057703,
+    "reference_rate_cm_s": 7.109709432312435,
+    "pilot": false,
+    "dx_m": 3.90625e-07,
+    "interface_width_m": 1.5625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478
+    },
+    "packing": {
+      "formulation": "M03",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.3158,
+      "resolved_AP_mass_fraction": 0.5579,
+      "matrix_AP_mass_fraction": 0.7143180275955665,
+      "matrix_AP_volume_fraction": 0.541215787012803,
+      "resolved_AP_area_fraction": 0.4887852362990184,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1477.452260623187,
+      "matrix_cp_J_kg_K": 1535.6159692377291,
+      "matrix_Q_J_kg": -377760.0253336349,
+      "matrix_k_W_m_K": 0.30561317383725434,
+      "matrix_A_m_s": 199.83652133073107,
+      "matrix_activation_temperature_K": 8367.100021618478,
+      "seed": 101,
+      "width_mm": 0.4,
+      "bed_height_mm": 0.4113502513949612,
+      "disk_count": 256,
+      "bins": {
+        "20": {
+          "count": 256,
+          "diameter_um": 20,
+          "realized_mass_fraction": 0.5579000000000001,
+          "target_mass_fraction": 0.5579,
+          "error_mass_fraction": 1.1102230246251565e-16
+        }
+      },
+      "minimum_gap_mm": 0.00010000856484218557,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "e4e7a40823fe26177c37f64f83f8737ae71587db1aab4c7b4e70a6bcd5485a62",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 0.4017976135738013,
+      "surface_temperature_seed_K": 1190.9856099847045,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.002062610896842095,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.5478515625,
+      "AP_surface_temperature_seed_K": 900.6581869461003,
+      "matrix_surface_temperature_seed_K": 1190.9856099847045,
+      "AP_surface_mass_flux_seed_kg_m2_s": 15.253819774652076,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 262.4908688926631,
+      "mean_mass_flux_seed_kg_m2_s": 127.04166522547152,
+      "mixing_diffusivity_m2_s": 3.585213827117013e-06,
+      "mixing_speed_m_s": 3.5144948196838146,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00015000000000000001,
+      "initial_gas_height_m": 0.0001,
+      "preserved_horizontal_width_m": 0.0004,
+      "preserved_finest_dx_m": 3.90625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M03_p205.3525_seed101_warm"
+  },
+  {
+    "case": "M17_p6.8129_seed101_compact_diffusion",
+    "formulation": "M17",
+    "seed": 101,
+    "pressure_atm": 6.812920690579613,
+    "pressure_Pa": 690319.1889729793,
+    "reference_rate_cm_s": 0.46711249825227696,
+    "pilot": false,
+    "dx_m": 7.8125e-07,
+    "interface_width_m": 3.125e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856
+    },
+    "packing": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856,
+      "seed": 101,
+      "width_mm": 0.8,
+      "bed_height_mm": 2.299328679830138,
+      "disk_count": 80,
+      "bins": {
+        "90": {
+          "count": 80,
+          "diameter_um": 90,
+          "realized_mass_fraction": 0.3158000000000001,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 5.551115123125783e-17
+        }
+      },
+      "minimum_gap_mm": 0.0005983175788828454,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "101e0a747e190a0df4e1c8d8f1ca231f720a286489d717539bb0c9535f6f92d1",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 6.67298045758366,
+      "surface_temperature_seed_K": 881.3730680419355,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.040034614396634284,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.236572265625,
+      "AP_surface_temperature_seed_K": 728.8912894982485,
+      "matrix_surface_temperature_seed_K": 881.3730680419355,
+      "AP_surface_mass_flux_seed_kg_m2_s": 0.9184724010954775,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 18.604219016263624,
+      "mean_mass_flux_seed_kg_m2_s": 14.420261870243621,
+      "mixing_diffusivity_m2_s": 0.00010806417179294412,
+      "mixing_speed_m_s": 12.024209754804481,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00035,
+      "initial_gas_height_m": 0.00035,
+      "preserved_horizontal_width_m": 0.0008,
+      "preserved_finest_dx_m": 7.8125e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M17_p6.8129_seed101_warm"
+  },
+  {
+    "case": "M17_p34.3921_seed101_compact_diffusion",
+    "formulation": "M17",
+    "seed": 101,
+    "pressure_atm": 34.392071368489404,
+    "pressure_Pa": 3484776.631412189,
+    "reference_rate_cm_s": 1.5055179934164387,
+    "pilot": false,
+    "dx_m": 7.8125e-07,
+    "interface_width_m": 3.125e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856
+    },
+    "packing": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856,
+      "seed": 101,
+      "width_mm": 0.8,
+      "bed_height_mm": 2.299328679830138,
+      "disk_count": 80,
+      "bins": {
+        "90": {
+          "count": 80,
+          "diameter_um": 90,
+          "realized_mass_fraction": 0.3158000000000001,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 5.551115123125783e-17
+        }
+      },
+      "minimum_gap_mm": 0.0005983175788828454,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "71836dd187964e0986c98f7e7ccdfa2f717e69ee745fcfab0b1af05f4ca42d6f",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 1.7548569821415112,
+      "surface_temperature_seed_K": 1005.644708735995,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.013456017848151383,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.236572265625,
+      "AP_surface_temperature_seed_K": 801.5569605262032,
+      "matrix_surface_temperature_seed_K": 1005.644708735995,
+      "AP_surface_mass_flux_seed_kg_m2_s": 3.4925628958439066,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 66.28967089235309,
+      "mean_mass_flux_seed_kg_m2_s": 51.433616778921106,
+      "mixing_diffusivity_m2_s": 2.1407045363166105e-05,
+      "mixing_speed_m_s": 8.495823103904648,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00035,
+      "initial_gas_height_m": 0.00015000000000000001,
+      "preserved_horizontal_width_m": 0.0008,
+      "preserved_finest_dx_m": 7.8125e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M17_p34.3921_seed101_warm"
+  },
+  {
+    "case": "M17_p205.3525_seed101_compact_diffusion",
+    "formulation": "M17",
+    "seed": 101,
+    "pressure_atm": 205.3525026457146,
+    "pressure_Pa": 20807342.33057703,
+    "reference_rate_cm_s": 3.7174739497861,
+    "pilot": false,
+    "dx_m": 7.8125e-07,
+    "interface_width_m": 3.125e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856
+    },
+    "packing": {
+      "formulation": "M17",
+      "binder_mass_fraction": 0.12630000000000008,
+      "fine_AP_mass_fraction": 0.5579,
+      "resolved_AP_mass_fraction": 0.3158,
+      "matrix_AP_mass_fraction": 0.8154048523823443,
+      "matrix_AP_volume_fraction": 0.67575007932297,
+      "resolved_AP_area_fraction": 0.27667750066899094,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1616.0225817026592,
+      "matrix_cp_J_kg_K": 1451.5016223326516,
+      "matrix_Q_J_kg": -392140.23268050276,
+      "matrix_k_W_m_K": 0.33499498315977244,
+      "matrix_A_m_s": 336.340767119857,
+      "matrix_activation_temperature_K": 9062.683020071856,
+      "seed": 101,
+      "width_mm": 0.8,
+      "bed_height_mm": 2.299328679830138,
+      "disk_count": 80,
+      "bins": {
+        "90": {
+          "count": 80,
+          "diameter_um": 90,
+          "realized_mass_fraction": 0.3158000000000001,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 5.551115123125783e-17
+        }
+      },
+      "minimum_gap_mm": 0.0005983175788828454,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "ac0952a4f9c6f850ff18b1a1461052602f4cd83427b74f8f49f13b0f7536a621",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 0.4017976135738013,
+      "surface_temperature_seed_K": 1190.9856099847045,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.006341997615352679,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.236572265625,
+      "AP_surface_temperature_seed_K": 900.6581869461003,
+      "matrix_surface_temperature_seed_K": 1190.9856099847045,
+      "AP_surface_mass_flux_seed_kg_m2_s": 15.253819774652076,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 269.46822107622563,
+      "mean_mass_flux_seed_kg_m2_s": 209.32814420580945,
+      "mixing_diffusivity_m2_s": 3.585213827117013e-06,
+      "mixing_speed_m_s": 5.790877167106285,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.00035,
+      "initial_gas_height_m": 0.0001,
+      "preserved_horizontal_width_m": 0.0008,
+      "preserved_finest_dx_m": 7.8125e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M17_p205.3525_seed101_warm"
+  },
+  {
+    "case": "M21_p6.7790_seed101_compact_diffusion",
+    "formulation": "M21",
+    "seed": 101,
+    "pressure_atm": 6.779049906922795,
+    "pressure_Pa": 686887.2318189522,
+    "reference_rate_cm_s": 0.285904636375908,
+    "pilot": false,
+    "dx_m": 9.81293433885146e-07,
+    "interface_width_m": 3.925173735540584e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.009688952596779,
+      "bed_height_mm": 1.1304500358356877,
+      "disk_count": 132,
+      "bins": {
+        "400": {
+          "count": 5,
+          "diameter_um": 400,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "200": {
+          "count": 20,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "50": {
+          "count": 107,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.10555327978580997,
+          "target_mass_fraction": 0.1053,
+          "error_mass_fraction": 0.0002532797858099678
+        }
+      },
+      "minimum_gap_mm": 0.00010159080478821386,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "ba3df968ad8511f556249fdd8ca8280da26dc741b5ac3d20387f0eb01dbc8406",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 6.700474631642563,
+      "surface_temperature_seed_K": 881.0379116235761,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.2813135805493403,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.572998046875,
+      "AP_surface_temperature_seed_K": 728.6879311714679,
+      "matrix_surface_temperature_seed_K": 881.0379116235761,
+      "AP_surface_mass_flux_seed_kg_m2_s": 0.9147036173223452,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 28.555608188218248,
+      "mean_mass_flux_seed_kg_m2_s": 12.717423855236635,
+      "mixing_diffusivity_m2_s": 0.00010860410264374288,
+      "mixing_speed_m_s": 10.657296402453278,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0011304500358356878,
+      "initial_gas_height_m": 0.0003768166786118961,
+      "horizontal_width_m": 0.002009688952596779,
+      "finest_dx_m": 9.81293433885146e-07,
+      "geometry": "Entire smaller periodic seed-101 tile: 5x400um, 20x200um, 107x50um disks. Width adjusted by <1% to fit the tile exactly on a square-cell grid.",
+      "boundary_validation": "Pending: check cold solid buffer and reacting outflow; enlarged-domain steady comparison required."
+    },
+    "predecessor_case": "M21_p6.7790_seed101_warm",
+    "packing_file": "validation_gross2013_miller/packs_compact/M21_seed101.xyzr"
+  },
+  {
+    "case": "M21_p34.0775_seed101_compact_diffusion",
+    "formulation": "M21",
+    "seed": 101,
+    "pressure_atm": 34.077484777388136,
+    "pressure_Pa": 3452901.1450688527,
+    "reference_rate_cm_s": 0.6073095888063096,
+    "pilot": false,
+    "dx_m": 9.81293433885146e-07,
+    "interface_width_m": 3.925173735540584e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.009688952596779,
+      "bed_height_mm": 1.1304500358356877,
+      "disk_count": 132,
+      "bins": {
+        "400": {
+          "count": 5,
+          "diameter_um": 400,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "200": {
+          "count": 20,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "50": {
+          "count": 107,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.10555327978580997,
+          "target_mass_fraction": 0.1053,
+          "error_mass_fraction": 0.0002532797858099678
+        }
+      },
+      "minimum_gap_mm": 0.00010159080478821386,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "fda6018dc7f48b4fbc3aecdb5c12c5764a00773ba567d9c10638908a9a000348",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 1.7682112065000637,
+      "surface_temperature_seed_K": 1004.8405589867943,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.1332285310071311,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.572998046875,
+      "AP_surface_temperature_seed_K": 801.1036636106516,
+      "matrix_surface_temperature_seed_K": 1004.8405589867943,
+      "AP_surface_mass_flux_seed_kg_m2_s": 3.466185691397964,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 79.4507249513635,
+      "mean_mass_flux_seed_kg_m2_s": 35.91173236270649,
+      "mixing_diffusivity_m2_s": 2.1604664684848474e-05,
+      "mixing_speed_m_s": 5.9866732208950975,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0011304500358356878,
+      "initial_gas_height_m": 0.00018840833930594805,
+      "horizontal_width_m": 0.002009688952596779,
+      "finest_dx_m": 9.81293433885146e-07,
+      "geometry": "Entire smaller periodic seed-101 tile: 5x400um, 20x200um, 107x50um disks. Width adjusted by <1% to fit the tile exactly on a square-cell grid.",
+      "boundary_validation": "Pending: check cold solid buffer and reacting outflow; enlarged-domain steady comparison required."
+    },
+    "predecessor_case": "M21_p34.0775_seed101_warm",
+    "packing_file": "validation_gross2013_miller/packs_compact/M21_seed101.xyzr"
+  },
+  {
+    "case": "M21_p202.5319_seed101_compact_diffusion",
+    "formulation": "M21",
+    "seed": 101,
+    "pressure_atm": 202.53193243253045,
+    "pressure_Pa": 20521548.053726148,
+    "reference_rate_cm_s": 1.4043179200924847,
+    "pilot": false,
+    "dx_m": 9.81293433885146e-07,
+    "interface_width_m": 3.925173735540584e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M21",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369000000000001,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681426,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.009688952596779,
+      "bed_height_mm": 1.1304500358356877,
+      "disk_count": 132,
+      "bins": {
+        "400": {
+          "count": 5,
+          "diameter_um": 400,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "200": {
+          "count": 20,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.31567336010709524,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": -0.0001266398929047896
+        },
+        "50": {
+          "count": 107,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.10555327978580997,
+          "target_mass_fraction": 0.1053,
+          "error_mass_fraction": 0.0002532797858099678
+        }
+      },
+      "minimum_gap_mm": 0.00010159080478821386,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "ef8eaa898c1547996fc2d794abe8bc6660c5f0a5aaa45747d4de64dea34c5c85",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 0.40640843217548567,
+      "surface_temperature_seed_K": 1189.289124620228,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.058467157404593545,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.572998046875,
+      "AP_surface_temperature_seed_K": 899.7971431905828,
+      "matrix_surface_temperature_seed_K": 1189.289124620228,
+      "AP_surface_mass_flux_seed_kg_m2_s": 15.080760875290098,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 245.8051110866642,
+      "mean_mass_flux_seed_kg_m2_s": 113.60050904904335,
+      "mixing_diffusivity_m2_s": 3.635143471332652e-06,
+      "mixing_speed_m_s": 3.1864235323497314,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0011304500358356878,
+      "initial_gas_height_m": 0.0001256055595372987,
+      "horizontal_width_m": 0.002009688952596779,
+      "finest_dx_m": 9.81293433885146e-07,
+      "geometry": "Entire smaller periodic seed-101 tile: 5x400um, 20x200um, 107x50um disks. Width adjusted by <1% to fit the tile exactly on a square-cell grid.",
+      "boundary_validation": "Pending: check cold solid buffer and reacting outflow; enlarged-domain steady comparison required."
+    },
+    "predecessor_case": "M21_p202.5319_seed101_warm",
+    "packing_file": "validation_gross2013_miller/packs_compact/M21_seed101.xyzr"
+  },
+  {
+    "case": "M24_p6.7790_seed101_compact_diffusion",
+    "formulation": "M24",
+    "seed": 101,
+    "pressure_atm": 6.779049906922795,
+    "pressure_Pa": 686887.2318189522,
+    "reference_rate_cm_s": 0.3898603702549072,
+    "pilot": false,
+    "dx_m": 9.765625e-07,
+    "interface_width_m": 3.90625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.0,
+      "bed_height_mm": 2.7250070171881213,
+      "disk_count": 1072,
+      "bins": {
+        "200": {
+          "count": 48,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.3158142857142859,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 1.4285714285855455e-05
+        },
+        "50": {
+          "count": 1024,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.42108571428571456,
+          "target_mass_fraction": 0.4211,
+          "error_mass_fraction": -1.4285714285411366e-05
+        }
+      },
+      "minimum_gap_mm": 0.00010000563079064217,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "b67482e8d9b0625a00bf3005a3304cb2f82bb26bd872e294cf1f4e1f335d64c7",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 6.700474631642563,
+      "surface_temperature_seed_K": 881.0379116235761,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.10410083622720182,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.656982421875,
+      "AP_surface_temperature_seed_K": 728.6879311714679,
+      "matrix_surface_temperature_seed_K": 881.0379116235761,
+      "AP_surface_mass_flux_seed_kg_m2_s": 0.9147036173223452,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 28.555608188218248,
+      "mean_mass_flux_seed_kg_m2_s": 10.3960197604153,
+      "mixing_diffusivity_m2_s": 0.00010860410264374288,
+      "mixing_speed_m_s": 8.71194239129538,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0006875,
+      "initial_gas_height_m": 0.000375,
+      "preserved_horizontal_width_m": 0.002,
+      "preserved_finest_dx_m": 9.765625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M24_p6.7790_seed101_warm"
+  },
+  {
+    "case": "M24_p33.6723_seed101_compact_diffusion",
+    "formulation": "M24",
+    "seed": 101,
+    "pressure_atm": 33.67229575211422,
+    "pressure_Pa": 3411845.3670829735,
+    "reference_rate_cm_s": 0.9905303081884687,
+    "pilot": false,
+    "dx_m": 9.765625e-07,
+    "interface_width_m": 3.90625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.0,
+      "bed_height_mm": 2.7250070171881213,
+      "disk_count": 1072,
+      "bins": {
+        "200": {
+          "count": 48,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.3158142857142859,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 1.4285714285855455e-05
+        },
+        "50": {
+          "count": 1024,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.42108571428571456,
+          "target_mass_fraction": 0.4211,
+          "error_mass_fraction": -1.4285714285411366e-05
+        }
+      },
+      "minimum_gap_mm": 0.00010000563079064217,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "4fccd08873938761d5886b841721e6c1986b688406dbee085318ab0df2f9dc7f",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 1.785746686624032,
+      "surface_temperature_seed_K": 1003.795725920389,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.04188240896752972,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.656982421875,
+      "AP_surface_temperature_seed_K": 800.5143768031508,
+      "matrix_surface_temperature_seed_K": 1003.795725920389,
+      "AP_surface_mass_flux_seed_kg_m2_s": 3.4321488200137087,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 78.850774716272,
+      "mean_mass_flux_seed_kg_m2_s": 29.302063220463634,
+      "mixing_diffusivity_m2_s": 2.1864640217537655e-05,
+      "mixing_speed_m_s": 4.9435872506605625,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0006875,
+      "initial_gas_height_m": 0.0001875,
+      "preserved_horizontal_width_m": 0.002,
+      "preserved_finest_dx_m": 9.765625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M24_p33.6723_seed101_warm"
+  },
+  {
+    "case": "M24_p202.5319_seed101_compact_diffusion",
+    "formulation": "M24",
+    "seed": 101,
+    "pressure_atm": 202.53193243253045,
+    "pressure_Pa": 20521548.053726148,
+    "reference_rate_cm_s": 2.140811910924127,
+    "pilot": false,
+    "dx_m": 9.765625e-07,
+    "interface_width_m": 3.90625e-06,
+    "ignition_off_s": 0.0,
+    "requested_stop_s": 0.0005,
+    "plot_dt_s": 2.5e-05,
+    "rate_status": "not_run",
+    "material_properties": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169
+    },
+    "packing": {
+      "formulation": "M24",
+      "binder_mass_fraction": 0.12629999999999997,
+      "fine_AP_mass_fraction": 0.1368,
+      "resolved_AP_mass_fraction": 0.7369,
+      "matrix_AP_mass_fraction": 0.5199543899657925,
+      "matrix_AP_volume_fraction": 0.3381943940603159,
+      "resolved_AP_area_fraction": 0.6456100387681425,
+      "propellant_density_kg_m3": 1708.4266190770495,
+      "matrix_density_kg_m3": 1268.3402258821254,
+      "matrix_cp_J_kg_K": 1697.3459521094642,
+      "matrix_Q_J_kg": -350110.6316989738,
+      "matrix_k_W_m_K": 0.2664228394268915,
+      "matrix_A_m_s": 91.08934398319374,
+      "matrix_activation_temperature_K": 7317.417990107169,
+      "seed": 101,
+      "width_mm": 2.0,
+      "bed_height_mm": 2.7250070171881213,
+      "disk_count": 1072,
+      "bins": {
+        "200": {
+          "count": 48,
+          "diameter_um": 200,
+          "realized_mass_fraction": 0.3158142857142859,
+          "target_mass_fraction": 0.3158,
+          "error_mass_fraction": 1.4285714285855455e-05
+        },
+        "50": {
+          "count": 1024,
+          "diameter_um": 50,
+          "realized_mass_fraction": 0.42108571428571456,
+          "target_mass_fraction": 0.4211,
+          "error_mass_fraction": -1.4285714285411366e-05
+        }
+      },
+      "minimum_gap_mm": 0.00010000563079064217,
+      "overlap_energy_mm2": 0.0,
+      "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+      "independence": "Independent random geometry",
+      "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+    },
+    "gas_model": {
+      "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+      "A_g_cm3_s": [
+        27000,
+        25300,
+        5000,
+        400
+      ],
+      "pressure_exponent": [
+        1.6,
+        1.7,
+        1.7,
+        1.7
+      ],
+      "activation_energy_kcal_mol": [
+        15.9,
+        14.5,
+        11.3,
+        14.5
+      ],
+      "qgas_cal_g": [
+        430,
+        447,
+        8365,
+        2127
+      ],
+      "qsolid_cal_g": [
+        0,
+        0
+      ],
+      "beta": 7.974,
+      "gamma": 3.19,
+      "cp_cal_g_K": 0.3,
+      "molecular_weight_g_mol": 26,
+      "pressure_reference_Pa": 100000,
+      "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+      "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+      "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+    },
+    "input_sha256": "89dd0233b8de2fb07f8848f2eb3fc8e569a68d53211abdf08d642a5f496a6f11",
+    "solid_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+    "initial_condition": "approximate_local_diffusion_flames",
+    "resolve_M03_20um": true,
+    "initial_flame": {
+      "source": "validation_gross2013_miller/runs/M03_p68.0000_seed101_pilot_dx1_w4_v5_restart/output/19013cell",
+      "source_time_s": 0.0018999860050683765,
+      "source_header_sha256": "5c6fe96954fb3c3d77a44d6f90d79c338038e2a2753ae28a06b7b85bc1be525c",
+      "pressure_scaling_exponent": 0.825,
+      "length_scale": 0.40640843217548567,
+      "surface_temperature_seed_K": 1189.289124620228,
+      "product_temperature_seed_K": 2277.5056812674948,
+      "note": "Free initial field; surface temperature is not prescribed after t=0. Same planar gas seed across formulations; resolved flames develop during relaxation."
+    },
+    "duration_policy": {
+      "initial_segment_s": 0.0005,
+      "maximum_reference_duration_s": 0.020184499930091075,
+      "criterion": "Discard startup; require four correlated-time blocks, <5% drift, and relative 95% temporal mean uncertainty <=5%, with particle-scale sampling. Extend if unmet; never accept merely because the segment ends.",
+      "packing_uncertainty": "One realization: inter-pack variance is unavailable."
+    },
+    "stop_control": "Root assessment may request a clean early stop with the per-case STOP file.",
+    "initialization_model": {
+      "method": "Conserved-mixture diffusion approximation; mapped four-reaction progress; EOS-consistent density and potential mass flux. Not a solved steady flame.",
+      "source_AP_surface_area_fraction": 0.656982421875,
+      "AP_surface_temperature_seed_K": 899.7971431905828,
+      "matrix_surface_temperature_seed_K": 1189.289124620228,
+      "AP_surface_mass_flux_seed_kg_m2_s": 15.080760875290098,
+      "matrix_surface_mass_flux_seed_kg_m2_s": 245.8051110866642,
+      "mean_mass_flux_seed_kg_m2_s": 94.22326869925998,
+      "mixing_diffusivity_m2_s": 3.635143471332652e-06,
+      "mixing_speed_m_s": 2.642904008014762,
+      "surface_AP_temperature_source": "Gross 2013 section 4.3: 830 K at 60 atm; initial guess only. All solid kinetic parameters remain calibrated values."
+    },
+    "shortened_domain": {
+      "initial_solid_depth_m": 0.0006875,
+      "initial_gas_height_m": 0.000125,
+      "preserved_horizontal_width_m": 0.002,
+      "preserved_finest_dx_m": 9.765625e-07,
+      "geometry": "Crop the same seed-101 disk field; no radius, horizontal position, or mixture-property change.",
+      "boundary_validation": "Pending: require cold solid buffer below deepest interface and negligible reacting outflow; compare enlarged domain at steady state."
+    },
+    "predecessor_case": "M24_p202.5319_seed101_warm"
+  }
+]

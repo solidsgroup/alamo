@@ -1,0 +1,39 @@
+{
+  "source": "Existing Alamo Rocfire implementation / Gross (2013) Table 1",
+  "A_g_cm3_s": [
+    27000,
+    25300,
+    5000,
+    400
+  ],
+  "pressure_exponent": [
+    1.6,
+    1.7,
+    1.7,
+    1.7
+  ],
+  "activation_energy_kcal_mol": [
+    15.9,
+    14.5,
+    11.3,
+    14.5
+  ],
+  "qgas_cal_g": [
+    430,
+    447,
+    8365,
+    2127
+  ],
+  "qsolid_cal_g": [
+    0,
+    0
+  ],
+  "beta": 7.974,
+  "gamma": 3.19,
+  "cp_cal_g_K": 0.3,
+  "molecular_weight_g_mol": 26,
+  "pressure_reference_Pa": 100000,
+  "approximation": "Fixed gas coefficients for every formulation/pressure. Gross composition-dependent adiabatic temperature inputs and fine-particle correction table are unavailable.",
+  "homogeneous_gas_products": "Mass split into AP_gas and HTPB_gas, as implemented by the existing homogeneous phase-change model. This differs from Gross composition-specific pseudo-binder gas.",
+  "heat_accounting": "Calibrated condensed Q applied once on mass transfer; legacy gas qsolid disabled."
+}

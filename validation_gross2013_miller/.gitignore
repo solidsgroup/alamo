@@ -1,0 +1,19 @@
+# The repository-wide *.txt rule otherwise hides the sweep manifests.
+!/production_cases*.txt
+!/preview_cases*.txt
+
+# Executables, full fields, live monitoring, and process receipts are run data.
+/binaries/
+/analysis/
+/pause_history/
+/queues/*.state.json
+*.lock
+*.log
+*.tmp
+*.before_*
+**/[0-9]*cell/
+**/[0-9]*node/
+**/run.json
+/runs/*/analysis/
+STOP
+PAUSED
