@@ -1,0 +1,73 @@
+{
+  "name": "q500_t0.500_e0.125_n8_p1e+08_pure_htpb_thin_small_dt",
+  "reference": {
+    "density_kg_m3": 1619.8257839721255,
+    "cp_J_kg_K": 1657.0494076655054,
+    "heat_release_J_kg": -686642.5087108014,
+    "A_m_s": 99.10237131370772,
+    "activation_temperature_K": 9250.0,
+    "conductivity_W_m_K": 0.2276472680016599,
+    "ap_volume_fraction": 0.5,
+    "ap_mass_fraction": 0.6794425087108014,
+    "heat_flux_cal_cm2_s": 500.0,
+    "heat_flux_W_m2": 20920000.0,
+    "surface_temperature_K": 970.4202381947689,
+    "regression_speed_m_s": 0.007184714278247163,
+    "eq15_regression_speed_m_s": 0.00797382292503118,
+    "thermal_length_m": 1.1804542916167123e-05
+  },
+  "width_m": 1.4755678645208903e-06,
+  "dx_m": 1.844459830651113e-07,
+  "parameters": {
+    "T0_K": 300,
+    "sources": {
+      "scientific_reference": "User-supplied Chen et al. (2002) and Gross et al. (2013) articles.",
+      "status": "AP-free constituent engineering baseline; not calibrated to Chen Figure 4 and not independently validated for a particular cured HTPB formulation.",
+      "density_cp_conductivity": "Retain the original input.lm.ap_htpb pure-constituent reference values provisionally; these are not the Figure-4-reconstructed thermal properties.",
+      "kinetics": "Chen Figures 5 and 6 pure-component Arrhenius endpoints. The generator converts physical speed prefactors to the phase-field normalization for each case.",
+      "heat_release": "Gross section 4.2: pure HTPB -300 cal/g and pure AP -100 cal/g. One cal/g = 4184 J/kg. Applied only during phase change; chemistry is frozen.",
+      "mixing": "Supply unblended constituent values. The homogeneous phase-change model applies the requested mass/volume mixing rules once.",
+      "temperature": "Cold temperature 300 K retained from the original sweep."
+    },
+    "binder": {
+      "density_kg_m3": 920,
+      "cp_J_kg_K": 2418.29,
+      "conductivity_W_m_K": 0.13,
+      "heat_release_J_kg": -1255200,
+      "A_m_s": 10.36,
+      "activation_temperature_K": 7500
+    },
+    "AP": {
+      "density_kg_m3": 1950,
+      "cp_J_kg_K": 1297.9,
+      "conductivity_W_m_K": 0.4186,
+      "heat_release_J_kg": -418400,
+      "A_m_s": 948,
+      "activation_temperature_K": 11000
+    }
+  },
+  "width_ratio": 0.125,
+  "cells_per_width": 8,
+  "pressure_Pa": 100000000.0,
+  "gas_conductivity_W_m_K": 100,
+  "gas_cp_J_kg_K": 1000,
+  "T0_K": 300,
+  "gas_constant_J_kg_K": 319.7870237751246,
+  "advect_temperature": false,
+  "rigid_relaxation_time_s": 1e-07,
+  "source_y_m": [
+    3.541362874850138e-05,
+    4.7218171664668504e-05
+  ],
+  "heating": "fixed gas slab; input-only",
+  "relaxations": 6,
+  "duration_s": 0.009858047899196665,
+  "domain_y_m": [
+    -0.0001652636008263397,
+    4.7218171664668504e-05
+  ],
+  "nx": 32,
+  "ny": 1152,
+  "dt_scale": 0.1,
+  "input_sha256": "10d4825f0f544307b674ede6599e8c73d26851c6b67fc987dc84253bee5bdbcb"
+}

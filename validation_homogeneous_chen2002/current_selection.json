@@ -1,0 +1,17 @@
+{
+  "selected_parameters": "parameters_current.json",
+  "source_parameters": "ap_endpoint_calibration/parameters_frozen.json",
+  "parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+  "selected_report": "ap_endpoint_calibration/REPORT.md",
+  "selected_figure": "ap_endpoint_calibration/figure4_comparison.png",
+  "basis": "Retain literature-supported constant binder cp=2130 J/(kg K) and its matching lower-error Arrhenius calibration, as requested by the user. Physical plausibility is separate from agreement with Chen model curves.",
+  "binder_cp_J_kg_K": 2130,
+  "binder_Q_cal_g": -66,
+  "selected_mean_absolute_error_percent": 0.13139806125247824,
+  "selected_max_absolute_error_percent": 0.2790075293541472,
+  "cp2418_mean_absolute_error_percent": 0.616411330225318,
+  "cp2418_max_absolute_error_percent": 1.2143360210089882,
+  "completed_standard_runs_verified": 18,
+  "new_simulations_required": false,
+  "archived_cp2418_study": "binder_cp2418_calibration/REPORT.md"
+}

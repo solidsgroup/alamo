@@ -1,0 +1,7 @@
+{
+  "command": ["bin/lowmach-2d-clang++", "validation_homogeneous_chen2002/runs/q200_t0.200_e0.25_n8_p1e+08_binder_q66_volume/input"],
+  "returncode": 0,
+  "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+  "input_sha256": "7e1b2e6cb0563ccd9ba9cbfb3063a51938e12939e64d130362b6b4c1f9b8a70f",
+  "execution_checks": {"amrex_finalized": true, "requested_stop_time_reached": true}
+}

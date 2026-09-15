@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+    "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+  ],
+  "returncode": 0,
+  "elapsed_s": 55.19520518700301,
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "46a1a655451b8858840f910379e7ce7a511d4270098653ab1f715a287ce56f6d"
+}

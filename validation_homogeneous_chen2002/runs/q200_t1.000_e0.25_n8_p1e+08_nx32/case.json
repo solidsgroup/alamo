@@ -1,0 +1,72 @@
+{
+  "name": "q200_t1.000_e0.25_n8_p1e+08_nx32",
+  "reference": {
+    "density_kg_m3": 1950.0,
+    "cp_J_kg_K": 1248.6201442122756,
+    "heat_release_J_kg": -421857.4269583932,
+    "A_m_s": 947.9999999999997,
+    "activation_temperature_K": 11000.0,
+    "conductivity_W_m_K": 0.4017435314002996,
+    "ap_volume_fraction": 1.0,
+    "ap_mass_fraction": 1.0,
+    "heat_flux_cal_cm2_s": 200.0,
+    "heat_flux_W_m2": 8368000.0,
+    "surface_temperature_K": 883.8179060193984,
+    "regression_speed_m_s": 0.0037288770588824486,
+    "eq15_regression_speed_m_s": 0.0037288770588824504,
+    "thermal_length_m": 4.424924646066255e-05
+  },
+  "width_m": 1.1062311615165638e-05,
+  "dx_m": 1.3827889518957047e-06,
+  "parameters": {
+    "T0_K": 300,
+    "sources": {
+      "scientific_reference": "Only the user-supplied Chen et al. (2002) article.",
+      "status": "Figure-4-calibrated, not independent material parameter identification.",
+      "density": "920 and 1950 kg/m3 are assumed repository reference values (tests/LMHomogeneousBinder/input), not values recovered from the article.",
+      "cp_and_Q": "Derived from article Fig4 endpoint fits in analysis/article_inferred_combinations.json.",
+      "conductivity": "Derived from fitted rho*cp and approximate alpha=r*thermal_length using article r=0.5 cm/s, thermal lengths binder47um/AP33um.",
+      "temperature": "Cold temperature 300 K is an assumed realization; endpoints identify T0+Q/cp, not T0 separately."
+    },
+    "binder": {
+      "density_kg_m3": 920,
+      "cp_J_kg_K": 1255.235572184478,
+      "conductivity_W_m_K": 0.27138193070628414,
+      "heat_release_J_kg": -196590.1774836466,
+      "A_m_s": 10.36,
+      "activation_temperature_K": 7500
+    },
+    "AP": {
+      "density_kg_m3": 1950,
+      "cp_J_kg_K": 1248.6201442122756,
+      "conductivity_W_m_K": 0.40174353140029967,
+      "heat_release_J_kg": -421857.4269583932,
+      "A_m_s": 948,
+      "activation_temperature_K": 11000
+    }
+  },
+  "width_ratio": 0.25,
+  "cells_per_width": 8,
+  "pressure_Pa": 100000000.0,
+  "gas_conductivity_W_m_K": 100,
+  "gas_cp_J_kg_K": 1000,
+  "T0_K": 300,
+  "gas_constant_J_kg_K": 319.7870237751246,
+  "advect_temperature": false,
+  "rigid_relaxation_time_s": 1e-07,
+  "source_y_m": [
+    0.0001327477393819876,
+    0.00017699698584265015
+  ],
+  "heating": "fixed gas slab; input-only",
+  "relaxations": 6.0,
+  "duration_s": 0.07119984772132573,
+  "domain_y_m": [
+    -0.0006194894504492757,
+    0.00017699698584265015
+  ],
+  "nx": 32,
+  "ny": 576,
+  "dt_scale": 1,
+  "input_sha256": "bd181f7db55404041db30136228cb7a6e666b59cb8e75c7aa2045814e297b0d3"
+}

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "validation_homogeneous_chen2002/runs/q1000_t0.000_e0.25_n8_p1e+08_binder_q66_cal01/input"
+  ],
+  "returncode": 0,
+  "elapsed_s": 216.291,
+  "elapsed_note": "Wall time from launching the pair through completion polling; an upper bound on individual runtime.",
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "3b0224fab60f21fef978673a58f4f4cdf118db3a521cd3613b777e85563f59f0"
+}

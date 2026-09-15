@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "validation_homogeneous_chen2002/runs/q500_t0.000_e0.25_n8_p1e+08_binder_q66_frozen/input"
+  ],
+  "returncode": 0,
+  "elapsed_s": 279.66,
+  "elapsed_note": "Wall time from launch through completion polling; an upper bound on individual runtime.",
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "2c3b042893cbb579112080ffca51757d9595b1f69ffe99fe7eb640744a68460c"
+}

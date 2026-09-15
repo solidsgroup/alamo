@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "validation_homogeneous_chen2002/runs/q500_t0.400_e0.25_n8_p1e+08_binder_q66_sweep/input"
+  ],
+  "returncode": 0,
+  "elapsed_s": 286.735,
+  "elapsed_note": "Wall time from launch request through completion polling; includes approval/orchestration delay and is not a performance measurement.",
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "cace54a048a596dd592d4402c9bbfb16184dfc066127b23a7217487d804ee841"
+}

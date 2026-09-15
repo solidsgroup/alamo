@@ -1,0 +1,9 @@
+# Keep calibration inputs, measured tables, reports, and figures. Large solver
+# fields and executables remain local and are transferred separately if needed.
+**/[0-9]*cell/
+**/[0-9]*node/
+**/bin/
+*.log
+*.visit
+**/metadata
+**/diff.patch

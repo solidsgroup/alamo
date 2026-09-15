@@ -1,0 +1,5 @@
+{
+  "command": ["bin/lowmach-2d-clang++", "validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_conducting/input"],
+  "returncode": 6,
+  "failure": "PressurePoisson::Solve MLMG failed at step135, time0.0005065227216s; not a completed simulation. See output/out.log and Backtrace.0."
+}

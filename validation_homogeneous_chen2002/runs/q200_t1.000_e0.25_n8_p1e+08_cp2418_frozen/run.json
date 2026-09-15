@@ -1,0 +1,1 @@
+{"command":["bin/lowmach-2d-clang++","validation_homogeneous_chen2002/runs/q200_t1.000_e0.25_n8_p1e+08_cp2418_frozen/input"],"returncode":0,"binary_sha256":"2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417","input_sha256":"744ec33972131d7f951f3dce9ef1d6432d06ff4b10893aedc84932f66868a49b"}

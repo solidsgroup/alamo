@@ -1,0 +1,92 @@
+{
+  "T0_K": 300,
+  "sources": {
+    "scientific_reference": "User-supplied Chen et al. (2002) and Gross et al. (2013) articles.",
+    "status": "Pure-binder-only calibration to Chen Figure 4 model curves; not experimental measurements. AP and mixed-composition data are excluded from fitting.",
+    "density_cp_conductivity": "Density and conductivity fixed at original provisional constituent values. Only binder cp and decomposition heat are fitted; all AP properties remain fixed.",
+    "kinetics": "Chen Figures 5 and 6 pure-component Arrhenius endpoints. The generator converts physical speed prefactors to the phase-field normalization for each case.",
+    "heat_release": "Binder heat fitted to Chen t=0 endpoints; Gross -300 cal/g is no longer imposed. AP stays -100 cal/g. Heat is applied once during phase change with frozen chemistry.",
+    "mixing": "Supply unblended constituent values. The homogeneous phase-change model applies the requested mass/volume mixing rules once.",
+    "temperature": "Cold temperature 300 K retained from the original sweep.",
+    "calibration": "q=200 and 1000 cal/(cm2 s) fit binder cp/Q with rho=920, k=0.13, A=10.36, E/R=7500, T0=300 fixed. q=500 is held out. Simulation-based adjustments are resolution/surrogate dependent."
+  },
+  "binder": {
+    "density_kg_m3": 920,
+    "cp_J_kg_K": 1227.5629552156568,
+    "conductivity_W_m_K": 0.13,
+    "heat_release_J_kg": -199369.44479259642,
+    "A_m_s": 10.36,
+    "activation_temperature_K": 7500
+  },
+  "AP": {
+    "density_kg_m3": 1950,
+    "cp_J_kg_K": 1297.9,
+    "conductivity_W_m_K": 0.4186,
+    "heat_release_J_kg": -418400,
+    "A_m_s": 948,
+    "activation_temperature_K": 11000
+  },
+  "calibration_history": [
+    {
+      "previous_parameters": "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/reference/pure_htpb.json",
+      "previous_binder": {
+        "cp_J_kg_K": 2418.29,
+        "heat_release_J_kg": -1255200
+      },
+      "measured_source": null,
+      "measurements": [],
+      "q_cal_cm2_s": [
+        200.0,
+        1000.0
+      ],
+      "target_r_cm_s": [
+        0.8019378202411698,
+        3.1487729706822827
+      ],
+      "solver_to_analytic_ratios": [
+        1.0,
+        1.0
+      ],
+      "fitted_cp_J_kg_K": 1255.2540667641335,
+      "fitted_Q_J_kg": -196630.2862282173
+    },
+    {
+      "previous_parameters": "validation_homogeneous_chen2002/calibration_pure/parameters_00.json",
+      "previous_binder": {
+        "cp_J_kg_K": 1255.2540667641335,
+        "heat_release_J_kg": -196630.2862282173
+      },
+      "measured_source": "validation_homogeneous_chen2002/analysis/calibrated_htpb/stage00/simulation_summary.json",
+      "measurements": [
+        {
+          "name": "q200_t0.000_e0.25_n8_p1e+08_htpb_cal00",
+          "q_cal_cm2_s": 200.0,
+          "r_cm_s": 0.7909964413796119,
+          "expected_r_eq14_19_cm_s": 0.8019378202411689,
+          "late_speed_drift_percent": -0.017536291942609635
+        },
+        {
+          "name": "q1000_t0.000_e0.25_n8_p1e+08_htpb_cal00",
+          "q_cal_cm2_s": 1000.0,
+          "r_cm_s": 3.103427260449033,
+          "expected_r_eq14_19_cm_s": 3.14877297068228,
+          "late_speed_drift_percent": -0.011636360362737793
+        }
+      ],
+      "q_cal_cm2_s": [
+        200.0,
+        1000.0
+      ],
+      "target_r_cm_s": [
+        0.8019378202411698,
+        3.1487729706822827
+      ],
+      "solver_to_analytic_ratios": [
+        0.9863563251596408,
+        0.9855989267389381
+      ],
+      "fitted_cp_J_kg_K": 1227.5629552156568,
+      "fitted_Q_J_kg": -199369.44479259642
+    }
+  ]
+}

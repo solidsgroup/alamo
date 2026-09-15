@@ -1,0 +1,27 @@
+{
+  "T0_K": 300,
+  "sources": {
+    "scientific_reference": "Chen et al. (2002), Figure 4, pure-binder t=0 solid-curve endpoints; supplied homogeneous_model_paper.pdf.",
+    "status": "User-specified thermal baseline, 2026-09-09. Starting kinetics are placeholders from the earlier study, to be fitted only to pure binder.",
+    "density_cp_conductivity": "User supplied: density 0.92 g/cm^3, cp 2130 J/(kg K), conductivity 0.213 W/(m K). Fixed throughout calibration.",
+    "heat_release": "User supplied binder Q=-66 cal/g, converted with 1 cal/g=4184 J/kg. AP retained from reference/pure_htpb.json.",
+    "temperature": "T0=300 K retained from the existing validation workflow.",
+    "mixing": "Pure constituent properties. AP unchanged; only pure binder is calibrated."
+  },
+  "binder": {
+    "density_kg_m3": 920,
+    "cp_J_kg_K": 2130,
+    "conductivity_W_m_K": 0.213,
+    "heat_release_J_kg": -276144,
+    "A_m_s": 10.36,
+    "activation_temperature_K": 7500
+  },
+  "AP": {
+    "density_kg_m3": 1950,
+    "cp_J_kg_K": 1297.90,
+    "conductivity_W_m_K": 0.4186,
+    "heat_release_J_kg": -418400,
+    "A_m_s": 948,
+    "activation_temperature_K": 11000
+  }
+}

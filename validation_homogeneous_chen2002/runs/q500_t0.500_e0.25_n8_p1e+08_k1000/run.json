@@ -1,0 +1,5 @@
+{
+  "command": ["bin/lowmach-2d-clang++", "validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_k1000/input"],
+  "returncode": 6,
+  "failure": "MLMG failed at step282, last completed time0.001143669514s. Not a completed simulation. See output/out.log."
+}

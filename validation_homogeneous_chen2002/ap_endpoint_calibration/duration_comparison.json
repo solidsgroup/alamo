@@ -1,0 +1,8 @@
+{
+  "short_duration_s": 0.004762995999003065,
+  "long_duration_s": 0.009525614631772896,
+  "short_r_cm_s": 1.244999454322393,
+  "long_r_cm_s": 1.2432545964831747,
+  "rate_change_percent": -0.14014928546036698,
+  "long_late_drift_percent": -0.08836909378557163
+}

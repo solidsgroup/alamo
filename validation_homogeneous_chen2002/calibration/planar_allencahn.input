@@ -1,0 +1,120 @@
+# Isothermal planar rigid-solid phase-field calibration.
+# The eta=1 -> eta=0 front is initialized as the exact logistic profile for
+# w0=0, w12=2, w1=1.  It travels toward decreasing y.
+
+plot_file = validation_homogeneous_chen2002/calibration/runs/planar
+amr.plot_dt = 1.0e-5_s
+amr.max_level = 0
+amr.n_cell = 2 64
+amr.max_grid_size = 64
+amr.blocking_factor = 2
+amr.regrid_int = -1
+
+timestep = 1.0e-7_s
+stop_time = 2.0e-4_s
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 1.0e-6
+integration.type = RungeKutta
+integration.rk.type = 3
+
+geometry.prob_lo = -3.125e-6_m -1.5e-4_m 0.0_m
+geometry.prob_hi =  3.125e-6_m  5.0e-5_m 1.0_m
+geometry.is_periodic = 1 0 0
+
+system.amount = kmol
+gas.mw = 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 1.0_kJ/kg/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.7
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 0.0_W/m/K^2
+gas.transport.rocfire.lambda_b = 0.0_W/m/K
+gas.eos.type = tpg
+
+species.names = inert_gas phase_solid
+inert_gas.mechanics = fluid
+phase_solid.mechanics = rigid_solid
+phase_solid.reference_density = 920.0_kg/m^3
+phase_solid.specific_heat = 2418.29_J/kg/K
+phase_solid.thermal_conductivity = 0.1300_W/m/K
+
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+mechanisms.names = solid_decomposition
+solid_decomposition.type = phase_change
+solid_decomposition.phase_change.in = phase_solid
+solid_decomposition.phase_change.out = inert_gas
+solid_decomposition.phase_change.rate_multiplier = 1.0e5
+solid_decomposition.phase_change.activation_temperature = 0.0_K
+solid_decomposition.phase_change.temperature_cutoff = 0.0_K
+solid_decomposition.phase_change.phase_field.type = allencahn
+solid_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+solid_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+solid_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+solid_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+solid_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+solid_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0 0.0
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+include_viscosity = 1
+implicit_viscosity = 1
+include_conduction = 1
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-11
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+diagnostics.interval = 0
+diagnostics.extended_fields = 1
+
+# Exact continuum logistic profile, delta=sqrt(kappa/(48 lambda))=5 um.
+phase_solid.density.ic.type = expression
+phase_solid.density.ic.expression.region0 = "920.0/(1.0+exp(y/5.0e-6))"
+inert_gas.density.ic.type = expression
+inert_gas.density.ic.expression.region0 = "(0.5+0.5*tanh(y/5.0e-6))*31.271"
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 3.0e6
+
+component_density.bc.type = expression
+component_density.bc.expression.constant.P = 3.0e6
+component_density.bc.expression.constant.R = 319.787
+component_density.bc.expression.constant.T = 300.0
+component_density.bc.expression.type.xlo = periodic
+component_density.bc.expression.type.xhi = periodic
+component_density.bc.expression.type.ylo = neumann
+component_density.bc.expression.type.yhi = dirichlet
+component_density.bc.expression.val.yhi = "0.0" "P/(R*T)"
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = dirichlet
+velocity.bc.constant.type.yhi = neumann
+velocity.bc.constant.val.ylo = 0.0 0.0
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = dirichlet
+pressure.bc.constant.val.yhi = 3.0e6

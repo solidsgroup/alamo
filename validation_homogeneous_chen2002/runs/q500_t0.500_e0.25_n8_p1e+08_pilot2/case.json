@@ -1,0 +1,41 @@
+{
+  "name": "q500_t0.500_e0.25_n8_p1e+08_pilot2",
+  "reference": {
+    "density_kg_m3": 1619.8257839721255,
+    "cp_J_kg_K": 1250.740769206849,
+    "heat_release_J_kg": -349646.3225971504,
+    "A_m_s": 99.10237131370772,
+    "activation_temperature_K": 9250.0,
+    "conductivity_W_m_K": 0.3298801994987746,
+    "ap_volume_fraction": 0.5,
+    "ap_mass_fraction": 0.6794425087108014,
+    "heat_flux_cal_cm2_s": 500.0,
+    "heat_flux_W_m2": 20920000.0,
+    "surface_temperature_K": 1009.9664454638303,
+    "regression_speed_m_s": 0.010435239929968266,
+    "eq15_regression_speed_m_s": 0.011643578447273715,
+    "thermal_length_m": 1.56033624047475e-05
+  },
+  "width_m": 3.900840601186875e-06,
+  "dx_m": 4.876050751483594e-07,
+  "width_ratio": 0.25,
+  "cells_per_width": 8,
+  "pressure_Pa": 100000000.0,
+  "gas_conductivity_W_m_K": 1,
+  "gas_cp_J_kg_K": 1,
+  "T0_K": 300,
+  "source_y_m": [
+    4.68100872142425e-05,
+    6.241344961899e-05
+  ],
+  "heating": "fixed gas slab; input-only",
+  "relaxations": 1.0,
+  "duration_s": 0.0014952566984049163,
+  "domain_y_m": [
+    -0.0001404302616427275,
+    6.241344961899e-05
+  ],
+  "ny": 416,
+  "dt_scale": 1,
+  "input_sha256": "9d8959def3eab9a6263dd3632d1ab36d8adaea17a51fcf6918273dcf563ef2fb"
+}

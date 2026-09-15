@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+import numpy as np
+import yt
+
+yt.set_log_level(50)
+plots = sorted(Path(sys.argv[1]).glob("*cell"))
+assert len(plots) == 2, "Expected initial and one-step plotfiles"
+datasets = [yt.load(str(p)) for p in plots]
+data = [ds.all_data() for ds in datasets]
+
+w = 4.0 / 7.0
+t = w * 920.0 / (w * 920.0 + (1.0 - w) * 1950.0)
+rho_blend = (1.0 - w) * 920.0 + w * 1950.0
+cp_blend = (1.0 - w) * 2418.29 + w * 1297.90
+# Independent closed-form physical root of the 2D conductivity quadratic.
+x = 0.4186 / 0.13
+a = (1.0 - t) * (1.0 - x)
+k_blend = 0.13 * ((a + np.sqrt(a * a + 4.0 * x)) / 2.0) ** 2
+
+def field(step, name):
+    return data[step][name].to_ndarray()
+
+np.testing.assert_allclose(field(0, "rigid_eta"), 0.5, atol=1.0e-14)
+np.testing.assert_allclose(field(0, "thermal_conductivity_coeff"),
+                           0.5 * (0.1 + k_blend), rtol=2.0e-12)
+
+released = field(0, "component_density_HTPB_solid") - field(1, "component_density_HTPB_solid")
+assert np.all(released > 0.0), "No binder regression occurred"
+for gas, fraction in (("HTPB_gas", 1.0 - w), ("AP_gas", w)):
+    produced = field(1, "component_density_" + gas) - field(0, "component_density_" + gas)
+    np.testing.assert_allclose(produced, released * fraction, rtol=2.0e-8, atol=1.0e-11)
+np.testing.assert_allclose(field(1, "component_density_AP_solid"), 0.0, atol=1.0e-14)
+np.testing.assert_allclose(field(0, "density"), field(1, "density"), rtol=1.0e-11)
+
+# The uniform field has no conduction or advection. Test the energy balance
+# using the actual released mass and the solver's constitutive heat capacity.
+eta = field(1, "component_density_HTPB_solid") / rho_blend
+eta_lo = 0.11920292202211755
+z = np.clip((eta - eta_lo) / (1.0 - 2.0 * eta_lo), 0.0, 1.0)
+solid = z**3 * (10.0 - 15.0*z + 6.0*z*z)
+rho_bgas = field(1, "component_density_HTPB_gas")
+rho_apgas = field(1, "component_density_AP_gas")
+rg = 8314.46261815324 * (rho_bgas / 20.0 + rho_apgas / 40.0) / (rho_bgas + rho_apgas)
+capacity = solid * rho_blend * cp_blend + (1.0 - solid) * 3.0e6 / (rg * 1000.0) * 1000.0
+heat = released * ((1.0 - w) * -1.0e5 + w * 2.0e5)
+np.testing.assert_allclose((field(1, "temperature") - field(0, "temperature")) * capacity,
+                           heat, rtol=2.0e-6, atol=1.0e-7)
+assert all(np.all(np.isfinite(data[1][name].to_ndarray()))
+           for name in datasets[1].field_list), "Nonfinite output field"
+print("Homogeneous conductivity, regression, mass/product balance, and heat coupling pass")

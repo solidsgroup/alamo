@@ -1,0 +1,48 @@
+{
+  "source": "Only user-supplied Chen et al. (2002) article: Fig.4 vector endpoints; Fig.5/6 captions give E/R and A.",
+  "method": "At pure endpoints Eqs.12,14 give Ts=(E/R)/ln(A/r), q/r=(rho*c)*Ts-(rho*c)*(T0+Q/c). Least-squares straight line through three endpoint heat balances identifies rho*c and T0+Q/c only.",
+  "limitations": "These are Figure-4-calibrated combinations, not tabulated physical parameters or independent validation. Individual rho,c,Q,T0 and conductivity cannot be inferred uniquely. Fig.4 gives no DNS uncertainty. One-full-stroke endpoint perturbations are an illustrative graphical sensitivity, not confidence bounds. Constituent blend-density/mass-weighting predictions require additional conventions, which must be stated and tested separately.",
+  "endpoint_perturbation_cm_s": 0.00496205262549601,
+  "materials": {
+    "binder": {
+      "A_cm_s": 1036,
+      "activation_temperature_K": 7500,
+      "inferred_rho_cp_cal_cm3_K": 0.2760078217996462,
+      "inferred_rho_cp_J_m3_K": 1154816.7264097198,
+      "inferred_T0_plus_Q_over_cp_K": 143.3838381894149,
+      "graphical_corner_sensitivity_rho_cp_cal_cm3_K": [
+        0.2661553944419003,
+        0.2858358960600262
+      ],
+      "graphical_corner_sensitivity_offset_K": [
+        103.53406360837769,
+        180.60045290871423
+      ],
+      "heat_balance_residual_cal_cm2_s": [
+        -0.009508437150515192,
+        0.04339004179314543,
+        -0.04049791759962318
+      ]
+    },
+    "AP": {
+      "A_cm_s": 94800,
+      "activation_temperature_K": 11000,
+      "inferred_rho_cp_cal_cm3_K": 0.5819333846113617,
+      "inferred_rho_cp_J_m3_K": 2434809.2812139373,
+      "inferred_T0_plus_Q_over_cp_K": -37.85889881228279,
+      "graphical_corner_sensitivity_rho_cp_cal_cm3_K": [
+        0.4982655705379741,
+        0.6649519535668896
+      ],
+      "graphical_corner_sensitivity_offset_K": [
+        -204.47958087429916,
+        85.9279463876617
+      ],
+      "heat_balance_residual_cal_cm2_s": [
+        -0.049988797649575645,
+        0.2538381769064699,
+        -0.2592336676584637
+      ]
+    }
+  }
+}

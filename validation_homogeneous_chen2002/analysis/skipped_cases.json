@@ -1,0 +1,22 @@
+[
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_conducting",
+    "reason": "No successful run.json"
+  },
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_conducting_relaxed",
+    "reason": "No successful run.json"
+  },
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_k1000",
+    "reason": "No successful run.json"
+  },
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_pilot",
+    "reason": "No successful run.json"
+  },
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_pilot2",
+    "reason": "No successful run.json"
+  }
+]

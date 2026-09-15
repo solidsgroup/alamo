@@ -1,0 +1,125 @@
+{
+  "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+  "parameters_sha256": "611b80363451c84ae78fdd476e43ddbf99185bfa6cf7f5907000a7a9c1139315",
+  "cases": [
+    {
+      "name": "q1000_t0.200_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "9b02b33de9557a946fbdad2e95be5c6299d0d3ce793ba27a28f532195e39499b"
+    },
+    {
+      "name": "q1000_t0.400_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "fcaa01712396b0d8513ef995c4075a8c345da5a550be3aa45de48e5e5231e4ce"
+    },
+    {
+      "name": "q1000_t0.600_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "d6fedaf3dc16b9e600309a208e6cbd27ae9d33a90d37a58330ab026fe34c935a"
+    },
+    {
+      "name": "q1000_t0.800_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "1197301fa7cddf095fa6035bc9cc2d5f74c8473bf126f0c986770c7475c00ab3"
+    },
+    {
+      "name": "q1000_t1.000_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 1.0,
+      "relaxations": 6,
+      "input_sha256": "c6bb806dc0724ca56a1911a477f2e7c3ace5908e48cd129d996a2cb0fb5dd630"
+    },
+    {
+      "name": "q200_t0.200_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "1bd31ffcd979f25076323579e9370f41ac5a6bb923ea99d5e944ce7f5335bb54"
+    },
+    {
+      "name": "q200_t0.400_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "18018652c83808d1db0faef07d1a121ba5d99172908a64337e26786433f709c9"
+    },
+    {
+      "name": "q200_t0.600_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "8c36882f8e1131f5c12475b6643cc41bd1d5e70240558bed09b7fea0ff462904"
+    },
+    {
+      "name": "q200_t0.800_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "eb5a0fb6f357908af1ed740d21f07f0ec2ac73d73a25c06ad05de700c1b60cf7"
+    },
+    {
+      "name": "q200_t1.000_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 1.0,
+      "relaxations": 6,
+      "input_sha256": "744ec33972131d7f951f3dce9ef1d6432d06ff4b10893aedc84932f66868a49b"
+    },
+    {
+      "name": "q500_t0.000_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.0,
+      "relaxations": 6,
+      "input_sha256": "3397034ccab947fdf644305fe042f34b6d731d2ead46429b1bf46adb3a07d7ca"
+    },
+    {
+      "name": "q500_t0.200_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "7eaa1d966cf18bbc15ed778da426e967acc5903fe22736ee3c58c25d51b63d45"
+    },
+    {
+      "name": "q500_t0.400_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "61c7bb89952d9a12c8a5e71899051464e48701a0c071843fa12366e536ee7d6d"
+    },
+    {
+      "name": "q500_t0.400_e0.25_n8_p1e+08_cp2418_frozen_long12",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 12.0,
+      "input_sha256": "2fc4147c035790d1bf439ad371460bf528d787f37eac675a5969aab41ebae958"
+    },
+    {
+      "name": "q500_t0.600_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "c7d4c1d7d52c7c0e2802b6d34c4f73d14ae0da46df10a850a9c3f50863595dda"
+    },
+    {
+      "name": "q500_t0.800_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "01e68b23c2655d2d31830581a262dc79037cf9e104c7cf86e7c97fcc6930fb1c"
+    },
+    {
+      "name": "q500_t1.000_e0.25_n8_p1e+08_cp2418_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 1.0,
+      "relaxations": 6,
+      "input_sha256": "55717fbd476f36744cffe279d564cb65ec21c92d837049d47b1243524d935bfd"
+    }
+  ]
+}

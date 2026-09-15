@@ -1,0 +1,16 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "validation_homogeneous_chen2002/runs/q1000_t1.000_e0.25_n8_p1e+08_nx32/input"
+  ],
+  "returncode": 0,
+  "elapsed_s": 112.053734370,
+  "status": "completed",
+  "final_step": 2931,
+  "final_time_s": 0.003638607136,
+  "last_dt_s": 1.226268789e-06,
+  "configured_stop_time_s": 0.0036374075040215372,
+  "log": "output/out.log",
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "156cf0154b188f704582b20ed18d3b9225069d62f20567cb6584d85a0ab547c5"
+}

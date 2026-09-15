@@ -1,0 +1,17 @@
+{
+  "q_cal_cm2_s": 500,
+  "ap_volume_fraction": 0.4,
+  "short_name": "q500_t0.400_e0.25_n8_p1e+08_binder_q66_sweep",
+  "long_name": "q500_t0.400_e0.25_n8_p1e+08_binder_q66_long12",
+  "short_relaxations": 6,
+  "long_relaxations": 12,
+  "short_duration_s": 0.005538003104277134,
+  "long_duration_s": 0.011075942854877664,
+  "short_r_cm_s": 1.079676461207527,
+  "long_r_cm_s": 1.078429956763963,
+  "relative_rate_change_percent": -0.11545166430412257,
+  "short_late_drift_percent": -0.008885408218149822,
+  "long_late_drift_percent": -0.07645574666598327,
+  "short_incident_flux_error_percent": -0.7259524070019618,
+  "long_incident_flux_error_percent": -0.809814981773771
+}
