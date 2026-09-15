@@ -403,6 +403,8 @@ private:
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
     amrex::Real tstart = 0; ///< Default start time (default: 0)
     amrex::Real stop_time = NAN; ///< Default stop time 
+    std::string run_control_stop_file;
+    int run_control_poll_interval = 100;
 
 protected:
     bool integrate_variables_before_advance = true;

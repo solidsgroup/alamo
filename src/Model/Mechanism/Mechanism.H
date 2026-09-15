@@ -147,15 +147,16 @@ public:
     Set::Scalar Transfer(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
-        const int i, const int j, const int k) const
+        const int i, const int j, const int k,
+        Set::Scalar* heat = nullptr) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).Transfer(
-                    component_density, state, eta_change, i, j, k);
+                    component_density, state, eta_change, i, j, k, heat);
             return Transfer<I + 1>(
-                component_density, state, eta_change, i, j, k);
+                component_density, state, eta_change, i, j, k, heat);
         }
         Util::Abort(INFO, selected);
         return NAN;

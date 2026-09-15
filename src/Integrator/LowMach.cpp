@@ -217,6 +217,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     std::vector<std::string> mechanism_names;
     pp.queryarr_default("mechanisms.names", mechanism_names, {});
     value.mechanisms.resize(mechanism_names.size());
+    const auto pure_density = value.reference_density;
+    const auto pure_specific_heat = value.condensed_specific_heat;
+    const auto pure_conductivity = value.condensed_thermal_conductivity;
     for (int n = 0; n < static_cast<int>(mechanism_names.size()); ++n)
     {
         const std::string& id = mechanism_names[n];
@@ -229,11 +232,39 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         for (int m = 0; m < n; ++m)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
+        // Each mechanism reads pure constituent properties, independent of
+        // the order in which homogeneous binders are configured.
+        auto density = pure_density;
+        auto specific_heat = pure_specific_heat;
+        auto conductivity = pure_conductivity;
         pp.select<Model::Mechanism::PhaseChange>(
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
-                            value.rigid_solid_species, value.reference_density, value.gas.MW,
-                            value.gas.Rg));
+                            value.rigid_solid_species, density, value.gas.MW,
+                            value.gas.Rg, specific_heat.data(), conductivity.data()));
+        bool homogeneous;
+        pp.query_required(id + ".phase_change.homogeneous", homogeneous);
+        if (homogeneous)
+        {
+            const int s = value.rigid_solid_species[value.mechanisms[n].RigidComponent()];
+            std::string ap;
+            pp.query_required(id + ".phase_change.homogeneous.ap_solid", ap);
+            for (const auto& other : mechanism_names)
+            {
+                if (other == id) continue;
+                std::string input;
+                pp.query_required(other + ".phase_change.in", input);
+                bool other_homogeneous;
+                pp.query_default(other + ".phase_change.homogeneous", other_homogeneous, false);
+                if (input == value.species_names[s] || (other_homogeneous && input == ap))
+                    Util::Exception(INFO, "A homogeneous binder requires a single mechanism and pure AP properties");
+            }
+            value.reference_density[s] = density[s];
+            value.condensed_inverse_reference_density[s] = 1.0 / density[s];
+            value.condensed_specific_heat[s] = specific_heat[s];
+            value.condensed_thermal_conductivity[s] = conductivity[s];
+            value.phase_change_heat_enabled = true;
+        }
     }
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
@@ -344,9 +375,14 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.chemistry_dilatation_mf,
             &value.bc_nothing, 1, 0, "chemistry_dilatation", false, false);
     if (!value.rigid_solid_species.empty() && !value.mechanisms.empty())
+    {
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_dilatation_mf, &value.bc_nothing, 1, 0,
             "phase_change_dilatation", false, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
+            "phase_change_heat", false, false);
+    }
     if (value.implicit_thermal_diffusion || value.implicit_species_diffusion)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
             &value.bc_nothing, 1, 0, "diffusion_dilatation", false, false);
@@ -1042,6 +1078,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
     BC::Constant::ZeroNeumann phase_field_bc(1);
     for (int lev = 0; lev < nlev; ++lev)
     {
+        phase_change_heat_mf[lev]->setVal(0.0);
         amrex::MultiFab::Copy(
             diffusion.State(lev, 1), *rigid_eta_mf[lev],
             0, 0, 1, diffusion.State(lev, 1).nGrow());
@@ -1158,6 +1195,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
 
                 Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation = phase_change_dilatation_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> integrated_heat = phase_change_heat_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1185,12 +1223,49 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         integrated_dilatation(i,j,k) +=
                             mechanism.Transfer(
                                 component_density, state,
-                                mechanism_eta_change, i, j, k);
+                                mechanism_eta_change, i, j, k, &integrated_heat(i,j,k));
                     });
             }
         }
     }
 
+    // Apply the heat of the actual phase transfer once all mechanisms have
+    // used the same temperature. Include the resulting gas expansion in the
+    // projection, using the new product composition.
+    if (phase_change_heat_enabled)
+    {
+        const auto thermal = thermal_data;
+        const auto gas_data = gas_device_data;
+        const int ngas = ngas_species;
+        const Set::Scalar p_reference = pressure_reference;
+        for (int lev = 0; lev < nlev; ++lev)
+            for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                Set::Patch<const Set::Scalar> density = component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> heat = phase_change_heat_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> dilation = phase_change_dilatation_mf.Patch(lev,mfi);
+                amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (heat(i,j,k) == 0.0) return;
+                    const auto thermal_state = ComputeThermalState(density, T(i,j,k), i,j,k, thermal);
+                    const Set::Scalar capacity = amrex::get<2>(thermal_state);
+                    if (!(capacity > 0.0)) Util::Abort(INFO, "Nonpositive phase-change heat capacity");
+                    const Set::Scalar delta_T = heat(i,j,k) / capacity;
+                    if (!(T(i,j,k) + delta_T > 0.0))
+                        Util::Abort(INFO, "Phase-change heat exhausted thermal energy; reduce timestep");
+                    Set::Scalar molar_density = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                        molar_density += density(i,j,k,n) /
+                            Model::Gas::Gas::MolecularWeight(gas_data, n);
+                    dilation(i,j,k) += molar_density *
+                        Model::Gas::Gas::UniversalGasConstant(gas_data) * delta_T / p_reference;
+                    T(i,j,k) += delta_T;
+                });
+            }
+        diffusion.Synchronize(temperature_mf, 1);
+    }
     diffusion.Synchronize(component_density_mf, nspecies);
     diffusion.Synchronize(phase_change_dilatation_mf, 1);
     diffusion.FillBoundary(

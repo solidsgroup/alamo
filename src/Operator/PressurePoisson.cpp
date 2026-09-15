@@ -16,6 +16,13 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    pp.query_default("bottom_solver", value.bottom_solver, std::string("default"));
+    pp.query_default("bottom_max_iter", value.bottom_max_iter, 200);
+    if (value.bottom_solver != "default" && value.bottom_solver != "cg" &&
+        value.bottom_solver != "bicgstab")
+        Util::Exception(INFO, "projection.bottom_solver must be default, cg, or bicgstab");
+    if (value.bottom_max_iter <= 0)
+        Util::Exception(INFO, "projection.bottom_max_iter must be positive");
 }
 
 void
@@ -204,6 +211,9 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     }
 
     amrex::MLMG solver(poisson);
+    if (bottom_solver == "cg") solver.setBottomSolver(amrex::BottomSolver::cg);
+    else if (bottom_solver == "bicgstab") solver.setBottomSolver(amrex::BottomSolver::bicgstab);
+    solver.setBottomMaxIter(bottom_max_iter);
     solver.setVerbose(verbose);
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
