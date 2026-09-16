@@ -44,8 +44,8 @@ released = initial["component_density_binder_solid"].v - final[
     "component_density_binder_solid"].v
 produced = final["component_density_binder_gas"].v - initial[
     "component_density_binder_gas"].v
-# The upwind front has zero consumption at a local minimum of this periodic
-# profile. Its integrated transfer must be positive and nowhere reversed.
+# Irreversible regression must have positive integrated transfer and must
+# never add condensed mass, for every selected advection reconstruction.
 assert np.all(released >= -1e-12) and np.sum(released) > 0, "No binder regression occurred"
 np.testing.assert_allclose(np.sum(produced * volume),
                            np.sum(released * volume), rtol=1e-8)

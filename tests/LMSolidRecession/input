@@ -1,20 +1,31 @@
-#@ [2d]
+#@ [2d-muscl]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=300
+#@ args=advection.muscl.limiter.type=minmod
+#@ args=amr.n_cell=8 768
+
+#@ [2d-upwind]
 #@ exe=lowmach
 #@ dim=2
 #@ timeout=120
+#@ args=advection.type=upwind
+#@ args=amr.max_grid_size=64
 
 # Isothermal constant-speed erosion with matching gas/solid specific volumes.
 # The front must advance beyond the initial diffuse support without remnants.
-# A smooth periodic layer isolates the mass, product, and heat balances in
-# one short timestep. These artificial kinetics are not calibration values.
+# Both selected advection models must preserve the speed and mass balance.
+# The MUSCL case resolves the initial width with 24 cells to keep contour
+# interpolation/profile error below the same 0.2% rate tolerance.
+# These artificial kinetics are not calibration values.
 plot_file = tests/LMSolidRecession/output
-amr.plot_int = 100
+amr.plot_int = 200
 amr.max_level = 0
 amr.n_cell = 8 256
 amr.max_grid_size = 256
 amr.blocking_factor = 8
-max_step = 800
-timestep = 1e-3_s
+max_step = 1600
+timestep = 5e-4_s
 stop_time = 0.8_s
 integration.type = RungeKutta
 integration.rk.type = 3
@@ -48,7 +59,6 @@ AP_solid.rigid.relaxation_time = 1e-4_s
 AP_solid.rigid.velocity = 0 0
 binder_solid.rigid.relaxation_time = 1e-4_s
 binder_solid.rigid.velocity = 0 0
-interface.thickness = 0.1_m
 chemistry.model.type = frozen
 chemistry.solver.type = forward_euler
 mechanisms.names = AP_regression binder_regression
@@ -74,7 +84,6 @@ binder_regression.phase_change.activation_temperature = 0_K
 binder_regression.phase_change.coupled_enthalpy_change = 0_J/kg
 interface.thickness = 0.0625_m
 advection.type = muscl
-advection.muscl.limiter.type = minmod
 cfl = 0.2
 include_viscosity = 0
 include_conduction = 0

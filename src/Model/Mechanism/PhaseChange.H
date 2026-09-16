@@ -12,11 +12,11 @@
 //
 //   delta_01 = |eta_1 grad(eta_0) - eta_0 grad(eta_1)|.
 //
-// For irreversible solid-to-gas regression its magnitude uses a Godunov
-// one-sided norm, so consumption propagates into initially pure solid
-// without centered-gradient remnants. Stefan/recoil retain the centered
-// pair gradient. This measure integrates to one across a monotone planar
-// binary interface and
+// Irreversible solid-to-gas regression evaluates the normal derivative with
+// the integrator's input-selected advection operator and limiter. The local
+// inward normal is frozen over that reconstruction; Stefan/recoil retain the
+// centered geometric pair gradient. This measure integrates to one across a
+// resolved monotone planar binary interface and
 // vanishes on interfaces that do not contain both selected phases.  The
 // constitutive flux uses the local diffuse-mixture temperature.  No contour,
 // normal extrapolation, signed distance, or sharp-interface state is
@@ -47,6 +47,7 @@
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Numeric/Stencil.H"
+#include "Numeric/Advect/Advect.H"
 #include "Set/Set.H"
 #include "Unit/Unit.H"
 
@@ -309,12 +310,13 @@ public:
         return transition_temperature;
     }
     Set::Scalar LatentHeat() const { return latent_heat; }
+    template<class Advection>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Vector>
     KineticDiffuseSurfaceGeometry(
         const amrex::Array4<const Set::Scalar>& component_density,
         const int i, const int j, const int k,
-        const Set::Scalar DX[AMREX_SPACEDIM]) const
+        const Set::Scalar DX[AMREX_SPACEDIM], const Advection& advection) const
     {
         if (!Kinetic())
             return {0.0, Set::Vector::Zero()};
@@ -363,49 +365,40 @@ public:
         const Set::Vector phase_pair_gradient =
             eta1 * gradient0 - eta0 * gradient1;
         Set::Scalar surface_measure = phase_pair_gradient.norm();
-        if (irreversible_solid_regression)
+        if (irreversible_solid_regression && surface_measure > 0.0)
         {
-            // Solid consumption is an advancing-front equation. A centered
-            // gradient creates oscillatory remnants behind that front.
-            // Use the Godunov one-sided norm for forward consumption, while
-            // retaining the centered pair gradient for Stefan/recoil fluxes.
-            // A pure-solid cell may regress when an adjacent cell contains
-            // gas; requiring eta1>0 locally would pin the front at the edge
-            // of the initially diffuse layer.
-            Set::Scalar surface_measure_squared = 0.0;
-            for (int direction = 0; direction < AMREX_SPACEDIM; ++direction)
+            // With the central fractions held fixed, grad(pair_fraction) is
+            // eta_g grad(eta_s) - eta_s grad(eta_g). Regression is transport
+            // along its inward normal. Reuse the configured reconstruction
+            // instead of introducing a separate Hamilton-Jacobi stencil.
+            const Set::Vector inward_normal = phase_pair_gradient / surface_measure;
+            const int regressing_species = phase0;
+            const Set::Scalar regressing_density = phase0_reference_density;
+            const int first_condensed_species = ngas_species;
+            const int total_species = nspecies;
+            const auto inverse_densities = inverse_reference_density;
+            const auto pair_fraction = [=] AMREX_GPU_HOST_DEVICE(
+                int sample_i, int sample_j, int sample_k, int) -> Set::Scalar
             {
-                const int di = direction == 0;
-                const int dj = direction == 1;
-                const int dk = direction == 2;
-                const Set::Scalar phase0_lower =
-                    component_density(i-di,j-dj,k-dk,phase0) / phase0_reference_density;
-                const Set::Scalar phase0_upper =
-                    component_density(i+di,j+dj,k+dk,phase0) / phase0_reference_density;
-                Set::Scalar gas_fraction_lower = 1.0;
-                Set::Scalar gas_fraction_upper = 1.0;
-                for (int species = ngas_species; species < nspecies; ++species)
-                    if (inverse_reference_density[species] > 0.0)
-                    {
-                        gas_fraction_lower -=
-                            component_density(i-di,j-dj,k-dk,species) *
-                            inverse_reference_density[species];
-                        gas_fraction_upper -=
-                            component_density(i+di,j+dj,k+dk,species) *
-                            inverse_reference_density[species];
-                    }
-                gas_fraction_lower = Util::Max(gas_fraction_lower, 0.0);
-                gas_fraction_upper = Util::Max(gas_fraction_upper, 0.0);
-                const Set::Scalar backward_pair_derivative =
-                    (eta0 * gas_fraction_lower - eta1 * phase0_lower) / DX[direction];
-                const Set::Scalar forward_pair_derivative =
-                    (eta1 * phase0_upper - eta0 * gas_fraction_upper) / DX[direction];
-                const Set::Scalar upwind_derivative = Util::Max(
-                    Util::Max(backward_pair_derivative, 0.0),
-                    Util::Max(-forward_pair_derivative, 0.0));
-                surface_measure_squared += upwind_derivative * upwind_derivative;
-            }
-            surface_measure = std::sqrt(surface_measure_squared);
+                Set::Scalar gas_fraction = 1.0;
+                for (int species = first_condensed_species;
+                     species < total_species; ++species)
+                    gas_fraction -= component_density(
+                        sample_i, sample_j, sample_k, species) * inverse_densities[species];
+                return eta1 * component_density(
+                    sample_i, sample_j, sample_k, regressing_species) / regressing_density -
+                    eta0 * Util::Max(gas_fraction, 0.0);
+            };
+            const auto normal_velocity = [=] AMREX_GPU_HOST_DEVICE(
+                int, int, int, int direction) -> Set::Scalar
+            {
+                return inward_normal(direction);
+            };
+            // The advection operator returns -n.grad(pair_fraction). Its
+            // negative is the surface measure multiplying the implicit mass
+            // flux. No velocity-divergence/curvature source belongs here.
+            surface_measure = -advection(pair_fraction, normal_velocity,
+                i, j, k, 0, DX, {Numeric::Advect::Form::Advective});
         }
         if (!(surface_measure > 0.0))
             return {0.0, Set::Vector::Zero()};

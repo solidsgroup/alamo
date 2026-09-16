@@ -3,6 +3,13 @@
 #@ dim=2
 #@ timeout=120
 #@
+#@ [2d-weno5]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=advection.type=weno5
+#@ args=amr.max_grid_size=16
+#@
 #@ [2d-pure-binder]
 #@ exe=lowmach
 #@ dim=2
@@ -132,7 +139,6 @@ binder_regression.phase_change.homogeneous.ap_activation_temperature = 2000_K
 binder_regression.phase_change.homogeneous.binder_heat_release = -66_cal/g
 binder_regression.phase_change.homogeneous.ap_heat_release = -100_cal/g
 advection.type = muscl
-advection.muscl.limiter.type = minmod
 cfl = 0.2
 include_viscosity = 0
 include_conduction = 0

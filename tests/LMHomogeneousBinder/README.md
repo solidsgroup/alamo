@@ -80,11 +80,28 @@ j_ref = rho*A*exp(-(E/R)/T_ref)
 The existing diffuse surface measure supplies the volumetric source. No
 factor involving mesh spacing or interface thickness is folded into A.
 Temperature remains coupled to the transient energy equation.
-Irreversible solid-to-gas consumption uses an upwind front gradient and a
-frozen density stencil, so it can advance into initially pure solid without
-leaving oscillatory remnants or racing neighboring device threads. Stefan
-and recoil fluxes retain the centered phase-pair gradient. Interface width
-and measured rates still require grid-convergence checks.
+Irreversible solid-to-gas consumption uses the integrator's `advection.type`
+and configured limiter to reconstruct the normal derivative of the phase-pair
+field. There is no separate hard-coded Godunov stencil or fallback advection
+model. The local inward normal is frozen over the reconstruction so the term
+represents normal recession without a curvature/velocity-divergence source.
+The density snapshot includes the selected operator's full ghost width (up
+to three cells for WENO5), preventing neighboring device reads/writes from
+racing. Stefan and recoil retain the centered geometric phase-pair gradient;
+their face values continue to use the projection's arithmetic interpolation.
+Interface width and measured rates require grid-convergence checks for the
+chosen advection scheme; centered/unlimited schemes do not gain a limiter
+implicitly.
+
+For a central cell c, the reconstructed scalar is
+`f(x) = eta_g(c)*eta_s(x) - eta_s(c)*eta_g(x)`. Its gradient at c is
+the geometric phase-pair gradient. With the inward unit normal n held
+constant over the stencil, the surface measure is
+`-advection(f, n, form=Advective)`, since the operator returns `-n.grad(f)`.
+This retains the physical phase-pair weighting at AP/matrix/gas junctions
+while using the same reconstruction and limiter as the other transport
+terms. A buried solid-solid interface has no gas gradient and contributes
+no decomposition source.
 
 Negative Q is endothermic. Homogeneous setup converts it to the branch's
 `coupled_enthalpy_change = -Q`, applied once during implicit mass transfer.

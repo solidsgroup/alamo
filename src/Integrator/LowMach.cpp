@@ -3988,6 +3988,8 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
     }
 
     const auto thermal = thermal_data;
+    const auto advection_scheme = advect;
+    const int stencil_ghost_cells = Util::Max(1, advection_scheme.NGhost());
     const Set::Scalar p_reference = pressure_reference;
     const Set::Scalar stefan_profile_scale =
         0.25 * interfacial_thickness;
@@ -4010,9 +4012,9 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
             // order and race with other threads on a GPU.
             component_density_before_change.Define(
                 lev, component_density_mf[lev]->boxArray(),
-                component_density_mf[lev]->DistributionMap(), nspecies, 1);
+                component_density_mf[lev]->DistributionMap(), nspecies, stencil_ghost_cells);
             amrex::MultiFab::Copy(*component_density_before_change[lev],
-                *component_density_mf[lev], 0, 0, nspecies, 1);
+                *component_density_mf[lev], 0, 0, nspecies, stencil_ghost_cells);
             stefan_volume_current[lev] =
                 std::make_unique<amrex::MultiFab>(
                     component_density_mf[lev]->boxArray(),
@@ -4061,7 +4063,7 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                         auto [surface_measure, phase_pair_gradient] =
                             mechanism.KineticDiffuseSurfaceGeometry(
                                 component_density_state, i, j, k,
-                                dx.data());
+                                dx.data(), advection_scheme);
                         if (!(surface_measure > 0.0)) return;
                         auto [gas_volume_fraction, gas_heat_capacity,
                             heat_capacity, conductivity, cp] =

@@ -13,6 +13,11 @@
 
 #include "Operator/Elastic.H"
 
+#include "Numeric/Advect/Centered.H"
+#include "Numeric/Advect/MUSCL.H"
+#include "Numeric/Advect/QUICK.H"
+#include "Numeric/Advect/Upwind.H"
+#include "Numeric/Advect/WENO5.H"
 #include "Numeric/Interpolator/Test.H"
 #include "Numeric/Interpolator/Linear.H"
 
@@ -120,6 +125,86 @@ int main (int argc, char* argv[])
                     std::abs(state_array(i,0,0,4) + 1.0e5 * consumed) > 1.0e-7 ||
                     std::abs(1.0e6 * (final_temperature - initial_temperature) -
                              state_array(i,0,0,4)) > 2.0e-7);
+            }
+        }
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Solid recession uses the selected advection reconstruction");
+    {
+        int subfailed = 0;
+        IO::ParmParse phase_parameters("recession_reconstruction");
+        phase_parameters.add("phase0", std::string("solid"));
+        phase_parameters.add("phase1", std::string("gas"));
+        phase_parameters.add("kinetics", std::string("arrhenius_surface_flux"));
+        phase_parameters.add("reference_pressure", 1.0e5);
+        phase_parameters.add("pressure_exponent", 0.0);
+        phase_parameters.add("reference_temperature", 1000.0);
+        phase_parameters.add("activation_temperature", 0.0);
+        phase_parameters.add("pre_exponential_speed", 1.0);
+        Model::Mechanism::PhaseChange mechanism;
+        Model::Mechanism::PhaseChange::Parse(mechanism, phase_parameters,
+            {"gas", "solid", "other_solid"}, 1, {1,2}, {},
+            {0.0, 920.0, 1950.0}, {26.0}, 8314.46261815324);
+
+        for (const std::string scheme : {"upwind", "centered", "muscl", "quick", "weno5"})
+        {
+            IO::ParmParse parameters("recession_" + scheme);
+            parameters.add("advection.type", scheme);
+            if (scheme == "muscl")
+                parameters.add("advection.muscl.limiter.type", std::string("minmod"));
+            Numeric::Advect::Advect<Numeric::Advect::MUSCL, Numeric::Advect::Upwind,
+                Numeric::Advect::Centered, Numeric::Advect::QUICK,
+                Numeric::Advect::WENO5> advection;
+            parameters.select<Numeric::Advect::MUSCL, Numeric::Advect::Upwind,
+                Numeric::Advect::Centered, Numeric::Advect::QUICK,
+                Numeric::Advect::WENO5>("advection", advection);
+            for (int profile = 0; profile < 3; ++profile)
+            {
+                const amrex::Box stencil_box(amrex::IntVect(AMREX_D_DECL(-3,-3,-3)),
+                    amrex::IntVect(AMREX_D_DECL(3,3,3)));
+                amrex::FArrayBox densities(stencil_box, 3, amrex::The_Managed_Arena());
+                const auto density = densities.array();
+                const int orientation = profile == 1 ? -1 : 1;
+                amrex::ParallelFor(stencil_box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    // A quadratic profile has a known normal derivative.
+                    // First-order upwind differs by a known curvature term;
+                    // the higher-order reconstructions recover it exactly.
+                    const Set::Scalar solid_fraction = 0.4 +
+                        AMREX_D_TERM(orientation * 0.04*i + 0.002*i*i,
+                                   + orientation * 0.03*j + 0.002*j*j,
+                                   + orientation * 0.02*k + 0.002*k*k);
+                    const Set::Scalar other_fraction = profile == 2 ? 1.0-solid_fraction : 0.1;
+                    density(i,j,k,0) = 1.0-solid_fraction-other_fraction;
+                    density(i,j,k,1) = 920.0*solid_fraction;
+                    density(i,j,k,2) = 1950.0*other_fraction;
+                });
+                const amrex::Box cell(amrex::IntVect(AMREX_D_DECL(0,0,0)),
+                    amrex::IntVect(AMREX_D_DECL(0,0,0)));
+                amrex::FArrayBox result_storage(cell, 1, amrex::The_Managed_Arena());
+                const auto result = result_storage.array();
+                amrex::ParallelFor(cell, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    const Set::Scalar spacing[AMREX_SPACEDIM] = {AMREX_D_DECL(1.0,1.0,1.0)};
+                    result(i,j,k) = amrex::get<0>(mechanism.KineticDiffuseSurfaceGeometry(
+                        density, i,j,k,spacing,advection));
+                });
+                amrex::Gpu::streamSynchronize();
+                const Set::Scalar gradient_norm = std::sqrt(
+                    AMREX_D_TERM(0.04*0.04,+0.03*0.03,+0.02*0.02));
+                const Set::Scalar expected = profile == 2 ? 0.0 : 0.9 *
+                    (gradient_norm - (scheme == "upwind" ? 0.002 *
+                        (AMREX_D_TERM(0.04,+0.03,+0.02)) / gradient_norm : 0.0));
+                const bool incorrect_measure = !std::isfinite(result(0,0,0)) ||
+                    std::abs(result(0,0,0) - expected) > 1.0e-11;
+                if (incorrect_measure)
+                    Util::Message(INFO, scheme, " profile ", profile,
+                        ": surface measure ", result(0,0,0), " expected ", expected);
+                subfailed += Util::Test::SubMessage(
+                    scheme + (profile == 2 ? " leaves buried interfaces inactive" :
+                        " matches the manufactured normal derivative"),
+                    incorrect_measure);
             }
         }
         failed += Util::Test::SubFinalMessage(subfailed);

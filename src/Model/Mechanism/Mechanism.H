@@ -75,12 +75,13 @@ public:
     {
         return {0.0, 0.0, 0.0, 0.0};
     }
+    template<class Advection>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Vector>
     KineticDiffuseSurfaceGeometry(
         const amrex::Array4<const Set::Scalar>&,
         const int, const int, const int,
-        const Set::Scalar[AMREX_SPACEDIM]) const
+        const Set::Scalar[AMREX_SPACEDIM], const Advection&) const
     {
         return {0.0, Set::Vector::Zero()};
     }
@@ -317,21 +318,21 @@ public:
         return {NAN, NAN, NAN};
     }
 
-    template<int I = 0>
+    template<class Advection, int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Vector>
     KineticDiffuseSurfaceGeometry(
         const amrex::Array4<const Set::Scalar>& component_density,
         const int i, const int j, const int k,
-        const Set::Scalar DX[AMREX_SPACEDIM]) const
+        const Set::Scalar DX[AMREX_SPACEDIM], const Advection& advection) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).KineticDiffuseSurfaceGeometry(
-                    component_density, i, j, k, DX);
-            return KineticDiffuseSurfaceGeometry<I + 1>(
-                component_density, i, j, k, DX);
+                    component_density, i, j, k, DX, advection);
+            return KineticDiffuseSurfaceGeometry<Advection, I + 1>(
+                component_density, i, j, k, DX, advection);
         }
         Util::Abort(INFO, selected);
         return {NAN, Set::Vector::Zero()};
