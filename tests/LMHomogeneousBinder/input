@@ -22,6 +22,26 @@
 #@ dim=2
 #@ timeout=120
 #@ args=mechanisms.names=binder_regression AP_regression
+
+#@ [2d-liquid-capillary-setup]
+#@ exe=lowmach
+#@ dim=2
+#@ timeout=120
+#@ args=species.names=AP_gas binder_gas AP_solid binder_solid Al_liquid
+#@ args=Al_liquid.mechanics=liquid
+#@ args=Al_liquid.reference_density=2375_kg/m^3
+#@ args=Al_liquid.dynamic_viscosity=1.3e-3_Pa*s
+#@ args=Al_liquid.specific_heat=1177_J/kg/K
+#@ args=Al_liquid.thermal_conductivity=90_W/m/K
+#@ args=Al_liquid.density.ic.type=constant
+#@ args=Al_liquid.density.ic.constant.value=0
+#@ args=interface.model.type=direct_surface_tension
+#@ args=interface.surface_tension.Al_liquid_gas=0.85_J/m^2
+#@ args=interface.liquid_solid.enabled=1
+#@ args=interface.liquid_solid.regularization.Al_liquid_AP_solid=0.1_J/m^2
+#@ args=interface.liquid_solid.contact_angle.Al_liquid_AP_solid=90_deg
+#@ args=interface.liquid_solid.regularization.Al_liquid_binder_solid=0.1_J/m^2
+#@ args=interface.liquid_solid.contact_angle.Al_liquid_binder_solid=90_deg
 #@
 #@ [2d-resolved-ap]
 #@ exe=lowmach
@@ -140,10 +160,10 @@ pressure.ic.type = constant
 pressure.ic.constant.value = 3e6
 
 component_density.bc.type = constant
-component_density.bc.constant.type.xlo = periodic periodic periodic periodic
-component_density.bc.constant.type.xhi = periodic periodic periodic periodic
-component_density.bc.constant.type.ylo = periodic periodic periodic periodic
-component_density.bc.constant.type.yhi = periodic periodic periodic periodic
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = periodic
+component_density.bc.constant.type.yhi = periodic
 
 velocity.bc.type = constant
 velocity.bc.constant.type.xlo = periodic periodic

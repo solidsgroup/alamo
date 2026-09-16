@@ -53,7 +53,8 @@ The effective properties follow:
   `k-k_AP = (1-v)*(k_b-k_AP)*(k/k_b)^(1/d)`, with the build dimension d.
   The root lies between the two constituent conductivities.
 
-All blend properties are resolved before any mechanism caches densities.
+All blend properties are resolved before capillary setup or any mechanism
+caches densities, including the liquid-solid capillary timestep limit.
 The effective density replaces the binder reference density throughout the
 solver. Density initial and boundary conditions must consequently use the
 **blend density times its volume-fraction profile**. Subgrid AP must not also
@@ -94,6 +95,7 @@ for the homogeneous mechanism: those values are derived. Gas-phase
 prescribed-flux Chen calibration.
 
 The checks cover both pure endpoints, a mixture, mechanism reordering,
+coexistence with liquid-solid capillary setup,
 conductivity, dimensional recession speed, mass conservation, gas-product
 routing, and the sign and magnitude of decomposition heat. The unit tests
 also check the implicit mass/heat update at multiple temperatures. Mixing
