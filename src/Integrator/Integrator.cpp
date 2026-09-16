@@ -41,6 +41,10 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
         pp.query_default("restart.in_place", value.restart_in_place, false);
+        pp.query_default("run_control.stop_file", value.run_control_stop_file, "");
+        pp.query_default("run_control.poll_interval", value.run_control_poll_interval, 100);
+        Util::AssertException(INFO, TEST(value.run_control_poll_interval > 0),
+                              "run_control.poll_interval must be positive");
     }
 #ifdef AMREX_USE_HDF5
     {
@@ -1203,6 +1207,28 @@ Integrator::Evolve()
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
 
+        // A host-side monitor may stop a statistically settled run. All ranks
+        // leave at the same completed step and preserve its final fields.
+        if (!run_control_stop_file.empty() &&
+            (step + 1) % run_control_poll_interval == 0)
+        {
+            int stop_requested = 0;
+            if (amrex::ParallelDescriptor::IOProcessor())
+                stop_requested = std::filesystem::exists(run_control_stop_file);
+            amrex::ParallelDescriptor::Bcast(&stop_requested, 1,
+                amrex::ParallelDescriptor::IOProcessorNumber());
+            if (stop_requested)
+            {
+                amrex::Print() << "Run control: clean stop requested at time "
+                               << cur_time << " by " << run_control_stop_file << "\n";
+                if (last_plot_file_step != step + 1)
+                {
+                    WritePlotFile();
+                    last_plot_file_step = step + 1;
+                }
+                break;
+            }
+        }
         if (cur_time >= stop_time - 1.e-6 * dt[0]) break;
     }
     if (plot_int > 0 && istep[0] > last_plot_file_step) {
