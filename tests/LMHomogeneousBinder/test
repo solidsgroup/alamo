@@ -44,7 +44,9 @@ released = initial["component_density_binder_solid"].v - final[
     "component_density_binder_solid"].v
 produced = final["component_density_binder_gas"].v - initial[
     "component_density_binder_gas"].v
-assert np.all(released > 0), "No binder regression occurred"
+# The upwind front has zero consumption at a local minimum of this periodic
+# profile. Its integrated transfer must be positive and nowhere reversed.
+assert np.all(released >= -1e-12) and np.sum(released) > 0, "No binder regression occurred"
 np.testing.assert_allclose(np.sum(produced * volume),
                            np.sum(released * volume), rtol=1e-8)
 ap_released = initial["component_density_AP_solid"].v - final[
@@ -65,7 +67,8 @@ heat_capacity = initial["component_density_binder_solid"].v * blend_cp + \
     initial["component_density_binder_gas"].v * 1000 + \
     initial["component_density_AP_solid"].v * 1297.9
 temperature_change = final["temperature"].v - initial["temperature"].v
-assert np.all(temperature_change < 0), "Endothermic decomposition did not cool"
+assert np.max(temperature_change) < 1e-9 and np.min(temperature_change) < 0, \
+    "Endothermic decomposition did not cool"
 np.testing.assert_allclose(np.sum(temperature_change * heat_capacity * volume),
                            np.sum((released * blend_heat - ap_released * 418400) *
                                   volume), rtol=1e-5)

@@ -12,7 +12,11 @@
 //
 //   delta_01 = |eta_1 grad(eta_0) - eta_0 grad(eta_1)|.
 //
-// This measure integrates to one across an isolated binary interface and
+// For irreversible solid-to-gas regression its magnitude uses a Godunov
+// one-sided norm, so consumption propagates into initially pure solid
+// without centered-gradient remnants. Stefan/recoil retain the centered
+// pair gradient. This measure integrates to one across a monotone planar
+// binary interface and
 // vanishes on interfaces that do not contain both selected phases.  The
 // constitutive flux uses the local diffuse-mixture temperature.  No contour,
 // normal extrapolation, signed distance, or sharp-interface state is
@@ -350,11 +354,59 @@ public:
                 component_density, i, j, k, phase1, DX) *
                 inverse_reference_density[phase1];
         }
-        if (!(eta1 > 0.0))
+        const bool irreversible_solid_regression =
+            kinetics == Kinetics::ArrheniusSurfaceFlux &&
+            !phase0_is_liquid && phase1_is_gas && !reversible;
+        if (!(eta1 > 0.0) && !irreversible_solid_regression)
             return {0.0, Set::Vector::Zero()};
+        eta1 = Util::Max(eta1, 0.0);
         const Set::Vector phase_pair_gradient =
             eta1 * gradient0 - eta0 * gradient1;
-        const Set::Scalar surface_measure = phase_pair_gradient.norm();
+        Set::Scalar surface_measure = phase_pair_gradient.norm();
+        if (irreversible_solid_regression)
+        {
+            // Solid consumption is an advancing-front equation. A centered
+            // gradient creates oscillatory remnants behind that front.
+            // Use the Godunov one-sided norm for forward consumption, while
+            // retaining the centered pair gradient for Stefan/recoil fluxes.
+            // A pure-solid cell may regress when an adjacent cell contains
+            // gas; requiring eta1>0 locally would pin the front at the edge
+            // of the initially diffuse layer.
+            Set::Scalar surface_measure_squared = 0.0;
+            for (int direction = 0; direction < AMREX_SPACEDIM; ++direction)
+            {
+                const int di = direction == 0;
+                const int dj = direction == 1;
+                const int dk = direction == 2;
+                const Set::Scalar phase0_lower =
+                    component_density(i-di,j-dj,k-dk,phase0) / phase0_reference_density;
+                const Set::Scalar phase0_upper =
+                    component_density(i+di,j+dj,k+dk,phase0) / phase0_reference_density;
+                Set::Scalar gas_fraction_lower = 1.0;
+                Set::Scalar gas_fraction_upper = 1.0;
+                for (int species = ngas_species; species < nspecies; ++species)
+                    if (inverse_reference_density[species] > 0.0)
+                    {
+                        gas_fraction_lower -=
+                            component_density(i-di,j-dj,k-dk,species) *
+                            inverse_reference_density[species];
+                        gas_fraction_upper -=
+                            component_density(i+di,j+dj,k+dk,species) *
+                            inverse_reference_density[species];
+                    }
+                gas_fraction_lower = Util::Max(gas_fraction_lower, 0.0);
+                gas_fraction_upper = Util::Max(gas_fraction_upper, 0.0);
+                const Set::Scalar backward_pair_derivative =
+                    (eta0 * gas_fraction_lower - eta1 * phase0_lower) / DX[direction];
+                const Set::Scalar forward_pair_derivative =
+                    (eta1 * phase0_upper - eta0 * gas_fraction_upper) / DX[direction];
+                const Set::Scalar upwind_derivative = Util::Max(
+                    Util::Max(backward_pair_derivative, 0.0),
+                    Util::Max(-forward_pair_derivative, 0.0));
+                surface_measure_squared += upwind_derivative * upwind_derivative;
+            }
+            surface_measure = std::sqrt(surface_measure_squared);
+        }
         if (!(surface_measure > 0.0))
             return {0.0, Set::Vector::Zero()};
         return {surface_measure, phase_pair_gradient};

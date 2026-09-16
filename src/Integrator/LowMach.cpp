@@ -4000,8 +4000,17 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
         // makes it vanish smoothly in a uniform mixed region.
         Set::Field<Set::Scalar> stefan_volume_current(nlev);
         Set::Field<Set::Scalar> recoil_force_vector(nlev);
+        Set::Field<Set::Scalar> component_density_before_change(nlev);
         for (int lev = 0; lev < nlev; ++lev)
         {
+            // Freeze stencil inputs before transferring mass. Neighbor
+            // reads from the array being updated depend on CPU traversal
+            // order and race with other threads on a GPU.
+            component_density_before_change.Define(
+                lev, component_density_mf[lev]->boxArray(),
+                component_density_mf[lev]->DistributionMap(), nspecies, 1);
+            amrex::MultiFab::Copy(*component_density_before_change[lev],
+                *component_density_mf[lev], 0, 0, nspecies, 1);
             stefan_volume_current[lev] =
                 std::make_unique<amrex::MultiFab>(
                     component_density_mf[lev]->boxArray(),
@@ -4026,7 +4035,7 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<Set::Scalar> component_density =
                     component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> component_density_state =
-                    component_density_mf.Patch(lev,mfi);
+                    component_density_before_change.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_eta;
                 Set::Patch<const Set::Scalar> rigid_species_eta;
                 if (!rigid_solid_species.empty())

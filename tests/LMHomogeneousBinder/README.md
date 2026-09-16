@@ -79,6 +79,11 @@ j_ref = rho*A*exp(-(E/R)/T_ref)
 The existing diffuse surface measure supplies the volumetric source. No
 factor involving mesh spacing or interface thickness is folded into A.
 Temperature remains coupled to the transient energy equation.
+Irreversible solid-to-gas consumption uses an upwind front gradient and a
+frozen density stencil, so it can advance into initially pure solid without
+leaving oscillatory remnants or racing neighboring device threads. Stefan
+and recoil fluxes retain the centered phase-pair gradient. Interface width
+and measured rates still require grid-convergence checks.
 
 Negative Q is endothermic. Homogeneous setup converts it to the branch's
 `coupled_enthalpy_change = -Q`, applied once during implicit mass transfer.
