@@ -579,6 +579,195 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 1.0 / value.reference_density[n];
     }
 
+    // Resolve homogeneous materials before constructing any mechanism. All
+    // mechanisms must cache the same final condensed reference densities,
+    // independently of their order in mechanisms.names. The constituent
+    // inputs remain pure properties; density ICs must use the blend density.
+    std::vector<std::string> mechanism_names;
+    pp.queryarr_default("mechanisms.names", mechanism_names, {});
+    std::vector<bool> homogeneous_solids(value.nspecies, false);
+    std::vector<bool> homogeneous_ap_sources(value.nspecies, false);
+    for (const std::string& mechanism_name : mechanism_names)
+    {
+        std::string mechanism_type;
+        pp.query_required(mechanism_name + ".type", mechanism_type);
+        if (mechanism_type != "phase_change") continue;
+        const std::string prefix = mechanism_name + ".phase_change.";
+        bool homogeneous;
+        pp.query_default(prefix + "homogeneous", homogeneous, false);
+        if (!homogeneous) continue;
+
+        std::string binder_name, ap_name, kinetics;
+        std::vector<std::string> gas_products;
+        pp.query_required(prefix + "phase0", binder_name);
+        pp.query_required(prefix + "homogeneous.ap_solid", ap_name);
+        pp.queryarr_required(prefix + "phase1", gas_products);
+        pp.query_required(prefix + "kinetics", kinetics);
+        int binder_species = -1, ap_species = -1, gas_species = -1;
+        for (const int species : value.rigid_solid_species)
+        {
+            if (value.species_names[species] == binder_name)
+                binder_species = species;
+            if (value.species_names[species] == ap_name)
+                ap_species = species;
+        }
+        if (gas_products.size() == 1)
+            for (int species = 0; species < value.ngas_species; ++species)
+                if (value.species_names[species] == gas_products[0])
+                    gas_species = species;
+        if (binder_species < 0 || ap_species < 0 ||
+            binder_species == ap_species || gas_species < 0 ||
+            kinetics != "arrhenius_surface_flux")
+            Util::Exception(INFO, prefix, "homogeneous requires distinct rigid "
+                "binder/AP constituents, one lumped binder gas product, and "
+                "arrhenius_surface_flux kinetics");
+        if (homogeneous_solids[binder_species] ||
+            homogeneous_solids[ap_species] ||
+            homogeneous_ap_sources[binder_species])
+            Util::Exception(INFO, prefix, "a blend must have one homogeneous "
+                "mechanism and its AP constituent must remain pure");
+        homogeneous_solids[binder_species] = true;
+        homogeneous_ap_sources[ap_species] = true;
+
+        Set::Scalar ap_mass_fraction;
+        if (pp.contains(prefix + "homogeneous.mass_fraction"))
+        {
+            if (pp.contains(prefix + "homogeneous.total_mass_fraction") ||
+                pp.contains(prefix + "homogeneous.resolved_mass_fraction"))
+                Util::Exception(INFO, prefix, "specify either the AP mass "
+                    "fraction in the blend or total/resolved mass fractions");
+            pp.query_required(prefix + "homogeneous.mass_fraction",
+                              ap_mass_fraction);
+        }
+        else
+        {
+            Set::Scalar total_ap_mass_fraction, resolved_ap_mass_fraction;
+            pp.query_required(prefix + "homogeneous.total_mass_fraction",
+                              total_ap_mass_fraction);
+            pp.query_required(prefix + "homogeneous.resolved_mass_fraction",
+                              resolved_ap_mass_fraction);
+            if (!(resolved_ap_mass_fraction >= 0.0 &&
+                  resolved_ap_mass_fraction < 1.0 &&
+                  total_ap_mass_fraction >= resolved_ap_mass_fraction &&
+                  total_ap_mass_fraction <= 1.0))
+                Util::Exception(INFO, prefix,
+                    "require 0 <= resolved <= total <= 1 and resolved < 1");
+            ap_mass_fraction = (total_ap_mass_fraction -
+                resolved_ap_mass_fraction) / (1.0 - resolved_ap_mass_fraction);
+        }
+        if (!(ap_mass_fraction >= 0.0 && ap_mass_fraction <= 1.0))
+            Util::Exception(INFO, prefix,
+                "homogeneous.mass_fraction must lie in [0,1]");
+        for (const int species : {binder_species, ap_species})
+            if (!(value.reference_density[species] > 0.0) ||
+                !std::isfinite(value.reference_density[species]) ||
+                !(value.condensed_specific_heat[species] > 0.0) ||
+                !std::isfinite(value.condensed_specific_heat[species]) ||
+                !(value.condensed_thermal_conductivity[species] > 0.0) ||
+                !std::isfinite(value.condensed_thermal_conductivity[species]))
+                Util::Exception(INFO, prefix,
+                    "homogeneous constituents require positive finite "
+                    "density, specific heat, and thermal conductivity");
+
+        const Set::Scalar binder_density = value.reference_density[binder_species];
+        const Set::Scalar ap_density = value.reference_density[ap_species];
+        const Set::Scalar ap_volume_fraction = ap_mass_fraction * binder_density /
+            (ap_mass_fraction * binder_density +
+             (1.0 - ap_mass_fraction) * ap_density);
+        value.reference_density[binder_species] = 1.0 /
+            ((1.0 - ap_mass_fraction) / binder_density + ap_mass_fraction / ap_density);
+        value.condensed_specific_heat[binder_species] =
+            (1.0 - ap_mass_fraction) * value.condensed_specific_heat[binder_species] +
+            ap_mass_fraction * value.condensed_specific_heat[ap_species];
+
+        // Chen's unsquared conductivity relation, bounded by its pure values:
+        // k - k_AP = (1-v_AP)(k_binder-k_AP)(k/k_binder)^(1/d).
+        const Set::Scalar binder_conductivity =
+            value.condensed_thermal_conductivity[binder_species];
+        const Set::Scalar ap_conductivity =
+            value.condensed_thermal_conductivity[ap_species];
+        if (ap_volume_fraction == 1.0)
+            value.condensed_thermal_conductivity[binder_species] = ap_conductivity;
+        else if (ap_volume_fraction > 0.0 && binder_conductivity != ap_conductivity)
+        {
+            const Set::Scalar conductivity_scale =
+                Util::Max(binder_conductivity, ap_conductivity);
+            const Set::Scalar scaled_binder_conductivity =
+                binder_conductivity / conductivity_scale;
+            const Set::Scalar scaled_ap_conductivity = ap_conductivity / conductivity_scale;
+            Set::Scalar lower_conductivity =
+                Util::Min(scaled_binder_conductivity, scaled_ap_conductivity);
+            Set::Scalar upper_conductivity = 1.0;
+            for (int iteration = 0; iteration < 100; ++iteration)
+            {
+                const Set::Scalar trial_conductivity =
+                    lower_conductivity + 0.5 * (upper_conductivity - lower_conductivity);
+                if (trial_conductivity == lower_conductivity ||
+                    trial_conductivity == upper_conductivity) break;
+                const Set::Scalar residual = trial_conductivity - scaled_ap_conductivity -
+                    (1.0 - ap_volume_fraction) *
+                    (scaled_binder_conductivity - scaled_ap_conductivity) *
+                    std::pow(trial_conductivity / scaled_binder_conductivity,
+                             1.0 / AMREX_SPACEDIM);
+                if (residual > 0.0) upper_conductivity = trial_conductivity;
+                else lower_conductivity = trial_conductivity;
+            }
+            value.condensed_thermal_conductivity[binder_species] = conductivity_scale *
+                (lower_conductivity + 0.5 * (upper_conductivity - lower_conductivity));
+        }
+
+        Set::Scalar binder_pre_exponential_speed, ap_pre_exponential_speed;
+        Set::Scalar binder_activation_temperature, ap_activation_temperature;
+        Set::Scalar binder_heat_release, ap_heat_release;
+        pp.query_required(prefix + "homogeneous.binder_pre_exponential_speed",
+                          binder_pre_exponential_speed, Unit::Velocity());
+        pp.query_required(prefix + "homogeneous.ap_pre_exponential_speed",
+                          ap_pre_exponential_speed, Unit::Velocity());
+        pp.query_required(prefix + "homogeneous.binder_activation_temperature",
+                          binder_activation_temperature, Unit::Temperature());
+        pp.query_required(prefix + "homogeneous.ap_activation_temperature",
+                          ap_activation_temperature, Unit::Temperature());
+        pp.query_required(prefix + "homogeneous.binder_heat_release",
+                          binder_heat_release, Unit::Energy() / Unit::Mass());
+        pp.query_required(prefix + "homogeneous.ap_heat_release",
+                          ap_heat_release, Unit::Energy() / Unit::Mass());
+        for (const Set::Scalar parameter : {binder_pre_exponential_speed,
+             ap_pre_exponential_speed, binder_activation_temperature,
+             ap_activation_temperature})
+            if (!(parameter >= 0.0) || !std::isfinite(parameter))
+                Util::Exception(INFO, prefix,
+                    "homogeneous kinetic parameters must be finite and nonnegative");
+        if (!std::isfinite(binder_heat_release) || !std::isfinite(ap_heat_release))
+            Util::Exception(INFO, prefix, "homogeneous heat releases must be finite");
+
+        Set::Scalar blend_pre_exponential_speed = binder_pre_exponential_speed;
+        if (ap_volume_fraction == 1.0)
+            blend_pre_exponential_speed = ap_pre_exponential_speed;
+        else if (ap_volume_fraction > 0.0)
+            blend_pre_exponential_speed =
+                binder_pre_exponential_speed == 0.0 || ap_pre_exponential_speed == 0.0 ?
+                0.0 : std::exp((1.0 - ap_volume_fraction) * std::log(binder_pre_exponential_speed) +
+                              ap_volume_fraction * std::log(ap_pre_exponential_speed));
+        const Set::Scalar blend_activation_temperature =
+            (1.0 - ap_volume_fraction) * binder_activation_temperature +
+            ap_volume_fraction * ap_activation_temperature;
+        const Set::Scalar blend_heat_release =
+            (1.0 - ap_mass_fraction) * binder_heat_release + ap_mass_fraction * ap_heat_release;
+
+        // Expand the blend into the ordinary phase-change inputs, in the
+        // normalized units returned by ParmParse. This adds no device state
+        // and uses the same implicit mass/enthalpy solve as pure materials.
+        for (const std::string key : {"pre_exponential_speed", "reference_mass_flux",
+             "activation_temperature", "latent_heat", "coupled_enthalpy_change"})
+            if (pp.contains(prefix + key))
+                Util::Exception(INFO, prefix, key,
+                    " is derived from homogeneous constituent inputs");
+        pp.add((prefix + "pre_exponential_speed").c_str(), blend_pre_exponential_speed);
+        pp.add((prefix + "activation_temperature").c_str(), blend_activation_temperature);
+        // Negative Q is endothermic; positive coupled enthalpy absorbs heat.
+        pp.add((prefix + "coupled_enthalpy_change").c_str(), -blend_heat_release);
+    }
+
     for (int n = value.ngas_species; n < value.nspecies; ++n)
     {
         if (!(value.reference_density[n] > 0.0))
@@ -595,8 +784,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
     }
 
-    std::vector<std::string> mechanism_names;
-    pp.queryarr_default("mechanisms.names", mechanism_names, {});
     value.mechanisms.resize(mechanism_names.size());
     for (int n = 0; n < static_cast<int>(mechanism_names.size()); ++n)
     {

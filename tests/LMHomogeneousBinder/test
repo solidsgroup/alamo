@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Check blend properties and one-step mass/heat transfer independently."""
+from pathlib import Path
+import sys
+
+import numpy as np
+import yt
+
+yt.set_log_level(50)
+output = Path(sys.argv[1])
+parameters = dict(line.split(" = ", 1) for line in
+                  (output / "metadata").read_text().splitlines()
+                  if " = " in line and not line.startswith("#"))
+mass_fraction = float(parameters[
+    "binder_regression.phase_change.homogeneous.mass_fraction"])
+volume_fraction = mass_fraction * 920 / (mass_fraction * 920 +
+                                       (1 - mass_fraction) * 1950)
+blend_density = 1 / ((1 - mass_fraction) / 920 + mass_fraction / 1950)
+blend_cp = (1 - mass_fraction) * 2130 + mass_fraction * 1297.9
+blend_heat = -4184 * ((1 - mass_fraction) * 66 + mass_fraction * 100)
+# Independent closed-form physical root of Chen's 2D conductivity equation.
+conductivity_ratio = 0.4186 / 0.213
+coefficient = (1 - volume_fraction) * (1 - conductivity_ratio)
+blend_conductivity = 0.213 * (
+    (coefficient + np.sqrt(coefficient**2 + 4 * conductivity_ratio)) / 2)**2
+plotfiles = sorted(output.glob("*cell"))
+assert len(plotfiles) == 2, "Expected initial and one-step plotfiles"
+datasets = [yt.load(str(path)) for path in plotfiles]
+data = [dataset.all_data() for dataset in datasets]
+initial, final = data
+volume = initial["cell_volume"].v
+eta = 0.25 + 0.2 * np.cos(2 * np.pi * initial["y"].v)
+ap_eta = float(parameters[
+    "binder_gas.density.ic.expression.constant.ap_volume_fraction"])
+np.testing.assert_allclose(initial["rigid_eta"].v, eta + ap_eta, atol=2e-14)
+np.testing.assert_allclose(initial["component_density_binder_solid"].v,
+                           eta * blend_density, rtol=2e-12)
+np.testing.assert_allclose(initial["thermal_conductivity_coeff"].v,
+                           eta * blend_conductivity + ap_eta * 0.4186 +
+                           (1 - eta - ap_eta) * 0.1,
+                           rtol=2e-12)
+
+released = initial["component_density_binder_solid"].v - final[
+    "component_density_binder_solid"].v
+produced = final["component_density_binder_gas"].v - initial[
+    "component_density_binder_gas"].v
+assert np.all(released > 0), "No binder regression occurred"
+np.testing.assert_allclose(np.sum(produced * volume),
+                           np.sum(released * volume), rtol=1e-8)
+ap_released = initial["component_density_AP_solid"].v - final[
+    "component_density_AP_solid"].v
+ap_produced = final["component_density_AP_gas"].v - initial[
+    "component_density_AP_gas"].v
+np.testing.assert_allclose(initial["component_density_AP_solid"].v,
+                           ap_eta * 1950, atol=1e-12)
+np.testing.assert_allclose(np.sum(ap_produced * volume),
+                           np.sum(ap_released * volume), rtol=1e-8, atol=1e-14)
+if ap_eta == 0:
+    np.testing.assert_allclose(ap_produced, 0, atol=1e-14)
+
+# With a short timestep, the initial capacity gives the integrated cooling
+# to first order. This tests the mass-based cp/Q averages and catches omitted
+# or duplicated heat. The unit tests also verify the exact implicit update.
+heat_capacity = initial["component_density_binder_solid"].v * blend_cp + \
+    initial["component_density_binder_gas"].v * 1000 + \
+    initial["component_density_AP_solid"].v * 1297.9
+temperature_change = final["temperature"].v - initial["temperature"].v
+assert np.all(temperature_change < 0), "Endothermic decomposition did not cool"
+np.testing.assert_allclose(np.sum(temperature_change * heat_capacity * volume),
+                           np.sum((released * blend_heat - ap_released * 418400) *
+                                  volume), rtol=1e-5)
+
+# The periodic planar layer has total variation 0.8. Its integrated mass
+# transfer is therefore rho*r*0.8 times the domain width, up to spatial error.
+speed = 2**(1-volume_fraction) * 5**volume_fraction * np.exp(
+    -((1-volume_fraction)*1000 + volume_fraction*2000) / 1000)
+dt = float(datasets[1].current_time - datasets[0].current_time)
+expected_mass = blend_density * speed * (1-ap_eta) * 0.8 * 0.125 * dt
+np.testing.assert_allclose(np.sum(released * volume), expected_mass, rtol=0.003)
+if ap_eta > 0:
+    expected_ap_mass = 1950 * np.exp(-2) * ap_eta * 0.8 * 0.125 * dt
+    np.testing.assert_allclose(np.sum(ap_released * volume), expected_ap_mass,
+                               rtol=0.003)
+print("Homogeneous endpoint/blend properties, dimensional speed, single binder "
+      "gas product, mass conservation, and decomposition heat passed")

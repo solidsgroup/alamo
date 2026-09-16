@@ -4,6 +4,9 @@
 // mechanism.  The mechanism utilizes a different form of equations for computing
 // reaction rates than typical Cantera/Chemkin style kinetics, so this implementation
 // is separate from :code:Model::Chemistry::FiniteRate:code:.
+// The second gas species is lumped binder gas, which can already include
+// homogenized fine AP. Only resolved AP decomposition supplies the first
+// (AP gas) species; do not split the lumped binder source between the two.
 //
 // The mechanism is available in public literature.  This implementation is
 // named GrossModel after Matt Gross, the original author of the model.
@@ -632,7 +635,7 @@ struct GrossModel
         pp.query_default("max_iter", value.max_iter, 100);
         pp.query_default("reltol", value.reltol, 1.0e-8);
         pp.query_default("abstol", value.abstol, 1.0e-12);
-        // Stoichiometric coefficient for beta*AP + HTPB -> (beta+1) Primary
+        // Stoichiometric coefficient for beta*AP + binder -> (beta+1) Primary
         pp.query_default("beta", value.beta, 7.974);
         // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
         pp.query_default("gamma", value.gamma, 3.19);
