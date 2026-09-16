@@ -29,6 +29,7 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Chemistry/GrossModel.H"
+#include "Model/Mechanism/PhaseChange.H"
 #include "Model/Capillarity/MultiphaseFreeEnergy.H"
 #include "Model/Capillarity/ConservativeAllenCahn.H"
 #include "Model/Capillarity/SinglyDegenerateCahnHilliard.H"
@@ -56,6 +57,73 @@ int main (int argc, char* argv[])
     int failed = 0;
 
     Util::globalprefix = "  │  ";
+
+    Util::Test::Message("Arrhenius recession speed and implicit decomposition heat");
+    {
+        int subfailed = 0;
+        for (int use_speed = 0; use_speed < 2; ++use_speed)
+        {
+            IO::ParmParse parameters("arrhenius_units_" + std::to_string(use_speed));
+            parameters.add("phase0", std::string("solid"));
+            parameters.add("phase1", std::string("binder_gas"));
+            parameters.add("kinetics", std::string("arrhenius_surface_flux"));
+            parameters.add("reference_pressure", 1.0e5);
+            parameters.add("pressure_exponent", 0.0);
+            parameters.add("reference_temperature", 1000.0);
+            parameters.add("activation_temperature", 5000.0);
+            parameters.add("coupled_enthalpy_change", 1.0e5);
+            if (use_speed)
+                parameters.add("pre_exponential_speed", 2.0);
+            else
+                parameters.add("reference_mass_flux", 920.0 * 2.0 * std::exp(-5.0));
+            Model::Mechanism::PhaseChange mechanism;
+            Model::Mechanism::PhaseChange::Parse(mechanism, parameters,
+                {"AP_gas", "binder_gas", "solid"}, 2, {2}, {},
+                {0.0, 0.0, 920.0}, {26.0, 26.0}, 8314.46261815324);
+
+            const amrex::Box box(amrex::IntVect(AMREX_D_DECL(0,0,0)),
+                                 amrex::IntVect(AMREX_D_DECL(2,0,0)));
+            amrex::FArrayBox state_storage(box, 5, amrex::The_Managed_Arena());
+            const auto state_array = state_storage.array();
+            amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                state_array(i,j,k,0) = 0.0;
+                state_array(i,j,k,1) = 1.0;
+                state_array(i,j,k,2) = 460.0;
+                Set::Scalar temperature = 800.0 + 200.0 * i;
+                Set::Scalar heat = 0.0;
+                Model::Mechanism::State state{state_array, {}, {},
+                    temperature, 1.0e5, 1.0e-4};
+                mechanism.ApplyKineticChange(state_array, state,
+                    1.0e6, 3.0, temperature, heat, i, j, k);
+                state_array(i,j,k,3) = temperature;
+                state_array(i,j,k,4) = heat;
+            });
+            amrex::Gpu::streamSynchronize();
+            for (int i = 0; i < 3; ++i)
+            {
+                const Set::Scalar initial_temperature = 800.0 + 200.0 * i;
+                const Set::Scalar final_temperature = state_array(i,0,0,3);
+                const Set::Scalar consumed = 460.0 - state_array(i,0,0,2);
+                const Set::Scalar expected = 1.0e-4 * 3.0 * 920.0 * 2.0 *
+                    std::exp(-5000.0 / final_temperature);
+                subfailed += Util::Test::SubMessage(
+                    "Dimensional surface flux at coupled temperature",
+                    !(consumed > 0.0) || std::abs(consumed - expected) > 2.0e-11);
+                subfailed += Util::Test::SubMessage(
+                    "All condensed mass becomes binder gas",
+                    std::abs(state_array(i,0,0,1) - 1.0 - consumed) > 1.0e-12 ||
+                    state_array(i,0,0,0) != 0.0);
+                subfailed += Util::Test::SubMessage(
+                    "Endothermic heat is applied once",
+                    !(final_temperature < initial_temperature) ||
+                    std::abs(state_array(i,0,0,4) + 1.0e5 * consumed) > 1.0e-7 ||
+                    std::abs(1.0e6 * (final_temperature - initial_temperature) -
+                             state_array(i,0,0,4)) > 2.0e-7);
+            }
+        }
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
 
     Util::Test::Message("IO::FileNameParse test");
     {

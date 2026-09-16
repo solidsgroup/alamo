@@ -201,9 +201,6 @@ public:
         else if (kinetics == "arrhenius_surface_flux")
         {
             value.kinetics = Kinetics::ArrheniusSurfaceFlux;
-            pp.query_required("reference_mass_flux",
-                value.reference_mass_flux,
-                Unit::Mass() / Unit::Area() / Unit::Time());
             pp.query_required("reference_pressure", value.reference_pressure,
                               Unit::Pressure());
             pp.query_required("pressure_exponent", value.pressure_exponent);
@@ -213,7 +210,31 @@ public:
             pp.query_required("reference_temperature",
                               value.reference_temperature,
                               Unit::Temperature());
+            if (pp.contains("pre_exponential_speed"))
+            {
+                if (pp.contains("reference_mass_flux"))
+                    Util::Exception(INFO, "Specify either pre_exponential_speed "
+                        "or reference_mass_flux, not both");
+                Set::Scalar pre_exponential_speed;
+                pp.query_required("pre_exponential_speed",
+                                  pre_exponential_speed, Unit::Velocity());
+                if (!(pre_exponential_speed >= 0.0) ||
+                    !std::isfinite(pre_exponential_speed))
+                    Util::Exception(INFO,
+                        "pre_exponential_speed must be finite and nonnegative");
+                // r = A exp(-E/(R T)) is a recession speed. Convert it once
+                // to the dimensional mass flux at the reference temperature;
+                // the diffuse surface measure supplies the spatial support.
+                value.reference_mass_flux = value.phase0_reference_density *
+                    pre_exponential_speed * std::exp(
+                        -value.activation_temperature / value.reference_temperature);
+            }
+            else
+                pp.query_required("reference_mass_flux",
+                    value.reference_mass_flux,
+                    Unit::Mass() / Unit::Area() / Unit::Time());
             if (!(value.reference_mass_flux >= 0.0) ||
+                !std::isfinite(value.reference_mass_flux) ||
                 !(value.reference_pressure > 0.0) ||
                 !std::isfinite(value.pressure_exponent) ||
                 !(value.activation_temperature >= 0.0) ||
