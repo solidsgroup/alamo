@@ -1,6 +1,7 @@
 #include "LowMach.H"
 
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_SPACE.H"
@@ -73,6 +74,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Util::Exception(INFO, "species.names must contain one identifier for every gas species");
     value.component_density_ic.resize(value.nspecies, nullptr);
     value.reference_density.assign(value.nspecies, NAN);
+    value.orientation.assign(
+        value.nspecies, std::vector<double>{1.0, 0.0, 0.0});
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
     value.condensed_inverse_reference_density.fill(NAN);
@@ -118,6 +121,31 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         if (mechanics != "fluid")
         {
+            // Cartesian crystal normal; defaults to the +x direction.
+            auto& normal = value.orientation[n];
+            pp.queryarr_default(
+                name + ".orientation", normal,
+                std::vector<double>{1.0, 0.0, 0.0});
+
+            if (normal.size() != 3)
+                Util::Exception(INFO, name,
+                                ".orientation must contain exactly three components");
+
+            for (double component : normal)
+                if (!std::isfinite(component))
+                    Util::Exception(INFO, name,
+                                    ".orientation components must be finite");
+
+            const double magnitude =
+                std::hypot(normal[0], normal[1], normal[2]);
+
+            if (!(magnitude > 0.0) || !std::isfinite(magnitude))
+                Util::Exception(INFO, name,
+                                ".orientation must have a finite, nonzero magnitude");
+
+            for (double& component : normal)
+                component /= magnitude;
+
             const bool has_specific_heat =
                 pp.contains(name + ".specific_heat");
             const bool has_thermal_conductivity =
@@ -232,8 +260,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.select<Model::Mechanism::PhaseChange>(
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
-                            value.rigid_solid_species, value.reference_density, value.gas.MW,
-                            value.gas.Rg));
+                            value.rigid_solid_species, value.reference_density,
+                            value.orientation, value.gas.MW, value.gas.Rg));
     }
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||

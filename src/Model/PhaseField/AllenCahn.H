@@ -45,8 +45,8 @@ public:
             pp.contains("w0") || pp.contains("w12") || pp.contains("w1");
         if (!configured) return;
 
-        pp.query_required("mobility", value.mobility,
-                        1.0 / Unit::Pressure() / Unit::Time());
+        pp.query_default("mobility", value.mobility, "0.01_1/Pa/s",
+                         1.0 / Unit::Pressure() / Unit::Time());
 
         std::pair<std::string, Set::Scalar> coefficients[2];
         pp.query_exactly<2>({"lambda", "kappa", "sigma", "epsilon"}, coefficients,

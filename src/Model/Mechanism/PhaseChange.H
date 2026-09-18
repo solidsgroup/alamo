@@ -34,6 +34,7 @@ public:
                     const int ngas_species,
                     const std::vector<int>& rigid_solid_species,
                     const std::vector<Set::Scalar>& reference_density,
+                    const std::vector<std::vector<double>>& orientation,
                     const std::vector<double>& molecular_weight,
                     const Set::Scalar universal_gas_constant)
     {
@@ -59,6 +60,26 @@ public:
         value.reference_density = reference_density[value.input];
         if (!(value.reference_density > 0.0))
             Util::Exception(INFO, "No positive reference density is defined for ", input);
+
+        // Orthorhombic face dependence, limited to +/-20% of the configured
+        // base mobility.  The supplied orientation is the unit Cartesian face
+        // normal in crystal coordinates, so a plane (hkl) is entered
+        // proportional to (h/a,k/b,l/c).
+        constexpr Set::Scalar orientation_strength = 0.20;
+        constexpr Set::Scalar reference_ab_product = 0.2368;
+
+        const auto& normal = orientation[value.input];
+        const Set::Scalar na2 = normal[0] * normal[0];
+        const Set::Scalar nb2 = normal[1] * normal[1];
+        const Set::Scalar nc2 = normal[2] * normal[2];
+        value.orientation_mobility_multiplier = Util::Clamp(
+            1.0 + orientation_strength *
+                (na2 * nb2 / reference_ab_product - nc2),
+            1.0 - orientation_strength, 1.0 + orientation_strength);
+        if (!(value.orientation_mobility_multiplier > 0.0) ||
+            !std::isfinite(value.orientation_mobility_multiplier))
+            Util::Exception(INFO,
+                "orientation mobility multiplier must be finite and positive");
 
         if (outputs.empty() || outputs.size() > max_products)
             Util::Exception(INFO, pp.full("out"), " must contain between 1 and ",
@@ -118,7 +139,7 @@ public:
                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         const Set::Scalar weight = Weight(state, i, j, k);
-        return weight * (input_is_rigid ?
+        return orientation_mobility_multiplier * weight * (input_is_rigid ?
             phase_field(state.rigid_eta, 0, 1.0, i, j, k, DX) :
             phase_field(state.component_density, input,
                         1.0 / reference_density, i, j, k, DX));
@@ -151,7 +172,8 @@ public:
     Set::Scalar StabilityRate(const Set::Scalar dx,
                             const Set::Scalar temperature) const
     {
-        return KineticFactor(temperature) * phase_field.StabilityRate(dx);
+        return orientation_mobility_multiplier *
+            KineticFactor(temperature) * phase_field.StabilityRate(dx);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -159,7 +181,7 @@ public:
         const State& state, const int i, const int j, const int k) const
     {
         const Set::Scalar weight = Weight(state, i, j, k);
-        return weight * (input_is_rigid ?
+        return orientation_mobility_multiplier * weight * (input_is_rigid ?
             phase_field.Local(state.rigid_eta, 0, 1.0, i, j, k) :
             phase_field.Local(state.component_density, input,
                               1.0 / reference_density, i, j, k));
@@ -172,7 +194,7 @@ public:
         if (input_is_rigid &&
             !(Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0) < 1.0))
             return 0.0;
-        return Weight(state, i, j, k) *
+        return orientation_mobility_multiplier * Weight(state, i, j, k) *
             phase_field.LocalStabilityRate();
     }
 
@@ -180,7 +202,7 @@ public:
     Set::Scalar GradientCoefficient(
         const State& state, const int i, const int j, const int k) const
     {
-        return Weight(state, i, j, k) *
+        return orientation_mobility_multiplier * Weight(state, i, j, k) *
             phase_field.GradientCoefficient();
     }
 
@@ -242,6 +264,7 @@ private:
     Set::Scalar rate_multiplier = 1.0;
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
+    Set::Scalar orientation_mobility_multiplier = 1.0;
     bool input_is_rigid = false;
 };
 }

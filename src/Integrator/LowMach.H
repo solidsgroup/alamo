@@ -197,6 +197,9 @@ protected:
     std::vector<Mechanism> mechanisms;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
+
+    // Three-component Cartesian crystal normals, indexed by species.
+    std::vector<std::vector<double>> orientation;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
