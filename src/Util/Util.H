@@ -8,6 +8,8 @@
 #include <iterator>
 #include <algorithm>
 #include <complex>
+#include <exception>
+#include <stdexcept>
 #include <stdlib.h>
 #include <string_view>
 
