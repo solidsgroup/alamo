@@ -214,7 +214,7 @@ private:
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
-                        Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
+                        Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, domain);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
@@ -262,7 +262,7 @@ private:
                     amrex::Box cbx = mfi.grownnodaltilebox(-1, 1) & row_domain;
                     amrex::LoopConcurrentOnCpu(cbx, [=] (int i, int j, int k)
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, cbx);
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Matrix kinvar;
                         if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::gradu)
@@ -287,6 +287,21 @@ private:
                                 ddw(i, j, k, face + 1) = ddw(i, j, k, 0);
                         }
                     });
+                    // Fapply also evaluates the first coarse/fine ghost row.
+                    // Its incoming face lies one node below cbx and must have
+                    // the same tangent as FaceStressDivergence uses there.
+                    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+                    {
+                        amrex::Box incoming = cbx;
+                        incoming.setBig(face, cbx.smallEnd(face)-1);
+                        incoming.setSmall(face, cbx.smallEnd(face)-1);
+                        incoming &= domain;
+                        amrex::LoopConcurrentOnCpu(incoming, [=] (int i, int j, int k)
+                        {
+                            ddw(i,j,k,face+1) = Detail::FaceTangent(
+                                model, u, i, j, k, face, dx);
+                        });
+                    }
                     continue;
                 }
 
@@ -343,7 +358,7 @@ private:
                     amrex::Array4<const T> const& model = a_model_mf[lev]->array(mfi);
                     amrex::LoopConcurrentOnCpu(cbx, [=] (int i, int j, int k)
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, cbx);
+                        auto sten = Numeric::GetStencil(i, j, k, domain);
                         const int index[3] = {i, j, k};
                         const int lower[3] = {lo.x, lo.y, lo.z};
                         const int upper[3] = {hi.x, hi.y, hi.z};
@@ -356,7 +371,7 @@ private:
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Vector ret = m_elastic->GetBC()(
-                                u(i, j, k), gradu, dw(i, j, k), i, j, k, cbx);
+                                u(i, j, k), gradu, dw(i, j, k), i, j, k, domain);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
@@ -379,7 +394,7 @@ private:
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
+                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, domain);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
@@ -408,7 +423,7 @@ private:
                             {
                                 psiavg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
                             }
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
+                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, domain);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else

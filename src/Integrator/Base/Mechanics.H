@@ -202,6 +202,19 @@ protected:
         UpdateModel(a_step, a_time);
 
         bc->SetTime(a_time);
+        auto* expression = dynamic_cast<BC::Operator::Elastic::Expression*>(bc);
+        if (expression && expression->HasContact())
+        {
+            Util::Assert(INFO, TEST(m_type == Type::Static && !psi_on && !m_zero_out_displacement),
+                "Expression contact requires static mechanics without diffuse voids or displacement resetting");
+            if (max_level > 0)
+            {
+                Util::Assert(INFO, TEST(explicitmesh.on), "Contact AMR currently requires fixed explicitmesh grids");
+                for (int lev = 1; lev <= finest_level; ++lev)
+                    Util::Assert(INFO, TEST(nsubsteps[lev] == 1), "Quasistatic contact requires amr.nsubsteps=1");
+            }
+            expression->UpdateContact(*disp_mf[finest_level], *stress_mf[finest_level], geom[finest_level]);
+        }
         bc->Init(rhs_mf, geom);
 
         if (m_type != Mechanics<MODEL>::Type::Static) return;
@@ -213,65 +226,73 @@ protected:
             info.setMaxCoarseningLevel(m_max_coarsening_level);
         const bool conservative_face_flux =
             solver.usesConservativeFaceFlux() && !psi_on;
-        Operator::Elastic<MODEL::sym> elastic_op(
-            Geom(0, finest_level), grids, DistributionMap(0, finest_level),
-            info, conservative_face_flux);
-        elastic_op.SetUniform(false);
-        elastic_op.SetHomogeneous(false);
-        elastic_op.SetBC(bc);
-        IO::ParmParse pp("elasticop");
-
-        // Elastic operator
-        pp.queryclass(elastic_op);
-
-        solver.Define(elastic_op);
-        if (psi_on) solver.setPsi(psi_mf);
-
-        for (int lev = 0; lev <= finest_level; ++lev)
-            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
-
-        solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
-        if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
-        solver.Clear();
-
-        for (int lev = 0; lev <= disp_mf.finest_level; lev++)
+        for (int contact_iter = 0; ; ++contact_iter)
         {
-            amrex::Box domain = geom[lev].Domain();
-            domain.convert(amrex::IntVect::TheNodeVector());
+            Operator::Elastic<MODEL::sym> elastic_op(
+                Geom(0, finest_level), grids, DistributionMap(0, finest_level),
+                info, conservative_face_flux);
+            elastic_op.SetUniform(false);
+            elastic_op.SetHomogeneous(false);
+            elastic_op.SetBC(bc);
+            IO::ParmParse pp("elasticop");
 
-            const amrex::Real* DX = geom[lev].CellSize();
-            for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
+            // Elastic operator
+            pp.queryclass(elastic_op);
+
+            solver.Define(elastic_op);
+            if (psi_on) solver.setPsi(psi_mf);
+
+            for (int lev = 0; lev <= finest_level; ++lev)
+                if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
+
+            solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
+            if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
+            solver.Clear();
+
+            for (int lev = 0; lev <= disp_mf.finest_level; lev++)
             {
-                amrex::Box bx = mfi.nodaltilebox();
-                bx.grow(2);
-                bx = bx & domain;
-                amrex::Array4<MODEL>             const& model = model_mf[lev]->array(mfi);
-                amrex::Array4<Set::Matrix>       const& stress = stress_mf[lev]->array(mfi);
-                amrex::Array4<Set::Matrix>       const& strain = strain_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Vector> const& disp = disp_mf[lev]->array(mfi);
+                amrex::Box domain = geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
 
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                const amrex::Real* DX = geom[lev].CellSize();
+                for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
-                    if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
+                    amrex::Box bx = mfi.nodaltilebox();
+                    bx.grow(2);
+                    bx = bx & domain;
+                    amrex::Array4<MODEL>             const& model = model_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Matrix>       const& stress = stress_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Matrix>       const& strain = strain_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Vector> const& disp = disp_mf[lev]->array(mfi);
+
+
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX, sten);
-                        stress(i, j, k) = model(i, j, k).DW(F);
-                        strain(i, j, k) = F;
-                    }
-                    else
-                    {
-                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
-                        stress(i, j, k) = model(i, j, k).DW(gradu);
-                        strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
-                    }
-                });
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
+                        {
+                            Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX, sten);
+                            stress(i, j, k) = model(i, j, k).DW(F);
+                            strain(i, j, k) = F;
+                        }
+                        else
+                        {
+                            Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
+                            stress(i, j, k) = model(i, j, k).DW(gradu);
+                            strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
+                        }
+                    });
+                }
+                stress_mf[lev]->setMultiGhost(true);
+                stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+                strain_mf[lev]->setMultiGhost(true);
+                strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
             }
-            stress_mf[lev]->setMultiGhost(true);
-            stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
-            strain_mf[lev]->setMultiGhost(true);
-            strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            if (!expression || !expression->HasContact() ||
+                !expression->UpdateContact(*disp_mf[finest_level], *stress_mf[finest_level], geom[finest_level], true)) break;
+            Util::Message(INFO, "Contact active-set update ", contact_iter+1);
+            Util::Assert(INFO, TEST(contact_iter+1 < expression->ContactIterations()), "Contact active set failed to converge");
+            bc->Init(rhs_mf, geom);
         }
     }
 

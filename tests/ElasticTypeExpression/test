@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+import numpy as np
+import yt
+yt.set_log_level(50)
+plots = sorted(Path(sys.argv[1]).glob('*cell'))[1:]
+assert plots
+for plot in plots:
+    ds = yt.load(str(plot))
+    grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
+    for field, expected in [('strain_yy', .001), ('strain_xx', 0),
+                            ('stress_yy', .003), ('stress_xx', .001), ('stress_xy', 0)]:
+        np.testing.assert_allclose(grid['boxlib', field].d, expected, atol=1e-8, rtol=1e-5)
+print('Space/time-dependent boundary types: PASS')

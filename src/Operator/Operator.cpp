@@ -94,7 +94,9 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
     int ncomp = b.nComp();
     const bool relax_ghost_rows = relaxCoarseFineGhostRows();
-    int nghost = relax_ghost_rows ? 2 : 0;
+    // Even the conservative stencil must relax its first interface ghost row:
+    // MLMG's ghost-node AMR strategy includes that row in coarse/fine transfer.
+    int nghost = relax_ghost_rows ? 2 : 1;
 
 
     amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -126,7 +128,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
             if (!relax_ghost_rows)
             {
-                const Box cbx = mfi.nodaltilebox() & domain;
+                const Box cbx = amrex::grow(mfi.nodaltilebox(), 1) & domain;
                 for (int n = 0; n < ncomp; ++n)
                 {
                     amrex::LoopConcurrentOnCpu(cbx, [&] (int i, int j, int k)

@@ -371,11 +371,10 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 {
     BL_PROFILE("Operator::Elastic::Diagonal()");
 
-    // Conservative smoothing only consumes valid diagonal rows. Computing its
-    // ghost rows can cross into a neighboring coefficient FAB, where the local
-    // face data are not defined; FillBoundaryAndSync populates them below.
+    // The ghost-node AMR strategy also relaxes the first interface ghost row.
+    // Its incoming-face tangent is populated by Newton along with valid rows.
     const amrex::IntVect diagonal_nghost = m_conservative_face_flux
-        ? amrex::IntVect::TheZeroVector() : a_diag.nGrowVect();
+        ? amrex::IntVect::TheUnitVector() : a_diag.nGrowVect();
     amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(
         diagonal_nghost.max()));
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -906,8 +905,10 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         BoxArray newba = crseba;
         newba.refine(2);
         MultiTab fine_on_crseba;
-        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, 2, 4,
+        // The outgoing face at coarse ghost +2 also reads fine +5.
+        const int fine_nghost = ncomp > 1 ? 5 : 4;
+        fine_on_crseba.define(newba, crse.DistributionMap(), ncomp, fine_nghost);
+        fine_on_crseba.ParallelCopy(fine, 0, 0, ncomp, 2, fine_nghost,
             m_geom[amrlev][mglev-1].periodicity());
         /* ine_on_crseba.FillBoundaryAndSync(m_geom[amrlev][mglev-1].periodicity()); */
 

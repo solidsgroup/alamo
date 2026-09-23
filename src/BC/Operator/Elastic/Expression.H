@@ -10,6 +10,8 @@
 #include "BC/Operator/Elastic/Elastic.H"
 
 #include "AMReX_Parser.H"
+#include <cmath>
+#include <limits>
 
 namespace BC
 {
@@ -53,11 +55,117 @@ public:
 
     using Elastic::Init;
 
+    bool HasContact() const { return m_contact; }
+    int ContactIterations() const { return m_contact_iterations; }
+
+    // Small-slope contact on the upper face in the last coordinate direction.
+    // Freeze this active set throughout each equilibrium solve (including MG).
+    bool UpdateContact(const amrex::FabArray<amrex::BaseFab<Set::Vector>>& displacement,
+                       const amrex::FabArray<amrex::BaseFab<Set::Matrix>>& stress,
+                       const amrex::Geometry& geom, bool report = false)
+    {
+        if (!m_contact) return false;
+        constexpr int normal = AMREX_SPACEDIM-1;
+        auto domain = amrex::surroundingNodes(geom.Domain());
+        int size = 1;
+        for (int d = 0; d < normal; ++d)
+        {
+            m_contact_length[d] = domain.length(d);
+            size *= domain.length(d);
+        }
+        if (m_active.empty()) m_active.resize(size, 0);
+        Util::Assert(INFO, TEST(int(m_active.size()) == size), "Contact mesh cannot change during a run");
+        std::vector<int> next(size, 0);
+        std::vector<Set::Scalar> pressure_field(size, -std::numeric_limits<Set::Scalar>::infinity());
+        Set::Scalar max_penetration = 0.0, max_tension = 0.0;
+        for (amrex::MFIter mfi(displacement); mfi.isValid(); ++mfi)
+        {
+            auto box = mfi.validbox() & domain;
+            box.setSmall(normal, domain.bigEnd(normal));
+            box &= mfi.validbox();
+            auto u = displacement.const_array(mfi);
+            auto p = stress.const_array(mfi);
+            amrex::LoopOnCpu(box, [&](int i, int j, int k) {
+                const int index[3] = {i,j,k};
+                int offset = 0, stride = 1;
+                for (int d = 0; d < normal; ++d)
+                {
+                    if (index[d] == domain.smallEnd(d) || index[d] == domain.bigEnd(d)) return;
+                    offset += (index[d]-domain.smallEnd(d))*stride;
+                    stride *= domain.length(d);
+                }
+                auto pos = Set::Position(i,j,k,geom,amrex::IndexType::TheNodeType());
+                const Set::Scalar x = pos(0), y = pos(1);
+                const Set::Scalar z = AMREX_D_PICK(0.0,0.0,pos(2));
+                if (!m_region(x,y,z,m_time)) return;
+                const auto penetration = u(i,j,k)(normal)-m_obstacle(x,y,z,m_time);
+                const auto pressure = -p(i,j,k)(normal,normal);
+                pressure_field[offset] = pressure;
+                max_penetration = std::max(max_penetration, penetration);
+                max_tension = std::max(max_tension, -pressure);
+                const auto criterion = pressure + m_contact_stiffness*penetration;
+                Util::Assert(INFO, TEST(std::isfinite(criterion)), "Nonfinite contact state");
+                next[offset] = criterion > m_contact_tolerance ? 1 :
+                    (criterion < -m_contact_tolerance ? 0 : m_active[offset]);
+            });
+        }
+        amrex::ParallelDescriptor::ReduceIntMax(next.data(), size);
+        amrex::ParallelDescriptor::ReduceRealMax(pressure_field.data(), size);
+        // The finest level must cover the entire possible contact region.
+        // This avoids mixing coarse/fine reactions or duplicating contact load.
+        for (int n = 0; n < size; ++n)
+        {
+            Set::Scalar pos[3] = {0,0,0};
+            int remainder = n;
+            bool edge = false;
+            for (int d = 0; d < normal; ++d)
+            {
+                const int index = remainder % domain.length(d);
+                remainder /= domain.length(d);
+                edge = edge || index == 0 || index == domain.length(d)-1;
+                pos[d] = geom.ProbLo(d) + index*geom.CellSize(d);
+            }
+            pos[normal] = geom.ProbHi(normal);
+            if (!edge && m_region(pos[0],pos[1],pos[2],m_time))
+                Util::Assert(INFO, TEST(std::isfinite(pressure_field[n])),
+                    "The finest grid must cover the entire contact.region on the upper surface");
+        }
+        amrex::ParallelDescriptor::ReduceRealMax(max_penetration);
+        amrex::ParallelDescriptor::ReduceRealMax(max_tension);
+        const bool changed = next != m_active;
+        m_active.swap(next);
+        Set::Scalar load = 0.0, area = 1.0;
+        int active = 0;
+        for (int d = 0; d < normal; ++d) area *= geom.CellSize(d);
+        for (int n = 0; n < size; ++n)
+        {
+            active += m_active[n];
+            if (std::isfinite(pressure_field[n])) load += pressure_field[n]*area;
+        }
+        if (report) Util::Message(INFO, "Contact time=", m_time, " stable=", !changed,
+            " active_nodes=", active, " load=", load,
+            " penetration=", max_penetration, " tension=", max_tension);
+        return changed;
+    }
+
+    void CheckGeometry(const amrex::Geometry& geom) const
+    {
+        for (const auto& face : m_type_expression)
+            for (bool expression : face)
+                if (expression)
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        Util::Assert(INFO, TEST(!geom.isPeriodic(d)),
+                            "Spatial elastic type expressions currently require nonperiodic geometry");
+    }
+
     virtual void
     Init(amrex::FabArray<amrex::BaseFab<Set::Vector>> *a_rhs,
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
+            m_prob_lo = a_geom.ProbLoArray();
+            m_prob_hi = a_geom.ProbHiArray();
+            CheckGeometry(a_geom);
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -121,18 +229,20 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && Types(face, i, j, k, domain)[dir] == Type::Displacement)
                             rhs(i,j,k)(dir) = 0.0;
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),0.0,0.0,m_time);
+                            rhs(i,j,k)(dir) = Value(face,dir,x(0),0.0,0.0);
                             #elif AMREX_SPACEDIM==2
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),0.0,m_time);
+                            rhs(i,j,k)(dir) = Value(face,dir,x(0),x(1),0.0);
                             #elif AMREX_SPACEDIM==3
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),x(2),m_time);
+                            rhs(i,j,k)(dir) = Value(face,dir,x(0),x(1),x(2));
                             #endif
+                            if (Types(face,i,j,k,domain)[dir] == Type::Traction)
+                                rhs(i,j,k)(dir) *= m_traction_scale;
                         }
                     }
                 }
@@ -146,6 +256,9 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
+            m_prob_lo = a_geom.ProbLoArray();
+            m_prob_hi = a_geom.ProbHiArray();
+            CheckGeometry(a_geom);
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -209,18 +322,20 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && Types(face, i, j, k, domain)[dir] == Type::Displacement)
                             rhs(i,j,k,dir) = 0.0;
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),0.0,0.0,m_time);
+                            rhs(i,j,k,dir) = Value(face,dir,x(0),0.0,0.0);
                             #elif AMREX_SPACEDIM==2
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),0.0,m_time);
+                            rhs(i,j,k,dir) = Value(face,dir,x(0),x(1),0.0);
                             #elif AMREX_SPACEDIM==3
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),x(2),m_time);
+                            rhs(i,j,k,dir) = Value(face,dir,x(0),x(1),x(2));
                             #endif
+                            if (Types(face,i,j,k,domain)[dir] == Type::Traction)
+                                rhs(i,j,k,dir) *= m_traction_scale;
                         }
                     }
                 }
@@ -241,45 +356,45 @@ public:
 
         // Corners
         #if AMREX_SPACEDIM == 2
-        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
-        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
-        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
-        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
-        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
-        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
-        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
-        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
+        if (m[0] == lo.x && m[1] == lo.y)                  return Types(Face::XLO_YLO, i, j, k, domain);
+        if (m[0] == lo.x && m[1] == hi.y)                  return Types(Face::XLO_YHI, i, j, k, domain);
+        if (m[0] == hi.x && m[1] == lo.y)                  return Types(Face::XHI_YLO, i, j, k, domain);
+        if (m[0] == hi.x && m[1] == hi.y)                  return Types(Face::XHI_YHI, i, j, k, domain);
+        if (m[0] == lo.x)                                  return Types(Face::XLO, i, j, k, domain);
+        if (m[0] == hi.x)                                  return Types(Face::XHI, i, j, k, domain);
+        if (m[1] == lo.y)                                  return Types(Face::YLO, i, j, k, domain);
+        if (m[1] == hi.y)                                  return Types(Face::YHI, i, j, k, domain);
         
         #elif AMREX_SPACEDIM == 3
         
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XLO_YLO_ZLO];
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XLO_YLO_ZHI];
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XLO_YHI_ZLO];
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XLO_YHI_ZHI];
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XHI_YLO_ZLO];
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XHI_YLO_ZHI];
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XHI_YHI_ZLO];
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XHI_YHI_ZHI];
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return Types(Face::XLO_YLO_ZLO, i, j, k, domain);
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return Types(Face::XLO_YLO_ZHI, i, j, k, domain);
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return Types(Face::XLO_YHI_ZLO, i, j, k, domain);
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return Types(Face::XLO_YHI_ZHI, i, j, k, domain);
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return Types(Face::XHI_YLO_ZLO, i, j, k, domain);
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return Types(Face::XHI_YLO_ZHI, i, j, k, domain);
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return Types(Face::XHI_YHI_ZLO, i, j, k, domain);
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return Types(Face::XHI_YHI_ZHI, i, j, k, domain);
         
-        if (m[1] == lo.y && m[2] == lo.z)                  return m_bc_type[Face::YLO_ZLO];
-        if (m[1] == lo.y && m[2] == hi.z)                  return m_bc_type[Face::YLO_ZHI];
-        if (m[1] == hi.y && m[2] == lo.z)                  return m_bc_type[Face::YHI_ZLO];
-        if (m[1] == hi.y && m[2] == hi.z)                  return m_bc_type[Face::YHI_ZHI];
-        if (m[2] == lo.z && m[0] == lo.x)                  return m_bc_type[Face::ZLO_XLO];
-        if (m[2] == lo.z && m[0] == hi.x)                  return m_bc_type[Face::ZLO_XHI];
-        if (m[2] == hi.z && m[0] == lo.x)                  return m_bc_type[Face::ZHI_XLO];
-        if (m[2] == hi.z && m[0] == hi.x)                  return m_bc_type[Face::ZHI_XHI];
-        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
-        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
-        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
-        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
+        if (m[1] == lo.y && m[2] == lo.z)                  return Types(Face::YLO_ZLO, i, j, k, domain);
+        if (m[1] == lo.y && m[2] == hi.z)                  return Types(Face::YLO_ZHI, i, j, k, domain);
+        if (m[1] == hi.y && m[2] == lo.z)                  return Types(Face::YHI_ZLO, i, j, k, domain);
+        if (m[1] == hi.y && m[2] == hi.z)                  return Types(Face::YHI_ZHI, i, j, k, domain);
+        if (m[2] == lo.z && m[0] == lo.x)                  return Types(Face::ZLO_XLO, i, j, k, domain);
+        if (m[2] == lo.z && m[0] == hi.x)                  return Types(Face::ZLO_XHI, i, j, k, domain);
+        if (m[2] == hi.z && m[0] == lo.x)                  return Types(Face::ZHI_XLO, i, j, k, domain);
+        if (m[2] == hi.z && m[0] == hi.x)                  return Types(Face::ZHI_XHI, i, j, k, domain);
+        if (m[0] == lo.x && m[1] == lo.y)                  return Types(Face::XLO_YLO, i, j, k, domain);
+        if (m[0] == lo.x && m[1] == hi.y)                  return Types(Face::XLO_YHI, i, j, k, domain);
+        if (m[0] == hi.x && m[1] == lo.y)                  return Types(Face::XHI_YLO, i, j, k, domain);
+        if (m[0] == hi.x && m[1] == hi.y)                  return Types(Face::XHI_YHI, i, j, k, domain);
         
-        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
-        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
-        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
-        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
-        if (m[2] == lo.z)                                  return m_bc_type[Face::ZLO];
-        if (m[2] == hi.z)                                  return m_bc_type[Face::ZHI];
+        if (m[0] == lo.x)                                  return Types(Face::XLO, i, j, k, domain);
+        if (m[0] == hi.x)                                  return Types(Face::XHI, i, j, k, domain);
+        if (m[1] == lo.y)                                  return Types(Face::YLO, i, j, k, domain);
+        if (m[1] == hi.y)                                  return Types(Face::YHI, i, j, k, domain);
+        if (m[2] == lo.z)                                  return Types(Face::ZLO, i, j, k, domain);
+        if (m[2] == hi.z)                                  return Types(Face::ZHI, i, j, k, domain);
         
         #endif        
         
@@ -295,7 +410,7 @@ public:
                 const amrex::Box &domain) override
     {
         (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
-        //Set::Vector f;
+        auto types = getType(i, j, k, domain);
 
         const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
         
@@ -304,46 +419,46 @@ public:
         // Corners
         #if AMREX_SPACEDIM == 2
         
-        if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV));
-        if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV));
-        if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV));
-        if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV));
+        if (m[0] == lo.x && m[1] == lo.y)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV));
+        if (m[0] == lo.x && m[1] == hi.y)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV));
+        if (m[0] == hi.x && m[1] == lo.y)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV));
+        if (m[0] == hi.x && m[1] == hi.y)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV));
         
-        if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0));
-        if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0));
-        if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1));
-        if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1));
+        if (m[0] == lo.x)                                  return set(types,         u, gradu, sigma, Set::Vector(-1, 0));
+        if (m[0] == hi.x)                                  return set(types,         u, gradu, sigma, Set::Vector(+1, 0));
+        if (m[1] == lo.y)                                  return set(types,         u, gradu, sigma, Set::Vector( 0,-1));
+        if (m[1] == hi.y)                                  return set(types,         u, gradu, sigma, Set::Vector( 0,+1));
         
         #elif AMREX_SPACEDIM == 3
         
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YLO_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,-SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YLO_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,+SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YHI_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,-SQRT3INV));
-        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YHI_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,+SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YLO_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,-SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YLO_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,+SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YHI_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,-SQRT3INV));
-        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YHI_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,+SQRT3INV));
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return set(types, u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,-SQRT3INV));
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return set(types, u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,+SQRT3INV));
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return set(types, u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,-SQRT3INV));
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return set(types, u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,+SQRT3INV));
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return set(types, u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,-SQRT3INV));
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return set(types, u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,+SQRT3INV));
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return set(types, u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,-SQRT3INV));
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return set(types, u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,+SQRT3INV));
         
-        if (m[1] == lo.y && m[2] == lo.z)                  return set(m_bc_type[Face::YLO_ZLO],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,-SQRT2INV));
-        if (m[1] == lo.y && m[2] == hi.z)                  return set(m_bc_type[Face::YLO_ZHI],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,+SQRT2INV));
-        if (m[1] == hi.y && m[2] == lo.z)                  return set(m_bc_type[Face::YHI_ZLO],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,-SQRT2INV));
-        if (m[1] == hi.y && m[2] == hi.z)                  return set(m_bc_type[Face::YHI_ZHI],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,+SQRT2INV));
-        if (m[2] == lo.z && m[0] == lo.x)                  return set(m_bc_type[Face::ZLO_XLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       -SQRT2INV));
-        if (m[2] == lo.z && m[0] == hi.x)                  return set(m_bc_type[Face::ZLO_XHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       -SQRT2INV));
-        if (m[2] == hi.z && m[0] == lo.x)                  return set(m_bc_type[Face::ZHI_XLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       +SQRT2INV));
-        if (m[2] == hi.z && m[0] == hi.x)                  return set(m_bc_type[Face::ZHI_XHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       +SQRT2INV));
-        if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV,0       ));
-        if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV,0       ));
-        if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV,0       ));
-        if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV,0       ));
+        if (m[1] == lo.y && m[2] == lo.z)                  return set(types,     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,-SQRT2INV));
+        if (m[1] == lo.y && m[2] == hi.z)                  return set(types,     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,+SQRT2INV));
+        if (m[1] == hi.y && m[2] == lo.z)                  return set(types,     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,-SQRT2INV));
+        if (m[1] == hi.y && m[2] == hi.z)                  return set(types,     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,+SQRT2INV));
+        if (m[2] == lo.z && m[0] == lo.x)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       -SQRT2INV));
+        if (m[2] == lo.z && m[0] == hi.x)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       -SQRT2INV));
+        if (m[2] == hi.z && m[0] == lo.x)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, 0,       +SQRT2INV));
+        if (m[2] == hi.z && m[0] == hi.x)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, 0,       +SQRT2INV));
+        if (m[0] == lo.x && m[1] == lo.y)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV,0       ));
+        if (m[0] == lo.x && m[1] == hi.y)                  return set(types,     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV,0       ));
+        if (m[0] == hi.x && m[1] == lo.y)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV,0       ));
+        if (m[0] == hi.x && m[1] == hi.y)                  return set(types,     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV,0       ));
         
-        if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0, 0));
-        if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0, 0));
-        if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1, 0));
-        if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1, 0));
-        if (m[2] == lo.z)                                  return set(m_bc_type[Face::ZLO],         u, gradu, sigma, Set::Vector( 0, 0,-1));
-        if (m[2] == hi.z)                                  return set(m_bc_type[Face::ZHI],         u, gradu, sigma, Set::Vector( 0, 0,+1));
+        if (m[0] == lo.x)                                  return set(types,         u, gradu, sigma, Set::Vector(-1, 0, 0));
+        if (m[0] == hi.x)                                  return set(types,         u, gradu, sigma, Set::Vector(+1, 0, 0));
+        if (m[1] == lo.y)                                  return set(types,         u, gradu, sigma, Set::Vector( 0,-1, 0));
+        if (m[1] == hi.y)                                  return set(types,         u, gradu, sigma, Set::Vector( 0,+1, 0));
+        if (m[2] == lo.z)                                  return set(types,         u, gradu, sigma, Set::Vector( 0, 0,-1));
+        if (m[2] == hi.z)                                  return set(types,         u, gradu, sigma, Set::Vector( 0, 0,+1));
         
         #endif
         
@@ -361,7 +476,7 @@ public:
             if      (bc_type[i] == Type::Displacement) 
                 f(i) = u(i);
             else if (bc_type[i] == Type::Traction)
-                f(i) = (sigma*n)(i);
+                f(i) = m_traction_scale*(sigma*n)(i);
             else if (bc_type[i] == Type::Neumann)
                 f(i) = (gradu*n)(i);
             else if (bc_type[i] == Periodic)
@@ -378,10 +493,71 @@ protected:
     static const int m_nfaces = 26;
     #endif
 
+    // Physical bounds are shared by all AMR and multigrid levels. The nodal
+    // domain supplied by the operator determines the spacing at each level.
+    mutable amrex::GpuArray<Set::Scalar, AMREX_SPACEDIM> m_prob_lo{}, m_prob_hi{};
+    std::array<std::array<bool, AMREX_SPACEDIM>, m_nfaces> m_type_expression{};
+    std::array<std::array<amrex::Parser, AMREX_SPACEDIM>, m_nfaces> m_type_parser;
+    std::array<std::array<amrex::ParserExecutor<6>, AMREX_SPACEDIM>, m_nfaces> m_type_func;
+
+    bool m_contact = false;
+    Set::Scalar m_traction_scale = 1.0;
+    int m_contact_iterations = 40;
+    Set::Scalar m_contact_stiffness = 1.0, m_contact_tolerance = 1e-8;
+    amrex::Parser m_obstacle_parser, m_region_parser;
+    amrex::ParserExecutor<4> m_obstacle, m_region;
+    std::vector<int> m_active;
+    std::array<int,AMREX_SPACEDIM> m_contact_length{};
+
+    int ContactAt(Set::Scalar x, Set::Scalar y, Set::Scalar z) const
+    {
+        if (!m_contact || m_active.empty()) return 0;
+        const Set::Scalar pos[3] = {x,y,z};
+        constexpr int normal = AMREX_SPACEDIM-1;
+        if (std::abs(pos[normal]-m_prob_hi[normal]) > 1e-10*(m_prob_hi[normal]-m_prob_lo[normal])) return 0;
+        int offset = 0, stride = 1;
+        for (int d = 0; d < normal; ++d)
+        {
+            int index = std::lround((pos[d]-m_prob_lo[d])/(m_prob_hi[d]-m_prob_lo[d])*(m_contact_length[d]-1));
+            if (index < 0 || index >= m_contact_length[d]) return 0;
+            offset += index*stride;
+            stride *= m_contact_length[d];
+        }
+        return m_active[offset];
+    }
+
+    Set::Scalar Value(Face face, int dir, Set::Scalar x, Set::Scalar y, Set::Scalar z) const
+    {
+        return m_bc_func[face][dir](x,y,z,m_time,Set::Scalar(ContactAt(x,y,z)),
+            m_contact ? m_obstacle(x,y,z,m_time) : 0.0);
+    }
+
+    std::array<Type, AMREX_SPACEDIM> Types(
+        Face face, int i, int j, int k, const amrex::Box& domain) const
+    {
+        auto ret = m_bc_type[face];
+        const int index[3] = {i,j,k};
+        Set::Scalar x[3] = {0,0,0};
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            x[d] = m_prob_lo[d] + (m_prob_hi[d]-m_prob_lo[d]) *
+                (index[d]-domain.smallEnd(d)) / (domain.length(d)-1);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            if (m_type_expression[face][d])
+            {
+                const auto type = m_type_func[face][d](x[0],x[1],x[2],m_time,
+                    Set::Scalar(ContactAt(x[0],x[1],x[2])), m_contact ? m_obstacle(x[0],x[1],x[2],m_time) : 0.0);
+                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+                    type == int(Type::Displacement) || type == int(Type::Traction) || type == int(Type::Neumann),
+                    "Elastic type expression must return disp, trac, or neumann");
+                ret[d] = static_cast<Type>(static_cast<int>(type));
+            }
+        return ret;
+    }
+
     std::array<std::array<Type,            AMREX_SPACEDIM>, m_nfaces> m_bc_type; 
     //std::array<std::array<FunctionParserAD,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
     std::array<std::array<amrex::Parser,AMREX_SPACEDIM>, m_nfaces> m_bc_func_parser; 
-    std::array<std::array<amrex::ParserExecutor<4>,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
+    std::array<std::array<amrex::ParserExecutor<6>,AMREX_SPACEDIM>, m_nfaces> m_bc_func;
 
 public:
 
@@ -389,10 +565,34 @@ public:
     // This is basically the same as :ref:`BC::Operator::Elastic::Constant` except that
     // you can use dynamically compiled expressions in space and time to define values.
     //
-    // Usage is exactly the same except that the "val" inputs can depend on x, y, z, and t.
+    // Both "val" and "type" accept expressions in x, y, z, and t.
+    // Example: type.yhi = trac "if(abs(x)<0.25,disp,trac)"
     //
     static void Parse(Expression & value, IO::ParmParse & pp)
     {
+        // Scale BOTH sides of traction equations, without changing physical loads.
+        pp.query_default("traction_scale", value.m_traction_scale, 1.0);
+        Util::Assert(INFO, TEST(value.m_traction_scale > 0 && std::isfinite(value.m_traction_scale)));
+        pp.query_default("contact.enabled", value.m_contact, false);
+        if (value.m_contact)
+        {
+#ifdef AMREX_USE_GPU
+            Util::Abort(INFO, "Expression contact currently supports CPU builds only");
+#endif
+            std::string obstacle, region;
+            pp.query_required("contact.obstacle", obstacle);
+            pp.query_default("contact.region", region, std::string("1"));
+            pp.query_required("contact.stiffness", value.m_contact_stiffness);
+            pp.query_default("contact.tolerance", value.m_contact_tolerance, 1e-8);
+            pp.query_default("contact.max_iter", value.m_contact_iterations, 40);
+            Util::Assert(INFO, TEST(value.m_contact_stiffness > 0 && value.m_contact_tolerance >= 0 && value.m_contact_iterations > 0));
+            value.m_obstacle_parser = amrex::Parser(obstacle);
+            value.m_region_parser = amrex::Parser(region);
+            value.m_obstacle_parser.registerVariables({"x","y","z","t"});
+            value.m_region_parser.registerVariables({"x","y","z","t"});
+            value.m_obstacle = value.m_obstacle_parser.compile<4>();
+            value.m_region = value.m_region_parser.compile<4>();
+        }
         std::map<std::string, Type> bcmap;
         bcmap["displacement"] = Type::Displacement;
         bcmap["disp"]         = Type::Displacement;
@@ -422,122 +622,158 @@ public:
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
                 // set enums to appropriate type
-                value.m_bc_type[face][i] = bcmap[type[i]]; 
+                auto known = bcmap.find(type[i]);
+                value.m_type_expression[face][i] = known == bcmap.end();
+                if (known != bcmap.end()) value.m_bc_type[face][i] = known->second;
+                else
+                {
+                    auto& parser = value.m_type_parser[face][i];
+                    parser = amrex::Parser(type[i]);
+                    parser.registerVariables({"x","y","z","t","contact","obstacle"});
+                    for (const auto& entry : bcmap) parser.setConstant(entry.first, entry.second);
+                    value.m_type_func[face][i] = parser.compile<6>();
+                }
                 
                 // initialize the parser
                 value.m_bc_func_parser[face][i] = amrex::Parser(val[i].c_str());
-                value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t"});
-                value.m_bc_func[face][i] = value.m_bc_func_parser[face][i].compile<4>();
+                value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t","contact","obstacle"});
+                value.m_bc_func[face][i] = value.m_bc_func_parser[face][i].compile<6>();
             }
         };
 
         pp.queryarr_default("type.xlo",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.xlo", val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::XLO); 
+        set(type,val,Face::XLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhi",type, {"disp"}); // 3D Face / 2D Edge  type
         pp.queryarr_default("val.xhi" ,val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::XHI); 
+        set(type,val,Face::XHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.ylo",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.ylo" ,val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::YLO); 
+        set(type,val,Face::YLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.yhi",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.yhi", val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::YHI); 
+        set(type,val,Face::YHI);
+        type.clear(); val.clear();
 
 #if AMREX_SPACEDIM==3
         pp.queryarr_default("type.zlo",type, {"disp"}); // 3D Face type
         pp.queryarr_default("val.zlo", val , {"0.0"}); // 3D Face value
-        set(type,val,Face::ZLO); 
+        set(type,val,Face::ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.zhi",type, {"disp"}); // 3D Face type
         pp.queryarr_default("val.zhi", val , {"0.0"}); // 3D Face value
-        set(type,val,Face::ZHI); 
+        set(type,val,Face::ZHI);
+        type.clear(); val.clear();
 #endif
 
 
         pp.queryarr_default("type.xloylo",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xloylo", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XLO_YLO); 
+        set(type,val,Face::XLO_YLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xloyhi",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xloyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XLO_YHI); 
+        set(type,val,Face::XLO_YHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiylo",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xhiylo", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XHI_YLO); 
+        set(type,val,Face::XHI_YLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiyhi",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xhiyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XHI_YHI); 
+        set(type,val,Face::XHI_YHI);
+        type.clear(); val.clear();
 
 #if AMREX_SPACEDIM==3
         pp.queryarr_default("type.xloylozlo",type,{"disp"}); // 3D Corner type
         pp.queryarr_default("val.xloylozlo",val,{"0.0"}); // 3D Corner value
         set(type,val,Face::XLO_YLO_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xloylozhi",type, {"disp"});  // 3D Corner type
         pp.queryarr_default("val.xloylozhi", val , {"0.0"});  // 3D Corner value
-        set(type,val,Face::XLO_YLO_ZHI); 
+        set(type,val,Face::XLO_YLO_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xloyhizlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xloyhizlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XLO_YHI_ZLO); 
+        set(type,val,Face::XLO_YHI_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xloyhizhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xloyhizhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XLO_YHI_ZHI); 
+        set(type,val,Face::XLO_YHI_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiylozlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiylozlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YLO_ZLO); 
+        set(type,val,Face::XHI_YLO_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiylozhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiylozhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YLO_ZHI); 
+        set(type,val,Face::XHI_YLO_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiyhizlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiyhizlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YHI_ZLO); 
+        set(type,val,Face::XHI_YHI_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.xhiyhizhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiyhizhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YHI_ZHI); 
+        set(type,val,Face::XHI_YHI_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.ylozlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.ylozlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YLO_ZLO); 
+        set(type,val,Face::YLO_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.ylozhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.ylozhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YLO_ZHI); 
+        set(type,val,Face::YLO_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.yhizlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.yhizlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YHI_ZLO); 
+        set(type,val,Face::YHI_ZLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.yhizhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.yhizhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YHI_ZHI); 
+        set(type,val,Face::YHI_ZHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.zloxlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zloxlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZLO_XLO); 
+        set(type,val,Face::ZLO_XLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.zloxhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zloxhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZLO_XHI); 
+        set(type,val,Face::ZLO_XHI);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.zhixlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zhixlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZHI_XLO); 
+        set(type,val,Face::ZHI_XLO);
+        type.clear(); val.clear();
 
         pp.queryarr_default("type.zhixhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zhixhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZHI_XHI); 
+        set(type,val,Face::ZHI_XHI);
+        type.clear(); val.clear();
 #endif
 
 

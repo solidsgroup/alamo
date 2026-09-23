@@ -1,0 +1,70 @@
+#@ [2d-serial]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 1
+#@ check = true
+#@
+#@ [2d-mpi]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 2
+#@ check = true
+#@
+#@ [2d-active-set-stiffness]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 1
+#@ check = true
+#@ args = bc.expression.contact.stiffness=10
+#@
+#@ [2d-amr]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 1
+#@ check = true
+#@ args = amr.max_level=1 amr.nsubsteps=1 explicitmesh.on=1 explicitmesh.lo1=12 16 explicitmesh.hi1=51 31 solver.nriters=3 solver.nrtolerance=1e-10 solver.nr_abort_on_fail=1
+#@
+#@ [2d-amr-mpi]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 2
+#@ check = true
+#@ args = amr.max_level=1 amr.nsubsteps=1 explicitmesh.on=1 explicitmesh.lo1=12 16 explicitmesh.hi1=51 31 solver.nriters=3 solver.nrtolerance=1e-10 solver.nr_abort_on_fail=1
+#@
+# Fast contact/load-release regression. 2D is a cylinder, NOT a 3D sphere.
+alamo.program = mechanics
+alamo.program.mechanics.model = linear.isotropic
+type = static
+time_evolving = 1
+nmodels = 1
+model1.lambda = 1
+model1.mu = 1
+geometry.prob_lo = -1 -1
+geometry.prob_hi = 1 0
+geometry.is_periodic = 0 0
+amr.n_cell = 32 16
+amr.max_grid_size = 16
+amr.blocking_factor = 4
+amr.max_level = 0
+amr.regrid_int = -1
+amr.plot_int = 1
+amr.cell.all = 1
+amr.node.any = 0
+plot_file = tests/ElasticContact/output
+timestep = 0.1
+stop_time = 0.31
+solver.nriters = 2
+solver.max_iter = 300
+solver.verbose = 0
+solver.conservative_face_flux = 1
+solver.resync_coeffs = 1
+tol_rel = 1e-10
+tol_abs = 1e-12
+bc.type = expression
+bc.expression.type.yhi = trac "if(contact,disp,trac)"
+bc.expression.val.yhi = "0" "if(contact,obstacle,0)"
+bc.expression.contact.enabled = 1
+bc.expression.contact.obstacle = "0.5-sqrt(max(0,0.25-x*x))-if(t<0.15,0.1*t,0.01-0.2*(t-0.1))"
+bc.expression.contact.region = "x*x<0.25"
+bc.expression.contact.stiffness = 100
+bc.expression.contact.tolerance = 1e-8

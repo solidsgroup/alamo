@@ -123,37 +123,37 @@ private:
     {
         const std::array<Set::Vector3d,12> n0 =
             {
-                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
-                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0)
+                Set::Vector3d( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d(-1,-1, 1) / sqrt(3.0),
+                Set::Vector3d(-1,-1, 1) / sqrt(3.0),
+                Set::Vector3d(-1,-1, 1) / sqrt(3.0)
             };
         const std::array<Set::Vector3d,12> a0 =
             {
-                Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0), //  1  1  1
-                Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0), //  1  1  1
-                Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0), //  1  1  1
-                Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0), // -1  1 -1
-                Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0), // -1  1 -1
-                Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0), // -1  1 -1
-                Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0), // 1  -1 -1
-                Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0), // 1  -1 -1
-                Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0), // 1  -1 -1
-                Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0), // -1  -1 1
-                Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0), // -1  -1 1
-                Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0)  // -1  -1 1
+                Set::Vector3d( 1, 0,-1) / sqrt(2.0), //  1  1  1
+                Set::Vector3d( 0,-1, 1) / sqrt(2.0), //  1  1  1
+                Set::Vector3d( 1,-1, 0) / sqrt(2.0), //  1  1  1
+                Set::Vector3d( 1, 0,-1) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d( 1, 1, 0) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d( 0, 1, 1) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d( 1, 1, 0) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d( 0,-1, 1) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d( 1, 0, 1) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d( 0, 1, 1) / sqrt(2.0), // -1  -1 1
+                Set::Vector3d( 1, 0, 1) / sqrt(2.0), // -1  -1 1
+                Set::Vector3d( 1,-1, 0) / sqrt(2.0)  // -1  -1 1
             };
 
 
-        static std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> ret;
+        std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> ret;
         for (int n = 0 ; n < 12 ; n ++)
         {
             ret[n].first = R*a0[n];
@@ -175,6 +175,7 @@ public:
         ret.m_rate_inv = 0.0;
         ret.tau_crss = Eigen::Matrix<Set::Scalar,12,1>::Zero();
         ret.gammadot0 = 0.0;
+        ret.tstart = 0.0;
         return ret;
     }
     static CrystalPlastic Random()

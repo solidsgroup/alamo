@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+import re
+import sys
+from pathlib import Path
+import numpy as np
+import yt
+root = Path(sys.argv[1])
+log = (root/'out.log').read_text()
+records = re.findall(r'Contact time=(\S+) stable=1 active_nodes=(\d+) load=(\S+) penetration=(\S+) tension=(\S+)', log)
+assert records, 'No converged contact records'
+states = {float(t): (int(n), float(p), float(g), float(q)) for t,n,p,g,q in records}
+loaded = states[0.1]
+assert loaded[0] > 0 and loaded[1] > 0
+for t, (n, load, gap, tension) in states.items():
+    assert gap < 1e-8 and tension < 1e-8, (t,gap,tension)
+    if t >= .2:
+        assert n == 0 and abs(load) < 1e-8, (t,n,load)
+yt.set_log_level(50)
+ds = yt.load(str(sorted(root.glob('*cell'))[-1]))
+data = ds.all_data()
+np.testing.assert_allclose(data['boxlib','disp_y'].d, 0, atol=1e-8)
+print('Unilateral contact, pressure sign, nonpenetration, release: PASS')

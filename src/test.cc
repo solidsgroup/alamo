@@ -19,6 +19,7 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
+#include "Model/Solid/Finite/CrystalPlastic.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Model/Solid/Finite/PseudoLinear/Cubic.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
@@ -64,6 +65,38 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
+
+    // FCC {111}<110>: hydrostatic stress causes no slip; uniaxial stress
+    // activates eight systems with |Schmid factor|=1/sqrt(6).
+    {
+        Model::Solid::Finite::CrystalPlastic cp;
+        cp.tstart = 0;
+        cp.gammadot0 = 1;
+        cp.m_rate_inv = 1;
+        cp.tau_crss.setOnes();
+        // A 2D stress tensor expands with sigma_zz=0, so only the 3D build
+        // can apply a genuinely hydrostatic three-dimensional stress here.
+#if AMREX_SPACEDIM == 3
+        cp.Advance(1e-3, Set::Matrix::Identity(), Set::Matrix::Identity(), 0);
+#else
+        cp.Advance(1e-3, Set::Matrix::Identity(), Set::Matrix::Zero(), 0);
+#endif
+        int bad = cp.gamma.norm() > 1e-12 || !cp.Fp.isApprox(Set::Matrix3d::Identity());
+        Set::Matrix stress = Set::Matrix::Zero();
+        stress(0,0) = 1;
+        cp.Advance(1e-3, Set::Matrix::Identity(), stress, 0);
+        int active = 0;
+        for (int n = 0; n < 12; ++n)
+            if (std::abs(cp.gamma[n]) > 1e-12)
+            {
+                ++active;
+                bad += std::abs(std::abs(cp.gamma[n])/1e-3-1/std::sqrt(6.0)) > 1e-12;
+            }
+        bad += active != 8;
+        bad += std::abs(cp.Fp.trace()-3) > 1e-12;
+        bad += !std::isfinite(Model::Solid::Finite::CrystalPlastic::Zero().tstart);
+        failed += Util::Test::SubMessage("FCC slip geometry", bad);
+    }
     
 
     Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>::Test();

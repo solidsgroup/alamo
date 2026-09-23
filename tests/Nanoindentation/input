@@ -1,0 +1,65 @@
+# Small-slope spherical contact, illustrative FCC single crystal.
+# Units: um, MPa, s. These are demonstration parameters, not a calibration.
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.crystalplastic
+type = static
+time_evolving = 1
+system.length = um
+system.mass = kg
+system.time = s
+geometry.prob_lo = -2 -2 -2
+geometry.prob_hi = 2 2 0
+geometry.is_periodic = 0 0 0
+amr.n_cell = 32 32 16
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.max_level = 2
+amr.ref_ratio = 2
+amr.nsubsteps = 1
+# Fixed nested patches: 0.125 um far field, 0.0625 um intermediate,
+# 0.03125 um beneath the tip. Indices below are cell indices on each level.
+explicitmesh.on = 1
+explicitmesh.lo1 = 16 16 16
+explicitmesh.hi1 = 47 47 31
+explicitmesh.lo2 = 40 40 40
+explicitmesh.hi2 = 87 87 63
+amr.regrid_int = -1
+amr.plot_int = 10
+amr.cell.all = 1
+amr.node.any = 0
+plot_file = tests/Nanoindentation/output
+timestep = 0.001
+stop_time = 0.251
+nmodels = 1
+model1.C11 = 168000
+model1.C12 = 121000
+model1.C44 = 75000
+model1.tau_crss = 1000
+model1.gammadot0 = 0.001
+model1.m_rate_inv = 3
+model1.tstart = 0
+print_model = 1
+tol_rel = 1e-8
+tol_abs = 1e-10
+solver.nriters = 20
+solver.nrtolerance = 1e-8
+solver.max_iter = 30000
+solver.verbose = 3
+solver.omega = 0.5
+solver.nr_abort_on_fail = 1
+solver.conservative_face_flux = 1
+solver.resync_coeffs = 1
+solver.line_search = 0
+bc.type = expression
+bc.expression.traction_scale = 1e-5
+# Default sides, base and edges are clamped. Only the top-face interior contacts.
+bc.expression.type.zhi = trac trac "if(contact,disp,trac)"
+bc.expression.val.zhi = "0" "0" "if(contact,obstacle,0)"
+bc.expression.contact.enabled = 1
+# R=0.5 um. Load to 0.05 um at t=.1, hold to .15, retract to -.01 at .25.
+# Obstacle is vertical displacement relative to the undeformed top surface.
+bc.expression.contact.obstacle = "0.5-sqrt(max(0,0.25-x*x-y*y))-if(t<0.1,0.5*t,if(t<0.15,0.05,0.05-0.6*(t-0.15)))"
+bc.expression.contact.region = "x*x+y*y<0.25"
+bc.expression.contact.stiffness = 1000000
+bc.expression.contact.tolerance = 1e-4
+bc.expression.contact.max_iter = 40
