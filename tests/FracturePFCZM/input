@@ -57,7 +57,7 @@ crack.ic.notch.orientation = 1 0
 crack.ic.notch.length = 0.125_m
 crack.ic.notch.thickness = 8.e-3_m
 
-crack.ic.notch.eps = 1.e-3
+crack.ic.notch.eps = 1.e-4
 crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN

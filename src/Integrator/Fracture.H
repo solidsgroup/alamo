@@ -161,8 +161,7 @@ public:
         value.RegisterNodalFab(value.visible_Gc_mf, 1, 2, "Gc", true);
     }
 
-    void
-        Initialize(int lev) override
+    void Initialize(int lev) override
     {
         Base::Mechanics<brittle_model>::Initialize(lev);
 
@@ -197,8 +196,7 @@ public:
         crack.history_var_mf[lev]->setVal(0.0);
     }
 
-    virtual void
-        UpdateModel(int a_step, Set::Scalar /*a_time*/) override
+    virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
     {
         if (m_type == Base::Mechanics<brittle_model>::Type::Disable)
             return;
@@ -248,8 +246,7 @@ public:
         }
     }
 
-    void
-        TimeStepBegin(Set::Scalar a_time, int a_step) override
+    void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         /*         // Deciding whether to do an elastic solve or not
                 Util::Message(INFO, crack.driving_force_norm, " ", crack.driving_force_reference, " ", crack.driving_force_reference_prev, " ", crack.tol_rel);
@@ -525,8 +522,7 @@ public:
         integrate_variables_after_advance = true;
     }
 
-    void
-        Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
+    void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         if (!dynamic_only)
         {
@@ -657,8 +653,7 @@ public:
         Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
     }
 
-    void
-        TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
         Base::Mechanics<brittle_model>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
@@ -743,8 +738,7 @@ public:
         }
     }
 
-    void
-        Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter& mfi, const amrex::Box& a_box) override
+    void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter& mfi, const amrex::Box& a_box) override
     {
         Set::Vector DX(geom[amrlev].CellSize());
         const Set::Scalar DV = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
@@ -765,8 +759,7 @@ public:
     }
 
 
-    void
-        TimeStepComplete(Set::Scalar /*time*/, int /* iter*/) override
+    void TimeStepComplete(Set::Scalar /*time*/, int /* iter*/) override
     {
         /*         if (elastic_do_solve_now)
                     crack.driving_force_reference = crack.driving_force_norm;
