@@ -789,6 +789,10 @@ if comp_basename =='g++':
     elif not args.cuda:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
+        if sys.platform == "darwin":
+            # GCC can export local source_location symbols across LTO partitions,
+            # which the Mach-O assembler rejects. Keep LTO in one partition.
+            f.write("LINKER_FLAGS += -flto-partition=one\n")
 if comp_basename =='clang++':
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.memcheck and args.memcheck_tool=="asan":
