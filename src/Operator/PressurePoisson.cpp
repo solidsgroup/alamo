@@ -69,6 +69,7 @@ PressurePoisson::SetLayout(
     solution.Define(nlevels, grids, distribution_mapping, 1, 1);
     rhs.Define(nlevels, grids, distribution_mapping, 1, 0);
     coefficient.Define(nlevels, grids, distribution_mapping, 1, 1);
+    occupancy.Define(nlevels, grids, distribution_mapping, 1, 1);
     divergence.Define(nlevels, grids, distribution_mapping, 1, 0);
     cell_velocity_predictor.Define(
         nlevels, grids, distribution_mapping, AMREX_SPACEDIM, 1);
@@ -84,6 +85,7 @@ PressurePoisson::SetLayout(
         solution[lev]->setVal(0.0);
         rhs[lev]->setVal(0.0);
         coefficient[lev]->setVal(0.0);
+        occupancy[lev]->setVal(1.0);
         divergence[lev]->setVal(0.0);
         cell_velocity_predictor[lev]->setVal(0.0);
         cell_velocity_reference[lev]->setVal(0.0);
@@ -167,6 +169,8 @@ PressurePoisson::PrepareRHS(
             const auto u = cell_velocity.const_array(mfi);
             const auto face = face_velocity[lev][d].array(mfi);
             const auto base = face_velocity_base[lev][d].array(mfi);
+            const bool volume = volume_velocity;
+            const auto weight = occupancy[lev]->const_array(mfi);
             amrex::Array4<const Set::Scalar> acceleration;
             const bool has_face_acceleration = face_acceleration != nullptr;
             if (has_face_acceleration)
@@ -176,6 +180,9 @@ PressurePoisson::PrepareRHS(
                 {
                     base(i,j,k) = 0.5 *
                         (u(i-di,j-dj,k-dk,d) + u(i,j,k,d));
+                    if (volume) base(i,j,k) = 0.5 *
+                        (weight(i-di,j-dj,k-dk) * u(i-di,j-dj,k-dk,d) +
+                         weight(i,j,k) * u(i,j,k,d));
                     face(i,j,k) = base(i,j,k);
                     if (has_face_acceleration)
                         face(i,j,k) += dt * acceleration(i,j,k);
@@ -249,16 +256,97 @@ PressurePoisson::Solve(Set::Scalar /*time*/, const amrex::BCRec& pressure_bc)
         poisson.setBCoeffs(lev, face_coefficient_ptr[lev]);
     }
 
+    // A single pressure outlet carries the net volume production. Seed the
+    // solve with a quadratic pressure lifting that supplies that
+    // boundary flux. Its value vanishes at the outlet and its normal gradient
+    // vanishes at the opposite wall. MLMG still solves the original RHS; no
+    // source mean is discarded and no extra momentum flux is introduced.
+    int outlets = 0, outlet_direction = 0;
+    bool outlet_high = false;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        if (!geometry[0].isPeriodic(d))
+            for (int side = 0; side < 2; ++side)
+                if (BC::BCUtil::IsDirichlet(side ? pressure_bc.hi(d) : pressure_bc.lo(d)))
+                {
+                    ++outlets;
+                    outlet_direction = d;
+                    outlet_high = side;
+                }
+    Set::Scalar curvature = 0.0;
+    if (outlets == 1)
+    {
+        for (int lev = nlevels - 1; lev > 0; --lev)
+            amrex::average_down(*rhs[lev], *rhs[lev-1],
+                geometry[lev], geometry[lev-1], 0, 1, refinement_ratio[lev-1]);
+        const int d = outlet_direction;
+        const auto domain = geometry[0].Domain();
+        const int boundary = outlet_high ? domain.bigEnd(d) + 1 : domain.smallEnd(d);
+        Set::Scalar boundary_beta = 0.0;
+        // Iterate cells, so overlapping face boxes cannot count an outlet
+        // face twice. The face coefficient uses the same layout and index.
+        for (amrex::MFIter mfi(*rhs[0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const auto beta = face_coefficient[0][d].const_array(mfi);
+            amrex::ReduceOps<amrex::ReduceOpSum> op;
+            amrex::ReduceData<Set::Scalar> data(op);
+            using Tuple = typename decltype(data)::Type;
+            const bool high = outlet_high;
+            op.eval(mfi.tilebox(), data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> Tuple
+                {
+                    const int index = (d == 0 ? i : (d == 1 ? j : k)) + high;
+                    return {index == boundary ?
+                        beta(i + (high && d == 0), j + (high && d == 1),
+                             k + (high && d == 2)) : 0.0};
+                });
+            boundary_beta += amrex::get<0>(data.value());
+        }
+        amrex::ParallelDescriptor::ReduceRealSum(boundary_beta);
+        if (boundary_beta > 0.0)
+            curvature = rhs[0]->sum(0) / (domain.length(d) * boundary_beta);
+    }
+
     amrex::Vector<amrex::MultiFab*> solution_ptr(nlevels);
     amrex::Vector<amrex::MultiFab const*> rhs_ptr(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         solution[lev]->setVal(0.0);
+        if (outlets == 1)
+        {
+            const int d = outlet_direction;
+            const auto domain = geometry[lev].Domain();
+            const Set::Scalar spacing = geometry[lev].CellSize(d);
+            const Set::Scalar length = geometry[lev].ProbLength(d);
+            const bool high = outlet_high;
+            for (amrex::MFIter mfi(*solution[lev], amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                const auto phi = solution[lev]->array(mfi);
+                amrex::ParallelFor(mfi.tilebox(),
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        const int index = d == 0 ? i : (d == 1 ? j : k);
+                        const Set::Scalar x = spacing * (high ?
+                            index - domain.smallEnd(d) + 0.5 :
+                            domain.bigEnd(d) - index + 0.5);
+                        // The cell-centered Dirichlet face gradient uses an
+                        // odd ghost value; this offset gives the exact net
+                        // flux with the second-order boundary stencil.
+                        phi(i,j,k) = 0.5 * curvature *
+                            (x*x - length*length - 0.25*spacing*spacing);
+                    });
+            }
+        }
         solution_ptr[lev] = solution[lev].get();
         rhs_ptr[lev] = rhs[lev].get();
     }
 
     amrex::MLMG solver(poisson);
+    // Thin periodic strips can leave an elongated bottom grid. The pressure
+    // operator is symmetric; CG avoids BiCGStab breakdown on nearly planar
+    // residuals, while allowing the bottom solve to resolve the long axis.
+    solver.setBottomSolver(amrex::MLMG::BottomSolver::cg);
+    solver.setBottomMaxIter(2000);
     solver.setVerbose(verbose);
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
@@ -311,6 +399,8 @@ PressurePoisson::ApplyCorrection(
             projected_face[d] = face_velocity[lev][d].const_array(mfi);
             base_face[d] = face_velocity_base[lev][d].const_array(mfi);
         }
+        const auto weight = occupancy[lev]->const_array(mfi);
+        const bool weighted = volume_velocity;
         amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -324,7 +414,8 @@ PressurePoisson::ApplyCorrection(
                             ((projected_face[d](i,j,k) -
                               base_face[d](i,j,k)) +
                              (projected_face[d](i+di,j+dj,k+dk) -
-                              base_face[d](i+di,j+dj,k+dk)));
+                              base_face[d](i+di,j+dj,k+dk))) /
+                            (weighted ? weight(i,j,k) : 1.0);
                 }
             });
     }

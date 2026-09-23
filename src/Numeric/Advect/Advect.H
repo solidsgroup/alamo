@@ -34,7 +34,22 @@ enum class FaceVelocityInterpolation
 struct Options
 {
     Form form = Form::Advective;
+    // When supplied, these are the actual projected normal face velocities.
+    // A face (i,j,k,d) separates cells (i-e_d) and i.
+    amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM> faces{};
+    bool use_faces = false;
 };
+
+
+template<class Velocity>
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+Set::Scalar FaceVelocity(Velocity const& velocity, int i, int j, int k,
+                         int d, Options const& options)
+{
+    if (options.use_faces) return options.faces[d](i,j,k);
+    return 0.5 * (velocity(i-(d==0),j-(d==1),k-(d==2),d) +
+                  velocity(i,j,k,d));
+}
 
 
 template<typename... OBJ>

@@ -5522,7 +5522,9 @@ LowMach::ComputeThermochemicalSource(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity] = thermal;
+                 condensed_dynamic_viscosity, nist_species, nist_width] = thermal;
+    (void)nist_species;
+    (void)nist_width;
     (void)liquid_inverse_reference_density;
     (void)condensed_dynamic_viscosity;
 
@@ -5561,7 +5563,7 @@ LowMach::ComputeThermochemicalSource(
         condensed_volume_fraction += component_density(i,j,k,n) *
             condensed_inverse_reference_density[n];
     const Set::Scalar gas_accessibility =
-        1.0 - condensed_volume_fraction;
+        Util::Max(1.0 - condensed_volume_fraction, 0.0);
     const Set::Scalar gas_volume_fraction =
         Util::Min(raw_gas_volume_fraction, gas_accessibility);
     const Set::Scalar reacting_volume_fraction = gas_volume_fraction;
@@ -5732,14 +5734,17 @@ LowMach::ComputeThermochemicalSource(
             heat_capacity;
 
     if (T(i,j,k) > 0.0)
-        dilatation += gas_volume_fraction * temperature / T(i,j,k);
+        dilatation += raw_gas_volume_fraction * temperature / T(i,j,k);
     if (molar_density > 0.0)
     {
         Set::Scalar molar_source = 0.0;
         for (int n = 0; n < ngas_species; ++n)
             molar_source += species[n] /
                 Model::Gas::Gas::MolecularWeight(gas_data, n);
-        dilatation += gas_volume_fraction * molar_source / molar_density;
+        // species already contains the occupied-volume weighting. The EOS
+        // derivative must not apply the accessibility factor a second time.
+        dilatation += Model::Gas::Gas::UniversalGasConstant(gas_data) *
+            T(i,j,k) / pressure_reference * molar_source;
     }
     return {species,temperature,dilatation};
 }
@@ -6197,6 +6202,29 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         }
     }
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
+    const bool volume_transport = conservative_solid_transport;
+    const auto inverse_condensed_density = condensed_inverse_reference_density;
+    const int first_condensed = ngas_species, component_count = nspecies;
+    const Set::Scalar volume_floor = transport_volume_floor;
+    pressure_poisson.UseVolumeFlux(volume_transport);
+    for (int lev = 0; lev < nlev; ++lev)
+    {
+        auto& weight = pressure_poisson.Occupancy(lev);
+        weight.setVal(1.0);
+        if (!volume_transport) continue;
+        for (amrex::MFIter mfi(weight, false); mfi.isValid(); ++mfi)
+        {
+            const auto density = component_density_mf[lev]->const_array(mfi);
+            const auto phi = weight.array(mfi);
+            amrex::ParallelFor(mfi.fabbox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Scalar solid = 0.0;
+                for (int n = first_condensed; n < component_count; ++n)
+                    solid += density(i,j,k,n) * inverse_condensed_density[n];
+                phi(i,j,k) = Util::Max(1.0 - solid, volume_floor);
+            });
+        }
+    }
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> projection_source(nlev);
 
     for (int lev = 0; lev < nlev; ++lev)
@@ -6380,6 +6408,112 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
             });
         }
 
+        if (volume_transport &&
+            pressure_poisson.HasFaces(lev, *velocity_mf[lev]))
+        {
+            // With stationary condensed heat capacity, gas enthalpy advection
+            // does not give D_g T/Dt = heat_source/C. The missing relative
+            // thermal advection would otherwise change EOS occupied volume
+            // even when div(q) matches every chemical and phase-change source.
+            // Evaluate its discrete chain rule with the same selected mass/
+            // enthalpy fluxes as Advance: div(q) + RT/p A_molar + phi/T A_T.
+            // Intrinsic densities here lie on the EOS constraint, so this is
+            // a constitutive source, not feedback that freezes existing volume
+            // error. Conserved densities themselves are never rescaled.
+            // The previous projected faces lag this velocity-dependent source
+            // by one step; timestep refinement checks that splitting error.
+            temperature_bc->FillBoundary(*temperature_mf[lev], 0, 1, time, 0);
+            temperature_mf[lev]->FillBoundary(geom[lev].periodicity());
+            component_density_bc->FillBoundary(
+                *component_density_mf[lev], 0, nspecies, time, 0);
+            component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+            const auto gas_data = gas_device_data;
+            const auto advect_scheme = advect;
+            const bool advect_T = advect_temperature;
+            const Set::Scalar p_reference = pressure_reference;
+            const int ngas = ngas_species;
+            const auto domain = geom[lev].Domain();
+            amrex::GpuArray<int,AMREX_SPACEDIM> periodic{};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                periodic[d] = geom[lev].isPeriodic(d);
+            for (amrex::MFIter mfi(pressure_poisson.RHS(lev), false);
+                 mfi.isValid(); ++mfi)
+            {
+                const auto T = temperature_mf[lev]->const_array(mfi);
+                const auto density = component_density_mf[lev]->const_array(mfi);
+                const auto u = velocity_mf[lev]->const_array(mfi);
+                const auto phi = pressure_poisson.Occupancy(lev).const_array(mfi);
+                const auto rhs = pressure_poisson.RHS(lev).array(mfi);
+                Numeric::Advect::Options options{Numeric::Advect::Form::Conservative};
+                options.use_faces = true;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    options.faces[d] = pressure_poisson.FaceVelocity(lev,d).const_array(mfi);
+                amrex::ParallelFor(mfi.validbox(),
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (!(T(i,j,k) > 0.0) || !(phi(i,j,k) > volume_floor)) return;
+                    // These nested functors are used only in this kernel.
+                    // Refer to its gas data instead of copying the thermodynamic
+                    // coefficient arrays into each cell's stencil functors.
+                    const auto* gas_view = &gas_data;
+                    const auto intrinsic_density = [=] AMREX_GPU_HOST_DEVICE(
+                        int ii, int jj, int kk, int n)
+                    {
+                        Set::Scalar molar_density = 0.0;
+                        for (int s = 0; s < ngas; ++s)
+                            molar_density += density(ii,jj,kk,s) /
+                                Model::Gas::Gas::MolecularWeight(*gas_view,s);
+                        const Set::Scalar gas_volume = molar_density *
+                            Model::Gas::Gas::UniversalGasConstant(*gas_view) *
+                            T(ii,jj,kk) / p_reference;
+                        return gas_volume > 0.0 ? density(ii,jj,kk,n) / gas_volume : 0.0;
+                    };
+                    auto [gas_volume, gas_capacity, capacity, conductivity, cp] =
+                        ComputeThermalState(density, T(i,j,k), i,j,k, thermal);
+                    (void)conductivity;
+                    (void)cp;
+                    if (!(gas_volume > 0.0)) return;
+                    capacity += gas_capacity * (phi(i,j,k)/gas_volume - 1.0);
+                    const auto sten = Numeric::GetStencil(i,j,k,domain,periodic);
+                    Set::Scalar molar_advection = 0.0;
+                    Set::Scalar enthalpy_composition = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                    {
+                        const Set::Scalar advection = advect_scheme(
+                            intrinsic_density, u, i,j,k,n, dx.data(), options, sten);
+                        molar_advection += advection /
+                            Model::Gas::Gas::MolecularWeight(gas_data,n);
+                        enthalpy_composition += advection *
+                            Model::Gas::Gas::EnthalpyMassSpecies(gas_data,T(i,j,k),n);
+                    }
+                    Set::Scalar temperature_advection = 0.0;
+                    if (advect_T && capacity > 0.0)
+                    {
+                        const auto enthalpy = [=] AMREX_GPU_HOST_DEVICE(
+                            int ii, int jj, int kk, int /*n*/)
+                        {
+                            Set::Scalar value = 0.0;
+                            for (int n = 0; n < ngas; ++n)
+                                value += intrinsic_density(ii,jj,kk,n) *
+                                    Model::Gas::Gas::EnthalpyMassSpecies(*gas_view,T(ii,jj,kk),n);
+                            return value;
+                        };
+                        temperature_advection = (advect_scheme(
+                            enthalpy, u, i,j,k,0, dx.data(), options, sten) -
+                            enthalpy_composition) / capacity;
+                    }
+                    Set::Scalar divergence = 0.0;
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        divergence += (options.faces[d](i+(d==0),j+(d==1),k+(d==2)) -
+                                       options.faces[d](i,j,k)) / dx[d];
+                    rhs(i,j,k) += divergence +
+                        Model::Gas::Gas::UniversalGasConstant(gas_data) *
+                        T(i,j,k) / p_reference * molar_advection +
+                        phi(i,j,k) / T(i,j,k) * temperature_advection;
+                });
+            }
+        }
+
         for (amrex::MFIter mfi(pressure_poisson.RHS(lev), amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
@@ -6392,6 +6526,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
             }
             Set::Patch<Set::Scalar> beta = beta_mf.array(mfi);
+            const auto mobile_volume = pressure_poisson.Occupancy(lev).const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -6414,7 +6549,8 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 const Set::Scalar mobility =
                     1.0 / (1.0 + dt * penalty_rate);
                 beta(i,j,k) = mobility /
-                    Util::Max(rho(i,j,k), rho_floor);
+                    Util::Max(rho(i,j,k), rho_floor) *
+                    (volume_transport ? mobile_volume(i,j,k) : 1.0);
             });
         }
         projection_source[lev] = std::make_unique<amrex::MultiFab>(
@@ -7208,12 +7344,18 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 amrex::MultiFab::Copy(*velocity_mf[lev],
                     *velocity_predictor[lev], 0, 0, AMREX_SPACEDIM,
                     velocity_mf[lev]->nGrow());
+        // Reconcile the explicit momentum increment before the stiff solid
+        // penalty. Reconciling the penalty increment itself cancels its
+        // damping on alternating cell velocities in almost-solid cells.
+        if (volume_transport)
+            pressure_poisson.ReconcileCellVelocity(velocity_mf, density_mf);
         if (rigid_solid) ApplyRigidPenalty(target_bodies);
 
         // Exchange the face-invisible part of this step's normal momentum
         // before forming the projection RHS.  The Poisson solve then removes
         // the divergence introduced by that conservative local exchange.
-        pressure_poisson.ReconcileCellVelocity(velocity_mf, density_mf);
+        if (!volume_transport)
+            pressure_poisson.ReconcileCellVelocity(velocity_mf, density_mf);
         for (int lev = nlev - 2; lev >= 0; --lev)
             amrex::average_down(*velocity_mf[lev + 1],
                 *velocity_mf[lev], geom[lev + 1], geom[lev], 0,
@@ -7393,6 +7535,17 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     if (free_rigid_solid)
         UpdateFreeRigidBodyStates();
     pressure_poisson.CommitVelocityState(velocity_mf);
+
+    if (diagnostics_extended_fields)
+        for (int lev = 0; lev < nlev; ++lev)
+        {
+            amrex::MultiFab::Copy(*projection_source_mf[lev],
+                *projection_source[lev], 0, 0, 1, 0);
+            amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM> faces;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                faces[d] = &pressure_poisson.FaceVelocity(lev, d);
+            amrex::computeDivergence(*projected_divergence_mf[lev], faces, geom[lev]);
+        }
 
     // Only the accumulated correction from the final rigid-coupling candidate
     // contributes to the reported pressure.
@@ -7795,6 +7948,53 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     const auto thermal = thermal_data;
     const auto thermochemical = thermochemical_data;
     const auto advect_scheme = advect;
+    // q = phi*u is the stored projected face volume flux. The cell velocity
+    // remains the mobile-phase velocity for momentum, stress, and BCs.
+    // Reconstruct densities and enthalpy per occupied mobile volume before
+    // applying the input-selected advection stencil to q.
+    const bool volume_transport = conservative_solid_transport;
+    const Set::Scalar volume_floor = transport_volume_floor;
+    const auto inverse_condensed_density = condensed_inverse_reference_density;
+    const bool projected_transport = conservative_solid_transport;
+    const bool have_projected_faces =
+        pressure_poisson.HasFaces(lev, u_mf);
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> transport_faces;
+    if (projected_transport)
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            amrex::BoxArray faces = u_mf.boxArray(); faces.surroundingNodes(d);
+            transport_faces[d].define(faces, u_mf.DistributionMap(), 1, 0);
+            for (amrex::MFIter mfi(transport_faces[d], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Array4<const Set::Scalar> q;
+                if (have_projected_faces)
+                {
+                    q = pressure_poisson.FaceVelocity(lev,d).const_array(mfi);
+                }
+                const auto velocity = u_mf.const_array(mfi);
+                const auto density = component_density_mf.const_array(mfi);
+                const int first_condensed = ngas_species, count = nspecies;
+                const auto face = transport_faces[d].array(mfi);
+                amrex::ParallelFor(mfi.validbox(), [=] AMREX_GPU_DEVICE(int i,int j,int k)
+                {
+                    const int il=i-(d==0), jl=j-(d==1), kl=k-(d==2);
+                    if (have_projected_faces)
+                        face(i,j,k) = q(i,j,k);
+                    else
+                    {
+                        Set::Scalar lo = 1.0, hi = 1.0;
+                        if (volume_transport)
+                            for (int n=first_condensed; n<count; ++n)
+                            {
+                                lo -= density(il,jl,kl,n)*inverse_condensed_density[n];
+                                hi -= density(i,j,k,n)*inverse_condensed_density[n];
+                            }
+                        face(i,j,k) = 0.5*(Util::Max(lo,volume_floor)*velocity(il,jl,kl,d)+
+                            Util::Max(hi,volume_floor)*velocity(i,j,k,d));
+                    }
+                });
+            }
+        }
     const Set::Vector gravity = g;
     const Set::Scalar rho_floor = density_floor;
     const bool explicit_viscosity =
@@ -7983,6 +8183,11 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         if (explicit_viscosity)
             viscous_force_patch = viscous_force->const_array(mfi);
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
+        Numeric::Advect::Options transport_options{Numeric::Advect::Form::Conservative};
+        transport_options.use_faces = projected_transport;
+        if (projected_transport)
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                transport_options.faces[d] = transport_faces[d].const_array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -8013,6 +8218,13 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     if (gas || deformable || liquid || inactive_free)
                         value += component_density(ii,jj,kk,n);
                 }
+                if (volume_transport)
+                {
+                    Set::Scalar solid = 0.0;
+                    for (int n = ngas; n < component_count; ++n)
+                        solid += component_density(ii,jj,kk,n)*inverse_condensed_density[n];
+                    value /= Util::Max(1.0-solid, volume_floor);
+                }
                 return value;
             };
             Set::Vector momentum_advection = Set::Vector::Zero();
@@ -8025,7 +8237,7 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 };
                 momentum_advection(d) = advect_scheme(
                     common_momentum, u, i, j, k, 0, dx.data(),
-                    {Numeric::Advect::Form::Conservative}, sten);
+                    transport_options, sten);
             }
             for (int n = 0; n < component_count; ++n)
             {
@@ -8126,6 +8338,11 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         if (deformable_solid)
             xi_rhs = xi_rhs_mf->array(mfi);
         const bool advect_T = advect_temperature;
+        Numeric::Advect::Options transport_options{Numeric::Advect::Form::Conservative};
+        transport_options.use_faces = projected_transport;
+        if (projected_transport)
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                transport_options.faces[d] = transport_faces[d].const_array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -8141,11 +8358,24 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             // transport contribution separately so temperature advection can
             // enforce the matching conservative gas-enthalpy balance without
             // folding chemistry or phase-change sources into that balance.
+            auto transported_density = [=] AMREX_GPU_HOST_DEVICE(
+                int ii, int jj, int kk, int n)
+            {
+                Set::Scalar weight = 1.0;
+                if (volume_transport)
+                {
+                    Set::Scalar solid = 0.0;
+                    for (int c = ngas; c < component_count; ++c)
+                        solid += component_density(ii,jj,kk,c)*inverse_condensed_density[c];
+                    weight = Util::Max(1.0-solid, volume_floor);
+                }
+                return component_density(ii,jj,kk,n)/weight;
+            };
             Model::Chemistry::SpeciesArray gas_advection{};
             for (int n = 0; n < ngas; ++n)
                 gas_advection[n] = advect_scheme(
-                    component_density, u, i, j, k, n, dx.data(),
-                    {Numeric::Advect::Form::Conservative}, sten);
+                    transported_density, u, i, j, k, n, dx.data(),
+                    transport_options, sten);
             Model::Chemistry::SpeciesArray condensed_advection{};
             for (int n = ngas; n < component_count; ++n)
             {
@@ -8187,14 +8417,14 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     {
                         Set::Scalar value = 0.0;
                         for (int n = 0; n < ngas; ++n)
-                            value += component_density(ii,jj,kk,n) *
+                            value += transported_density(ii,jj,kk,n) *
                                 Model::Gas::Gas::EnthalpyMassSpecies(
                                     gas_data, T(ii,jj,kk), n);
                         return value;
                     };
                     Set::Scalar gas_enthalpy_rhs = advect_scheme(
                         gas_enthalpy, u, i, j, k, 0, dx.data(),
-                        {Numeric::Advect::Form::Conservative}, sten);
+                        transport_options, sten);
                     for (int n = 0; n < ngas; ++n)
                         gas_enthalpy_rhs -=
                             Model::Gas::Gas::EnthalpyMassSpecies(

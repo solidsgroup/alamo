@@ -62,16 +62,16 @@ public:
         Set::Scalar div_phi_u = 0.0;
         Set::Scalar div_u = 0.0;
 
-        Set::Scalar ux_xlo = 0.5 * (velocity(i-1,j,k,0) + velocity(i,j,k,0));
-        Set::Scalar ux_xhi = 0.5 * (velocity(i,j,k,0) + velocity(i+1,j,k,0));
+        Set::Scalar ux_xlo = FaceVelocity(velocity, i,j,k,0, options);
+        Set::Scalar ux_xhi = FaceVelocity(velocity, i+1,j,k,0, options);
         Set::Scalar flux_xlo = ux_xlo * (ux_xlo >= 0.0 ? phi(i-1,j,k,comp) : phi_c);
         Set::Scalar flux_xhi = ux_xhi * (ux_xhi >= 0.0 ? phi_c : phi(i+1,j,k,comp));
         div_phi_u += (flux_xhi - flux_xlo) / DX[0];
         div_u += (ux_xhi - ux_xlo) / DX[0];
 
 #if AMREX_SPACEDIM >= 2
-        Set::Scalar uy_ylo = 0.5 * (velocity(i,j-1,k,1) + velocity(i,j,k,1));
-        Set::Scalar uy_yhi = 0.5 * (velocity(i,j,k,1) + velocity(i,j+1,k,1));
+        Set::Scalar uy_ylo = FaceVelocity(velocity, i,j,k,1, options);
+        Set::Scalar uy_yhi = FaceVelocity(velocity, i,j+1,k,1, options);
         Set::Scalar flux_ylo = uy_ylo * (uy_ylo >= 0.0 ? phi(i,j-1,k,comp) : phi_c);
         Set::Scalar flux_yhi = uy_yhi * (uy_yhi >= 0.0 ? phi_c : phi(i,j+1,k,comp));
         div_phi_u += (flux_yhi - flux_ylo) / DX[1];
@@ -79,8 +79,8 @@ public:
 #endif
 
 #if AMREX_SPACEDIM == 3
-        Set::Scalar uz_zlo = 0.5 * (velocity(i,j,k-1,2) + velocity(i,j,k,2));
-        Set::Scalar uz_zhi = 0.5 * (velocity(i,j,k,2) + velocity(i,j,k+1,2));
+        Set::Scalar uz_zlo = FaceVelocity(velocity, i,j,k,2, options);
+        Set::Scalar uz_zhi = FaceVelocity(velocity, i,j,k+1,2, options);
         Set::Scalar flux_zlo = uz_zlo * (uz_zlo >= 0.0 ? phi(i,j,k-1,comp) : phi_c);
         Set::Scalar flux_zhi = uz_zhi * (uz_zhi >= 0.0 ? phi_c : phi(i,j,k+1,comp));
         div_phi_u += (flux_zhi - flux_zlo) / DX[2];

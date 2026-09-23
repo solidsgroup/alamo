@@ -30,6 +30,16 @@ public:
                     int number_of_levels);
 
     amrex::MultiFab& RHS(int lev) { return *rhs[lev]; }
+    amrex::MultiFab& Occupancy(int lev) { return *occupancy[lev]; }
+    // In volume-flux mode, the caller supplies phi/rho (including mobility).
+    // Cell velocities are intrinsic; projected faces store q=phi*u.
+    void UseVolumeFlux(bool value) { volume_velocity = value; }
+    bool HasFaces(int lev, const amrex::MultiFab& layout) const
+    {
+        return mixed_velocity_state_initialized && lev < nlevels &&
+            grids[lev] == layout.boxArray() &&
+            distribution_mapping[lev] == layout.DistributionMap();
+    }
     amrex::MultiFab& Coefficient(int lev) { return *coefficient[lev]; }
     const amrex::MultiFab& FaceCoefficient(int lev, int direction) const
     {
@@ -69,6 +79,8 @@ private:
     Set::Field<Set::Scalar> solution;
     Set::Field<Set::Scalar> rhs;
     Set::Field<Set::Scalar> coefficient;
+    Set::Field<Set::Scalar> occupancy;
+    bool volume_velocity = false;
     Set::Field<Set::Scalar> divergence;
     Set::Field<Set::Scalar> cell_velocity_predictor;
     Set::Field<Set::Scalar> cell_velocity_reference;

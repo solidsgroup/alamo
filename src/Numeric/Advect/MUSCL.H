@@ -115,8 +115,8 @@ public:
         Set::Scalar slope_x  = Slope(phi, i-1,j,k, i,j,k, i+1,j,k, comp);
         Set::Scalar slope_xp = Slope(phi, i,j,k, i+1,j,k, i+2,j,k, comp);
 
-        Set::Scalar ux_xlo = 0.5 * (velocity(i-1,j,k,0) + velocity(i,j,k,0));
-        Set::Scalar ux_xhi = 0.5 * (velocity(i,j,k,0) + velocity(i+1,j,k,0));
+        Set::Scalar ux_xlo = FaceVelocity(velocity, i,j,k,0, options);
+        Set::Scalar ux_xhi = FaceVelocity(velocity, i+1,j,k,0, options);
 
         Set::Scalar phi_xlo_l = Util::Clamp(phi_xm + 0.5 * slope_xm, phi_xm, phi_c);
         Set::Scalar phi_xlo_r = Util::Clamp(phi_c  - 0.5 * slope_x,  phi_xm, phi_c);
@@ -135,8 +135,8 @@ public:
         Set::Scalar slope_y  = Slope(phi, i,j-1,k, i,j,k, i,j+1,k, comp);
         Set::Scalar slope_yp = Slope(phi, i,j,k, i,j+1,k, i,j+2,k, comp);
 
-        Set::Scalar uy_ylo = 0.5 * (velocity(i,j-1,k,1) + velocity(i,j,k,1));
-        Set::Scalar uy_yhi = 0.5 * (velocity(i,j,k,1) + velocity(i,j+1,k,1));
+        Set::Scalar uy_ylo = FaceVelocity(velocity, i,j,k,1, options);
+        Set::Scalar uy_yhi = FaceVelocity(velocity, i,j+1,k,1, options);
 
         Set::Scalar phi_ylo_l = Util::Clamp(phi_ym + 0.5 * slope_ym, phi_ym, phi_c);
         Set::Scalar phi_ylo_r = Util::Clamp(phi_c  - 0.5 * slope_y,  phi_ym, phi_c);
@@ -156,8 +156,8 @@ public:
         Set::Scalar slope_z  = Slope(phi, i,j,k-1, i,j,k, i,j,k+1, comp);
         Set::Scalar slope_zp = Slope(phi, i,j,k, i,j,k+1, i,j,k+2, comp);
 
-        Set::Scalar uz_zlo = 0.5 * (velocity(i,j,k-1,2) + velocity(i,j,k,2));
-        Set::Scalar uz_zhi = 0.5 * (velocity(i,j,k,2) + velocity(i,j,k+1,2));
+        Set::Scalar uz_zlo = FaceVelocity(velocity, i,j,k,2, options);
+        Set::Scalar uz_zhi = FaceVelocity(velocity, i,j,k+1,2, options);
 
         Set::Scalar phi_zlo_l = Util::Clamp(phi_zm + 0.5 * slope_zm, phi_zm, phi_c);
         Set::Scalar phi_zlo_r = Util::Clamp(phi_c  - 0.5 * slope_z,  phi_zm, phi_c);
