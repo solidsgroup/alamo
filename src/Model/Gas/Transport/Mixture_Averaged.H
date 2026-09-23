@@ -81,6 +81,8 @@ public:
                     // Thermal conductivity if type=constant
                     pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
                     pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
+                    if (!(value.d_fact >= 0.0))
+                        Util::Exception(INFO, "d_fact must be nonnegative");
                 }},
                 {"LJ", [&]() {
                     value.type = "LJ";
@@ -227,6 +229,9 @@ public:
 
         if (type == "constant")
         {
+            // d_fact=0 explicitly disables species diffusion; avoid 0/0 in
+            // the binary diffusivity even for a pure-species composition.
+            if (d_fact == 0.0) return 0.0;
             double mw_mix = 0.0;
             for (int n = 0; n < nspecies; ++n)
                 mw_mix += X(i,j,k,n) * MW[n];

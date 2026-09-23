@@ -614,6 +614,7 @@ public:
         };
         if (transport_type == 0)
         {
+            if (amrex::get<10>(data) == 0.0) return 0.0;
             const Set::Scalar mixture_molecular_weight =
                 moles > 0.0 ? gas_density / moles :
                 molecular_weight[0];
