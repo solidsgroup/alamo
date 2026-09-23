@@ -745,7 +745,13 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             }
         else
             for (int i = 0; i < cell.number_of_fabs; i++)
+            {
                 (*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev], dmap[lev], cell.ncomp_array[i], cell.nghost_array[i]));
+                // Match fresh-start initialization before copying valid cells.
+                // Physical corner fills can read neighboring ghost values;
+                // those must not contain uninitialized allocation data.
+                (*cell.fab_array[i])[lev]->setVal(0.0);
+            }
         for (int i = 0; i < tmp_numfabs; i++)
         {
             bool match = false;
