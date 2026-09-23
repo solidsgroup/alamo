@@ -177,7 +177,8 @@ struct GrossModel_Aluminized : public GrossModel
             mass_fraction[AP] * mass_fraction[Binder];
         progress[3] = rate_constant[3] *
             mass_fraction[Mono] * mass_fraction[Premixed];
-        const auto chemistry_source = source_from_progress(progress);
+        const auto chemistry_source =
+            source_from_progress(progress, pressure);
 
         const Set::Scalar inverse_density =
             Model::Gas::Gas::UniversalGasConstant(*gas) *
@@ -215,7 +216,7 @@ struct GrossModel_Aluminized : public GrossModel
                  mass_fraction[Mono] * mass_fraction_derivative[Premixed]) +
                 progress[3] * activation_energy[3] * temperature_factor;
             const auto source_derivative =
-                source_from_progress(progress_derivative);
+                source_from_progress(progress_derivative, pressure);
 
             Set::Scalar inverse_molecular_weight_derivative = 0.0;
             Set::Scalar heat_capacity_derivative = 0.0;

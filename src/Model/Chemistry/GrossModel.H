@@ -57,16 +57,114 @@ struct GrossModel
     // the separately configured phase-change mechanisms.
     std::array<Set::Scalar, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
+    // Gross et al. Eq. (4): Q_Bind = cp (T_Bind - T0) - Q_Bind^S.
+    // T_Bind uses a five-coefficient AP/HTPB equilibrium fit over
+    // phi=[0,71.766], T0=[200,500] K, and P=[0.5,150] atm. Phi follows the
+    // Gross-model mass stoichiometry beta=7.974, so phi=1 is 88.86% AP and
+    // phi=71.766 is 90% HTPB by mass.
+    bool binder_adiabatic_heat_release = true;
+    bool binder_equivalence_ratio_from_homogeneous_composition = true;
+    Set::Scalar binder_equivalence_ratio = 1.0;
+    Set::Scalar binder_initial_temperature = 300.0;
+    // The paper reports -300 cal/g for endothermic pure-HTPB decomposition.
+    Set::Scalar binder_solid_heat_release = -300.0 * 4184.0;
+    Set::Scalar binder_specific_heat = 0.3 * 4184.0;
     Set::Scalar pressure_reference = 100000.0;
     int nsubsteps = 1;
     int max_iter = 100;
     Set::Scalar reltol = 1.0e-8;
     Set::Scalar abstol = 1.0e-12;
+    // Gross et al. report beta and gamma for a binder matrix containing 52%
+    // unresolved AP by mass. LowMach replaces this reference composition with
+    // the AP fraction from its homogeneous phase-change mechanism.
+    Set::Scalar homogenized_ap_mass_fraction = 0.52;
     Set::Scalar beta = 7.974;
     Set::Scalar gamma = 3.19;
     Set::Scalar gas_constant = 0.0;
 
     GrossModel() = default;
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static Set::Scalar equivalence_ratio_from_ap_mass_fraction(
+        const Set::Scalar ap_mass_fraction)
+    {
+        constexpr Set::Scalar gross_stoichiometric_ap_binder_ratio = 7.974;
+        return gross_stoichiometric_ap_binder_ratio *
+            (1.0 - ap_mass_fraction) / ap_mass_fraction;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar binder_adiabatic_flame_temperature(
+        const Set::Scalar pressure) const
+    {
+        constexpr Set::Scalar coefficient0 = 810.4204996375555;
+        constexpr Set::Scalar coefficient1 = 1000.4692258106163;
+        constexpr Set::Scalar coefficient2 = 1305.2818033944318;
+        constexpr Set::Scalar coefficient3 = 48.33918633577873;
+        constexpr Set::Scalar coefficient4 = 109.99699743370391;
+        constexpr Set::Scalar gross_stoichiometric_ap_binder_ratio = 7.974;
+        constexpr Set::Scalar pressure_min = 0.5 * 101325.0;
+        constexpr Set::Scalar pressure_max = 150.0 * 101325.0;
+        constexpr Set::Scalar pressure_ratio = 150.0 / 0.5;
+        const Set::Scalar fit_pressure = pressure > pressure_min ?
+            (pressure < pressure_max ? pressure : pressure_max) : pressure_min;
+        const Set::Scalar normalized_temperature =
+            (binder_initial_temperature - 350.0) / 150.0;
+        const Set::Scalar normalized_pressure =
+            2.0 * std::log(fit_pressure / pressure_min) /
+                std::log(pressure_ratio) - 1.0;
+        const Set::Scalar ap_mass_fraction =
+            gross_stoichiometric_ap_binder_ratio /
+            (gross_stoichiometric_ap_binder_ratio +
+             binder_equivalence_ratio);
+        const Set::Scalar bump_base = 4.0 * binder_equivalence_ratio /
+            ((1.0 + binder_equivalence_ratio) *
+             (1.0 + binder_equivalence_ratio));
+        const Set::Scalar stoichiometric_bump =
+            bump_base * bump_base * bump_base;
+        return coefficient0 + coefficient1 * ap_mass_fraction +
+            coefficient2 * stoichiometric_bump +
+            coefficient3 * normalized_temperature +
+            coefficient4 * normalized_pressure;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar binder_heat_release(const Set::Scalar pressure) const
+    {
+        if (!binder_adiabatic_heat_release) return qgas[1];
+        return binder_specific_heat *
+            (binder_adiabatic_flame_temperature(pressure) -
+             binder_initial_temperature) -
+            binder_solid_heat_release;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar composition_adjusted_stoichiometry(
+        const Set::Scalar reference_coefficient) const
+    {
+        constexpr Set::Scalar reference_ap_mass_fraction = 0.52;
+        // For one unit of homogenized binder with AP mass fraction w, the
+        // external AP requirement is R*(1-w)-w, where R is the AP-to-pure-
+        // binder mass ratio. Infer R from the published reference mixture.
+        const Set::Scalar ap_to_pure_binder_ratio =
+            (reference_coefficient + reference_ap_mass_fraction) /
+            (1.0 - reference_ap_mass_fraction);
+        return ap_to_pure_binder_ratio *
+            (1.0 - homogenized_ap_mass_fraction) -
+            homogenized_ap_mass_fraction;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar primary_stoichiometric_coefficient() const
+    {
+        return composition_adjusted_stoichiometry(beta);
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar diffusion_stoichiometric_coefficient() const
+    {
+        return composition_adjusted_stoichiometry(gamma);
+    }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static Set::Scalar sum_species(const std::array<Set::Scalar, MAX_SPECIES>& values)
@@ -117,8 +215,14 @@ struct GrossModel
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar>
-    source_from_progress(const std::array<Set::Scalar, nreactions>& progress) const
+    source_from_progress(
+        const std::array<Set::Scalar, nreactions>& progress,
+        const Set::Scalar pressure) const
     {
+        const Set::Scalar primary_coefficient =
+            primary_stoichiometric_coefficient();
+        const Set::Scalar diffusion_coefficient =
+            diffusion_stoichiometric_coefficient();
         SpeciesArray wdot{};
         for (int n = 0; n < MAX_SPECIES; ++n) wdot[n] = 0.0;
 
@@ -128,17 +232,17 @@ struct GrossModel
         wdot[Binder]   -= progress[1];
         wdot[Premixed] += progress[1];
 
-        wdot[AP]       -= beta * progress[2];
+        wdot[AP]       -= primary_coefficient * progress[2];
         wdot[Binder]   -= progress[2];
-        wdot[Primary]  += (beta + 1.0) * progress[2];
+        wdot[Primary]  += (primary_coefficient + 1.0) * progress[2];
 
-        wdot[Mono]     -= gamma * progress[3];
+        wdot[Mono]     -= diffusion_coefficient * progress[3];
         wdot[Premixed] -= progress[3];
-        wdot[Final]    += (gamma + 1.0) * progress[3];
+        wdot[Final]    += (diffusion_coefficient + 1.0) * progress[3];
 
         const Set::Scalar qdot =
             qgas[0] * progress[0]
-            + qgas[1] * progress[1]
+            + binder_heat_release(pressure) * progress[1]
             + /*(beta + 1.0) * */qgas[2] * progress[2]
             + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
@@ -213,7 +317,7 @@ struct GrossModel
         progress[1] = rate_constant[1] * Y[Binder];
         progress[2] = rate_constant[2] * Y[AP] * Y[Binder];
         progress[3] = rate_constant[3] * Y[Mono] * Y[Premixed];
-        const auto source = source_from_progress(progress);
+        const auto source = source_from_progress(progress, pressure);
 
         const Set::Scalar inverse_density =
             Model::Gas::Gas::UniversalGasConstant(*gas) *
@@ -246,7 +350,7 @@ struct GrossModel
             dprogress[3] = rate_constant[3] *
                 (Y[Premixed] * dY[Mono] + Y[Mono] * dY[Premixed]) +
                 progress[3] * activation_energy[3] * temperature_factor;
-            const auto dsource = source_from_progress(dprogress);
+            const auto dsource = source_from_progress(dprogress, pressure);
 
             Set::Scalar dinverse_mw = 0.0;
             Set::Scalar dcp = 0.0;
@@ -485,7 +589,8 @@ struct GrossModel
         const Set::Scalar dt) const
     {
         std::array<Set::Scalar, nreactions> progress = compute_progress_rates(P, T, rhoY);
-        std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar> source = source_from_progress(progress);
+        std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar> source =
+            source_from_progress(progress, P);
 
         if (dt > 0.0)
         {
@@ -628,6 +733,21 @@ struct GrossModel
         pp.queryarr_default("qgas", qgas,
             {"430.0_cal/g", "447.0_cal/g", "8365.0_cal/g", "2127.0_cal/g"},
             Unit::Energy() / Unit::Mass());
+        pp.query_default("binder_adiabatic_heat_release",
+            value.binder_adiabatic_heat_release, true);
+        value.binder_equivalence_ratio_from_homogeneous_composition =
+            !pp.contains("binder_equivalence_ratio");
+        pp.query_default("binder_equivalence_ratio",
+            value.binder_equivalence_ratio, 1.0);
+        pp.query_default("binder_initial_temperature",
+            value.binder_initial_temperature, "300.0_K",
+            Unit::Temperature());
+        pp.query_default("binder_solid_heat_release",
+            value.binder_solid_heat_release, "-300.0_cal/g",
+            Unit::Energy() / Unit::Mass());
+        pp.query_default("binder_specific_heat",
+            value.binder_specific_heat, "0.3_cal/g/K",
+            Unit::SpecificHeatCapacity());
         // Reference pressure (default is 1 bar)
         pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
         // Number of explicit chemistry substeps
@@ -635,9 +755,9 @@ struct GrossModel
         pp.query_default("max_iter", value.max_iter, 100);
         pp.query_default("reltol", value.reltol, 1.0e-8);
         pp.query_default("abstol", value.abstol, 1.0e-12);
-        // Stoichiometric coefficient for beta*AP + binder -> (beta+1) Primary
+        // Reference stoichiometric coefficient at 52% AP in the binder matrix.
         pp.query_default("beta", value.beta, 7.974);
-        // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
+        // Reference diffusion coefficient at 52% AP in the binder matrix.
         pp.query_default("gamma", value.gamma, 3.19);
 
         Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.model.gross_model.A must have 4 entries.");
@@ -646,6 +766,18 @@ struct GrossModel
         Util::Assert(INFO, TEST(activation_energy.size() == nreactions),
             "chemistry.model.gross_model.activation_energy must have 4 entries.");
         Util::Assert(INFO, TEST(qgas.size() == nreactions), "chemistry.model.gross_model.qgas must have 4 entries.");
+        Util::Assert(INFO,
+            TEST(value.binder_equivalence_ratio >= 0.0 &&
+                 value.binder_equivalence_ratio <= 71.766),
+            "chemistry.model.gross_model.binder_equivalence_ratio must be in [0,71.766].");
+        Util::Assert(INFO,
+            TEST(value.binder_initial_temperature >= 200.0 &&
+                 value.binder_initial_temperature <= 500.0),
+            "chemistry.model.gross_model.binder_initial_temperature must be in [200,500] K.");
+        Util::Assert(INFO, TEST(value.binder_specific_heat > 0.0),
+            "chemistry.model.gross_model.binder_specific_heat must be positive.");
+        Util::Assert(INFO, TEST(std::isfinite(value.binder_solid_heat_release)),
+            "chemistry.model.gross_model.binder_solid_heat_release must be finite.");
         Util::Assert(INFO, TEST(value.pressure_reference > 0.0),
             "chemistry.model.gross_model.pressure_reference must be positive.");
         Util::Assert(INFO, TEST(value.nsubsteps > 0), "chemistry.model.gross_model.nsubsteps must be > 0.");
