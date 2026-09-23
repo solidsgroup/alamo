@@ -142,29 +142,30 @@ bin/%-$(POSTFIX): ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	$(QUIET)$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
 
+# Select sources explicitly: generated dependencies may list SDK files first.
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
-	@printf "$(RESET)$<\n"
+	@printf "$(RESET)src/test.cc\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c src/test.cc -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
-	@printf "$(RESET)$<\n"
+	@printf "$(RESET)src/$*.cc\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c src/$*.cc -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
-obj/obj-$(POSTFIX)/%.cpp.o: 
+obj/obj-$(POSTFIX)/%.cpp.o: src/%.cpp ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
-	@printf "$(RESET)$<\n"
+	@printf "$(RESET)src/$*.cpp\n"
 	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c src/$*.cpp -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}
 
 obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
