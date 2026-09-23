@@ -111,7 +111,7 @@ public:
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
         const Set::Scalar*, const Set::Scalar*, const Set::Scalar*,
-        const Set::Scalar*, const Set::Scalar*>;
+        const Set::Scalar*, const Set::Scalar*, int, Set::Scalar>;
     using ChemistryData = amrex::GpuTuple<
         bool, Model::Chemistry::GrossModel, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
@@ -131,6 +131,11 @@ public:
         Set::Patch<const Set::Scalar> component_density,
         Set::Scalar temperature, int i, int j, int k,
         const ThermalData& data);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static Model::Solid::NISTAPCaloricState CaloricState(
+        Set::Patch<const Set::Scalar> density, Set::Scalar T,
+        int i, int j, int k, const ThermalData& data);
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static
@@ -181,6 +186,8 @@ protected:
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_heat_mf;
+    Set::Field<Set::Scalar> projection_source_mf;
+    Set::Field<Set::Scalar> projected_divergence_mf;
     InterfacialFaceField phase_change_recoil_face_force;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
@@ -205,6 +212,7 @@ protected:
     IC::IC<Set::Scalar>* temperature_ic = nullptr;
     IC::IC<Set::Scalar>* heat_source_ic = nullptr;
     std::vector<IC::IC<Set::Scalar>*> component_density_ic;
+    std::vector<bool> component_volume_fraction_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
 
@@ -225,6 +233,8 @@ protected:
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
+    int nist_ap_species = -1;
+    Set::Scalar nist_ap_transition_width = 2.0;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
     Model::Chemistry::SpeciesArray condensed_temperature_override;
@@ -283,6 +293,9 @@ protected:
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
     bool reinitialize_condensed_composition = false;
+    // Stationary-solid gas transport uses projected face volume flux q.
+    bool conservative_solid_transport = false;
+    Set::Scalar transport_volume_floor = 1.0e-8;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
     bool include_viscosity = true;

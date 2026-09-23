@@ -3,7 +3,9 @@
 #include <cctype>
 #include <cstring>
 #include <limits>
+#include "AMReX_FillPatchUtil.H"
 #include "AMReX_MultiFabUtil.H"
+#include "AMReX_PhysBCFunct.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_TimeIntegrator.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -109,6 +111,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("projection.enabled", value.projection_enabled, true);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
     pp.query_default("diagnostics.extended_fields", value.diagnostics_extended_fields, false);
+    pp.query_default("projection.volume_floor", value.transport_volume_floor, 1.0e-8);
+    if (!(value.transport_volume_floor > 0.0 && value.transport_volume_floor < 1.0))
+        Util::Exception(INFO, "projection.volume_floor must lie strictly between zero and one");
     if (value.projection_enabled)
     {
         pp.query_default("projection.update_pressure", value.projection_update_pressure, true);
@@ -135,6 +140,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (value.nspecies < value.ngas_species)
         Util::Exception(INFO, "species.names must contain one identifier for every gas species");
     value.component_density_ic.resize(value.nspecies, nullptr);
+    value.component_volume_fraction_ic.assign(value.nspecies, false);
     value.reference_density.assign(value.nspecies, NAN);
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
@@ -227,10 +233,44 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                     Util::Exception(INFO, name,
                         " thermal properties must be positive");
                 value.condensed_thermal_transport = true;
+                std::string caloric_model;
+                pp.query_default(name + ".thermal_model", caloric_model,
+                    "constant_cp");
+                if (caloric_model == "nist_ap_shomate")
+                {
+                    if (name != "AP_solid" || mechanics != "rigid_solid" ||
+                        value.nist_ap_species >= 0)
+                        Util::Exception(INFO,
+                            "NIST diagnostic requires one rigid AP_solid species");
+                    value.nist_ap_species = n;
+                    if (value.condensed_temperature_override[n] >= 0.0)
+                        Util::Exception(INFO,
+                            "NIST AP enthalpy cannot use a prescribed temperature override");
+                    pp.query_default(name + ".nist_ap.transition_width",
+                        value.nist_ap_transition_width, "2_K", Unit::Temperature());
+                    if (!(value.nist_ap_transition_width >= 0.1 &&
+                          value.nist_ap_transition_width <= 20.0))
+                        Util::Exception(INFO,
+                            "NIST transition_width must be in [0.1,20] K");
+                }
+                else if (caloric_model != "constant_cp")
+                    Util::Exception(INFO, "Unknown condensed thermal_model: ", caloric_model);
             }
         }
 
-        if (pp.contains(name + ".density.ic.type"))
+        if (pp.contains(name + ".volume_fraction.ic.type"))
+        {
+            if (n < value.ngas_species || mechanics == "deformable_solid" ||
+                pp.contains(name + ".density.ic.type"))
+                Util::Exception(INFO, name,
+                    " volume_fraction.ic requires a rigid solid or liquid "
+                    "and cannot be combined with density.ic");
+            value.component_volume_fraction_ic[n] = true;
+            pp.select<IC::Constant,IC::Expression,IC::PNG,IC::PSRead>(
+                name + ".volume_fraction.ic", value.component_density_ic[n],
+                pp.forward_args(value.geom, Unit::Less()));
+        }
+        else if (pp.contains(name + ".density.ic.type"))
             pp.select<IC::Constant,IC::Expression,IC::PNG,IC::PSRead>(
                 name + ".density.ic", value.component_density_ic[n],
                 pp.forward_args(value.geom, Unit::Density()));
@@ -378,14 +418,102 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.free_rigid_body_time.assign(nfree, NAN);
         value.free_rigid_bodies.resize(nfree);
     }
+    // Pure material inputs are read once, before the binder slot is replaced
+    // by its effective homogeneous properties. Legacy mechanism inputs remain
+    // available, but cannot be mixed with this material-level specification.
+    std::vector<bool> has_pyrolysis(value.nspecies, false);
+    std::vector<Set::Scalar> pyrolysis_A(value.nspecies, NAN);
+    std::vector<Set::Scalar> pyrolysis_Ta(value.nspecies, NAN);
+    std::vector<Set::Scalar> pyrolysis_Q(value.nspecies, NAN);
+    for (int n = 0; n < value.nspecies; ++n)
+    {
+        const std::string prefix = value.species_names[n] + ".pyrolysis.";
+        for (const std::string key : {"pre_exponential_speed", "activation_energy",
+             "activation_temperature", "heat_release", "reference_regression_rate",
+             "reference_heat_flux", "reference_initial_temperature"})
+            has_pyrolysis[n] = has_pyrolysis[n] || pp.contains(prefix + key);
+        if (!has_pyrolysis[n]) continue;
+        if (std::find(value.rigid_solid_species.begin(),
+                      value.rigid_solid_species.end(), n) ==
+            value.rigid_solid_species.end())
+            Util::Exception(INFO, prefix, "requires a rigid solid");
+        if (pp.contains(prefix + "activation_energy"))
+        {
+            if (pp.contains(prefix + "activation_temperature"))
+                Util::Exception(INFO, prefix,
+                    "specify activation_energy or activation_temperature, not both");
+            pp.query_required(prefix + "activation_energy", pyrolysis_Ta[n],
+                              Unit::MolarEnergy());
+            pyrolysis_Ta[n] /= value.gas.Rg;
+        }
+        else
+            pp.query_required(prefix + "activation_temperature", pyrolysis_Ta[n],
+                              Unit::Temperature());
+        pp.query_required(prefix + "heat_release", pyrolysis_Q[n],
+                          Unit::Energy() / Unit::Mass());
+        const bool infer_A = pp.contains(prefix + "reference_regression_rate");
+        if (infer_A && pp.contains(prefix + "pre_exponential_speed"))
+            Util::Exception(INFO, prefix,
+                "specify pre_exponential_speed or reference_regression_rate, not both");
+        if (!infer_A)
+            pp.query_required(prefix + "pre_exponential_speed", pyrolysis_A[n],
+                              Unit::Velocity());
+        Set::Scalar Ts = NAN, rate = NAN;
+        if (infer_A || pp.contains(prefix + "reference_heat_flux") ||
+            pp.contains(prefix + "reference_initial_temperature"))
+        {
+            if (n == value.nist_ap_species)
+                Util::Exception(INFO, prefix,
+                    "NIST AP requires explicit A/Ea; the Chen reference helper assumes constant cp");
+            Set::Scalar q, T0;
+            pp.query_required(prefix + "reference_heat_flux", q,
+                              Unit::Energy() / Unit::Area() / Unit::Time());
+            pp.query_required(prefix + "reference_initial_temperature", T0,
+                              Unit::Temperature());
+            bool solved;
+            if (infer_A)
+            {
+                pp.query_required(prefix + "reference_regression_rate", rate,
+                                  Unit::Velocity());
+                solved = Model::Mechanism::PhaseChange::ChenReferencePrefactor(
+                    value.reference_density[n], value.condensed_specific_heat[n],
+                    pyrolysis_Q[n], pyrolysis_Ta[n], T0, q, rate, Ts, pyrolysis_A[n]);
+            }
+            else
+                solved = Model::Mechanism::PhaseChange::ChenSurfaceReference(
+                    value.reference_density[n], value.condensed_specific_heat[n],
+                    pyrolysis_Q[n], pyrolysis_A[n], pyrolysis_Ta[n], T0, q, Ts, rate);
+            if (!solved)
+                Util::Exception(INFO, prefix, "invalid Chen reference state: "
+                    "require positive finite density, cp, initial temperature, "
+                    "incident heat flux and rate/prefactor, and a positive "
+                    "finite surface temperature and prefactor");
+        }
+        if (!(pyrolysis_A[n] >= 0.0) || !std::isfinite(pyrolysis_A[n]) ||
+            !(pyrolysis_Ta[n] >= 0.0) || !std::isfinite(pyrolysis_Ta[n]) ||
+            !std::isfinite(pyrolysis_Q[n]))
+            Util::Exception(INFO, prefix,
+                "requires finite nonnegative A and activation energy, and finite Q");
+        amrex::Print().SetPrecision(17)
+            << "LowMach pure pyrolysis " << value.species_names[n]
+            << " A " << pyrolysis_A[n] << " activation_temperature " << pyrolysis_Ta[n]
+            << " Q " << pyrolysis_Q[n] << "\n";
+        if (std::isfinite(Ts))
+            amrex::Print().SetPrecision(17)
+                << "LowMach Chen reference " << value.species_names[n]
+                << " surface_temperature " << Ts << " regression_rate " << rate << "\n";
+    }
+
     // Resolve homogeneous materials before capillarity or mechanism setup. All
     // consumers must cache the same final condensed reference densities,
     // independently of their order in mechanisms.names. The constituent
-    // inputs remain pure properties; density ICs must use the blend density.
+    // inputs remain pure properties; volume-fraction ICs are scaled only after
+    // the final blend density is known.
     std::vector<std::string> mechanism_names;
     pp.queryarr_default("mechanisms.names", mechanism_names, {});
     std::vector<bool> homogeneous_solids(value.nspecies, false);
     std::vector<bool> homogeneous_ap_sources(value.nspecies, false);
+    Set::Scalar gross_binder_ap_mass_fraction = NAN;
     for (const std::string& mechanism_name : mechanism_names)
     {
         std::string mechanism_type;
@@ -395,6 +523,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         bool homogeneous;
         pp.query_default(prefix + "homogeneous", homogeneous, false);
         if (!homogeneous) continue;
+        if (value.nist_ap_species >= 0)
+            Util::Exception(INFO,
+                "NIST AP enthalpy does not support homogeneous-binder substitution");
 
         std::string binder_name, ap_name, kinetics;
         std::vector<std::string> gas_products;
@@ -445,6 +576,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                               total_ap_mass_fraction);
             pp.query_required(prefix + "homogeneous.resolved_mass_fraction",
                               resolved_ap_mass_fraction);
+            if (resolved_ap_mass_fraction == 1.0 && total_ap_mass_fraction == 1.0)
+                Util::Exception(INFO, prefix,
+                    "resolved AP fraction 1 leaves no homogeneous material; "
+                    "use the resolved AP mechanism without a homogeneous binder");
             if (!(resolved_ap_mass_fraction >= 0.0 &&
                   resolved_ap_mass_fraction < 1.0 &&
                   total_ap_mass_fraction >= resolved_ap_mass_fraction &&
@@ -457,6 +592,16 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (!(ap_mass_fraction >= 0.0 && ap_mass_fraction <= 1.0))
             Util::Exception(INFO, prefix,
                 "homogeneous.mass_fraction must lie in [0,1]");
+        if (gas_species == Model::Chemistry::GrossModel::Binder)
+        {
+            if (std::isfinite(gross_binder_ap_mass_fraction) &&
+                std::abs(gross_binder_ap_mass_fraction - ap_mass_fraction) >
+                    1.0e-12)
+                Util::Exception(INFO, prefix, "all homogeneous mechanisms "
+                    "producing the GrossModel binder species must use the "
+                    "same AP mass fraction");
+            gross_binder_ap_mass_fraction = ap_mass_fraction;
+        }
         for (const int species : {binder_species, ap_species})
             if (!(value.reference_density[species] > 0.0) ||
                 !std::isfinite(value.reference_density[species]) ||
@@ -518,18 +663,39 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         Set::Scalar binder_pre_exponential_speed, ap_pre_exponential_speed;
         Set::Scalar binder_activation_temperature, ap_activation_temperature;
         Set::Scalar binder_heat_release, ap_heat_release;
-        pp.query_required(prefix + "homogeneous.binder_pre_exponential_speed",
-                          binder_pre_exponential_speed, Unit::Velocity());
-        pp.query_required(prefix + "homogeneous.ap_pre_exponential_speed",
-                          ap_pre_exponential_speed, Unit::Velocity());
-        pp.query_required(prefix + "homogeneous.binder_activation_temperature",
-                          binder_activation_temperature, Unit::Temperature());
-        pp.query_required(prefix + "homogeneous.ap_activation_temperature",
-                          ap_activation_temperature, Unit::Temperature());
-        pp.query_required(prefix + "homogeneous.binder_heat_release",
-                          binder_heat_release, Unit::Energy() / Unit::Mass());
-        pp.query_required(prefix + "homogeneous.ap_heat_release",
-                          ap_heat_release, Unit::Energy() / Unit::Mass());
+        if (has_pyrolysis[binder_species] || has_pyrolysis[ap_species])
+        {
+            if (!has_pyrolysis[binder_species] || !has_pyrolysis[ap_species])
+                Util::Exception(INFO, prefix,
+                    "both homogeneous constituents require material pyrolysis inputs");
+            for (const std::string key : {"binder_pre_exponential_speed",
+                 "ap_pre_exponential_speed", "binder_activation_temperature",
+                 "ap_activation_temperature", "binder_heat_release", "ap_heat_release"})
+                if (pp.contains(prefix + "homogeneous." + key))
+                    Util::Exception(INFO, prefix, "homogeneous.", key,
+                        " conflicts with material pyrolysis inputs");
+            binder_pre_exponential_speed = pyrolysis_A[binder_species];
+            ap_pre_exponential_speed = pyrolysis_A[ap_species];
+            binder_activation_temperature = pyrolysis_Ta[binder_species];
+            ap_activation_temperature = pyrolysis_Ta[ap_species];
+            binder_heat_release = pyrolysis_Q[binder_species];
+            ap_heat_release = pyrolysis_Q[ap_species];
+        }
+        else
+        {
+            pp.query_required(prefix + "homogeneous.binder_pre_exponential_speed",
+                              binder_pre_exponential_speed, Unit::Velocity());
+            pp.query_required(prefix + "homogeneous.ap_pre_exponential_speed",
+                              ap_pre_exponential_speed, Unit::Velocity());
+            pp.query_required(prefix + "homogeneous.binder_activation_temperature",
+                              binder_activation_temperature, Unit::Temperature());
+            pp.query_required(prefix + "homogeneous.ap_activation_temperature",
+                              ap_activation_temperature, Unit::Temperature());
+            pp.query_required(prefix + "homogeneous.binder_heat_release",
+                              binder_heat_release, Unit::Energy() / Unit::Mass());
+            pp.query_required(prefix + "homogeneous.ap_heat_release",
+                              ap_heat_release, Unit::Energy() / Unit::Mass());
+        }
         for (const Set::Scalar parameter : {binder_pre_exponential_speed,
              ap_pre_exponential_speed, binder_activation_temperature,
              ap_activation_temperature})
@@ -565,6 +731,110 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.add((prefix + "activation_temperature").c_str(), blend_activation_temperature);
         // Negative Q is endothermic; positive coupled enthalpy absorbs heat.
         pp.add((prefix + "coupled_enthalpy_change").c_str(), -blend_heat_release);
+        amrex::Print().SetPrecision(17)
+            << "LowMach homogeneous " << binder_name
+            << " ap_mass_fraction " << ap_mass_fraction
+            << " ap_volume_fraction " << ap_volume_fraction
+            << " density " << value.reference_density[binder_species]
+            << " specific_heat " << value.condensed_specific_heat[binder_species]
+            << " conductivity " << value.condensed_thermal_conductivity[binder_species]
+            << " A " << blend_pre_exponential_speed
+            << " activation_temperature " << blend_activation_temperature
+            << " Q " << blend_heat_release << "\n";
+    }
+
+    for (const std::string& mechanism_name : mechanism_names)
+    {
+        std::string type;
+        pp.query_required(mechanism_name + ".type", type);
+        if (type != "phase_change") continue;
+        const std::string prefix = mechanism_name + ".phase_change.";
+        std::string solid, kinetics;
+        pp.query_required(prefix + "phase0", solid);
+        pp.query_required(prefix + "kinetics", kinetics);
+        if (kinetics != "arrhenius_surface_flux") continue;
+        const auto it = std::find(value.species_names.begin(), value.species_names.end(), solid);
+        if (it == value.species_names.end()) continue; // Diagnosed by PhaseChange::Parse.
+        const int n = static_cast<int>(it - value.species_names.begin());
+        bool homogeneous;
+        pp.query_default(prefix + "homogeneous", homogeneous, false);
+        if (has_pyrolysis[n] && !homogeneous)
+        {
+            if (homogeneous_solids[n])
+                Util::Exception(INFO, prefix,
+                    "a homogenized species cannot also have a pure pyrolysis mechanism");
+            for (const std::string key : {"pre_exponential_speed", "reference_mass_flux",
+                 "activation_temperature", "latent_heat", "coupled_enthalpy_change"})
+                if (pp.contains(prefix + key))
+                    Util::Exception(INFO, prefix, key,
+                        " is derived from material pyrolysis inputs");
+            pp.add((prefix + "pre_exponential_speed").c_str(), pyrolysis_A[n]);
+            pp.add((prefix + "activation_temperature").c_str(), pyrolysis_Ta[n]);
+            pp.add((prefix + "coupled_enthalpy_change").c_str(), -pyrolysis_Q[n]);
+        }
+        // Optional steady reference for the FINAL material (pure or mixed).
+        // The heat flux is a run/reference condition, not a function of Q alone.
+        if (pp.contains(prefix + "chen_reference.heat_flux") ||
+            pp.contains(prefix + "chen_reference.initial_temperature"))
+        {
+            if (value.nist_ap_species >= 0)
+                Util::Exception(INFO, prefix,
+                    "Chen reference helpers assume constant cp and cannot be used with NIST AP");
+            Set::Scalar q, T0, A, Ta, enthalpy, latent, Ts, rate;
+            pp.query_required(prefix + "chen_reference.heat_flux", q,
+                              Unit::Energy() / Unit::Area() / Unit::Time());
+            pp.query_required(prefix + "chen_reference.initial_temperature", T0,
+                              Unit::Temperature());
+            pp.query_required(prefix + "pre_exponential_speed", A, Unit::Velocity());
+            pp.query_required(prefix + "activation_temperature", Ta, Unit::Temperature());
+            pp.query_default(prefix + "coupled_enthalpy_change", enthalpy,
+                             "0_J/kg", Unit::Energy() / Unit::Mass());
+            pp.query_default(prefix + "latent_heat", latent,
+                             "0_J/kg", Unit::Energy() / Unit::Mass());
+            if (!Model::Mechanism::PhaseChange::ChenSurfaceReference(
+                    value.reference_density[n], value.condensed_specific_heat[n],
+                    -enthalpy - latent, A, Ta, T0, q, Ts, rate))
+                Util::Exception(INFO, prefix, "invalid Chen reference state");
+            amrex::Print().SetPrecision(17)
+                << "LowMach Chen reference " << mechanism_name
+                << " surface_temperature " << Ts << " regression_rate " << rate << "\n";
+        }
+    }
+
+    if (std::isfinite(gross_binder_ap_mass_fraction))
+    {
+        Model::Chemistry::GrossModel* gross_model = nullptr;
+        if (std::strcmp(value.chemistry.model_name(),
+                Model::Chemistry::GrossModel::name) == 0)
+            gross_model = &value.chemistry.Get<Model::Chemistry::GrossModel>();
+        else if (std::strcmp(value.chemistry.model_name(),
+                     Model::Chemistry::GrossModel_Aluminized::name) == 0)
+            gross_model = &value.chemistry.Get<
+                Model::Chemistry::GrossModel_Aluminized>();
+        if (gross_model != nullptr)
+        {
+            gross_model->homogenized_ap_mass_fraction =
+                gross_binder_ap_mass_fraction;
+            if (gross_model->binder_adiabatic_heat_release &&
+                gross_model->binder_equivalence_ratio_from_homogeneous_composition)
+            {
+                if (gross_binder_ap_mass_fraction < 0.10)
+                    Util::Exception(INFO, "The binder flame-temperature fit "
+                        "requires at least 10% AP by mass in the homogeneous "
+                        "binder; set chemistry.model.gross_model."
+                        "binder_equivalence_ratio explicitly only when the "
+                        "corresponding mixture lies inside the fitted domain");
+                gross_model->binder_equivalence_ratio =
+                    Model::Chemistry::GrossModel::
+                        equivalence_ratio_from_ap_mass_fraction(
+                            gross_binder_ap_mass_fraction);
+            }
+            if (!(gross_model->primary_stoichiometric_coefficient() > 0.0) ||
+                !(gross_model->diffusion_stoichiometric_coefficient() > 0.0))
+                Util::Exception(INFO, "The homogeneous binder contains too "
+                    "much AP for positive GrossModel beta and gamma "
+                    "stoichiometric coefficients");
+        }
     }
 
 
@@ -808,6 +1078,21 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                             value.liquid_species,
                             value.reference_density, value.gas.MW,
                             value.gas.Rg));
+        if (value.mechanisms[n].UsesReferenceEnthalpy())
+        {
+            const auto thermo_name = value.gas.thermo.model_name();
+            if (value.nist_ap_species >= 0 || !value.condensed_thermal_transport ||
+                (std::strcmp(thermo_name, Model::Gas::Thermo::GrossModel::name) != 0 &&
+                 std::strcmp(thermo_name, Model::Gas::Thermo::CpConstant::name) != 0))
+                Util::Exception(INFO,
+                    "reference_enthalpy requires constant-cp gas and condensed thermal models");
+            std::vector<Set::Scalar> cp(value.nspecies);
+            for (int species = 0; species < value.nspecies; ++species)
+                cp[species] = species < value.ngas_species ?
+                    value.gas.cp_mol_species(300.0, species) / value.gas.MW[species] :
+                    value.condensed_specific_heat[species];
+            value.mechanisms[n].ConfigurePhaseHeatCapacities(cp);
+        }
         value.has_equilibrium_phase_change =
             value.has_equilibrium_phase_change ||
             value.mechanisms[n].Equilibrium();
@@ -817,7 +1102,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     }
     value.has_split_phase_change = value.has_equilibrium_phase_change ||
         value.has_kinetic_phase_change;
-    if (value.has_equilibrium_phase_change &&
+    value.conservative_solid_transport = value.has_kinetic_phase_change &&
+        !value.fixed_rigid_solid_species.empty() && value.free_rigid_solid_species.empty() &&
+        value.deformable_solid_species < 0 && value.liquid_species.empty();
+    if ((value.has_equilibrium_phase_change || value.nist_ap_species >= 0) &&
         value.implicit_thermal_diffusion)
     {
         pp.query_default("diffusion.enthalpy.max_iterations",
@@ -1030,10 +1318,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_dilatation_mf, &value.bc_nothing, 1, 0,
-            "phase_change_dilatation", false, false);
+            "phase_change_dilatation", value.diagnostics_extended_fields, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
-            "phase_change_heat", false, false);
+            "phase_change_heat", value.diagnostics_extended_fields, false);
     }
     if (value.implicit_thermal_diffusion || value.implicit_species_diffusion)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
@@ -1042,6 +1330,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", true, false);
     if (value.diagnostics_extended_fields)
     {
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.projection_source_mf,
+            &value.bc_nothing, 1, 0, "projection_source", true, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.projected_divergence_mf,
+            &value.bc_nothing, 1, 0, "projected_divergence", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mass_fraction", true, false, gas_species_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.mole_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mole_fraction", true, false, gas_species_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.momentum_mf, &value.bc_nothing, AMREX_SPACEDIM, 1, "momentum", true, false, vector_suffix);
@@ -1060,6 +1352,26 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         std::strcmp(
             value.chemistry.model_name(),
             Model::Chemistry::GrossModel::name) == 0;
+    if (value.nist_ap_species >= 0)
+    {
+#ifdef ALAMO_GPU
+        Util::Exception(INFO, "NIST AP diagnostic has only been validated on CPU");
+#endif
+        if (value.deformable_solid_species >= 0 || !value.liquid_species.empty() ||
+            !value.free_rigid_solid_species.empty() || value.has_equilibrium_phase_change)
+            Util::Exception(INFO,
+                "NIST diagnostic supports stationary rigid solids without other equilibrium mechanisms");
+        for (const auto& velocity : value.rigid_velocity)
+            if (velocity.squaredNorm() != 0.0)
+                Util::Exception(INFO,
+                    "NIST AP enthalpy currently requires zero prescribed rigid-solid velocity");
+        if (!pp.contains("gas.thermo.type") ||
+            std::strcmp(value.gas.thermo.model_name(),
+                Model::Gas::Thermo::GrossModel::name) != 0)
+            Util::Exception(INFO, "NIST AP diagnostic requires constant-cp Gross gas thermo");
+        if (value.chemistry.Reactive() && !gross_model_chemistry)
+            Util::Exception(INFO, "NIST AP diagnostic requires Gross or frozen chemistry");
+    }
 #ifdef ALAMO_GPU
     if (value.chemistry.Reactive() && !gross_model_chemistry)
         Util::Exception(
@@ -1114,7 +1426,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.density_floor, value.pressure_reference,
         value.condensed_thermal_transport,
         specific_heat, thermal_conductivity, inverse_reference_density,
-        liquid_inverse_reference_density, dynamic_viscosity};
+        liquid_inverse_reference_density, dynamic_viscosity,
+        value.nist_ap_species, value.nist_ap_transition_width};
     value.chemistry_device_data = {
         gross_model_chemistry,
         value.chemistry.Get<Model::Chemistry::GrossModel>(),
@@ -3695,7 +4008,8 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 #else
             auto result = host_chemistry->Advance(
                 dt * chemistry_weight, p_reference, mixture_density,
-                ngas, rhoY, temperature, host_gas);
+                ngas, rhoY, temperature, host_gas,
+                CaloricState(component_density, temperature, i,j,k, thermal));
 #endif
             if (!result.converged)
                 Util::Abort(INFO, "Local chemistry integration failed at ",
@@ -3728,7 +4042,7 @@ LowMach::ComputeThermalState(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity] = data;
+                 condensed_dynamic_viscosity, nist_species, nist_width] = data;
     (void)liquid_inverse_reference_density;
     (void)condensed_dynamic_viscosity;
     Set::Scalar gas_density = 0.0;
@@ -3775,13 +4089,28 @@ LowMach::ComputeThermalState(
         const Set::Scalar partial_density = Util::Max(
             component_density(i,j,k,n), 0.0);
         heat_capacity += partial_density *
-            condensed_specific_heat[n];
+            (n == nist_species ? Model::Solid::NISTAPThermo::Cp(temperature,nist_width) :
+                condensed_specific_heat[n]);
         conductivity += partial_density *
             condensed_inverse_reference_density[n] *
             condensed_thermal_conductivity[n];
     }
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
             conductivity, cp};
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+Model::Solid::NISTAPCaloricState
+LowMach::CaloricState(Set::Patch<const Set::Scalar> density, Set::Scalar T,
+    int i, int j, int k, const ThermalData& data)
+{
+    const int species=amrex::get<11>(data);
+    if (species<0) return {};
+    const double rho=Util::Max(density(i,j,k,species),0.0);
+    const double width=amrex::get<12>(data);
+    const auto state=ComputeThermalState(density,T,i,j,k,data);
+    const double capacity=amrex::get<2>(state);
+    return {rho,Util::Max(capacity-rho*Model::Solid::NISTAPThermo::Cp(T,width),0.0),width};
 }
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -3796,7 +4125,9 @@ LowMach::ComputeViscosity(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity] = data;
+                 condensed_dynamic_viscosity, nist_species, nist_width] = data;
+    (void)nist_species;
+    (void)nist_width;
     (void)density_floor;
     (void)pressure_reference;
     (void)condensed_thermal_transport;
@@ -3991,20 +4322,106 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
     const auto advection_scheme = advect;
     const int stencil_ghost_cells = Util::Max(1, advection_scheme.NGhost());
     const Set::Scalar p_reference = pressure_reference;
-    const Set::Scalar stefan_profile_scale =
-        0.25 * interfacial_thickness;
     for (const auto& configured_mechanism : mechanisms)
     {
         const auto mechanism = configured_mechanism;
         if (!mechanism.Kinetic()) continue;
+        const bool reconstruct_temperature = mechanism.ReconstructSurfaceTemperature();
+        const auto temperature_closure = mechanism.SurfaceTemperatureClosure();
+        const Set::Scalar contour_fraction = temperature_closure.contour_fraction;
+        const bool weighted_temperature = reconstruct_temperature &&
+            temperature_closure.mode != Model::Mechanism::SurfaceTemperatureOptions::Contour;
+        const int reconstruction_components = weighted_temperature ? 4 : 2;
+        // Thickness sets only the search/communication reach. Locate the actual
+        // condensed-fraction contour; do not infer distance from a prescribed profile.
+        const Set::Scalar surface_search_distance = 10.0 * interfacial_thickness;
+        Set::Field<Set::Scalar> surface_reconstruction_state(nlev);
+        if (reconstruct_temperature)
+        {
+            const auto inverse_solid_density = condensed_inverse_reference_density;
+            const int species_count = nspecies;
+            const int gas_species_count = ngas_species;
+            for (int lev = 0; lev < nlev; ++lev)
+            {
+                const auto dx = geom[lev].CellSizeArray();
+                amrex::IntVect reconstruction_ghost_cells;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                {
+                    const int domain_cells = geom[lev].Domain().length(d);
+                    // A periodic ray can use its nearest image instead of
+                    // communicating many copies of a narrow periodic domain.
+                    const int maximum_offset = geom[lev].isPeriodic(d) ?
+                        (domain_cells + 1) / 2 : domain_cells;
+                    reconstruction_ghost_cells[d] = Util::Min(maximum_offset,
+                        static_cast<int>(std::ceil((weighted_temperature ? 2.0 : 1.0) *
+                            surface_search_distance / dx[d]))) + 2;
+                }
+                surface_reconstruction_state[lev] = std::make_unique<amrex::MultiFab>(
+                    component_density_mf[lev]->boxArray(),
+                    component_density_mf[lev]->DistributionMap(), reconstruction_components,
+                    reconstruction_ghost_cells);
+                surface_reconstruction_state[lev]->setVal(0.0);
+                for (amrex::MFIter mfi(*component_density_mf[lev],
+                        amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    const auto density = component_density_mf[lev]->const_array(mfi);
+                    const auto temperature = temperature_mf[lev]->const_array(mfi);
+                    const auto reconstruction = surface_reconstruction_state[lev]->array(mfi);
+                    amrex::ParallelFor(mfi.tilebox(),
+                        [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            Set::Scalar condensed_fraction = 0.0;
+                            for (int n = gas_species_count; n < species_count; ++n)
+                                if (inverse_solid_density[n] > 0.0)
+                                    condensed_fraction += density(i,j,k,n) * inverse_solid_density[n];
+                            reconstruction(i,j,k,0) = condensed_fraction;
+                            reconstruction(i,j,k,1) = temperature(i,j,k);
+                            if (weighted_temperature)
+                                reconstruction(i,j,k,3) = density(i,j,k,temperature_closure.solid_component);
+                        });
+                }
+            }
+        }
+        const auto fill_reconstruction = [&]()
+        {
+            // Freeze both fields before any cell transfers mass or heat. Fill
+            // coarse/fine and MPI ghosts as well as periodic neighbors.
+            // AMReX's boundary fill supports anisotropic ghost widths and uses
+            // each level's own geometry for coarse/fine interpolation.
+            amrex::Vector<amrex::BCRec> reconstruction_bc(reconstruction_components);
+            for (auto& boundary : reconstruction_bc)
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                {
+                    const int type = geom[0].isPeriodic(d) ?
+                        amrex::BCType::int_dir : amrex::BCType::foextrap;
+                    boundary.setLo(d, type);
+                    boundary.setHi(d, type);
+                }
+            amrex::GpuBndryFuncFab<amrex::FabFillNoOp> boundary_fill;
+            const amrex::Vector<amrex::Real> reconstruction_time{time};
+            for (int lev = 0; lev < nlev; ++lev)
+            {
+                amrex::Vector<amrex::MultiFab*> fine{surface_reconstruction_state[lev].get()};
+                amrex::PhysBCFunct fine_boundary(geom[lev], reconstruction_bc, boundary_fill);
+                if (lev == 0)
+                    amrex::FillPatchSingleLevel(*fine[0], time, fine, reconstruction_time,
+                        0, 0, reconstruction_components, geom[lev], fine_boundary, 0);
+                else
+                {
+                    amrex::Vector<amrex::MultiFab*> coarse{surface_reconstruction_state[lev-1].get()};
+                    amrex::PhysBCFunct coarse_boundary(geom[lev-1], reconstruction_bc, boundary_fill);
+                    amrex::FillPatchTwoLevels(*fine[0], time, coarse, reconstruction_time,
+                        fine, reconstruction_time, 0, 0, reconstruction_components, geom[lev-1], geom[lev],
+                        coarse_boundary, 0, fine_boundary, 0, refRatio(lev-1),
+                        &amrex::cell_cons_interp, reconstruction_bc, 0);
+                }
+            }
+        };
+        if (reconstruct_temperature) fill_reconstruction();
 
-        // For eta=(1-tanh(2s/ell))/2, -ell grad(eta)/4 is
-        // eta(1-eta)n.  Building the Stefan current from the unnormalized
-        // pair gradient is therefore exact on the equilibrium profile and
-        // makes it vanish smoothly in a uniform mixed region.
-        Set::Field<Set::Scalar> stefan_volume_current(nlev);
         Set::Field<Set::Scalar> recoil_force_vector(nlev);
         Set::Field<Set::Scalar> component_density_before_change(nlev);
+        Set::Field<Set::Scalar> predictor_density(nlev);
         for (int lev = 0; lev < nlev; ++lev)
         {
             // Freeze stencil inputs before transferring mass. Neighbor
@@ -4015,31 +4432,54 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                 component_density_mf[lev]->DistributionMap(), nspecies, stencil_ghost_cells);
             amrex::MultiFab::Copy(*component_density_before_change[lev],
                 *component_density_mf[lev], 0, 0, nspecies, stencil_ghost_cells);
-            stefan_volume_current[lev] =
-                std::make_unique<amrex::MultiFab>(
-                    component_density_mf[lev]->boxArray(),
-                    component_density_mf[lev]->DistributionMap(),
-                    AMREX_SPACEDIM, 1);
+            if (weighted_temperature)
+            {
+                predictor_density.Define(lev, component_density_mf[lev]->boxArray(),
+                    component_density_mf[lev]->DistributionMap(), nspecies, 0);
+                amrex::MultiFab::Copy(*predictor_density[lev],
+                    *component_density_mf[lev], 0, 0, nspecies, 0);
+            }
             recoil_force_vector[lev] =
                 std::make_unique<amrex::MultiFab>(
                     component_density_mf[lev]->boxArray(),
                     component_density_mf[lev]->DistributionMap(),
                     AMREX_SPACEDIM, 1);
-            stefan_volume_current[lev]->setVal(0.0);
             recoil_force_vector[lev]->setVal(0.0);
         }
+        // A contour-based trial solve supplies conversion weights. Its mass,
+        // heat, volume and recoil are discarded; only the second pass commits
+        // physical changes. No history field is required on restart.
+        for (int pass = 0; pass < (weighted_temperature ? 2 : 1); ++pass)
+        {
+        const bool prediction_pass = weighted_temperature && pass == 0;
         for (int lev = 0; lev < nlev; ++lev)
         {
             const auto dx = geom[lev].CellSizeArray();
+            const auto domain_lower = geom[lev].Domain().smallEnd();
+            const auto domain_upper = geom[lev].Domain().bigEnd();
+            amrex::GpuArray<int, AMREX_SPACEDIM> periodic;
+            Set::Scalar search_step = dx[0];
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                search_step = Util::Min(search_step, dx[d]);
+                periodic[d] = geom[lev].isPeriodic(d);
+            }
+            search_step *= 0.5;
             for (amrex::MFIter mfi(*component_density_mf[lev],
                                     amrex::TilingIfNotGPU());
                  mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
                 Set::Patch<Set::Scalar> component_density =
-                    component_density_mf.Patch(lev,mfi);
+                    prediction_pass ? predictor_density.Patch(lev,mfi) : component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> component_density_state =
                     component_density_before_change.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> reconstruction;
+                Set::Patch<Set::Scalar> reconstruction_weights;
+                if (reconstruct_temperature)
+                    reconstruction = surface_reconstruction_state[lev]->const_array(mfi);
+                if (weighted_temperature)
+                    reconstruction_weights = surface_reconstruction_state[lev]->array(mfi);
                 Set::Patch<const Set::Scalar> rigid_eta;
                 Set::Patch<const Set::Scalar> rigid_species_eta;
                 if (!rigid_solid_species.empty())
@@ -4053,8 +4493,6 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                     phase_change_dilatation_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_heat =
                     phase_change_heat_mf.Patch(lev,mfi);
-                Set::Patch<Set::Scalar> stefan_current =
-                    stefan_volume_current[lev]->array(mfi);
                 Set::Patch<Set::Scalar> recoil_force =
                     recoil_force_vector[lev]->array(mfi);
                 amrex::ParallelFor(
@@ -4065,6 +4503,126 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                                 component_density_state, i, j, k,
                                 dx.data(), advection_scheme);
                         if (!(surface_measure > 0.0)) return;
+                        Set::Scalar surface_temperature = NAN;
+                        if (reconstruct_temperature)
+                        {
+                            const Set::Scalar local_fraction = reconstruction(i,j,k,0);
+                            const Set::Scalar interface_fraction_tolerance = 1.0e-10;
+                            // Trace residues below the interface localization
+                            // tolerance have no meaningful normal or contour.
+                            // Leave their mass untouched; never use hot gas T
+                            // as a fallback kinetic temperature.
+                            if (local_fraction <= 0.01 * interface_fraction_tolerance)
+                                return;
+                            Set::Vector search_direction = Numeric::Gradient(
+                                reconstruction, i, j, k, 0, dx.data());
+                            const Set::Scalar gradient_norm = search_direction.norm();
+                            Set::Scalar contour_distance = 0.0;
+                            if (local_fraction == contour_fraction)
+                            {
+                                surface_temperature = reconstruction(i,j,k,1);
+                                if (gradient_norm > 0.0) search_direction /= gradient_norm;
+                            }
+                            else if (gradient_norm > 0.0)
+                            {
+                                search_direction *= (local_fraction < contour_fraction ? 1.0 : -1.0) / gradient_norm;
+                                // Multilinear sampling of the computed fields, in
+                                // cell-center index coordinates. Search only within
+                                // physical boundaries; periodic ghosts may be used.
+                                const auto sample = [=] AMREX_GPU_DEVICE(Set::Scalar distance)
+                                {
+                                    amrex::GpuArray<int, AMREX_SPACEDIM> lower;
+                                    amrex::GpuArray<Set::Scalar, AMREX_SPACEDIM> weight;
+                                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                                    {
+                                        Set::Scalar displacement = distance * search_direction(d) / dx[d];
+                                        if (periodic[d])
+                                        {
+                                            const int period = domain_upper[d] - domain_lower[d] + 1;
+                                            displacement -= period * std::floor(displacement / period + 0.5);
+                                        }
+                                        Set::Scalar coordinate = (d == 0 ? i : (d == 1 ? j : k)) + displacement;
+                                        if (!periodic[d])
+                                            coordinate = Util::Min(Util::Max(coordinate,
+                                                static_cast<Set::Scalar>(domain_lower[d])),
+                                                static_cast<Set::Scalar>(domain_upper[d]));
+                                        lower[d] = static_cast<int>(std::floor(coordinate));
+                                        weight[d] = coordinate - lower[d];
+                                    }
+                                    Set::Scalar fraction = 0.0;
+                                    Set::Scalar temperature = 0.0;
+                                    for (int corner = 0; corner < (1 << AMREX_SPACEDIM); ++corner)
+                                    {
+                                        int index[3] = {0, 0, 0};
+                                        Set::Scalar corner_weight = 1.0;
+                                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                                        {
+                                            const int offset = (corner >> d) & 1;
+                                            index[d] = lower[d] + offset;
+                                            corner_weight *= offset ? weight[d] : 1.0 - weight[d];
+                                        }
+                                        fraction += corner_weight * reconstruction(index[0],index[1],index[2],0);
+                                        temperature += corner_weight * reconstruction(index[0],index[1],index[2],1);
+                                    }
+                                    return amrex::GpuTuple<Set::Scalar, Set::Scalar>{fraction, temperature};
+                                };
+                                Set::Scalar previous_distance = 0.0;
+                                Set::Scalar previous_fraction = local_fraction;
+                                for (Set::Scalar distance = search_step;
+                                     distance <= surface_search_distance; distance += search_step)
+                                {
+                                    const auto [fraction, sampled_temperature] = sample(distance);
+                                    (void)sampled_temperature;
+                                    if ((fraction - contour_fraction) * (local_fraction - contour_fraction) <= 0.0)
+                                    {
+                                        Set::Scalar lower_distance = previous_distance;
+                                        Set::Scalar upper_distance = distance;
+                                        // In multiple dimensions the interpolated
+                                        // fraction along an oblique ray is nonlinear.
+                                        for (int iteration = 0; iteration < 24; ++iteration)
+                                        {
+                                            const Set::Scalar midpoint = 0.5 * (lower_distance + upper_distance);
+                                            contour_distance = midpoint;
+                                            const auto [mid_fraction, mid_temperature] = sample(midpoint);
+                                            surface_temperature = mid_temperature;
+                                            if ((mid_fraction - contour_fraction) * (previous_fraction - contour_fraction) > 0.0)
+                                                lower_distance = midpoint;
+                                            else
+                                                upper_distance = midpoint;
+                                        }
+                                        break;
+                                    }
+                                    previous_distance = distance;
+                                    previous_fraction = fraction;
+                                }
+                            }
+                            // Numerical residues can remain after the surface
+                            // has moved away. Leave margin above the early gas
+                            // cutoff for transport/implicit-solver roundoff.
+                            // On the solid side, skip only failed reconstructions:
+                            // cells ahead of a resolved front must still erode.
+                            if (!std::isfinite(surface_temperature) &&
+                                (local_fraction <= interface_fraction_tolerance ||
+                                 local_fraction >= 1.0 - interface_fraction_tolerance))
+                                return;
+                            if (!(surface_temperature > 0.0) || !std::isfinite(surface_temperature))
+                                Util::Abort(INFO, "Cannot reconstruct condensed-fraction contour ", contour_fraction,
+                                    " surface temperature at level ",
+                                    lev, " cell ", i, ",", j, ",", k,
+                                    "; condensed fraction=", local_fraction);
+                            if (weighted_temperature && !prediction_pass)
+                            {
+                                const Model::Mechanism::SurfaceTemperatureRay ray{
+                                    reconstruction, dx, domain_lower, domain_upper,
+                                    periodic, search_direction, i, j, k};
+                                surface_temperature = Model::Mechanism::WeightedSurfaceTemperature(
+                                    ray, contour_distance, surface_temperature, search_step,
+                                    surface_search_distance, temperature_closure);
+                                if (!(surface_temperature > 0.0) || !std::isfinite(surface_temperature))
+                                    Util::Abort(INFO, "Cannot reconstruct complete diffuse temperature band at level ",
+                                        lev, " cell ", i, ",", j, ",", k);
+                            }
+                        }
                         auto [gas_volume_fraction, gas_heat_capacity,
                             heat_capacity, conductivity, cp] =
                             ComputeThermalState(component_density_state,
@@ -4074,17 +4632,27 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                         (void)conductivity;
                         (void)cp;
                         Set::Scalar local_heat = 0.0;
+                        Set::Scalar local_temperature = temperature(i,j,k);
                         const Model::Mechanism::State state = {
                             component_density_state, rigid_eta,
                             rigid_species_eta, temperature(i,j,k),
-                            p_reference, dt};
+                            p_reference, dt, surface_temperature,
+                            CaloricState(component_density_state,temperature(i,j,k),i,j,k,thermal)};
                         auto [mass_change, volume_change,
                             surface_mass_flux, surface_volume_flux] =
                             mechanism.ApplyKineticChange(
                                 component_density, state, heat_capacity,
                                 surface_measure,
-                                temperature(i,j,k), local_heat,
+                                local_temperature, local_heat,
                                 i, j, k);
+                        if (prediction_pass)
+                        {
+                            if (!std::isfinite(mass_change) || !std::isfinite(local_temperature))
+                                Util::Abort(INFO, "Non-finite surface temperature conversion predictor");
+                            reconstruction_weights(i,j,k,2) = Util::Max(0.0, -mass_change);
+                            return;
+                        }
+                        temperature(i,j,k) = local_temperature;
                         if (!std::isfinite(surface_measure) ||
                             !std::isfinite(mass_change) ||
                             !std::isfinite(volume_change) ||
@@ -4108,26 +4676,19 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                                 surface_mass_flux,
                                 temperature(i,j,k), p_reference);
                         for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                        {
-                            stefan_current(i,j,k,d) =
-                                -stefan_profile_scale *
-                                surface_volume_flux *
-                                phase_pair_gradient(d);
                             recoil_force(i,j,k,d) =
-                                recoil_pressure *
-                                phase_pair_gradient(d);
-                        }
+                                recoil_pressure * phase_pair_gradient(d);
                     });
             }
-            stefan_volume_current[lev]->FillBoundary(
-                geom[lev].periodicity());
-            recoil_force_vector[lev]->FillBoundary(
-                geom[lev].periodicity());
-            component_density_mf[lev]->FillBoundary(
-                geom[lev].periodicity());
+            if (!prediction_pass)
+            {
+                recoil_force_vector[lev]->FillBoundary(geom[lev].periodicity());
+                component_density_mf[lev]->FillBoundary(geom[lev].periodicity());
+            }
+        }
+        if (prediction_pass) fill_reconstruction();
         }
 
-        InterfacialFaceField stefan_volume_flux(nlev);
         if (phase_change_recoil_face_force.empty())
         {
             phase_change_recoil_face_force.resize(nlev);
@@ -4146,8 +4707,7 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                 }
         }
 
-        // Average the cell-centered Stefan volume current and recoil force to
-        // one shared face value for the projection.
+        // Average recoil to one shared face value for the projection.
         for (int lev = 0; lev < nlev; ++lev)
         {
             const amrex::Box domain = geom[lev].Domain();
@@ -4156,27 +4716,18 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                 amrex::BoxArray faces =
                     component_density_mf[lev]->boxArray();
                 faces.surroundingNodes(d);
-                stefan_volume_flux[lev][d] =
-                    std::make_unique<amrex::MultiFab>(
-                        faces, component_density_mf[lev]->DistributionMap(),
-                        1, 0);
-                stefan_volume_flux[lev][d]->setVal(0.0);
                 const int di = d == 0;
                 const int dj = d == 1;
                 const int dk = d == 2;
                 const int face_lo = domain.smallEnd(d);
                 const int face_hi = domain.bigEnd(d) + 1;
                 const bool periodic = geom[lev].isPeriodic(d);
-                for (amrex::MFIter mfi(*stefan_volume_flux[lev][d],
+                for (amrex::MFIter mfi(*phase_change_recoil_face_force[lev][d],
                         amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     const amrex::Box& bx = mfi.tilebox();
-                    Set::Patch<const Set::Scalar> cell_volume_current =
-                        stefan_volume_current[lev]->const_array(mfi);
                     Set::Patch<const Set::Scalar> cell_recoil =
                         recoil_force_vector[lev]->const_array(mfi);
-                    Set::Patch<Set::Scalar> volume_face =
-                        stefan_volume_flux[lev][d]->array(mfi);
                     Set::Patch<Set::Scalar> recoil_face =
                         phase_change_recoil_face_force[lev][d]->array(mfi);
                     amrex::ParallelFor(
@@ -4190,16 +4741,11 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                             const int ilo = i-di;
                             const int jlo = j-dj;
                             const int klo = k-dk;
-                            volume_face(i,j,k) = 0.5 *
-                                (cell_volume_current(i,j,k,d) +
-                                 cell_volume_current(ilo,jlo,klo,d));
                             recoil_face(i,j,k) += 0.5 *
                                 (cell_recoil(i,j,k,d) +
                                  cell_recoil(ilo,jlo,klo,d));
                         });
                 }
-                stefan_volume_flux[lev][d]->FillBoundaryAndSync(
-                    geom[lev].periodicity());
                 phase_change_recoil_face_force[lev][d]->
                     FillBoundaryAndSync(geom[lev].periodicity());
             }
@@ -4208,52 +4754,23 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
         for (int lev = nlev - 1; lev > 0; --lev)
         {
             amrex::Array<const amrex::MultiFab*,AMREX_SPACEDIM>
-                fine_volume, fine_recoil;
+                fine_recoil;
             amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>
-                coarse_volume, coarse_recoil;
+                coarse_recoil;
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
             {
-                fine_volume[d] = stefan_volume_flux[lev][d].get();
-                coarse_volume[d] = stefan_volume_flux[lev-1][d].get();
                 fine_recoil[d] =
                     phase_change_recoil_face_force[lev][d].get();
                 coarse_recoil[d] =
                     phase_change_recoil_face_force[lev-1][d].get();
             }
-            amrex::average_down_faces(fine_volume, coarse_volume,
-                refRatio(lev-1), geom[lev-1]);
             amrex::average_down_faces(fine_recoil, coarse_recoil,
                 refRatio(lev-1), geom[lev-1]);
         }
 
-        for (int lev = 0; lev < nlev; ++lev)
-        {
-            const auto dx = geom[lev].CellSizeArray();
-            for (amrex::MFIter mfi(
-                    *phase_change_dilatation_mf[lev],
-                    amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> integrated_dilatation =
-                    phase_change_dilatation_mf.Patch(lev,mfi);
-                amrex::GpuArray<Set::Patch<const Set::Scalar>,
-                    AMREX_SPACEDIM> flux;
-                for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                    flux[d] = stefan_volume_flux[lev][d]->
-                        const_array(mfi);
-                amrex::ParallelFor(
-                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                    {
-                        Set::Scalar divergence = 0.0;
-                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
-                            divergence +=
-                                (flux[d](i+(d==0),j+(d==1),
-                                    k+(d==2)) - flux[d](i,j,k)) /
-                                dx[d];
-                        integrated_dilatation(i,j,k) -= dt * divergence;
-                    });
-            }
-        }
+        // The specific-volume jump is already accumulated in
+        // phase_change_dilatation above. Do not add a second regularized
+        // Stefan-volume divergence to the projection source.
         for (int lev = nlev - 2; lev >= 0; --lev)
         {
             amrex::average_down(*component_density_mf[lev + 1],
@@ -4552,12 +5069,22 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar* condensed_conductivity =
             amrex::get<7>(thermal_data);
         Set::Field<Set::Scalar> accumulated_conductive_energy(nlev);
+        const bool nist_thermal = nist_ap_species >= 0;
+        Set::Field<Set::Scalar> nist_entry_temperature(nlev);
         for (int lev = 0; lev < nlev; ++lev)
         {
             accumulated_conductive_energy.Define(
                 lev, temperature_mf[lev]->boxArray(),
                 temperature_mf[lev]->DistributionMap(), 1, 0);
             accumulated_conductive_energy[lev]->setVal(0.0);
+            if (nist_thermal)
+            {
+                nist_entry_temperature.Define(lev,
+                    temperature_mf[lev]->boxArray(),
+                    temperature_mf[lev]->DistributionMap(),1,0);
+                amrex::MultiFab::Copy(*nist_entry_temperature[lev],
+                    *temperature_mf[lev],0,0,1,0);
+            }
             if (tensor_conductivity)
                 diffusion.TensorMobility(lev, 1).setVal(0.0);
         }
@@ -4584,9 +5111,10 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
             enthalpy_relative_tolerance;
         const Set::Scalar absolute_tolerance =
             enthalpy_absolute_tolerance;
-        const int number_of_iterations = has_equilibrium_phase_change ?
+        const bool nonlinear_enthalpy = has_equilibrium_phase_change || nist_thermal;
+        const int number_of_iterations = nonlinear_enthalpy ?
             maximum_enthalpy_iterations : 1;
-        bool enthalpy_converged = !has_equilibrium_phase_change;
+        bool enthalpy_converged = !nonlinear_enthalpy;
         Set::Scalar enthalpy_residual = 0.0;
         for (int iteration = 0;
              iteration < number_of_iterations; ++iteration)
@@ -4721,14 +5249,26 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                         temperature_mf.Patch(lev,mfi);
                     Set::Patch<Set::Scalar> conductive_energy =
                         accumulated_conductive_energy.Patch(lev,mfi);
+                    Set::Patch<const Set::Scalar> entry_T;
+                    if (nist_thermal) entry_T=nist_entry_temperature.Patch(lev,mfi);
+                    Set::Patch<const Set::Scalar> density=
+                        component_density_mf.Patch(lev,mfi);
                     amrex::ParallelFor(
                         bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
                             conductive_energy(i,j,k) += capacity(i,j,k) *
                                 (solved_temperature(i,j,k) -
                                  temperature(i,j,k));
-                            temperature(i,j,k) =
-                                solved_temperature(i,j,k);
+                            if (nist_thermal)
+                            {
+                                const auto caloric=CaloricState(density,
+                                    temperature(i,j,k),i,j,k,thermal);
+                                temperature(i,j,k)=caloric.Temperature(
+                                    entry_T(i,j,k),conductive_energy(i,j,k));
+                                if (!std::isfinite(temperature(i,j,k)))
+                                    Util::Abort(INFO,"NIST conduction enthalpy inverse failed");
+                            }
+                            else temperature(i,j,k)=solved_temperature(i,j,k);
                         });
                 }
             }
@@ -4741,8 +5281,8 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
             diffusion.FillBoundary(
                 temperature_mf, *temperature_bc, time, 1);
 
-            if (!has_equilibrium_phase_change) break;
-            ApplyEquilibriumPhaseChange(time, dt);
+            if (!nonlinear_enthalpy) break;
+            if (has_equilibrium_phase_change) ApplyEquilibriumPhaseChange(time, dt);
 
             // The solved theta is conservative because the linear system
             // gives E = dt div(K grad(theta)) after the sensible correction.
@@ -4814,6 +5354,8 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                         temperature_mf.Patch(lev,mfi);
                     Set::Patch<Set::Scalar> conductive_energy =
                         accumulated_conductive_energy.Patch(lev,mfi);
+                    Set::Patch<const Set::Scalar> entry_T;
+                    if (nist_thermal) entry_T=nist_entry_temperature.Patch(lev,mfi);
                     amrex::GpuArray<amrex::Array4<const Set::Scalar>,
                                     AMREX_SPACEDIM> face;
                     for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -4850,8 +5392,16 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             const Set::Scalar energy_correction =
                                 diffusion_diagonal * mismatch;
                             conductive_energy(i,j,k) += energy_correction;
-                            temperature(i,j,k) +=
-                                energy_correction / capacity;
+                            if (nist_thermal)
+                            {
+                                const auto caloric=CaloricState(component_density,
+                                    temperature(i,j,k),i,j,k,thermal);
+                                temperature(i,j,k)=caloric.Temperature(
+                                    entry_T(i,j,k),conductive_energy(i,j,k));
+                                if (!std::isfinite(temperature(i,j,k)))
+                                    Util::Abort(INFO,"NIST enthalpy accelerator inverse failed");
+                            }
+                            else temperature(i,j,k) += energy_correction/capacity;
                         });
                 }
             }
@@ -4863,7 +5413,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                     geom[lev + 1], geom[lev], 0, 1, refRatio(lev));
             diffusion.FillBoundary(
                 temperature_mf, *temperature_bc, time, 1);
-            ApplyEquilibriumPhaseChange(time, dt);
+            if (has_equilibrium_phase_change) ApplyEquilibriumPhaseChange(time, dt);
         }
         if (!enthalpy_converged)
             Util::Abort(INFO,
@@ -6885,6 +7435,11 @@ void
 LowMach::Initialize(int lev)
 {
     BL_PROFILE("Integrator::LowMach::Initialize");
+    if (diagnostics_extended_fields)
+    {
+        projection_source_mf[lev]->setVal(0.0);
+        projected_divergence_mf[lev]->setVal(0.0);
+    }
     const bool deformable_solid = deformable_solid_species >= 0;
 
     velocity_mf[lev]->setVal(0.0, 0, velocity_mf[lev]->nComp(), velocity_mf[lev]->nGrow());
@@ -6912,6 +7467,31 @@ LowMach::Initialize(int lev)
         species_density[lev] = std::make_unique<amrex::MultiFab>(
             *component_density_mf[lev], amrex::MakeType::make_alias, n, 1);
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
+        if (component_volume_fraction_ic[n])
+        {
+            const auto& fraction = *species_density[lev];
+            if (fraction.contains_nan() || fraction.contains_inf() ||
+                fraction.min(0) < 0.0 || fraction.max(0) > 1.0)
+                Util::Exception(INFO, species_names[n],
+                    " volume_fraction.ic must be finite and lie in [0,1]");
+            species_density[lev]->mult(reference_density[n], 0, 1,
+                                      species_density[lev]->nGrow());
+        }
+    }
+    if (std::find(component_volume_fraction_ic.begin(),
+                  component_volume_fraction_ic.end(), true) !=
+        component_volume_fraction_ic.end())
+    {
+        amrex::MultiFab occupied(component_density_mf[lev]->boxArray(),
+                                component_density_mf[lev]->DistributionMap(), 1, 0);
+        occupied.setVal(0.0);
+        for (int n = ngas_species; n < nspecies; ++n)
+            if (reference_density[n] > 0.0)
+                amrex::MultiFab::Saxpy(occupied, 1.0 / reference_density[n],
+                                      *component_density_mf[lev], n, 0, 1, 0);
+        if (occupied.contains_nan() || occupied.contains_inf() ||
+            occupied.min(0) < -1.0e-12 || occupied.max(0) > 1.0 + 1.0e-12)
+            Util::Exception(INFO, "initial total condensed volume must lie in [0,1]");
     }
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
     if (lev == 0 && !(pressure_reference == pressure_reference))
@@ -7113,6 +7693,30 @@ LowMach::Regrid(int lev, Set::Scalar time)
             initial_density, amrex::MakeType::make_alias,
             n - ngas_species, 1);
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
+        if (component_volume_fraction_ic[n])
+        {
+            const auto& fraction = *species_density[lev];
+            if (fraction.contains_nan() || fraction.contains_inf() ||
+                fraction.min(0) < 0.0 || fraction.max(0) > 1.0)
+                Util::Exception(INFO, species_names[n],
+                    " volume_fraction.ic must be finite and lie in [0,1]");
+            species_density[lev]->mult(reference_density[n], 0, 1, 0);
+        }
+    }
+
+    if (std::find(component_volume_fraction_ic.begin(),
+                  component_volume_fraction_ic.end(), true) !=
+        component_volume_fraction_ic.end())
+    {
+        amrex::MultiFab occupied(initial_density.boxArray(),
+                                initial_density.DistributionMap(), 1, 0);
+        occupied.setVal(0.0);
+        for (int n = ngas_species; n < nspecies; ++n)
+            amrex::MultiFab::Saxpy(occupied, 1.0 / reference_density[n],
+                                  initial_density, n - ngas_species, 0, 1, 0);
+        if (occupied.contains_nan() || occupied.contains_inf() ||
+            occupied.min(0) < -1.0e-12 || occupied.max(0) > 1.0 + 1.0e-12)
+            Util::Exception(INFO, "initial total condensed volume must lie in [0,1]");
     }
 
     const Set::Scalar* inverse_reference_density =

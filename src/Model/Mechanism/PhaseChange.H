@@ -14,20 +14,18 @@
 //
 // Irreversible solid-to-gas regression evaluates the normal derivative with
 // the integrator's input-selected advection operator and limiter. The local
-// inward normal is frozen over that reconstruction; Stefan/recoil retain the
+// inward normal is frozen over that reconstruction; recoil retains the
 // centered geometric pair gradient. This measure integrates to one across a
 // resolved monotone planar binary interface and
 // vanishes on interfaces that do not contain both selected phases.  The
-// constitutive flux uses the local diffuse-mixture temperature.  No contour,
-// normal extrapolation, signed distance, or sharp-interface state is
-// reconstructed.  The local mass/enthalpy system is solved implicitly after
-// transport, so kinetic stiffness does not impose an explicit global step.
-// A kinetic transition applies its specific-volume jump as a phase1-side
-// Stefan flux and supplies the associated recoil pressure.  The
-// Stefan current uses the unnormalized phase-pair gradient, which is exactly
-// eta_0 eta_1 n on the equilibrium profile and vanishes continuously where
-// there is no resolved interface.  No product diffusion or carrier-gas
-// counterflux is introduced.
+// constitutive flux defaults to the local diffuse-mixture temperature.
+// Irreversible solid-to-gas Arrhenius kinetics may instead use temperature
+// reconstructed at the total-condensed eta=0.5 contour. The reconstruction
+// is frozen during each phase-change update; the local enthalpy increment
+// is still included in the implicit kinetic temperature. This split treatment
+// requires timestep convergence, rather than a fully implicit surface solve.
+// A kinetic transition sends the occupied-volume change from that same mass
+// and heat update to the projection and supplies the associated recoil.
 //
 // latent_heat is positive for an endothermic forward transition.  The signed
 // coupled_enthalpy_change represents an unresolved process tied only to
@@ -61,6 +59,83 @@ public:
     static constexpr const char* name = "phase_change";
     static constexpr int max_species = Model::Chemistry::MAX_SPECIES;
 
+    // Chen's steady planar reference balance (q is heat INTO the surface,
+    // Q is signed condensed heat release):
+    //   r = A exp(-Ta/Ts),  cp (Ts-T0) = Q + q/(rho*r).
+    // These reference calculations do not replace the transient energy
+    // equation or the reconstructed kinetic temperature during a run.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static bool ChenSurfaceReference(
+        const Set::Scalar rho, const Set::Scalar cp, const Set::Scalar Q,
+        const Set::Scalar A, const Set::Scalar Ta, const Set::Scalar T0,
+        const Set::Scalar q, Set::Scalar& Ts, Set::Scalar& r)
+    {
+        Ts = r = NAN;
+        if (!(rho > 0.0) || !std::isfinite(rho) ||
+            !(cp > 0.0) || !std::isfinite(cp) || !std::isfinite(Q) ||
+            !(A > 0.0) || !std::isfinite(A) ||
+            !(Ta >= 0.0) || !std::isfinite(Ta) ||
+            !(T0 > 0.0) || !std::isfinite(T0) ||
+            !(q > 0.0) || !std::isfinite(q)) return false;
+        const Set::Scalar equilibrium_temperature = T0 + Q / cp;
+        if (!std::isfinite(equilibrium_temperature)) return false;
+        Set::Scalar lower = Util::Max(0.0, equilibrium_temperature);
+        Set::Scalar upper = Util::Max(1000.0, 2.0 * lower);
+        const Set::Scalar log_scale =
+            std::log(rho) + std::log(A) + std::log(cp) - std::log(q);
+        // The log residual is monotone for Ta >= 0. It avoids Arrhenius
+        // underflow at the lower bracket and mass-flux overflow at the upper.
+        bool bracketed = false;
+        for (int iteration = 0; iteration < 256; ++iteration)
+        {
+            if (!std::isfinite(upper)) return false;
+            if (log_scale - Ta / upper +
+                std::log(upper - equilibrium_temperature) >= 0.0)
+            {
+                bracketed = true;
+                break;
+            }
+            upper *= 2.0;
+        }
+        if (!bracketed) return false;
+        // With Ta=0 and a negative equilibrium temperature, a positive
+        // root need not exist even for positive incident flux.
+        if (Ta == 0.0 && equilibrium_temperature < 0.0 &&
+            log_scale + std::log(-equilibrium_temperature) >= 0.0)
+            return false;
+        for (int iteration = 0; iteration < 128; ++iteration)
+        {
+            const Set::Scalar trial = lower + 0.5 * (upper - lower);
+            if (trial == lower || trial == upper) break;
+            if (log_scale - Ta / trial +
+                std::log(trial - equilibrium_temperature) > 0.0)
+                upper = trial;
+            else lower = trial;
+        }
+        Ts = lower + 0.5 * (upper - lower);
+        r = std::exp(std::log(A) - Ta / Ts);
+        return Ts > 0.0 && std::isfinite(Ts) && r > 0.0 && std::isfinite(r);
+    }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static bool ChenReferencePrefactor(
+        const Set::Scalar rho, const Set::Scalar cp, const Set::Scalar Q,
+        const Set::Scalar Ta, const Set::Scalar T0, const Set::Scalar q,
+        const Set::Scalar r, Set::Scalar& Ts, Set::Scalar& A)
+    {
+        Ts = A = NAN;
+        if (!(rho > 0.0) || !std::isfinite(rho) ||
+            !(cp > 0.0) || !std::isfinite(cp) || !std::isfinite(Q) ||
+            !(Ta >= 0.0) || !std::isfinite(Ta) ||
+            !(T0 > 0.0) || !std::isfinite(T0) ||
+            !(q > 0.0) || !std::isfinite(q) ||
+            !(r > 0.0) || !std::isfinite(r)) return false;
+        Ts = T0 + (Q + q / rho / r) / cp;
+        if (!(Ts > 0.0) || !std::isfinite(Ts)) return false;
+        A = std::exp(std::log(r) + Ta / Ts);
+        return A > 0.0 && std::isfinite(A);
+    }
+
     static void Parse(PhaseChange& value, IO::ParmParse& pp,
                     const std::vector<std::string>& species_names,
                     const int ngas_species,
@@ -72,6 +147,7 @@ public:
     {
         value.nspecies = static_cast<int>(species_names.size());
         value.ngas_species = ngas_species;
+        value.gas_constant = universal_gas_constant;
         for (int n = 0; n < ngas_species; ++n)
         {
             if (!(molecular_weight[n] > 0.0))
@@ -189,8 +265,23 @@ public:
                 "latent_heat must be nonnegative and "
                 "coupled_enthalpy_change must be finite");
 
+        std::string thermal_closure;
+        pp.query_default("thermal_closure", thermal_closure, "local_heat");
+        if (thermal_closure != "local_heat" && thermal_closure != "reference_enthalpy")
+            Util::Exception(INFO, "Unknown phase-change thermal_closure: ", thermal_closure);
+        value.reference_enthalpy = thermal_closure == "reference_enthalpy";
+        pp.query_default("enthalpy_reference_temperature", value.enthalpy_reference_temperature,
+            "300_K", Unit::Temperature());
+        if (!(value.enthalpy_reference_temperature > 0.0) ||
+            !std::isfinite(value.enthalpy_reference_temperature))
+            Util::Exception(INFO, "enthalpy_reference_temperature must be positive and finite");
+
         std::string kinetics;
         pp.query_required("kinetics", kinetics);
+        if (value.reference_enthalpy &&
+            (kinetics != "arrhenius_surface_flux" || value.phase0_is_liquid ||
+             !value.phase1_is_gas || value.reversible))
+            Util::Exception(INFO, "reference_enthalpy requires irreversible solid-to-gas Arrhenius kinetics");
         if (kinetics == "equilibrium_enthalpy")
         {
             value.kinetics = Kinetics::EquilibriumEnthalpy;
@@ -206,15 +297,60 @@ public:
         else if (kinetics == "arrhenius_surface_flux")
         {
             value.kinetics = Kinetics::ArrheniusSurfaceFlux;
+            pp.query_default("reconstruct_surface_temperature",
+                value.reconstruct_surface_temperature, false);
+            if (value.reconstruct_surface_temperature &&
+                (value.phase0_is_liquid || !value.phase1_is_gas || value.reversible))
+                Util::Exception(INFO,
+                    "reconstruct_surface_temperature requires irreversible solid-to-gas kinetics");
             pp.query_required("reference_pressure", value.reference_pressure,
                               Unit::Pressure());
             pp.query_required("pressure_exponent", value.pressure_exponent);
             pp.query_required("activation_temperature",
                               value.activation_temperature,
                               Unit::Temperature());
-            pp.query_required("reference_temperature",
-                              value.reference_temperature,
-                              Unit::Temperature());
+            std::string reconstruction = "contour";
+            pp.query_default("surface_temperature_reconstruction", reconstruction, "contour");
+            if (reconstruction == "contour")
+                value.surface_temperature_options.mode = SurfaceTemperatureOptions::Contour;
+            else if (reconstruction == "solid_mass_weighted")
+                value.surface_temperature_options.mode = SurfaceTemperatureOptions::SolidMass;
+            else if (reconstruction == "conversion_weighted")
+                value.surface_temperature_options.mode = SurfaceTemperatureOptions::Conversion;
+            else if (reconstruction == "arrhenius_equivalent")
+                value.surface_temperature_options.mode = SurfaceTemperatureOptions::ArrheniusEquivalent;
+            else Util::Exception(INFO, "Unknown surface_temperature_reconstruction: ", reconstruction);
+            if (reconstruction != "contour" && !value.reconstruct_surface_temperature)
+                Util::Exception(INFO, "Weighted surface temperature requires reconstruct_surface_temperature=true");
+            pp.query_default("surface_temperature_band_cutoff",
+                value.surface_temperature_options.band_cutoff, 0.01);
+            if (!(value.surface_temperature_options.band_cutoff > 1.0e-10 &&
+                  value.surface_temperature_options.band_cutoff < 0.5))
+                Util::Exception(INFO, "surface_temperature_band_cutoff must lie in (1e-10,0.5)");
+            pp.query_default("surface_temperature_contour_fraction",
+                value.surface_temperature_options.contour_fraction, 0.5);
+            const Set::Scalar contour = value.surface_temperature_options.contour_fraction;
+            if (!(contour > 1.0e-10 && contour < 1.0-1.0e-10))
+                Util::Exception(INFO, "surface_temperature_contour_fraction must lie in (1e-10,1-1e-10)");
+            if (contour != 0.5 && !value.reconstruct_surface_temperature)
+                Util::Exception(INFO, "Nondefault contour requires reconstruct_surface_temperature=true");
+            if (reconstruction != "contour" &&
+                !(contour > value.surface_temperature_options.band_cutoff &&
+                  contour < 1.0-value.surface_temperature_options.band_cutoff))
+                Util::Exception(INFO, "Weighted surface contour must lie inside its diffuse band");
+            value.surface_temperature_options.activation_temperature = value.activation_temperature;
+            value.surface_temperature_options.solid_component = value.phase0;
+            if (pp.contains("pre_exponential_speed"))
+                // A fixes the absolute Arrhenius law; this temperature only
+                // normalizes its stored reference mass flux.
+                pp.query_default("reference_temperature",
+                                 value.reference_temperature, "1000_K",
+                                 Unit::Temperature());
+            else
+                // A supplied reference mass flux has meaning only together
+                // with its explicitly specified reference temperature.
+                pp.query_required("reference_temperature",
+                                  value.reference_temperature, Unit::Temperature());
             if (pp.contains("pre_exponential_speed"))
             {
                 if (pp.contains("reference_mass_flux"))
@@ -310,6 +446,14 @@ public:
         return transition_temperature;
     }
     Set::Scalar LatentHeat() const { return latent_heat; }
+    bool ReconstructSurfaceTemperature() const
+    {
+        return reconstruct_surface_temperature;
+    }
+    SurfaceTemperatureOptions SurfaceTemperatureClosure() const
+    {
+        return surface_temperature_options;
+    }
     template<class Advection>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Vector>
@@ -451,6 +595,24 @@ public:
         return {mass_change, volume_change, coupled_heat};
     }
 
+    bool UsesReferenceEnthalpy() const { return reference_enthalpy; }
+
+    void ConfigurePhaseHeatCapacities(const std::vector<Set::Scalar>& cp)
+    {
+        if (!reference_enthalpy) return;
+        if (cp.size() != static_cast<std::size_t>(nspecies) || !(cp[phase0] > 0.0))
+            Util::Exception(INFO, "reference_enthalpy requires material heat capacities");
+        reactant_minus_product_cp = cp[phase0];
+        for (int n = 0; n < nphase1_species; ++n)
+        {
+            if (!(cp[phase1_species[n]] > 0.0))
+                Util::Exception(INFO, "reference_enthalpy requires positive product heat capacities");
+            reactant_minus_product_cp -= phase1_mass_fractions[n] * cp[phase1_species[n]];
+        }
+        if (!std::isfinite(reactant_minus_product_cp))
+            Util::Exception(INFO, "Non-finite phase heat-capacity difference");
+    }
+
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::GpuTuple<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar>
     ApplyKineticChange(
@@ -466,6 +628,10 @@ public:
             return {0.0, 0.0, 0.0, 0.0};
 
         const Set::Scalar old_temperature = temperature;
+        const Set::Scalar kinetic_base_temperature =
+            reconstruct_surface_temperature ? state.surface_temperature : old_temperature;
+        if (!(kinetic_base_temperature > 0.0) || !std::isfinite(kinetic_base_temperature))
+            Util::Abort(INFO, "Missing positive reconstructed surface temperature");
         const Set::Scalar phase0_mass = component_density(i,j,k,phase0);
         if (!(phase0_mass > 0.0)) return {0.0, 0.0, 0.0, 0.0};
         Set::Scalar reverse_mass = 0.0;
@@ -479,14 +645,28 @@ public:
                             phase1_mass_fractions[n]);
         }
 
+        if (reference_enthalpy &&
+            (!std::isfinite(reactant_minus_product_cp) || state.caloric.Enabled()))
+            Util::Abort(INFO, "reference_enthalpy requires configured constant phase heat capacities");
+        const auto thermal_increment = [=] AMREX_GPU_DEVICE(
+            Set::Scalar mass_change, Set::Scalar heat)
+        {
+            return reference_enthalpy ? ReferenceEnthalpyDeltaT(old_temperature, heat,
+                heat_capacity, mass_change, reactant_minus_product_cp,
+                enthalpy_reference_temperature) :
+                state.caloric.DeltaT(old_temperature, heat, heat_capacity);
+        };
         const auto kinetic_mass_flux =
             [=] AMREX_GPU_DEVICE(Set::Scalar mass_change)
         {
             const Set::Scalar heat = latent_heat * mass_change +
                 coupled_enthalpy_change * Util::Min(mass_change, 0.0);
+            const Set::Scalar delta_temperature =
+                thermal_increment(mass_change, heat);
             const Set::Scalar kinetic_temperature =
-                old_temperature + heat / heat_capacity;
-            if (!(kinetic_temperature > 0.0)) return 0.0;
+                kinetic_base_temperature + delta_temperature;
+            if (!(kinetic_temperature > 0.0) ||
+                !(old_temperature + delta_temperature > 0.0)) return 0.0;
 
             Set::Scalar mass_flux = 0.0;
             if (kinetics == Kinetics::ArrheniusSurfaceFlux)
@@ -584,13 +764,17 @@ public:
         const Set::Scalar mass_change = 0.5 * (lower + upper);
         if (mass_change == 0.0) return {0.0, 0.0, 0.0, 0.0};
 
+        Set::Scalar old_gas_molar_density = 0.0;
+        for (int n = 0; n < ngas_species; ++n)
+            old_gas_molar_density += component_density(i,j,k,n) *
+                inverse_molecular_weight[n];
         component_density(i,j,k,phase0) += mass_change;
         for (int n = 0; n < nphase1_species; ++n)
             component_density(i,j,k,phase1_species[n]) -=
                 phase1_mass_fractions[n] * mass_change;
         integrated_heat = latent_heat * mass_change +
             coupled_enthalpy_change * Util::Min(mass_change, 0.0);
-        temperature = old_temperature + integrated_heat / heat_capacity;
+        temperature = old_temperature + thermal_increment(mass_change, integrated_heat);
 
         Set::Scalar phase1_specific_volume =
             phase1_inverse_reference_density;
@@ -599,12 +783,14 @@ public:
                 temperature / state.pressure;
         const Set::Scalar specific_volume_jump =
             phase1_specific_volume - 1.0 / phase0_reference_density;
-        Set::Scalar surface_mass_flux = kinetic_mass_flux(mass_change);
-        if (mass_change == -phase0_mass ||
-            (reversible && mass_change == reverse_mass))
-            surface_mass_flux = -mass_change /
-                (surface_measure * state.dt);
-        return {mass_change, -mass_change * specific_volume_jump,
+        // Products use the final physical temperature above; pre-existing gas
+        // also expands/contracts with the heat update. This is the exact EOS
+        // volume difference, including the mass/temperature cross term once.
+        const Set::Scalar thermal_volume_change = old_gas_molar_density *
+            gas_constant * (temperature - old_temperature) / state.pressure;
+        const Set::Scalar surface_mass_flux = -mass_change /
+            (surface_measure * state.dt);
+        return {mass_change, -mass_change * specific_volume_jump + thermal_volume_change,
             surface_mass_flux, surface_mass_flux * specific_volume_jump};
     }
 
@@ -643,6 +829,7 @@ private:
     Set::Scalar phase0_reference_density = NAN;
     Set::Scalar phase1_inverse_reference_density = 0.0;
     Set::Scalar phase1_gas_constant = 0.0;
+    Set::Scalar gas_constant = 0.0;
     Set::Scalar latent_heat = 0.0;
     Set::Scalar coupled_enthalpy_change = 0.0;
     Set::Scalar transition_temperature = NAN;
@@ -660,6 +847,11 @@ private:
     bool phase0_is_liquid = false;
     bool phase1_is_gas = false;
     bool reversible = false;
+    bool reconstruct_surface_temperature = false;
+    bool reference_enthalpy = false;
+    Set::Scalar enthalpy_reference_temperature = 300.0;
+    Set::Scalar reactant_minus_product_cp = NAN;
+    SurfaceTemperatureOptions surface_temperature_options{};
 };
 }
 }

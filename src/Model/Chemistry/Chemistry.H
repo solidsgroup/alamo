@@ -22,6 +22,7 @@
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Model/Gas/Gas.H"
+#include "Model/Solid/NISTAPThermo.H"
 #include "Solver/Local/ODE/BackwardEuler.H"
 #include "Solver/Local/ODE/ForwardEuler.H"
 #include "Solver/Local/ODE/ODE.H"
@@ -71,6 +72,12 @@ public:
     void Define(int a_nspecies)
     {
         nspecies = a_nspecies;
+    }
+
+    template<typename T>
+    T& Get()
+    {
+        return std::get<T>(obj);
     }
 
     template<typename T>
@@ -210,7 +217,8 @@ public:
         const int nspecies,
         SpeciesArray& rhoY,
         Set::Scalar& temperature,
-        const Model::Gas::Gas* gas) const
+        const Model::Gas::Gas* gas,
+        const Model::Solid::NISTAPCaloricState caloric = {}) const
     {
         Model::Chemistry::Advance::Result advance;
 #ifdef ALAMO_GPU
@@ -272,6 +280,11 @@ public:
             const Set::Scalar rho_eos_old = rho_eos;
             const Set::Scalar temperature_scale =
                 temperature_old > 1.0 ? temperature_old : 1.0;
+            // With NIST solid, integrate an enthalpy coordinate, not a
+            // temperature update with frozen cp. Gas species share constant
+            // cp, so chemistry does not change this caloric map.
+            const Set::Scalar enthalpy_scale = caloric.Enabled() ?
+                caloric.Cp(temperature_old)*temperature_scale : 1.0;
             Set::Scalar state[MAX_SPECIES]{};
             for (int n = 0; n < nspecies - 1; ++n)
             {
@@ -298,7 +311,9 @@ public:
                     !std::isfinite(Y[dependent_species])) return false;
 
                 const Set::Scalar trial_temperature =
-                    z[nspecies - 1] * temperature_scale;
+                    caloric.Enabled() ? caloric.Temperature(temperature_old,
+                        (z[nspecies - 1]-1.0)*enthalpy_scale) :
+                        z[nspecies - 1] * temperature_scale;
                 if (!(trial_temperature > 0.0) ||
                     !std::isfinite(trial_temperature)) return false;
 
@@ -325,8 +340,11 @@ public:
                     const int species = n < dependent_species ? n : n + 1;
                     rate[n] = source.first[species] / rho_state;
                 }
-                rate[nspecies - 1] = gas_density * source.second /
-                    (rho_state * mixture_density * cp * temperature_scale);
+                // Preserve the legacy operation order exactly when disabled.
+                rate[nspecies - 1] = caloric.Enabled() ?
+                    gas_density * source.second / (rho_state * enthalpy_scale) :
+                    gas_density * source.second /
+                        (rho_state * mixture_density * cp * temperature_scale);
 
                 for (int n = 0; n < nspecies; ++n)
                     if (!std::isfinite(rate[n])) return false;
@@ -345,7 +363,7 @@ public:
             const Solver::Local::ODE::Advance::Result result =
                 solver.template Advance<MAX_SPECIES>(
                     state, nspecies, chemistry_dt, rhs, jacobian,
-                    HasJacobian() && solver.SupportsJacobian());
+                    !caloric.Enabled() && HasJacobian() && solver.SupportsJacobian());
             if (!result.converged)
             {
                 chemistry_dt *= 0.5;
@@ -370,7 +388,10 @@ public:
                 sum += state[n];
             }
             mass_fraction[dependent_species] = 1.0 - sum;
-            temperature = state[nspecies - 1] * temperature_scale;
+            temperature = caloric.Enabled() ?
+                caloric.Temperature(temperature_old,
+                    (state[nspecies - 1]-1.0)*enthalpy_scale) :
+                state[nspecies - 1] * temperature_scale;
             inverse_mw = 0.0;
             for (int n = 0; n < nspecies; ++n)
                 inverse_mw += mass_fraction[n] / gas->MW[n];

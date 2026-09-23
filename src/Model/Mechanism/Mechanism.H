@@ -6,6 +6,8 @@
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
+#include "Model/Solid/NISTAPThermo.H"
+#include "Model/Mechanism/SurfaceTemperature.H"
 #include "Util/Util.H"
 
 namespace Model
@@ -22,6 +24,8 @@ struct State
     Set::Scalar temperature;
     Set::Scalar pressure;
     Set::Scalar dt;
+    Set::Scalar surface_temperature = NAN;
+    Model::Solid::NISTAPCaloricState caloric{};
 };
 
 // Compile-time mechanism interface.  Models inherit these neutral operations
@@ -58,6 +62,10 @@ public:
     int RigidComponent() const { return -1; }
     bool Equilibrium() const { return false; }
     bool Kinetic() const { return false; }
+    bool ReconstructSurfaceTemperature() const { return false; }
+    SurfaceTemperatureOptions SurfaceTemperatureClosure() const { return {}; }
+    bool UsesReferenceEnthalpy() const { return false; }
+    void ConfigurePhaseHeatCapacities(const std::vector<Set::Scalar>&) {}
     Set::Scalar EquilibriumTemperature() const { return NAN; }
     Set::Scalar LatentHeat() const { return 0.0; }
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -316,6 +324,56 @@ public:
         }
         Util::Abort(INFO, selected);
         return {NAN, NAN, NAN};
+    }
+
+    template<int I = 0>
+    bool ReconstructSurfaceTemperature() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).ReconstructSurfaceTemperature();
+            return ReconstructSurfaceTemperature<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return false;
+    }
+
+    template<int I = 0>
+    SurfaceTemperatureOptions SurfaceTemperatureClosure() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).SurfaceTemperatureClosure();
+            return SurfaceTemperatureClosure<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return {};
+    }
+
+    template<int I = 0>
+    bool UsesReferenceEnthalpy() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).UsesReferenceEnthalpy();
+            return UsesReferenceEnthalpy<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return false;
+    }
+
+    template<int I = 0>
+    void ConfigurePhaseHeatCapacities(const std::vector<Set::Scalar>& cp)
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) { std::get<I>(obj).ConfigurePhaseHeatCapacities(cp); return; }
+            ConfigurePhaseHeatCapacities<I + 1>(cp);
+            return;
+        }
+        Util::Abort(INFO, selected);
     }
 
     template<class Advection, int I = 0>
