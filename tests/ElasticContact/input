@@ -31,6 +31,13 @@
 #@ check = true
 #@ args = amr.max_level=1 amr.nsubsteps=1 explicitmesh.on=1 explicitmesh.lo1=12 16 explicitmesh.hi1=51 31 solver.nriters=3 solver.nrtolerance=1e-10 solver.nr_abort_on_fail=1
 #@
+#@ [2d-amr-contact-refinement]
+#@ exe = mechanics
+#@ dim = 2
+#@ nprocs = 1
+#@ check = true
+#@ args = amr.max_level=1 amr.nsubsteps=1 bc.expression.contact.refinement_region="(x*x<0.36)*(y>-0.5)" solver.nriters=3 solver.nrtolerance=1e-10 solver.nr_abort_on_fail=1
+#@
 # Fast contact/load-release regression. 2D is a cylinder, NOT a 3D sphere.
 alamo.program = mechanics
 alamo.program.mechanics.model = linear.isotropic

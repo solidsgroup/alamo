@@ -10,33 +10,30 @@ system.time = s
 geometry.prob_lo = -2 -2 -2
 geometry.prob_hi = 2 2 0
 geometry.is_periodic = 0 0 0
-amr.n_cell = 32 32 16
+amr.n_cell = 16 16 8
 amr.max_grid_size = 32
 amr.blocking_factor = 4
 amr.max_level = 2
 amr.ref_ratio = 2
 amr.nsubsteps = 1
-# Fixed nested patches: 0.125 um far field, 0.0625 um intermediate,
-# 0.03125 um beneath the tip. Indices below are cell indices on each level.
-explicitmesh.on = 1
-explicitmesh.lo1 = 16 16 16
-explicitmesh.hi1 = 47 47 31
-explicitmesh.lo2 = 40 40 40
-explicitmesh.hi2 = 87 87 63
+# Build the two fine levels once from the possible contact footprint.
+amr.grid_eff = 0.8
 amr.regrid_int = -1
-amr.plot_int = 10
+amr.plot_int = 1
 amr.cell.all = 1
-amr.node.any = 0
+#amr.node.any = 0
 plot_file = tests/Nanoindentation/output
-timestep = 0.001
+timestep = 0.005
 stop_time = 0.251
 nmodels = 1
 model1.C11 = 168000
 model1.C12 = 121000
 model1.C44 = 75000
+# Deliberately viscoplastic demonstration parameters. The linear rate law keeps
+# the explicit update bounded while accumulating visible irreversible slip.
 model1.tau_crss = 1000
-model1.gammadot0 = 0.001
-model1.m_rate_inv = 3
+model1.gammadot0 = 0.1
+model1.m_rate_inv = 1
 model1.tstart = 0
 print_model = 1
 tol_rel = 1e-8
@@ -56,10 +53,12 @@ bc.expression.traction_scale = 1e-5
 bc.expression.type.zhi = trac trac "if(contact,disp,trac)"
 bc.expression.val.zhi = "0" "0" "if(contact,obstacle,0)"
 bc.expression.contact.enabled = 1
-# R=0.5 um. Load to 0.05 um at t=.1, hold to .15, retract to -.01 at .25.
+# R=4.0 um. Load to 0.05 um at t=.1, hold to .15, retract to -.01 at .25.
 # Obstacle is vertical displacement relative to the undeformed top surface.
-bc.expression.contact.obstacle = "0.5-sqrt(max(0,0.25-x*x-y*y))-if(t<0.1,0.5*t,if(t<0.15,0.05,0.05-0.6*(t-0.15)))"
+bc.expression.contact.obstacle = "4.0-sqrt(max(0,16.0-x*x-y*y))-if(t<0.1,0.5*t,if(t<0.15,0.05,0.05-0.6*(t-0.15)))"
 bc.expression.contact.region = "x*x+y*y<0.25"
+# Keep finest resolution around the head and through the affected subsurface.
+bc.expression.contact.refinement_region = "(x*x+y*y<0.49)*(z>-0.75)"
 bc.expression.contact.stiffness = 1000000
 bc.expression.contact.tolerance = 1e-4
 bc.expression.contact.max_iter = 40

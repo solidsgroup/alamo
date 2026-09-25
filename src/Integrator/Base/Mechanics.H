@@ -209,7 +209,6 @@ protected:
                 "Expression contact requires static mechanics without diffuse voids or displacement resetting");
             if (max_level > 0)
             {
-                Util::Assert(INFO, TEST(explicitmesh.on), "Contact AMR currently requires fixed explicitmesh grids");
                 for (int lev = 1; lev <= finest_level; ++lev)
                     Util::Assert(INFO, TEST(nsubsteps[lev] == 1), "Quasistatic contact requires amr.nsubsteps=1");
             }
@@ -495,10 +494,12 @@ protected:
 
     }
 
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/) override
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar time, int /*ngrow*/) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::TagCellsForRefinement");
         if (m_type == Type::Disable) return;
+
+        bc->TagCellsForRefinement(a_tags, geom[lev], time);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();

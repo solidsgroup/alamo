@@ -5,7 +5,7 @@ This example uses Integrator::Mechanics and Model::Solid::Finite::CrystalPlastic
 not the periodic, linear MechanicsFFT solver. The crystal has its cubic axes
 aligned with x/y/z, and the indenter loads the [001] surface.
 
-Geometry: a 4 x 4 x 2 um block, 0.5 um rigid spherical radius, and 0.05 um
+Geometry: a 4 x 4 x 2 um block, 4.0 um rigid spherical radius, and 0.05 um
 maximum penetration. The sides and bottom are clamped, with a free top outside
 contact. Load to maximum depth by 0.1 s, hold to 0.15 s, then retract until the
 tip is 0.01 um above the original surface at 0.25 s.
@@ -15,9 +15,11 @@ evaluated at reference x/y coordinates. It is not full finite-sliding contact
 normal to the sphere. Separation and the contact footprint are solved, not
 prescribed from the undeformed sphere intersection. CPU, nonperiodic geometry,
 and the upper face of the last coordinate direction are supported. AMR contact
-requires fixed ``explicitmesh`` patches, ``amr.nsubsteps=1``, and coverage of the
-entire possible ``contact.region`` by the finest level. Contact cannot include
-clamped domain edges.
+requires ``amr.nsubsteps=1``. The expression BC tags every upper-surface cell
+touching ``contact.region`` and optionally tags a subsurface volume with
+``contact.refinement_region``. This ensures that the finest level covers every
+node inspected by the contact update. Contact cannot include clamped domain
+edges.
 
 Expression boundary conditions
 -----------------------------
@@ -38,7 +40,10 @@ vertical displacement). The demo uses::
     bc.expression.type.zhi = trac trac "if(contact,disp,trac)"
     bc.expression.val.zhi = "0" "0" "if(contact,obstacle,0)"
 
-``contact.obstacle`` and ``contact.region`` are expressions in x,y,z,t.
+``contact.obstacle``, ``contact.region``, and ``contact.refinement_region`` are
+expressions in x,y,z,t. The refinement expression is evaluated at cell centers;
+it defaults to zero because contact-region coverage at the upper surface is
+always enforced separately.
 The contact update uses p + k*(u_vertical-obstacle), with p=-P_zz (or -P_yy
 in 2D), and freezes the resulting mask during each Newton/multigrid solve.
 ``contact.stiffness`` is k in stress/length units: an active-set selection
@@ -56,18 +61,20 @@ Material and interpretation
 
 Internal units are um, MPa, s (system.mass=kg). Elastic constants are
 C11=168000, C12=121000, C44=75000 MPa; slip resistance is 1000 MPa,
-reference slip rate 0.001/s, and rate exponent 3. These are illustrative FCC
-parameters, NOT a calibrated material data set. The current model has fixed
-slip resistance, explicit time integration, and no intrinsic length scale.
-Do not claim quantitative hardness or indentation-size effects from this demo.
+reference slip rate 0.1/s, and rate exponent 1. The linear rate law is chosen
+to produce visible hysteresis while keeping the explicit plastic update bounded.
+These are illustrative FCC parameters, NOT a calibrated material data set. The
+current model has fixed slip resistance, explicit time integration, and no
+intrinsic length scale. Do not claim quantitative hardness or indentation-size
+effects from this demo.
 
-The input uses a 32 x 32 x 16 base grid with two nested refinement levels:
-125 nm in the far field, 62.5 nm in the intermediate patch, and 31.25 nm beneath
-the tip. The finest patch spans x,y=[-0.75,0.75] um and z=[-0.75,0] um.
-This stores 88,064 cells across levels, versus 1,048,576 for the previous uniform
-128 x 128 x 64 mesh, while retaining its tip resolution. This is not a
-demonstrated mesh-converged calculation. Check timestep, grid resolution, and
-specimen size before using quantitative results.
+The input uses a 16 x 16 x 8 base grid with two contact-driven refinement levels:
+250 nm in the far field, 125 nm at level one, and 62.5 nm beneath the tip. With
+the current refinement expression, startup produces about 20,480 cells across
+levels. The expected peak geometric contact diameter spans about ten finest
+cells. This is a fast demonstration case, not a demonstrated mesh-converged
+calculation. Check timestep, grid resolution, and specimen size before using
+quantitative results.
 
 Output
 ------
@@ -91,29 +98,27 @@ The 2D contact regression represents a cylinder, not a sphere.
 Running
 -------
 
-For the default nested 3D mesh, use a fresh output directory::
+For the default adaptive 3D mesh, use a fresh output directory::
 
     mpiexec -n 8 bin/mechanics-3d-clang++ tests/Nanoindentation/input \
-      solver.max_iter=300 solver.verbose=1 \
-      plot_file=tests/Nanoindentation/output_amr_fixed
+      solver.verbose=1 \
+      plot_file=tests/Nanoindentation/output_amr
 
-The iteration cap is a failure guard, not a convergence fix. Keep the existing
-Newton and linear tolerances. The default mesh has been checked through two
-loaded steps; a full-resolution plastic load/unload cycle remains unverified.
+Keep the existing Newton and linear tolerances. The default mesh has been checked
+through its first loaded step; a complete load/unload cycle on the revised
+geometry remains unverified.
 
 From the repository root, a coarse 3D plastic smoke run is::
 
     mpiexec -n 2 bin/mechanics-3d-clang++ tests/Nanoindentation/input \
       'amr.n_cell=8 8 4' \
-      'explicitmesh.lo1=4 4 4' 'explicitmesh.hi1=11 11 7' \
-      'explicitmesh.lo2=10 10 10' 'explicitmesh.hi2=21 21 15' \
       solver.max_iter=300 solver.verbose=1 \
       timestep=0.005 stop_time=0.251 \
       plot_file=tests/Nanoindentation/output_amr_smoke
 
 Set ``model1.gammadot0=0`` for the otherwise identical elastic control. The
-default input uses a smaller timestep and finer mesh, and costs substantially
-more than this smoke test. Summarize a completed run with::
+default input uses a finer mesh and costs more than this smoke test. Summarize
+a completed run with::
 
     python3 tests/Nanoindentation/summarize.py tests/Nanoindentation/output_amr_smoke
 
@@ -130,8 +135,18 @@ are undamped; convergence failure aborts instead of silently accepting a step.
 Verified smoke results
 ----------------------
 
+The current radius-4.0 viscoplastic settings completed a full coarse
+8 x 8 x 4 base-grid cycle with dt=0.005 s. The reaction peaked at 4897.87 uN,
+relaxed to 4181.39 uN during the fixed-depth hold, and lost contact between
+14 nm and 11 nm on withdrawal. The load-depth loop dissipated 41.5 percent of
+the loading work. This verifies the intended hysteresis qualitatively, not mesh
+convergence or material calibration.
+
+The results below predate the radius-4.0 contact-driven AMR default and are
+retained as historical solver checks for the original radius-0.5 setup.
+
 ``output_cp_verified`` completed 51 equilibrium solves on 32 x 32 x 16 cells
-using dt=0.005 s and the current input's rate prefactor (0.001/s) and smoother
+using dt=0.005 s, the same rate prefactor (0.001/s), and smoother
 relaxation (0.5). The matching-mesh elastic control is ``output_elastic32``.
 Both completely separated after withdrawal. The plastic run's maximum
 reported penetration was 3.47e-18 um, maximum tensile normal traction was
@@ -146,11 +161,11 @@ hardness or a validated relaxation prediction.
 
 The earlier ``output_cp_smoke`` run used a ten-times larger rate prefactor
 and failed during the hold; it is incomplete and is not a verified result.
-The default dt=0.001 s nested mesh has not yet been run through a complete cycle.
+The revised adaptive default has not yet been run through a complete cycle.
 
-Code checks: eight serial/MPI mixed-boundary/contact regression cases pass,
-including scaled nonzero tractions and a different active-set stiffness. The
-2D and 3D C++ unit suites pass, including new FCC hydrostatic/Schmid-factor
+The serial/MPI mixed-boundary/contact regression cases include scaled nonzero
+tractions, a different active-set stiffness, fixed AMR, and contact-driven AMR.
+The 2D and 3D C++ unit suites pass, including new FCC hydrostatic/Schmid-factor
 checks (the hydrostatic check is 3D only). The FCC slip-vector constructor,
 shared slip-system temporary, and zero-model activation-time initialization
 were corrected while preparing this example.
@@ -165,9 +180,10 @@ linearization mismatch and poor AMR convergence. Boundary equations continue
 to be evaluated by the elastic BC operator, with physical-domain derivative
 stencils; they are not replaced by ghost-cell boundary prescriptions.
 
-The fixed-footprint 2D linear reproducer now takes 32 multigrid cycles and a
-zero second Newton correction. The default 3D mesh's first loaded solve takes
-76 cycles (previously 904), with Newton corrections 5e-4, 5.43e-7, 2.88e-11 um.
+The fixed-footprint 2D linear reproducer takes 32 multigrid cycles and a
+zero second Newton correction. The legacy fixed-patch 3D mesh's first loaded
+solve took 76 cycles (previously 904), with Newton corrections 5e-4, 5.43e-7,
+2.88e-11 um.
 The two existing soft-void regression cases also pass.
 
 ``output_amr_elastic_cycle_coarse`` completed the full load/release schedule

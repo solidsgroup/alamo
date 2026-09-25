@@ -58,6 +58,50 @@ public:
     bool HasContact() const { return m_contact; }
     int ContactIterations() const { return m_contact_iterations; }
 
+    void TagCellsForRefinement(amrex::TagBoxArray& a_tags,
+        const amrex::Geometry& a_geom, Set::Scalar a_time) const override
+    {
+        if (!m_contact) return;
+
+        constexpr int normal = AMREX_SPACEDIM - 1;
+        const auto prob_lo = a_geom.ProbLoArray();
+        const auto prob_hi = a_geom.ProbHiArray();
+        const auto dx = a_geom.CellSizeArray();
+        const amrex::Box domain = a_geom.Domain();
+
+        for (amrex::MFIter mfi(a_tags); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box box = mfi.validbox() & domain;
+            auto tags = a_tags.array(mfi);
+            amrex::LoopOnCpu(box, [&](int i, int j, int k) {
+                const int index[3] = {i, j, k};
+                Set::Scalar pos[3] = {0.0, 0.0, 0.0};
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    pos[d] = prob_lo[d] + (index[d] + 0.5)*dx[d];
+
+                bool refine = m_refinement_region(pos[0], pos[1], pos[2], a_time);
+
+                // Cell-center tagging alone can miss a boundary node near the
+                // edge of the contact region. Tag every top cell having at
+                // least one contact-region corner so the finest level covers
+                // every node that the active-set update may inspect.
+                if (!refine && index[normal] == domain.bigEnd(normal))
+                {
+                    constexpr int tangential_corners = 1 << normal;
+                    for (int corner = 0; corner < tangential_corners && !refine; ++corner)
+                    {
+                        for (int d = 0; d < normal; ++d)
+                            pos[d] = prob_lo[d] + (index[d] + ((corner >> d) & 1))*dx[d];
+                        pos[normal] = prob_hi[normal];
+                        refine = m_region(pos[0], pos[1], pos[2], a_time);
+                    }
+                }
+
+                if (refine) tags(i,j,k) = amrex::TagBox::SET;
+            });
+        }
+    }
+
     // Small-slope contact on the upper face in the last coordinate direction.
     // Freeze this active set throughout each equilibrium solve (including MG).
     bool UpdateContact(const amrex::FabArray<amrex::BaseFab<Set::Vector>>& displacement,
@@ -504,8 +548,8 @@ protected:
     Set::Scalar m_traction_scale = 1.0;
     int m_contact_iterations = 40;
     Set::Scalar m_contact_stiffness = 1.0, m_contact_tolerance = 1e-8;
-    amrex::Parser m_obstacle_parser, m_region_parser;
-    amrex::ParserExecutor<4> m_obstacle, m_region;
+    amrex::Parser m_obstacle_parser, m_region_parser, m_refinement_region_parser;
+    amrex::ParserExecutor<4> m_obstacle, m_region, m_refinement_region;
     std::vector<int> m_active;
     std::array<int,AMREX_SPACEDIM> m_contact_length{};
 
@@ -579,19 +623,23 @@ public:
 #ifdef AMREX_USE_GPU
             Util::Abort(INFO, "Expression contact currently supports CPU builds only");
 #endif
-            std::string obstacle, region;
+            std::string obstacle, region, refinement_region;
             pp.query_required("contact.obstacle", obstacle);
             pp.query_default("contact.region", region, std::string("1"));
+            pp.query_default("contact.refinement_region", refinement_region, std::string("0"));
             pp.query_required("contact.stiffness", value.m_contact_stiffness);
             pp.query_default("contact.tolerance", value.m_contact_tolerance, 1e-8);
             pp.query_default("contact.max_iter", value.m_contact_iterations, 40);
             Util::Assert(INFO, TEST(value.m_contact_stiffness > 0 && value.m_contact_tolerance >= 0 && value.m_contact_iterations > 0));
             value.m_obstacle_parser = amrex::Parser(obstacle);
             value.m_region_parser = amrex::Parser(region);
+            value.m_refinement_region_parser = amrex::Parser(refinement_region);
             value.m_obstacle_parser.registerVariables({"x","y","z","t"});
             value.m_region_parser.registerVariables({"x","y","z","t"});
+            value.m_refinement_region_parser.registerVariables({"x","y","z","t"});
             value.m_obstacle = value.m_obstacle_parser.compile<4>();
             value.m_region = value.m_region_parser.compile<4>();
+            value.m_refinement_region = value.m_refinement_region_parser.compile<4>();
         }
         std::map<std::string, Type> bcmap;
         bcmap["displacement"] = Type::Displacement;

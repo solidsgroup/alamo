@@ -8,6 +8,7 @@
 // #include "Operator/Elastic.H"
 #include "IO/ParmParse.H"
 #include "Numeric/Interpolator/Linear.H"
+#include <AMReX_TagBox.H>
 
 namespace BC
 {
@@ -47,6 +48,13 @@ public:
 
     void 
     SetTime(const Set::Scalar a_time) {m_time = a_time;}
+
+    /// Add any boundary-condition-specific AMR tags. Most elastic boundary
+    /// conditions do not require refinement and retain this no-op default.
+    virtual void
+    TagCellsForRefinement(amrex::TagBoxArray& /*a_tags*/,
+        const amrex::Geometry& /*a_geom*/, Set::Scalar /*a_time*/) const
+    {}
 
     virtual void
     Init(amrex::MultiFab * a_rhs,
