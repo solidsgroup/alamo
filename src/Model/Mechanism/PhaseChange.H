@@ -17,6 +17,7 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Model/PhaseField/PhaseField.H"
+#include "Numeric/Interpolator/Linear.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -60,27 +61,60 @@ public:
         value.reference_density = reference_density[value.input];
         if (!(value.reference_density > 0.0))
             Util::Exception(INFO, "No positive reference density is defined for ", input);
-
-        // Orthorhombic face dependence, limited to +/-20% of the configured
-        // base mobility.  The supplied orientation is the unit Cartesian face
-        // normal in crystal coordinates, so a plane (hkl) is entered
-        // proportional to (h/a,k/b,l/c).
-        constexpr Set::Scalar orientation_strength = 0.20;
-        constexpr Set::Scalar reference_ab_product = 0.2368;
-
         const auto& normal = orientation[value.input];
-        const Set::Scalar na2 = normal[0] * normal[0];
-        const Set::Scalar nb2 = normal[1] * normal[1];
-        const Set::Scalar nc2 = normal[2] * normal[2];
-        value.orientation_mobility_multiplier = Util::Clamp(
-            1.0 + orientation_strength *
-                (na2 * nb2 / reference_ab_product - nc2),
-            1.0 - orientation_strength, 1.0 + orientation_strength);
+        std::string orientation_mobility_type = "formula";
+        pp.query_default(
+            "orientation_mobility.type",
+            orientation_mobility_type,
+            std::string("formula"));
+
+        if (orientation_mobility_type == "formula")
+        {
+            constexpr Set::Scalar orientation_strength = 0.20;
+            constexpr Set::Scalar reference_ab_product = 0.2368;
+
+            const Set::Scalar na2 = normal[0] * normal[0];
+            const Set::Scalar nb2 = normal[1] * normal[1];
+            const Set::Scalar nc2 = normal[2] * normal[2];
+
+            value.orientation_mobility_multiplier = Util::Clamp(
+                1.0 + orientation_strength *
+                    (na2 * nb2 / reference_ab_product - nc2),
+                1.0 - orientation_strength,
+                1.0 + orientation_strength);
+        }
+        else if (orientation_mobility_type == "read")
+        {
+            std::string filename;
+
+            pp.query_file(
+                "orientation_mobility.read.filename",
+                filename);
+
+            if (!IO::ParmParse::InTraversalMode())
+            {
+                auto mobility_table =
+                    Numeric::Interpolator::Linear<Set::Scalar>::Read(filename);
+
+                const Set::Scalar theta =
+                    std::atan2(normal[1], normal[0]);
+
+                value.orientation_mobility_multiplier =
+                    mobility_table(theta);
+            }
+        }
+        else
+        {
+            Util::Exception(
+                INFO,
+                "Invalid orientation_mobility.type ",
+                orientation_mobility_type,
+                ". Expected formula or read.");
+        }
         if (!(value.orientation_mobility_multiplier > 0.0) ||
             !std::isfinite(value.orientation_mobility_multiplier))
             Util::Exception(INFO,
                 "orientation mobility multiplier must be finite and positive");
-
         if (outputs.empty() || outputs.size() > max_products)
             Util::Exception(INFO, pp.full("out"), " must contain between 1 and ",
                             max_products, " gas species");
