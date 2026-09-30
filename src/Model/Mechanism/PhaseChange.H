@@ -36,6 +36,9 @@ public:
                     const std::vector<int>& rigid_solid_species,
                     const std::vector<Set::Scalar>& reference_density,
                     const std::vector<std::vector<double>>& orientation,
+                    const int ap_polycrystal_species,
+                    const std::vector<std::vector<double>>& ap_grain_orientations,
+                    std::vector<double>& ap_grain_mobility_multipliers,
                     const std::vector<double>& molecular_weight,
                     const Set::Scalar universal_gas_constant)
     {
@@ -73,15 +76,31 @@ public:
             constexpr Set::Scalar orientation_strength = 0.20;
             constexpr Set::Scalar reference_ab_product = 0.2368;
 
-            const Set::Scalar na2 = normal[0] * normal[0];
-            const Set::Scalar nb2 = normal[1] * normal[1];
-            const Set::Scalar nc2 = normal[2] * normal[2];
+            const auto formula_multiplier =
+                [=](const std::vector<double>& direction)
+                {
+                    const Set::Scalar na2 = direction[0] * direction[0];
+                    const Set::Scalar nb2 = direction[1] * direction[1];
+                    const Set::Scalar nc2 = direction[2] * direction[2];
+                    return Util::Clamp(
+                        1.0 + orientation_strength *
+                            (na2 * nb2 / reference_ab_product - nc2),
+                        1.0 - orientation_strength,
+                        1.0 + orientation_strength);
+                };
 
-            value.orientation_mobility_multiplier = Util::Clamp(
-                1.0 + orientation_strength *
-                    (na2 * nb2 / reference_ab_product - nc2),
-                1.0 - orientation_strength,
-                1.0 + orientation_strength);
+            value.orientation_mobility_multiplier =
+                formula_multiplier(normal);
+
+            if (value.input == ap_polycrystal_species)
+            {
+                ap_grain_mobility_multipliers.clear();
+                ap_grain_mobility_multipliers.reserve(
+                    ap_grain_orientations.size());
+                for (const auto& grain_orientation : ap_grain_orientations)
+                    ap_grain_mobility_multipliers.push_back(
+                        formula_multiplier(grain_orientation));
+            }
         }
         else if (orientation_mobility_type == "read")
         {
@@ -101,6 +120,22 @@ public:
 
                 value.orientation_mobility_multiplier =
                     mobility_table(theta);
+
+                if (value.input == ap_polycrystal_species)
+                {
+                    ap_grain_mobility_multipliers.clear();
+                    ap_grain_mobility_multipliers.reserve(
+                        ap_grain_orientations.size());
+                    for (const auto& grain_orientation :
+                         ap_grain_orientations)
+                    {
+                        const Set::Scalar grain_theta =
+                            std::atan2(grain_orientation[1],
+                                      grain_orientation[0]);
+                        ap_grain_mobility_multipliers.push_back(
+                            mobility_table(grain_theta));
+                    }
+                }
             }
         }
         else
@@ -115,6 +150,20 @@ public:
             !std::isfinite(value.orientation_mobility_multiplier))
             Util::Exception(INFO,
                 "orientation mobility multiplier must be finite and positive");
+        for (const double multiplier : ap_grain_mobility_multipliers)
+            if (!(multiplier > 0.0) || !std::isfinite(multiplier))
+                Util::Exception(
+                    INFO,
+                    "AP grain mobility multipliers must be finite and positive");
+        value.use_local_orientation_mobility =
+            value.input == ap_polycrystal_species;
+        value.stability_orientation_mobility_multiplier =
+            value.orientation_mobility_multiplier;
+        if (value.use_local_orientation_mobility)
+            for (const double multiplier : ap_grain_mobility_multipliers)
+                value.stability_orientation_mobility_multiplier = Util::Max(
+                    value.stability_orientation_mobility_multiplier,
+                    multiplier);
         if (outputs.empty() || outputs.size() > max_products)
             Util::Exception(INFO, pp.full("out"), " must contain between 1 and ",
                             max_products, " gas species");
@@ -173,7 +222,7 @@ public:
                            const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         const Set::Scalar weight = Weight(state, i, j, k);
-        return orientation_mobility_multiplier * weight * (input_is_rigid ?
+        return OrientationMobility(state, i, j, k) * weight * (input_is_rigid ?
             phase_field(state.rigid_eta, 0, 1.0, i, j, k, DX) :
             phase_field(state.component_density, input,
                         1.0 / reference_density, i, j, k, DX));
@@ -206,7 +255,7 @@ public:
     Set::Scalar StabilityRate(const Set::Scalar dx,
                             const Set::Scalar temperature) const
     {
-        return orientation_mobility_multiplier *
+        return stability_orientation_mobility_multiplier *
             KineticFactor(temperature) * phase_field.StabilityRate(dx);
     }
 
@@ -215,7 +264,7 @@ public:
         const State& state, const int i, const int j, const int k) const
     {
         const Set::Scalar weight = Weight(state, i, j, k);
-        return orientation_mobility_multiplier * weight * (input_is_rigid ?
+        return OrientationMobility(state, i, j, k) * weight * (input_is_rigid ?
             phase_field.Local(state.rigid_eta, 0, 1.0, i, j, k) :
             phase_field.Local(state.component_density, input,
                               1.0 / reference_density, i, j, k));
@@ -228,7 +277,8 @@ public:
         if (input_is_rigid &&
             !(Util::Clamp(state.rigid_eta(i,j,k), 0.0, 1.0) < 1.0))
             return 0.0;
-        return orientation_mobility_multiplier * Weight(state, i, j, k) *
+        return OrientationMobility(state, i, j, k) *
+            Weight(state, i, j, k) *
             phase_field.LocalStabilityRate();
     }
 
@@ -236,7 +286,8 @@ public:
     Set::Scalar GradientCoefficient(
         const State& state, const int i, const int j, const int k) const
     {
-        return orientation_mobility_multiplier * Weight(state, i, j, k) *
+        return OrientationMobility(state, i, j, k) *
+            Weight(state, i, j, k) *
             phase_field.GradientCoefficient();
     }
 
@@ -264,6 +315,15 @@ public:
     }
 
 private:
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar OrientationMobility(
+        const State& state, const int i, const int j, const int k) const
+    {
+        return use_local_orientation_mobility ?
+            state.orientation_mobility(i,j,k) :
+            orientation_mobility_multiplier;
+    }
+
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar KineticFactor(const Set::Scalar temperature) const
     {
@@ -299,7 +359,9 @@ private:
     Set::Scalar activation_temperature = 0.0;
     Set::Scalar temperature_cutoff = 0.0;
     Set::Scalar orientation_mobility_multiplier = 1.0;
+    Set::Scalar stability_orientation_mobility_multiplier = 1.0;
     bool input_is_rigid = false;
+    bool use_local_orientation_mobility = false;
 };
 }
 }

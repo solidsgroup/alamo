@@ -19,6 +19,7 @@ struct State
     amrex::Array4<const Set::Scalar> component_density;
     amrex::Array4<const Set::Scalar> rigid_eta;
     amrex::Array4<const Set::Scalar> rigid_species_eta;
+    amrex::Array4<const Set::Scalar> orientation_mobility;
     Set::Scalar temperature;
     Set::Scalar pressure;
 };

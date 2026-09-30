@@ -6,6 +6,7 @@
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_TimeIntegrator.H"
+#include "IC/Voronoi.H"
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/PhaseField/PhaseField.H"
 #include "Numeric/Advect/Advect.H"
@@ -175,6 +176,81 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 pp.forward_args(value.geom, Unit::Density()));
     }
 
+    pp.query_default(
+        "ap_polycrystal.enabled", value.ap_polycrystal_on, false);
+
+    if (value.ap_polycrystal_on)
+    {
+        std::string species_name;
+
+        pp.query_required(
+            "ap_polycrystal.species", species_name);
+        pp.query_required(
+            "ap_polycrystal.number_of_grains", value.ap_number_of_grains);
+
+        if (value.ap_number_of_grains <= 0)
+            Util::Exception(
+                INFO, "ap_polycrystal.number_of_grains must be positive");
+
+        for (int n = 0; n < value.nspecies; ++n)
+        {
+            if (value.species_names[n] == species_name)
+                value.ap_polycrystal_species = n;
+        }
+
+        if (value.ap_polycrystal_species < 0)
+            Util::Exception(
+                INFO, "Unknown AP polycrystal species: ", species_name);
+
+        if (value.ap_polycrystal_species < value.ngas_species)
+            Util::Exception(
+                INFO, "The AP polycrystal species must be a solid");
+
+        std::vector<double> orientation_values;
+        pp.queryarr_required(
+            "ap_polycrystal.orientations", orientation_values);
+
+        const int expected_orientation_values =
+            3 * value.ap_number_of_grains;
+        if (static_cast<int>(orientation_values.size()) !=
+            expected_orientation_values)
+            Util::Exception(
+                INFO, "ap_polycrystal.orientations requires exactly ",
+                expected_orientation_values, " values");
+
+        value.ap_grain_orientations.resize(
+            value.ap_number_of_grains);
+        for (int grain = 0;
+             grain < value.ap_number_of_grains;
+             ++grain)
+        {
+            auto& orientation =
+                value.ap_grain_orientations[grain];
+            orientation = {
+                orientation_values[3 * grain],
+                orientation_values[3 * grain + 1],
+                orientation_values[3 * grain + 2]};
+
+            for (double component : orientation)
+                if (!std::isfinite(component))
+                    Util::Exception(
+                        INFO, "AP grain orientations must be finite");
+
+            const double magnitude = std::hypot(
+                orientation[0], orientation[1], orientation[2]);
+            if (!(magnitude > 0.0) || !std::isfinite(magnitude))
+                Util::Exception(
+                    INFO, "Each AP grain orientation must be nonzero");
+
+            for (double& component : orientation)
+                component /= magnitude;
+        }
+
+        value.ap_grain_ic =
+            new IC::Voronoi(
+                value.geom, value.ap_number_of_grains);
+    }
+
     value.chemistry.Define(value.ngas_species);
     pp.queryclass("chemistry", value.chemistry);
     if (value.chemistry.Split() && !value.projection_enabled)
@@ -261,8 +337,18 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
                             value.rigid_solid_species, value.reference_density,
-                            value.orientation, value.gas.MW, value.gas.Rg));
+                            value.orientation, value.ap_polycrystal_species,
+                            value.ap_grain_orientations,
+                            value.ap_grain_mobility_multipliers,
+                            value.gas.MW, value.gas.Rg));
     }
+    if (!IO::ParmParse::InTraversalMode() &&
+        value.ap_polycrystal_on &&
+        static_cast<int>(value.ap_grain_mobility_multipliers.size()) !=
+            value.ap_number_of_grains)
+        Util::Exception(
+            INFO,
+            "The AP polycrystal requires one mobility multiplier per grain");
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
         (!value.rigid_solid_species.empty() && !value.mechanisms.empty()))
@@ -347,6 +433,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             "heat_source", false, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.nspecies, nghost, "component_density",     true,  true, species_suffix);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.nspecies, nghost, "component_density_old", false, true, species_suffix);
+    if (value.ap_polycrystal_on)
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.ap_grain_fraction_mf, &value.bc_nothing,
+            value.ap_number_of_grains, 1,
+            "ap_grain_fraction", true, false);
+    if (value.ap_polycrystal_on)
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.ap_orientation_mobility_mf, &value.bc_nothing,
+            1, 1, "ap_orientation_mobility", true, false);
     if (value.deformable_solid_species >= 0)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
@@ -1021,6 +1116,10 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> orientation_mobility;
+                if (ap_polycrystal_on)
+                    orientation_mobility =
+                        ap_orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> temperature =
                     temperature_mf.Patch(lev,mfi);
                 amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
@@ -1032,6 +1131,7 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                     {
                         const Model::Mechanism::State state = {
                             component_density, rigid_eta, rigid_species_eta,
+                            orientation_mobility,
                             temperature(i,j,k), p_reference};
                         return {
                             mechanism.LocalStabilityRate(state, i, j, k)};
@@ -1100,6 +1200,10 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                     rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> orientation_mobility;
+                if (ap_polycrystal_on)
+                    orientation_mobility =
+                        ap_orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> T =
                     temperature_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> coefficient =
@@ -1112,6 +1216,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                     {
                         const Model::Mechanism::State state = {
                             component_density, rigid_eta, rigid_species_eta,
+                            orientation_mobility,
                             T(i,j,k), p_reference};
                         coefficient(i,j,k) +=
                             mechanism.GradientCoefficient(state, i, j, k);
@@ -1179,6 +1284,10 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> component_density_state = component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> orientation_mobility;
+                if (ap_polycrystal_on)
+                    orientation_mobility =
+                        ap_orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> eta_new = diffusion.State(lev, 1).array(mfi);
                 Set::Patch<const Set::Scalar> inverse_coefficient = diffusion.Mass(lev, 1).array(mfi);
                 Set::Patch<const Set::Scalar> scaled_local_rate = diffusion.Source(lev, 1).array(mfi);
@@ -1193,6 +1302,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         const Model::Mechanism::State state = {
                             component_density_state, rigid_eta,
                             rigid_species_eta,
+                            orientation_mobility,
                             T(i,j,k), p_reference};
                         const Set::Scalar aggregate_coefficient =
                             1.0 / inverse_coefficient(i,j,k);
@@ -1815,12 +1925,17 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> orientation_mobility;
+                if (ap_polycrystal_on)
+                    orientation_mobility =
+                        ap_orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     const Model::Mechanism::State state = {
                         component_density, rigid_eta, rigid_species_eta,
+                        orientation_mobility,
                         T(i,j,k), p_reference};
                     rhs(i,j,k) += mechanism.VolumeSource(
                         state, i, j, k, dx.data());
@@ -1975,6 +2090,19 @@ LowMach::Initialize(int lev)
         species_density[lev] = std::make_unique<amrex::MultiFab>(
             *component_density_mf[lev], amrex::MakeType::make_alias, n, 1);
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
+    }
+    if (ap_polycrystal_on)
+    {
+        ap_grain_ic->Initialize(lev, ap_grain_fraction_mf, 0.0);
+        ap_orientation_mobility_mf[lev]->setVal(0.0);
+        for (int grain = 0; grain < ap_number_of_grains; ++grain)
+            amrex::MultiFab::Saxpy(
+                *ap_orientation_mobility_mf[lev],
+                ap_grain_mobility_multipliers[grain],
+                *ap_grain_fraction_mf[lev],
+                grain, 0, 1, 1);
+        ap_orientation_mobility_mf[lev]->FillBoundary(
+            geom[lev].periodicity());
     }
     if (deformable_solid)
     {
@@ -2212,12 +2340,17 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> rigid_species_eta =
                 rigid_species_eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> orientation_mobility;
+            if (ap_polycrystal_on)
+                orientation_mobility =
+                    ap_orientation_mobility_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 const Model::Mechanism::State state = {
                     component_density, rigid_eta, rigid_species_eta,
+                    orientation_mobility,
                     T(i,j,k), p_reference};
                 mechanism_view.Apply(
                     component_density_rhs, state, i, j, k, dx.data());
