@@ -46,6 +46,10 @@
 #ifndef INTEGRATOR_FRACTURE_H
 #define INTEGRATOR_FRACTURE_H
 
+#include <fstream>
+#include <iomanip>
+#include <limits>
+
 #include "Integrator/Base/Mechanics.H"
 
 #include "Model/Interface/Crack/PFCZM.H"
@@ -159,6 +163,30 @@ public:
 
         // Needed to store Gc values in a field
         value.RegisterNodalFab(value.visible_Gc_mf, 1, 2, "Gc", true);
+    }
+
+    std::ofstream diagnostic_file;
+    bool diagnostics_initialized = false;
+
+    void InitializeDiagnostic()
+    {
+        if (diagnostics_initialized)
+            return;
+        diagnostic_file.open("fracture_diagnostics.csv");
+
+        diagnostic_file        
+            << "step,time,dt,"
+            << "c_min,c_max,c_mean,"
+            << "c_old_min,c_old_max,c_old_mean,"
+            << "energy_min,energy_max,energy_mean,"
+            << "history_min,history_max,history_mean,"
+            << "df_min,df_max,df_mean,"
+            << "psi_min,psi_max,psi_mean,"
+            << "Gc_min,Gc_max,Gc_mean,"
+            << "num_nan_c,num_nan_energy,num_nan_df"
+            << "\n";
+
+        diagnostics_initialized = true;
     }
 
     void Initialize(int lev) override
@@ -281,7 +309,7 @@ public:
 
                 // Doing an elastic solve
         Base::Mechanics<brittle_model>::TimeStepBegin(a_time, a_step);
-
+        InitializeDiagnostic();
         if (!dynamic_only)
         {
             // Computing pristine energy based on eigen value decomposition
@@ -639,6 +667,31 @@ public:
 
                         df(i, j, k, 4) = std::max(0., rhs - Threshold);
                         c(i, j, k, 0) = c_old(i, j, k, 0) - a_dt * df(i, j, k, 4) * Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
+                        Set::Scalar crack_update = a_dt * df(i, j, k, 4) * Mobility;
+                        if (std::isnan(crack_update) || std::isinf(crack_update))
+                            Util::Message(
+                                INFO,
+                                "BAD crack update at (",
+                                i, ", ", j, ", ", k,
+                                ") dt=", a_dt,
+                                " df=", df(i,j,k,4),
+                                " mobility=", Mobility,
+                                " Gc=", Gc,
+                                " Zeta=", Zeta,
+                                " Threshold=", Threshold,
+                                " c_old=", c_old(i,j,k,0)
+                            );
+                        if (std::abs(crack_update) > 0.1)
+                                Util::Message(
+                                INFO,
+                                "Large crack update at (",
+                                i, ", ", j, ", ", k,
+                                "): update=", crack_update,
+                                " dt=", a_dt,
+                                " df=", df(i,j,k,4),
+                                " Mobility=", Mobility,
+                                " c_old=", c_old(i,j,k,0)
+                            );
 
                         if (c(i, j, k, 0) < 0.0)
                             c(i, j, k, 0) = 0.0;
@@ -650,8 +703,146 @@ public:
             crack.c_mf[a_lev]->FillBoundary();
             crack.driving_force_mf[a_lev]->FillBoundary();
         }
+        if (a_lev == 0)
+        {
+            static int step_dummy = 0;
+            WriteDiagnostics(step_dummy, a_time, a_dt);   
+            ++step_dummy;     
+        }
         Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
     }
+
+
+    void WriteDiagnostics(int step, Set::Scalar time, Set::Scalar dt)
+    {
+        InitializeDiagnostic();
+
+        auto big   = std::numeric_limits<Set::Scalar>::max();
+        auto small = -big;
+
+        Set::Scalar c_min = big, c_max = small, c_sum = 0.0;
+        Set::Scalar c_old_min = big, c_old_max = small, c_old_sum = 0.0;
+        Set::Scalar energy_min = big, energy_max = small, energy_sum = 0.0;
+        Set::Scalar history_min = big, history_max = small, history_sum = 0.0;
+        Set::Scalar df_min = big, df_max = small, df_sum = 0.0;
+        Set::Scalar psi_min = big, psi_max = small, psi_sum = 0.0;
+        Set::Scalar Gc_min = big, Gc_max = small, Gc_sum = 0.0;
+
+        long long c_cnt = 0, c_old_cnt = 0, energy_cnt = 0;
+        long long history_cnt = 0, df_cnt = 0, psi_cnt = 0, Gc_cnt = 0;
+
+        long long nan_c = 0, nan_energy = 0, nan_df = 0;
+
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            for (MFIter mfi(*crack.c_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.validbox();
+
+                auto const& c      = crack.c_mf[lev]->const_array(mfi);
+                auto const& c_old  = crack.c_old_mf[lev]->const_array(mfi);
+                auto const& energy = crack.energy_pristine_mf[lev]->const_array(mfi);
+                auto const& hist   = crack.history_var_mf[lev]->const_array(mfi);
+                auto const& df     = crack.driving_force_mf[lev]->const_array(mfi);
+                auto const& psi    = psi_mf[lev]->const_array(mfi);
+                auto const& Gc     = visible_Gc_mf[lev]->const_array(mfi);
+
+                for (int k = bx.smallEnd(2); k <= bx.bigEnd(2); ++k)
+                {
+                    for (int j = bx.smallEnd(1); j <= bx.bigEnd(1); ++j)
+                    {
+                        for (int i = bx.smallEnd(0); i <= bx.bigEnd(0); ++i)
+                        {
+                            // c
+                            Set::Scalar vc = c(i,j,k,0);
+                            if (std::isnan(vc)) nan_c++;
+                            else {
+                                c_min = std::min(c_min, vc);
+                                c_max = std::max(c_max, vc);
+                                c_sum += vc;
+                                c_cnt++;
+                            }
+
+                            // c_old
+                            Set::Scalar vco = c_old(i,j,k,0);
+                            c_old_min = std::min(c_old_min, vco);
+                            c_old_max = std::max(c_old_max, vco);
+                            c_old_sum += vco;
+                            c_old_cnt++;
+
+                            // energy_pristine (component 0)
+                            Set::Scalar ve = energy(i,j,k,0);
+                            if (std::isnan(ve)) nan_energy++;
+                            else {
+                                energy_min = std::min(energy_min, ve);
+                                energy_max = std::max(energy_max, ve);
+                                energy_sum += ve;
+                                energy_cnt++;
+                            }
+
+                            // history variable (component 0)
+                            Set::Scalar vh = hist(i,j,k,0);
+                            history_min = std::min(history_min, vh);
+                            history_max = std::max(history_max, vh);
+                            history_sum += vh;
+                            history_cnt++;
+
+                            // driving force df(4)
+                            Set::Scalar vdf = df(i,j,k,4);
+                            if (std::isnan(vdf)) nan_df++;
+                            else {
+                                df_min = std::min(df_min, vdf);
+                                df_max = std::max(df_max, vdf);
+                                df_sum += vdf;
+                                df_cnt++;
+                            }
+
+                            // psi
+                            Set::Scalar vpsi = psi(i,j,k,0);
+                            psi_min = std::min(psi_min, vpsi);
+                            psi_max = std::max(psi_max, vpsi);
+                            psi_sum += vpsi;
+                            psi_cnt++;
+
+                            // Gc
+                            Set::Scalar vGc = Gc(i,j,k,0);
+                            Gc_min = std::min(Gc_min, vGc);
+                            Gc_max = std::max(Gc_max, vGc);
+                            Gc_sum += vGc;
+                            Gc_cnt++;
+                        }
+                    }
+                }
+            }
+        }
+
+        auto safe_mean = [](Set::Scalar sum, long long n) {
+            return (n > 0) ? sum / static_cast<Set::Scalar>(n) : 0.0;
+        };
+
+        Set::Scalar c_mean       = safe_mean(c_sum,       c_cnt);
+        Set::Scalar c_old_mean   = safe_mean(c_old_sum,   c_old_cnt);
+        Set::Scalar energy_mean  = safe_mean(energy_sum,  energy_cnt);
+        Set::Scalar history_mean = safe_mean(history_sum, history_cnt);
+        Set::Scalar df_mean      = safe_mean(df_sum,      df_cnt);
+        Set::Scalar psi_mean     = safe_mean(psi_sum,     psi_cnt);
+        Set::Scalar Gc_mean      = safe_mean(Gc_sum,      Gc_cnt);
+
+        diagnostic_file
+            << step << "," << time << "," << dt << ","
+            << c_min << "," << c_max << "," << c_mean << ","
+            << c_old_min << "," << c_old_max << "," << c_old_mean << ","
+            << energy_min << "," << energy_max << "," << energy_mean << ","
+            << history_min << "," << history_max << "," << history_mean << ","
+            << df_min << "," << df_max << "," << df_mean << ","
+            << psi_min << "," << psi_max << "," << psi_mean << ","
+            << Gc_min << "," << Gc_max << "," << Gc_mean << ","
+            << nan_c << "," << nan_energy << "," << nan_df
+            << "\n";
+
+        diagnostic_file.flush();
+    }
+
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
