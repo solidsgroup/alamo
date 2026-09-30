@@ -1,0 +1,236 @@
+#@ [2d-realspace-amr]
+#@ dim = 2
+#@ check-file = amr-real
+#@ args = method=realspace timestep=0.000001 amr.max_level=1 amr.nsubsteps=1
+#@ args = refinement_threshold=0.015 amr.regrid_int=2 max_step=8
+#@ args = eta.ic.expression.region0="0.15+0.1*exp(-40*((x-0.5)^2+(y-0.75)^2))"
+#@
+#@ [2d-spectral-linear-odd]
+#@ dim = 2
+#@ fft = true
+#@ check-file = linear-odd
+#@ args = method=spectral amr.n_cell=31 31 31 amr.blocking_factor=1 max_step=1
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(30*pi*y/1.5)"
+#@
+#@ [2d-spectral-unstabilized]
+#@ dim = 2
+#@ fft = true
+#@ check-file = nonlinear
+#@ args = method=spectral spectral_stabilization=0 max_step=40
+#@
+#@ [2d-realspace-linear]
+#@ dim = 2
+#@ check-file = linear
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)"
+#@ args = max_step=1
+#@
+#@ [2d-realspace-linear-floor]
+#@ dim = 2
+#@ check-file = linear-floor
+#@ args = method=realspace
+#@ args = mobility_floor=0.0125
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)"
+#@ args = max_step=1
+#@
+#@ [2d-realspace-nonlinear]
+#@ dim = 2
+#@ check-file = nonlinear
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = max_step=40
+#@
+#@ [2d-realspace-stationary]
+#@ dim = 2
+#@ check-file = stationary
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="-1"
+#@ args = max_step=4
+#@
+#@ [2d-realspace-stationary-outside]
+#@ dim = 2
+#@ check-file = stationary-outside
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="1.2"
+#@ args = max_step=4
+#@
+#@ [2d-spectral-linear]
+#@ dim = 2
+#@ check-file = linear
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)"
+#@ args = max_step=1
+#@
+#@ [2d-spectral-linear-floor]
+#@ dim = 2
+#@ check-file = linear-floor
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0125
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)"
+#@ args = max_step=1
+#@
+#@ [2d-spectral-nonlinear]
+#@ dim = 2
+#@ check-file = nonlinear
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = max_step=40
+#@
+#@ [2d-spectral-stationary]
+#@ dim = 2
+#@ check-file = stationary
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="-1"
+#@ args = max_step=4
+#@
+#@ [2d-spectral-stationary-outside]
+#@ dim = 2
+#@ check-file = stationary-outside
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="1.2"
+#@ args = max_step=4
+#@
+#@ [3d-realspace-linear]
+#@ dim = 3
+#@ check-file = linear
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)*cos(2*pi*z/2)"
+#@ args = max_step=1
+#@
+#@ [3d-realspace-linear-floor]
+#@ dim = 3
+#@ check-file = linear-floor
+#@ args = method=realspace
+#@ args = mobility_floor=0.0125
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)*cos(2*pi*z/2)"
+#@ args = max_step=1
+#@
+#@ [3d-realspace-nonlinear]
+#@ dim = 3
+#@ check-file = nonlinear
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = max_step=40
+#@
+#@ [3d-realspace-stationary]
+#@ dim = 3
+#@ check-file = stationary
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="-1"
+#@ args = max_step=4
+#@
+#@ [3d-realspace-stationary-outside]
+#@ dim = 3
+#@ check-file = stationary-outside
+#@ args = method=realspace
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="1.2"
+#@ args = max_step=4
+#@
+#@ [3d-spectral-linear]
+#@ dim = 3
+#@ check-file = linear
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)*cos(2*pi*z/2)"
+#@ args = max_step=1
+#@
+#@ [3d-spectral-linear-floor]
+#@ dim = 3
+#@ check-file = linear-floor
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0125
+#@ args = eta.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)*cos(2*pi*z/2)"
+#@ args = max_step=1
+#@
+#@ [3d-spectral-nonlinear]
+#@ dim = 3
+#@ check-file = nonlinear
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = max_step=40
+#@
+#@ [3d-spectral-stationary]
+#@ dim = 3
+#@ check-file = stationary
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="-1"
+#@ args = max_step=4
+#@
+#@ [3d-spectral-stationary-outside]
+#@ dim = 3
+#@ check-file = stationary-outside
+#@ fft = true
+#@ args = method=spectral
+#@ args = mobility_floor=0.0
+#@ args = eta.ic.expression.region0="1.2"
+#@ args = max_step=4
+#@
+#@ [2d-realspace-mpi]
+#@ dim = 2
+#@ nprocs = 2
+#@ check-file = nonlinear
+#@ args = method=realspace
+#@ args = max_step=40
+#@
+#@ [2d-spectral-mpi]
+#@ dim = 2
+#@ nprocs = 2
+#@ check-file = nonlinear
+#@ args = method=spectral
+#@ args = max_step=40
+#@ fft = true
+#@
+#@ [2d-spectral-amr]
+#@ dim = 2
+#@ fft = true
+#@ check-file = amr
+#@ args = method=spectral amr.max_level=1 amr.nsubsteps=1
+#@ args = refinement_threshold=0.015 amr.regrid_int=2 max_step=8
+#@ args = eta.ic.expression.region0="0.15+0.1*exp(-40*((x-0.5)^2+(y-0.75)^2))"
+
+alamo.program = cahnhilliard
+plot_file = tests/SinglyDegenerateCahnHilliard/output
+amr.max_level = 0
+amr.n_cell = 32 32 32
+amr.max_grid_size = 16
+amr.blocking_factor = 4
+amr.plot_int = 1
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1.5 2
+geometry.is_periodic = 1 1 1
+eta.bc.constant.type.xlo = periodic
+eta.bc.constant.type.xhi = periodic
+eta.bc.constant.type.ylo = periodic
+eta.bc.constant.type.yhi = periodic
+eta.bc.constant.type.zlo = periodic
+eta.bc.constant.type.zhi = periodic
+eta.ic.type = expression
+eta.ic.expression.constant.pi = 3.14159265358979323846
+eta.ic.expression.region0 = "0.15+0.1*cos(2*pi*x)*cos(2*pi*y/1.5)"
+method = realspace
+mobility = singly_degenerate
+mobility_floor = 0
+L = 1
+gamma = 0.01
+timestep = 0.00001
+max_step = 40
+stop_time = 1
