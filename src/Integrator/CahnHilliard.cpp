@@ -35,7 +35,7 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("mobility_floor", value.mobility_floor, 0.0);
     // Coefficient of the spectral fourth-order stabilizer.
     pp.query_default("spectral_stabilization", value.spectral_stabilization,
-                     value.gamma * (value.L / 16.0 + value.mobility_floor));
+                    value.gamma * (value.L / 16.0 + value.mobility_floor));
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
@@ -131,7 +131,7 @@ Set::Scalar DegenerateMobility(Set::Scalar eta, Set::Scalar L, Set::Scalar floor
 }
 
 void ChemicalPotential(const amrex::MultiFab& eta_mf, amrex::MultiFab& mu_mf,
-                       const amrex::Geometry& geometry, Set::Scalar gamma)
+                        const amrex::Geometry& geometry, Set::Scalar gamma)
 {
     const auto dx = geometry.CellSizeArray();
     for (amrex::MFIter mfi(eta_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -249,8 +249,8 @@ CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar 
             if (length[2] % 2 == 0 && p == length[2]/2) k3 = 0.0;
 #endif
             Set::Complex div_flux = AMREX_D_TERM(I * k1 * flux_hat(m,n,p,0),
-                                               + I * k2 * flux_hat(m,n,p,1),
-                                               + I * k3 * flux_hat(m,n,p,2));
+                                                + I * k2 * flux_hat(m,n,p,1),
+                                                + I * k3 * flux_hat(m,n,p,2));
             // Keeping the zero mode unchanged conserves the mean without clipping.
             eta_hat(m,n,p) += dt * div_flux / (1.0 + dt * S * omega2 * omega2);
         });
