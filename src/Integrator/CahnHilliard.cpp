@@ -1,4 +1,8 @@
 #include <AMReX_MLPoisson.H>
+#include <algorithm>
+#include <cmath>
+
+#include "IC/Expression.H"
 
 #include "CahnHilliard.H"
 #include "BC/Constant.H"
@@ -25,16 +29,34 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("gamma",value.gamma, 0.0005);
     // Mobility
     pp.query_default("L",    value.L,     1.0);
+    // Mobility model (constant preserves the original update).
+    pp.query_validate("mobility", value.mobility, {"constant", "singly_degenerate"});
+    // Additive mobility in the pure phases.
+    pp.query_default("mobility_floor", value.mobility_floor, 0.0);
+    // Coefficient of the spectral fourth-order stabilizer.
+    pp.query_default("spectral_stabilization", value.spectral_stabilization,
+                    value.gamma * (value.L / 16.0 + value.mobility_floor));
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random>("eta.ic", value.ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Random,IC::Expression>("eta.ic", value.ic, pp.forward_args(value.geom));
     // boundary condition for :math:`\eta`
     pp.select_default<BC::Constant>("eta.bc", value.bc, pp.forward_args(1));
 
     // Which method to use - realspace or spectral method.
     pp.query_validate("method",value.method,{"realspace","spectral"});
+
+    if (value.mobility == "singly_degenerate" && !pp.InTraversalMode())
+    {
+        if (!std::isfinite(value.L) || value.L < 0.0 ||
+            !std::isfinite(value.gamma) || value.gamma < 0.0 ||
+            !std::isfinite(value.mobility_floor) || value.mobility_floor < 0.0 ||
+            !std::isfinite(value.spectral_stabilization) || value.spectral_stabilization < 0.0)
+            Util::ParmParseException(INFO, "mobility", "SDCH requires finite nonnegative L, gamma, mobility_floor and spectral_stabilization");
+        if (!value.geom[0].isAllPeriodic())
+            Util::ParmParseException(INFO, "mobility", "SDCH requires periodic boundaries");
+    }
 
     value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta",true);
     value.RegisterNewFab(value.intermediate, value.bc, 1, 1, "int",true);
@@ -46,6 +68,14 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
 void
 CahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+    if (mobility == "singly_degenerate")
+    {
+        if (method == "realspace")
+            AdvanceDegenerateReal(lev, time, dt);
+        else if (lev == finest_level)
+            AdvanceDegenerateSpectral(lev, time, dt);
+        return;
+    }
     if (method == "realspace")
         AdvanceReal(lev, time, dt);
     else if (method == "spectral")
@@ -90,6 +120,152 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         });
     }
 }
+
+namespace
+{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar DegenerateMobility(Set::Scalar eta, Set::Scalar L, Set::Scalar floor)
+{
+    Set::Scalar alpha = std::max(0.0, std::min(1.0, 0.5 * (eta + 1.0)));
+    return L * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + floor;
+}
+
+void ChemicalPotential(const amrex::MultiFab& eta_mf, amrex::MultiFab& mu_mf,
+                        const amrex::Geometry& geometry, Set::Scalar gamma)
+{
+    const auto dx = geometry.CellSizeArray();
+    for (amrex::MFIter mfi(eta_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const auto eta = eta_mf.const_array(mfi);
+        const auto mu = mu_mf.array(mfi);
+        amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            mu(i,j,k) = eta(i,j,k)*eta(i,j,k)*eta(i,j,k) - eta(i,j,k)
+                        - gamma * Numeric::Laplacian(eta, i, j, k, 0, dx.data());
+        });
+    }
+}
+}
+
+void
+CahnHilliard::AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt)
+{
+    std::swap(etaold_mf[lev], etanew_mf[lev]);
+    etaold_mf[lev]->FillBoundary(geom[lev].periodicity());
+    ChemicalPotential(*etaold_mf[lev], *intermediate[lev], geom[lev], gamma);
+    intermediate[lev]->FillBoundary(geom[lev].periodicity());
+    if (lev > 0)
+    {
+        amrex::Vector<amrex::MultiFab*> coarse{intermediate[lev-1].get()};
+        amrex::Vector<amrex::MultiFab*> fine{intermediate[lev].get()};
+        amrex::Vector<amrex::Real> times{time};
+        bc->define(geom[lev]);
+        amrex::Vector<amrex::BCRec> bcs{bc->GetBCRec()};
+        amrex::FillPatchTwoLevels(*intermediate[lev], time, coarse, times, fine, times,
+            0, 0, 1, geom[lev-1], geom[lev], *bc, 0, *bc, 0, refRatio(lev-1),
+            &amrex::cell_cons_interp, bcs, 0);
+    }
+
+    const auto dx = geom[lev].CellSizeArray();
+    const Set::Scalar L_local = L;
+    const Set::Scalar floor = mobility_floor;
+    for (amrex::MFIter mfi(*etanew_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const auto eta = etaold_mf[lev]->const_array(mfi);
+        const auto mu = intermediate[lev]->const_array(mfi);
+        const auto next = etanew_mf[lev]->array(mfi);
+        amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            const Set::Scalar M = DegenerateMobility(eta(i,j,k), L_local, floor);
+            Set::Scalar rhs = 0.0;
+            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+            {
+                const int di = dir == 0, dj = dir == 1, dk = dir == 2;
+                const Set::Scalar plus = 0.5 * (M + DegenerateMobility(eta(i+di,j+dj,k+dk), L_local, floor));
+                const Set::Scalar minus = 0.5 * (M + DegenerateMobility(eta(i-di,j-dj,k-dk), L_local, floor));
+                rhs += (plus * (mu(i+di,j+dj,k+dk) - mu(i,j,k))
+                        - minus * (mu(i,j,k) - mu(i-di,j-dj,k-dk))) / (dx[dir] * dx[dir]);
+            }
+            next(i,j,k) = eta(i,j,k) + dt * rhs;
+        });
+    }
+    etanew_mf[lev]->FillBoundary(geom[lev].periodicity());
+}
+
+#ifdef ALAMO_FFT
+void
+CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar dt)
+{
+    using Operator::Spectral::FFT;
+    FFT fft(geom[lev]);
+    amrex::Vector<amrex::MultiFab*> hierarchy(lev + 1);
+    for (int ilev = 0; ilev <= lev; ++ilev) hierarchy[ilev] = etanew_mf[ilev].get();
+    // Form derivatives on a complete grid so coarse/fine patch edges have valid data.
+    auto eta_mf = FFT::CompositeToUniform(hierarchy, geom, refRatio(), lev, time, *bc, 1, 1);
+    eta_mf->FillBoundary(geom[lev].periodicity());
+    amrex::MultiFab mu_mf(eta_mf->boxArray(), eta_mf->DistributionMap(), 1, 1);
+    ChemicalPotential(*eta_mf, mu_mf, geom[lev], gamma);
+    mu_mf.FillBoundary(geom[lev].periodicity());
+    amrex::Vector<amrex::MultiFab*> potential_hierarchy(lev + 1);
+    for (int ilev = 0; ilev <= lev; ++ilev) potential_hierarchy[ilev] = intermediate[ilev].get();
+    FFT::UniformToComposite(mu_mf, potential_hierarchy, geom, refRatio(), lev, 1);
+    amrex::MultiFab flux_mf(eta_mf->boxArray(), eta_mf->DistributionMap(), AMREX_SPACEDIM, 0);
+    const auto dx = geom[lev].CellSizeArray();
+    const Set::Scalar L_local = L;
+    const Set::Scalar floor = mobility_floor;
+    for (amrex::MFIter mfi(*eta_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const auto eta = eta_mf->const_array(mfi);
+        const auto mu = mu_mf.const_array(mfi);
+        const auto flux = flux_mf.array(mfi);
+        amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar M = DegenerateMobility(eta(i,j,k), L_local, floor);
+            Set::Vector grad_mu = Numeric::Gradient(mu, i, j, k, 0, dx.data());
+            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) flux(i,j,k,dir) = M * grad_mu(dir);
+        });
+    }
+    auto eta_hat_mf = fft.MakeSpectralFab();
+    auto flux_hat_mf = fft.MakeSpectralFab(AMREX_SPACEDIM);
+    fft.Forward(*eta_mf, eta_hat_mf);
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) fft.Forward(flux_mf, flux_hat_mf, dir, dir);
+    const Set::Scalar S = spectral_stabilization;
+    const Set::Complex I(0.0, 1.0);
+    const auto length = geom[lev].Domain().length3d();
+    for (amrex::MFIter mfi(eta_hat_mf, false); mfi.isValid(); ++mfi)
+    {
+        const auto eta_hat = eta_hat_mf.array(mfi);
+        const auto flux_hat = flux_hat_mf.const_array(mfi);
+        fft.ParallelForModes(mfi.tilebox(), [=] AMREX_GPU_DEVICE(
+            int m, int n, int p, Set::Scalar k1, Set::Scalar k2, Set::Scalar k3, Set::Scalar omega2)
+        {
+            amrex::ignore_unused(k2, k3);
+            // A real Fourier derivative vanishes at even-grid Nyquist modes.
+            if (length[0] % 2 == 0 && m == length[0]/2) k1 = 0.0;
+#if AMREX_SPACEDIM >= 2
+            if (length[1] % 2 == 0 && n == length[1]/2) k2 = 0.0;
+#endif
+#if AMREX_SPACEDIM >= 3
+            if (length[2] % 2 == 0 && p == length[2]/2) k3 = 0.0;
+#endif
+            Set::Complex div_flux = AMREX_D_TERM(I * k1 * flux_hat(m,n,p,0),
+                                                + I * k2 * flux_hat(m,n,p,1),
+                                                + I * k3 * flux_hat(m,n,p,2));
+            // Keeping the zero mode unchanged conserves the mean without clipping.
+            eta_hat(m,n,p) += dt * div_flux / (1.0 + dt * S * omega2 * omega2);
+        });
+    }
+    fft.Backward(eta_hat_mf, *eta_mf);
+    FFT::UniformToComposite(*eta_mf, hierarchy, geom, refRatio(), lev, 1);
+    for (int ilev = 0; ilev <= lev; ++ilev) etanew_mf[ilev]->FillBoundary(geom[ilev].periodicity());
+}
+#else
+void
+CahnHilliard::AdvanceDegenerateSpectral (int, Set::Scalar, Set::Scalar)
+{
+    Util::Abort(INFO,"Alamo must be compiled with fft");
+}
+#endif
 
 #ifdef ALAMO_FFT
 void
