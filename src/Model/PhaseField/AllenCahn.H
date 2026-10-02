@@ -141,6 +141,12 @@ public:
             4.0 * AMREX_SPACEDIM * GradientCoefficient() / (dx * dx);
     }
 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar Mobility() const
+    {
+        return mobility;
+    }
+
 private:
     Set::Scalar mobility = 0.0;
     Set::Scalar lambda = 0.0;

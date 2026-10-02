@@ -105,6 +105,19 @@ public:
         return NAN;
     }
 
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar Mobility() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).Mobility();
+            return Mobility<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
 private:
     std::tuple<OBJ...> obj;
     static constexpr const char* names[] = {OBJ::name...};

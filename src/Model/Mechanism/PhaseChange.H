@@ -64,6 +64,8 @@ public:
         value.reference_density = reference_density[value.input];
         if (!(value.reference_density > 0.0))
             Util::Exception(INFO, "No positive reference density is defined for ", input);
+        pp.select<Model::PhaseField::AllenCahn>(
+            "phase_field", value.phase_field);
         const auto& normal = orientation[value.input];
         std::string orientation_mobility_type = "formula";
         pp.query_default(
@@ -138,13 +140,37 @@ public:
                 }
             }
         }
+        else if (orientation_mobility_type == "constant")
+        {
+            Set::Scalar mobility = 0.0;
+            pp.query_required(
+                "orientation_mobility.constant.value",
+                mobility,
+                1.0 / Unit::Pressure() / Unit::Time());
+
+            const Set::Scalar base_mobility = value.phase_field.Mobility();
+            if (!(base_mobility > 0.0) || !std::isfinite(base_mobility))
+                Util::Exception(
+                    INFO,
+                    "phase_field.allencahn.mobility must be finite and positive ",
+                    "when orientation_mobility.type = constant");
+            value.orientation_mobility_multiplier = mobility / base_mobility;
+
+            if (value.input == ap_polycrystal_species)
+            {
+                ap_grain_mobility_multipliers.clear();
+                ap_grain_mobility_multipliers.resize(
+                    ap_grain_orientations.size(),
+                    value.orientation_mobility_multiplier);
+            }
+        }
         else
         {
             Util::Exception(
                 INFO,
                 "Invalid orientation_mobility.type ",
                 orientation_mobility_type,
-                ". Expected formula or read.");
+                ". Expected formula, read, or constant.");
         }
         if (!(value.orientation_mobility_multiplier > 0.0) ||
             !std::isfinite(value.orientation_mobility_multiplier))
@@ -212,8 +238,6 @@ public:
                         "0.0_K", Unit::Temperature());
         if (value.activation_temperature < 0.0 || value.temperature_cutoff < 0.0)
             Util::Exception(INFO, "phase-change temperatures must be nonnegative");
-        pp.select<Model::PhaseField::AllenCahn>(
-            "phase_field", value.phase_field);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE

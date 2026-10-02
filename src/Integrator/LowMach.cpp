@@ -206,44 +206,82 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             Util::Exception(
                 INFO, "The AP polycrystal species must be a solid");
 
-        std::vector<double> orientation_values;
-        pp.queryarr_required(
-            "ap_polycrystal.orientations", orientation_values);
-
-        const int expected_orientation_values =
-            3 * value.ap_number_of_grains;
-        if (static_cast<int>(orientation_values.size()) !=
-            expected_orientation_values)
+        pp.queryarr_default(
+            species_name + ".lattice_constants",
+            value.ap_lattice_constants,
+            // Room-temperature orthorhombic AP: a, b, c in angstroms.
+            std::vector<double>{9.20, 5.82, 7.45});
+        if (value.ap_lattice_constants.size() != 3)
             Util::Exception(
-                INFO, "ap_polycrystal.orientations requires exactly ",
-                expected_orientation_values, " values");
+                INFO, species_name,
+                ".lattice_constants must contain exactly three values");
+        for (const double lattice_constant : value.ap_lattice_constants)
+            if (!(lattice_constant > 0.0) ||
+                !std::isfinite(lattice_constant))
+                Util::Exception(
+                    INFO, species_name,
+                    ".lattice_constants must be finite and positive");
+
+        std::vector<double> miller_index_values;
+        pp.queryarr_required(
+            "ap_polycrystal.miller_indices", miller_index_values);
+
+        const int expected_miller_index_values =
+            3 * value.ap_number_of_grains;
+        if (static_cast<int>(miller_index_values.size()) !=
+            expected_miller_index_values)
+            Util::Exception(
+                INFO, "ap_polycrystal.miller_indices requires exactly ",
+                expected_miller_index_values, " values");
 
         value.ap_grain_orientations.resize(
             value.ap_number_of_grains);
+
+        value.ap_grain_miller_indices.resize(
+            value.ap_number_of_grains);
+
         for (int grain = 0;
              grain < value.ap_number_of_grains;
              ++grain)
         {
+            auto& miller_indices =
+                value.ap_grain_miller_indices[grain];
+
+            miller_indices = {
+                miller_index_values[3 * grain],
+                miller_index_values[3 * grain + 1],
+                miller_index_values[3 * grain + 2]};
+
+            for (double index : miller_indices)
+                if (!std::isfinite(index))
+                    Util::Exception(
+                        INFO, "AP grain Miller indices must be finite");
+
+            const double index_magnitude = std::hypot(
+                miller_indices[0],
+                miller_indices[1],
+                miller_indices[2]);
+
+            if (!(index_magnitude > 0.0) ||
+                !std::isfinite(index_magnitude))
+                Util::Exception(
+                    INFO, "AP grain Miller indices cannot be (0,0,0)");
+
             auto& orientation =
                 value.ap_grain_orientations[grain];
+
             orientation = {
-                orientation_values[3 * grain],
-                orientation_values[3 * grain + 1],
-                orientation_values[3 * grain + 2]};
+                miller_indices[0] / value.ap_lattice_constants[0],
+                miller_indices[1] / value.ap_lattice_constants[1],
+                miller_indices[2] / value.ap_lattice_constants[2]};
 
-            for (double component : orientation)
-                if (!std::isfinite(component))
-                    Util::Exception(
-                        INFO, "AP grain orientations must be finite");
-
-            const double magnitude = std::hypot(
-                orientation[0], orientation[1], orientation[2]);
-            if (!(magnitude > 0.0) || !std::isfinite(magnitude))
-                Util::Exception(
-                    INFO, "Each AP grain orientation must be nonzero");
+            const double normal_magnitude = std::hypot(
+                orientation[0],
+                orientation[1],
+                orientation[2]);
 
             for (double& component : orientation)
-                component /= magnitude;
+                component /= normal_magnitude;
         }
 
         value.ap_grain_ic =

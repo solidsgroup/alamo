@@ -215,7 +215,10 @@ protected:
     bool ap_polycrystal_on = false;
     int ap_polycrystal_species = -1;
     int ap_number_of_grains = 0;
+    // Room-temperature orthorhombic AP lattice constants (angstroms).
+    std::vector<double> ap_lattice_constants{9.20, 5.82, 7.45};
     std::vector<std::vector<double>> ap_grain_orientations;
+    std::vector<std::vector<double>> ap_grain_miller_indices;
     std::vector<double> ap_grain_mobility_multipliers;
 
     Set::Vector g = Set::Vector::Zero();
