@@ -12,6 +12,9 @@
 
 #include <array>
 #include <cmath>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "Model/Mechanism/Mechanism.H"
@@ -24,6 +27,114 @@ namespace Model
 {
 namespace Mechanism
 {
+class MillerMobilityTable
+{
+public:
+    struct Entry
+    {
+        std::array<double, 3> normal;
+        double multiplier = 1.0;
+    };
+
+    static MillerMobilityTable Read(
+        const std::string& filename,
+        const std::vector<double>& lattice_constants)
+    {
+        if (lattice_constants.size() != 3)
+            Util::Exception(
+                INFO,
+                "orientation_mobility.miller_read requires three lattice constants");
+
+        MillerMobilityTable table;
+        std::ifstream file(filename);
+        if (!file.is_open())
+            Util::Exception(
+                INFO,
+                "Unable to open Miller mobility table ", filename);
+
+        std::string line;
+        int line_number = 0;
+        while (std::getline(file, line))
+        {
+            ++line_number;
+            const std::size_t comment = line.find('#');
+            if (comment != std::string::npos) line.erase(comment);
+
+            std::istringstream row(line);
+            double h = 0.0, k = 0.0, l = 0.0, multiplier = 0.0;
+            if (!(row >> h >> k >> l >> multiplier)) continue;
+
+            std::array<double, 3> normal = {
+                h / lattice_constants[0],
+                k / lattice_constants[1],
+                l / lattice_constants[2]};
+            const double norm = std::sqrt(
+                normal[0] * normal[0] +
+                normal[1] * normal[1] +
+                normal[2] * normal[2]);
+
+            if (!(norm > 0.0) || !std::isfinite(norm))
+                Util::Exception(
+                    INFO,
+                    "Invalid Miller indices in ", filename,
+                    " at line ", line_number);
+            if (!(multiplier > 0.0) || !std::isfinite(multiplier))
+                Util::Exception(
+                    INFO,
+                    "Miller mobility multiplier must be finite and positive in ",
+                    filename, " at line ", line_number);
+
+            for (double& component : normal) component /= norm;
+            table.entries.push_back({normal, multiplier});
+        }
+
+        if (table.entries.empty())
+            Util::Exception(
+                INFO,
+                "Miller mobility table ", filename, " did not contain any rows");
+
+        return table;
+    }
+
+    double Lookup(const std::vector<double>& direction) const
+    {
+        if (entries.empty())
+            Util::Exception(INFO, "Cannot lookup from an empty Miller mobility table");
+        if (direction.size() != 3)
+            Util::Exception(INFO, "Miller mobility lookup requires a 3D direction");
+
+        std::array<double, 3> normal = {
+            direction[0], direction[1], direction[2]};
+        const double norm = std::sqrt(
+            normal[0] * normal[0] +
+            normal[1] * normal[1] +
+            normal[2] * normal[2]);
+        if (!(norm > 0.0) || !std::isfinite(norm))
+            Util::Exception(INFO, "Miller mobility lookup direction must be finite and nonzero");
+
+        for (double& component : normal) component /= norm;
+
+        double best_dot = -1.0;
+        double best_multiplier = entries.front().multiplier;
+        for (const Entry& entry : entries)
+        {
+            const double dot = std::abs(
+                normal[0] * entry.normal[0] +
+                normal[1] * entry.normal[1] +
+                normal[2] * entry.normal[2]);
+            if (dot > best_dot)
+            {
+                best_dot = dot;
+                best_multiplier = entry.multiplier;
+            }
+        }
+
+        return best_multiplier;
+    }
+
+    std::vector<Entry> entries;
+};
+
 class PhaseChange
 {
 public:
@@ -38,6 +149,7 @@ public:
                     const std::vector<std::vector<double>>& orientation,
                     const int ap_polycrystal_species,
                     const std::vector<std::vector<double>>& ap_grain_orientations,
+                    const std::vector<double>& ap_lattice_constants,
                     std::vector<double>& ap_grain_mobility_multipliers,
                     const std::vector<double>& molecular_weight,
                     const Set::Scalar universal_gas_constant)
@@ -140,6 +252,34 @@ public:
                 }
             }
         }
+        else if (orientation_mobility_type == "miller_read")
+        {
+            std::string filename;
+
+            pp.query_file(
+                "orientation_mobility.miller_read.filename",
+                filename);
+
+            if (!IO::ParmParse::InTraversalMode())
+            {
+                const MillerMobilityTable mobility_table =
+                    MillerMobilityTable::Read(filename, ap_lattice_constants);
+
+                value.orientation_mobility_multiplier =
+                    mobility_table.Lookup(normal);
+
+                if (value.input == ap_polycrystal_species)
+                {
+                    ap_grain_mobility_multipliers.clear();
+                    ap_grain_mobility_multipliers.reserve(
+                        ap_grain_orientations.size());
+                    for (const auto& grain_orientation :
+                         ap_grain_orientations)
+                        ap_grain_mobility_multipliers.push_back(
+                            mobility_table.Lookup(grain_orientation));
+                }
+            }
+        }
         else if (orientation_mobility_type == "constant")
         {
             Set::Scalar mobility = 0.0;
@@ -170,7 +310,7 @@ public:
                 INFO,
                 "Invalid orientation_mobility.type ",
                 orientation_mobility_type,
-                ". Expected formula, read, or constant.");
+                ". Expected formula, read, miller_read, or constant.");
         }
         if (!(value.orientation_mobility_multiplier > 0.0) ||
             !std::isfinite(value.orientation_mobility_multiplier))

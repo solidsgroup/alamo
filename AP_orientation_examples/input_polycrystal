@@ -105,18 +105,17 @@ AP_solid.mechanics = rigid_solid
 AP_solid.reference_density = 1950.0_kg/m^3
 AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
-# The same table is evaluated separately for every grain orientation.
-AP_decomposition.phase_change.orientation_mobility.type = read
-AP_decomposition.phase_change.orientation_mobility.read.filename = Working_files/New_table_testing/ap_mobility_test.dat
-# Enable five static Voronoi grain masks and local orientation-dependent mobility.
+# The same Miller table is evaluated separately for every grain face.
+AP_decomposition.phase_change.orientation_mobility.type = miller_read
+AP_decomposition.phase_change.orientation_mobility.miller_read.filename = AP_orientation_examples/ap_miller_mobility_table.dat
+# Enable six static Voronoi grain masks and local orientation-dependent mobility.
 ap_polycrystal.enabled = 1
-# Three numbers per grain (x y z). These five directions span the table range:
-# expected multipliers are approximately 0.85, 0.905, 0.960, 1.016, and 1.071.
-ap_polycrystal.orientations = 0.707107 -0.707107 0  0.871709 -0.490024 0  0.957775 -0.287518 0  0.993720 -0.111894 0  0.923880 0.382683 0
 # Only AP_solid uses this grain structure; future materials remain independent.
 ap_polycrystal.species = AP_solid
-# This must match the five orientation vectors listed above.
-ap_polycrystal.number_of_grains = 5
+# This must match the six Miller-index triples listed below.
+ap_polycrystal.number_of_grains = 6
+# Three numbers per grain (h k l). These map directly onto the table rows.
+ap_polycrystal.miller_indices = 0 1 0   1 1 0   1 0 0   1 1 1   1 0 1   0 0 1
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s

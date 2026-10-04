@@ -1,0 +1,17 @@
+# AP Miller-index mobility multiplier table
+# Format: h  k  l  mobility_multiplier
+# The code converts each face using (h/a, k/b, l/c), normalizes it,
+# and uses the multiplier from the closest table direction.
+# Default AP lattice constants are a=9.20, b=5.82, c=7.45 angstroms.
+
+# Slow examples
+0  1  0  0.850
+1  1  0  0.925
+
+# Baseline examples
+1  0  0  1.000
+1  1  1  1.050
+
+# Fast examples
+1  0  1  1.125
+0  0  1  1.200

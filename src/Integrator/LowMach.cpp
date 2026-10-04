@@ -377,6 +377,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                             value.rigid_solid_species, value.reference_density,
                             value.orientation, value.ap_polycrystal_species,
                             value.ap_grain_orientations,
+                            value.ap_lattice_constants,
                             value.ap_grain_mobility_multipliers,
                             value.gas.MW, value.gas.Rg));
     }

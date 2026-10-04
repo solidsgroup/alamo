@@ -105,13 +105,13 @@ AP_solid.mechanics = rigid_solid
 AP_solid.reference_density = 1950.0_kg/m^3
 AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
-# The existing table converts this single crystal direction into one mobility.
-AP_decomposition.phase_change.orientation_mobility.type = read
-AP_decomposition.phase_change.orientation_mobility.read.filename = /home/jwi1/Desktop/alamo/AP_orientation_examples/ap_mobility_test.dat
+# The Miller table converts this single-crystal face direction into one mobility.
+AP_decomposition.phase_change.orientation_mobility.type = miller_read
+AP_decomposition.phase_change.orientation_mobility.miller_read.filename = AP_orientation_examples/ap_miller_mobility_table.dat
 # Disable grain fields: every AP cell uses AP_solid.orientation below.
 ap_polycrystal.enabled = 0
-# Unit vector at -45 degrees; the sample table gives its minimum mobility.
-AP_solid.orientation = 0.707107 -0.707107 0
+# Single-crystal face normal matching the (1 0 0) table row.
+AP_solid.orientation = 1.0 0.0 0.0
 
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
