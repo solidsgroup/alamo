@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check conservation, dissipation, pure phases, and a linearized Fourier mode."""
+"""Check conservation, dissipation, pure phases, and Fourier-mode evolution."""
 import sys
 from pathlib import Path
 
@@ -64,15 +64,46 @@ elif case.startswith("linear"):
     expected_potential = base**3 - base + (initial-base) * curvature
     np.testing.assert_allclose(potential, expected_potential, rtol=0, atol=1e-12)
     spectral = "spectral" in outdir.name
+    rate = -mobility * lap * curvature
     if spectral:
         stabilizer = 0.01 * (1/16 + floor)
-        rate = -mobility * np.sum(wave*np.sin(wave*dx)/dx) * curvature
-        rate /= 1 + 1e-5 * stabilizer * np.sum(wave**2)**2
-    else:
-        rate = -mobility * lap * curvature
+        rate /= 1 + 1e-5 * stabilizer * lap**2
     expected = base + (initial-base) * (1 + 1e-5*rate)
     np.testing.assert_allclose(final, expected, rtol=0, atol=1e-13)
     assert np.max(abs(final-initial)) > 1e-11, "Fourier mode did not evolve"
+elif case == "strong-mobility":
+    # This grid-scale field previously evolved uphill even as dt tended to zero.
+    mobility = ((1-initial**2) / 4)**2
+    assert mobility.max() / mobility.min() > 1e6, "Weak mobility variation"
+    mu = initial**3 - initial
+    for axis, h in enumerate(dx):
+        mu -= 0.01 * (np.roll(initial, -1, axis) - 2*initial
+                      + np.roll(initial, 1, axis)) / h**2
+    dissipation = 0.0
+    for axis, h in enumerate(dx):
+        face_mobility = (mobility + np.roll(mobility, -1, axis)) / 2
+        dissipation += np.mean(face_mobility * ((np.roll(mu, -1, axis)-mu)/h)**2)
+    dt = float(final_ds.current_time - initial_ds.current_time)
+    energies = [energy(read(path)[1], dx) for path in plots]
+    assert np.all(np.diff(energies) < 0), "Strong-mobility SDCH increased energy"
+    observed = (energies[-1] - energies[0]) / dt
+    # At small dt, the discrete energy derivative is minus the squared face gradients.
+    np.testing.assert_allclose(observed, -dissipation, rtol=2e-3, atol=0)
+    print(f"energy change: {energies[-1]-energies[0]:.12g}; rate: {observed:.12g}")
+elif case.startswith("checkerboard"):
+    # For eta=b+a*s, s=+/-1, every active face sees the same mean mobility.
+    base, amplitude = 0.15, 0.01
+    axes = case.split("-")[-1]
+    lap = sum(4 / dx["xyz".index(axis)]**2 for axis in axes)
+    dt = 1e-5
+    steps = round(float(final_ds.current_time) / dt)
+    for _ in range(steps):
+        mobility = sum(((1-eta**2)/4)**2 for eta in (base+amplitude, base-amplitude)) / 2
+        curvature = 3*base**2 - 1 + amplitude**2 + 0.01*lap
+        amplitude *= 1 - dt*mobility*lap*curvature / (1 + dt*0.01/16*lap**2)
+    np.testing.assert_allclose(final, base+(initial-base)*amplitude/0.01, rtol=0, atol=2e-13)
+    assert np.max(abs(final-base)) < 0.0099, "Checkerboard mode did not decay"
+    assert energy(final, dx) < energy(initial, dx), "Checkerboard energy did not decay"
 else:
     assert np.max(abs(final-initial)) > 1e-7, "SDCH field did not evolve"
     if case.startswith("amr"):

@@ -119,32 +119,6 @@ public:
         });
     }
 
-    template <class F>
-    void ParallelForModes (const amrex::Box& bx, F&& f) const
-    {
-        int length[AMREX_SPACEDIM];
-        Set::Scalar kscale[AMREX_SPACEDIM];
-        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
-        {
-            length[dir] = m_length[dir];
-            kscale[dir] = m_kscale[dir];
-        }
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
-            Set::Scalar k1 = K(0, m, length, kscale);
-            Set::Scalar k2 = 0.0;
-            Set::Scalar k3 = 0.0;
-#if AMREX_SPACEDIM >= 2
-            k2 = (n <= (length[1]-1)/2 ? n : n-length[1]) * kscale[1];
-#endif
-#if AMREX_SPACEDIM >= 3
-            k3 = (p <= (length[2]-1)/2 ? p : p-length[2]) * kscale[2];
-#endif
-            Set::Scalar omega2 = k1*k1 + k2*k2 + k3*k3;
-            f(m, n, p, k1, k2, k3, omega2);
-        });
-    }
-
     void Forward (const amrex::MultiFab& in, amrex::FabArray<amrex::BaseFab<Set::Complex> >& out, int scomp = 0, int dcomp = 0)
     {
         m_fft.forward(in, out, scomp, dcomp);

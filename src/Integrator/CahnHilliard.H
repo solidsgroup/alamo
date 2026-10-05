@@ -26,8 +26,10 @@
 //
 // where :math:`\mu=\eta^3-\eta-\gamma\nabla^2\eta` and
 // :math:`M_0` is :code:`mobility_floor` (default zero).
-// The realspace method uses conservative face fluxes; the spectral method
-// stabilizes the flux divergence with :code:`spectral_stabilization`, default
+// Both SDCH methods use conservative face fluxes and the same discrete Laplacian.
+// The spectral method applies the Fourier multiplier :math:`1/(1+\Delta t S D^2)`
+// to the increment, where :math:`D` is the negative discrete Laplacian symbol
+// and :math:`S` is :code:`spectral_stabilization`, default
 // :math:`\gamma(L/16+M_0)`. SDCH requires periodic boundaries. Its spectral
 // method assembles a uniform finest-level grid and restricts the update to
 // the AMR hierarchy; realspace AMR has no flux refluxing at coarse/fine interfaces.

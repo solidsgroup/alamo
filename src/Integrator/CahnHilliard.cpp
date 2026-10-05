@@ -130,6 +130,25 @@ Set::Scalar DegenerateMobility(Set::Scalar eta, Set::Scalar L, Set::Scalar floor
     return L * alpha * alpha * (1.0 - alpha) * (1.0 - alpha) + floor;
 }
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Set::Scalar ConservativeRHS(const amrex::Array4<const amrex::Real>& eta,
+                            const amrex::Array4<const amrex::Real>& mu,
+                            int i, int j, int k, const Set::Scalar* dx,
+                            Set::Scalar L, Set::Scalar floor)
+{
+    const Set::Scalar M = DegenerateMobility(eta(i,j,k), L, floor);
+    Set::Scalar rhs = 0.0;
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+    {
+        const int di = dir == 0, dj = dir == 1, dk = dir == 2;
+        const Set::Scalar plus = 0.5 * (M + DegenerateMobility(eta(i+di,j+dj,k+dk), L, floor));
+        const Set::Scalar minus = 0.5 * (M + DegenerateMobility(eta(i-di,j-dj,k-dk), L, floor));
+        rhs += (plus * (mu(i+di,j+dj,k+dk) - mu(i,j,k))
+                - minus * (mu(i,j,k) - mu(i-di,j-dj,k-dk))) / (dx[dir] * dx[dir]);
+    }
+    return rhs;
+}
+
 void ChemicalPotential(const amrex::MultiFab& eta_mf, amrex::MultiFab& mu_mf,
                         const amrex::Geometry& geometry, Set::Scalar gamma)
 {
@@ -176,17 +195,7 @@ CahnHilliard::AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt)
         const auto next = etanew_mf[lev]->array(mfi);
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const Set::Scalar M = DegenerateMobility(eta(i,j,k), L_local, floor);
-            Set::Scalar rhs = 0.0;
-            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
-            {
-                const int di = dir == 0, dj = dir == 1, dk = dir == 2;
-                const Set::Scalar plus = 0.5 * (M + DegenerateMobility(eta(i+di,j+dj,k+dk), L_local, floor));
-                const Set::Scalar minus = 0.5 * (M + DegenerateMobility(eta(i-di,j-dj,k-dk), L_local, floor));
-                rhs += (plus * (mu(i+di,j+dj,k+dk) - mu(i,j,k))
-                        - minus * (mu(i,j,k) - mu(i-di,j-dj,k-dk))) / (dx[dir] * dx[dir]);
-            }
-            next(i,j,k) = eta(i,j,k) + dt * rhs;
+            next(i,j,k) = eta(i,j,k) + dt * ConservativeRHS(eta, mu, i, j, k, dx.data(), L_local, floor);
         });
     }
     etanew_mf[lev]->FillBoundary(geom[lev].periodicity());
@@ -209,7 +218,7 @@ CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar 
     amrex::Vector<amrex::MultiFab*> potential_hierarchy(lev + 1);
     for (int ilev = 0; ilev <= lev; ++ilev) potential_hierarchy[ilev] = intermediate[ilev].get();
     FFT::UniformToComposite(mu_mf, potential_hierarchy, geom, refRatio(), lev, 1);
-    amrex::MultiFab flux_mf(eta_mf->boxArray(), eta_mf->DistributionMap(), AMREX_SPACEDIM, 0);
+    amrex::MultiFab rhs_mf(eta_mf->boxArray(), eta_mf->DistributionMap(), 1, 0);
     const auto dx = geom[lev].CellSizeArray();
     const Set::Scalar L_local = L;
     const Set::Scalar floor = mobility_floor;
@@ -217,42 +226,38 @@ CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar 
     {
         const auto eta = eta_mf->const_array(mfi);
         const auto mu = mu_mf.const_array(mfi);
-        const auto flux = flux_mf.array(mfi);
+        const auto rhs = rhs_mf.array(mfi);
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar M = DegenerateMobility(eta(i,j,k), L_local, floor);
-            Set::Vector grad_mu = Numeric::Gradient(mu, i, j, k, 0, dx.data());
-            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) flux(i,j,k,dir) = M * grad_mu(dir);
+            // Face gradients and their adjoint divergence dissipate the discrete energy.
+            rhs(i,j,k) = ConservativeRHS(eta, mu, i, j, k, dx.data(), L_local, floor);
         });
     }
     auto eta_hat_mf = fft.MakeSpectralFab();
-    auto flux_hat_mf = fft.MakeSpectralFab(AMREX_SPACEDIM);
+    auto rhs_hat_mf = fft.MakeSpectralFab();
     fft.Forward(*eta_mf, eta_hat_mf);
-    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) fft.Forward(flux_mf, flux_hat_mf, dir, dir);
+    fft.Forward(rhs_mf, rhs_hat_mf);
     const Set::Scalar S = spectral_stabilization;
-    const Set::Complex I(0.0, 1.0);
     const auto length = geom[lev].Domain().length3d();
     for (amrex::MFIter mfi(eta_hat_mf, false); mfi.isValid(); ++mfi)
     {
         const auto eta_hat = eta_hat_mf.array(mfi);
-        const auto flux_hat = flux_hat_mf.const_array(mfi);
-        fft.ParallelForModes(mfi.tilebox(), [=] AMREX_GPU_DEVICE(
-            int m, int n, int p, Set::Scalar k1, Set::Scalar k2, Set::Scalar k3, Set::Scalar omega2)
+        const auto rhs_hat = rhs_hat_mf.const_array(mfi);
+        amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int m, int n, int p)
         {
-            amrex::ignore_unused(k2, k3);
-            // A real Fourier derivative vanishes at even-grid Nyquist modes.
-            if (length[0] % 2 == 0 && m == length[0]/2) k1 = 0.0;
-#if AMREX_SPACEDIM >= 2
-            if (length[1] % 2 == 0 && n == length[1]/2) k2 = 0.0;
+            // The face-flux Laplacian symbol includes both odd-grid and Nyquist modes.
+            const Set::Scalar sx = std::sin(Set::Constant::Pi * m / length[0]);
+            const Set::Scalar sy = std::sin(Set::Constant::Pi * n / length[1]);
+            amrex::ignore_unused(p);
+#if AMREX_SPACEDIM == 3
+            const Set::Scalar sz = std::sin(Set::Constant::Pi * p / length[2]);
 #endif
-#if AMREX_SPACEDIM >= 3
-            if (length[2] % 2 == 0 && p == length[2]/2) k3 = 0.0;
-#endif
-            Set::Complex div_flux = AMREX_D_TERM(I * k1 * flux_hat(m,n,p,0),
-                                                + I * k2 * flux_hat(m,n,p,1),
-                                                + I * k3 * flux_hat(m,n,p,2));
-            // Keeping the zero mode unchanged conserves the mean without clipping.
-            eta_hat(m,n,p) += dt * div_flux / (1.0 + dt * S * omega2 * omega2);
+            const Set::Scalar lap = AMREX_D_TERM(4.0 * sx*sx / (dx[0]*dx[0]),
+                                                + 4.0 * sy*sy / (dx[1]*dx[1]),
+                                                + 4.0 * sz*sz / (dx[2]*dx[2]));
+            // Set the conserved mode exactly; the face flux sum is zero up to roundoff.
+            if (m != 0 || n != 0 || p != 0)
+                eta_hat(m,n,p) += dt * rhs_hat(m,n,p) / (1.0 + dt * S * lap * lap);
         });
     }
     fft.Backward(eta_hat_mf, *eta_mf);
