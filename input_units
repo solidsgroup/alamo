@@ -27,7 +27,7 @@ crack.refinement_threshold = 0.1
 crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
-crack.df.mult_Gc = 0.3
+crack.df.mult_Gc = 0.1
 crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
@@ -51,14 +51,22 @@ crack.model2.wtype = wu
 crack.model2.threshold = 1.0
 
 # Tension notch testing
-crack.ic.type = notch
-crack.ic.notch.center = -0.125_m 0_m
-crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.035_m
-crack.ic.notch.thickness = 2.e-3_m
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.125_m 0_m
+#crack.ic.notch.orientation = 1 0
+#crack.ic.notch.length = 0.035_m
+#crack.ic.notch.thickness = 2.e-3_m
 
 crack.ic.notch.eps = 5.e-4
 crack.ic.notch.mollifier = erf
+#crack.ic.type = png
+#crack.ic.png.filename = "crack_blurred.png"
+#crack.ic.png.fit = coord
+#crack.ic.png.coord.lo = -0.125 0.125
+#crack.ic.png.coord.hi = 0.125 -0.125
+#crack.ic.png.channel = r
+crack.ic.type = constant
+crack.ic.constant.value = 1.0
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -66,8 +74,11 @@ crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
 material.ic.type = png
-material.ic.png.filename = "sandwich.png"#"test_image_hmx_3.png"
-material.ic.png.fit = stretch
+material.ic.png.filename = "output_red_nonblue_blurred.png"
+#material.ic.png.fit = stretch
+material.ic.png.fit = coord
+material.ic.png.coord.lo = -0.125 0.125
+material.ic.png.coord.hi = 0.125 -0.125
 material.ic.png.channel = b
 
 #material.model1.type = isotropic
@@ -91,9 +102,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 8e-5_m 
-bc.constant.val.xloyhi =    0.0 8e-5_m 
-bc.constant.val.xhiyhi =    0.0 8e-5_m
+bc.constant.val.yhi =       0.0 -2e-4_m 
+bc.constant.val.xloyhi =    0.0 -2e-4_m 
+bc.constant.val.xhiyhi =    0.0 -2e-4_m
 
 #
 # Solver inputs
