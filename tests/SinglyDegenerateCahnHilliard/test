@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Check conservation, dissipation, pure phases, and Fourier-mode evolution."""
+import sys
+from pathlib import Path
+
+import numpy as np
+import yt
+
+yt.set_log_level(50)
+outdir = Path(sys.argv[1])
+case = sys.argv[2]
+plots = sorted(outdir.glob("*cell"))
+assert len(plots) >= 2, "Missing initial/final plotfiles"
+
+
+def read(path):
+    ds = yt.load(str(path))
+    level = ds.index.max_level
+    dimensions = ds.domain_dimensions.copy()
+    dimensions[:ds.dimensionality] *= 2**level
+    grid = ds.covering_grid(level, ds.domain_left_edge, dimensions)
+    eta = np.asarray(grid[("boxlib", "eta")]).squeeze()
+    dx = np.asarray(ds.domain_width)[:eta.ndim] / np.array(eta.shape)
+    return ds, eta, dx
+
+
+def energy(eta, dx):
+    density = 0.25 * (eta**2 - 1)**2
+    for axis, h in enumerate(dx):
+        density += 0.005 * ((np.roll(eta, -1, axis) - eta) / h)**2
+    return density.mean()
+
+
+def mean(ds):
+    cells = ds.all_data()
+    volumes = cells[("index", "cell_volume")]
+    return float((cells[("boxlib", "eta")] * volumes).sum() / volumes.sum())
+
+
+initial_ds, initial, dx = read(plots[0])
+final_ds, final, _ = read(plots[-1])
+assert np.isfinite(final).all(), "Nonfinite SDCH solution"
+if case != "amr-real":
+    assert abs(mean(final_ds) - mean(initial_ds)) < 2e-12, "SDCH changed the mean"
+assert float(final_ds.current_time) > float(initial_ds.current_time)
+
+if case.startswith("stationary"):
+    np.testing.assert_allclose(final, initial, rtol=0, atol=2e-13)
+elif case.startswith("linear"):
+    # Linearize around eta=0.15. A product of cosines is a Laplacian eigenmode.
+    base = 0.15
+    alpha = (base + 1) / 2
+    floor = 0.0125 if case.endswith("floor") else 0.0
+    mobility = alpha**2 * (1-alpha)**2 + floor
+    widths = np.asarray(initial_ds.domain_width)[:initial.ndim]
+    modes = np.ones(initial.ndim)
+    if case == "linear-odd":
+        modes[1] = 15
+    wave = 2*np.pi*modes/widths
+    lap = np.sum(4*np.sin(wave*dx/2)**2/dx**2)
+    curvature = 3*base**2 - 1 + 0.01*lap
+    potential = np.asarray(final_ds.covering_grid(0, final_ds.domain_left_edge,
+                                                  final_ds.domain_dimensions)[("boxlib", "int")]).squeeze()
+    expected_potential = base**3 - base + (initial-base) * curvature
+    np.testing.assert_allclose(potential, expected_potential, rtol=0, atol=1e-12)
+    spectral = "spectral" in outdir.name
+    rate = -mobility * lap * curvature
+    if spectral:
+        stabilizer = 0.01 * (1/16 + floor)
+        rate /= 1 + 1e-5 * stabilizer * lap**2
+    expected = base + (initial-base) * (1 + 1e-5*rate)
+    np.testing.assert_allclose(final, expected, rtol=0, atol=1e-13)
+    assert np.max(abs(final-initial)) > 1e-11, "Fourier mode did not evolve"
+elif case == "strong-mobility":
+    # This grid-scale field previously evolved uphill even as dt tended to zero.
+    mobility = ((1-initial**2) / 4)**2
+    assert mobility.max() / mobility.min() > 1e6, "Weak mobility variation"
+    mu = initial**3 - initial
+    for axis, h in enumerate(dx):
+        mu -= 0.01 * (np.roll(initial, -1, axis) - 2*initial
+                      + np.roll(initial, 1, axis)) / h**2
+    dissipation = 0.0
+    for axis, h in enumerate(dx):
+        face_mobility = (mobility + np.roll(mobility, -1, axis)) / 2
+        dissipation += np.mean(face_mobility * ((np.roll(mu, -1, axis)-mu)/h)**2)
+    dt = float(final_ds.current_time - initial_ds.current_time)
+    energies = [energy(read(path)[1], dx) for path in plots]
+    assert np.all(np.diff(energies) < 0), "Strong-mobility SDCH increased energy"
+    observed = (energies[-1] - energies[0]) / dt
+    # At small dt, the discrete energy derivative is minus the squared face gradients.
+    np.testing.assert_allclose(observed, -dissipation, rtol=2e-3, atol=0)
+    print(f"energy change: {energies[-1]-energies[0]:.12g}; rate: {observed:.12g}")
+elif case.startswith("checkerboard"):
+    # For eta=b+a*s, s=+/-1, every active face sees the same mean mobility.
+    base, amplitude = 0.15, 0.01
+    axes = case.split("-")[-1]
+    lap = sum(4 / dx["xyz".index(axis)]**2 for axis in axes)
+    dt = 1e-5
+    steps = round(float(final_ds.current_time) / dt)
+    for _ in range(steps):
+        mobility = sum(((1-eta**2)/4)**2 for eta in (base+amplitude, base-amplitude)) / 2
+        curvature = 3*base**2 - 1 + amplitude**2 + 0.01*lap
+        amplitude *= 1 - dt*mobility*lap*curvature / (1 + dt*0.01/16*lap**2)
+    np.testing.assert_allclose(final, base+(initial-base)*amplitude/0.01, rtol=0, atol=2e-13)
+    assert np.max(abs(final-base)) < 0.0099, "Checkerboard mode did not decay"
+    assert energy(final, dx) < energy(initial, dx), "Checkerboard energy did not decay"
+else:
+    assert np.max(abs(final-initial)) > 1e-7, "SDCH field did not evolve"
+    if case.startswith("amr"):
+        assert initial_ds.index.max_level == 1, "AMR regression did not refine"
+        fine_cells = sum(np.prod(g.ActiveDimensions) for g in initial_ds.index.grids if g.Level == 1)
+        assert 0 < fine_cells < np.prod(initial_ds.domain_dimensions[:initial.ndim] * 2), "AMR regression missed partial coverage"
+    else:
+        assert energy(final, dx) < energy(initial, dx), "SDCH failed to dissipate energy"
+print(f"{case}: verified SDCH evolution")
