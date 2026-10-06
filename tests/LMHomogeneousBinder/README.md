@@ -31,6 +31,11 @@ Supply the six constituent kinetic/heat parameters under `homogeneous`:
 | `binder_heat_release` | Binder condensed decomposition Q | J/kg |
 | `ap_heat_release` | AP condensed decomposition Q | J/kg |
 
+The regression input also exercises the preferred material-level form:
+`AP_solid.pyrolysis.*` and `binder_solid.pyrolysis.*`.  LowMach derives the
+same effective homogeneous A, E/R, and Q from those pure-material values;
+the read-only check script verifies the derived metadata and one-step result.
+
 These require a calibration appropriate to the surface-flux discretization.
 The numerical values in `input` are artificial regression-test parameters.
 Allen–Cahn rate multipliers from other branches are not speeds and must not

@@ -18,6 +18,9 @@ volume_fraction = mass_fraction * 920 / (mass_fraction * 920 +
 blend_density = 1 / ((1 - mass_fraction) / 920 + mass_fraction / 1950)
 blend_cp = (1 - mass_fraction) * 2130 + mass_fraction * 1297.9
 blend_heat = -4184 * ((1 - mass_fraction) * 66 + mass_fraction * 100)
+blend_speed_prefactor = 2**(1-volume_fraction) * 5**volume_fraction
+blend_activation_temperature = (1-volume_fraction) * 1000 + \
+    volume_fraction * 2000
 # Independent closed-form physical root of Chen's 2D conductivity equation.
 conductivity_ratio = 0.4186 / 0.213
 coefficient = (1 - volume_fraction) * (1 - conductivity_ratio)
@@ -39,6 +42,18 @@ np.testing.assert_allclose(initial["thermal_conductivity_coeff"].v,
                            eta * blend_conductivity + ap_eta * 0.4186 +
                            (1 - eta - ap_eta) * 0.1,
                            rtol=2e-12)
+
+# Material-level AP/binder pyrolysis inputs must produce the same effective
+# mechanism parameters used below by the phase-change update.  These metadata
+# checks catch a silent fallback to a pure binder parameter or an incorrect
+# mass-vs-volume weighting before the one-step integral is examined.
+prefix = "binder_regression.phase_change."
+np.testing.assert_allclose(float(parameters[prefix + "pre_exponential_speed"]),
+                           blend_speed_prefactor, rtol=2e-12)
+np.testing.assert_allclose(float(parameters[prefix + "activation_temperature"]),
+                           blend_activation_temperature, rtol=2e-12)
+np.testing.assert_allclose(float(parameters[prefix + "coupled_enthalpy_change"]),
+                           -blend_heat, rtol=2e-12)
 
 released = initial["component_density_binder_solid"].v - final[
     "component_density_binder_solid"].v
@@ -75,13 +90,12 @@ np.testing.assert_allclose(np.sum(temperature_change * heat_capacity * volume),
 
 # The periodic planar layer has total variation 0.8. Its integrated mass
 # transfer is therefore rho*r*0.8 times the domain width, up to spatial error.
-speed = 2**(1-volume_fraction) * 5**volume_fraction * np.exp(
-    -((1-volume_fraction)*1000 + volume_fraction*2000) / 1000)
+speed = blend_speed_prefactor * np.exp(-blend_activation_temperature / 1000)
 dt = float(datasets[1].current_time - datasets[0].current_time)
 expected_mass = blend_density * speed * (1-ap_eta) * 0.8 * 0.125 * dt
 np.testing.assert_allclose(np.sum(released * volume), expected_mass, rtol=0.003)
 if ap_eta > 0:
-    expected_ap_mass = 1950 * np.exp(-2) * ap_eta * 0.8 * 0.125 * dt
+    expected_ap_mass = 1950 * 5 * np.exp(-2) * ap_eta * 0.8 * 0.125 * dt
     np.testing.assert_allclose(np.sum(ap_released * volume), expected_ap_mass,
                                rtol=0.003)
 print("Homogeneous endpoint/blend properties, dimensional speed, single binder "
