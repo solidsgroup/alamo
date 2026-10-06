@@ -95,7 +95,7 @@ For positive converted mass density dm and constant phase heat capacities::
 
 Heat capacities are obtained from the configured materials, not separate
 adjustable mechanism parameters. Gas thermodynamics must be ``gross_model``
-or ``cpconstant``; NIST and other temperature-dependent caloric models are
+or ``cpconstant``; temperature-dependent caloric models are
 rejected. The same temperature increment is included in the implicit kinetic
 solve. Final physical T still determines product EOS volume and the thermal
 volume change of pre-existing gas. ``phase_change_heat`` remains the explicit

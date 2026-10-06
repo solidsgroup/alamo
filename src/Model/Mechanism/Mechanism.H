@@ -6,7 +6,6 @@
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
-#include "Model/Solid/NISTAPThermo.H"
 #include "Model/Mechanism/SurfaceTemperature.H"
 #include "Util/Util.H"
 
@@ -25,7 +24,6 @@ struct State
     Set::Scalar pressure;
     Set::Scalar dt;
     Set::Scalar surface_temperature = NAN;
-    Model::Solid::NISTAPCaloricState caloric{};
 };
 
 // Compile-time mechanism interface.  Models inherit these neutral operations

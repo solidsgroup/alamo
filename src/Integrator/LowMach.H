@@ -111,7 +111,7 @@ public:
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
         const Set::Scalar*, const Set::Scalar*, const Set::Scalar*,
-        const Set::Scalar*, const Set::Scalar*, int, Set::Scalar>;
+        const Set::Scalar*, const Set::Scalar*>;
     using ChemistryData = amrex::GpuTuple<
         bool, Model::Chemistry::GrossModel, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
@@ -131,11 +131,6 @@ public:
         Set::Patch<const Set::Scalar> component_density,
         Set::Scalar temperature, int i, int j, int k,
         const ThermalData& data);
-
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    static Model::Solid::NISTAPCaloricState CaloricState(
-        Set::Patch<const Set::Scalar> density, Set::Scalar T,
-        int i, int j, int k, const ThermalData& data);
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static
@@ -233,8 +228,6 @@ protected:
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
-    int nist_ap_species = -1;
-    Set::Scalar nist_ap_transition_width = 2.0;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;
     Model::Chemistry::SpeciesArray condensed_temperature_override;

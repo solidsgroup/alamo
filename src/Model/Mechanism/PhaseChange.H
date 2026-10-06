@@ -645,8 +645,7 @@ public:
                             phase1_mass_fractions[n]);
         }
 
-        if (reference_enthalpy &&
-            (!std::isfinite(reactant_minus_product_cp) || state.caloric.Enabled()))
+        if (reference_enthalpy && !std::isfinite(reactant_minus_product_cp))
             Util::Abort(INFO, "reference_enthalpy requires configured constant phase heat capacities");
         const auto thermal_increment = [=] AMREX_GPU_DEVICE(
             Set::Scalar mass_change, Set::Scalar heat)
@@ -654,7 +653,7 @@ public:
             return reference_enthalpy ? ReferenceEnthalpyDeltaT(old_temperature, heat,
                 heat_capacity, mass_change, reactant_minus_product_cp,
                 enthalpy_reference_temperature) :
-                state.caloric.DeltaT(old_temperature, heat, heat_capacity);
+                heat / heat_capacity;
         };
         const auto kinetic_mass_flux =
             [=] AMREX_GPU_DEVICE(Set::Scalar mass_change)

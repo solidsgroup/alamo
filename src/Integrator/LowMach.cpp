@@ -236,24 +236,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 std::string caloric_model;
                 pp.query_default(name + ".thermal_model", caloric_model,
                     "constant_cp");
-                if (caloric_model == "nist_ap_shomate")
-                {
-                    if (name != "AP_solid" || mechanics != "rigid_solid" ||
-                        value.nist_ap_species >= 0)
-                        Util::Exception(INFO,
-                            "NIST diagnostic requires one rigid AP_solid species");
-                    value.nist_ap_species = n;
-                    if (value.condensed_temperature_override[n] >= 0.0)
-                        Util::Exception(INFO,
-                            "NIST AP enthalpy cannot use a prescribed temperature override");
-                    pp.query_default(name + ".nist_ap.transition_width",
-                        value.nist_ap_transition_width, "2_K", Unit::Temperature());
-                    if (!(value.nist_ap_transition_width >= 0.1 &&
-                          value.nist_ap_transition_width <= 20.0))
-                        Util::Exception(INFO,
-                            "NIST transition_width must be in [0.1,20] K");
-                }
-                else if (caloric_model != "constant_cp")
+                if (caloric_model != "constant_cp")
                     Util::Exception(INFO, "Unknown condensed thermal_model: ", caloric_model);
             }
         }
@@ -462,9 +445,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (infer_A || pp.contains(prefix + "reference_heat_flux") ||
             pp.contains(prefix + "reference_initial_temperature"))
         {
-            if (n == value.nist_ap_species)
-                Util::Exception(INFO, prefix,
-                    "NIST AP requires explicit A/Ea; the Chen reference helper assumes constant cp");
             Set::Scalar q, T0;
             pp.query_required(prefix + "reference_heat_flux", q,
                               Unit::Energy() / Unit::Area() / Unit::Time());
@@ -524,9 +504,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         bool homogeneous;
         pp.query_default(prefix + "homogeneous", homogeneous, false);
         if (!homogeneous) continue;
-        if (value.nist_ap_species >= 0)
-            Util::Exception(INFO,
-                "NIST AP enthalpy does not support homogeneous-binder substitution");
 
         std::string binder_name, ap_name, kinetics;
         std::vector<std::string> gas_products;
@@ -788,9 +765,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (pp.contains(prefix + "chen_reference.heat_flux") ||
             pp.contains(prefix + "chen_reference.initial_temperature"))
         {
-            if (value.nist_ap_species >= 0)
-                Util::Exception(INFO, prefix,
-                    "Chen reference helpers assume constant cp and cannot be used with NIST AP");
             Set::Scalar q, T0, A, Ta, enthalpy, latent, Ts, rate;
             pp.query_required(prefix + "chen_reference.heat_flux", q,
                               Unit::Energy() / Unit::Area() / Unit::Time());
@@ -1100,7 +1074,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         if (value.mechanisms[n].UsesReferenceEnthalpy())
         {
             const auto thermo_name = value.gas.thermo.model_name();
-            if (value.nist_ap_species >= 0 || !value.condensed_thermal_transport ||
+            if (!value.condensed_thermal_transport ||
                 (std::strcmp(thermo_name, Model::Gas::Thermo::GrossModel::name) != 0 &&
                  std::strcmp(thermo_name, Model::Gas::Thermo::CpConstant::name) != 0))
                 Util::Exception(INFO,
@@ -1124,7 +1098,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.conservative_solid_transport = value.has_kinetic_phase_change &&
         !value.fixed_rigid_solid_species.empty() && value.free_rigid_solid_species.empty() &&
         value.deformable_solid_species < 0 && value.liquid_species.empty();
-    if ((value.has_equilibrium_phase_change || value.nist_ap_species >= 0) &&
+    if (value.has_equilibrium_phase_change &&
         value.implicit_thermal_diffusion)
     {
         pp.query_default("diffusion.enthalpy.max_iterations",
@@ -1371,26 +1345,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         std::strcmp(
             value.chemistry.model_name(),
             Model::Chemistry::GrossModel::name) == 0;
-    if (value.nist_ap_species >= 0)
-    {
-#ifdef ALAMO_GPU
-        Util::Exception(INFO, "NIST AP diagnostic has only been validated on CPU");
-#endif
-        if (value.deformable_solid_species >= 0 || !value.liquid_species.empty() ||
-            !value.free_rigid_solid_species.empty() || value.has_equilibrium_phase_change)
-            Util::Exception(INFO,
-                "NIST diagnostic supports stationary rigid solids without other equilibrium mechanisms");
-        for (const auto& velocity : value.rigid_velocity)
-            if (velocity.squaredNorm() != 0.0)
-                Util::Exception(INFO,
-                    "NIST AP enthalpy currently requires zero prescribed rigid-solid velocity");
-        if (!pp.contains("gas.thermo.type") ||
-            std::strcmp(value.gas.thermo.model_name(),
-                Model::Gas::Thermo::GrossModel::name) != 0)
-            Util::Exception(INFO, "NIST AP diagnostic requires constant-cp Gross gas thermo");
-        if (value.chemistry.Reactive() && !gross_model_chemistry)
-            Util::Exception(INFO, "NIST AP diagnostic requires Gross or frozen chemistry");
-    }
 #ifdef ALAMO_GPU
     if (value.chemistry.Reactive() && !gross_model_chemistry)
         Util::Exception(
@@ -1445,8 +1399,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.density_floor, value.pressure_reference,
         value.condensed_thermal_transport,
         specific_heat, thermal_conductivity, inverse_reference_density,
-        liquid_inverse_reference_density, dynamic_viscosity,
-        value.nist_ap_species, value.nist_ap_transition_width};
+        liquid_inverse_reference_density, dynamic_viscosity};
     value.chemistry_device_data = {
         gross_model_chemistry,
         value.chemistry.Get<Model::Chemistry::GrossModel>(),
@@ -4027,8 +3980,7 @@ LowMach::AdvanceChemistry(int lev, amrex::MultiFab& T_mf,
 #else
             auto result = host_chemistry->Advance(
                 dt * chemistry_weight, p_reference, mixture_density,
-                ngas, rhoY, temperature, host_gas,
-                CaloricState(component_density, temperature, i,j,k, thermal));
+                ngas, rhoY, temperature, host_gas);
 #endif
             if (!result.converged)
                 Util::Abort(INFO, "Local chemistry integration failed at ",
@@ -4061,7 +4013,7 @@ LowMach::ComputeThermalState(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity, nist_species, nist_width] = data;
+                 condensed_dynamic_viscosity] = data;
     (void)liquid_inverse_reference_density;
     (void)condensed_dynamic_viscosity;
     Set::Scalar gas_density = 0.0;
@@ -4107,29 +4059,13 @@ LowMach::ComputeThermalState(
         // content without modifying the conserved partial density itself.
         const Set::Scalar partial_density = Util::Max(
             component_density(i,j,k,n), 0.0);
-        heat_capacity += partial_density *
-            (n == nist_species ? Model::Solid::NISTAPThermo::Cp(temperature,nist_width) :
-                condensed_specific_heat[n]);
+        heat_capacity += partial_density * condensed_specific_heat[n];
         conductivity += partial_density *
             condensed_inverse_reference_density[n] *
             condensed_thermal_conductivity[n];
     }
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
             conductivity, cp};
-}
-
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-Model::Solid::NISTAPCaloricState
-LowMach::CaloricState(Set::Patch<const Set::Scalar> density, Set::Scalar T,
-    int i, int j, int k, const ThermalData& data)
-{
-    const int species=amrex::get<11>(data);
-    if (species<0) return {};
-    const double rho=Util::Max(density(i,j,k,species),0.0);
-    const double width=amrex::get<12>(data);
-    const auto state=ComputeThermalState(density,T,i,j,k,data);
-    const double capacity=amrex::get<2>(state);
-    return {rho,Util::Max(capacity-rho*Model::Solid::NISTAPThermo::Cp(T,width),0.0),width};
 }
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -4144,9 +4080,7 @@ LowMach::ComputeViscosity(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity, nist_species, nist_width] = data;
-    (void)nist_species;
-    (void)nist_width;
+                 condensed_dynamic_viscosity] = data;
     (void)density_floor;
     (void)pressure_reference;
     (void)condensed_thermal_transport;
@@ -4655,8 +4589,7 @@ LowMach::ApplyKineticPhaseChange(Set::Scalar time, Set::Scalar dt)
                         const Model::Mechanism::State state = {
                             component_density_state, rigid_eta,
                             rigid_species_eta, temperature(i,j,k),
-                            p_reference, dt, surface_temperature,
-                            CaloricState(component_density_state,temperature(i,j,k),i,j,k,thermal)};
+                            p_reference, dt, surface_temperature};
                         auto [mass_change, volume_change,
                             surface_mass_flux, surface_volume_flux] =
                             mechanism.ApplyKineticChange(
@@ -5088,22 +5021,12 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar* condensed_conductivity =
             amrex::get<7>(thermal_data);
         Set::Field<Set::Scalar> accumulated_conductive_energy(nlev);
-        const bool nist_thermal = nist_ap_species >= 0;
-        Set::Field<Set::Scalar> nist_entry_temperature(nlev);
         for (int lev = 0; lev < nlev; ++lev)
         {
             accumulated_conductive_energy.Define(
                 lev, temperature_mf[lev]->boxArray(),
                 temperature_mf[lev]->DistributionMap(), 1, 0);
             accumulated_conductive_energy[lev]->setVal(0.0);
-            if (nist_thermal)
-            {
-                nist_entry_temperature.Define(lev,
-                    temperature_mf[lev]->boxArray(),
-                    temperature_mf[lev]->DistributionMap(),1,0);
-                amrex::MultiFab::Copy(*nist_entry_temperature[lev],
-                    *temperature_mf[lev],0,0,1,0);
-            }
             if (tensor_conductivity)
                 diffusion.TensorMobility(lev, 1).setVal(0.0);
         }
@@ -5130,7 +5053,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
             enthalpy_relative_tolerance;
         const Set::Scalar absolute_tolerance =
             enthalpy_absolute_tolerance;
-        const bool nonlinear_enthalpy = has_equilibrium_phase_change || nist_thermal;
+        const bool nonlinear_enthalpy = has_equilibrium_phase_change;
         const int number_of_iterations = nonlinear_enthalpy ?
             maximum_enthalpy_iterations : 1;
         bool enthalpy_converged = !nonlinear_enthalpy;
@@ -5268,26 +5191,13 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                         temperature_mf.Patch(lev,mfi);
                     Set::Patch<Set::Scalar> conductive_energy =
                         accumulated_conductive_energy.Patch(lev,mfi);
-                    Set::Patch<const Set::Scalar> entry_T;
-                    if (nist_thermal) entry_T=nist_entry_temperature.Patch(lev,mfi);
-                    Set::Patch<const Set::Scalar> density=
-                        component_density_mf.Patch(lev,mfi);
                     amrex::ParallelFor(
                         bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
                             conductive_energy(i,j,k) += capacity(i,j,k) *
                                 (solved_temperature(i,j,k) -
                                  temperature(i,j,k));
-                            if (nist_thermal)
-                            {
-                                const auto caloric=CaloricState(density,
-                                    temperature(i,j,k),i,j,k,thermal);
-                                temperature(i,j,k)=caloric.Temperature(
-                                    entry_T(i,j,k),conductive_energy(i,j,k));
-                                if (!std::isfinite(temperature(i,j,k)))
-                                    Util::Abort(INFO,"NIST conduction enthalpy inverse failed");
-                            }
-                            else temperature(i,j,k)=solved_temperature(i,j,k);
+                            temperature(i,j,k) = solved_temperature(i,j,k);
                         });
                 }
             }
@@ -5373,8 +5283,6 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                         temperature_mf.Patch(lev,mfi);
                     Set::Patch<Set::Scalar> conductive_energy =
                         accumulated_conductive_energy.Patch(lev,mfi);
-                    Set::Patch<const Set::Scalar> entry_T;
-                    if (nist_thermal) entry_T=nist_entry_temperature.Patch(lev,mfi);
                     amrex::GpuArray<amrex::Array4<const Set::Scalar>,
                                     AMREX_SPACEDIM> face;
                     for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -5411,16 +5319,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                             const Set::Scalar energy_correction =
                                 diffusion_diagonal * mismatch;
                             conductive_energy(i,j,k) += energy_correction;
-                            if (nist_thermal)
-                            {
-                                const auto caloric=CaloricState(component_density,
-                                    temperature(i,j,k),i,j,k,thermal);
-                                temperature(i,j,k)=caloric.Temperature(
-                                    entry_T(i,j,k),conductive_energy(i,j,k));
-                                if (!std::isfinite(temperature(i,j,k)))
-                                    Util::Abort(INFO,"NIST enthalpy accelerator inverse failed");
-                            }
-                            else temperature(i,j,k) += energy_correction/capacity;
+                            temperature(i,j,k) += energy_correction / capacity;
                         });
                 }
             }
@@ -5541,9 +5440,7 @@ LowMach::ComputeThermochemicalSource(
                  condensed_specific_heat, condensed_thermal_conductivity,
                  condensed_inverse_reference_density,
                  liquid_inverse_reference_density,
-                 condensed_dynamic_viscosity, nist_species, nist_width] = thermal;
-    (void)nist_species;
-    (void)nist_width;
+                 condensed_dynamic_viscosity] = thermal;
     (void)liquid_inverse_reference_density;
     (void)condensed_dynamic_viscosity;
 
