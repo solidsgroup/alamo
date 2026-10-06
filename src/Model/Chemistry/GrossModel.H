@@ -58,6 +58,11 @@ struct GrossModel
     std::array<Set::Scalar, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
     // Gross et al. Eq. (4): Q_Bind = cp (T_Bind - T0) - Q_Bind^S.
+    // Q_Bind^S is not applied here as a second condensed source. It converts
+    // the target total flame-temperature rise to a gas-reaction heat. LowMach
+    // replaces the pure-HTPB default below with the same effective blend Q
+    // that its phase-change mechanism applies, so the two terms cancel once
+    // in the complete solid-to-products energy balance.
     // T_Bind uses a five-coefficient AP/HTPB equilibrium fit over
     // phi=[0,71.766], T0=[200,500] K, and P=[0.5,150] atm. Phi follows the
     // Gross-model mass stoichiometry beta=7.974, so phi=1 is 88.86% AP and
@@ -66,7 +71,8 @@ struct GrossModel
     bool binder_equivalence_ratio_from_homogeneous_composition = true;
     Set::Scalar binder_equivalence_ratio = 1.0;
     Set::Scalar binder_initial_temperature = 300.0;
-    // The paper reports -300 cal/g for endothermic pure-HTPB decomposition.
+    // Pure-HTPB fallback for gas-only use. Coupled homogeneous materials
+    // overwrite this with their mass-weighted condensed decomposition heat.
     Set::Scalar binder_solid_heat_release = -300.0 * 4184.0;
     Set::Scalar binder_specific_heat = 0.3 * 4184.0;
     Set::Scalar pressure_reference = 100000.0;

@@ -151,8 +151,9 @@ CANTERA_TEMPERATURES = numpy.array(
      2997.3317879691244, 3137.5919460842397, 3156.9585418678357]
 )
 
-# Backward Euler with ten substeps provides the gas-only GrossModel reference;
-# condensed-phase heat is exercised separately through LowMach PhaseChange.
+# Backward Euler with ten substeps provides the gas-only GrossModel reference.
+# Its heat source excludes condensed decomposition heat, which is exercised
+# separately through LowMach PhaseChange.
 GROSS_MODEL_FINAL_MASS_FRACTIONS = numpy.array(
     [0.0, 0.0, 0.466528083, 0.0138619938, 0.207818794, 0.311791129]
 )

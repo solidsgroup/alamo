@@ -514,6 +514,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     std::vector<bool> homogeneous_solids(value.nspecies, false);
     std::vector<bool> homogeneous_ap_sources(value.nspecies, false);
     Set::Scalar gross_binder_ap_mass_fraction = NAN;
+    Set::Scalar gross_binder_solid_heat_release = NAN;
     for (const std::string& mechanism_name : mechanism_names)
     {
         std::string mechanism_type;
@@ -718,6 +719,16 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             ap_volume_fraction * ap_activation_temperature;
         const Set::Scalar blend_heat_release =
             (1.0 - ap_mass_fraction) * binder_heat_release + ap_mass_fraction * ap_heat_release;
+        if (gas_species == Model::Chemistry::GrossModel::Binder)
+        {
+            if (std::isfinite(gross_binder_solid_heat_release) &&
+                std::abs(gross_binder_solid_heat_release - blend_heat_release) >
+                    1.0e-12 * std::max(1.0, std::abs(blend_heat_release)))
+                Util::Exception(INFO, prefix, "all homogeneous mechanisms "
+                    "producing the GrossModel binder species must use the "
+                    "same effective condensed heat release");
+            gross_binder_solid_heat_release = blend_heat_release;
+        }
 
         // Expand the blend into the ordinary phase-change inputs, in the
         // normalized units returned by ParmParse. This adds no device state
@@ -815,6 +826,14 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         {
             gross_model->homogenized_ap_mass_fraction =
                 gross_binder_ap_mass_fraction;
+            // The condensed source itself is applied only by phase change.
+            // Gross Eq. (4) needs that same Q solely to derive the gas heat
+            // which, together with phase change, reaches the fitted total Tad.
+            gross_model->binder_solid_heat_release =
+                gross_binder_solid_heat_release;
+            amrex::Print().SetPrecision(17)
+                << "LowMach Gross binder condensed Q for gas-heat closure "
+                << gross_model->binder_solid_heat_release << "\n";
             if (gross_model->binder_adiabatic_heat_release &&
                 gross_model->binder_equivalence_ratio_from_homogeneous_composition)
             {
