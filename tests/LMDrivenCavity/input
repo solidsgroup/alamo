@@ -46,6 +46,8 @@
 #@ args=dynamictimestep.max=1.0e-4
 
 # LowMach Re=100 driven-cavity regression.
+# References use the implicit viscosity solve with physical Dirichlet wall values.
+# Both the 0.05 s and 10 s profiles use timestep=0.001 s.
 # No eta or solid mechanics are involved in this case; AMR is driven only by
 # the velocity-gradient refinement criterion.
 

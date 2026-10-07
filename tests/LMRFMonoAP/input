@@ -136,7 +136,6 @@ advection.type = muscl
 advection.muscl.limiter.type = minmod
 cfl = 0.8
 include_viscosity = 1
-implicit_viscosity = 1
 include_conduction = 1
 advect_temperature = 1
 projection.enabled = 1

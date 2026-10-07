@@ -113,10 +113,10 @@ migrated to nodes, but that path created widespread stencil, boundary, AMR, and
 projection inconsistencies and was reverted. The present method is collocated,
 not staggered.
 
-With explicit viscosity, the momentum predictor contains
+The explicit momentum predictor contains
 
 ```text
--u dot grad(u) + g + (mu/rho) laplacian(u)
+-u dot grad(u) + g
 + sign/rho * div(sigma_solid_dev).
 ```
 
@@ -127,8 +127,8 @@ correction back into the following predictor.
 The Newtonian viscosity from the gas transport model is applied throughout the
 mixture, including the solid region. The deformable-solid model can add a
 second solid viscosity and an interface-localized deviatoric damping stress.
-When `implicit_viscosity=1`, the Newtonian Laplacian is removed from this RHS
-and advanced by the composite diffusion solve described below. Elastic stress
+When `include_viscosity=1` (the default), Newtonian viscosity is advanced
+by the composite implicit diffusion solve described below. Elastic stress
 and solid/interface damping remain explicit.
 
 Partial densities use conservative advection,
@@ -166,9 +166,9 @@ sum of gas partial densities. Thermal and species diffusion contribute their
 integrated EOS volume change to the following pressure projection.
 
 Thermal conduction and common-coefficient Rocfire species diffusion are
-implicit automatically when active. Newtonian momentum diffusion is opt-in
-through `implicit_viscosity=1`; this preserves the established explicit cavity
-discretization for existing inputs. The AP/HTPB input enables all three.
+implicit automatically when active. Newtonian momentum diffusion is also
+implicit whenever `include_viscosity=1`; setting it to `0` disables that solve.
+The AP/HTPB input enables all three.
 
 For Dirichlet walls, the diffusion operator converts reflected cell-centered
 state ghosts to physical face values before calling AMReX's `setLevelBC`.

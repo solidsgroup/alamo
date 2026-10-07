@@ -52,12 +52,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         pp.queryclass("projection", value.pressure_poisson);
     }
     pp.query_default("include_viscosity", value.include_viscosity, true);
-    pp.query_default("implicit_viscosity", value.implicit_momentum_diffusion, false);
     pp.query_default("include_conduction", value.include_conduction, true);
     pp.query_default("advect_temperature", value.advect_temperature, true);
-    if (value.implicit_momentum_diffusion && !value.include_viscosity)
-        Util::Exception(INFO,
-            "implicit_viscosity requires include_viscosity=1");
 
     pp.queryclass<Model::Gas::Gas>("gas", value.gas);
     value.gas_device_data =
@@ -354,7 +350,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (value.phase_change_heat_enabled &&
         std::strcmp(value.chemistry.model_name(), Model::Chemistry::Rocfire::name) == 0)
         value.chemistry.Get<Model::Chemistry::Rocfire>().condensed_heat_in_phase_change = true;
-    if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
+    if (value.include_viscosity || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
         (!value.rigid_solid_species.empty() && !value.mechanisms.empty()))
         pp.queryclass("diffusion", value.diffusion);
@@ -1367,7 +1363,7 @@ void
 LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrator::LowMach::ApplyImplicitDiffusion");
-    if ((!implicit_momentum_diffusion && !implicit_thermal_diffusion &&
+    if ((!include_viscosity && !implicit_thermal_diffusion &&
         !implicit_species_diffusion) || !(dt > 0.0)) return;
 
     const int nlev = finest_level + 1;
@@ -1386,7 +1382,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
     diffusion.FillBoundary(
         component_density_mf, *component_density_bc, time, nspecies);
 
-    if (implicit_momentum_diffusion)
+    if (include_viscosity)
         diffusion.FillBoundary(
             velocity_mf, *velocity_bc, time, AMREX_SPACEDIM);
 
@@ -1562,7 +1558,7 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         diffusion.FillBoundary(temperature_mf, *temperature_bc, time, 1);
     }
 
-    if (implicit_momentum_diffusion)
+    if (include_viscosity)
     {
         diffusion.SetLayout(
             geom, refRatio(), velocity_mf, nlev, AMREX_SPACEDIM);
@@ -2269,14 +2265,11 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
-    const auto gas_data = gas_device_data;
     const auto thermal = thermal_data;
     const auto thermochemical = thermochemical_data;
     const auto advect_scheme = advect;
     const Set::Vector gravity = g;
     const Set::Scalar rho_floor = density_floor;
-    const bool explicit_viscosity =
-        include_viscosity && !implicit_momentum_diffusion;
     const Set::Scalar stress_sign =
         finite_solid_deviatoric_stress_divergence_sign;
     if (external_heat_source)
@@ -2291,8 +2284,6 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     {
         const amrex::Box& bx = mfi.tilebox();
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
-        Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
-        Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Matrix> solid_deviatoric_stress =
             solid_deviatoric_stress_mf.Patch(lev,mfi);
@@ -2302,9 +2293,6 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         {
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
-            Set::Scalar mu = explicit_viscosity ?
-                Model::Gas::Gas::DynamicViscosity(
-                    gas_data, T(i,j,k), component_density, i, j, k) : 0.0;
 
             Set::Vector div_sigma = Set::Vector::Zero();
             if (deformable_solid)
@@ -2314,15 +2302,12 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Vector adv_u = advect_scheme.Vector(
                 u, u, i, j, k, 0, dx.data(),
                 {Numeric::Advect::Form::Advective}, sten);
-            Set::Vector lap_u =
-                Numeric::VectorLaplacian(u, i, j, k, 0, dx.data());
 
             // Pressure is applied once by the nonincremental projection after
             // this predictor; including the stored pressure here feeds the
             // projection solution back into the next time step.
             Set::Vector rhs_vec = adv_u
                                 + gravity
-                                + (mu / density) * lap_u
                                 + (stress_sign / density) * div_sigma;
 
             // Put the result into the multicomponent field
@@ -2662,8 +2647,6 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
             const Set::Scalar rho_floor = density_floor;
-            const bool viscous =
-                include_viscosity && !implicit_momentum_diffusion;
             const bool conductive =
                 include_conduction && !implicit_thermal_diffusion;
             const bool species_diffusive =
@@ -2684,12 +2667,6 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
                 Set::Scalar nu = 0.0;
-                if (viscous)
-                {
-                    Set::Scalar mu = Model::Gas::Gas::DynamicViscosity(
-                        gas_data, T(i,j,k), component_density, i, j, k);
-                    nu = mu / Util::Max(rho(i,j,k), rho_floor);
-                }
                 if (conductive)
                 {
                     const Set::Scalar cp = Model::Gas::Gas::CpMass(

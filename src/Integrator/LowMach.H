@@ -229,7 +229,6 @@ protected:
     bool projection_update_pressure = true;
     bool include_viscosity = true;
     bool include_conduction = true;
-    bool implicit_momentum_diffusion = false;
     bool implicit_thermal_diffusion = false;
     bool implicit_species_diffusion = false;
     bool condensed_thermal_transport = false;
