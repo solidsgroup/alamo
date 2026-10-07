@@ -79,6 +79,20 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if (value.nspecies > Model::Chemistry::MAX_SPECIES)
         Util::Exception(INFO, "LowMach supports at most ",
                         Model::Chemistry::MAX_SPECIES, " total species");
+    std::vector<std::string> mechanism_names;
+    pp.queryarr_default("mechanisms.names", mechanism_names, {});
+    auto material_prefix = value.species_names;
+    for (const auto& id : mechanism_names)
+    {
+        bool homogeneous = false;
+        pp.query_default(id + ".phase_change.homogeneous", homogeneous, false);
+        if (!homogeneous) continue;
+        std::string binder;
+        pp.query_required(id + ".phase_change.in", binder);
+        for (int n = value.ngas_species; n < value.nspecies; ++n)
+            if (value.species_names[n] == binder)
+                material_prefix[n] = id + ".phase_change.homogeneous.htpb";
+    }
     for (int n = 0; n < value.nspecies; ++n)
     {
         const std::string& name = value.species_names[n];
@@ -118,19 +132,20 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         if (mechanics != "fluid")
         {
+            const auto& properties = material_prefix[n];
             const bool has_specific_heat =
-                pp.contains(name + ".specific_heat");
+                pp.contains(properties + ".specific_heat");
             const bool has_thermal_conductivity =
-                pp.contains(name + ".thermal_conductivity");
+                pp.contains(properties + ".thermal_conductivity");
             if (has_specific_heat != has_thermal_conductivity)
                 Util::Exception(INFO, name,
                     " requires both specific_heat and thermal_conductivity");
             if (has_specific_heat)
             {
-                pp.query_required(name + ".specific_heat",
+                pp.query_required(properties + ".specific_heat",
                     value.condensed_specific_heat[n],
                     Unit::SpecificHeatCapacity());
-                pp.query_required(name + ".thermal_conductivity",
+                pp.query_required(properties + ".thermal_conductivity",
                     value.condensed_thermal_conductivity[n],
                     Unit::ThermalConductivity());
                 if (!(value.condensed_specific_heat[n] > 0.0) ||
@@ -190,7 +205,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             Util::Exception(INFO, "rigid.relaxation_time must be positive");
         for (const int n : value.rigid_solid_species)
         {
-            pp.query_required(value.species_names[n] + ".reference_density",
+            pp.query_required(material_prefix[n] + ".reference_density",
                             value.reference_density[n], Unit::Density());
             if (value.reference_density[n] <= 0.0)
                 Util::Exception(INFO, value.species_names[n],
@@ -214,9 +229,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
     }
 
-    std::vector<std::string> mechanism_names;
-    pp.queryarr_default("mechanisms.names", mechanism_names, {});
     value.mechanisms.resize(mechanism_names.size());
+    bool homogeneous_rocfire = false;
+    for (const auto& id : mechanism_names)
+    {
+        bool homogeneous = false;
+        pp.query_default(id + ".phase_change.homogeneous", homogeneous, false);
+        homogeneous_rocfire = homogeneous_rocfire || homogeneous;
+    }
+    homogeneous_rocfire = homogeneous_rocfire &&
+        std::strcmp(value.chemistry.model_name(), Model::Chemistry::Rocfire::name) == 0;
+    const auto pure_density = value.reference_density;
+    const auto pure_specific_heat = value.condensed_specific_heat;
+    const auto pure_conductivity = value.condensed_thermal_conductivity;
     for (int n = 0; n < static_cast<int>(mechanism_names.size()); ++n)
     {
         const std::string& id = mechanism_names[n];
@@ -229,12 +254,106 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         for (int m = 0; m < n; ++m)
             if (id == mechanism_names[m])
                 Util::Exception(INFO, "Duplicate mechanism identifier ", id);
+        // Each mechanism reads pure constituent properties, independent of
+        // the order in which homogeneous binders are configured.
+        auto density = pure_density;
+        auto specific_heat = pure_specific_heat;
+        auto conductivity = pure_conductivity;
+        Set::Scalar default_heat_release = 0.0;
+        if (std::strcmp(value.chemistry.model_name(), Model::Chemistry::Rocfire::name) == 0)
+        {
+            // Resolved AP still owns its condensed heat when the gas model
+            // stops applying qsolid. Explicit phase heat overrides this default.
+            std::vector<std::string> products;
+            pp.queryarr_required(id + ".phase_change.out", products);
+            std::vector<Set::Scalar> fractions(products.size(), 1.0);
+            if (products.size() > 1)
+                pp.queryarr_required(id + ".phase_change.out.mass_fractions", fractions);
+            const auto& roc = value.chemistry.Get<Model::Chemistry::Rocfire>();
+            if (fractions.size() != products.size())
+                Util::Exception(INFO, "Phase-change product fractions must match products");
+            for (std::size_t p = 0; p < products.size(); ++p)
+                for (int gas = 0; gas < 2; ++gas)
+                    if (products[p] == value.species_names[gas])
+                        default_heat_release += fractions[p] * roc.qsolid[gas];
+        }
         pp.select<Model::Mechanism::PhaseChange>(
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
-                            value.rigid_solid_species, value.reference_density, value.gas.MW,
-                            value.gas.Rg));
+                            value.rigid_solid_species, density, value.gas.MW,
+                            value.gas.Rg, specific_heat.data(), conductivity.data(),
+                            default_heat_release));
+        // Every rigid phase change transfers decomposition and sensible
+        // enthalpy, even when its reference chemical heat is zero.
+        value.phase_change_heat_enabled = value.phase_change_heat_enabled ||
+            value.mechanisms[n].RigidComponent() >= 0;
+        bool homogeneous = false;
+        pp.query_default(id + ".phase_change.homogeneous", homogeneous, false);
+        if (homogeneous)
+        {
+            if (homogeneous_rocfire)
+            {
+                std::vector<std::string> products;
+                pp.queryarr_required(id + ".phase_change.out", products);
+                if (products.size() != 1 ||
+                    products[0] != value.species_names[Model::Chemistry::Rocfire::Binder])
+                    Util::Exception(INFO, "A Rocfire homogeneous binder must transfer entirely to binder gas");
+                const std::string prefix = id + ".phase_change.homogeneous.";
+                Set::Scalar fraction;
+                if (pp.contains(prefix + "mass_fraction"))
+                    pp.query_required(prefix + "mass_fraction", fraction);
+                else
+                {
+                    Set::Scalar total, resolved;
+                    pp.query_required(prefix + "total_mass_fraction", total);
+                    pp.query_required(prefix + "resolved_mass_fraction", resolved);
+                    fraction = (total - resolved) / (1.0 - resolved);
+                }
+                auto& roc = value.chemistry.Get<Model::Chemistry::Rocfire>();
+                const auto blend_heat = value.mechanisms[n].HeatRelease();
+                if (std::isfinite(roc.homogenized_ap_mass_fraction) &&
+                    std::abs(roc.homogenized_ap_mass_fraction - fraction) > 1.0e-12)
+                    Util::Exception(INFO, "Binders sharing Rocfire gas require the same subgrid AP fraction");
+                if (std::isfinite(roc.homogenized_ap_mass_fraction) &&
+                    std::abs(roc.binder_solid_heat_release - blend_heat) >
+                        1.0e-12 * std::max(1.0, std::abs(blend_heat)))
+                    Util::Exception(INFO, "Binders sharing Rocfire gas require the same blended condensed heat");
+                roc.homogenized_ap_mass_fraction = fraction;
+                // Use exactly the Q applied by phase change, not the pure
+                // HTPB fallback, in the complete solid-to-products balance.
+                roc.binder_solid_heat_release = blend_heat;
+                if (roc.binder_adiabatic_heat_release_from_homogeneous)
+                    roc.binder_adiabatic_heat_release = true;
+                if (roc.binder_adiabatic_heat_release &&
+                    roc.binder_equivalence_ratio_from_homogeneous_composition)
+                {
+                    if (fraction < 0.10)
+                        Util::Exception(INFO, "Binder flame-temperature fit requires at least 10% subgrid AP; supply a fit-domain binder_equivalence_ratio explicitly or disable binder_adiabatic_heat_release");
+                    roc.binder_equivalence_ratio =
+                        Model::Chemistry::Rocfire::equivalence_ratio_from_ap_mass_fraction(fraction);
+                }
+                // Stoichiometric/lean blends need no external diffusion
+                // flame. Rocfire gates those rates from the composition.
+            }
+            const int s = value.rigid_solid_species[value.mechanisms[n].RigidComponent()];
+            for (const auto& other : mechanism_names)
+            {
+                if (other == id) continue;
+                std::string input;
+                pp.query_required(other + ".phase_change.in", input);
+                if (input == value.species_names[s])
+                    Util::Exception(INFO, "A homogeneous binder requires a single phase-change mechanism");
+            }
+            value.reference_density[s] = density[s];
+            value.condensed_inverse_reference_density[s] = 1.0 / density[s];
+            value.condensed_specific_heat[s] = specific_heat[s];
+            value.condensed_thermal_conductivity[s] = conductivity[s];
+            value.phase_change_heat_enabled = true;
+        }
     }
+    if (value.phase_change_heat_enabled &&
+        std::strcmp(value.chemistry.model_name(), Model::Chemistry::Rocfire::name) == 0)
+        value.chemistry.Get<Model::Chemistry::Rocfire>().condensed_heat_in_phase_change = true;
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
         (!value.rigid_solid_species.empty() && !value.mechanisms.empty()))
@@ -344,9 +463,14 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.chemistry_dilatation_mf,
             &value.bc_nothing, 1, 0, "chemistry_dilatation", false, false);
     if (!value.rigid_solid_species.empty() && !value.mechanisms.empty())
+    {
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_dilatation_mf, &value.bc_nothing, 1, 0,
             "phase_change_dilatation", false, false);
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
+            "phase_change_heat", false, false);
+    }
     if (value.implicit_thermal_diffusion || value.implicit_species_diffusion)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
             &value.bc_nothing, 1, 0, "diffusion_dilatation", false, false);
@@ -1042,6 +1166,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
     BC::Constant::ZeroNeumann phase_field_bc(1);
     for (int lev = 0; lev < nlev; ++lev)
     {
+        phase_change_heat_mf[lev]->setVal(0.0);
         amrex::MultiFab::Copy(
             diffusion.State(lev, 1), *rigid_eta_mf[lev],
             0, 0, 1, diffusion.State(lev, 1).nGrow());
@@ -1135,6 +1260,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
 
     // Recover each mechanism's share of the aggregate update from the solved
     // equation, then transfer the corresponding mass to its products.
+    const auto phase_gas_data = gas_device_data;
     for (const auto& configured_mechanism : mechanisms)
     {
         const auto mechanism = configured_mechanism;
@@ -1158,6 +1284,7 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
 
                 Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation = phase_change_dilatation_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> integrated_heat = phase_change_heat_mf.Patch(lev,mfi);
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1185,12 +1312,49 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         integrated_dilatation(i,j,k) +=
                             mechanism.Transfer(
                                 component_density, state,
-                                mechanism_eta_change, i, j, k);
+                                mechanism_eta_change, i, j, k, &integrated_heat(i,j,k), &phase_gas_data);
                     });
             }
         }
     }
 
+    // Apply the heat of the actual phase transfer once all mechanisms have
+    // used the same temperature. Include the resulting gas expansion in the
+    // projection, using the new product composition.
+    if (phase_change_heat_enabled)
+    {
+        const auto thermal = thermal_data;
+        const auto gas_data = gas_device_data;
+        const int ngas = ngas_species;
+        const Set::Scalar p_reference = pressure_reference;
+        for (int lev = 0; lev < nlev; ++lev)
+            for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                Set::Patch<const Set::Scalar> density = component_density_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Scalar> heat = phase_change_heat_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> T = temperature_mf.Patch(lev,mfi);
+                Set::Patch<Set::Scalar> dilation = phase_change_dilatation_mf.Patch(lev,mfi);
+                amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (heat(i,j,k) == 0.0) return;
+                    const auto thermal_state = ComputeThermalState(density, T(i,j,k), i,j,k, thermal);
+                    const Set::Scalar capacity = amrex::get<2>(thermal_state);
+                    if (!(capacity > 0.0)) Util::Abort(INFO, "Nonpositive phase-change heat capacity");
+                    const Set::Scalar delta_T = heat(i,j,k) / capacity;
+                    if (!(T(i,j,k) + delta_T > 0.0))
+                        Util::Abort(INFO, "Phase-change heat exhausted thermal energy; reduce timestep");
+                    Set::Scalar molar_density = 0.0;
+                    for (int n = 0; n < ngas; ++n)
+                        molar_density += density(i,j,k,n) /
+                            Model::Gas::Gas::MolecularWeight(gas_data, n);
+                    dilation(i,j,k) += molar_density *
+                        Model::Gas::Gas::UniversalGasConstant(gas_data) * delta_T / p_reference;
+                    T(i,j,k) += delta_T;
+                });
+            }
+        diffusion.Synchronize(temperature_mf, 1);
+    }
     diffusion.Synchronize(component_density_mf, nspecies);
     diffusion.Synchronize(phase_change_dilatation_mf, 1);
     diffusion.FillBoundary(

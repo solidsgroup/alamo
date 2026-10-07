@@ -74,6 +74,12 @@ public:
     }
 
     template<typename T>
+    T& Get()
+    {
+        return std::get<T>(obj);
+    }
+
+    template<typename T>
     const T& Get() const
     {
         return std::get<T>(obj);

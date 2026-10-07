@@ -6,6 +6,7 @@
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
+#include "Model/Gas/Gas.H"
 #include "Util/Util.H"
 
 namespace Model
@@ -147,15 +148,17 @@ public:
     Set::Scalar Transfer(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
-        const int i, const int j, const int k) const
+        const int i, const int j, const int k,
+        Set::Scalar* heat = nullptr,
+        const Model::Gas::Gas::DeviceData* gas = nullptr) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).Transfer(
-                    component_density, state, eta_change, i, j, k);
+                    component_density, state, eta_change, i, j, k, heat, gas);
             return Transfer<I + 1>(
-                component_density, state, eta_change, i, j, k);
+                component_density, state, eta_change, i, j, k, heat, gas);
         }
         Util::Abort(INFO, selected);
         return NAN;
@@ -172,6 +175,18 @@ public:
         }
         Util::Abort(INFO, selected);
         return -1;
+    }
+
+    template<int I = 0>
+    Set::Scalar HeatRelease() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).HeatRelease();
+            return HeatRelease<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
     }
 
 private:
