@@ -56,16 +56,94 @@ struct Rocfire
     std::array<Set::Scalar, nreactions> qgas =
         {{430.0 * 4184.0, 447.0 * 4184.0, 8365.0 * 4184.0, 2127.0 * 4184.0}};
     std::array<Set::Scalar, 2> qsolid = {{-100.0 * 4184.0, -300.0 * 4184.0}};
+    // Coupled homogeneous materials apply condensed heat through mass transfer.
+    // Keep the legacy gas-only energy convention for uncoupled cases.
+    bool condensed_heat_in_phase_change = false;
+    // Enabled automatically for a coupled homogeneous binder; gas-only cases
+    // retain their fixed qgas unless explicitly enabled in the input.
+    bool binder_adiabatic_heat_release = false;
+    bool binder_adiabatic_heat_release_from_homogeneous = true;
+    bool binder_equivalence_ratio_from_homogeneous_composition = true;
+    Set::Scalar binder_equivalence_ratio = 1.0;
+    Set::Scalar binder_initial_temperature = 300.0;
+    Set::Scalar binder_solid_heat_release = -300.0 * 4184.0;
+    Set::Scalar binder_specific_heat = 0.3 * 4184.0;
     Set::Scalar pressure_reference = 100000.0;
     int nsubsteps = 1;
     int max_iter = 100;
     Set::Scalar reltol = 1.0e-8;
     Set::Scalar abstol = 1.0e-12;
-    Set::Scalar beta = 7.974;
+    // Pure AP/pure HTPB = 7.974; external AP/binder at 52% subgrid AP.
+    Set::Scalar reference_beta = 7.974 * (1.0 - 0.52) - 0.52;
     Set::Scalar gamma = 3.19;
+    // Reference convention shared with lowmach-aluminum's Gross model.
+    // NAN denotes an uncoupled gas: primary demand assumes no subgrid AP,
+    // while the independently calibrated secondary coefficient is retained.
+    Set::Scalar homogenized_ap_mass_fraction = NAN;
+    Set::Scalar stoichiometry_reference_ap_mass_fraction = 0.52;
     Set::Scalar gas_constant = 0.0;
 
     Rocfire() = default;
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static Set::Scalar equivalence_ratio_from_ap_mass_fraction(const Set::Scalar w)
+    {
+        return 7.974 * (1.0 - w) / w;
+    }
+
+    // This five-coefficient temperature fit was derived from Cantera
+    // simulations using detailed AP/HTPB chemical kinetics. It is not a
+    // universal flame temperature. Fit domain: phi=[0,71.766], initial
+    // temperature=[200,500] K, pressure=[0.5,150] atm (pressure is clamped).
+    // Phi uses the fit's AP/pure-HTPB mass ratio 7.974, independently of the
+    // reference-mixture coefficients used by the diffusion reactions.
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar binder_adiabatic_flame_temperature(const Set::Scalar pressure) const
+    {
+        const Set::Scalar pmin = 0.5 * 101325.0, pmax = 150.0 * 101325.0;
+        const Set::Scalar p = pressure > pmin ? (pressure < pmax ? pressure : pmax) : pmin;
+        const Set::Scalar bump = 4.0 * binder_equivalence_ratio /
+            ((1.0 + binder_equivalence_ratio) * (1.0 + binder_equivalence_ratio));
+        return 810.4204996375555 + 1000.4692258106163 *
+            7.974 / (7.974 + binder_equivalence_ratio) +
+            1305.2818033944318 * bump * bump * bump +
+            48.33918633577873 * (binder_initial_temperature - 350.0) / 150.0 +
+            109.99699743370391 * (2.0 * std::log(p / pmin) / std::log(300.0) - 1.0);
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar binder_heat_release(const Set::Scalar pressure) const
+    {
+        if (!binder_adiabatic_heat_release) return qgas[1];
+        // Phase change applies Qsolid once. Subtract that SAME blended Q
+        // here to derive gas heat, so Qsolid + Qgas = cp*(Tad-T0).
+        return binder_specific_heat *
+            (binder_adiabatic_flame_temperature(pressure) - binder_initial_temperature) -
+            binder_solid_heat_release;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar primary_stoichiometry() const
+    {
+        const Set::Scalar reference = stoichiometry_reference_ap_mass_fraction;
+        const Set::Scalar pure_ratio = (reference_beta + reference) / (1.0 - reference);
+        const Set::Scalar w = homogenized_ap_mass_fraction == homogenized_ap_mass_fraction ?
+            homogenized_ap_mass_fraction : 0.0;
+        // Comparing compositions makes the stoichiometric endpoint exact,
+        // avoiding a small positive demand from floating-point cancellation.
+        if (w >= pure_ratio / (1.0 + pure_ratio)) return 0.0;
+        return Util::Max(0.0, pure_ratio * (1.0 - w) - w);
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar secondary_stoichiometry() const
+    {
+        if (!(homogenized_ap_mass_fraction == homogenized_ap_mass_fraction))
+            return gamma;
+        const Set::Scalar reference = stoichiometry_reference_ap_mass_fraction;
+        const Set::Scalar w = homogenized_ap_mass_fraction;
+        return Util::Max(0.0, (gamma + reference) / (1.0 - reference) * (1.0 - w) - w);
+    }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static Set::Scalar sum_species(const std::array<Set::Scalar, MAX_SPECIES>& values)
@@ -106,6 +184,8 @@ struct Rocfire
             k[r] = A[r] * std::pow(P / pressure_reference, pressure_exponent[r])
                 * std::exp(-activation_energy[r] / (gas_constant * T));
         }
+        if (!(primary_stoichiometry() > 0.0)) k[2] = k[3] = 0.0;
+        else if (!(secondary_stoichiometry() > 0.0)) k[3] = 0.0;
 
         progress[0] = k[0] * Y[AP];
         progress[1] = k[1] * Y[Binder];
@@ -116,8 +196,14 @@ struct Rocfire
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar>
-    source_from_progress(const std::array<Set::Scalar, nreactions>& progress) const
+    source_from_progress(const std::array<Set::Scalar, nreactions>& requested_progress,
+                         const Set::Scalar pressure = 101325.0) const
     {
+        auto progress = requested_progress;
+        const Set::Scalar beta_effective = primary_stoichiometry();
+        const Set::Scalar gamma_effective = secondary_stoichiometry();
+        if (!(beta_effective > 0.0)) progress[2] = progress[3] = 0.0;
+        else if (!(gamma_effective > 0.0)) progress[3] = 0.0;
         SpeciesArray wdot{};
         for (int n = 0; n < MAX_SPECIES; ++n) wdot[n] = 0.0;
 
@@ -127,17 +213,17 @@ struct Rocfire
         wdot[Binder]   -= progress[1];
         wdot[Premixed] += progress[1];
 
-        wdot[AP]       -= beta * progress[2];
+        wdot[AP]       -= beta_effective * progress[2];
         wdot[Binder]   -= progress[2];
-        wdot[Primary]  += (beta + 1.0) * progress[2];
+        wdot[Primary]  += (beta_effective + 1.0) * progress[2];
 
-        wdot[Mono]     -= gamma * progress[3];
+        wdot[Mono]     -= gamma_effective * progress[3];
         wdot[Premixed] -= progress[3];
-        wdot[Final]    += (gamma + 1.0) * progress[3];
+        wdot[Final]    += (gamma_effective + 1.0) * progress[3];
 
         const Set::Scalar qdot =
-            (qgas[0] + qsolid[0]) * progress[0]
-            + (qgas[1] + qsolid[1]) * progress[1]
+            (qgas[0] + (condensed_heat_in_phase_change ? 0.0 : qsolid[0])) * progress[0]
+            + (binder_heat_release(pressure) + (condensed_heat_in_phase_change ? 0.0 : qsolid[1])) * progress[1]
             + /*(beta + 1.0) * */qgas[2] * progress[2]
             + /*(gamma + 1.0) **/ qgas[3] * progress[3];
 
@@ -207,12 +293,14 @@ struct Rocfire
                 std::pow(pressure / pressure_reference, pressure_exponent[r]) *
                 std::exp(-activation_energy[r] /
                     (gas_constant * temperature));
+        if (!(primary_stoichiometry() > 0.0)) rate_constant[2] = rate_constant[3] = 0.0;
+        else if (!(secondary_stoichiometry() > 0.0)) rate_constant[3] = 0.0;
 
         progress[0] = rate_constant[0] * Y[AP];
         progress[1] = rate_constant[1] * Y[Binder];
         progress[2] = rate_constant[2] * Y[AP] * Y[Binder];
         progress[3] = rate_constant[3] * Y[Mono] * Y[Premixed];
-        const auto source = source_from_progress(progress);
+        const auto source = source_from_progress(progress, pressure);
 
         const Set::Scalar inverse_density =
             Model::Gas::Gas::UniversalGasConstant(*gas) *
@@ -245,7 +333,7 @@ struct Rocfire
             dprogress[3] = rate_constant[3] *
                 (Y[Premixed] * dY[Mono] + Y[Mono] * dY[Premixed]) +
                 progress[3] * activation_energy[3] * temperature_factor;
-            const auto dsource = source_from_progress(dprogress);
+            const auto dsource = source_from_progress(dprogress, pressure);
 
             Set::Scalar dinverse_mw = 0.0;
             Set::Scalar dcp = 0.0;
@@ -484,7 +572,7 @@ struct Rocfire
         const Set::Scalar dt) const
     {
         std::array<Set::Scalar, nreactions> progress = compute_progress_rates(P, T, rhoY);
-        std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar> source = source_from_progress(progress);
+        std::pair<std::array<Set::Scalar, MAX_SPECIES>, Set::Scalar> source = source_from_progress(progress, P);
 
         if (dt > 0.0)
         {
@@ -631,6 +719,39 @@ struct Rocfire
         pp.queryarr_default("qsolid", qsolid,
             {"-100.0_cal/g", "-300.0_cal/g"},
             Unit::Energy() / Unit::Mass());
+        if (pp.contains("beta"))
+            Util::Exception(INFO, "Rocfire beta is calculated from subgrid AP content; remove chemistry.model.rocfire.beta");
+        // Gas-only homogeneous parcels can supply their composition here.
+        // Coupled solids supply the same quantity through PhaseChange.
+        if (pp.contains("subgrid_ap_mass_fraction"))
+        {
+            pp.query_required("subgrid_ap_mass_fraction", value.homogenized_ap_mass_fraction);
+            Util::Assert(INFO, TEST(std::isfinite(value.homogenized_ap_mass_fraction) &&
+                value.homogenized_ap_mass_fraction >= 0.0 && value.homogenized_ap_mass_fraction <= 1.0),
+                "Rocfire subgrid AP mass fraction must lie in [0,1]");
+        }
+        value.binder_adiabatic_heat_release_from_homogeneous = !pp.contains("binder_adiabatic_heat_release");
+        pp.query_default("binder_adiabatic_heat_release", value.binder_adiabatic_heat_release, false);
+        value.binder_equivalence_ratio_from_homogeneous_composition = !pp.contains("binder_equivalence_ratio");
+        pp.query_default("binder_equivalence_ratio", value.binder_equivalence_ratio, 1.0);
+        if (std::isfinite(value.homogenized_ap_mass_fraction) &&
+            value.binder_adiabatic_heat_release &&
+            value.binder_equivalence_ratio_from_homogeneous_composition)
+        {
+            Util::Assert(INFO, TEST(value.homogenized_ap_mass_fraction >= 0.10),
+                "Binder flame-temperature fit requires at least 10% subgrid AP");
+            value.binder_equivalence_ratio =
+                equivalence_ratio_from_ap_mass_fraction(value.homogenized_ap_mass_fraction);
+        }
+        pp.query_default("binder_initial_temperature", value.binder_initial_temperature, "300.0_K", Unit::Temperature());
+        pp.query_default("binder_solid_heat_release", value.binder_solid_heat_release, "-300.0_cal/g", Unit::Energy()/Unit::Mass());
+        pp.query_default("binder_specific_heat", value.binder_specific_heat, "0.3_cal/g/K", Unit::SpecificHeatCapacity());
+        Util::Assert(INFO, TEST(value.binder_equivalence_ratio >= 0.0 && value.binder_equivalence_ratio <= 71.766),
+            "Binder equivalence ratio must lie in the fit domain [0,71.766]");
+        Util::Assert(INFO, TEST(value.binder_initial_temperature >= 200.0 && value.binder_initial_temperature <= 500.0),
+            "Binder initial temperature must lie in the fit domain [200,500] K");
+        Util::Assert(INFO, TEST(std::isfinite(value.binder_specific_heat) && value.binder_specific_heat > 0.0 &&
+            std::isfinite(value.binder_solid_heat_release)), "Invalid binder caloric parameters");
         // Reference pressure (default is 1 bar)
         pp.query_default("pressure_reference", value.pressure_reference, "1_bar", Unit::Pressure());
         // Number of explicit chemistry substeps
@@ -638,10 +759,17 @@ struct Rocfire
         pp.query_default("max_iter", value.max_iter, 100);
         pp.query_default("reltol", value.reltol, 1.0e-8);
         pp.query_default("abstol", value.abstol, 1.0e-12);
-        // Stoichiometric coefficient for beta*AP + HTPB -> (beta+1) Primary
-        pp.query_default("beta", value.beta, 7.974);
+        // The primary coefficient is derived on demand; only the secondary
+        // reaction retains its independently calibrated reference coefficient.
+        pp.query_default("reference_beta", value.reference_beta,
+                         7.974 * (1.0 - 0.52) - 0.52);
         // Stoichiometric coefficient for gamma*Mono + premixed -> (gamma+1) Final
         pp.query_default("gamma", value.gamma, 3.19);
+        pp.query_default("stoichiometry_reference_ap_mass_fraction",
+            value.stoichiometry_reference_ap_mass_fraction, 0.52);
+        Util::Assert(INFO, TEST(value.stoichiometry_reference_ap_mass_fraction >= 0.0 &&
+            value.stoichiometry_reference_ap_mass_fraction < 1.0),
+            "Rocfire stoichiometry reference AP mass fraction must lie in [0,1)");
 
         Util::Assert(INFO, TEST(A.size() == nreactions), "chemistry.model.rocfire.A must have 4 entries.");
         Util::Assert(INFO, TEST(pressure_exponent.size() == nreactions),
@@ -658,14 +786,18 @@ struct Rocfire
         Util::Assert(INFO, TEST(value.abstol >= 0.0), "chemistry.model.rocfire.abstol must be nonnegative.");
         Util::Assert(INFO, TEST(value.reltol > 0.0 || value.abstol > 0.0),
             "Rocfire implicit integration requires a positive tolerance.");
-        Util::Assert(INFO, TEST(value.beta > 0), "chemistry.model.rocfire.beta must be > 0.");
         Util::Assert(INFO, TEST(value.gamma > 0), "chemistry.model.rocfire.gamma must be > 0.");
+        Util::Assert(INFO, TEST(std::isfinite(value.reference_beta) && value.reference_beta >= 0),
+            "chemistry.model.rocfire.reference_beta must be nonnegative and finite.");
 
         std::copy(A.begin(), A.end(), value.A.begin());
         std::copy(pressure_exponent.begin(), pressure_exponent.end(), value.pressure_exponent.begin());
         std::copy(activation_energy.begin(), activation_energy.end(), value.activation_energy.begin());
         std::copy(qgas.begin(), qgas.end(), value.qgas.begin());
         std::copy(qsolid.begin(), qsolid.end(), value.qsolid.begin());
+        if (std::isfinite(value.homogenized_ap_mass_fraction))
+            Util::Message(INFO, "Subgrid AP mass fraction = ", value.homogenized_ap_mass_fraction,
+                          "; computed beta = ", value.primary_stoichiometry());
     }
 
 };
