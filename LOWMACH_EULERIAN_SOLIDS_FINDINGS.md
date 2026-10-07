@@ -170,6 +170,10 @@ implicit automatically when active. Newtonian momentum diffusion is opt-in
 through `implicit_viscosity=1`; this preserves the established explicit cavity
 discretization for existing inputs. The AP/HTPB input enables all three.
 
+For Dirichlet walls, the diffusion operator converts reflected cell-centered
+state ghosts to physical face values before calling AMReX's `setLevelBC`.
+The state ghosts remain intact for the solve's initial guess and AMR data.
+
 ## Advection Interface
 
 `Numeric::Advect::Advect` is a GPU-safe pseudo-polymorphic functor. LowMach

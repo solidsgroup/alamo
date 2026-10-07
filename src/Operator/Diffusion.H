@@ -34,6 +34,8 @@ public:
                     const Set::Field<Set::Scalar>& layout,
                     int number_of_levels, int number_of_components);
 
+    // State ghosts use the usual cell-centered BC convention: Dirichlet
+    // ghosts are reflected about the wall, not raw face values.
     amrex::MultiFab& State(int lev, int ncomp);
     amrex::MultiFab& Source(int lev, int ncomp);
     amrex::MultiFab& Mass(int lev, int ncomp);

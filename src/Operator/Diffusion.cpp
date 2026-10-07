@@ -672,9 +672,44 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     diffusion->setMaxOrder(max_order);
     diffusion->setDomainBC(boundary_lo, boundary_hi);
     diffusion->setScalars(1.0, dt);
+    amrex::Vector<amrex::MultiFab> boundary_data(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
-        diffusion->setLevelBC(lev, system.state[lev].get());
+        boundary_data[lev].define(grids[lev], distribution_mapping[lev], ncomp, 1);
+        amrex::MultiFab::Copy(boundary_data[lev], *system.state[lev], 0, 0, ncomp, 1);
+        // Our cell-centered BCs reflect Dirichlet values into ghost cells.
+        // AMReX expects the value at the wall, stored in the first ghost cell.
+        // Keep the state ghosts intact for the initial guess and AMR data.
+        const amrex::Box& domain = geometry[lev].Domain();
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            if (geometry[lev].isPeriodic(d)) continue;
+            for (int side = 0; side < 2; ++side)
+            {
+                const amrex::Box wall = side == 0 ? amrex::adjCellLo(domain, d, 1) :
+                    amrex::adjCellHi(domain, d, 1);
+                const int inward = side == 0 ? 1 : -1;
+                for (int n = 0; n < ncomp; ++n)
+                {
+                    const int type = side == 0 ? boundary_conditions[n].lo(d) :
+                        boundary_conditions[n].hi(d);
+                    if (!BC::BCUtil::IsDirichlet(type)) continue;
+                    for (amrex::MFIter mfi(boundary_data[lev]); mfi.isValid(); ++mfi)
+                    {
+                        const amrex::Box bx = wall & mfi.fabbox();
+                        const auto state = system.state[lev]->const_array(mfi);
+                        const auto boundary = boundary_data[lev].array(mfi);
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            boundary(i,j,k,n) = 0.5 * (state(i,j,k,n) +
+                                state(i + (d == 0) * inward, j + (d == 1) * inward,
+                                      k + (d == 2) * inward, n));
+                        });
+                    }
+                }
+            }
+        }
+        diffusion->setLevelBC(lev, &boundary_data[lev]);
         diffusion->setACoeffs(lev, *system.mass[lev]);
         diffusion->setBCoeffs(lev, face_mobility_pointer[lev]);
         if (tensor_diffusion)
