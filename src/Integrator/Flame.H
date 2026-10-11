@@ -1,6 +1,7 @@
 #ifndef INTEGRATOR_FLAME_H
 #define INTEGRATOR_FLAME_H
 
+#include <algorithm>
 #include <limits>
 
 #include "Integrator/Integrator.H"
@@ -62,6 +63,14 @@ protected:
     Set::Scalar ComputeAgglomerationActiveMean(int lev);
     void CorrectAgglomerationActiveMean(int lev, Set::Scalar target_mean);
     void FillMobilityMask(int lev, amrex::MultiFab& mask) override;
+
+    /// Burn-state multiplier: fully mobile at eta=0, frozen at eta>=cutoff.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    static Set::Scalar AgglomerationMobilityMask(Set::Scalar eta, Set::Scalar cutoff)
+    {
+        Set::Scalar unburned_fraction = std::max(0.0, std::min(1.0, eta));
+        return std::max(0.0, 1.0 - unburned_fraction / cutoff);
+    }
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;

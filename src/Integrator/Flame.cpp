@@ -228,6 +228,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.agglomeration.on)
     {
         pp.query_default("agglomeration.eta_mobility_cutoff", value.agglomeration.eta_mobility_cutoff, 0.5);
+        Util::AssertException(INFO,
+            TEST(value.agglomeration.eta_mobility_cutoff > 0.0 && value.agglomeration.eta_mobility_cutoff <= 1.0),
+            "agglomeration.eta_mobility_cutoff must be in (0, 1]");
         value.input_name = "alpha";
         value.field_name = "agglom.alpha";
         value.old_field_name = "agglom.alpha_old";
@@ -341,23 +344,16 @@ void Flame::FillMobilityMask(int lev, amrex::MultiFab& mask)
     BL_PROFILE("Integrator::Flame::FillMobilityMask");
 
     mask.setVal(0.0);
-    MultiFab cell_based_phi(mask.boxArray(), mask.DistributionMap(), 1, 0);
-    average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[lev], 0, 1, 0);
-
     for (amrex::MFIter mfi(mask, true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
         Set::Patch<Set::Scalar> mask_arr = mask.array(mfi);
-        Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
         Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
-            Set::Scalar intact_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
-            mask_arr(i, j, k) = intact_fraction > eta_mobility_cutoff ?
-                0.0 : (1.0 - ap_fraction);
+            mask_arr(i, j, k) = AgglomerationMobilityMask(eta(i, j, k), eta_mobility_cutoff);
         });
     }
 }
@@ -767,23 +763,17 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {
             if (!frozen_alpha[ilev]) continue;
 
-            MultiFab cell_based_phi(etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), 1, 0);
-            average_node_to_cellcenter(cell_based_phi, 0, *phi_mf[ilev], 0, 1, 0);
-
             for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
                 Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(ilev, mfi);
                 Set::Patch<const Set::Scalar> old_alpha = frozen_alpha[ilev]->array(mfi);
-                Set::Patch<const Set::Scalar> phi = cell_based_phi.array(mfi);
                 Set::Patch<const Set::Scalar> eta = eta_mf.Patch(ilev, mfi);
                 Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar ap_fraction = std::max(0.0, std::min(1.0, phi(i, j, k)));
-                    Set::Scalar intact_fraction = std::max(0.0, std::min(1.0, eta(i, j, k)));
-                    if (intact_fraction > eta_mobility_cutoff && ap_fraction < 1.0)
+                    if (AgglomerationMobilityMask(eta(i, j, k), eta_mobility_cutoff) == 0.0)
                         alpha(i, j, k) = old_alpha(i, j, k);
                 });
             }
