@@ -18,6 +18,7 @@ amr.n_cell = 192 128 1
 amr.max_grid_size = 128
 amr.blocking_factor = 16
 amr.plot_dt = 0.001_s
+amr.thermo.plot_dt = 0.001_s
 amr.regrid_int = 1000000
 amr.base_regrid_int = 1000000
 amr.grid_eff = 1.0
@@ -127,17 +128,19 @@ chamber.pressure = 4.0_MPa
 variable_pressure = 0
 
 # No mechanics for this agglomeration test ground yet.
-elastic.type = disable
 
 # Decoupled singly-degenerate Cahn-Hilliard agglomeration field.
+# Diagnostic plots include effective mobility/mask, cell-centered flux, RHS,
+# the unclipped trial field, and the post-restoration alpha increment.
 agglomeration.on = 1
+agglomeration.diagnostics = 1
 agglomeration.method = spectral
 agglomeration.mobility = singly_degenerate
-agglomeration.gamma = 2.5e-4
+agglomeration.gamma = 6.25e-5
 agglomeration.L = 10.0
 agglomeration.mobility_floor = 1.0e-6
 agglomeration.eta_mobility_cutoff = 0.5
-agglomeration.spectral_stabilization = 0.01
+# Leave spectral_stabilization unset to use the mobility-aware stable default.
 agglomeration.refinement_threshold = 1.0e100
 agglomeration.tstart = 1.0e100
 agglomeration.tstart_timestep = -1.0

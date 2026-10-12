@@ -236,6 +236,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.old_field_name = "agglom.alpha_old";
         value.intermediate_name = "agglom.int";
         pp.queryclass<CahnHilliard>("agglomeration", value);
+        value.RegisterIntegratedVariable(
+            &value.agglomeration.plus_phase_measure,
+            "agglom.plus_phase_measure");
     }
 
     // Whether to use Neo-hookean Elastic model
@@ -333,6 +336,7 @@ void Flame::InitializeAgglomeration(int lev)
     BL_PROFILE("Integrator::Flame::InitializeAgglomeration");
     CahnHilliard::Initialize(lev);
     RestrictAgglomerationToBinder(lev);
+    InitializeDiagnostics(lev);
     agglomeration.active_alpha_mean = ComputeAgglomerationActiveMean(lev);
 
     if (method == "realspace")
@@ -778,6 +782,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 });
             }
 
+            if (output_diagnostics)
+            {
+                MultiFab::Copy(*diagnostic_delta[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
+                MultiFab::Subtract(*diagnostic_delta[ilev], *frozen_alpha[ilev], 0, 0, 1, 0);
+            }
+
             etanew_mf[ilev]->FillBoundary(geom[ilev].periodicity());
         }
     }
@@ -936,6 +946,9 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
+    amrex::Array4<const Set::Scalar> alpha;
+    if (agglomeration.on)
+        alpha = etanew_mf[amrlev]->const_array(mfi);
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -950,6 +963,9 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
             Set::Scalar dm = mnormgrad * dv;
             chamber.massflux += dm;
 
+            if (agglomeration.on)
+                agglomeration.plus_phase_measure += 0.5 * (alpha(i, j, k, 0) + 1.0) * dv;
+
         });
     }
     else {
@@ -960,6 +976,9 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
             chamber.area += da;
+
+            if (agglomeration.on)
+                agglomeration.plus_phase_measure += 0.5 * (alpha(i, j, k, 0) + 1.0) * dv;
         });
     }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)

@@ -153,6 +153,7 @@ protected:
         bool on = false;
         Set::Scalar active_alpha_mean = NAN;
         Set::Scalar eta_mobility_cutoff = 0.5;
+        Set::Scalar plus_phase_measure = 0.0;
     } agglomeration;
 
 

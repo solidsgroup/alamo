@@ -64,10 +64,18 @@ protected:
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     /// Optional spatial multiplier for degenerate mobility. Defaults to one everywhere.
     virtual void FillMobilityMask(int lev, amrex::MultiFab& mask);
+    /// Initialize diagnostic fields after the initial condition has been applied.
+    void InitializeDiagnostics(int lev);
 
     Set::Field<Set::Scalar> etanew_mf;     /// The new value for eta this timestep
     Set::Field<Set::Scalar> etaold_mf;     /// Last timestep's value for eta
     Set::Field<Set::Scalar> intermediate;  /// Intermediate field used for CH kinetics
+    Set::Field<Set::Scalar> diagnostic_mobility;
+    Set::Field<Set::Scalar> diagnostic_mobility_mask;
+    Set::Field<Set::Scalar> diagnostic_flux;
+    Set::Field<Set::Scalar> diagnostic_rhs;
+    Set::Field<Set::Scalar> diagnostic_raw;
+    Set::Field<Set::Scalar> diagnostic_delta;
 
     BC::BC<Set::Scalar> *bc = nullptr; /// eta's bc object
     IC::IC<Set::Scalar> *ic = nullptr; /// eta's ic object
@@ -77,6 +85,7 @@ protected:
     Set::Scalar mobility_floor = 0.0;
     Set::Scalar spectral_stabilization = NAN;
     Set::Scalar refinement_threshold = NAN; 
+    bool output_diagnostics = false;
 
     std::string method;
     std::string mobility = "constant";
