@@ -82,37 +82,26 @@ public:
 
                 for (int n = 0; n < sphere_count; n++)
                 {
-                    Set::Scalar d;
-                    Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
-
                     Set::Vector center;
                     for (   int direction = 0;
                             direction < AMREX_SPACEDIM; ++direction)
                         center(direction) =
                             X[n * AMREX_SPACEDIM + direction];
-                    d = (x - center).lpNorm<2>();
-
-                    if (periodic[0])
+                    // Apply the minimum image in every periodic direction. A
+                    // particle may cross two or three faces at a corner.
+                    Set::Vector delta = x - center;
+                    for (int direction = 0; direction < AMREX_SPACEDIM; ++direction)
                     {
-                        d1 = std::min((x - center + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - center - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
+                        if (!periodic[direction]) continue;
+                        Set::Scalar length = size(direction);
+                        Set::Scalar plus = delta(direction) + length;
+                        Set::Scalar minus = delta(direction) - length;
+                        if (plus * plus < delta(direction) * delta(direction))
+                            delta(direction) = plus;
+                        if (minus * minus < delta(direction) * delta(direction))
+                            delta(direction) = minus;
                     }
-#if AMREX_SPACEDIM > 1
-                    if (periodic[1])
-                    {
-                        d1 = std::min((x - center + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - center - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
-                    }
-#endif
-#if AMREX_SPACEDIM > 2
-                    if (periodic[2])
-                    {
-                        d1 = std::min((x - center + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - center - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
-                    }
-#endif
-
-                    d = std::min(d, d1);
+                    Set::Scalar d = delta.lpNorm<2>();
 
                     if (d <= (R[n] + eps))
 
