@@ -151,6 +151,7 @@ protected:
 
     struct {
         bool on = false;
+        bool restoration = false; // Post-step pointwise restoration is non-conservative.
         Set::Scalar active_alpha_mean = NAN;
         Set::Scalar eta_mobility_cutoff = 0.5;
         Set::Scalar plus_phase_measure = 0.0;

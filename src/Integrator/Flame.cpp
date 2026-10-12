@@ -227,6 +227,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query_default("agglomeration.on", value.agglomeration.on, false);
     if (value.agglomeration.on)
     {
+        pp.query_default("agglomeration.restoration", value.agglomeration.restoration, false);
         pp.query_default("agglomeration.eta_mobility_cutoff", value.agglomeration.eta_mobility_cutoff, 0.5);
         Util::AssertException(INFO,
             TEST(value.agglomeration.eta_mobility_cutoff > 0.0 && value.agglomeration.eta_mobility_cutoff <= 1.0),
@@ -745,7 +746,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (agglomeration.on)
     {
         amrex::Vector<std::unique_ptr<amrex::MultiFab> > frozen_alpha(lev + 1);
-        if (method == "spectral" && lev == finest_level)
+        if (agglomeration.restoration && method == "spectral" && lev == finest_level)
         {
             for (int ilev = 0; ilev <= lev; ++ilev)
             {
@@ -754,7 +755,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 MultiFab::Copy(*frozen_alpha[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
             }
         }
-        else
+        else if (agglomeration.restoration)
         {
             frozen_alpha[lev] = std::make_unique<amrex::MultiFab>(
                 etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 0);
@@ -763,32 +764,35 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         CahnHilliard::Advance(lev, time, dt);
 
-        for (int ilev = 0; ilev <= lev; ++ilev)
+        if (agglomeration.restoration)
         {
-            if (!frozen_alpha[ilev]) continue;
-
-            for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
+            for (int ilev = 0; ilev <= lev; ++ilev)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(ilev, mfi);
-                Set::Patch<const Set::Scalar> old_alpha = frozen_alpha[ilev]->array(mfi);
-                Set::Patch<const Set::Scalar> eta = eta_mf.Patch(ilev, mfi);
-                Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
+                if (!frozen_alpha[ilev]) continue;
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
                 {
-                    if (AgglomerationMobilityMask(eta(i, j, k), eta_mobility_cutoff) == 0.0)
-                        alpha(i, j, k) = old_alpha(i, j, k);
-                });
-            }
+                    const amrex::Box& bx = mfi.tilebox();
+                    Set::Patch<Set::Scalar> alpha = etanew_mf.Patch(ilev, mfi);
+                    Set::Patch<const Set::Scalar> old_alpha = frozen_alpha[ilev]->array(mfi);
+                    Set::Patch<const Set::Scalar> eta = eta_mf.Patch(ilev, mfi);
+                    Set::Scalar eta_mobility_cutoff = agglomeration.eta_mobility_cutoff;
 
-            if (output_diagnostics)
-            {
-                MultiFab::Copy(*diagnostic_delta[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
-                MultiFab::Subtract(*diagnostic_delta[ilev], *frozen_alpha[ilev], 0, 0, 1, 0);
-            }
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        if (AgglomerationMobilityMask(eta(i, j, k), eta_mobility_cutoff) == 0.0)
+                            alpha(i, j, k) = old_alpha(i, j, k);
+                    });
+                }
 
-            etanew_mf[ilev]->FillBoundary(geom[ilev].periodicity());
+                if (output_diagnostics)
+                {
+                    MultiFab::Copy(*diagnostic_delta[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
+                    MultiFab::Subtract(*diagnostic_delta[ilev], *frozen_alpha[ilev], 0, 0, 1, 0);
+                }
+
+                etanew_mf[ilev]->FillBoundary(geom[ilev].periodicity());
+            }
         }
     }
 

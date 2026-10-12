@@ -86,6 +86,7 @@ protected:
     Set::Scalar spectral_stabilization = NAN;
     Set::Scalar refinement_threshold = NAN; 
     bool output_diagnostics = false;
+    bool clipping = true;
 
     std::string method;
     std::string mobility = "constant";

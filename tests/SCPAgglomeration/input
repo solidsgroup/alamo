@@ -131,11 +131,17 @@ variable_pressure = 0
 
 # Decoupled singly-degenerate Cahn-Hilliard agglomeration field.
 # Diagnostic plots include effective mobility/mask, cell-centered flux, RHS,
-# the unclipped trial field, and the post-restoration alpha increment.
+# the unclipped trial field, and the final per-step alpha increment.
 agglomeration.on = 1
 agglomeration.diagnostics = 1
 agglomeration.method = spectral
 agglomeration.mobility = singly_degenerate
+# Keep the physical Al volume fraction (alpha + 1)/2 in [0, 1].
+agglomeration.clipping = 1
+# Pointwise restoration after the spectral step breaks conservation: the
+# 0.06 s comparison gained about 25% Al area with restoration enabled,
+# versus about 1.2% with clipping alone.
+agglomeration.restoration = 0
 agglomeration.gamma = 6.25e-5
 agglomeration.L = 10.0
 agglomeration.mobility_floor = 1.0e-6

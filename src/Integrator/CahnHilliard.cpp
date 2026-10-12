@@ -33,6 +33,7 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     pp.query_default("mobility_floor", value.mobility_floor, 0.0);
     pp.query_default("spectral_stabilization", value.spectral_stabilization, std::numeric_limits<Set::Scalar>::quiet_NaN());
     pp.query_default("diagnostics", value.output_diagnostics, false);
+    pp.query_default("clipping", value.clipping, true);
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
@@ -403,14 +404,17 @@ CahnHilliard::AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt)
             if (output_diagnostics)
                 amrex::MultiFab::Copy(*diagnostic_raw[ilev], *etanew_mf[ilev], 0, 0, 1, 0);
 
-            for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
+            if (clipping)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                amrex::Array4<amrex::Real> const& eta = etanew_mf[ilev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                for (amrex::MFIter mfi(*etanew_mf[ilev], true); mfi.isValid(); ++mfi)
                 {
-                    eta(i,j,k) = std::max(-1.0, std::min(1.0, eta(i,j,k)));
-                });
+                    const amrex::Box& bx = mfi.tilebox();
+                    amrex::Array4<amrex::Real> const& eta = etanew_mf[ilev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        eta(i,j,k) = std::max(-1.0, std::min(1.0, eta(i,j,k)));
+                    });
+                }
             }
             if (output_diagnostics)
             {
