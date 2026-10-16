@@ -1,0 +1,132 @@
+#@ [2d-couette]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@
+#@ [2d-couette-amr]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = amr.max_level=1
+#@ args = velocity_refinement_criterion=0.015
+#@
+#@ [2d-inviscid]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = viscosity=0
+#@
+#@ [2d-couette-implicit]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = viscosity=2
+#@
+#@ [2d-couette-amr-implicit]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = viscosity=2
+#@ args = amr.max_level=1
+#@ args = velocity_refinement_criterion=0.015
+#@
+# Analytic wall-bounded shear: u_x = y + 0.2 sin(pi y) exp(-nu pi^2 t).
+# The walls have u_x=0 and 1. Density, temperature and viscosity are constant.
+
+plot_file = tests/LMViscousWalls/output
+amr.plot_int = 500
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.max_level = 0
+amr.nsubsteps = 1
+amr.n_cell = 64 64
+amr.grid_eff = 0.7
+
+timestep = 0.001
+stop_time = 0.5
+
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1.0 1.0 0.0
+geometry.is_periodic = 1 0 0
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+# rho ~= 1.123 kg/m^3 for p=1e5 Pa, T=300 K, MW=28 g/mol. With U=L=1,
+# this gives Re ~= 100.
+gas.transport.mixture_averaged.mu = 1.1229e-2_Pa*s
+gas.transport.mixture_averaged.k = 0.02_W/m/K
+gas.eos.type = cpg
+species.names = ambient_gas
+ambient_gas.mechanics = fluid
+
+cfl = 0.25
+viscosity = 1
+thermal_diffusion = 0
+species_diffusion = 1  # 0 off, 1 explicit, 2 implicit
+advect_temperature = 0
+projection.enabled = 1
+projection.tol_rel = 1.0e-10
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 0
+diagnostics.extended_fields = 1
+
+velocity_refinement_criterion = 1e100
+
+ambient_gas.density.ic.type = constant
+ambient_gas.density.ic.constant.value = 1.12254198039921
+velocity.ic.type = expression
+temperature.ic.type = constant
+temperature.ic.constant.value = 300.0
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = neumann
+component_density.bc.constant.type.yhi = neumann
+component_density.bc.constant.val.xlo = 0.0
+component_density.bc.constant.val.xhi = 0.0
+component_density.bc.constant.val.ylo = 0.0
+component_density.bc.constant.val.yhi = 0.0
+
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic periodic
+velocity.bc.constant.type.xhi = periodic periodic
+velocity.bc.constant.type.ylo = dirichlet dirichlet
+velocity.bc.constant.type.yhi = dirichlet dirichlet
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.xhi = 0.0 0.0
+velocity.bc.constant.val.ylo = 0.0 0.0
+velocity.bc.constant.val.yhi = 1 0
+
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = neumann
+temperature.bc.constant.type.yhi = neumann
+temperature.bc.constant.val.xlo = 0.0
+temperature.bc.constant.val.xhi = 0.0
+temperature.bc.constant.val.ylo = 0.0
+temperature.bc.constant.val.yhi = 0.0
+
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = neumann
+pressure.bc.constant.type.yhi = neumann
+pressure.bc.constant.val.xlo = 0.0
+pressure.bc.constant.val.xhi = 0.0
+pressure.bc.constant.val.ylo = 0.0
+pressure.bc.constant.val.yhi = 0.0
+velocity.ic.expression.region0 = "y+0.2*sin(3.141592653589793*y)"
+velocity.ic.expression.region1 = "0.0"
