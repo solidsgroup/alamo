@@ -12,30 +12,35 @@
 #@ args = amr.plot_dt=1.5e-4
 #@
 #@ [2d-2MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=2.0e6
 #@ args = component_density.bc.expression.constant.P=2.0e6
 #@ args = pressure.ic.constant.value=2.0e6
 #@ args = pressure.bc.constant.val.yhi=2.0e6
 #@
 #@ [2d-3MPa]
+#@ args = dynamictimestep.max=1.5e-7
 #@ args = Final.density.ic.expression.constant.P=3.0e6
 #@ args = component_density.bc.expression.constant.P=3.0e6
 #@ args = pressure.ic.constant.value=3.0e6
 #@ args = pressure.bc.constant.val.yhi=3.0e6
 #@
 #@ [2d-4MPa]
+#@ args = dynamictimestep.max=5.0e-8
 #@ args = Final.density.ic.expression.constant.P=4.0e6
 #@ args = component_density.bc.expression.constant.P=4.0e6
 #@ args = pressure.ic.constant.value=4.0e6
 #@ args = pressure.bc.constant.val.yhi=4.0e6
 #@
 #@ [2d-5MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=5.0e6
 #@ args = component_density.bc.expression.constant.P=5.0e6
 #@ args = pressure.ic.constant.value=5.0e6
 #@ args = pressure.bc.constant.val.yhi=5.0e6
 #@
 #@ [2d-6MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=6.0e6
 #@ args = component_density.bc.expression.constant.P=6.0e6
 #@ args = pressure.ic.constant.value=6.0e6
