@@ -113,10 +113,10 @@ migrated to nodes, but that path created widespread stencil, boundary, AMR, and
 projection inconsistencies and was reverted. The present method is collocated,
 not staggered.
 
-The explicit momentum predictor contains
+With explicit viscosity, the momentum predictor contains
 
 ```text
--u dot grad(u) + g
+-u dot grad(u) + g + (mu/rho) laplacian(u)
 + sign/rho * div(sigma_solid_dev).
 ```
 
@@ -127,9 +127,10 @@ correction back into the following predictor.
 The Newtonian viscosity from the gas transport model is applied throughout the
 mixture, including the solid region. The deformable-solid model can add a
 second solid viscosity and an interface-localized deviatoric damping stress.
-When `include_viscosity=1` (the default), Newtonian viscosity is advanced
-by the composite implicit diffusion solve described below. Elastic stress
-and solid/interface damping remain explicit.
+`viscosity=1` advances Newtonian viscosity in this explicit predictor.
+`viscosity=2` omits that term from the predictor and advances it using the
+composite implicit diffusion solve below. `viscosity=0` disables Newtonian
+viscosity. Elastic stress and solid/interface damping remain explicit.
 
 Partial densities use conservative advection,
 
@@ -141,7 +142,29 @@ while velocity, temperature, and the reference map use the advective form.
 SSPRK3 is used by the current principal inputs. Chemistry may additionally use
 Strang splitting around the transport update.
 
-## Implicit Transport Diffusion
+## Transport Diffusion Modes
+
+Each diffusion process has one integer selector, stored as a `DiffusionMode`:
+
+| Input | 0 | 1 (default) | 2 |
+| --- | --- | --- | --- |
+| `viscosity` | off | explicit momentum diffusion | implicit momentum diffusion |
+| `thermal_diffusion` | off | explicit conduction | implicit conduction |
+| `species_diffusion` | off | explicit species diffusion | implicit species diffusion |
+
+Explicit modes contribute to the Runge--Kutta RHS and the dynamic diffusive
+timestep limit. Implicit modes use the composite backward-Euler solve and do
+not impose that explicit limit. Off modes contribute to neither path. The old
+`include_viscosity`, `implicit_viscosity`, and `include_conduction` switches
+are rejected with a migration message; use the selectors above instead.
+
+The explicit diffusion limit is
+`dt <= cfl / (2 * max(diffusivity) * sum_d(1/dx[d]^2))`.
+The sum includes every coordinate direction. For variable conductivity the
+thermal limit uses the actual face coefficients: `dt <= cfl/max(diagonal)`,
+where `diagonal = sum_d((k_hi+k_lo)/(heat_capacity*dx[d]^2))`. Explicit
+conduction uses the conservative face flux `div(k grad(T))/heat_capacity`,
+with harmonic face conductivities matching the implicit operator.
 
 `Operator::Diffusion` owns the AMReX face coefficients, hierarchy fill, MLMG
 operator, and synchronization needed for a composite variable-coefficient
@@ -165,14 +188,16 @@ partial densities using the pre-diffusion gas density, preserving the local
 sum of gas partial densities. Thermal and species diffusion contribute their
 integrated EOS volume change to the following pressure projection.
 
-Thermal conduction and common-coefficient Rocfire species diffusion are
-implicit automatically when active. Newtonian momentum diffusion is also
-implicit whenever `include_viscosity=1`; setting it to `0` disables that solve.
-The AP/HTPB input enables all three.
+Implicit species diffusion requires a common species diffusivity. Other
+transport models may use explicit species diffusion or disable it. The
+maintained examples explicitly select their diffusion modes; the cavity
+references are restored to the explicit-viscosity results from before the
+implicit-only change.
 
-For Dirichlet walls, the diffusion operator converts reflected cell-centered
-state ghosts to physical face values before calling AMReX's `setLevelBC`.
-The state ghosts remain intact for the solve's initial guess and AMR data.
+The increment formulation and solver retry workarounds have been reverted
+to the original composite operator. The physical Dirichlet face conversion
+is required by the implicit wall-flow analytic check: reflected state ghosts
+are converted in a separate boundary-data copy for AMReX's `setLevelBC`.
 
 ## Advection Interface
 

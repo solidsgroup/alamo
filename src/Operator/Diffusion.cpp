@@ -677,9 +677,9 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     {
         boundary_data[lev].define(grids[lev], distribution_mapping[lev], ncomp, 1);
         amrex::MultiFab::Copy(boundary_data[lev], *system.state[lev], 0, 0, ncomp, 1);
-        // Our cell-centered BCs reflect Dirichlet values into ghost cells.
-        // AMReX expects the value at the wall, stored in the first ghost cell.
-        // Keep the state ghosts intact for the initial guess and AMR data.
+        // State BCs reflect about a Dirichlet face; AMReX's level BC data
+        // must instead contain the physical face value in the first ghost.
+        // Convert a separate copy so the state retains its stencil ghosts.
         const amrex::Box& domain = geometry[lev].Domain();
         for (int d = 0; d < AMREX_SPACEDIM; ++d)
         {
