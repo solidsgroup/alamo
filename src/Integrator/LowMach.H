@@ -50,6 +50,8 @@ class LowMach : virtual public Integrator
 {
 public:
     static constexpr const char* name = "lowmach";
+    enum class DiffusionMode : int { Off = 0, Explicit = 1, Implicit = 2 };
+
     using Chemistry = Model::Chemistry::Chemistry<
         Model::Chemistry::Frozen,
         Model::Chemistry::FiniteRate,
@@ -107,7 +109,7 @@ public:
         bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
     using ThermochemicalData = amrex::GpuTuple<
-        ThermalData, ChemistryData, bool, bool, bool>;
+        ThermalData, ChemistryData, DiffusionMode, DiffusionMode>;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static amrex::GpuTuple<
@@ -227,10 +229,9 @@ protected:
     bool reinitialize_condensed_composition = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
-    bool include_viscosity = true;
-    bool include_conduction = true;
-    bool implicit_thermal_diffusion = false;
-    bool implicit_species_diffusion = false;
+    DiffusionMode viscosity = DiffusionMode::Explicit;
+    DiffusionMode thermal_diffusion = DiffusionMode::Explicit;
+    DiffusionMode species_diffusion = DiffusionMode::Explicit;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
     Set::Scalar finite_solid_reference_density = 1.0;
