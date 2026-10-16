@@ -1857,8 +1857,29 @@ LowMach::ComputeThermochemicalSource(
     if (thermal_diffusion == DiffusionMode::Explicit &&
         heat_capacity > 0.0)
     {
-        temperature += conductivity / heat_capacity *
-            Numeric::Laplacian(T, i, j, k, 0, DX);
+        // Use the same harmonic face conductivities as the implicit
+        // operator: div(k grad(T)), including spatial variations in k.
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            const int di = d == 0;
+            const int dj = d == 1;
+            const int dk = d == 2;
+            const Set::Scalar k_hi = amrex::get<3>(ComputeThermalState(
+                component_density, T(i+di,j+dj,k+dk),
+                i+di, j+dj, k+dk, thermal));
+            const Set::Scalar k_lo = amrex::get<3>(ComputeThermalState(
+                component_density, T(i-di,j-dj,k-dk),
+                i-di, j-dj, k-dk, thermal));
+            const Set::Scalar face_hi = conductivity > 0.0 && k_hi > 0.0 ?
+                2.0 * conductivity * k_hi / (conductivity + k_hi) : 0.0;
+            const Set::Scalar face_lo = conductivity > 0.0 && k_lo > 0.0 ?
+                2.0 * conductivity * k_lo / (conductivity + k_lo) : 0.0;
+            temperature += (face_hi *
+                                (T(i+di,j+dj,k+dk) - T(i,j,k)) -
+                            face_lo *
+                                (T(i,j,k) - T(i-di,j-dj,k-dk))) /
+                (heat_capacity * DX[d] * DX[d]);
+        }
     }
     if (heat_capacity > 0.0)
         temperature +=
