@@ -2654,6 +2654,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
     const bool elastic = (deformable_solid_species >= 0) &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
     const auto gas_data = gas_device_data;
+    const auto thermal = thermal_data;
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         Set::Scalar advmax = 0.0;         // maximum advection speed
@@ -2663,6 +2664,11 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
         Set::Scalar dxmin = std::min(dx[0], dx[1]);
+        // Every coordinate direction contributes to the explicit Laplacian's
+        // stability limit, including on meshes with unequal cell widths.
+        Set::Scalar inverse_dx_squared_sum = 0.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            inverse_dx_squared_sum += 1.0 / (dx[d] * dx[d]);
         Set::Scalar temperaturemax = 0.0;
 
         // Determine the maximum advection rate
@@ -2718,17 +2724,6 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                         gas_data, T(i,j,k), component_density, i, j, k);
                     nu = mu / Util::Max(rho(i,j,k), rho_floor);
                 }
-                if (conductive)
-                {
-                    const Set::Scalar cp = Model::Gas::Gas::CpMass(
-                        gas_data, T(i,j,k), component_density, i, j, k);
-                    const Set::Scalar kappa =
-                        Model::Gas::Gas::ThermalConductivity(
-                            gas_data, T(i,j,k),
-                            component_density, i, j, k);
-                    nu = Util::Max(nu, kappa /
-                        (Util::Max(rho(i,j,k), rho_floor) * cp));
-                }
                 if (species_diffusive)
                     for (int n = 0; n < ngas; ++n)
                         nu = Util::Max(
@@ -2743,7 +2738,40 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
                     elastic_rate = wave_speed / dxmin;
                     nu = Util::Max(nu, (solid_viscosity + solid_interface_viscosity) / density);
                 }
-                return {nu / (dxmin * dxmin), elastic_rate, T(i,j,k)};
+                Set::Scalar diffusion_rate = nu * inverse_dx_squared_sum;
+                if (conductive)
+                {
+                    const auto thermal_state = ComputeThermalState(
+                        component_density, T(i,j,k), i, j, k, thermal);
+                    const Set::Scalar heat_capacity = amrex::get<2>(thermal_state);
+                    const Set::Scalar conductivity = amrex::get<3>(thermal_state);
+                    if (heat_capacity > 0.0)
+                    {
+                        Set::Scalar diagonal = 0.0;
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        {
+                            const int di = d == 0;
+                            const int dj = d == 1;
+                            const int dk = d == 2;
+                            const Set::Scalar k_hi = amrex::get<3>(ComputeThermalState(
+                                component_density, T(i+di,j+dj,k+dk),
+                                i+di, j+dj, k+dk, thermal));
+                            const Set::Scalar k_lo = amrex::get<3>(ComputeThermalState(
+                                component_density, T(i-di,j-dj,k-dk),
+                                i-di, j-dj, k-dk, thermal));
+                            const Set::Scalar face_hi = conductivity > 0.0 && k_hi > 0.0 ?
+                                2.0 * conductivity * k_hi / (conductivity + k_hi) : 0.0;
+                            const Set::Scalar face_lo = conductivity > 0.0 && k_lo > 0.0 ?
+                                2.0 * conductivity * k_lo / (conductivity + k_lo) : 0.0;
+                            diagonal += (face_hi + face_lo) /
+                                (heat_capacity * dx[d] * dx[d]);
+                        }
+                        // visc_dt = 0.5*cfl/diffusion_rate below. This gives
+                        // dt <= cfl/diagonal for the conservative heat flux.
+                        diffusion_rate = Util::Max(diffusion_rate, 0.5 * diagonal);
+                    }
+                }
+                return {diffusion_rate, elastic_rate, T(i,j,k)};
             });
             ReduceTuple hv = reduce_data.value();
             viscmax = std::max(viscmax, amrex::get<0>(hv));
