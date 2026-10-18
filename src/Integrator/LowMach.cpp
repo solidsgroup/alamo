@@ -77,6 +77,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.reference_density.assign(value.nspecies, NAN);
     value.orientation.assign(
         value.nspecies, std::vector<double>{1.0, 0.0, 0.0});
+    value.lattice_constants.resize(value.nspecies);
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
     value.condensed_inverse_reference_density.fill(NAN);
@@ -147,6 +148,22 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             for (double& component : normal)
                 component /= magnitude;
 
+            auto& material_lattice_constants = value.lattice_constants[n];
+            pp.queryarr_default(
+                name + ".lattice_constants", material_lattice_constants,
+                std::vector<double>{});
+            if (!material_lattice_constants.empty() &&
+                material_lattice_constants.size() != 3)
+                Util::Exception(
+                    INFO, name,
+                    ".lattice_constants must contain exactly three values");
+            for (const double lattice_constant : material_lattice_constants)
+                if (!(lattice_constant > 0.0) ||
+                    !std::isfinite(lattice_constant))
+                    Util::Exception(
+                        INFO, name,
+                        ".lattice_constants must be finite and positive");
+
             const bool has_specific_heat =
                 pp.contains(name + ".specific_heat");
             const bool has_thermal_conductivity =
@@ -176,118 +193,119 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 pp.forward_args(value.geom, Unit::Density()));
     }
 
-    pp.query_default(
-        "ap_polycrystal.enabled", value.ap_polycrystal_on, false);
+    auto add_polycrystal =
+        [&](const int species, const std::string& prefix)
+        {
+            if (species < value.ngas_species)
+                Util::Exception(
+                    INFO, prefix, " must identify a condensed material");
+            for (const int configured_species : value.polycrystal_species)
+                if (configured_species == species)
+                    Util::Exception(
+                        INFO, value.species_names[species],
+                        " has more than one polycrystal configuration");
 
-    if (value.ap_polycrystal_on)
+            int grains = 0;
+            pp.query_required(prefix + ".number_of_grains", grains);
+            if (grains <= 0)
+                Util::Exception(
+                    INFO, prefix, ".number_of_grains must be positive");
+
+            const auto& material_lattice_constants =
+                value.lattice_constants[species];
+            if (material_lattice_constants.size() != 3)
+                Util::Exception(
+                    INFO, value.species_names[species],
+                    ".lattice_constants is required when using ",
+                    prefix, ".miller_indices");
+
+            std::vector<double> miller_index_values;
+            pp.queryarr_required(
+                prefix + ".miller_indices", miller_index_values);
+            const int expected_miller_index_values = 3 * grains;
+            if (static_cast<int>(miller_index_values.size()) !=
+                expected_miller_index_values)
+                Util::Exception(
+                    INFO, prefix, ".miller_indices requires exactly ",
+                    expected_miller_index_values, " values");
+
+            std::vector<std::vector<double>> orientations(grains);
+            std::vector<std::vector<double>> miller_indices_by_grain(grains);
+            for (int grain = 0; grain < grains; ++grain)
+            {
+                auto& miller_indices = miller_indices_by_grain[grain];
+                miller_indices = {
+                    miller_index_values[3 * grain],
+                    miller_index_values[3 * grain + 1],
+                    miller_index_values[3 * grain + 2]};
+                for (const double index : miller_indices)
+                    if (!std::isfinite(index))
+                        Util::Exception(
+                            INFO, prefix,
+                            ".miller_indices values must be finite");
+
+                const double index_magnitude = std::hypot(
+                    miller_indices[0], miller_indices[1], miller_indices[2]);
+                if (!(index_magnitude > 0.0) ||
+                    !std::isfinite(index_magnitude))
+                    Util::Exception(
+                        INFO, prefix,
+                        ".miller_indices cannot contain (0,0,0)");
+
+                auto& grain_orientation = orientations[grain];
+                grain_orientation = {
+                    miller_indices[0] / material_lattice_constants[0],
+                    miller_indices[1] / material_lattice_constants[1],
+                    miller_indices[2] / material_lattice_constants[2]};
+                const double normal_magnitude = std::hypot(
+                    grain_orientation[0],
+                    grain_orientation[1],
+                    grain_orientation[2]);
+                for (double& component : grain_orientation)
+                    component /= normal_magnitude;
+            }
+
+            int grain_component_offset = 0;
+            if (!value.grain_component_offsets.empty())
+                grain_component_offset =
+                    value.grain_component_offsets.back() +
+                    value.number_of_grains.back();
+            value.polycrystal_species.push_back(species);
+            value.number_of_grains.push_back(grains);
+            value.grain_component_offsets.push_back(grain_component_offset);
+            value.grain_orientations.push_back(std::move(orientations));
+            value.grain_miller_indices.push_back(
+                std::move(miller_indices_by_grain));
+            value.grain_mobility_multipliers.emplace_back();
+            value.grain_ic.push_back(new IC::Voronoi(value.geom, grains));
+        };
+
+    for (int species = value.ngas_species;
+         species < value.nspecies; ++species)
+    {
+        const std::string prefix =
+            value.species_names[species] + ".polycrystal";
+        bool enabled = false;
+        pp.query_default(prefix + ".enabled", enabled, false);
+        if (enabled) add_polycrystal(species, prefix);
+    }
+
+    bool legacy_ap_polycrystal_on = false;
+    pp.query_default(
+        "ap_polycrystal.enabled", legacy_ap_polycrystal_on, false);
+    if (legacy_ap_polycrystal_on)
     {
         std::string species_name;
-
-        pp.query_required(
-            "ap_polycrystal.species", species_name);
-        pp.query_required(
-            "ap_polycrystal.number_of_grains", value.ap_number_of_grains);
-
-        if (value.ap_number_of_grains <= 0)
-            Util::Exception(
-                INFO, "ap_polycrystal.number_of_grains must be positive");
-
+        pp.query_required("ap_polycrystal.species", species_name);
+        int species = -1;
         for (int n = 0; n < value.nspecies; ++n)
-        {
-            if (value.species_names[n] == species_name)
-                value.ap_polycrystal_species = n;
-        }
-
-        if (value.ap_polycrystal_species < 0)
+            if (value.species_names[n] == species_name) species = n;
+        if (species < 0)
             Util::Exception(
                 INFO, "Unknown AP polycrystal species: ", species_name);
-
-        if (value.ap_polycrystal_species < value.ngas_species)
-            Util::Exception(
-                INFO, "The AP polycrystal species must be a solid");
-
-        pp.queryarr_default(
-            species_name + ".lattice_constants",
-            value.ap_lattice_constants,
-            // Room-temperature orthorhombic AP: a, b, c in angstroms.
-            std::vector<double>{9.20, 5.82, 7.45});
-        if (value.ap_lattice_constants.size() != 3)
-            Util::Exception(
-                INFO, species_name,
-                ".lattice_constants must contain exactly three values");
-        for (const double lattice_constant : value.ap_lattice_constants)
-            if (!(lattice_constant > 0.0) ||
-                !std::isfinite(lattice_constant))
-                Util::Exception(
-                    INFO, species_name,
-                    ".lattice_constants must be finite and positive");
-
-        std::vector<double> miller_index_values;
-        pp.queryarr_required(
-            "ap_polycrystal.miller_indices", miller_index_values);
-
-        const int expected_miller_index_values =
-            3 * value.ap_number_of_grains;
-        if (static_cast<int>(miller_index_values.size()) !=
-            expected_miller_index_values)
-            Util::Exception(
-                INFO, "ap_polycrystal.miller_indices requires exactly ",
-                expected_miller_index_values, " values");
-
-        value.ap_grain_orientations.resize(
-            value.ap_number_of_grains);
-
-        value.ap_grain_miller_indices.resize(
-            value.ap_number_of_grains);
-
-        for (int grain = 0;
-             grain < value.ap_number_of_grains;
-             ++grain)
-        {
-            auto& miller_indices =
-                value.ap_grain_miller_indices[grain];
-
-            miller_indices = {
-                miller_index_values[3 * grain],
-                miller_index_values[3 * grain + 1],
-                miller_index_values[3 * grain + 2]};
-
-            for (double index : miller_indices)
-                if (!std::isfinite(index))
-                    Util::Exception(
-                        INFO, "AP grain Miller indices must be finite");
-
-            const double index_magnitude = std::hypot(
-                miller_indices[0],
-                miller_indices[1],
-                miller_indices[2]);
-
-            if (!(index_magnitude > 0.0) ||
-                !std::isfinite(index_magnitude))
-                Util::Exception(
-                    INFO, "AP grain Miller indices cannot be (0,0,0)");
-
-            auto& orientation =
-                value.ap_grain_orientations[grain];
-
-            orientation = {
-                miller_indices[0] / value.ap_lattice_constants[0],
-                miller_indices[1] / value.ap_lattice_constants[1],
-                miller_indices[2] / value.ap_lattice_constants[2]};
-
-            const double normal_magnitude = std::hypot(
-                orientation[0],
-                orientation[1],
-                orientation[2]);
-
-            for (double& component : orientation)
-                component /= normal_magnitude;
-        }
-
-        value.ap_grain_ic =
-            new IC::Voronoi(
-                value.geom, value.ap_number_of_grains);
+        add_polycrystal(species, "ap_polycrystal");
     }
+    value.polycrystal_on = !value.polycrystal_species.empty();
 
     value.chemistry.Define(value.ngas_species);
     pp.queryclass("chemistry", value.chemistry);
@@ -375,19 +393,23 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             id, value.mechanisms[n],
             pp.forward_args(value.species_names, value.ngas_species,
                             value.rigid_solid_species, value.reference_density,
-                            value.orientation, value.ap_polycrystal_species,
-                            value.ap_grain_orientations,
-                            value.ap_lattice_constants,
-                            value.ap_grain_mobility_multipliers,
+                            value.orientation, value.polycrystal_species,
+                            value.grain_orientations,
+                            value.lattice_constants,
+                            value.grain_mobility_multipliers,
                             value.gas.MW, value.gas.Rg));
     }
-    if (!IO::ParmParse::InTraversalMode() &&
-        value.ap_polycrystal_on &&
-        static_cast<int>(value.ap_grain_mobility_multipliers.size()) !=
-            value.ap_number_of_grains)
-        Util::Exception(
-            INFO,
-            "The AP polycrystal requires one mobility multiplier per grain");
+    if (!IO::ParmParse::InTraversalMode())
+        for (int polycrystal = 0;
+             polycrystal < static_cast<int>(value.polycrystal_species.size());
+             ++polycrystal)
+            if (static_cast<int>(
+                    value.grain_mobility_multipliers[polycrystal].size()) !=
+                value.number_of_grains[polycrystal])
+                Util::Exception(
+                    INFO, value.species_names[
+                        value.polycrystal_species[polycrystal]],
+                    " requires one mobility multiplier per grain");
     if (value.implicit_momentum_diffusion || value.implicit_thermal_diffusion ||
         value.implicit_species_diffusion ||
         (!value.rigid_solid_species.empty() && !value.mechanisms.empty()))
@@ -472,15 +494,34 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             "heat_source", false, false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_mf,     value.component_density_bc, value.nspecies, nghost, "component_density",     true,  true, species_suffix);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.component_density_old_mf, value.component_density_bc, value.nspecies, nghost, "component_density_old", false, true, species_suffix);
-    if (value.ap_polycrystal_on)
+    if (value.polycrystal_on)
+    {
+        const int total_grains =
+            value.grain_component_offsets.back() +
+            value.number_of_grains.back();
+        std::vector<std::string> grain_suffix;
+        std::vector<std::string> mobility_suffix;
+        for (int polycrystal = 0;
+             polycrystal < static_cast<int>(value.polycrystal_species.size());
+             ++polycrystal)
+        {
+            const std::string material =
+                "_" + value.species_names[
+                    value.polycrystal_species[polycrystal]];
+            mobility_suffix.push_back(material);
+            for (int grain = 0;
+                 grain < value.number_of_grains[polycrystal]; ++grain)
+                grain_suffix.push_back(
+                    material + "_" + std::to_string(grain));
+        }
         value.AddField<Set::Scalar,Set::HC::Cell>(
-            value.ap_grain_fraction_mf, &value.bc_nothing,
-            value.ap_number_of_grains, 1,
-            "ap_grain_fraction", true, false);
-    if (value.ap_polycrystal_on)
+            value.grain_fraction_mf, &value.bc_nothing,
+            total_grains, 1, "grain_fraction", true, false, grain_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(
-            value.ap_orientation_mobility_mf, &value.bc_nothing,
-            1, 1, "ap_orientation_mobility", true, false);
+            value.orientation_mobility_mf, &value.bc_nothing,
+            value.polycrystal_species.size(), 1,
+            "orientation_mobility", true, false, mobility_suffix);
+    }
     if (value.deformable_solid_species >= 0)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
@@ -1156,9 +1197,9 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> orientation_mobility;
-                if (ap_polycrystal_on)
+                if (polycrystal_on)
                     orientation_mobility =
-                        ap_orientation_mobility_mf.Patch(lev,mfi);
+                        orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> temperature =
                     temperature_mf.Patch(lev,mfi);
                 amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
@@ -1240,9 +1281,9 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> orientation_mobility;
-                if (ap_polycrystal_on)
+                if (polycrystal_on)
                     orientation_mobility =
-                        ap_orientation_mobility_mf.Patch(lev,mfi);
+                        orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> T =
                     temperature_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> coefficient =
@@ -1324,9 +1365,9 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_eta = rigid_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> rigid_species_eta = rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> orientation_mobility;
-                if (ap_polycrystal_on)
+                if (polycrystal_on)
                     orientation_mobility =
-                        ap_orientation_mobility_mf.Patch(lev,mfi);
+                        orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> eta_new = diffusion.State(lev, 1).array(mfi);
                 Set::Patch<const Set::Scalar> inverse_coefficient = diffusion.Mass(lev, 1).array(mfi);
                 Set::Patch<const Set::Scalar> scaled_local_rate = diffusion.Source(lev, 1).array(mfi);
@@ -1965,9 +2006,9 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<const Set::Scalar> rigid_species_eta =
                     rigid_species_eta_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> orientation_mobility;
-                if (ap_polycrystal_on)
+                if (polycrystal_on)
                     orientation_mobility =
-                        ap_orientation_mobility_mf.Patch(lev,mfi);
+                        orientation_mobility_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> rhs = pressure_poisson.RHS(lev).array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -2130,17 +2171,34 @@ LowMach::Initialize(int lev)
             *component_density_mf[lev], amrex::MakeType::make_alias, n, 1);
         component_density_ic[n]->Initialize(lev, species_density, 0.0);
     }
-    if (ap_polycrystal_on)
+    if (polycrystal_on)
     {
-        ap_grain_ic->Initialize(lev, ap_grain_fraction_mf, 0.0);
-        ap_orientation_mobility_mf[lev]->setVal(0.0);
-        for (int grain = 0; grain < ap_number_of_grains; ++grain)
-            amrex::MultiFab::Saxpy(
-                *ap_orientation_mobility_mf[lev],
-                ap_grain_mobility_multipliers[grain],
-                *ap_grain_fraction_mf[lev],
-                grain, 0, 1, 1);
-        ap_orientation_mobility_mf[lev]->FillBoundary(
+        grain_fraction_mf[lev]->setVal(0.0);
+        orientation_mobility_mf[lev]->setVal(0.0);
+        for (int polycrystal = 0;
+             polycrystal < static_cast<int>(polycrystal_species.size());
+             ++polycrystal)
+        {
+            Set::Field<Set::Scalar> material_grain_fraction(
+                grain_fraction_mf.size());
+            material_grain_fraction[lev] =
+                std::make_unique<amrex::MultiFab>(
+                    *grain_fraction_mf[lev], amrex::MakeType::make_alias,
+                    grain_component_offsets[polycrystal],
+                    number_of_grains[polycrystal]);
+            grain_ic[polycrystal]->Initialize(
+                lev, material_grain_fraction, 0.0);
+            for (int grain = 0;
+                 grain < number_of_grains[polycrystal]; ++grain)
+                amrex::MultiFab::Saxpy(
+                    *orientation_mobility_mf[lev],
+                    grain_mobility_multipliers[polycrystal][grain],
+                    *grain_fraction_mf[lev],
+                    grain_component_offsets[polycrystal] + grain,
+                    polycrystal, 1, 1);
+        }
+        grain_fraction_mf[lev]->FillBoundary(geom[lev].periodicity());
+        orientation_mobility_mf[lev]->FillBoundary(
             geom[lev].periodicity());
     }
     if (deformable_solid)
@@ -2380,9 +2438,9 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             Set::Patch<const Set::Scalar> rigid_species_eta =
                 rigid_species_eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> orientation_mobility;
-            if (ap_polycrystal_on)
+            if (polycrystal_on)
                 orientation_mobility =
-                    ap_orientation_mobility_mf.Patch(lev,mfi);
+                    orientation_mobility_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> component_density_rhs = component_density_rhs_mf.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

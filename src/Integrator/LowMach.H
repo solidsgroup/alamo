@@ -72,7 +72,8 @@ public:
         delete heat_source_ic;
         for (auto* ic : component_density_ic)
             delete ic;
-        delete ap_grain_ic;
+        for (auto* ic : grain_ic)
+            delete ic;
         delete pressure_ic;
         delete xi_ic;
     }
@@ -152,8 +153,8 @@ protected:
     Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
     Set::Field<Set::Scalar> xi_old_mf;
-    Set::Field<Set::Scalar> ap_grain_fraction_mf;
-    Set::Field<Set::Scalar> ap_orientation_mobility_mf;
+    Set::Field<Set::Scalar> grain_fraction_mf;
+    Set::Field<Set::Scalar> orientation_mobility_mf;
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> momentum_mf;
@@ -186,7 +187,7 @@ protected:
     std::vector<IC::IC<Set::Scalar>*> component_density_ic;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* xi_ic = nullptr;
-    IC::IC<Set::Scalar>* ap_grain_ic = nullptr;
+    std::vector<IC::IC<Set::Scalar>*> grain_ic;
 
     Model::Gas::Gas gas;
     amrex::Gpu::DeviceVector<Set::Scalar> gas_device_storage;
@@ -212,14 +213,15 @@ protected:
     int deformable_solid_species = -1;
     std::vector<int> rigid_solid_species;
 
-    bool ap_polycrystal_on = false;
-    int ap_polycrystal_species = -1;
-    int ap_number_of_grains = 0;
-    // Room-temperature orthorhombic AP lattice constants (angstroms).
-    std::vector<double> ap_lattice_constants{9.20, 5.82, 7.45};
-    std::vector<std::vector<double>> ap_grain_orientations;
-    std::vector<std::vector<double>> ap_grain_miller_indices;
-    std::vector<double> ap_grain_mobility_multipliers;
+    bool polycrystal_on = false;
+    std::vector<int> polycrystal_species;
+    std::vector<int> number_of_grains;
+    std::vector<int> grain_component_offsets;
+    // Orthorhombic lattice constants (a, b, c), indexed by species.
+    std::vector<std::vector<double>> lattice_constants;
+    std::vector<std::vector<std::vector<double>>> grain_orientations;
+    std::vector<std::vector<std::vector<double>>> grain_miller_indices;
+    std::vector<std::vector<double>> grain_mobility_multipliers;
 
     Set::Vector g = Set::Vector::Zero();
     Set::Scalar cfl = NAN;

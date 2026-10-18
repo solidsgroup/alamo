@@ -147,10 +147,12 @@ public:
                     const std::vector<int>& rigid_solid_species,
                     const std::vector<Set::Scalar>& reference_density,
                     const std::vector<std::vector<double>>& orientation,
-                    const int ap_polycrystal_species,
-                    const std::vector<std::vector<double>>& ap_grain_orientations,
-                    const std::vector<double>& ap_lattice_constants,
-                    std::vector<double>& ap_grain_mobility_multipliers,
+                    const std::vector<int>& polycrystal_species,
+                    const std::vector<std::vector<std::vector<double>>>&
+                        all_grain_orientations,
+                    const std::vector<std::vector<double>>& lattice_constants,
+                    std::vector<std::vector<double>>&
+                        all_grain_mobility_multipliers,
                     const std::vector<double>& molecular_weight,
                     const Set::Scalar universal_gas_constant)
     {
@@ -178,6 +180,24 @@ public:
             Util::Exception(INFO, "No positive reference density is defined for ", input);
         pp.select<Model::PhaseField::AllenCahn>(
             "phase_field", value.phase_field);
+        for (int polycrystal = 0;
+             polycrystal < static_cast<int>(polycrystal_species.size());
+             ++polycrystal)
+            if (value.input == polycrystal_species[polycrystal])
+                value.orientation_mobility_component = polycrystal;
+        const std::vector<std::vector<double>> empty_grain_orientations;
+        std::vector<double> unused_grain_mobility_multipliers;
+        const auto& grain_orientations =
+            value.orientation_mobility_component >= 0 ?
+                all_grain_orientations[value.orientation_mobility_component] :
+                empty_grain_orientations;
+        auto& grain_mobility_multipliers =
+            value.orientation_mobility_component >= 0 ?
+                all_grain_mobility_multipliers[
+                    value.orientation_mobility_component] :
+                unused_grain_mobility_multipliers;
+        const int selected_polycrystal_species =
+            value.orientation_mobility_component >= 0 ? value.input : -1;
         const auto& normal = orientation[value.input];
         std::string orientation_mobility_type = "formula";
         pp.query_default(
@@ -206,13 +226,13 @@ public:
             value.orientation_mobility_multiplier =
                 formula_multiplier(normal);
 
-            if (value.input == ap_polycrystal_species)
+            if (value.input == selected_polycrystal_species)
             {
-                ap_grain_mobility_multipliers.clear();
-                ap_grain_mobility_multipliers.reserve(
-                    ap_grain_orientations.size());
-                for (const auto& grain_orientation : ap_grain_orientations)
-                    ap_grain_mobility_multipliers.push_back(
+                grain_mobility_multipliers.clear();
+                grain_mobility_multipliers.reserve(
+                    grain_orientations.size());
+                for (const auto& grain_orientation : grain_orientations)
+                    grain_mobility_multipliers.push_back(
                         formula_multiplier(grain_orientation));
             }
         }
@@ -235,18 +255,18 @@ public:
                 value.orientation_mobility_multiplier =
                     mobility_table(theta);
 
-                if (value.input == ap_polycrystal_species)
+                if (value.input == selected_polycrystal_species)
                 {
-                    ap_grain_mobility_multipliers.clear();
-                    ap_grain_mobility_multipliers.reserve(
-                        ap_grain_orientations.size());
+                    grain_mobility_multipliers.clear();
+                    grain_mobility_multipliers.reserve(
+                        grain_orientations.size());
                     for (const auto& grain_orientation :
-                         ap_grain_orientations)
+                         grain_orientations)
                     {
                         const Set::Scalar grain_theta =
                             std::atan2(grain_orientation[1],
                                       grain_orientation[0]);
-                        ap_grain_mobility_multipliers.push_back(
+                        grain_mobility_multipliers.push_back(
                             mobility_table(grain_theta));
                     }
                 }
@@ -263,19 +283,20 @@ public:
             if (!IO::ParmParse::InTraversalMode())
             {
                 const MillerMobilityTable mobility_table =
-                    MillerMobilityTable::Read(filename, ap_lattice_constants);
+                    MillerMobilityTable::Read(
+                        filename, lattice_constants[value.input]);
 
                 value.orientation_mobility_multiplier =
                     mobility_table.Lookup(normal);
 
-                if (value.input == ap_polycrystal_species)
+                if (value.input == selected_polycrystal_species)
                 {
-                    ap_grain_mobility_multipliers.clear();
-                    ap_grain_mobility_multipliers.reserve(
-                        ap_grain_orientations.size());
+                    grain_mobility_multipliers.clear();
+                    grain_mobility_multipliers.reserve(
+                        grain_orientations.size());
                     for (const auto& grain_orientation :
-                         ap_grain_orientations)
-                        ap_grain_mobility_multipliers.push_back(
+                         grain_orientations)
+                        grain_mobility_multipliers.push_back(
                             mobility_table.Lookup(grain_orientation));
                 }
             }
@@ -296,11 +317,11 @@ public:
                     "when orientation_mobility.type = constant");
             value.orientation_mobility_multiplier = mobility / base_mobility;
 
-            if (value.input == ap_polycrystal_species)
+            if (value.input == selected_polycrystal_species)
             {
-                ap_grain_mobility_multipliers.clear();
-                ap_grain_mobility_multipliers.resize(
-                    ap_grain_orientations.size(),
+                grain_mobility_multipliers.clear();
+                grain_mobility_multipliers.resize(
+                    grain_orientations.size(),
                     value.orientation_mobility_multiplier);
             }
         }
@@ -316,17 +337,17 @@ public:
             !std::isfinite(value.orientation_mobility_multiplier))
             Util::Exception(INFO,
                 "orientation mobility multiplier must be finite and positive");
-        for (const double multiplier : ap_grain_mobility_multipliers)
+        for (const double multiplier : grain_mobility_multipliers)
             if (!(multiplier > 0.0) || !std::isfinite(multiplier))
                 Util::Exception(
                     INFO,
-                    "AP grain mobility multipliers must be finite and positive");
+                    "Grain mobility multipliers must be finite and positive");
         value.use_local_orientation_mobility =
-            value.input == ap_polycrystal_species;
+            value.input == selected_polycrystal_species;
         value.stability_orientation_mobility_multiplier =
             value.orientation_mobility_multiplier;
         if (value.use_local_orientation_mobility)
-            for (const double multiplier : ap_grain_mobility_multipliers)
+            for (const double multiplier : grain_mobility_multipliers)
                 value.stability_orientation_mobility_multiplier = Util::Max(
                     value.stability_orientation_mobility_multiplier,
                     multiplier);
@@ -484,7 +505,8 @@ private:
         const State& state, const int i, const int j, const int k) const
     {
         return use_local_orientation_mobility ?
-            state.orientation_mobility(i,j,k) :
+            state.orientation_mobility(
+                i, j, k, orientation_mobility_component) :
             orientation_mobility_multiplier;
     }
 
@@ -526,6 +548,7 @@ private:
     Set::Scalar stability_orientation_mobility_multiplier = 1.0;
     bool input_is_rigid = false;
     bool use_local_orientation_mobility = false;
+    int orientation_mobility_component = -1;
 };
 }
 }

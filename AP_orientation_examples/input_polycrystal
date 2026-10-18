@@ -105,6 +105,8 @@ AP_solid.mechanics = rigid_solid
 AP_solid.reference_density = 1950.0_kg/m^3
 AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
+# Orthorhombic lattice constants a, b, c in angstroms.
+AP_solid.lattice_constants = 9.20 5.82 7.45
 # The same Miller table is evaluated separately for every grain face.
 AP_decomposition.phase_change.orientation_mobility.type = miller_read
 AP_decomposition.phase_change.orientation_mobility.miller_read.filename = AP_orientation_examples/ap_miller_mobility_table.dat
