@@ -28,6 +28,7 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Chemistry/Rocfire.H"
+#include "Model/PhaseField/PhaseField.H"
 
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/ODE/BackwardEuler.H"
@@ -43,6 +44,27 @@ int main (int argc, char* argv[])
     int failed = 0;
 
     Util::globalprefix = "  │  ";
+
+    Util::Test::Message("Bounded constitutive phase interpolation");
+    {
+        bool bounded = true;
+        constexpr Set::Scalar lo = 0.11920292202211755;
+        constexpr Set::Scalar hi = 1.0 - lo;
+        for (int i = 0; i <= 10000; ++i)
+        {
+            for (const Set::Scalar eta :
+                 {-0.2 + 1.4 * i / 10000.0,
+                  lo + (hi-lo) * (1.0 - i * 1.0e-10)})
+            {
+                const Set::Scalar h = Model::PhaseField::H(eta);
+                bounded &= h >= 0.0 && h <= 1.0;
+            }
+        }
+        failed += Util::Test::SubMessage("Phase weights remain in [0,1], including endpoint roundoff", !bounded);
+        failed += Util::Test::SubMessage("Pure-phase limits and interface midpoint preserved",
+            Model::PhaseField::H(-1.0) != 0.0 || Model::PhaseField::H(2.0) != 1.0 ||
+            std::abs(Model::PhaseField::H(0.5) - 0.5) > 1.0e-14);
+    }
 
     Util::Test::Message("Rocfire phase-change energy ownership test");
     {
