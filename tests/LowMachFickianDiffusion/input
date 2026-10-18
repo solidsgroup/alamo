@@ -3,6 +3,19 @@
 #@ dim = 2
 #@ timeout = 240
 #@ check-file = reference/fickian-diffusion-analytic.csv
+#@
+#@ [2d-implicit]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 240
+#@ check-file = reference/fickian-diffusion-analytic.csv
+#@ args = species_diffusion=2
+#@ args = gas.transport.type=rocfire
+#@ args = gas.transport.rocfire.mw=32.0_g/mol
+#@ args = gas.transport.rocfire.lambda_a=0.0_W/m/K^2
+#@ args = gas.transport.rocfire.lambda_b=269.64_W/m/K
+#@ args = gas.transport.rocfire.lewis=1.0
+#@ ignore = gas.transport.mixture_averaged.type gas.transport.mixture_averaged.LJdiameter gas.transport.mixture_averaged.LJwelldepth
 
 plot_file = tests/LowMachFickianDiffusion/output
 amr.plot_dt = 0.05
