@@ -20,7 +20,6 @@
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/PhaseField/AllenCahn.H"
 #include "Model/PhaseField/PhaseField.H"
-#include "Numeric/Interpolator/Linear.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -236,42 +235,6 @@ public:
                         formula_multiplier(grain_orientation));
             }
         }
-        else if (orientation_mobility_type == "read")
-        {
-            std::string filename;
-
-            pp.query_file(
-                "orientation_mobility.read.filename",
-                filename);
-
-            if (!IO::ParmParse::InTraversalMode())
-            {
-                auto mobility_table =
-                    Numeric::Interpolator::Linear<Set::Scalar>::Read(filename);
-
-                const Set::Scalar theta =
-                    std::atan2(normal[1], normal[0]);
-
-                value.orientation_mobility_multiplier =
-                    mobility_table(theta);
-
-                if (value.input == selected_polycrystal_species)
-                {
-                    grain_mobility_multipliers.clear();
-                    grain_mobility_multipliers.reserve(
-                        grain_orientations.size());
-                    for (const auto& grain_orientation :
-                         grain_orientations)
-                    {
-                        const Set::Scalar grain_theta =
-                            std::atan2(grain_orientation[1],
-                                      grain_orientation[0]);
-                        grain_mobility_multipliers.push_back(
-                            mobility_table(grain_theta));
-                    }
-                }
-            }
-        }
         else if (orientation_mobility_type == "miller_read")
         {
             std::string filename;
@@ -331,7 +294,7 @@ public:
                 INFO,
                 "Invalid orientation_mobility.type ",
                 orientation_mobility_type,
-                ". Expected formula, read, miller_read, or constant.");
+                ". Expected formula, miller_read, or constant.");
         }
         if (!(value.orientation_mobility_multiplier > 0.0) ||
             !std::isfinite(value.orientation_mobility_multiplier))
