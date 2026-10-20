@@ -16,6 +16,11 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    pp.query_validate("bottom_solver", value.bottom_solver,
+                      {"bicgstab", "bicgcg", "cgbicg", "cg"});
+    pp.query_default("bottom_max_iter", value.bottom_max_iter, 200);
+    pp.query_default("bottom_verbose", value.bottom_verbose, 0);
+    Util::Assert(INFO, TEST(value.bottom_max_iter > 0));
 }
 
 void
@@ -205,6 +210,18 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
 
     amrex::MLMG solver(poisson);
     solver.setVerbose(verbose);
+    // Thin domains can leave a large, poorly conditioned bottom grid. Expose
+    // its solver and work limit without relaxing the convergence tolerance.
+    if (bottom_solver == "bicgcg")
+        solver.setBottomSolver(amrex::BottomSolver::bicgcg);
+    else if (bottom_solver == "cgbicg")
+        solver.setBottomSolver(amrex::BottomSolver::cgbicg);
+    else if (bottom_solver == "cg")
+        solver.setBottomSolver(amrex::BottomSolver::cg);
+    else
+        solver.setBottomSolver(amrex::BottomSolver::bicgstab);
+    solver.setBottomMaxIter(bottom_max_iter);
+    solver.setBottomVerbose(bottom_verbose);
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
                 tolerance_relative, tolerance_absolute);

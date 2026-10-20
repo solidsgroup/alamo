@@ -4,6 +4,7 @@
 #include <AMReX_Geometry.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_MultiFab.H>
+#include <string>
 
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
@@ -40,6 +41,9 @@ private:
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
     int max_order = 2;
+    std::string bottom_solver = "bicgstab";
+    int bottom_max_iter = 200;
+    int bottom_verbose = 0;
     amrex::Vector<amrex::Geometry> geometry;
     amrex::Vector<amrex::IntVect> refinement_ratio;
     amrex::Vector<amrex::BoxArray> grids;
