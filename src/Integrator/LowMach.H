@@ -15,6 +15,7 @@
 
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
+#include "AMReX_Parser.H"
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
@@ -103,9 +104,11 @@ public:
     void ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
+    // Last entry is dP0/dt of the uniform thermodynamic pressure.
     using ThermalData = amrex::GpuTuple<
         Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
-        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*>;
+        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*,
+        Set::Scalar>;
     using ChemistryData = amrex::GpuTuple<
         bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
@@ -129,6 +132,7 @@ public:
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
         const ThermochemicalData& data,
         bool include_reaction = true);
+    void SetReferencePressure(Set::Scalar time);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
@@ -218,7 +222,15 @@ protected:
     Set::Scalar density_floor = 1.0e-12;
     Set::Scalar pressure_floor = 1.0e-12;
     Set::Scalar pressure_scale = 1.0;
+    // Uniform thermodynamic pressure and the compiled expression state.
     Set::Scalar pressure_reference = NAN;
+    Set::Scalar pressure_mean = NAN;
+    // Expressions return a pressure perturbation and its time derivative.
+    amrex::Parser pressure_expression_parser;
+    amrex::Parser pressure_expression_rate_parser;
+    amrex::ParserExecutor<2> pressure_expression;
+    amrex::ParserExecutor<2> pressure_expression_rate;
+    Set::Scalar pressure_rate = 0.0;
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;

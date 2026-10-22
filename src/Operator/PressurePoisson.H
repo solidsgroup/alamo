@@ -40,6 +40,7 @@ private:
     Set::Scalar tolerance_relative = 1.0e-11;
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
+    int max_iterations = 200;
     int max_order = 2;
     std::string bottom_solver = "bicgstab";
     int bottom_max_iter = 200;

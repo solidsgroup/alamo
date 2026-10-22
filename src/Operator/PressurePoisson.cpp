@@ -15,6 +15,9 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("tol_rel", value.tolerance_relative, 1.0e-11);
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
+    pp.query_default("max_iter", value.max_iterations, 200);
+    Util::Assert(INFO, TEST(value.max_iterations > 0),
+                 "projection.max_iter must be > 0.");
     pp.query_default("max_order", value.max_order, 2);
     pp.query_validate("bottom_solver", value.bottom_solver,
                       {"bicgstab", "bicgcg", "cgbicg", "cg"});
@@ -222,6 +225,7 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
         solver.setBottomSolver(amrex::BottomSolver::bicgstab);
     solver.setBottomMaxIter(bottom_max_iter);
     solver.setBottomVerbose(bottom_verbose);
+    solver.setMaxIter(max_iterations);
     solver.setFinalFillBC(true);
     solver.solve(solution_ptr, rhs_ptr,
                 tolerance_relative, tolerance_absolute);

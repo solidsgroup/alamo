@@ -1,7 +1,9 @@
 #include "LowMach.H"
 
 #include <cctype>
+#include <cmath>
 #include <cstring>
+#include <stdexcept>
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_TimeIntegrator.H"
@@ -43,6 +45,72 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("density_floor", value.density_floor, value.small);
     pp.query_default("pressure_floor", value.pressure_floor, value.small);
     pp.query_default("pressure_scale", value.pressure_scale, 1.0);
+    pp.forbid("pressure.reference.profile",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.amplitude",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.frequency",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.phase",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.start_time",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.impulse_scale",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    pp.forbid("pressure.reference.width",
+              "use pressure.reference.expression and pressure.reference.expression_rate");
+    const bool has_pressure_expression =
+        pp.contains("pressure.reference.expression");
+    const bool has_pressure_expression_rate =
+        pp.contains("pressure.reference.expression_rate");
+    if (has_pressure_expression != has_pressure_expression_rate)
+        Util::Exception(INFO,
+            "Specify both pressure.reference.expression and "
+            "pressure.reference.expression_rate");
+
+    std::string pressure_expression =
+        has_pressure_expression ? "" : "0.0";
+    std::string pressure_expression_rate =
+        has_pressure_expression_rate ? "" : "0.0";
+    if (has_pressure_expression)
+    {
+        pp.query_required("pressure.reference.expression", pressure_expression);
+        pp.query_required("pressure.reference.expression_rate",
+                          pressure_expression_rate);
+    }
+    try
+    {
+        value.pressure_expression_parser =
+            amrex::Parser(pressure_expression);
+        value.pressure_expression_rate_parser =
+            amrex::Parser(pressure_expression_rate);
+        for (const auto& entry : pp.getEntries("pressure.reference.constant"))
+        {
+            IO::ParmParse constants_pp;
+            std::string fullname = entry;
+            Unit constant;
+            constants_pp.queryunit(fullname.data(), constant);
+            const std::string name = Util::String::Split(fullname, '.').back();
+            value.pressure_expression_parser.setConstant(
+                name, constant.normalized_value());
+            value.pressure_expression_rate_parser.setConstant(
+                name, constant.normalized_value());
+        }
+
+        value.pressure_expression_parser.registerVariables({"t", "p_mean"});
+        value.pressure_expression_rate_parser.registerVariables(
+            {"t", "p_mean"});
+        value.pressure_expression =
+            value.pressure_expression_parser.compileHost<2>();
+        value.pressure_expression_rate =
+            value.pressure_expression_rate_parser.compileHost<2>();
+    }
+    catch (const std::runtime_error& error)
+    {
+        Util::Exception(INFO,
+            "Invalid pressure.reference.expression or expression_rate: ",
+            error.what());
+    }
     pp.query_default("projection.enabled", value.projection_enabled, true);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
     pp.query_default("diagnostics.extended_fields", value.diagnostics_extended_fields, false);
@@ -549,7 +617,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.gas_device_data, value.nspecies, value.ngas_species,
         value.density_floor, value.pressure_reference,
         value.condensed_thermal_transport,
-        specific_heat, thermal_conductivity, inverse_reference_density};
+        specific_heat, thermal_conductivity, inverse_reference_density,
+        0.0};
     value.chemistry_device_data = {
         rocfire_chemistry,
         value.chemistry.Get<Model::Chemistry::Rocfire>(),
@@ -569,6 +638,25 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 #else
     Util::IgnoreUnused(value, pp);
 #endif
+}
+
+void
+LowMach::SetReferencePressure(Set::Scalar time)
+{
+    // The first call captures the initial-field mean as the pressure baseline.
+    if (!(pressure_mean == pressure_mean)) pressure_mean = pressure_reference;
+    pressure_reference = pressure_mean +
+        pressure_expression(time, pressure_mean);
+    pressure_rate = pressure_expression_rate(time, pressure_mean);
+    if (!std::isfinite(pressure_reference) ||
+        !(pressure_reference > 0.0) ||
+        !std::isfinite(pressure_rate))
+        Util::Exception(INFO,
+            "pressure.reference.expression produced non-finite or non-positive "
+            "pressure, or a non-finite pressure rate, at t = ", time);
+    amrex::get<4>(thermal_data) = pressure_reference;
+    amrex::get<9>(thermal_data) = pressure_rate;
+    amrex::get<0>(thermochemical_data) = thermal_data;
 }
 
 void
@@ -1038,7 +1126,8 @@ LowMach::ComputeThermalState(
     const auto& [gas_data, nspecies, ngas_species, density_floor,
                  pressure_reference, condensed_thermal_transport,
                  condensed_specific_heat, condensed_thermal_conductivity,
-                 condensed_inverse_reference_density] = data;
+                 condensed_inverse_reference_density, pressure_rate] = data;
+    (void)pressure_rate;
     Set::Scalar density = 0.0;
     Set::Scalar gas_density = 0.0;
     for (int n = 0; n < nspecies; ++n)
@@ -1657,7 +1746,7 @@ LowMach::ComputeThermochemicalSource(
     const auto& [gas_data, nspecies, ngas_species, density_floor,
                  pressure_reference, condensed_thermal_transport,
                  condensed_specific_heat, condensed_thermal_conductivity,
-                 condensed_inverse_reference_density] = thermal;
+                 condensed_inverse_reference_density, pressure_rate] = thermal;
 
     // return values
     Model::Chemistry::SpeciesArray species{};
@@ -1878,9 +1967,14 @@ LowMach::ComputeThermochemicalSource(
         temperature +=
             (reacting_volume_fraction * reaction.second + enthalpy_diffusion) /
             heat_capacity;
+    // Compression work of the uniform thermodynamic pressure on the gas.
+    if (heat_capacity > 0.0)
+        temperature += gas_volume_fraction * pressure_rate / heat_capacity;
 
     if (T(i,j,k) > 0.0)
         dilatation += gas_volume_fraction * temperature / T(i,j,k);
+    if (pressure_reference > 0.0)
+        dilatation -= gas_volume_fraction * pressure_rate / pressure_reference;
     if (molar_density > 0.0)
     {
         Set::Scalar molar_source = 0.0;
@@ -1911,8 +2005,7 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
     if (!(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
-    amrex::get<4>(thermal_data) = pressure_reference;
-    amrex::get<0>(thermochemical_data) = thermal_data;
+    SetReferencePressure(time);
     const auto gas_data = gas_device_data;
     const auto thermochemical = thermochemical_data;
     pressure_poisson.SetLayout(geom, refRatio(), velocity_mf, nlev);
@@ -2154,8 +2247,13 @@ LowMach::Initialize(int lev)
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
     if (lev == 0)
     {
-        amrex::get<4>(thermal_data) = pressure_reference;
-        amrex::get<0>(thermochemical_data) = thermal_data;
+        const Set::Scalar initial_pressure = pressure_reference;
+        SetReferencePressure(0.0);
+        if (std::abs(pressure_reference - initial_pressure) >
+            1.0e-6 * std::abs(initial_pressure))
+            Util::Warning(INFO,
+                "P0(0) differs from the initial pressure; initial fields "
+                "are not consistent with the prescribed reference-pressure profile.");
     }
 
     velocity_bc->define(geom[lev]);
@@ -2289,6 +2387,7 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             const amrex::MultiFab& component_density_mf,
             const amrex::MultiFab* xi_mf)
 {
+    SetReferencePressure(time);
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool split_chemistry = chemistry.Split();
     const bool external_heat_source = heat_source_ic != nullptr;
@@ -2498,6 +2597,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     if (split_chemistry)
     {
+        SetReferencePressure(time);
         AdvanceChemistry(lev, *temperature_old_mf[lev],
                             *component_density_old_mf[lev], 0.5 * dt);
         temperature_bc->FillBoundary(*temperature_old_mf[lev], 0, 1,
@@ -2576,6 +2676,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     });
 
     timeintegrator.advance(solution_old, solution_new, time, dt);
+    SetReferencePressure(time + dt);
     if (split_chemistry)
     {
         AdvanceChemistry(lev, *temperature_mf[lev],
@@ -2610,7 +2711,7 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 // Calculate dynamic timestep
 //
 void
-LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
 {
     //
     // Manage restart data if starting from another simulation
@@ -2627,8 +2728,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             pressure_reference = reference_pressure[0]->sum(0, false) /
                 static_cast<Set::Scalar>(geom[0].Domain().numPts());
         }
-        amrex::get<4>(thermal_data) = pressure_reference;
-        amrex::get<0>(thermochemical_data) = thermal_data;
+        SetReferencePressure(time);
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             amrex::MultiFab::Copy(*velocity_old_mf[lev], *velocity_mf[lev],
@@ -2990,6 +3090,7 @@ LowMach::PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const cha
 void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
+    SetReferencePressure(time + dt[0]);
     PrintSourceDiagnostics(time + dt[0], dt[0], "advection_chemistry");
     ApplyImplicitDiffusion(time + dt[0], dt[0]);
     PrintSourceDiagnostics(time + dt[0], dt[0], "diffusion");
