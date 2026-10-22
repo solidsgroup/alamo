@@ -46,6 +46,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     pp.query_default("projection.enabled", value.projection_enabled, true);
     pp.query_default("diagnostics.interval", value.diagnostics_interval, 0);
     pp.query_default("diagnostics.extended_fields", value.diagnostics_extended_fields, false);
+    pp.query_default("diagnostics.stages", value.diagnostics_stages, false);
+    pp.query_default("diagnostics.start_time", value.diagnostics_start_time, 0.0);
     if (value.projection_enabled)
     {
         pp.query_default("projection.update_pressure", value.projection_update_pressure, true);
@@ -471,19 +473,19 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_correction_mf, &value.bc_nothing, 1,              nghost, "pressure_correction", true, false);
     if (value.chemistry.Split())
         value.AddField<Set::Scalar,Set::HC::Cell>(value.chemistry_dilatation_mf,
-            &value.bc_nothing, 1, 0, "chemistry_dilatation", false, false);
+            &value.bc_nothing, 1, 0, "chemistry_dilatation", value.diagnostics_extended_fields, false);
     if (!value.rigid_solid_species.empty() && !value.mechanisms.empty())
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_dilatation_mf, &value.bc_nothing, 1, 0,
-            "phase_change_dilatation", false, false);
+            "phase_change_dilatation", value.diagnostics_extended_fields, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
-            "phase_change_heat", false, false);
+            "phase_change_heat", value.diagnostics_extended_fields, false);
     }
     if ((value.thermal_diffusion == DiffusionMode::Implicit) || (value.species_diffusion == DiffusionMode::Implicit))
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
-            &value.bc_nothing, 1, 0, "diffusion_dilatation", false, false);
+            &value.bc_nothing, 1, 0, "diffusion_dilatation", value.diagnostics_extended_fields, false);
     if (value.deformable_solid_species >= 0)
         value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", true, false);
     if (value.diagnostics_extended_fields)
@@ -2148,8 +2150,14 @@ LowMach::Initialize(int lev)
     }
     pressure_ic->Initialize(lev, pressure_mf, 0.0);
     pressure_correction_mf[lev]->setVal(0.0);
+    if (chemistry.Split()) chemistry_dilatation_mf[lev]->setVal(0.0);
+    if (thermal_diffusion == DiffusionMode::Implicit || species_diffusion == DiffusionMode::Implicit)
+        diffusion_dilatation_mf[lev]->setVal(0.0);
     if (!rigid_solid_species.empty() && !mechanisms.empty())
+    {
         phase_change_dilatation_mf[lev]->setVal(0.0);
+        phase_change_heat_mf[lev]->setVal(0.0);
+    }
     if (lev == 0 && !(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
                             static_cast<Set::Scalar>(geom[0].Domain().numPts());
@@ -2908,11 +2916,96 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
 }
 
 void
+LowMach::PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const char* stage)
+{
+    if (!diagnostics_stages || time < diagnostics_start_time) return;
+    // Max reductions of signed extrema keep this diagnostic usable on GPUs.
+    std::array<Set::Scalar, 10> extrema;
+    extrema.fill(-1.0e300);
+    const int ngas = ngas_species;
+    const int nsp = nspecies;
+    const bool rigid = !rigid_solid_species.empty();
+    const bool deformable = deformable_solid_species >= 0;
+    const auto gas_data = gas_device_data;
+    const auto thermal = thermal_data;
+    const Set::Scalar p_reference = pressure_reference;
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const auto T = temperature_mf.Patch(lev,mfi);
+            const auto u = velocity_mf.Patch(lev,mfi);
+            const auto rho = component_density_mf.Patch(lev,mfi);
+            const auto rigid_eta = rigid_eta_mf.Patch(lev,mfi);
+            const auto eta = eta_mf.Patch(lev,mfi);
+            amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
+                amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
+                amrex::ReduceOpMax, amrex::ReduceOpMax, amrex::ReduceOpMax,
+                amrex::ReduceOpMax> op;
+            amrex::ReduceData<Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,
+                Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar,Set::Scalar> data(op);
+            using Tuple = typename decltype(data)::Type;
+            op.eval(mfi.tilebox(), data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> Tuple
+            {
+                Set::Scalar gas_density = 0.0, species_min = 1.0e300;
+                for (int n = 0; n < nsp; ++n)
+                {
+                    species_min = Util::Min(species_min, rho(i,j,k,n));
+                    if (n < ngas) gas_density += rho(i,j,k,n);
+                }
+                const Set::Scalar volume = gas_density * Model::Gas::Gas::GasConstant(
+                    gas_data, rho, i, j, k) * T(i,j,k) / p_reference +
+                    (rigid ? rigid_eta(i,j,k) : 0.0) + (deformable ? eta(i,j,k) : 0.0);
+                const Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
+                const Set::Scalar capacity = amrex::get<2>(ComputeThermalState(rho, T(i,j,k), i,j,k, thermal));
+                return {T(i,j,k), -T(i,j,k), speed, -species_min, volume, -volume,
+                    -gas_density, -capacity, Util::Abs(volume-1.0),
+                    Util::Abs((volume-1.0)/Util::Max(volume,0.1)/step_dt)};
+            });
+            const auto v = data.value();
+            const std::array<Set::Scalar,10> local = {amrex::get<0>(v),amrex::get<1>(v),
+                amrex::get<2>(v),amrex::get<3>(v),amrex::get<4>(v),amrex::get<5>(v),
+                amrex::get<6>(v),amrex::get<7>(v),amrex::get<8>(v),amrex::get<9>(v)};
+            for (int n = 0; n < 10; ++n) extrema[n] = std::max(extrema[n], local[n]);
+        }
+    }
+    amrex::ParallelDescriptor::ReduceRealMax(extrema.data(), 10);
+    amrex::Print() << "LowMach sources time " << time << " dt " << step_dt << " stage " << stage
+        << " Tmin " << -extrema[1] << " Tmax " << extrema[0] << " vmax " << extrema[2]
+        << " species_min " << -extrema[3] << " volume_min " << -extrema[5]
+        << " volume_max " << extrema[4] << " gas_density_min " << -extrema[6]
+        << " heat_capacity_min " << -extrema[7] << " volume_error " << extrema[8]
+        << " volume_source_max " << extrema[9] << "\n";
+    if (std::strcmp(stage, "projection") == 0)
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            const auto source_max = [lev,step_dt](const Set::Field<Set::Scalar>& field)
+            { return lev < static_cast<int>(field.size()) && field[lev] ?
+                field[lev]->norm0(0,0,false) / step_dt : 0.0; };
+            const Set::Scalar chem = source_max(chemistry_dilatation_mf);
+            const Set::Scalar phase = source_max(phase_change_dilatation_mf);
+            const Set::Scalar diff = source_max(diffusion_dilatation_mf);
+            if (diagnostics_extended_fields)
+            {
+                UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
+                const Set::Scalar qmax = qdot_mf[lev]->norm0(0,0,false);
+                amrex::Print() << "LowMach source_rates time " << time << " level " << lev
+                    << " chemistry_max " << chem << " phase_change_max " << phase
+                    << " diffusion_max " << diff << " qdot_max " << qmax << "\n";
+            }
+        }
+}
+
+void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
+    PrintSourceDiagnostics(time + dt[0], dt[0], "advection_chemistry");
     ApplyImplicitDiffusion(time + dt[0], dt[0]);
+    PrintSourceDiagnostics(time + dt[0], dt[0], "diffusion");
     ApplyImplicitPhaseChange(time + dt[0], dt[0]);
+    PrintSourceDiagnostics(time + dt[0], dt[0], "phase_change");
     ProjectVelocity(time + dt[0], dt[0]);
+    PrintSourceDiagnostics(time + dt[0], dt[0], "projection");
     PrintDiagnostics(time, iter);
 }
 

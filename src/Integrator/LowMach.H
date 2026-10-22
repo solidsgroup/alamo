@@ -86,6 +86,7 @@ public:
     void TimeStepComplete(Set::Scalar time, int iter) override;
     void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
     void PrintDiagnostics(Set::Scalar time, int iter);
+    void PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const char* stage);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
@@ -226,6 +227,8 @@ protected:
     Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
+    bool diagnostics_stages = false;
+    Set::Scalar diagnostics_start_time = 0.0;
     bool reinitialize_condensed_composition = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
