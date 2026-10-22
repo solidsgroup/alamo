@@ -1073,15 +1073,7 @@ LowMach::ComputeThermalState(
         Model::PhaseField::H(condensed_volume_fraction);
     gas_volume_fraction = 1.0 - solid_fraction;
 
-    Set::Scalar intrinsic_gas_density = 0.0;
-    const Set::Scalar gas_constant = Model::Gas::Gas::GasConstant(
-        gas_data, component_density, i, j, k);
-    if (gas_density > density_floor && temperature > 0.0 &&
-        pressure_reference > 0.0 && gas_constant > 0.0)
-        intrinsic_gas_density =
-            pressure_reference / (gas_constant * temperature);
-    const Set::Scalar gas_heat_capacity =
-        gas_volume_fraction * intrinsic_gas_density * cp;
+    const Set::Scalar gas_heat_capacity = gas_density * cp;
     Set::Scalar heat_capacity = gas_heat_capacity;
     Set::Scalar conductivity = gas_volume_fraction * gas_conductivity;
     const Set::Scalar solid_scale = condensed_volume_fraction > 0.0 ?
@@ -1090,8 +1082,7 @@ LowMach::ComputeThermalState(
     {
         const Set::Scalar partial_density =
             Util::Max(component_density(i,j,k,n), 0.0);
-        heat_capacity += solid_scale * partial_density *
-            condensed_specific_heat[n];
+        heat_capacity += partial_density * condensed_specific_heat[n];
         conductivity += solid_scale * partial_density *
             condensed_inverse_reference_density[n] *
             condensed_thermal_conductivity[n];
