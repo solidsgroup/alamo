@@ -59,8 +59,9 @@ struct Rocfire
     // Coupled homogeneous materials apply condensed heat through mass transfer.
     // Keep the legacy gas-only energy convention for uncoupled cases.
     bool condensed_heat_in_phase_change = false;
-    // Enabled automatically for a coupled homogeneous binder; gas-only cases
-    // retain their fixed qgas unless explicitly enabled in the input.
+    // Enabled automatically for a coupled homogeneous binder. With a known
+    // subgrid composition, the same fit also sets the interaction-flame heats.
+    // Gas-only cases retain their fixed qgas unless explicitly enabled.
     bool binder_adiabatic_heat_release = false;
     bool binder_adiabatic_heat_release_from_homogeneous = true;
     bool binder_equivalence_ratio_from_homogeneous_composition = true;
@@ -98,14 +99,16 @@ struct Rocfire
     // Phi uses the fit's AP/pure-HTPB mass ratio 7.974, independently of the
     // reference-mixture coefficients used by the diffusion reactions.
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar binder_adiabatic_flame_temperature(const Set::Scalar pressure) const
+    Set::Scalar binder_adiabatic_flame_temperature(
+        const Set::Scalar pressure, const Set::Scalar equivalence_ratio = -1.0) const
     {
+        const Set::Scalar phi = equivalence_ratio >= 0.0 ?
+            equivalence_ratio : binder_equivalence_ratio;
         const Set::Scalar pmin = 0.5 * 101325.0, pmax = 150.0 * 101325.0;
         const Set::Scalar p = pressure > pmin ? (pressure < pmax ? pressure : pmax) : pmin;
-        const Set::Scalar bump = 4.0 * binder_equivalence_ratio /
-            ((1.0 + binder_equivalence_ratio) * (1.0 + binder_equivalence_ratio));
+        const Set::Scalar bump = 4.0 * phi / ((1.0 + phi) * (1.0 + phi));
         return 810.4204996375555 + 1000.4692258106163 *
-            7.974 / (7.974 + binder_equivalence_ratio) +
+            7.974 / (7.974 + phi) +
             1305.2818033944318 * bump * bump * bump +
             48.33918633577873 * (binder_initial_temperature - 350.0) / 150.0 +
             109.99699743370391 * (2.0 * std::log(p / pmin) / std::log(300.0) - 1.0);
@@ -221,11 +224,49 @@ struct Rocfire
         wdot[Premixed] -= progress[3];
         wdot[Final]    += (gamma_effective + 1.0) * progress[3];
 
+        const Set::Scalar binder_gas_heat = binder_heat_release(pressure);
+        Set::Scalar binder_solid_heat = qsolid[1];
+        Set::Scalar primary_heat = qgas[2];
+        Set::Scalar final_heat = qgas[3];
+        if (binder_adiabatic_heat_release &&
+            std::isfinite(homogenized_ap_mass_fraction))
+        {
+            binder_solid_heat = binder_solid_heat_release;
+            if (beta_effective > 0.0)
+            {
+                const Set::Scalar w = homogenized_ap_mass_fraction;
+                const Set::Scalar primary_ap_fraction =
+                    (beta_effective + w) / (beta_effective + 1.0);
+                const Set::Scalar primary_temperature = binder_adiabatic_flame_temperature(
+                    pressure, equivalence_ratio_from_ap_mass_fraction(primary_ap_fraction));
+                // Per unit mass of binder consumed, including its subgrid AP.
+                primary_heat = binder_specific_heat * (beta_effective + 1.0) *
+                    (primary_temperature - binder_initial_temperature);
+                if (condensed_heat_in_phase_change)
+                    primary_heat -= beta_effective * qsolid[0] + binder_solid_heat;
+
+                if (gamma_effective > 0.0)
+                {
+                    const Set::Scalar final_ap_fraction =
+                        (gamma_effective + w) / (gamma_effective + 1.0);
+                    const Set::Scalar final_temperature = binder_adiabatic_flame_temperature(
+                        pressure, equivalence_ratio_from_ap_mass_fraction(final_ap_fraction));
+                    // Mono and Premixed have already released their respective
+                    // solid + gas heats. Add only the remaining product enthalpy.
+                    final_heat = binder_specific_heat * (gamma_effective + 1.0) *
+                        (final_temperature - binder_initial_temperature) -
+                        gamma_effective * (qgas[0] + qsolid[0]) -
+                        (binder_gas_heat + binder_solid_heat);
+                }
+            }
+        }
+
+        // Reaction mass factors are already included in the derived heats.
         const Set::Scalar qdot =
             (qgas[0] + (condensed_heat_in_phase_change ? 0.0 : qsolid[0])) * progress[0]
-            + (binder_heat_release(pressure) + (condensed_heat_in_phase_change ? 0.0 : qsolid[1])) * progress[1]
-            + /*(beta + 1.0) * */qgas[2] * progress[2]
-            + /*(gamma + 1.0) **/ qgas[3] * progress[3];
+            + (binder_gas_heat + (condensed_heat_in_phase_change ? 0.0 : binder_solid_heat)) * progress[1]
+            + primary_heat * progress[2]
+            + final_heat * progress[3];
 
         return {wdot, qdot};
     }
