@@ -42,6 +42,7 @@
 
 #include "IO/ParmParse.H"
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <string>
 #include <limits>
@@ -265,6 +266,11 @@ protected:
         Set::Scalar cfl = NAN;
         Set::Scalar min = NAN;
         Set::Scalar max = NAN;
+        // Optional bounds for direct runs and restarts; absent inputs retain
+        // the existing timestep behavior.
+        Set::Scalar max_growth = 1.0e100;
+        std::vector<Set::Scalar> startup_times;
+        std::vector<Set::Scalar> startup_max;
         // internal variables
         std::vector<Set::Scalar> dt_limit_min;
         std::vector<Set::Scalar> previous_timesteps;
@@ -341,6 +347,23 @@ protected:
                 dynamictimestep.previous_timesteps.push_back(new_timestep); // push back new timestep
             }
 
+        }
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            final_timestep = std::min(
+                final_timestep, dynamictimestep.max_growth * this->dt[0]);
+            for (std::size_t n = 0; n < dynamictimestep.startup_times.size(); ++n)
+            {
+                const Set::Scalar endpoint = dynamictimestep.startup_times[n];
+                const Set::Scalar time = t_new[0];
+                const Set::Scalar tolerance = 32.0 *
+                    std::numeric_limits<Set::Scalar>::epsilon() *
+                    std::max(std::abs(endpoint), std::abs(time));
+                if (time >= endpoint - tolerance) continue;
+                final_timestep = std::min({final_timestep,
+                    dynamictimestep.startup_max[n], endpoint - time});
+                break;
+            }
         }
         amrex::ParallelDescriptor::Bcast(&final_timestep,1);
         this->SetTimestep(final_timestep);

@@ -113,6 +113,24 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
         // maximum timestep size allowed shen stepping dynamically
         pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
+        pp.query_default("dynamictimestep.max_growth", value.dynamictimestep.max_growth, 1.0e100);
+        pp.queryarr("dynamictimestep.startup_times", value.dynamictimestep.startup_times, Unit::Time());
+        pp.queryarr("dynamictimestep.startup_max", value.dynamictimestep.startup_max, Unit::Time());
+        if (!(std::isfinite(value.dynamictimestep.max_growth) &&
+              value.dynamictimestep.max_growth >= 1.0))
+            Util::Exception(INFO, "dynamictimestep.max_growth must be finite and at least one");
+        if (value.dynamictimestep.startup_times.size() != value.dynamictimestep.startup_max.size())
+            Util::Exception(INFO, "dynamictimestep.startup_times and startup_max must have equal lengths");
+        Set::Scalar previous_startup_time = 0.0;
+        for (std::size_t n = 0; n < value.dynamictimestep.startup_times.size(); ++n)
+        {
+            const auto endpoint = value.dynamictimestep.startup_times[n];
+            const auto cap = value.dynamictimestep.startup_max[n];
+            if (!(std::isfinite(endpoint) && endpoint > previous_startup_time &&
+                  std::isfinite(cap) && cap > 0.0 && cap >= value.dynamictimestep.min))
+                Util::Exception(INFO, "Startup times must increase from zero and timestep caps must be positive and at least dynamictimestep.min");
+            previous_startup_time = endpoint;
+        }
 
     });
 
