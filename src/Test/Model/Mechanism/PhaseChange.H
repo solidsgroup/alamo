@@ -57,9 +57,37 @@ inline int PhaseChange()
         pp.add("phase_field.allencahn.lambda", 8.0);
         pp.add("phase_field.allencahn.kappa", 1.0e-8);
         pp.add("phase_field.allencahn.w1", 1.0);
+        // Give each species a valid crystal direction.
+        const std::vector<std::vector<double>> orientations(
+            names.size(), std::vector<double>{1.0, 0.0, 0.0});
+
+        // This test has no polycrystals.
+        const std::vector<int> polycrystal_species;
+        const std::vector<std::vector<std::vector<double>>>
+            grain_orientations;
+
+        // Unused by the default formula, but supplied for each species.
+        const std::vector<std::vector<double>> lattice_constants(
+            names.size(), std::vector<double>{1.0, 1.0, 1.0});
+
+        std::vector<std::vector<double>> grain_mobility_multipliers;
         Phase result;
-        Phase::Parse(result, pp, names, 2, {2, 3}, densities, mw, 8314.462618,
-                     cp.data(), kappa.data());
+        Phase::Parse(
+            result,
+            pp,
+            names,
+            2,
+            {2, 3},
+            densities,
+            orientations,
+            polycrystal_species,
+            grain_orientations,
+            lattice_constants,
+            grain_mobility_multipliers,
+            mw,
+            8314.462618,
+            cp.data(),
+            kappa.data());
         return result;
     };
     bool roots = true, volumes = true, capacities = true;
@@ -108,7 +136,8 @@ inline int PhaseChange()
     fractions.setVal(0.0);
     fractions.array()(0,0,0,0) = 0.5;
     const ::Model::Mechanism::State state = {
-        density.const_array(), eta.const_array(), fractions.const_array(), 900.0, 3.0e6};
+        density.const_array(), eta.const_array(), fractions.const_array(),
+        {}, 900.0, 3.0e6};
     const double delta_eta = -1.0e-3;
     double heat = 0.0;
     const double dilation = blend.Transfer(density.array(), state, delta_eta, 0,0,0, &heat);

@@ -399,9 +399,20 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         auto conductivity = pure_conductivity;
         pp.select<Model::Mechanism::PhaseChange>(
             id, value.mechanisms[n],
-            pp.forward_args(value.species_names, value.ngas_species,
-                            value.rigid_solid_species, density, value.gas.MW,
-                            value.gas.Rg, specific_heat.data(), conductivity.data()));
+            pp.forward_args(
+                value.species_names,
+                value.ngas_species,
+                value.rigid_solid_species,
+                density,
+                value.orientation,
+                value.polycrystal_species,
+                value.grain_orientations,
+                value.lattice_constants,
+                value.grain_mobility_multipliers,
+                value.gas.MW,
+                value.gas.Rg,
+                specific_heat.data(),
+                conductivity.data()));
         bool homogeneous;
         pp.query_required(id + ".phase_change.homogeneous", homogeneous);
         if (homogeneous)
@@ -423,8 +434,10 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             value.condensed_inverse_reference_density[s] = 1.0 / density[s];
             value.condensed_specific_heat[s] = specific_heat[s];
             value.condensed_thermal_conductivity[s] = conductivity[s];
-            value.phase_change_heat_enabled = true;
         }
+
+        // Process phase-change heat for pure materials and blends.
+        value.phase_change_heat_enabled = true;
     }
     if (!IO::ParmParse::InTraversalMode())
         for (int polycrystal = 0;
