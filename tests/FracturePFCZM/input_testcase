@@ -1,22 +1,23 @@
 alamo.program = fracture
 type = dynamic
 dynamic_only = false
+time_evolving = true
 
 system.time = s
 system.length = m
 
-timestep = 1e-9
-stop_time = 0.6
+timestep = 1e-10
+stop_time = 1e-4
 
 plot_file = tests/FracturePFCZM/output_testcase
-amr.plot_int = 100
-amr.max_level = 4
-amr.n_cell = 320 128
+amr.plot_int = 5000
+amr.max_level = 0
+amr.n_cell = 640 256
 amr.blocking_factor = 32
-amr.regrid_int = 10
+amr.regrid_int = 1000
 amr.grid_eff = 0.9
 amr.thermo.int = 1
-amr.nsubsteps = 1
+amr.nsubsteps = 2
 amr.node.any = 0
 amr.cell.all = 1
 
@@ -36,12 +37,13 @@ crack.df.mult_Gc = 1.0
 crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.0
+crack.diagnostics = 0
 
 crack.model1.G_c = 5.e2_N/m
-crack.model1.fracture_strength = 3.16e8_Pa
+crack.model1.fracture_strength = 2.2e8_Pa
 crack.model1.E = 4.e11_Pa
 crack.model1.zeta = 2.e-4
-crack.model1.mobility = 5.0 #5.0e-2
+crack.model1.mobility = 50.0
 crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
@@ -60,7 +62,7 @@ crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-material.model1.E = 4.0   # inclusion
+material.model1.E = 4.e11
 material.model1.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
@@ -75,9 +77,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 (0.0,1e-4,100:0,1e-8,1e-8)
-bc.constant.val.xloyhi =    0.0 (0.0,1e-4,100:0,1e-8,1e-8)
-bc.constant.val.xhiyhi =    0.0 (0.0,1e-4,100:0,1e-8,1e-8)
+bc.constant.val.yhi =       0.0 (0,3e-6:0,2e-5)
+bc.constant.val.xloyhi =    0.0 (0,3e-6:0,2e-5)
+bc.constant.val.xhiyhi =    0.0 (0,3e-6:0,2e-5)
 
 #
 # Solver inputs
@@ -105,4 +107,3 @@ zero_out_displacement = 0
 
 
 amrex.throw_exception = 1
-

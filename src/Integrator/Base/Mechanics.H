@@ -84,6 +84,7 @@ public:
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
             value.RegisterGeneralFab(value.ddw_mf, 1, 2);
+            pp_query_default("mechanics.rho", value.rho, "1.0_kg/m^3", Unit::Density());
             pp_forbid("viscous.mu","replaced with viscous.mu_dashpot");
             pp_query_default("viscous.mu_dashpot", value.mu_dashpot,0.0); // Dashpot damping (damps velocity)
             pp_forbid("viscous.mu2","replaced with viscous.mu_newton");
@@ -311,6 +312,7 @@ protected:
                             if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Displacement)
                             {
                                 unew(i,j,k)(d) = b(i,j,k)(d);
+                                vnew(i,j,k)(d) = (unew(i,j,k)(d) - u(i,j,k)(d)) / dt;
                             }
                             else if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Traction)
                             {
@@ -320,8 +322,16 @@ protected:
                                 
                                 auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX,sten);
                                 
+                                // Only traction components are unknowns at a mixed
+                                // displacement/traction boundary. Keep displacement
+                                // components fixed in this local Newton correction;
+                                // inverting the full matrix couples in their residuals
+                                // and can make the boundary update singular or unstable.
                                 Set::Matrix A = Set::Matrix::Zero();
-                                Set::Vector rhs = b(i,j,k);
+                                Set::Vector rhs = Set::Vector::Zero();
+                                for (int p = 0; p < AMREX_SPACEDIM; ++p)
+                                    if (bctype[p] != BC::Operator::Elastic::Elastic::Type::Traction)
+                                        A(p,p) = 1.0;
 
                                 Set::Scalar psi_val = 1.0;
                                 if (psi_on) psi_val = psi(i,j,k,0);
@@ -331,18 +341,23 @@ protected:
                                 //Util::Message(INFO,b(i,j,k).transpose());
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
+                                {
+                                    if (bctype[p] != BC::Operator::Elastic::Elastic::Type::Traction) continue;
+                                    rhs(p) = b(i,j,k)(p);
                                     for (int q = 0; q < AMREX_SPACEDIM; q++)
                                     {
                                         for (int r = 0; r < AMREX_SPACEDIM; r++)
+                                        {
+                                            if (bctype[r] != BC::Operator::Elastic::Elastic::Type::Traction) continue;
                                             for (int s = 0; s < AMREX_SPACEDIM; s++)
                                             {
                                                 A(p,r) += ddw(p,q,r,s) * phi(s) * N(q);
-
                                                 rhs(p) -= ddw(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
                                             }
-                                        
+                                        }
                                         rhs(p) -= DW_F0(p,q)*N(q);
                                     }
+                                }
                                 Set::Vector delta_u = (A.inverse() * rhs);
 
                                 unew(i,j,k)(d) = u(i,j,k)(d) + delta_u(d);
@@ -376,7 +391,11 @@ protected:
                         
                         Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
-                        unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
+                        // Symplectic Euler is conditionally stable for the
+                        // elastic wave equation. Using the old velocity here
+                        // is forward Euler, whose amplification factor is
+                        // greater than one for every nonzero time step.
+                        unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
                     }
                 });
             }

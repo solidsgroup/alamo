@@ -95,6 +95,7 @@ public:
         Base::Mechanics<brittle_model>::Parse(value, pp);
 
         pp.query_default("dynamic_only", value.dynamic_only, false);
+        pp.query_default("crack.diagnostics", value.crack.diagnostics, false);
 
         // Material field related parsing
         pp.query("material.refinement_threshold", value.material.m_eta_ref_threshold);
@@ -309,7 +310,10 @@ public:
 
                 // Doing an elastic solve
         Base::Mechanics<brittle_model>::TimeStepBegin(a_time, a_step);
-        InitializeDiagnostic();
+        if (crack.diagnostics)
+            InitializeDiagnostic();
+        if (!dynamic_only && m_type == Base::Mechanics<brittle_model>::Type::Dynamic)
+            UpdateDynamicKinematics();
         if (!dynamic_only)
         {
             // Computing pristine energy based on eigen value decomposition
@@ -681,7 +685,7 @@ public:
                                 " Threshold=", Threshold,
                                 " c_old=", c_old(i,j,k,0)
                             );
-                        if (std::abs(crack_update) > 0.1)
+                        if (crack.diagnostics && std::abs(crack_update) > 0.1)
                                 Util::Message(
                                 INFO,
                                 "Large crack update at (",
@@ -703,13 +707,48 @@ public:
             crack.c_mf[a_lev]->FillBoundary();
             crack.driving_force_mf[a_lev]->FillBoundary();
         }
-        if (a_lev == 0)
+        if (crack.diagnostics && a_lev == 0)
         {
             static int step_dummy = 0;
             WriteDiagnostics(step_dummy, a_time, a_dt);   
             ++step_dummy;     
         }
         Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
+    }
+
+    // Base::Mechanics updates dynamic displacement in Advance(), after the
+    // fracture field has been advanced. Refresh kinematics here so the
+    // fracture driving force uses the current displacement, not the previous
+    // step's strain/stress fields.
+    void UpdateDynamicKinematics()
+    {
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            amrex::Box domain = geom[lev].Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+            const amrex::Real* DX = geom[lev].CellSize();
+
+            for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                auto const& disp = disp_mf[lev]->array(mfi);
+                auto const& model = model_mf[lev]->array(mfi);
+                auto const& psi = psi_mf[lev]->array(mfi);
+                auto const& stress = stress_mf[lev]->array(mfi);
+                auto const& strain = strain_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
+                    strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
+                    stress(i, j, k) = psi(i, j, k, 0) * model(i, j, k).DW(gradu);
+                });
+            }
+            stress_mf[lev]->setMultiGhost(true);
+            stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            strain_mf[lev]->setMultiGhost(true);
+            strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+        }
     }
 
 
@@ -1015,6 +1054,7 @@ protected:
         Set::Scalar crack_prop_iter = 0;
 
         Set::Scalar beta = NAN;
+        bool diagnostics = false;
     } crack;
     struct
     {
