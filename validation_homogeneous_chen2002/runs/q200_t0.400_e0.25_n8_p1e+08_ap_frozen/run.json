@@ -1,0 +1,1 @@
+{"command":["bin/lowmach-2d-clang++","validation_homogeneous_chen2002/runs/q200_t0.400_e0.25_n8_p1e+08_ap_frozen/input"],"returncode":0,"binary_sha256":"2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417","input_sha256":"6f484e8e6d04e50e2727761590ca25cb55f61ddc7af2d8f4f19ad87ae4a95dbd","execution_checks":{"amrex_finalized":true,"requested_stop_time_reached":true}}

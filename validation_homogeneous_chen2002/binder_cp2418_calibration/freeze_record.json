@@ -1,0 +1,61 @@
+{
+  "source_parameters": "validation_homogeneous_chen2002/binder_cp2418_calibration/parameters_01.json",
+  "source_summary": "validation_homogeneous_chen2002/binder_cp2418_calibration/stage01/simulation_summary.json",
+  "parameters_sha256": "611b80363451c84ae78fdd476e43ddbf99185bfa6cf7f5907000a7a9c1139315",
+  "summary_sha256": "1fc61ae7c0804e932954694d661c7c54da24575cf0fc513ae000069863a40614",
+  "criteria": {
+    "max_endpoint_error_percent": 1.0,
+    "max_late_drift_percent": 0.2,
+    "minimum_surface_temperature_K": 300
+  },
+  "observed_max_endpoint_error_percent": 0.004020702320861602,
+  "heldout_flux_cal_cm2_s": 500.0,
+  "execution_audit": [
+    {
+      "name": "q1000_t0.000_e0.25_n8_p1e+08_cp2418_cal01",
+      "returncode": 0,
+      "input_sha256": "313603eb237d47947a00d42541dc45c16d4cbde770258c62f7e0397e7f32380e",
+      "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+      "requested_duration_s": 0.0005617838587073303,
+      "final_plot_time_s": 0.0005618045521933447,
+      "final_log_time_s": 0.0005618045522,
+      "final_step": 4802,
+      "last_dt_s": 1.170383039e-07,
+      "parameters_match": true,
+      "untouched_AP_and_fixed_binder_properties": true,
+      "fitted_parameters": "binder A and E/R only",
+      "temperature_cutoff_K": 0.0,
+      "gas_chemistry_frozen": true,
+      "phase_change_only_mechanism": true,
+      "density_mixing_rule": "volume_additive",
+      "closure_recomputed": true,
+      "command": [
+        "bin/lowmach-2d-clang++",
+        "validation_homogeneous_chen2002/runs/q1000_t0.000_e0.25_n8_p1e+08_cp2418_cal01/input"
+      ]
+    },
+    {
+      "name": "q200_t0.000_e0.25_n8_p1e+08_cp2418_cal01",
+      "returncode": 0,
+      "input_sha256": "b8de67cd791465594bd2e4d2e36ef2b3654e0c8f10b3b0774c21b19b46c64c69",
+      "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+      "requested_duration_s": 0.008670136155131934,
+      "final_plot_time_s": 0.008670533124260115,
+      "final_log_time_s": 0.008670533124,
+      "final_step": 4804,
+      "last_dt_s": 1.806278366e-06,
+      "parameters_match": true,
+      "untouched_AP_and_fixed_binder_properties": true,
+      "fitted_parameters": "binder A and E/R only",
+      "temperature_cutoff_K": 0.0,
+      "gas_chemistry_frozen": true,
+      "phase_change_only_mechanism": true,
+      "density_mixing_rule": "volume_additive",
+      "closure_recomputed": true,
+      "command": [
+        "bin/lowmach-2d-clang++",
+        "validation_homogeneous_chen2002/runs/q200_t0.000_e0.25_n8_p1e+08_cp2418_cal01/input"
+      ]
+    }
+  ]
+}

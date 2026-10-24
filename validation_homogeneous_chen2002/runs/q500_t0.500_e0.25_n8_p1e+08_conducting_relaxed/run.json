@@ -1,0 +1,17 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_conducting_relaxed/input"
+  ],
+  "returncode": 6,
+  "elapsed_s": 19.978759406,
+  "status": "failed",
+  "failure": "amrex::Abort::0::MLMG failed",
+  "failed_at_step_start": 580,
+  "last_completed_step": 579,
+  "last_completed_time_s": 0.002266138486,
+  "last_dt_s": 3.750794855e-06,
+  "log": "output/out.log",
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "eda11a36ad83c5135b0ab9e8a403d863a02a900a06d9991486991d0ca94fca8b"
+}

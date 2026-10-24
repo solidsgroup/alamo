@@ -1,0 +1,7 @@
+{
+  "status": "cancelled_by_user",
+  "accepted_parameters": "validation_homogeneous_chen2002/ap_endpoint_calibration/parameters_frozen.json",
+  "accepted_parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+  "reason": "User elected to retain the preceding calibration after the restored original cp/Q implied subambient surface temperatures.",
+  "trial_parameters_accepted": false
+}

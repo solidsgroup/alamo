@@ -1,0 +1,164 @@
+--- a/src/Model/Mechanism/PhaseChange.H
++++ b/src/Model/Mechanism/PhaseChange.H
+@@ -156,9 +156,10 @@
+             const Set::Scalar t = w * reference_density[binder] /
+                 (w * reference_density[binder] + (1.0 - w) * reference_density[ap]);
+ 
+-            // Mass-weighted density (as specified in the model notes) and cp.
++            // Add constituent volumes: rho is volume-weighted (equivalently,
++            // 1/rho is mass-weighted). Specific heat remains mass-weighted.
+             value.reference_density = reference_density[binder] =
+-                (1.0 - w) * reference_density[binder] + w * reference_density[ap];
++                (1.0 - t) * reference_density[binder] + t * reference_density[ap];
+             specific_heat[binder] = (1.0 - w) * specific_heat[binder] + w * specific_heat[ap];
+ 
+             // Chen et al. (2002), eqs. (9)/(11): take the unsquared physical
+--- a/src/Test/Model/Mechanism/PhaseChange.H
++++ b/src/Test/Model/Mechanism/PhaseChange.H
+@@ -61,17 +61,22 @@
+                      cp.data(), kappa.data());
+         return result;
+     };
+-    bool roots = true;
++    bool roots = true, volumes = true, capacities = true;
+     for (double x : {0.1, 0.999999999, 1.0, 1.000000001, 3.0, 10.0})
+         for (double t : {0.0, 0.2, 0.6, 0.999, 1.0})
+         {
+             const double w = 1950.0*t / (1950.0*t + 920.0*(1.0-t));
+             parse(w, true, true, 0.13*x);
++            volumes &= near((1.0-w)*densities[2]/920.0+w*densities[2]/1950.0, 1.0);
++            capacities &= near(densities[2]*cp[2],
++                (1.0-t)*920.0*2418.29+t*1950.0*1297.90);
+             const double f = kappa[2] / 0.13;
+             roots &= f >= std::min(1.0, x) - 1.0e-14 && f <= std::max(1.0, x) + 1.0e-14;
+             roots &= near(f-x, (1.0-t)*(1.0-x)*std::pow(f, 1.0/AMREX_SPACEDIM));
+         }
+     check("Physical conductivity root and pure/equal-conductivity limits", roots);
++    check("Constituent volumes sum to the blended volume", volumes);
++    check("Additive volumetric heat capacity", capacities);
+     const auto base = parse(0.0, false, false);
+     const auto off = parse(0.0, false);
+     check("Default disabled", densities[2] == 920.0 && kappa[2] == 0.13 &&
+@@ -83,8 +88,9 @@
+     check("Pure AP material limit", densities[2] == 1950.0 && kappa[2] == 0.4186);
+     const auto blend = parse(-1.0, true);
+     const double w = 4.0/7.0, t = 0.38614900314795375;
++    const double rho_blend = 1.0 / ((1.0-w)/920.0+w/1950.0);
+     check("85/65 whole-propellant mass accounting and blended thermal properties",
+-        near(densities[2], 1508.5714285714284) && near(cp[2], 1778.067142857143));
++        near(densities[2], rho_blend) && near(cp[2], 1778.067142857143));
+     const double ratio = std::pow(2.75e6 / 1.85e5, t) * std::exp(-3000.0*t/900.0);
+     check("Volume-weighted Arrhenius kinetics", near(
+         blend.StabilityRate(1.0e-5, 900.0) / base.StabilityRate(1.0e-5, 900.0), ratio));
+@@ -106,7 +112,7 @@
+     double heat = 0.0;
+     const double dilation = blend.Transfer(density.array(), state, delta_eta, 0,0,0, &heat);
+     const auto rho = density.const_array();
+-    const double released_mass = -1508.5714285714284 * delta_eta;
++    const double released_mass = -rho_blend * delta_eta;
+     check("Mass conservation and subgrid AP product split",
+         near(rho(0,0,0,0) + rho(0,0,0,1) + rho(0,0,0,2), 0.0) &&
+         near(rho(0,0,0,0), released_mass*(1.0-w)) &&
+@@ -115,6 +121,8 @@
+         delta_eta + released_mass*8314.462618*900.0/3.0e6*((1.0-w)/20.0+w/40.0)));
+     check("Mass-weighted heat release and sign", near(heat,
+         released_mass*((1.0-w)*-1.0e5+w*2.0e5)));
++    check("Phase-change heat equals additive constituent energy per regressed volume",
++        near(heat, -delta_eta*((1.0-t)*920.0*-1.0e5+t*1950.0*2.0e5)));
+     heat = 0.0;
+     base.Transfer(density.array(), state, delta_eta, 0,0,0, &heat);
+     check("Disabled mode adds no heat", heat == 0.0);
+--- a/tests/LMHomogeneousBinder/input
++++ b/tests/LMHomogeneousBinder/input
+@@ -76,9 +76,10 @@
+ diffusion.tol_abs = 1.0e-12
+ diffusion.verbose = 0
+ diagnostics.extended_fields = 1
+-# IC densities describe the blend, using rho_blend = 1508.5714285714284.
++# IC densities describe the blend, using additive constituent volumes.
++# rho_blend = 1 / [(3/7)/920 + (4/7)/1950] = 1317.7334732423922.
+ HTPB_solid.density.ic.type = constant
+-HTPB_solid.density.ic.constant.value = 754.2857142857142_kg/m^3
++HTPB_solid.density.ic.constant.value = 658.8667366211961_kg/m^3
+ HTPB_gas.density.ic.type = constant
+ HTPB_gas.density.ic.constant.value = 3.608171
+ velocity.ic.type = constant
+--- a/tests/LMHomogeneousBinder/test
++++ b/tests/LMHomogeneousBinder/test
+@@ -13,7 +13,7 @@
+ 
+ w = 4.0 / 7.0
+ t = w * 920.0 / (w * 920.0 + (1.0 - w) * 1950.0)
+-rho_blend = (1.0 - w) * 920.0 + w * 1950.0
++rho_blend = 1.0 / ((1.0 - w) / 920.0 + w / 1950.0)
+ cp_blend = (1.0 - w) * 2418.29 + w * 1297.90
+ # Independent closed-form physical root of the 2D conductivity quadratic.
+ x = 0.4186 / 0.13
+@@ -24,6 +24,8 @@
+     return data[step][name].to_ndarray()
+ 
+ np.testing.assert_allclose(field(0, "rigid_eta"), 0.5, atol=1.0e-14)
++np.testing.assert_allclose(field(0, "component_density_HTPB_solid"),
++                           0.5 * rho_blend, rtol=2.0e-12)
+ np.testing.assert_allclose(field(0, "thermal_conductivity_coeff"),
+                            0.5 * (0.1 + k_blend), rtol=2.0e-12)
+ 
+--- a/validation_homogeneous_chen2002/run_study.py
++++ b/validation_homogeneous_chen2002/run_study.py
+@@ -19,7 +19,8 @@
+     b, ap = parameters["binder"], parameters["AP"]
+     w = ap["density_kg_m3"] * t / (ap["density_kg_m3"] * t + b["density_kg_m3"] * (1-t))
+     values = {key: (1-w)*b[key] + w*ap[key] for key in
+-              ("density_kg_m3", "cp_J_kg_K", "heat_release_J_kg")}
++              ("cp_J_kg_K", "heat_release_J_kg")}
++    values["density_kg_m3"] = (1-t)*b["density_kg_m3"]+t*ap["density_kg_m3"]
+     values["A_m_s"] = math.exp((1-t)*math.log(b["A_m_s"]) + t*math.log(ap["A_m_s"]))
+     values["activation_temperature_K"] = (1-t)*b["activation_temperature_K"] + t*ap["activation_temperature_K"]
+     x = ap["conductivity_W_m_K"] / b["conductivity_W_m_K"]
+@@ -198,6 +199,7 @@
+         raise SystemExit(f"Input already exists with different settings: {case}. Use a new --tag.")
+     (case / "input").write_text(deck)
+     metadata = {"name": name, "reference": expected, "width_m": width, "dx_m": dy,
++                "density_mixing_rule": "volume_additive",
+                 "parameters": parameters,
+                 "width_ratio": args.width_ratio, "cells_per_width": args.cells_per_width,
+                 "pressure_Pa": pressure, "gas_conductivity_W_m_K": args.gas_conductivity,
+--- a/validation_homogeneous_chen2002/analysis/report_calibration.py
++++ b/validation_homogeneous_chen2002/analysis/report_calibration.py
+@@ -21,7 +21,8 @@
+ OUT = HERE/"calibrated_htpb"
+ 
+ 
+-def audit(rows, parameters, arrhenius=False, fixed_parameters=None, relaxations=6):
++def audit(rows, parameters, arrhenius=False, fixed_parameters=None, relaxations=6,
++          volume_density=False):
+     original = json.loads((fixed_parameters or STUDY/"reference/pure_htpb.json").read_text())
+     assert parameters["AP"] == original["AP"], "AP must remain untouched"
+     fixed = ("density_kg_m3", "conductivity_W_m_K", "cp_J_kg_K", "heat_release_J_kg") if arrhenius else ("density_kg_m3", "conductivity_W_m_K", "A_m_s", "activation_temperature_K")
+@@ -38,6 +39,8 @@
+         case = json.loads((folder/"case.json").read_text())
+         run = json.loads((folder/"run.json").read_text())
+         assert case["parameters"] == parameters, s["name"]
++        if volume_density:
++            assert case["density_mixing_rule"] == "volume_additive", s["name"]
+         for k,v in {"width_ratio":.25,"cells_per_width":8,"dt_scale":.2,"relaxations":relaxations,"nx":32,
+                     "gas_conductivity_W_m_K":100.,"gas_cp_J_kg_K":1000.,
+                     "pressure_Pa":1.e8,"advect_temperature":False}.items():
+@@ -55,7 +58,8 @@
+         step, end, dt = map(float,steps[-1])
+         assert end >= case["duration_s"] and s["end_time_s"] >= .999*case["duration_s"]
+         assert abs(end-s["end_time_s"]) <= 1.01*dt, s["name"]
+-        r,T,_ = closure(parameters,s["ap_volume_fraction"],s["q_cal_cm2_s"])
++        r,T,_ = closure(parameters,s["ap_volume_fraction"],s["q_cal_cm2_s"],
++                        volume_density=volume_density)
+         assert np.isclose(r,s["expected_r_eq14_19_cm_s"],rtol=1.e-10)
+         result.append(dict(name=s["name"], returncode=0, input_sha256=run["input_sha256"],
+             binary_sha256=binary_hash, requested_duration_s=case["duration_s"],
+@@ -64,6 +68,7 @@
+             fitted_parameters="binder A and E/R only" if arrhenius else "binder cp and Q only (rejected)",
+             temperature_cutoff_K=0.0 if arrhenius else None,
+             gas_chemistry_frozen=True, phase_change_only_mechanism=True,
++            density_mixing_rule="volume_additive" if volume_density else "arithmetic_mass_weighted",
+             closure_recomputed=True, command=run["command"]))
+     return result
+ 

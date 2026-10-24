@@ -1,0 +1,125 @@
+{
+  "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+  "parameters_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497",
+  "cases": [
+    {
+      "name": "q1000_t0.000_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.0,
+      "relaxations": 6,
+      "input_sha256": "417223172f13ccc37f6088ec486fb7779057e9a210cc1efd497910e9f52d7c28"
+    },
+    {
+      "name": "q1000_t0.200_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "fa416afd7748bf63b7ac608474390e9725ed2a5d4fd8fc18370e2cef69cb7c23"
+    },
+    {
+      "name": "q1000_t0.400_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "9309ff212416d9f6b8c67f93cbd1a789306ea6b7cd98934c79fb85c88c3148c3"
+    },
+    {
+      "name": "q1000_t0.600_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "dd2ce8beb2260eb334124fffab920573b19e6498797c278c42b24b162d941b51"
+    },
+    {
+      "name": "q1000_t0.800_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 1000.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "cdbc4cf7946a1381b357061479def25f6d6cf02965f426ac338e81a2d48088b7"
+    },
+    {
+      "name": "q200_t0.000_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.0,
+      "relaxations": 6,
+      "input_sha256": "d351e2f0b62b8f225beca9b3c98eaf79806921fe70b4604cdee990774fd5ca28"
+    },
+    {
+      "name": "q200_t0.200_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "071be99a76a6aa3e0ca3ed06369b3c1dc54601aa369c70c2389274f96485d41d"
+    },
+    {
+      "name": "q200_t0.400_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "6f484e8e6d04e50e2727761590ca25cb55f61ddc7af2d8f4f19ad87ae4a95dbd"
+    },
+    {
+      "name": "q200_t0.600_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "bf3f3b205ee30171f1c2d1b3632834ba7c7c155d5156f69ef3c69363776f6289"
+    },
+    {
+      "name": "q200_t0.800_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 200.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "df299133177f999f9a7e24f34fed33abf69c6ba74f1aa457d851838ed13cddbe"
+    },
+    {
+      "name": "q500_t0.000_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.0,
+      "relaxations": 6,
+      "input_sha256": "7902c781362db42ce5fba24a59d4f0f08b00b93283dacf38d75ded4fd4bee6ab"
+    },
+    {
+      "name": "q500_t0.200_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.2,
+      "relaxations": 6,
+      "input_sha256": "f8a8ebd06a5428cc1e7bb8a595e49eb86146eecb333d92aecf5d05e5a32babea"
+    },
+    {
+      "name": "q500_t0.400_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 6,
+      "input_sha256": "90a49035dddd4dd07707f4bb7f5a91739eb69b645f7a8bb63e534c9b0ae5fb39"
+    },
+    {
+      "name": "q500_t0.400_e0.25_n8_p1e+08_ap_frozen_long12",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.4,
+      "relaxations": 12.0,
+      "input_sha256": "5ae9df404a3620dfff76a5829721bf589453a4424fd1a4f96c15f87c26181160"
+    },
+    {
+      "name": "q500_t0.600_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.6,
+      "relaxations": 6,
+      "input_sha256": "62dbf2bca576d963c3205dcb1b727eb254cc1657d93b5cf7063ad2a44dabea5f"
+    },
+    {
+      "name": "q500_t0.800_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 0.8,
+      "relaxations": 6,
+      "input_sha256": "3af50ea308bbaa992dfaa835cc6961ea4e4f561357ef8206653f65e59fe89878"
+    },
+    {
+      "name": "q500_t1.000_e0.25_n8_p1e+08_ap_frozen",
+      "q_cal_cm2_s": 500.0,
+      "ap_volume_fraction": 1.0,
+      "relaxations": 6,
+      "input_sha256": "9d73308ba7774eb5a5d0bd41bf4d452fc31a5c96d3b7cafd6d379c928f7810c8"
+    }
+  ]
+}

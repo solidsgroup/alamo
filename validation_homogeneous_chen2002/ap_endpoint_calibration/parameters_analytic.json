@@ -1,0 +1,134 @@
+{
+  "T0_K": 300,
+  "sources": {
+    "scientific_reference": "Chen et al. (2002), Figure 4. Binder calibration retained; new fit uses pure-AP t=1 endpoints.",
+    "status": "AP A/E-only calibration to q=200 and 1000 pure-AP model-curve endpoints; q=500 and all mixtures excluded from the new fit.",
+    "density_cp_conductivity": "All thermal properties unchanged from ap_endpoint_calibration/parameters_baseline.json.",
+    "heat_release": "Fixed baseline heats: binder -66 cal/g and AP -100 cal/g. Heat applied once during phase change with frozen gas chemistry; neither heat is fitted.",
+    "temperature": "T0=300 K retained from the existing validation workflow.",
+    "mixing": "Volume-additive density; mass-weighted cp and Q; volume-weighted ln(A) and E/R; existing Chen conductivity rule.",
+    "kinetics": "Binder kinetics remain frozen. Only AP A and E/R are fitted to pure-AP endpoints.",
+    "calibration": "Fixed thermal-balance temperatures, two-point Arrhenius inversion, and measured solver/analytic-rate correction; q=500 held out."
+  },
+  "binder": {
+    "density_kg_m3": 920,
+    "cp_J_kg_K": 2130,
+    "conductivity_W_m_K": 0.213,
+    "heat_release_J_kg": -276144,
+    "A_m_s": 24.608332958423482,
+    "activation_temperature_K": 5568.850642398899
+  },
+  "AP": {
+    "density_kg_m3": 1950,
+    "cp_J_kg_K": 1297.9,
+    "conductivity_W_m_K": 0.4186,
+    "heat_release_J_kg": -418400,
+    "A_m_s": 1135.3337799344329,
+    "activation_temperature_K": 10915.923795229053
+  },
+  "arrhenius_calibration_history": [
+    {
+      "previous_parameters": "validation_homogeneous_chen2002/binder_q66_calibration/fixed_properties.json",
+      "fixed_parameters": "validation_homogeneous_chen2002/binder_q66_calibration/fixed_properties.json",
+      "previous_binder_kinetics": {
+        "A_m_s": 10.36,
+        "activation_temperature_K": 7500
+      },
+      "measured_source": null,
+      "measurements": [],
+      "q_cal_cm2_s": [
+        200.0,
+        1000.0
+      ],
+      "target_r_cm_s": [
+        0.8019378202411698,
+        3.1487729706822827
+      ],
+      "solver_to_analytic_ratios": [
+        1.0,
+        1.0
+      ],
+      "balance_temperature_K": [
+        702.8474905711191,
+        848.4379918272027
+      ],
+      "fitted_A_m_s": 23.21227094623791,
+      "fitted_activation_temperature_K": 5602.098953384421
+    },
+    {
+      "previous_parameters": "validation_homogeneous_chen2002/binder_q66_calibration/parameters_00.json",
+      "fixed_parameters": "validation_homogeneous_chen2002/binder_q66_calibration/fixed_properties.json",
+      "previous_binder_kinetics": {
+        "A_m_s": 23.21227094623791,
+        "activation_temperature_K": 5602.098953384421
+      },
+      "measured_source": "validation_homogeneous_chen2002/analysis/binder_q66/stage00/simulation_summary.json",
+      "measurements": [
+        {
+          "name": "q200_t0.000_e0.25_n8_p1e+08_binder_q66_cal00",
+          "q_cal_cm2_s": 200.0,
+          "r_cm_s": 0.7899627737569229,
+          "expected_r_eq14_19_cm_s": 0.8019378202411704,
+          "late_speed_drift_percent": -0.017996163405147637
+        },
+        {
+          "name": "q1000_t0.000_e0.25_n8_p1e+08_binder_q66_cal00",
+          "q_cal_cm2_s": 1000.0,
+          "r_cm_s": 3.1001436778096525,
+          "expected_r_eq14_19_cm_s": 3.148772970682286,
+          "late_speed_drift_percent": -0.011776721856076412
+        }
+      ],
+      "q_cal_cm2_s": [
+        200.0,
+        1000.0
+      ],
+      "target_r_cm_s": [
+        0.8019378202411698,
+        3.1487729706822827
+      ],
+      "solver_to_analytic_ratios": [
+        0.9850673628528379,
+        0.9845561133414785
+      ],
+      "balance_temperature_K": [
+        694.895972374238,
+        837.9657538687546
+      ],
+      "fitted_A_m_s": 24.608332958423482,
+      "fitted_activation_temperature_K": 5568.850642398899
+    }
+  ],
+  "ap_arrhenius_calibration_history": [
+    {
+      "previous_parameters": "validation_homogeneous_chen2002/ap_endpoint_calibration/parameters_baseline.json",
+      "previous_parameters_sha256": "e5cb3b223cb5506388fd4ad80ba76bbe8be31ba968c34ecb1f0e6b675aa247f7",
+      "fixed_parameters": "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/ap_endpoint_calibration/parameters_baseline.json",
+      "previous_AP_kinetics": {
+        "A_m_s": 948,
+        "activation_temperature_K": 11000
+      },
+      "measured_source": null,
+      "measured_source_sha256": null,
+      "measurements": [],
+      "q_cal_cm2_s": [
+        200.0,
+        1000.0
+      ],
+      "target_r_cm_s": [
+        0.37280117116770206,
+        1.6493701121084878
+      ],
+      "solver_to_analytic_ratios": [
+        1.0,
+        1.0
+      ],
+      "balance_temperature_K": [
+        864.5206523098977,
+        979.9330561594015
+      ],
+      "fitted_A_m_s": 1135.3337799344329,
+      "fitted_activation_temperature_K": 10915.923795229053
+    }
+  ]
+}

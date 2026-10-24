@@ -1,0 +1,13 @@
+{
+  "calibration_metric": "minimum y of the solid-connected eta=0.5 crossing",
+  "extreme_burn_rate_mm_per_s": 3.626277857101062e-29,
+  "extreme_fit_intercept_m": 1.3976043629695956e-20,
+  "mean_burn_rate_mm_per_s": 3.626277857101062e-29,
+  "mean_fit_intercept_m": 1.3976043629695956e-20,
+  "maximum_burn_rate_mm_per_s": 3.626277857101062e-29,
+  "maximum_fit_intercept_m": 1.3976043629695956e-20,
+  "fit_start_s": 7.504999999999985e-05,
+  "fit_end_s": 0.0001500999999999997,
+  "fit_start_fraction": 0.5,
+  "extreme_to_mean_rate_ratio": 1.0
+}

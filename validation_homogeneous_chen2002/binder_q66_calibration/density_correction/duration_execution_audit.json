@@ -1,0 +1,25 @@
+[
+  {
+    "name": "q500_t0.400_e0.25_n8_p1e+08_binder_q66_volume_long12",
+    "returncode": 0,
+    "input_sha256": "10c92813efca292b673868f367a637c6c75283720aadab0cd7de4b9af40316a1",
+    "binary_sha256": "2ecdfd604ccd6f2e25adc66d282145f144ffbd91fbdef3fb1eebe8c111025417",
+    "requested_duration_s": 0.009970985547266864,
+    "final_plot_time_s": 0.009971285675863414,
+    "final_log_time_s": 0.009971285676,
+    "final_step": 9604,
+    "last_dt_s": 1.038644328e-06,
+    "parameters_match": true,
+    "untouched_AP_and_fixed_binder_properties": true,
+    "fitted_parameters": "binder A and E/R only",
+    "temperature_cutoff_K": 0.0,
+    "gas_chemistry_frozen": true,
+    "phase_change_only_mechanism": true,
+    "density_mixing_rule": "volume_additive",
+    "closure_recomputed": true,
+    "command": [
+      "bin/lowmach-2d-clang++",
+      "validation_homogeneous_chen2002/runs/q500_t0.400_e0.25_n8_p1e+08_binder_q66_volume_long12/input"
+    ]
+  }
+]

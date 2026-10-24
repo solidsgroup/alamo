@@ -1,0 +1,51 @@
+{
+  "source_pdf": "/home/esandall/Downloads/gross_fourflame_model.pdf",
+  "source_pdf_sha256": "7acf362e0e3ef65463c2d04a76a46d8718ba2ce1f62bfde6361e6b74780b79e6",
+  "source_image_sha256": "501575c52fb502d99c803e50b6bbe024cc91e328980867fff84cb3cf25e0204f",
+  "pdf_page": 9,
+  "printed_page": 990,
+  "image_size": [
+    1153,
+    1068
+  ],
+  "method": "Manual centers/solid-line knots in original embedded JPEG; logarithmic axis transform",
+  "axis_calibration_pixels": {
+    "M03": {
+      "x1": 80.0,
+      "x100": 464.0,
+      "y1": 274.0,
+      "y10": 31.0
+    },
+    "M17": {
+      "x1": 675.0,
+      "x100": 1059.0,
+      "y1": 273.0,
+      "y10": 31.0
+    },
+    "M21": {
+      "x1": 79.0,
+      "x100": 464.0,
+      "y1": 737.0,
+      "y10": 520.0
+    },
+    "M24": {
+      "x1": 676.0,
+      "x100": 1061.0,
+      "y1": 827.0,
+      "y10": 585.0
+    }
+  },
+  "conservative_coordinate_uncertainty_pixels": 2,
+  "rate_graphical_resolution_percent": {
+    "M03": 1.913203365495031,
+    "M17": 1.9211846263015753,
+    "M21": 2.1448770146730745,
+    "M24": 1.9211846263015753
+  },
+  "notes": [
+    "Graphical resolution is not experimental uncertainty.",
+    "Caption says M02; panel, Table 2, and text identify M03.",
+    "Do not extrapolate M21 solid line beyond its last plotted point.",
+    "Use extracted experimental pressures for the sweep; decimals do not imply measurement precision."
+  ]
+}

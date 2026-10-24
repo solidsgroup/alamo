@@ -1,0 +1,15 @@
+{
+  "command": [
+    "bin/lowmach-2d-clang++",
+    "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.500_e0.125_n8_p1e+08_thin_small_dt/input"
+  ],
+  "returncode": 0,
+  "status": "completed",
+  "final_step": 19203,
+  "final_time_s": 0.008971775887,
+  "final_dt_s": 4.672677183e-7,
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "512711e0a701fb18d8ad2a8418b8a4a13ebe28bbb24083dcc5cdfb8d77e26ee5",
+  "requested_duration_s": 0.008971540190429499,
+  "log": "output/out.log"
+}

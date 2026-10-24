@@ -1,0 +1,4 @@
+# Preserve the CSV writer's CRLF bytes used by reference-data provenance.
+*.csv -text whitespace=cr-at-eol
+# Keep archived input bytes (including final blank lines) matching run hashes.
+runs/**/input -text whitespace=-blank-at-eof

@@ -1,0 +1,11 @@
+{
+  "q_cal_cm2_s": 500,
+  "ap_volume_fraction": 0.4,
+  "short_duration_s": 0.004985792902228197,
+  "long_duration_s": 0.009971285675863414,
+  "short_r_cm_s": 1.2168129776265812,
+  "long_r_cm_s": 1.2151537489685522,
+  "rate_change_percent": -0.13635856031593008,
+  "short_late_drift_percent": -0.014660234126807127,
+  "long_late_drift_percent": -0.08702897073378321
+}

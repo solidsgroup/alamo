@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+    "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_htpb_frozen/input"
+  ],
+  "returncode": "interrupted",
+  "reason": "User requires Arrhenius-only calibration; thermal-parameter fit rejected.",
+  "partial_outputs_preserved": true,
+  "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+  "input_sha256": "b5695b448ae054faf1d1732fa1ad1c1ca2eb16411a3eae1420daf26bb6f92668"
+}

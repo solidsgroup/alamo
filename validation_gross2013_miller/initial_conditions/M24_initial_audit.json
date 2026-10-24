@@ -1,0 +1,16 @@
+{
+  "formulation": "M24",
+  "case": "M24_p33.6723_seed101_compact_diffusion_initial_v3",
+  "pressure_atm": 33.67229575211422,
+  "time_s": 0.0,
+  "max_AMR_level": 4,
+  "valid_cells": 227008,
+  "temperature_min_K": 300.0002599971876,
+  "temperature_max_K": 3126.4924896736234,
+  "max_abs_volume_constraint_residual": 0.002340022136055775,
+  "resolved_AP_solid_area_fraction": 0.6430158343784576,
+  "tile_target_resolved_AP_area_fraction": 0.6456100387681425,
+  "gas_heat_release_W_m2": 143181403.68941614,
+  "external_heat_source_present": false,
+  "reference_note": "Field values from actual zero-step solver output. Full-bed area fraction includes the rounded simulation bed and coarse-cell disk sampling."
+}

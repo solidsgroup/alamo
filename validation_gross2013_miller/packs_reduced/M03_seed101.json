@@ -1,0 +1,34 @@
+{
+  "formulation": "M03",
+  "binder_mass_fraction": 0.12630000000000008,
+  "fine_AP_mass_fraction": 0.3158,
+  "resolved_AP_mass_fraction": 0.5579,
+  "matrix_AP_mass_fraction": 0.7143180275955665,
+  "matrix_AP_volume_fraction": 0.541215787012803,
+  "resolved_AP_area_fraction": 0.4887852362990184,
+  "propellant_density_kg_m3": 1708.4266190770495,
+  "matrix_density_kg_m3": 1477.452260623187,
+  "matrix_cp_J_kg_K": 1535.6159692377291,
+  "matrix_Q_J_kg": -377760.0253336349,
+  "matrix_k_W_m_K": 0.30561317383725434,
+  "matrix_A_m_s": 199.83652133073107,
+  "matrix_activation_temperature_K": 8367.100021618478,
+  "seed": 101,
+  "width_mm": 0.4,
+  "bed_height_mm": 0.4113502513949612,
+  "disk_count": 256,
+  "bins": {
+    "20": {
+      "count": 256,
+      "diameter_um": 20,
+      "realized_mass_fraction": 0.5579000000000001,
+      "target_mass_fraction": 0.5579,
+      "error_mass_fraction": 1.1102230246251565e-16
+    }
+  },
+  "minimum_gap_mm": 0.00010000856484218557,
+  "overlap_energy_mm2": 0.0,
+  "geometry": "2D disks; periodic x; y-periodic packing tile explicitly repeated",
+  "independence": "Independent random geometry",
+  "parameter_sha256": "2a7eb40ae12762fdf6074b6704b52b423bc5f93a094e685b674e18b284e5a497"
+}

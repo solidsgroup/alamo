@@ -9,6 +9,7 @@
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Set/Matrix4.H"
+#include "Test/Model/Mechanism/PhaseChange.H"
 
 #include "Operator/Elastic.H"
 
@@ -43,6 +44,9 @@ int main (int argc, char* argv[])
     int failed = 0;
 
     Util::globalprefix = "  │  ";
+
+    Util::Test::Message("Model::Mechanism::PhaseChange homogeneous test");
+    failed += Util::Test::SubFinalMessage(Test::Model::Mechanism::PhaseChange());
 
     Util::Test::Message("IO::FileNameParse test");
     {

@@ -40,6 +40,8 @@ private:
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
     int max_order = 2;
+    std::string bottom_solver = "default";
+    int bottom_max_iter = 200;
     amrex::Vector<amrex::Geometry> geometry;
     amrex::Vector<amrex::IntVect> refinement_ratio;
     amrex::Vector<amrex::BoxArray> grids;

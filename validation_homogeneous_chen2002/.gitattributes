@@ -1,0 +1,4 @@
+# Preserve the CSV writer's CRLF bytes used by archived data provenance.
+*.csv -text whitespace=cr-at-eol
+# Unified-diff context lines intentionally contain a single leading space.
+*.patch -text -whitespace

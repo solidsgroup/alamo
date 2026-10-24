@@ -1,0 +1,14 @@
+{
+  "finest_amr_level": 4,
+  "active_cells": 72704,
+  "domain_dimensions": [
+    128,
+    208,
+    1
+  ],
+  "dx_finest_m": 9.765625e-07,
+  "max_volume_partition_error": 4.440892098500626e-16,
+  "resolved_AP_fraction_initial_AMR_integral": 0.6438002416826017,
+  "target_resolved_AP_fraction": 0.6456100387681425,
+  "note": "Whole-bed AMR integral includes coarse disk sampling and a partial packing tile at the bottom. Front composition is reconstructed from analytic disks on refinement; this mass integral does not replace the exact packing-tile area audit."
+}

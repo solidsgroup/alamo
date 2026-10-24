@@ -1,0 +1,182 @@
+[
+  {
+    "name": "q1000_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "b21c70cc08b286d80b75c30907231bf30d75a89037dd15597365dade789028ce",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.0018146080692620732,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.0018147569200063533,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.001815989653,
+    "final_step": 1307,
+    "last_dt_s": 1.381583362e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 53.12919896999665,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q1000_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q1000_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "95c89ed77f7c23ac0d223a23d74dc41f103955c038fd7ba6da89f6227c213e1b",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.0027868930747336324,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.002787344554508671,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.002788025266,
+    "final_step": 2441,
+    "last_dt_s": 1.132190897e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 97.73221910100256,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q1000_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q1000_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "6d01808f5f48682e615e973b079585154d4327db39d3656eb67b5f30a635b4eb",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.0038086734263238892,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.0038084695697691933,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.003808673426,
+    "final_step": 2923,
+    "last_dt_s": 1.285855382e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 149.9328263119969,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q1000_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q200_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "9c5f6a26b5e0b73e2f3aa658fb5fe6f94c721796abc4c5d3ab168a6024b0dbb8",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.03273863715312962,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.032748147690247045,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.03277120152,
+    "final_step": 1007,
+    "last_dt_s": 3.256436861e-05,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 41.39359313399473,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q200_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q200_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "df13ce9cdb637443216fa2432ffab6128cce0672e1d717d33a7c1c08251de5ae",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.05298802817094948,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.05299962376619874,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.05301300627,
+    "final_step": 2124,
+    "last_dt_s": 2.497809958e-05,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 86.18299984300393,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q200_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q200_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "9245b7d4893e16458ba06394ee016d2b7c94e0d7eece11d6de2b83a2a238472b",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.07430556158794115,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.07430948964844472,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.07433344726,
+    "final_step": 2662,
+    "last_dt_s": 2.788566997e-05,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 133.36605250999855,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q200_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q500_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "46a1a655451b8858840f910379e7ce7a511d4270098653ab1f715a287ce56f6d",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.006253884616615882,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.00625540544068484,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.006259294646,
+    "final_step": 1148,
+    "last_dt_s": 5.410028935e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 55.19520518700301,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q500_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "d3dd6553ff0e292a450e55c25e7a95d45a75e37962f525ff16fe73dd05064f6e",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.00985668535069242,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.009858047899196665,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.009861013507,
+    "final_step": 2256,
+    "last_dt_s": 4.32815672e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 89.16776256699814,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  },
+  {
+    "name": "q500_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32",
+    "returncode": 0,
+    "input_sha256": "8c0f7de0704632892ec6b492cfffed62e6dc920837f688b3bcd916b7316ae346",
+    "binary_sha256": "a01a7fffe7f5b778537a877430d5e0f0e3d0907659de415ca46ab5d7f3fd475b",
+    "final_plot_time_s": 0.013643371194661452,
+    "binary_matches_current_executable": true,
+    "requested_duration_s": 0.013641464081084714,
+    "input_hash_matches": true,
+    "final_log_time_s": 0.01364337119,
+    "final_step": 2752,
+    "last_dt_s": 4.907438019e-06,
+    "material_matches": true,
+    "independently_recomputed_closure_matches": true,
+    "elapsed_s": 120.20606266699906,
+    "command": [
+      "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+      "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t1.000_e0.25_n8_p1e+08_pure_htpb_nx32/input"
+    ]
+  }
+]

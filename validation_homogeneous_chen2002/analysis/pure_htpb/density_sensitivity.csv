@@ -1,0 +1,4 @@
+q_cal_cm2_s,ap_volume_fraction,executed_density_rule,arithmetic_density_closure_cm_s,volume_density_closure_cm_s,alternative_is_analytic_only
+200,0.5,arithmetic mass-weighted,0.3098621789254083,0.3464336380232738,True
+500,0.5,arithmetic mass-weighted,0.7184714278247061,0.8025736422056935,True
+1000,0.5,arithmetic mass-weighted,1.3511688840988922,1.5082032405751362,True

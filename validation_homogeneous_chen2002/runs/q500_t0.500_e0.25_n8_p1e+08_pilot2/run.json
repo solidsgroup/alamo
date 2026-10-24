@@ -1,0 +1,8 @@
+{
+  "command": [
+    "/home/esandall/Software/alamo2/bin/lowmach-2d-clang++",
+    "/home/esandall/Software/alamo2/validation_homogeneous_chen2002/runs/q500_t0.500_e0.25_n8_p1e+08_pilot2/input"
+  ],
+  "returncode": 1,
+  "elapsed_s": 0.11421228199469624
+}

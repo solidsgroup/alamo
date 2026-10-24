@@ -162,6 +162,7 @@ protected:
     Set::Field<Set::Scalar> pressure_correction_mf;
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
+    Set::Field<Set::Scalar> phase_change_heat_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -200,6 +201,7 @@ protected:
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;
+    bool phase_change_heat_enabled = false;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
 

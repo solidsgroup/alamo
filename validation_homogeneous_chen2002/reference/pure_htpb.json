@@ -1,0 +1,28 @@
+{
+  "T0_K": 300,
+  "sources": {
+    "scientific_reference": "User-supplied Chen et al. (2002) and Gross et al. (2013) articles.",
+    "status": "AP-free constituent engineering baseline; not calibrated to Chen Figure 4 and not independently validated for a particular cured HTPB formulation.",
+    "density_cp_conductivity": "Retain the original input.lm.ap_htpb pure-constituent reference values provisionally; these are not the Figure-4-reconstructed thermal properties.",
+    "kinetics": "Chen Figures 5 and 6 pure-component Arrhenius endpoints. The generator converts physical speed prefactors to the phase-field normalization for each case.",
+    "heat_release": "Gross section 4.2: pure HTPB -300 cal/g and pure AP -100 cal/g. One cal/g = 4184 J/kg. Applied only during phase change; chemistry is frozen.",
+    "mixing": "Supply unblended constituent values. The homogeneous phase-change model applies the requested mass/volume mixing rules once.",
+    "temperature": "Cold temperature 300 K retained from the original sweep."
+  },
+  "binder": {
+    "density_kg_m3": 920,
+    "cp_J_kg_K": 2418.29,
+    "conductivity_W_m_K": 0.13,
+    "heat_release_J_kg": -1255200,
+    "A_m_s": 10.36,
+    "activation_temperature_K": 7500
+  },
+  "AP": {
+    "density_kg_m3": 1950,
+    "cp_J_kg_K": 1297.90,
+    "conductivity_W_m_K": 0.4186,
+    "heat_release_J_kg": -418400,
+    "A_m_s": 948,
+    "activation_temperature_K": 11000
+  }
+}

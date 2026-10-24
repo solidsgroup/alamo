@@ -1,0 +1,33 @@
+{
+  "source": "/home/esandall/Downloads/homogeneous_model_paper.pdf",
+  "sha256": "24f5a95509a549779df35d81a5f5d73a380d3a5b19abc755d2a7a07a4fceced9",
+  "reference": "Chen, Buckmaster, Jackson and Massa (2002), Proc. Combust. Inst. 29, 2923\u20132929, Fig. 4, printed p.2927 / PDF page 5",
+  "extraction": "mutool draw -F trace; exact vector path vertices / marker centers; no fit or pixel trace",
+  "pdf_bounds": {
+    "x0": 73.394,
+    "x1": 238.013,
+    "y0": 590.031,
+    "y1": 719.816,
+    "t_min": 0,
+    "t_max": 1,
+    "r_min": 0,
+    "r_max": 3.5
+  },
+  "path_ids": {
+    "markers": 46,
+    "solid": 47,
+    "dashed": 48
+  },
+  "coordinate_precision_pdf_points": 0.001,
+  "line_width_pdf_points": 0.184,
+  "conservative_graphical_resolution": {
+    "t": 0.001117732461016043,
+    "r_cm_s": 0.00496205262549601
+  },
+  "uncertainty_note": "Stored decimals preserve vector extraction, not simulation/experimental precision. One full printed stroke width is a conservative graphical resolution, not a statistical confidence interval. Source DNS sampling/numerical uncertainties are unavailable. Endpoint DNS markers overlap and should not be treated as independent validation observations.",
+  "marker_counts": {
+    "eq19_square": 12,
+    "dns_2d_circle": 24,
+    "dns_3d_asterisk": 24
+  }
+}

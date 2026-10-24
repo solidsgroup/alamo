@@ -1,0 +1,27 @@
+{
+  "T0_K": 300,
+  "sources": {
+    "scientific_reference": "Only the user-supplied Chen et al. (2002) article.",
+    "status": "Figure-4-calibrated, not independent material parameter identification.",
+    "density": "920 and 1950 kg/m3 are assumed repository reference values (tests/LMHomogeneousBinder/input), not values recovered from the article.",
+    "cp_and_Q": "Derived from article Fig4 endpoint fits in analysis/article_inferred_combinations.json.",
+    "conductivity": "Derived from fitted rho*cp and approximate alpha=r*thermal_length using article r=0.5 cm/s, thermal lengths binder47um/AP33um.",
+    "temperature": "Cold temperature 300 K is an assumed realization; endpoints identify T0+Q/cp, not T0 separately."
+  },
+  "binder": {
+    "density_kg_m3": 920,
+    "cp_J_kg_K": 1255.235572184478,
+    "conductivity_W_m_K": 0.27138193070628414,
+    "heat_release_J_kg": -196590.1774836466,
+    "A_m_s": 10.36,
+    "activation_temperature_K": 7500
+  },
+  "AP": {
+    "density_kg_m3": 1950,
+    "cp_J_kg_K": 1248.6201442122756,
+    "conductivity_W_m_K": 0.40174353140029967,
+    "heat_release_J_kg": -421857.4269583932,
+    "A_m_s": 948,
+    "activation_temperature_K": 11000
+  }
+}
