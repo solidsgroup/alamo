@@ -116,9 +116,9 @@ ap_polycrystal.enabled = 0
 AP_solid.orientation = 1.0 0.0 0.0
 
 chemistry.model.type = rocfire
-chemistry.model.rocfire.A = 27.0e3_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.A = 473.98594351242497_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
 chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
-chemistry.model.rocfire.activation_energy = 15.9_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.activation_energy = 7.28554256403741_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
 chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
 chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
 chemistry.model.rocfire.pressure_reference = 1.0_bar
@@ -131,8 +131,8 @@ mechanisms.names = AP_decomposition
 AP_decomposition.type = phase_change
 AP_decomposition.phase_change.in = AP_solid
 AP_decomposition.phase_change.out = AP_gas
-AP_decomposition.phase_change.rate_multiplier = 2.75e6
-AP_decomposition.phase_change.activation_temperature = 3145.0_K
+AP_decomposition.phase_change.rate_multiplier = 19352747.962406512
+AP_decomposition.phase_change.activation_temperature = 5000.0_K
 AP_decomposition.phase_change.temperature_cutoff = 360.0_K
 AP_decomposition.phase_change.phase_field.type = allencahn
 
