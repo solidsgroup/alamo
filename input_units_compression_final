@@ -1,0 +1,134 @@
+alamo.program = fracture
+
+system.length = m
+system.time = s
+
+timestep = 3.125e-6_s
+stop_time = 1.75e-3_s
+
+plot_file = output_debonding_compression_final
+amr.plot_int = 80
+amr.max_level = 2
+amr.n_cell = 128 128
+amr.blocking_factor = 32
+amr.regrid_int = 10
+amr.grid_eff = 0.9
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+amr.nsubsteps = 1
+amr.node.any = 0
+amr.cell.all = 1
+
+geometry.prob_lo = -0.125_m -0.125_m
+geometry.prob_hi = 0.125_m 0.125_m
+geometry.is_periodic = 0 0
+
+crack.refinement_threshold = 0.1
+crack.df.tol_rel = 0.01
+crack.df.tol_abs = 0.0
+
+crack.df.mult_Gc = 0.3
+crack.df.mult_lap = 1.0
+crack.df.beta = 0.0
+crack.df.el_mult = 1.e11
+
+crack.model1.G_c = 2.e6_N/m # crystal toughness 1000x baseline
+crack.model1.fracture_strength = 1.e10_Pa # scaled to preserve PFCZM process-zone length
+crack.model1.E = 4.e11_Pa
+crack.model1.zeta = 2.e-4
+crack.model1.mobility = 2.4e-5
+crack.model1.gtype = wu_linear
+crack.model1.wtype = wu
+crack.model1.threshold = 0.0 
+
+crack.model2.G_c = 1.e3_N/m # soften binder for interface debonding
+crack.model2.fracture_strength = 5.e8_Pa
+crack.model2.E = 4.e11_Pa
+crack.model2.zeta = 2.e-4
+crack.model2.mobility = 1.0e-6
+crack.model2.gtype = wu_linear
+crack.model2.wtype = wu
+crack.model2.threshold = 0.0 # permit binder debonding
+
+# Tension notch testing
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.125_m 0_m
+#crack.ic.notch.orientation = 1 0
+#crack.ic.notch.length = 0.035_m
+#crack.ic.notch.thickness = 2.e-3_m
+
+crack.ic.type = png
+crack.ic.png.filename = "input_debond_seed_two_sharp_c045.png"
+crack.ic.png.fit = coord
+crack.ic.png.coord.lo = -0.125 0.125
+crack.ic.png.coord.hi = 0.125 -0.125
+crack.ic.png.channel = r
+
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+
+material.ic.type = png
+material.ic.png.filename = "output_red_nonblue_blurred.png"
+#material.ic.png.fit = stretch
+material.ic.png.fit = coord
+material.ic.png.coord.lo = -0.125 0.125
+material.ic.png.coord.hi = 0.125 -0.125
+material.ic.png.channel = b
+
+#material.model1.type = isotropic
+material.model1.E = 5.0 # inclusion
+material.model1.nu = 0.21
+
+#material.model2.type = isotropic
+material.model2.E = 2.0
+material.model2.nu = 0.28
+
+material.refinement_threshold = 100 #1.e-1
+
+### Mode-I test
+# Tension testing
+bc.type = constant
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xlo    = disp trac
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.ylo    = trac disp
+bc.constant.type.yhi    = trac disp
+bc.constant.type.xhi    = disp trac
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xhiyhi = disp disp
+bc.constant.val.xlo =    (0,1.25e-3:0,-0.01375) 0.0
+bc.constant.val.xhi =    (0,1.25e-3:0,0.01375) 0.0
+bc.constant.val.xloylo = (0,1.25e-3:0,-0.01375) 0.0
+bc.constant.val.xhiylo = (0,1.25e-3:0,0.01375) 0.0
+bc.constant.val.yhi =       0.0 (0,1.25e-3:0,-0.125) 
+bc.constant.val.xloyhi =    (0,1.25e-3:0,-0.01375) (0,1.25e-3:0,-0.125) 
+bc.constant.val.xhiyhi =    (0,1.25e-3:0,0.01375) (0,1.25e-3:0,-0.125)
+
+#
+# Solver inputs
+#
+elasticop.small=1.e-3
+solver.bottom_solver = smoother
+solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
+solver.tol_rel = 1e-7
+solver.verbose = 3
+solver.nriters = 3
+solver.fixed_iter = 10000
+solver.normalize_ddw = 1
+solver.average_down_coeffs = 1
+
+
+#
+# Mechanics inputs
+#
+interval = 1
+print_residual=1
+print_model = 1
+plot_psi = 1
+elastic_ref_threshold = 0.0001
+zero_out_displacement = 0
+
+
+amrex.throw_exception = 1
