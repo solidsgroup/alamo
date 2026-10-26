@@ -7,17 +7,19 @@
 
 alamo.program = flame
 
-plot_file = tests/SCPAgglomeration/output
+plot_file = tests/SCPAgglomeration/flagship_2d_result_random_alpha_2026ses
 system.length = mm
 system.time = s
 
-# Small exploratory sample; single-level grid with no AMR patches.
-# A 0.5 x 0.5 mm AP/binder slab plus 0.125 mm gas padding on each x end.
+# Larger 2D case; single-level grid with no AMR patches.
+# A 1 x 1 mm AP/binder slab plus 0.125 mm gas padding on each x end.
+# The 96-circle packing preserves the original AP size distribution and area
+# fraction while using independent particle positions across the larger slab.
 amr.max_level = 0
-amr.n_cell = 192 128 1
+amr.n_cell = 320 256 1
 amr.max_grid_size = 128
 amr.blocking_factor = 16
-amr.plot_dt = 0.001_s
+amr.plot_dt = 0.0005_s
 amr.thermo.plot_dt = 0.001_s
 amr.regrid_int = 1000000
 amr.base_regrid_int = 1000000
@@ -29,11 +31,11 @@ amr.cell.all = 1
 amr.node.all = 1
 
 geometry.prob_lo = -0.000125_m 0.00000_m 0.00000_m
-geometry.prob_hi =  0.000625_m 0.00050_m 0.00050_m
+geometry.prob_hi =  0.001125_m 0.00100_m 0.00050_m
 geometry.is_periodic = 1 1 1
 
 timestep = 1.0e-6_s
-stop_time = 0.06_s
+stop_time = 0.075_s
 
 # Flame phase-field parameters from SCPSpheresElastic.
 pf.eps = 0.000001_m
@@ -47,7 +49,7 @@ small = 1.0e-4
 # Propellant slab with burned/gas padding on both periodic x ends.
 pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.xlo = 0.00000_m
-pf.eta.ic.expression.constant.xhi = 0.00050_m
+pf.eta.ic.expression.constant.xhi = 0.00100_m
 pf.eta.ic.expression.constant.eps = 0.000002_m
 pf.eta.ic.expression.region0 = "0.5*(erf((x-xlo)/eps) - erf((x-xhi)/eps))"
 
@@ -65,11 +67,11 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
-# 24 particles cropped from SCPSpheresElastic: centers in 0 <= x,y < 0.5 mm.
-# Positions/radii are retained; PSRead applies the new domain's periodicity.
+# 96-particle 2D packing in the 1 x 1 mm solid slab; same AP size distribution
+# and area fraction as 2d.xyzr, with independent randomized center positions.
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = tests/SCPAgglomeration/2d.xyzr
+phi.ic.psread.file.name = tests/SCPAgglomeration/2d_large.xyzr
 phi.ic.psread.eps = 1.13e-5_m
 
 # Full-feedback propellant model from SCPSpheresElastic.
@@ -152,6 +154,7 @@ agglomeration.tstart = 1.0e100
 agglomeration.tstart_timestep = -1.0
 
 agglomeration.alpha.ic.type = random
+# The physical Al fraction c=(alpha+1)/2 spans [0, 1) in the initial field.
 agglomeration.alpha.ic.random.offset = -1.0
 agglomeration.alpha.ic.random.mult = 2.0
 

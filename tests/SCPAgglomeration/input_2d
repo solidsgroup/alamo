@@ -2,7 +2,7 @@
 #@  [bimodal-2d-preview]
 #@  dim = 2
 #@  check = false
-#@  args = stop_time=0.00002_s
+#@  args = stop_time=0.2_s
 #@
 
 alamo.program = flame
@@ -15,11 +15,11 @@ system.time = s
 # The random AP circles are the parent 3D packing's x=179 um section.
 # Parent (z,y) maps to this case's (x,y), so AP is periodic along y.
 amr.max_level = 0
-amr.n_cell = 168 96 1
-amr.max_grid_size = 96
+amr.n_cell = 896 512 1
+amr.max_grid_size = 64
 amr.blocking_factor = 8
-amr.plot_dt = 0.000005_s
-amr.thermo.plot_dt = 0.000005_s
+amr.plot_dt = 0.002_s
+amr.thermo.plot_dt = 0.0001_s
 amr.regrid_int = 1000000
 amr.base_regrid_int = 1000000
 amr.grid_eff = 1.0
@@ -34,7 +34,7 @@ geometry.prob_hi =  0.000704_m 0.000512_m 0.000512_m
 geometry.is_periodic = 1 1 1
 
 timestep = 1.0e-6_s
-stop_time = 0.00002_s
+stop_time = 0.2_s
 
 # Flame phase-field parameters from SCPSpheresElastic.
 pf.eps = 0.000001_m
@@ -136,9 +136,13 @@ agglomeration.on = 1
 agglomeration.diagnostics = 1
 agglomeration.method = spectral
 agglomeration.mobility = singly_degenerate
-agglomeration.gamma = 6.25e-5
-agglomeration.L = 10.0
-agglomeration.mobility_floor = 1.0e-6
+# Comparison from Nova 16854825_0; human review found formation/joining too slow.
+# Preserve this preset while testing faster kinetics and a better-resolved interface.
+agglomeration.gamma = 5.0e-7
+agglomeration.L = 0.5
+agglomeration.clipping = 0
+agglomeration.restoration = 0
+agglomeration.mobility_floor = 0.01
 agglomeration.eta_mobility_cutoff = 0.5
 # Leave spectral_stabilization unset to use the mobility-aware stable default.
 agglomeration.refinement_threshold = 1.0e100

@@ -17,8 +17,8 @@ amr.max_level = 0
 amr.n_cell = 96 96 168
 amr.max_grid_size = 96
 amr.blocking_factor = 8
-amr.plot_dt = 0.000005_s
-amr.thermo.plot_dt = 0.000005_s
+amr.plot_dt = 0.0002_s
+amr.thermo.plot_dt = 0.0002_s
 amr.regrid_int = 1000000
 amr.base_regrid_int = 1000000
 amr.grid_eff = 1.0
@@ -33,7 +33,7 @@ geometry.prob_hi =  0.000512_m 0.000512_m 0.000704_m
 geometry.is_periodic = 1 1 1
 
 timestep = 1.0e-6_s
-stop_time = 0.00002_s
+stop_time = 0.002_s
 
 # Flame phase-field parameters from SCPSpheresElastic.
 pf.eps = 0.000001_m
