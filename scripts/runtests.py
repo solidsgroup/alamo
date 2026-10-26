@@ -145,6 +145,7 @@ parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_t
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--hdf5', default=False, action='store_true', help='Use HDF5-enabled executables')
 parser.add_argument('--cuda', const='auto', default=None, nargs='?', type=str,
                     help="Run CUDA tests, optionally specifying the executable architecture suffix")
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
@@ -445,6 +446,7 @@ def test(testdir):
             if args.profile: exestr += "-profile"
             if args.perf: exestr += "-perf"
             if coverage: exestr += "-coverage"
+            if args.hdf5: exestr += "-hdf5"
             if args.cuda:
                 cuda_arch = args.cuda
                 if cuda_arch == "auto":

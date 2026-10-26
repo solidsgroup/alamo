@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Check conservation, dissipation, pure phases, and Fourier-mode evolution."""
+import re
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import numpy as np
+import yt
+
+yt.set_log_level(50)
+outdir = Path(sys.argv[1])
+case = sys.argv[2]
+plots = list(outdir.glob("*cell")) + list(outdir.glob("*cell.h5"))
+plots.sort(key=lambda path: int(re.search(r"(\d+)cell", path.name).group(1)))
+assert len(plots) >= 2, "Missing initial/final plotfiles"
+
+
+eta_field = "ch.eta" if case == "linear-spectral-renamed" else "eta"
+int_field = "ch.int" if case == "linear-spectral-renamed" else "int"
+
+
+def read(path):
+    if path.suffix == ".h5":
+        return read_hdf5(path, eta_field)
+    ds = yt.load(str(path))
+    level = ds.index.max_level
+    dimensions = ds.domain_dimensions.copy()
+    dimensions[:ds.dimensionality] *= 2**level
+    grid = ds.covering_grid(level, ds.domain_left_edge, dimensions)
+    eta = np.asarray(grid[("boxlib", eta_field)]).squeeze()
+    dx = np.asarray(ds.domain_width)[:eta.ndim] / np.array(eta.shape)
+    return ds, eta, dx
+
+
+def read_hdf5(path, eta_name):
+    """Read Alamo's AMReX cell plotfiles without requiring yt's native reader."""
+    import h5py
+
+    with h5py.File(path, "r") as handle:
+        components = {}
+        for key, value in handle.attrs.items():
+            if key.startswith("component_"):
+                name = value.decode() if isinstance(value, bytes) else str(value)
+                components[name] = int(key.rsplit("_", 1)[1])
+        level_names = sorted(
+            (name for name in handle if name.startswith("level_")),
+            key=lambda name: int(name.split("_")[-1]),
+        )
+        max_level = int(level_names[-1].split("_")[-1])
+        def metadata(name, default=None):
+            if name in handle.attrs:
+                return handle.attrs[name]
+            if name in handle["level_0"].attrs:
+                return handle["level_0"].attrs[name]
+            if name in handle:
+                return np.asarray(handle[name])
+            if default is not None:
+                return default
+            raise KeyError(f"Missing HDF5 plotfile metadata: {name}")
+
+        ndim = int(np.asarray(metadata("dim")).reshape(-1)[0])
+        dx = np.asarray(metadata("Vec_dx"), dtype=float)[:ndim]
+        prob_lo = np.asarray(metadata("prob_lo", np.zeros(ndim)), dtype=float)[:ndim]
+        time = float(np.asarray(metadata("time")).reshape(-1)[0])
+
+        def box_bounds(box):
+            names = box.dtype.names
+            if names:
+                axes = "ijk"[:ndim]
+                lo = np.array([box[f"lo_{axis}"] for axis in axes], dtype=int)
+                hi = np.array([box[f"hi_{axis}"] for axis in axes], dtype=int)
+                return lo, hi
+            values = np.asarray(box, dtype=int)
+            return values[:ndim], values[ndim:]
+
+        first_boxes = handle["level_0"]["boxes"][:]
+        domain_dimensions = np.max([box_bounds(box)[1] for box in first_boxes], axis=0) + 1
+        finest_shape = tuple((domain_dimensions * 2**max_level).tolist())
+        eta_component = next((index for name, index in components.items()
+                              if name == eta_name or name.endswith("." + eta_name.split(".")[-1])), None)
+        if eta_component is None:
+            raise KeyError(f"HDF5 plotfile has no {eta_name!r} component; found {list(components)}")
+        eta_key = next(name for name, index in components.items() if index == eta_component)
+        fields = {name: np.full(finest_shape, np.nan) for name in components}
+        grids = []
+        for level_name in level_names:
+            level = int(level_name.split("_")[-1])
+            group = handle[level_name]
+            boxes = group["boxes"][:]
+            offsets = np.asarray(group["data:offsets=0"])
+            values = np.asarray(group["data:datatype=0"])
+            bounds = [box_bounds(box) for box in boxes]
+            grids.extend(SimpleNamespace(Level=level, ActiveDimensions=hi - lo + 1)
+                         for lo, hi in bounds)
+            for box_index, box in enumerate(boxes):
+                lo, hi = bounds[box_index]
+                box_shape = hi - lo + 1
+                cell_count = int(np.prod(box_shape))
+                begin = int(offsets[box_index])
+                scale = 2**(max_level - level)
+                starts, stops = lo * scale, (hi + 1) * scale
+                # Coarse AMR data fills its represented fine cells; finer levels overwrite it.
+                for name, component in components.items():
+                    raw = values[begin + component * cell_count:
+                                 begin + (component + 1) * cell_count]
+                    patch = raw.reshape(box_shape[::-1]).transpose(tuple(range(ndim - 1, -1, -1)))
+                    for axis in range(ndim):
+                        patch = np.repeat(patch, scale, axis=axis)
+                    fields[name][tuple(slice(a, b) for a, b in zip(starts, stops))] = patch
+
+        width = dx * domain_dimensions
+        ds = SimpleNamespace(
+            current_time=time,
+            domain_dimensions=domain_dimensions,
+            domain_width=width,
+            domain_left_edge=prob_lo,
+            dimensionality=ndim,
+            index=SimpleNamespace(max_level=max_level, grids=grids),
+            mean_value=float(np.nanmean(fields[eta_key])),
+            fields=fields,
+            covering_grid=lambda level, *_args, **_kwargs: {
+                ("boxlib", name): field[tuple(slice(None, None, 2**(max_level-level)) for _ in range(ndim))]
+                for name, field in fields.items()
+            },
+        )
+        return ds, fields[eta_key], dx / 2**max_level
+
+
+def energy(eta, dx):
+    density = 0.25 * (eta**2 - 1)**2
+    for axis, h in enumerate(dx):
+        density += 0.005 * ((np.roll(eta, -1, axis) - eta) / h)**2
+    return density.mean()
+
+
+def mean(ds):
+    if hasattr(ds, "mean_value"):
+        return ds.mean_value
+    cells = ds.all_data()
+    volumes = cells[("index", "cell_volume")]
+    return float((cells[("boxlib", eta_field)] * volumes).sum() / volumes.sum())
+
+
+initial_ds, initial, dx = read(plots[0])
+final_ds, final, _ = read(plots[-1])
+assert np.isfinite(final).all(), "Nonfinite SDCH solution"
+if case == "linear-spectral-renamed":
+    diagnostic_names = ("ch.mobility", "ch.rhs", "ch.alpha_raw", "ch.alpha_delta",
+                        "ch.mobility_mask", "ch.flux_x", "ch.flux_y")
+    if hasattr(final_ds, "fields"):
+        diagnostic_fields = final_ds.fields
+    else:
+        grid = final_ds.covering_grid(final_ds.index.max_level, final_ds.domain_left_edge,
+                                      final_ds.domain_dimensions * 2**final_ds.index.max_level)
+        diagnostic_fields = {name: np.asarray(grid[("boxlib", name)]).squeeze()
+                             for name in diagnostic_names}
+    for name in diagnostic_names:
+        assert name in diagnostic_fields, f"Missing diagnostic field {name}"
+        assert np.isfinite(diagnostic_fields[name]).all(), f"Nonfinite diagnostic {name}"
+    alpha = np.clip(0.5 * (initial + 1.0), 0.0, 1.0)
+    expected_mobility = alpha**2 * (1.0 - alpha)**2
+    np.testing.assert_allclose(diagnostic_fields["ch.mobility"], expected_mobility,
+                               rtol=0, atol=3e-16)
+    np.testing.assert_array_equal(diagnostic_fields["ch.mobility_mask"], 1.0)
+    np.testing.assert_allclose(diagnostic_fields["ch.alpha_raw"], final, rtol=0, atol=2e-14)
+    np.testing.assert_allclose(diagnostic_fields["ch.alpha_delta"], final - initial,
+                               rtol=0, atol=2e-14)
+    assert np.max(np.abs(diagnostic_fields["ch.rhs"])) > 1e-10, "Diagnostic RHS is zero"
+assert abs(mean(final_ds) - mean(initial_ds)) < 2e-12, "SDCH changed the mean"
+assert float(final_ds.current_time) > float(initial_ds.current_time)
+
+if case.startswith("stationary"):
+    np.testing.assert_allclose(final, initial, rtol=0, atol=2e-13)
+elif case.startswith("linear"):
+    # Linearize around eta=0.15. A product of cosines is a Laplacian eigenmode.
+    base = 0.15
+    alpha = (base + 1) / 2
+    floor = 0.0125 if case.endswith("floor") else 0.0
+    mobility = alpha**2 * (1-alpha)**2 + floor
+    widths = np.asarray(initial_ds.domain_width)[:initial.ndim]
+    modes = np.ones(initial.ndim)
+    wave = 2*np.pi*modes/widths
+    lap = np.sum(4*np.sin(wave*dx/2)**2/dx**2)
+    curvature = 3*base**2 - 1 + 0.01*lap
+    potential = np.asarray(final_ds.covering_grid(0, final_ds.domain_left_edge,
+                                                  final_ds.domain_dimensions)[("boxlib", int_field)]).squeeze()
+    expected_potential = base**3 - base + (initial-base) * curvature
+    np.testing.assert_allclose(potential, expected_potential, rtol=0, atol=1e-12)
+    spectral = "spectral" in case
+    rate = -mobility * lap * curvature
+    if spectral:
+        stabilizer = 0.01 * (1/16 + floor)
+        rate /= 1 + 1e-5 * stabilizer * lap**2
+    expected = base + (initial-base) * (1 + 1e-5*rate)
+    np.testing.assert_allclose(final, expected, rtol=0, atol=1e-13)
+    assert np.max(abs(final-initial)) > 1e-11, "Fourier mode did not evolve"
+elif case == "strong-mobility":
+    # This grid-scale field previously evolved uphill even as dt tended to zero.
+    mobility = ((1-initial**2) / 4)**2
+    assert mobility.max() / mobility.min() > 1e6, "Weak mobility variation"
+    mu = initial**3 - initial
+    for axis, h in enumerate(dx):
+        mu -= 0.01 * (np.roll(initial, -1, axis) - 2*initial
+                      + np.roll(initial, 1, axis)) / h**2
+    dissipation = 0.0
+    for axis, h in enumerate(dx):
+        face_mobility = (mobility + np.roll(mobility, -1, axis)) / 2
+        dissipation += np.mean(face_mobility * ((np.roll(mu, -1, axis)-mu)/h)**2)
+    dt = float(final_ds.current_time - initial_ds.current_time)
+    energies = [energy(read(path)[1], dx) for path in plots]
+    assert np.all(np.diff(energies) < 0), "Strong-mobility SDCH increased energy"
+    observed = (energies[-1] - energies[0]) / dt
+    # At small dt, the discrete energy derivative is minus the squared face gradients.
+    np.testing.assert_allclose(observed, -dissipation, rtol=2e-3, atol=0)
+    print(f"energy change: {energies[-1]-energies[0]:.12g}; rate: {observed:.12g}")
+elif case.startswith("checkerboard"):
+    # For eta=b+a*s, s=+/-1, every active face sees the same mean mobility.
+    base, amplitude = 0.15, 0.01
+    axes = case.split("-")[-1]
+    lap = sum(4 / dx["xyz".index(axis)]**2 for axis in axes)
+    dt = 1e-5
+    steps = round(float(final_ds.current_time) / dt)
+    for _ in range(steps):
+        mobility = sum(((1-eta**2)/4)**2 for eta in (base+amplitude, base-amplitude)) / 2
+        curvature = 3*base**2 - 1 + amplitude**2 + 0.01*lap
+        amplitude *= 1 - dt*mobility*lap*curvature / (1 + dt*0.01/16*lap**2)
+    np.testing.assert_allclose(final, base+(initial-base)*amplitude/0.01, rtol=0, atol=2e-13)
+    assert np.max(abs(final-base)) < 0.0099, "Checkerboard mode did not decay"
+    assert energy(final, dx) < energy(initial, dx), "Checkerboard energy did not decay"
+else:
+    assert np.max(abs(final-initial)) > 1e-7, "SDCH field did not evolve"
+    if case.startswith("amr"):
+        assert initial_ds.index.max_level == 1, "AMR regression did not refine"
+        fine_cells = sum(np.prod(g.ActiveDimensions) for g in initial_ds.index.grids if g.Level == 1)
+        assert 0 < fine_cells < np.prod(initial_ds.domain_dimensions[:initial.ndim] * 2), "AMR regression missed partial coverage"
+    else:
+        assert energy(final, dx) < energy(initial, dx), "SDCH failed to dissipate energy"
+print(f"{case}: verified SDCH evolution")
