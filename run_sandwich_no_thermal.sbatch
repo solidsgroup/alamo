@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #SBATCH --partition=nova
-#SBATCH --constraint=zen5
 #SBATCH --time=08:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=64
