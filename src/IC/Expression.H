@@ -149,7 +149,7 @@ public:
 #if AMREX_SPACEDIM == 1
                         field(i, j, k)(n) = f_n(x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k)(n) = f_n(x(0), x(1), 0.0, a_time) * unitfactor;
+                        field(i, j,k)(n) = f_n(x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
                         field(i, j, k)(n) = f_n(x(0), x(1), x(2), a_time) * unitfactor;
 #endif
@@ -247,6 +247,8 @@ public:
 
     virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar /*a_time*/ = 0.0) override
     {
+        const auto prob_lo = IC<Set::Scalar>::geom[lev].ProbLoArray();
+        const auto cell_size = IC<Set::Scalar>::geom[lev].CellSizeArray();
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
@@ -259,7 +261,8 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector x = Set::Position(i, j, k, IC<Set::Scalar>::geom[lev], type);
+                Set::Vector x =
+                    Set::Position(i, j, k, prob_lo, cell_size, type);
                 for (int n = 0; n < ncomp; ++n)
                     field(i,j,k,n) = n < AMREX_SPACEDIM ? x(n) : 0.0;
             });

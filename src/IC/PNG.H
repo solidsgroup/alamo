@@ -60,6 +60,16 @@ public:
         Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0], geom[lev].ProbHi()[1], 0.0));
 
         png.setDomain(domlo, domhi);
+        const Channel selected_channel = channel;
+        const Set::Scalar output_value = field_value;
+        const bool invert_image = invert;
+        const bool threshold_image = use_threshold;
+        const Set::Scalar image_threshold = threshold;
+        const bool mask_with_plane = use_plane;
+        const Set::Vector mask_point = plane_point;
+        const Set::Vector mask_normal = plane_normal;
+        const Set::Scalar mask_eps = plane_eps;
+        const Util::PNG::DeviceView image = png.GetDeviceView();
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -75,21 +85,37 @@ public:
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)) * DX(0);
+                    x(1) = domlo(1) + ((amrex::Real)(j)) * DX(1);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    x(0) = domlo(0) + ((amrex::Real)(i)+0.5) * geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)+0.5) * DX(0);
+                    x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * DX(1);
                 }
 
 
-                std::array<Set::Scalar, 4> val = png(x);
+                std::array<Set::Scalar, 4> val = image(x);
+                Set::Scalar indicator = val[selected_channel];
+                if (threshold_image)
+                    indicator = indicator >= image_threshold ? 1.0 : 0.0;
+                if (invert_image) indicator = 1.0 - indicator;
 
-                field(i,j,k,0) = val[channel] * unit.normalized_value();
+                Set::Scalar mask = 1.0;
+                if (mask_with_plane)
+                {
+                    const Set::Scalar distance =
+                        (x - mask_point).dot(mask_normal);
+                    mask = mask_eps > 0.0 ?
+                        0.5 * (1.0 + std::tanh(
+                            2.0 * distance / mask_eps)) :
+                        static_cast<Set::Scalar>(distance >= 0.0);
+                }
 
-                if (field.nComp() > 1) field(i, j, k, 1) = 1.0 - field(i, j, k, 0);
+                field(i,j,k,0) = output_value * mask * indicator;
+                if (field.nComp() > 1)
+                    field(i,j,k,1) =
+                        output_value * mask * (1.0 - indicator);
 
             });
         }
@@ -106,6 +132,14 @@ private:
     Util::PNG png;
     Channel channel = Channel::G;
     Unit unit = Unit::Less();
+    Set::Scalar field_value = 1.0;
+    bool invert = false;
+    bool use_threshold = false;
+    Set::Scalar threshold = 0.5;
+    bool use_plane = false;
+    Set::Vector plane_point = Set::Vector::Zero();
+    Set::Vector plane_normal = Set::Vector::Zero();
+    Set::Scalar plane_eps = 0.0;
 #endif
 
 public:
@@ -122,7 +156,39 @@ public:
         else if (channel == "a" || channel == "A") value.channel = Channel::A;
         else Util::Abort(INFO, "Invalid value for bmp channel - should be r/g/b/a but received '", channel, "'");
 
-        
+        pp.query_default(
+            "value", value.field_value, "1.0", value.unit);
+        pp.query_default("invert", value.invert, false);
+        value.use_threshold = pp.contains("threshold");
+        if (value.use_threshold)
+        {
+            pp.query_required(
+                "threshold", value.threshold, Unit::Less());
+            if (value.threshold < 0.0 || value.threshold > 1.0)
+                Util::Exception(
+                    INFO, "PNG threshold must lie in [0,1]");
+        }
+
+        value.use_plane = pp.contains("plane.normal");
+        if (value.use_plane)
+        {
+            pp.queryarr("plane.normal", value.plane_normal);
+            pp.queryarr_default(
+                "plane.point", value.plane_point,
+                "0 0 0", Unit::Length());
+            pp.query_default(
+                "plane.eps", value.plane_eps,
+                "0.0", Unit::Length());
+            const Set::Scalar norm = value.plane_normal.norm();
+            Util::AssertException(
+                INFO, TEST(norm > 0.0),
+                "PNG plane.normal must be nonzero");
+            Util::AssertException(
+                INFO, TEST(value.plane_eps >= 0.0),
+                "PNG plane.eps must be nonnegative");
+            value.plane_normal /= norm;
+        }
+
         pp.queryclass<Util::PNG>(value.png);
 
 #else

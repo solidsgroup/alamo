@@ -68,8 +68,8 @@ solid.thermal_conductivity = 205.0_W/m/K
 
 advection.type = upwind
 cfl = 0.25
-include_viscosity = 0
-include_conduction = 1
+viscosity = 0
+thermal_diffusion = 1
 advect_temperature = 0
 projection.enabled = 0
 diagnostics.extended_fields = 1

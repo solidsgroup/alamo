@@ -1,3 +1,15 @@
+//
+//
+// 
+//
+//
+//
+//
+//
+//
+//
+
+
 #ifndef INTEGRATOR_LOWMACH_H
 #define INTEGRATOR_LOWMACH_H
 
@@ -11,6 +23,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
+#include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
@@ -42,6 +55,12 @@ class LowMach : virtual public Integrator,
 
 public:
     static constexpr const char* name = "lowmach";
+    enum class DiffusionMode : int { Off = 0, Explicit = 1, Implicit = 2 };
+
+    using Chemistry = Model::Chemistry::Chemistry<
+        Model::Chemistry::Frozen,
+        Model::Chemistry::FiniteRate,
+        Model::Chemistry::Rocfire>;
 
     LowMach() {};
     LowMach(IO::ParmParse& pp);
@@ -64,13 +83,15 @@ public:
         delete xi_ic;
     }
 
-protected:
+public:
+    // NVCC requires enclosing functions for extended device lambdas to be public.
     void Initialize(int lev) override;
     void Regrid(int lev, Set::Scalar time) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int iter) override;
     void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
     void PrintDiagnostics(Set::Scalar time, int iter);
+    void PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const char* stage);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
@@ -85,21 +106,35 @@ protected:
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
     void ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt);
+    void ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt);
     void ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt);
 
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::tuple<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
-    ComputeThermalState(
-        Set::Patch<const Set::Scalar> component_density,
-        Set::Scalar temperature, int i, int j, int k) const;
+    using ThermalData = amrex::GpuTuple<
+        Model::Gas::Gas::DeviceData, int, int, Set::Scalar, Set::Scalar, bool,
+        const Set::Scalar*, const Set::Scalar*, const Set::Scalar*>;
+    using ChemistryData = amrex::GpuTuple<
+        bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
+        const Chemistry*, const Model::Gas::Gas*>;
+    using ThermochemicalData = amrex::GpuTuple<
+        ThermalData, ChemistryData, DiffusionMode, DiffusionMode>;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    std::tuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
+    static amrex::GpuTuple<
+        Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar>
+    ComputeThermalState(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k,
+        const ThermalData& data);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static
+    amrex::GpuTuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(
         Set::Patch<const Set::Scalar> component_density,
         Set::Patch<const Set::Scalar> temperature,
         int i, int j, int k, const Set::Scalar* dx, Set::Scalar dt,
-        bool include_reaction = true) const;
+        const ThermochemicalData& data,
+        bool include_reaction = true);
     void ProjectVelocity(Set::Scalar time, Set::Scalar dt);
     void RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& u_rhs_mf,
@@ -111,6 +146,7 @@ protected:
             const amrex::MultiFab& component_density_mf,
             const amrex::MultiFab* xi_mf);
 
+protected:
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> velocity_old_mf;
     Set::Field<Set::Scalar> temperature_mf;
@@ -131,6 +167,7 @@ protected:
     Set::Field<Set::Scalar> pressure_correction_mf;
     Set::Field<Set::Scalar> chemistry_dilatation_mf;
     Set::Field<Set::Scalar> phase_change_dilatation_mf;
+    Set::Field<Set::Scalar> phase_change_heat_mf;
     Set::Field<Set::Scalar> diffusion_dilatation_mf;
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
@@ -158,14 +195,17 @@ protected:
     IC::IC<Set::Scalar>* xi_ic = nullptr;
 
     Model::Gas::Gas gas;
-    using Chemistry = Model::Chemistry::Chemistry<
-        Model::Chemistry::Frozen,
-        Model::Chemistry::FiniteRate,
-        Model::Chemistry::Rocfire>;
+    amrex::Gpu::DeviceVector<Set::Scalar> gas_device_storage;
+    amrex::Gpu::DeviceVector<Set::Scalar> thermal_device_storage;
+    Model::Gas::Gas::DeviceData gas_device_data;
+    ThermalData thermal_data;
     Chemistry chemistry;
+    ChemistryData chemistry_device_data;
+    ThermochemicalData thermochemical_data;
     Model::Solid::Finite::NeoHookean finite_solid_model;
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;
+    bool phase_change_heat_enabled = false;
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
@@ -208,6 +248,7 @@ protected:
     Set::Scalar velocity_refinement_criterion = NAN;
     Set::Scalar pressure_refinement_criterion = NAN;
     Set::Scalar temperature_refinement_criterion = NAN;
+    Set::Scalar reaction_refinement_criterion = NAN;
     Set::Scalar eta_refinement_criterion = NAN;
     // Refine cells where the elastic modulus (mu or kappa) varies by more than
     // this ratio corner-to-corner. Keeps AMR coarse-fine boundaries away from
@@ -218,14 +259,14 @@ protected:
     Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
+    bool diagnostics_stages = false;
+    Set::Scalar diagnostics_start_time = 0.0;
     bool reinitialize_condensed_composition = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
-    bool include_viscosity = true;
-    bool include_conduction = true;
-    bool implicit_momentum_diffusion = false;
-    bool implicit_thermal_diffusion = false;
-    bool implicit_species_diffusion = false;
+    DiffusionMode viscosity = DiffusionMode::Explicit;
+    DiffusionMode thermal_diffusion = DiffusionMode::Explicit;
+    DiffusionMode species_diffusion = DiffusionMode::Explicit;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
     Set::Scalar finite_solid_reference_density = 1.0;
@@ -245,6 +286,7 @@ protected:
     Numeric::ReferenceMap::Reconstruction reference_map_reconstruction;
     Operator::Diffusion diffusion;
     Operator::PressurePoisson pressure_poisson;
+    bool synchronize_restart_state = false;
 };
 }
 

@@ -69,8 +69,35 @@ LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
+ifeq ($(CUDA),TRUE)
+SRC = \
+	src/BC/BC.cpp \
+	src/BC/Constant.cpp \
+	src/BC/Expression.cpp \
+	src/IO/CanteraYamlParse.cpp \
+	src/IO/FileNameParse.cpp \
+	src/IO/InputScraper.cpp \
+	src/IO/OutputLog.cpp \
+	src/IO/ParmParse.cpp \
+	src/IO/WriteMetaData.cpp \
+	src/Integrator/Integrator.cpp \
+	src/Integrator/LowMach.cpp \
+	src/Model/Gas/Gas.cpp \
+	src/Numeric/ReferenceMap/Reconstruction.cpp \
+	src/Operator/Diagonal.cpp \
+	src/Operator/Diffusion.cpp \
+	src/Operator/Implicit/Implicit.cpp \
+	src/Operator/Operator.cpp \
+	src/Operator/PressurePoisson.cpp \
+	src/Set/Set.cpp \
+	src/Util/Debug.cpp \
+	src/Util/Util.cpp \
+	src/Util/Zephyr.cpp
+SRC_MAIN = src/lowmach.cc
+else
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
+endif
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))

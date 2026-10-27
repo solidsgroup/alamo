@@ -30,10 +30,10 @@ public:
         return m_file.good() ? 0 : -1;
     }
 
-    void Open(const std::string& path)
+    void Open(const std::string& path, bool append)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_file.open(path, std::ios::out | std::ios::trunc);
+        m_file.open(path, std::ios::out | (append ? std::ios::app : std::ios::trunc));
         if (!m_file.is_open())
             throw std::runtime_error("Could not open output log " + path);
 
@@ -144,9 +144,9 @@ void Initialize()
     initialized = true;
 }
 
-void Open(const std::string& path)
+void Open(const std::string& path, bool append)
 {
-    log_sink.Open(path);
+    log_sink.Open(path, append);
 }
 
 void DisableFile()

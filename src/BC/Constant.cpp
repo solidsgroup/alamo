@@ -108,8 +108,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_xlo))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_xlo;
-                    else if (glevel[0]<0) in(i,j,k,n) = 2.0 * bc_val_xlo - in(2 * lo.x - i - 1,j,k,n);
+                    const Set::Scalar val = bc_val_xlo;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[0]<0) in(i,j,k,n) = 2.0 * val - in(2 * lo.x - i - 1,j,k,n);
                 }
                 else if(glevel[0]<0 && BCUtil::IsNeumann(bc_type_xlo))
                     in(i,j,k,n) = in(i-glevel[0],j,k,n) - bc_val_xlo*DX[0];
@@ -125,8 +126,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_xhi))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_xhi;
-                    else if (glevel[0]>0) in(i,j,k,n) = 2.0 * bc_val_xhi - in(2 * hi.x - i + 1,j,k,n);
+                    const Set::Scalar val = bc_val_xhi;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[0]>0) in(i,j,k,n) = 2.0 * val - in(2 * hi.x - i + 1,j,k,n);
                 }
                 else if(glevel[0]>0 && BCUtil::IsNeumann(bc_type_xhi))
                     in(i,j,k,n) = in(i-glevel[0],j,k,n) - bc_val_xhi*DX[0];
@@ -143,8 +145,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_ylo))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_ylo;
-                    else if (glevel[1]<0) in(i,j,k,n) = 2.0 * bc_val_ylo - in(i,2 * lo.y - j - 1,k,n);
+                    const Set::Scalar val = bc_val_ylo;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[1]<0) in(i,j,k,n) = 2.0 * val - in(i,2 * lo.y - j - 1,k,n);
                 }
                 else if (glevel[1]<0 && BCUtil::IsNeumann(bc_type_ylo))
                     in(i,j,k,n) = in(i,j-glevel[1],k,n) - bc_val_ylo*DX[1];
@@ -160,8 +163,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_yhi))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_yhi;
-                    else if (glevel[1]>0) in(i,j,k,n) = 2.0 * bc_val_yhi - in(i,2 * hi.y - j + 1,k,n);
+                    const Set::Scalar val = bc_val_yhi;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[1]>0) in(i,j,k,n) = 2.0 * val - in(i,2 * hi.y - j + 1,k,n);
                 }
                 else if (glevel[1]>0 && BCUtil::IsNeumann(bc_type_yhi))
                     in(i,j,k,n) = in(i,j-glevel[1],k,n) - bc_val_yhi*DX[1];
@@ -179,8 +183,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_zlo))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_zlo;
-                    else if (glevel[2]<0) in(i,j,k,n) = 2.0 * bc_val_zlo - in(i,j,2 * lo.z - k - 1,n);
+                    const Set::Scalar val = bc_val_zlo;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[2]<0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * lo.z - k - 1,n);
                 }
                 else if (glevel[2]<0 && BCUtil::IsNeumann(bc_type_zlo))
                     in(i,j,k,n) = in(i,j,k-glevel[2],n) - bc_val_zlo*DX[2];
@@ -195,8 +200,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_zhi))
                 {
-                    if (nodal) in(i,j,k,n) = bc_val_zhi;
-                    else if (glevel[2]>0) in(i,j,k,n) = 2.0 * bc_val_zhi - in(i,j,2 * hi.z - k + 1,n);
+                    const Set::Scalar val = bc_val_zhi;
+                    if (nodal) in(i,j,k,n) = val;
+                    else if (glevel[2]>0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * hi.z - k + 1,n);
                 }
                 else if(glevel[2]>0 && BCUtil::IsNeumann(bc_type_zhi))
                     in(i,j,k,n) = in(i,j,k-glevel[2],n) - bc_val_zhi*DX[2];

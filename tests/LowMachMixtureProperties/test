@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import glob
+import os
+from pathlib import Path
 import sys
 
 sys.path.insert(0, "../../scripts")
@@ -35,6 +37,42 @@ outdir = sys.argv[1]
 case = next((name for name in EXPECTED if outdir.endswith("_" + name)), None)
 if case is None:
     raise RuntimeError(f"Cannot identify LowMach mixture-property case from {outdir}")
+
+output_log = (Path(outdir) / "out.log").read_text()
+terminal_log = (Path(outdir) / "stdout").read_text()
+metadata = (Path(outdir) / "metadata").read_text()
+for message in (
+        "Initializing AMReX",
+        "STEP 1 starts",
+        "STEP 1 ends",
+        "AMReX (",
+        "finalized",
+):
+    if message not in output_log:
+        raise RuntimeError(f"{message!r} is missing from out.log")
+    if message not in terminal_log:
+        raise RuntimeError(f"{message!r} is missing from terminal output")
+
+slurm_job_id = os.environ.get("SLURM_JOB_ID")
+if slurm_job_id is None:
+    if "# SLURM DETAILS" in metadata:
+        raise RuntimeError("Non-Slurm run contains Slurm metadata")
+else:
+    if "# SLURM DETAILS" not in metadata:
+        raise RuntimeError("Slurm metadata section is missing")
+    for variable in (
+            "SLURM_JOB_ID",
+            "SLURM_JOB_NAME",
+            "SLURM_JOB_NODELIST",
+            "SLURM_JOB_NUM_NODES",
+            "SLURM_NTASKS",
+            "SLURM_CPUS_PER_TASK",
+            "SLURM_ARRAY_JOB_ID",
+            "SLURM_ARRAY_TASK_ID",
+    ):
+        value = os.environ.get(variable)
+        if value is not None and f"{variable} = {value}" not in metadata:
+            raise RuntimeError(f"{variable} is missing from Slurm metadata")
 
 plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
 if not plotfiles:

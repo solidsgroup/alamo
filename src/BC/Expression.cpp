@@ -11,6 +11,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 {
     const auto DX = m_geom.CellSizeArray();
     const auto prob_lo = m_geom.ProbLoArray();
+    const auto prob_hi = m_geom.ProbHiArray();
 
     Util::Assert(INFO,TEST(a_in.nComp() == (int)m_ncomp));
 
@@ -42,7 +43,8 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 #endif
         amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Vector pos = Set::Position(i, j, k, prob_lo, DX, type);
+            Set::Vector pos =
+                Set::Position(i, j, k, prob_lo, DX, type);
             Set::Scalar x = 0.0, y=0.0, z=0.0, t=time;
             x = pos(0);
             #if AMREX_SPACEDIM > 1
@@ -62,7 +64,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_xlo))
                 {
-                    const Set::Scalar val = bc_func_xlo(m_geom.ProbLo()[0],y,z,t);
+                    const Set::Scalar val = bc_func_xlo(prob_lo[0],y,z,t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[0]<0) in(i,j,k,n) = 2.0 * val - in(2 * lo.x - i - 1,j,k,n);
                 }
@@ -80,7 +82,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_xhi))
                 {
-                    const Set::Scalar val = bc_func_xhi(m_geom.ProbHi()[0],y,z,t);
+                    const Set::Scalar val = bc_func_xhi(prob_hi[0],y,z,t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[0]>0) in(i,j,k,n) = 2.0 * val - in(2 * hi.x - i + 1,j,k,n);
                 }
@@ -98,7 +100,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_ylo))
                 {
-                    const Set::Scalar val = bc_func_ylo(x,m_geom.ProbLo()[1],z,t);
+                    const Set::Scalar val = bc_func_ylo(x,prob_lo[1],z,t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[1]<0) in(i,j,k,n) = 2.0 * val - in(i,2 * lo.y - j - 1,k,n);
                 }
@@ -116,7 +118,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_yhi))
                 {
-                    const Set::Scalar val = bc_func_yhi(x,m_geom.ProbHi()[1],z,t);
+                    const Set::Scalar val = bc_func_yhi(x,prob_hi[1],z,t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[1]>0) in(i,j,k,n) = 2.0 * val - in(i,2 * hi.y - j + 1,k,n);
                 }
@@ -135,7 +137,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_zlo))
                 {
-                    const Set::Scalar val = bc_func_zlo(x,y,m_geom.ProbLo()[2],t);
+                    const Set::Scalar val = bc_func_zlo(x,y,prob_lo[2],t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[2]<0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * lo.z - k - 1,n);
                 }
@@ -152,7 +154,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             {
                 if (BCUtil::IsDirichlet(bc_type_zhi))
                 {
-                    const Set::Scalar val = bc_func_zhi(x,y,m_geom.ProbHi()[2],t);
+                    const Set::Scalar val = bc_func_zhi(x,y,prob_hi[2],t);
                     if (nodal) in(i,j,k,n) = val;
                     else if (glevel[2]>0) in(i,j,k,n) = 2.0 * val - in(i,j,2 * hi.z - k + 1,n);
                 }

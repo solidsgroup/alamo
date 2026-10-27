@@ -19,7 +19,11 @@ Set::Scalar H(Set::Scalar eta)
     // constitutive transition to |s|<ell/2.
     constexpr Set::Scalar eta_lo = 0.11920292202211755;
     constexpr Set::Scalar eta_hi = 1.0 - eta_lo;
-    return Util::SmootherStep((eta - eta_lo) / (eta_hi - eta_lo));
+    // The quintic can round slightly above one near its upper endpoint.
+    // Its complement is a transport accessibility, so enforce the bounds
+    // on the evaluated value as well as on the polynomial's argument.
+    return Util::Clamp(Util::SmootherStep((eta - eta_lo) / (eta_hi - eta_lo)),
+                       Set::Scalar(0), Set::Scalar(1));
 }
 
 template<typename... OBJ>
@@ -79,6 +83,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar LocalStabilityRate() const
     {
         if constexpr (I < sizeof...(OBJ))
@@ -92,6 +97,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar StabilityRate(const Set::Scalar dx) const
     {
         if constexpr (I < sizeof...(OBJ))

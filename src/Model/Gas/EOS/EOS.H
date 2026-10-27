@@ -39,7 +39,6 @@ public:
     // Temperature, K
     template<typename GAS, class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar E, Set::Scalar Tguess,
                     const Composition& X, int i, int j, int k, Set::Scalar rtol) const
     {
@@ -59,7 +58,6 @@ public:
     // Temperature, K
     template<typename GAS, class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Scalar ComputeT(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar E, Set::Scalar Tguess,
                     const Composition& X, int i, int j, int k, Set::Scalar rtol) const
     {
@@ -120,7 +118,6 @@ public:
     // Energy, J
     template<typename GAS, class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar T,
                     const Composition& X, int i, int j, int k) const
     {
@@ -140,7 +137,6 @@ public:
     // Energy, J
     template<typename GAS, class Composition, int I = 0>
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Scalar ComputeE(const GAS &gas, Set::Scalar density, Set::Scalar momentumx, Set::Scalar momentumy, Set::Scalar momentumz, Set::Scalar T,
                     const Composition& X, int i, int j, int k) const
     {

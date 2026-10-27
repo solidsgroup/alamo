@@ -9,6 +9,9 @@
 #include "Numeric/Interpolator/NodeBilinear.H"
 #include "Util/Util.H"
 #include "Unit/Unit.H"
+#include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <numeric>
 
 
@@ -37,6 +40,7 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("restart", value.restart_file_cell,"");       // Name of restart file to read from
         pp.query_default("restart_cell", value.restart_file_cell,"");  // Name of cell-fab restart file to read from
         pp.query_default("restart_node", value.restart_file_node,"");  // Name of node-fab restart file to read from
+        pp.query_default("restart.in_place", value.restart_in_place, false);
     }
 #ifdef AMREX_USE_HDF5
     {
@@ -109,6 +113,24 @@ Integrator::Parse(Integrator &value, IO::ParmParse &pp)
         pp.query_default("dynamictimestep.min",value.dynamictimestep.min,value.timestep);
         // maximum timestep size allowed shen stepping dynamically
         pp.query_default("dynamictimestep.max",value.dynamictimestep.max,value.timestep);
+        pp.query_default("dynamictimestep.max_growth", value.dynamictimestep.max_growth, 1.0e100);
+        pp.queryarr("dynamictimestep.startup_times", value.dynamictimestep.startup_times, Unit::Time());
+        pp.queryarr("dynamictimestep.startup_max", value.dynamictimestep.startup_max, Unit::Time());
+        if (!(std::isfinite(value.dynamictimestep.max_growth) &&
+              value.dynamictimestep.max_growth >= 1.0))
+            Util::Exception(INFO, "dynamictimestep.max_growth must be finite and at least one");
+        if (value.dynamictimestep.startup_times.size() != value.dynamictimestep.startup_max.size())
+            Util::Exception(INFO, "dynamictimestep.startup_times and startup_max must have equal lengths");
+        Set::Scalar previous_startup_time = 0.0;
+        for (std::size_t n = 0; n < value.dynamictimestep.startup_times.size(); ++n)
+        {
+            const auto endpoint = value.dynamictimestep.startup_times[n];
+            const auto cap = value.dynamictimestep.startup_max[n];
+            if (!(std::isfinite(endpoint) && endpoint > previous_startup_time &&
+                  std::isfinite(cap) && cap > 0.0 && cap >= value.dynamictimestep.min))
+                Util::Exception(INFO, "Startup times must increase from zero and timestep caps must be positive and at least dynamictimestep.min");
+            previous_startup_time = endpoint;
+        }
 
     });
 
@@ -504,6 +526,19 @@ Integrator::InitData()
 
     BL_PROFILE("Integrator::InitData");
 
+    if (restart_in_place)
+    {
+        Util::Assert(INFO, TEST(restart_file_node == ""),
+                     "restart.in_place currently supports cell plotfile restarts only");
+        Util::Assert(INFO, TEST(restart_file_cell != ""),
+                     "restart.in_place requires restart or restart_cell");
+        const auto output = std::filesystem::absolute(plot_file).lexically_normal();
+        const auto restart_parent = std::filesystem::absolute(
+            std::filesystem::path(restart_file_cell).parent_path()).lexically_normal();
+        Util::Assert(INFO, TEST(restart_parent == output),
+                     "restart.in_place requires restart_cell to be a plotfile within plot_file");
+    }
+
     if (restart_file_cell == "" && restart_file_node == "")
     {
         const amrex::Real time = 0.0;
@@ -531,7 +566,54 @@ Integrator::InitData()
         Restart(restart_file_node, true);
     }
 
-    if (plot_int > 0 || plot_dt > 0.0) {
+    if (restart_in_place)
+    {
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            const std::string restart_name = std::filesystem::path(restart_file_cell).filename().string();
+            std::size_t restart_digits = 0;
+            while (restart_digits < restart_name.size() &&
+                   std::isdigit(static_cast<unsigned char>(restart_name[restart_digits])))
+                ++restart_digits;
+            Util::Assert(INFO, TEST(restart_digits > 0),
+                         "Could not determine the plot step from ", restart_file_cell);
+            const long long restart_step = std::stoll(restart_name.substr(0, restart_digits));
+
+            const auto truncate_visit_file = [restart_step](const std::filesystem::path& visit_file)
+            {
+                if (!std::filesystem::exists(visit_file)) return;
+
+                std::ifstream input(visit_file);
+                if (!input.good()) amrex::FileOpenFailed(visit_file.string());
+
+                std::vector<std::string> retained;
+                std::string line;
+                while (std::getline(input, line))
+                {
+                    std::size_t digits = 0;
+                    while (digits < line.size() &&
+                           std::isdigit(static_cast<unsigned char>(line[digits])))
+                        ++digits;
+                    if (digits == 0 || std::stoll(line.substr(0, digits)) <= restart_step)
+                        retained.push_back(line);
+                }
+
+                const std::filesystem::path temporary = visit_file.string() + ".restart";
+                std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+                if (!output.good()) amrex::FileOpenFailed(temporary.string());
+                for (const auto& entry : retained) output << entry << '\n';
+                output.close();
+                if (output.fail()) amrex::FileOpenFailed(temporary.string());
+                std::filesystem::rename(temporary, visit_file);
+            };
+
+            truncate_visit_file(std::filesystem::path(plot_file) / "celloutput.visit");
+            truncate_visit_file(std::filesystem::path(plot_file) / "nodeoutput.visit");
+        }
+        amrex::ParallelDescriptor::Barrier();
+    }
+
+    if (!restart_in_place && (plot_int > 0 || plot_dt > 0.0)) {
         WritePlotFile();
     }
 }
@@ -671,7 +753,12 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             }
         else
             for (int i = 0; i < cell.number_of_fabs; i++)
+            {
                 (*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev], dmap[lev], cell.ncomp_array[i], cell.nghost_array[i]));
+                // Plotfiles contain valid cells only. Initialize the remaining
+                // storage before boundary exchange, as for nodal restarts.
+                (*cell.fab_array[i])[lev]->setVal(0.0);
+            }
         for (int i = 0; i < tmp_numfabs; i++)
         {
             bool match = false;

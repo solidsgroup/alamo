@@ -1,11 +1,14 @@
 #include "Diffusion.H"
 
 #include <limits>
+#include <fstream>
+#include <iomanip>
 
 #include <AMReX_FillPatchUtil.H>
 #include <AMReX_MLABecLaplacian.H>
 #include <AMReX_MLMG.H>
 #include <AMReX_MultiFabUtil.H>
+#include <AMReX_VisMF.H>
 
 #include "BC/Constant.H"
 
@@ -233,7 +236,7 @@ public:
         }
     }
 
-private:
+public:
     void AverageDown(int alev)
     {
         for (int mglev = 1; mglev < m_num_mg_levels[alev]; ++mglev)
@@ -303,6 +306,7 @@ Diffusion::Parse(Diffusion& value, IO::ParmParse& pp)
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_order", value.max_order, 2);
+    pp.query_default("dump_on_fail", value.dump_on_fail, false);
 }
 
 Diffusion::System&
@@ -530,8 +534,23 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
             face_tensor_mobility_pointer[lev][d] =
                 &system.face_tensor_mobility[lev][d];
         }
-        amrex::average_cellcenter_to_face(
-            face_pointer, *system.mobility[lev], geometry[lev], 1, true, 0);
+        // Nonpositive cell mobility closes a face. In particular, never
+        // harmonically average opposite signs: cancellation in 1/b can turn
+        // roundoff near an inaccessible phase into large anti-diffusion.
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            for (amrex::MFIter mfi(*face_pointer[d], amrex::TilingIfNotGPU());
+                 mfi.isValid(); ++mfi)
+            {
+                const auto cell = system.mobility[lev]->const_array(mfi);
+                const auto face = face_pointer[d]->array(mfi);
+                amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    const Set::Scalar lo = cell(i - (d == 0), j - (d == 1), k - (d == 2));
+                    const Set::Scalar hi = cell(i,j,k);
+                    face(i,j,k) = lo <= 0.0 || hi <= 0.0 ? 0.0 :
+                        2.0 / (1.0 / lo + 1.0 / hi);
+                });
+            }
         if (use_tensor_mobility)
         {
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
@@ -672,9 +691,44 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     diffusion->setMaxOrder(max_order);
     diffusion->setDomainBC(boundary_lo, boundary_hi);
     diffusion->setScalars(1.0, dt);
+    amrex::Vector<amrex::MultiFab> boundary_data(nlevels);
     for (int lev = 0; lev < nlevels; ++lev)
     {
-        diffusion->setLevelBC(lev, system.state[lev].get());
+        boundary_data[lev].define(grids[lev], distribution_mapping[lev], ncomp, 1);
+        amrex::MultiFab::Copy(boundary_data[lev], *system.state[lev], 0, 0, ncomp, 1);
+        // State BCs reflect about a Dirichlet face; AMReX's level BC data
+        // must instead contain the physical face value in the first ghost.
+        // Convert a separate copy so the state retains its stencil ghosts.
+        const amrex::Box& domain = geometry[lev].Domain();
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+        {
+            if (geometry[lev].isPeriodic(d)) continue;
+            for (int side = 0; side < 2; ++side)
+            {
+                const amrex::Box wall = side == 0 ? amrex::adjCellLo(domain, d, 1) :
+                    amrex::adjCellHi(domain, d, 1);
+                const int inward = side == 0 ? 1 : -1;
+                for (int n = 0; n < ncomp; ++n)
+                {
+                    const int type = side == 0 ? boundary_conditions[n].lo(d) :
+                        boundary_conditions[n].hi(d);
+                    if (!BC::BCUtil::IsDirichlet(type)) continue;
+                    for (amrex::MFIter mfi(boundary_data[lev]); mfi.isValid(); ++mfi)
+                    {
+                        const amrex::Box bx = wall & mfi.fabbox();
+                        const auto state = system.state[lev]->const_array(mfi);
+                        const auto boundary = boundary_data[lev].array(mfi);
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            boundary(i,j,k,n) = 0.5 * (state(i,j,k,n) +
+                                state(i + (d == 0) * inward, j + (d == 1) * inward,
+                                      k + (d == 2) * inward, n));
+                        });
+                    }
+                }
+            }
+        }
+        diffusion->setLevelBC(lev, &boundary_data[lev]);
         diffusion->setACoeffs(lev, *system.mass[lev]);
         diffusion->setBCoeffs(lev, face_mobility_pointer[lev]);
         if (tensor_diffusion)
@@ -690,7 +744,17 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         rhs_pointer[lev] = system.rhs[lev].get();
     }
 
+    amrex::Vector<amrex::MultiFab> initial_state(nlevels);
+    if (dump_on_fail)
+        for (int lev = 0; lev < nlevels; ++lev)
+        {
+            initial_state[lev].define(grids[lev], distribution_mapping[lev],
+                ncomp, system.state[lev]->nGrowVect());
+            amrex::MultiFab::Copy(initial_state[lev], *system.state[lev],
+                0, 0, ncomp, system.state[lev]->nGrowVect());
+        }
     amrex::MLMG solver(*diffusion);
+    solver.setThrowException(dump_on_fail);
     solver.setVerbose(verbose);
     solver.setFinalFillBC(true);
     if (use_tensor_mobility || semicoarsening)
@@ -698,8 +762,49 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
         solver.setPreSmooth(8);
         solver.setPostSmooth(8);
     }
-    solver.solve(state_pointer, rhs_pointer,
-                tolerance_relative, tolerance_absolute);
+    try
+    {
+        solver.solve(state_pointer, rhs_pointer, tolerance_relative, tolerance_absolute);
+    }
+    catch (const amrex::MLMG::error& error)
+    {
+        amrex::Print() << "Implicit diffusion failure: time=" << std::setprecision(17)
+            << time << " dt=" << dt << " ncomp=" << ncomp << " levels=" << nlevels
+            << " tensor=" << use_tensor_mobility << ": " << error.what() << '\n';
+        if (dump_on_fail)
+        {
+            static int failure_number = 0;
+            const std::string path = Util::GetFileName() + "/diffusion_failure_" +
+                std::to_string(failure_number++);
+            if (amrex::ParallelDescriptor::IOProcessor())
+            {
+                if (!amrex::UtilCreateDirectory(path, 0755)) amrex::CreateDirectoryFailed(path);
+                std::ofstream metadata(path + "/Header");
+                metadata << std::setprecision(17) << time << ' ' << dt << ' '
+                    << ncomp << ' ' << nlevels << ' ' << max_order << '\n'
+                    << tolerance_relative << ' ' << tolerance_absolute << '\n';
+                for (int lev = 0; lev < nlevels; ++lev)
+                    metadata << geometry[lev] << '\n';
+                for (const auto& ratio : refinement_ratio) metadata << ratio << '\n';
+                for (const auto& bc : boundary_conditions) metadata << bc << '\n';
+            }
+            amrex::ParallelDescriptor::Barrier();
+            for (int lev = 0; lev < nlevels; ++lev)
+            {
+                const std::string prefix = path + "/L" + std::to_string(lev);
+                amrex::VisMF::Write(initial_state[lev], prefix + "_initial");
+                amrex::VisMF::Write(*system.state[lev], prefix + "_failed");
+                amrex::VisMF::Write(*system.rhs[lev], prefix + "_rhs");
+                amrex::VisMF::Write(*system.mass[lev], prefix + "_mass");
+                amrex::VisMF::Write(*system.mobility[lev], prefix + "_cell_mobility");
+                amrex::VisMF::Write(boundary_data[lev], prefix + "_bc");
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    amrex::VisMF::Write(system.face_mobility[lev][d],
+                        prefix + "_b" + std::to_string(d));
+            }
+        }
+        throw;
+    }
 }
 
 void

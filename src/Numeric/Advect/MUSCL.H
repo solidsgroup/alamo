@@ -57,6 +57,7 @@ public:
 
     static void Parse(MUSCL& value, IO::ParmParse& pp)
     {
+#if !AMREX_DEVICE_COMPILE
         // flux limiter
         pp.select<  Limiter::MC,
                     Limiter::MinMod,
@@ -65,6 +66,9 @@ public:
                     Limiter::VanAlbada,
                     Limiter::Koren,
                     Limiter::UMIST>("limiter",value.limiter);
+#else
+        Util::IgnoreUnused(value, pp);
+#endif
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE

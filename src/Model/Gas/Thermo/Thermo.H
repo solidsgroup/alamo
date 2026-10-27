@@ -32,6 +32,12 @@ private:
 
 
 public:
+    template<typename T>
+    const T& Get() const
+    {
+        return std::get<T>(obj);
+    }
+
     const char* model_name() const
     {
         return selected >= 0 ? names[selected] : "";

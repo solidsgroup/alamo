@@ -58,6 +58,12 @@ HTPB_solid.mechanics = rigid_solid
 AP_solid.reference_density   = 1950.0_kg/m^3
 HTPB_solid.reference_density =  920.0_kg/m^3
 
+# Condensed thermal properties required for phase-change enthalpy conservation.
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+HTPB_solid.specific_heat = 2418.29_J/kg/K
+HTPB_solid.thermal_conductivity = 0.1300_W/m/K
+
 # Both species use the SAME elastic constants here (unlike
 # tests/LowMachElastic, which exercises the arbitrary-species mixing with a
 # modest contrast between species). This test's focus is the moving
@@ -114,9 +120,8 @@ rigid.velocity = 0.0 0.0
 advection.type = muscl
 advection.muscl.limiter.type = minmod
 cfl = 0.8
-include_viscosity = 1
-implicit_viscosity = 1
-include_conduction = 1
+viscosity = 2
+thermal_diffusion = 1
 advect_temperature = 1
 projection.enabled = 1
 projection.tol_rel = 1.0e-10

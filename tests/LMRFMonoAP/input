@@ -12,34 +12,49 @@
 #@ args = amr.plot_dt=1.5e-4
 #@
 #@ [2d-2MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=2.0e6
 #@ args = component_density.bc.expression.constant.P=2.0e6
 #@ args = pressure.ic.constant.value=2.0e6
 #@ args = pressure.bc.constant.val.yhi=2.0e6
 #@
 #@ [2d-3MPa]
+#@ args = dynamictimestep.max=1.5e-7
 #@ args = Final.density.ic.expression.constant.P=3.0e6
 #@ args = component_density.bc.expression.constant.P=3.0e6
 #@ args = pressure.ic.constant.value=3.0e6
 #@ args = pressure.bc.constant.val.yhi=3.0e6
 #@
 #@ [2d-4MPa]
+#@ args = dynamictimestep.max=5.0e-8
 #@ args = Final.density.ic.expression.constant.P=4.0e6
 #@ args = component_density.bc.expression.constant.P=4.0e6
 #@ args = pressure.ic.constant.value=4.0e6
 #@ args = pressure.bc.constant.val.yhi=4.0e6
 #@
 #@ [2d-5MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=5.0e6
 #@ args = component_density.bc.expression.constant.P=5.0e6
 #@ args = pressure.ic.constant.value=5.0e6
 #@ args = pressure.bc.constant.val.yhi=5.0e6
 #@
 #@ [2d-6MPa]
+#@ args = dynamictimestep.max=1.0e-7
 #@ args = Final.density.ic.expression.constant.P=6.0e6
 #@ args = component_density.bc.expression.constant.P=6.0e6
 #@ args = pressure.ic.constant.value=6.0e6
 #@ args = pressure.bc.constant.val.yhi=6.0e6
+#@
+#@ [2d-cuda-smoke]
+#@ exe = lowmach
+#@ dim = 2
+#@ cuda = true
+#@ check = false
+#@ timeout = 300
+#@ args = max_step=10
+#@ args = amr.plot_int=-1
+#@ args = amrex.the_arena_init_size=268435456
 
 # Effectively one-dimensional Rocfire AP monopropellant regression. The
 # pressure cases share all phase-field and mechanism parameters.
@@ -56,7 +71,9 @@ timestep = 1.0e-7_s
 stop_time = 1.5e-3_s
 dynamictimestep.on = 1
 dynamictimestep.min = 1.0e-12
-dynamictimestep.max = 2.5e-6
+# Resolve the coupled thermal/chemistry split closely enough for rate
+# validation.
+dynamictimestep.max = 1.0e-6
 integration.type = RungeKutta
 integration.rk.type = 3
 
@@ -123,9 +140,9 @@ rigid.velocity = 0.0 0.0
 advection.type = muscl
 advection.muscl.limiter.type = minmod
 cfl = 0.8
-include_viscosity = 1
-implicit_viscosity = 1
-include_conduction = 1
+viscosity = 2
+thermal_diffusion = 2
+species_diffusion = 2  # 0 off, 1 explicit, 2 implicit
 advect_temperature = 1
 projection.enabled = 1
 projection.tol_rel = 1.0e-10

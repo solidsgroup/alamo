@@ -614,7 +614,7 @@ VectorLaplacian(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-[[nodiscard]] AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix>& dw,
     const int& i, const int& j, const int& k,

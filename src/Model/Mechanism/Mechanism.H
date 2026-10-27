@@ -6,6 +6,7 @@
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
+#include "Model/Gas/Gas.H"
 #include "Util/Util.H"
 
 namespace Model
@@ -27,6 +28,23 @@ template<typename... OBJ>
 class Mechanism
 {
 public:
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar operator()(const State& state,
+                           const int i, const int j, const int k,
+                           const Set::Scalar DX[AMREX_SPACEDIM]) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj)(state, i, j, k, DX);
+            return this->template operator()<I + 1>(
+                state, i, j, k, DX);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar VolumeSource(const State& state,
@@ -80,14 +98,30 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar LocalRate(
+    Set::Scalar Local(
         const State& state, const int i, const int j, const int k) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).LocalRate(state, i, j, k);
-            return LocalRate<I + 1>(state, i, j, k);
+                return std::get<I>(obj).Local(state, i, j, k);
+            return Local<I + 1>(state, i, j, k);
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
+    }
+
+    template<int I = 0>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar LocalStabilityRate(
+        const State& state, const int i, const int j, const int k) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I)
+                return std::get<I>(obj).LocalStabilityRate(
+                    state, i, j, k);
+            return LocalStabilityRate<I + 1>(state, i, j, k);
         }
         Util::Abort(INFO, selected);
         return NAN;
@@ -111,18 +145,20 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Set::Scalar ApplyImplicitChange(
+    Set::Scalar Transfer(
         const amrex::Array4<Set::Scalar>& component_density,
         const State& state, const Set::Scalar eta_change,
-        const int i, const int j, const int k) const
+        const int i, const int j, const int k,
+        Set::Scalar* heat = nullptr,
+        const Model::Gas::Gas::DeviceData* gas = nullptr) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
-                return std::get<I>(obj).ApplyImplicitChange(
-                    component_density, state, eta_change, i, j, k);
-            return ApplyImplicitChange<I + 1>(
-                component_density, state, eta_change, i, j, k);
+                return std::get<I>(obj).Transfer(
+                    component_density, state, eta_change, i, j, k, heat, gas);
+            return Transfer<I + 1>(
+                component_density, state, eta_change, i, j, k, heat, gas);
         }
         Util::Abort(INFO, selected);
         return NAN;
@@ -139,6 +175,18 @@ public:
         }
         Util::Abort(INFO, selected);
         return -1;
+    }
+
+    template<int I = 0>
+    Set::Scalar HeatRelease() const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).HeatRelease();
+            return HeatRelease<I + 1>();
+        }
+        Util::Abort(INFO, selected);
+        return NAN;
     }
 
 private:

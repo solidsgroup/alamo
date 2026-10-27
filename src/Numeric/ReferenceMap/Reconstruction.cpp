@@ -58,7 +58,8 @@ Reconstruction::SmoothForStress(const amrex::Geometry& geom,
             const amrex::Array4<const Set::Scalar> eta = eta_mf.const_array(mfi);
             const amrex::Array4<const Set::Scalar> xi_in = xi_old.const_array(mfi);
             const amrex::Array4<Set::Scalar> xi = xi_mf.array(mfi);
-            const amrex::Geometry geometry = geom;
+            const auto prob_lo = geom.ProbLoArray();
+            const auto cell_size = geom.CellSizeArray();
             const Set::Scalar alpha = stress_smoothing_alpha;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -72,7 +73,7 @@ Reconstruction::SmoothForStress(const amrex::Geometry& geom,
                 if (local_alpha == 0.0) return;
 
                 const Set::Vector pos =
-                    Set::Position(i, j, k, geometry, amrex::IndexType::TheCellType());
+                    Set::Position(i, j, k, prob_lo, cell_size, amrex::IndexType::TheCellType());
                 for (int n = 0; n < AMREX_SPACEDIM; ++n)
                 {
                     const Set::Scalar q = xi_in(i,j,k,n) - pos(n);
@@ -81,26 +82,26 @@ Reconstruction::SmoothForStress(const amrex::Geometry& geom,
                     if (i > lo.x)
                     {
                         const Set::Vector npos = Set::Position(
-                            i-1, j, k, geometry, amrex::IndexType::TheCellType());
+                            i-1, j, k, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i-1,j,k,n) - npos(n) - q;
                     }
                     if (i < hi.x)
                     {
                         const Set::Vector npos = Set::Position(
-                            i+1, j, k, geometry, amrex::IndexType::TheCellType());
+                            i+1, j, k, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i+1,j,k,n) - npos(n) - q;
                     }
 #if AMREX_SPACEDIM >= 2
                     if (j > lo.y)
                     {
                         const Set::Vector npos = Set::Position(
-                            i, j-1, k, geometry, amrex::IndexType::TheCellType());
+                            i, j-1, k, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i,j-1,k,n) - npos(n) - q;
                     }
                     if (j < hi.y)
                     {
                         const Set::Vector npos = Set::Position(
-                            i, j+1, k, geometry, amrex::IndexType::TheCellType());
+                            i, j+1, k, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i,j+1,k,n) - npos(n) - q;
                     }
 #endif
@@ -108,13 +109,13 @@ Reconstruction::SmoothForStress(const amrex::Geometry& geom,
                     if (k > lo.z)
                     {
                         const Set::Vector npos = Set::Position(
-                            i, j, k-1, geometry, amrex::IndexType::TheCellType());
+                            i, j, k-1, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i,j,k-1,n) - npos(n) - q;
                     }
                     if (k < hi.z)
                     {
                         const Set::Vector npos = Set::Position(
-                            i, j, k+1, geometry, amrex::IndexType::TheCellType());
+                            i, j, k+1, prob_lo, cell_size, amrex::IndexType::TheCellType());
                         lap += xi_in(i,j,k+1,n) - npos(n) - q;
                     }
 #endif
