@@ -10,9 +10,9 @@
 system.length = um
 
 alamo.program = mechanics
-alamo.program.mechanics.model = finite.neohookean
+alamo.program.mechanics.model = finite.neohookeanpre
 
-plot_file = test_homogenisation/output.circle_compression
+plot_file = test_homogenisation/output.test_homogenisation_per
 
 # One static elastic solve.
 timestep  = 0.1
@@ -21,38 +21,45 @@ stop_time = 0.1
 # No AMR.  dx = 50 um / 1280 = 0.0390625 um, so the 0.1628675 um
 # diffuse interface is 4.17 cells wide.
 amr.max_level = 0
-amr.n_cell = 1280 1280
-amr.blocking_factor = 8
-amr.max_grid_size = 128
+amr.n_cell = 320 320 # 1280 1280
+amr.blocking_factor = 64
+amr.max_grid_size = 64
 amr.regrid_int = -1
 amr.plot_int = 1
 amr.cell.all = 1
-amr.node.all = 1
+amr.node.any = 0
 
-# 50 micrometer square, with no periodic boundaries.
+# 100 micrometer square, periodic in both x and y (this is a 2-D build).
 geometry.prob_lo = 0_um 0_um
 geometry.prob_hi = 50_um 50_um
-geometry.is_periodic = 0 0
+geometry.is_periodic = 1 1
 
 # AP is model 1 and occupies the packed spheres; model 2 is the complementary
 # HTPB matrix.  file.unit scales both coordinates and radii from the normalized
 # packing file.  eps is 10% of the scaled mean sphere radius.
 nmodels = 2
+# ic.type = constant
+# ic.constant.value = 1
 ic.type = psread
 ic.psread.file.name = test_homogenisation/test_pack_1.txt
 ic.psread.file.unit = 50_um
-ic.psread.eps = 0.16286750396764_um
+ic.psread.eps = 0.35_um # 0.16286750396764_um
 
-# AP and HTPB properties from input.lm.ap_htpb_packed_elastic.
-model1.mu = 14191.0_MPa # AP
-model1.kappa = 15162.0_MPa # AP
-model2.mu = 2.465_MPa # HTPB
-model2.kappa = 1368.5_MPa # HTPB
+# For the finite neo-Hookean model, mu = E/(2*(1+nu)) and
+# kappa = E/(3*(1-2*nu)); this avoids the near-incompressible tangent.
+model1.mu = 14191.376_MPa # AP
+model1.kappa = 15162.134_MPa # AP
+# RVE loading: Fbar = diag(1.01, 1).  With periodic displacement
+# fluctuations, NeoHookeanPredeformed uses F0 = Fbar^{-1}.
+model1.F0 = 0.9900990099009901 0 0 1
+model2.mu = 2.479062_MPa # HTPB, nu = 0.4925
+model2.kappa = 164.444444 _MPa # HTPB
+model2.F0 = 0.9900990099009901 0 0 1
 
 solver.verbose = 4
-solver.nriters = 1
-solver.nrtolerance = 0
-solver.max_iter = 3000
+solver.nriters = 20
+solver.nrtolerance = 1e-6
+solver.max_iter = 300000
 solver.pre_smooth = 2
 solver.post_smooth = 2
 solver.bottom_solver = bicgstab
@@ -65,19 +72,42 @@ max_coarsening_level = 1
 tol_rel = 2.0e-5
 tol_abs = 1.0e-8
 
-# Compression: the left and bottom edges are rollers, the right edge is free,
-# and the top is moved downward by 0.01 * 50 um = 0.5 um.
+# Fully periodic displacement boundary conditions.  Each pair gives the
+# x- and y-displacement components, respectively.
 bc.type = constant
-bc.constant.type.xlo = disp trac
-bc.constant.type.xhi = trac trac
-bc.constant.type.ylo = trac disp
-bc.constant.type.yhi = trac disp
-bc.constant.val.yhi = 0.0 -0.5_um
+bc.constant.type.xlo = periodic periodic
+bc.constant.type.xhi = periodic periodic
+bc.constant.type.ylo = periodic periodic
+bc.constant.type.yhi = periodic periodic
 
-# Corner constraints are the intersections of their adjoining edge conditions.
-bc.constant.type.xloylo = disp disp
-bc.constant.type.xhiylo = trac disp
-bc.constant.type.xloyhi = disp disp
-bc.constant.type.xhiyhi = trac disp
-bc.constant.val.xloyhi = 0.0 -0.5_um
-bc.constant.val.xhiyhi = 0.0 -0.5_um
+# Keep the corners periodic as well; the elastic BC parser handles corners
+# separately from edges.
+bc.constant.type.xloylo = periodic periodic
+bc.constant.type.xhiylo = periodic periodic
+bc.constant.type.xloyhi = periodic periodic
+bc.constant.type.xhiyhi = periodic periodic
+
+# E=7.4 MPa, 16 ranks, max_coarsening_level=1 (tol_rel=2e-5) for solid HTPB:
+# nu     mu [MPa]    kappa [MPa]  result
+# 0.30   2.84615     6.16667      13 iters, 6.7 s
+# 0.35   2.74074     8.22222      15 iters, 7.6 s
+# 0.40   2.64286     12.33333     20 iters, 10.5 s
+# 0.45   2.55172     24.66667     >112 iters, >60 s (not converged)
+
+# Model2 Poisson-ratio sweep: E=7.4 MPa, 16 ranks, current diffuse RVE,
+# max_coarsening_level=1, tol_rel=2e-5.  The 0.45--0.48 failures used a
+# 350-iteration cap; all subsequent cases used solver.max_iter=600.
+# nu      mu [MPa]    kappa [MPa]  MLMG result
+# 0.4500  2.551724     24.666667    failed at 327 iters (52.70 s; residual diverged)
+# 0.4600  2.534247     30.833333    failed at 350 iters (55.94 s)
+# 0.4700  2.517007     41.111111    failed at 350 iters (59.71 s)
+# 0.4800  2.500000     61.666667    failed at 350 iters (60.61 s)
+# 0.4850  2.491582     82.222222    converged in 532 iters (78.09 s)
+# 0.4875  2.487395     98.666667    converged in 443 iters (71.59 s)
+# 0.4900  2.483221    123.333333    converged in 393 iters (63.12 s)
+# 0.4910  2.481556    137.037037    converged in 280 iters (40.60 s; best tested)
+# 0.4920  2.479893    154.166667    converged in 357 iters (56.52 s)
+# 0.4925  2.479062    164.444444    converged in 297 iters (48.86 s)
+# 0.4930  2.478232    176.190476    converged in 333 iters (53.61 s)
+# 0.4940  2.476573    205.555556    converged in 314 iters (50.47 s)
+# 0.4950  2.474916    246.666667    converged in 336 iters (55.27 s)

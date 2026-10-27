@@ -89,37 +89,24 @@ public:
 
                 for (int n = 0; n < sphere_count; n++)
                 {
-                    Set::Scalar d;
-                    Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
-
                     Set::Vector center;
-                    for (   int direction = 0;
-                            direction < AMREX_SPACEDIM; ++direction)
-                        center(direction) =
-                            X[n * AMREX_SPACEDIM + direction];
-                    d = (x - center).lpNorm<2>();
+                    for (int direction = 0; direction < AMREX_SPACEDIM; ++direction)
+                        center(direction) = X[n * AMREX_SPACEDIM + direction];
 
-                    if (periodic[0])
+                    // Compute the minimum-image displacement component by component.
+                    // This handles simultaneous periodic directions, including diagonal
+                    // images at corners of a 2-D or 3-D domain.
+                    Set::Vector delta = x - center;
+                    for (int direction = 0; direction < AMREX_SPACEDIM; ++direction)
                     {
-                        d1 = std::min((x - center + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - center - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
+                        if (periodic[direction])
+                        {
+                            delta(direction) = std::min(std::abs(delta(direction)),
+                                std::min(std::abs(delta(direction) - size(direction)),
+                                         std::abs(delta(direction) + size(direction))));
+                        }
                     }
-#if AMREX_SPACEDIM > 1
-                    if (periodic[1])
-                    {
-                        d1 = std::min((x - center + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - center - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
-                    }
-#endif
-#if AMREX_SPACEDIM > 2
-                    if (periodic[2])
-                    {
-                        d1 = std::min((x - center + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - center - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
-                    }
-#endif
-
-                    d = std::min(d, d1);
+                    const Set::Scalar d = delta.lpNorm<2>();
 
                     if (d <= (R[n] + eps))
 

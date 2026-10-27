@@ -184,7 +184,7 @@ parser.add_argument('--github-mode',default="http",help="Github checkout mode to
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
 parser.add_argument('--hdf5', default=False, action='store_true', help='Compile with HDF5 support')
-parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
+parser.add_argument('--hdf5-prefix', dest='hdf5_prefix', default="/usr/lib/x86_64-linux-gnu/hdf5/openmpi", help='Path to HDF5 installation prefix (containing include/ and lib/) []')
 parser.add_argument('--yaml', action='store_true', default=False, help='Build and link to yaml-cpp')
 parser.set_defaults(**defaults)
 
@@ -700,14 +700,17 @@ p = shellmessage("MPI","mpicxx -show")
 mpidiststr = p.stdout.decode('utf-8').replace('\n','')
 
 mpidist = None
-if "mpich" in mpidiststr.lower() or ("-lmpi" in mpidiststr.lower() and shutil.which("mpichversion")):
-    mpidist = "mpich"
+# Identify the active wrapper rather than another MPI installation present on
+# the host.  OpenMPI emits -lmpi too, so the previous mpichversion fallback
+# misidentified OpenMPI whenever both packages were installed.
+if "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
+    mpidist = "openmpi"
 elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
-    mpidist = "openmpi"
+elif "mpich" in mpidiststr.lower():
+    mpidist = "mpich"
 message("mpi implementation", mpidist)
 if args.cuda and mpidist != "openmpi":
     raise Exception(error("CUDA builds currently require OpenMPI"))
