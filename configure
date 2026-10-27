@@ -459,6 +459,8 @@ if args.buildamrex and not args.amrex:
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
     amrex_configure += ' --with-fortran=no'
+    # Match the Fortran-free AMReX build when compiling its public headers.
+    f.write("ALAMO_INCLUDE += -DBL_NO_FORT\n")
     if   comp_basename =="g++":     amrex_configure += ' --comp=gnu'
     elif comp_basename =="clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif comp_basename =="icc":     amrex_configure += ' --comp=intel'
