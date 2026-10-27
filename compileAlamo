@@ -1,15 +1,17 @@
-#!/usr/bin/env bash                                                                                                                                                              
-#SBATCH --time=10:00                                                                                                                                                                
-#SBATCH --nodes=1                                                                                                                                                                    
-#SBATCH --ntasks-per-node=16
-#SBATCH --mem-per-cpu=2000
-#SBATCH --job-name="compile"
-#SBATCH --output="%x-%j-compile-log.txt"
-#SBATCH --mail-user=mungerct@iastate.edu
-#SBATCH --mail-type=BEGIN
-make clean
+#!/usr/bin/env bash
+#SBATCH --partition=nova
+#SBATCH --time=01:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --job-name=compile-alamo
+#SBATCH --output=compile-alamo-%j.log
+set -euo pipefail
+cd /work/brunnels/mungerct/alamo
 module purge
 module load git
 module load openmpi gcc eigen
-./configure --get-eigen --dim=2
-srun --nodes=1 --cpus-per-task=16 --mem-per-cpu=1G --time=10:00 make -j16
+make clean
+./configure --get-eigen --dim=2 --comp=g++
+srun --ntasks=1 --cpus-per-task=16 make -j16 bin/lowmach-2d-g++

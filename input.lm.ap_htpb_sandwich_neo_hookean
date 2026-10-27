@@ -1,14 +1,8 @@
-# Comparison input: no elastic thermal expansion or elastic reference temperature.
-# Resolved AP / homogeneous-binder sandwich, 20 atm.
-# Run from repository root:
-#   mpirun -n 8 bin/lowmach-2d-clang++ tests/LMAPBinderSandwich/input
-# Initial conditions are a packaged native time-zero flame checkpoint.
-# Developed AP/binder profiles, all four gas reactions and both diffusion
-# products are initialized, with a balanced diffuse material interface.
-# The seed includes the solver-adjusted temperature, species and flow.
-# No Python wrapper or preliminary ignition run is needed.
-# Physical, numerical and boundary-condition values are preserved.
-# Construction and measured startup: initial_conditions/README.md
+# Fresh-start AP / homogeneous-binder half-sandwich, 20 atm.
+# No checkpoint, elastic reference temperature, or thermal expansion.
+# LowMach uses NeoHookeanPredeformed with F0=I: the NeoHookean response.
+# Geometry initialization follows tests/LMRFSandwich: binder at x < 50 um,
+# AP at x > 50 um, solid below y=0, 20 um diffuse surface width.
 plot_file = output.lm.ap_htpb_sandwich_neo_hookean
 amr.plot_int = 2147483647
 amr.plot_dt = 1.0e-6_s
@@ -162,13 +156,11 @@ pressure.bc.constant.type.ylo = neumann
 pressure.bc.constant.type.yhi = dirichlet
 pressure.bc.constant.val.yhi = 2026500
 
-# Initial conditions: native flame data, reset to time=0 and step=0.
-# Parser-required defaults; the checkpoint supplies the actual temperature and velocity.
+# Fresh start: uniform 300 K and zero velocity.
 temperature.ic.type = constant
 temperature.ic.constant.value = 300
 velocity.ic.type = constant
 velocity.ic.constant.value = 0 0
-restart_cell = tests/LMAPBinderSandwich/initial_conditions/00000cell
 
 # Elastic constants and solver controls copied from the current local packed-elastic input.
 # HTPB_solid parameters map to the sandwich species Binder_solid.
@@ -226,3 +218,11 @@ elastic.bc.constant.type.xhiyhizlo = disp trac disp
 elastic.bc.constant.type.xhiyhizhi = disp trac disp
 amr.cell.all = 1
 amr.node.any = 0
+
+# Complementary partial volume fractions; homogeneous binder mixture density.
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.region0 = "max(0.0,1950.0*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5+0.5*erf((x-50.0e-6)/10.0e-6)))"
+Binder_solid.density.ic.type = expression
+Binder_solid.density.ic.expression.region0 = "max(0.0,1044.085552160629*(0.5-0.5*tanh(2.0*y/20.0e-6))*(0.5-0.5*erf((x-50.0e-6)/10.0e-6)))"
+Final.density.ic.type = expression
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*y/20.0e-6))*2026500.0/(319.7870237751246*300.0))"
