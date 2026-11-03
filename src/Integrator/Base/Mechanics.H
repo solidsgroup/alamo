@@ -287,7 +287,8 @@ protected:
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
 
                     Set::Scalar psi_val = 1.0;
-                    if (psi_on) psi_val = psi(i,j,k,0);
+                    if (psi_on)
+                        psi_val = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
                     Set::Matrix sig_intact = model(i,j,k).DW(eps(i,j,k));
 
                     sig(i, j, k) = psi_val * sig_intact;
@@ -334,7 +335,8 @@ protected:
                                         A(p,p) = 1.0;
 
                                 Set::Scalar psi_val = 1.0;
-                                if (psi_on) psi_val = psi(i,j,k,0);
+                                if (psi_on)
+                                    psi_val = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
 
                                 Set::Matrix DW_F0 = psi_val * model(i,j,k).DW(Set::Matrix::Zero());
                                 MATRIX4 ddw = psi_val * model(i,j,k).DDW(eps(i,j,k));

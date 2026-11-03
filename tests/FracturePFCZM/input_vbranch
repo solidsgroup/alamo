@@ -1,0 +1,102 @@
+alamo.program = fracture
+type = dynamic
+dynamic_only = false
+time_evolving = true
+
+system.time = s
+system.length = m
+
+timestep = 5e-9
+stop_time = 1e-4
+
+plot_file = tests/FracturePFCZM/output_vbranch
+amr.plot_int = 1000
+amr.max_level = 0
+amr.n_cell = 640 256
+amr.blocking_factor = 32
+amr.regrid_int = 1000
+amr.grid_eff = 0.9
+amr.thermo.int = 1
+amr.nsubsteps = 2
+amr.node.any = 0
+amr.cell.all = 1
+
+viscous.mu_newton = 0.0
+mechanics.rho = 2450
+
+geometry.prob_lo = -0.05_m -0.02_m
+geometry.prob_hi =  0.05_m  0.02_m
+geometry.is_periodic = 0 0
+
+crack.refinement_threshold = 0.1
+crack.driving_force_refinement_threshold = 0.1
+crack.df.tol_rel = 0.01
+crack.df.tol_abs = 0.0
+
+crack.df.mult_Gc = 1.0
+crack.df.mult_lap = 1.0
+crack.df.beta = 0.0
+crack.df.el_mult = 1.0
+crack.diagnostics = 0
+
+crack.model1.G_c = 3_N/m
+crack.model1.fracture_strength = 3.08e6_Pa
+crack.model1.E = 3.2e10_Pa
+crack.model1.zeta = 2.5e-4
+crack.model1.mobility = 800.0
+crack.model1.gtype = wu_linear
+crack.model1.wtype = wu
+crack.model1.threshold = 1.0
+
+crack.ic.type = notch
+crack.ic.notch.center = -0.025_m 0_m
+crack.ic.notch.orientation = 1 0
+crack.ic.notch.length = 0.05_m
+crack.ic.notch.thickness = 5e-4_m
+crack.ic.notch.eps = 1.25e-4
+crack.ic.notch.mollifier = erf
+
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+
+material.model1.E = 3.2e10
+material.model1.nu = 0.2
+material.refinement_threshold = 100
+
+# Symmetric Mode-I tensile traction.
+bc.type = constant
+bc.constant.type.xloylo = trac trac
+bc.constant.type.xlo    = trac trac
+bc.constant.type.xloyhi = trac trac
+bc.constant.type.ylo    = trac trac
+bc.constant.type.yhi    = trac trac
+bc.constant.type.xhi    = trac trac
+bc.constant.type.xhiylo = trac trac
+bc.constant.type.xhiyhi = trac trac
+bc.constant.val.ylo =       0.0 -1.00e6
+bc.constant.val.yhi =       0.0  1.00e6
+bc.constant.val.xloylo =    0.0 -1.00e6
+bc.constant.val.xloyhi =    0.0  1.00e6
+bc.constant.val.xhiylo =    0.0 -1.00e6
+bc.constant.val.xhiyhi =    0.0  1.00e6
+
+elasticop.small = 1.e-3
+solver.bottom_solver = smoother
+solver.tol_abs = 1E-16
+solver.tol_rel = 1e-7
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter = 10000
+solver.normalize_ddw = 1
+solver.average_down_coeffs = 1
+
+interval = 1
+print_residual = 1
+print_model = 1
+plot_psi = 1
+elastic_ref_threshold = 0.0001
+zero_out_displacement = 0
+
+amrex.throw_exception = 1

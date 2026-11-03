@@ -1,0 +1,103 @@
+alamo.program = fracture
+type = dynamic
+dynamic_only = false
+time_evolving = true
+
+system.time = s
+system.length = m
+
+timestep = 5e-9
+stop_time = 1e-4
+
+plot_file = tests/FracturePFCZM/output_single_angled
+amr.plot_int = 2000
+amr.max_level = 0
+amr.n_cell = 512 512
+amr.blocking_factor = 32
+amr.regrid_int = 1000
+amr.grid_eff = 0.9
+amr.thermo.int = 1
+amr.nsubsteps = 2
+amr.node.any = 0
+amr.cell.all = 1
+
+viscous.mu_newton = 0.0
+mechanics.rho = 8000
+
+geometry.prob_lo = 0_m 0_m
+geometry.prob_hi = 0.1_m 0.1_m
+geometry.is_periodic = 0 0
+
+crack.refinement_threshold = 0.1
+crack.driving_force_refinement_threshold = 0.1
+crack.df.tol_rel = 0.01
+crack.df.tol_abs = 0.0
+crack.df.mult_Gc = 1.0
+crack.df.mult_lap = 1.0
+crack.df.beta = 0.0
+crack.df.el_mult = 1.0
+crack.diagnostics = 0
+
+crack.model1.G_c = 2.213e4_N/m
+crack.model1.fracture_strength = 1.9e9_Pa
+crack.model1.E = 1.9e11_Pa
+crack.model1.zeta = 7.5e-4_m
+crack.model1.mobility = 5.0
+crack.model1.gtype = wu_linear
+crack.model1.wtype = wu
+crack.model1.threshold = 1.0
+
+# Kalthoff-Winkler half-specimen: 50 mm notch at y=50 mm.
+crack.ic.type = notch
+crack.ic.notch.center = 0.025_m 0.05_m
+crack.ic.notch.orientation = 1 0
+crack.ic.notch.length = 0.05_m
+crack.ic.notch.thickness = 3e-4_m
+crack.ic.notch.eps = 1e-4
+crack.ic.notch.mollifier = erf
+
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+
+material.model1.E = 1.9e11
+material.model1.nu = 0.3
+material.refinement_threshold = 100
+
+# Localized initial impact beneath the notch. The experimental projectile speed
+# is 33 m/s; equal projectile/specimen impedance gives a 16.5 m/s plate speed.
+
+# Traction-free exterior, with y displacement fixed on the half-model symmetry plane.
+bc.type = expression
+bc.expression.type.xloylo = disp disp
+bc.expression.type.xlo    = disp trac
+bc.expression.type.xloyhi = disp trac
+bc.expression.type.ylo    = trac disp
+bc.expression.type.yhi    = trac trac
+bc.expression.type.xhi    = trac trac
+bc.expression.type.xhiylo = trac disp
+bc.expression.type.xhiyhi = trac trac
+bc.expression.val.xloylo = "(t<1e-6)*8.25e6*t*t + (t>=1e-6)*(16.5*t-8.25e-6)" "0.0"
+bc.expression.val.xlo = "(y<0.025)*((t<1e-6)*8.25e6*t*t + (t>=1e-6)*(16.5*t-8.25e-6))" "0.0"
+bc.expression.val.xloyhi = "0.0" "0.0"
+bc.expression.val.ylo = "0.0" "0.0"
+bc.expression.val.xhiylo = "0.0" "0.0"
+
+elasticop.small = 1.e-3
+solver.bottom_solver = smoother
+solver.tol_abs = 1E-16
+solver.tol_rel = 1e-7
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter = 10000
+solver.normalize_ddw = 1
+solver.average_down_coeffs = 1
+
+interval = 1
+print_residual = 1
+print_model = 1
+plot_psi = 1
+elastic_ref_threshold = 0.0001
+zero_out_displacement = 0
+amrex.throw_exception = 1

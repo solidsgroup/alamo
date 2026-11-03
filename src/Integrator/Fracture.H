@@ -741,7 +741,8 @@ public:
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
                     strain(i, j, k) = 0.5 * (gradu + gradu.transpose());
-                    stress(i, j, k) = psi(i, j, k, 0) * model(i, j, k).DW(gradu);
+                    Set::Scalar psi_node = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
+                    stress(i, j, k) = psi_node * model(i, j, k).DW(gradu);
                 });
             }
             stress_mf[lev]->setMultiGhost(true);
