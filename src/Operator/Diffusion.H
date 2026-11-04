@@ -76,6 +76,7 @@ private:
     Set::Scalar tolerance_relative = 1.0e-11;
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
+    int max_iter = 200;
     int max_order = 2;
     bool dump_on_fail = false;
     amrex::Vector<amrex::Geometry> geometry;

@@ -15,6 +15,8 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("tol_rel", value.tolerance_relative, 1.0e-11);
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
+    pp.query_default("max_iter", value.max_iter, 200);
+    Util::Assert(INFO, TEST(value.max_iter > 0));
     pp.query_default("max_order", value.max_order, 2);
     pp.query_validate("bottom_solver", value.bottom_solver,
                       {"bicgstab", "bicgcg", "cgbicg", "cg"});
@@ -210,6 +212,8 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
 
     amrex::MLMG solver(poisson);
     solver.setVerbose(verbose);
+    // Allow more MLMG cycles through the input while retaining the default limit of 200.
+    solver.setMaxIter(max_iter);
     // Thin domains can leave a large, poorly conditioned bottom grid. Expose
     // its solver and work limit without relaxing the convergence tolerance.
     if (bottom_solver == "bicgcg")

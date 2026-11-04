@@ -305,6 +305,8 @@ Diffusion::Parse(Diffusion& value, IO::ParmParse& pp)
     pp.query_default("tol_rel", value.tolerance_relative, 1.0e-11);
     pp.query_default("tol_abs", value.tolerance_absolute, 1.0e-12);
     pp.query_default("verbose", value.verbose, 0);
+    pp.query_default("max_iter", value.max_iter, 200);
+    Util::Assert(INFO, TEST(value.max_iter > 0));
     pp.query_default("max_order", value.max_order, 2);
     pp.query_default("dump_on_fail", value.dump_on_fail, false);
 }
@@ -756,6 +758,8 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     amrex::MLMG solver(*diffusion);
     solver.setThrowException(dump_on_fail);
     solver.setVerbose(verbose);
+    // Allow more MLMG cycles through the input while retaining the default limit of 200.
+    solver.setMaxIter(max_iter);
     solver.setFinalFillBC(true);
     if (use_tensor_mobility || semicoarsening)
     {
