@@ -276,7 +276,15 @@ private:
 
                         dw(i, j, k) = model(i, j, k).DW(kinvar);
                         ddw(i, j, k, 0) = model(i, j, k).DDW(kinvar);
-                        for (int face = 0; face < AMREX_SPACEDIM; ++face)
+                    });
+                    // Coarse-fine restriction reads ghost-row residuals, whose lower flux
+                    // needs this extra face tangent to avoid feeding zero stiffness back.
+                    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+                    {
+                        amrex::Box facebx = cbx;
+                        facebx.growLo(face, 1);
+                        facebx &= domain;
+                        amrex::LoopConcurrentOnCpu(facebx, [=] (int i, int j, int k)
                         {
                             const int index[3] = {i, j, k};
                             const int upper[3] = {hi.x, hi.y, hi.z};
@@ -285,8 +293,8 @@ private:
                                     model, u, i, j, k, face, dx);
                             else
                                 ddw(i, j, k, face + 1) = ddw(i, j, k, 0);
-                        }
-                    });
+                        });
+                    }
                     continue;
                 }
 

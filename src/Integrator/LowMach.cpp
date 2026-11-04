@@ -462,12 +462,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         std::vector<std::string> rigid_species_suffix;
         for (const int n : value.rigid_solid_species)
             rigid_species_suffix.push_back(species_suffix[n]);
-        // 2 ghost cells (rather than 1) so that the elastic solver's
-        // cell-to-node averaging of psi/model on grown boxes has valid data.
-        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 2, "rigid_eta", true, false);
+        // Two nodal model ghosts require three cell-centered composition
+        // ghosts for cell-to-node averaging, including periodic/AMR corners.
+        value.AddField<Set::Scalar,Set::HC::Cell>(value.rigid_eta_mf, &value.bc_nothing, 1, 3, "rigid_eta", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.rigid_species_eta_mf, &value.bc_nothing,
-            value.rigid_solid_species.size(), 2, "rigid_species_eta",
+            value.rigid_solid_species.size(), 3, "rigid_species_eta",
             true, false, rigid_species_suffix);
     }
 
@@ -2700,7 +2700,9 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        amrex::Box domain = geom[lev].Domain();
+        // Build periodic ghosts too: same-level exchange cannot fill a
+        // periodic corner whose source is itself a coarse-fine ghost.
+        amrex::Box domain = geom[lev].growPeriodicDomain(2);
         domain.convert(amrex::IntVect::TheNodeVector());
         const Set::Scalar* DX = geom[lev].CellSize();
 
