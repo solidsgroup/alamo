@@ -455,7 +455,7 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     System& system = GetSystem(ncomp);
     if (use_tensor_mobility)
         Util::Assert(INFO, TEST(system.tensor_mobility.size() > 0));
-    BC::Constant::ZeroNeumann coefficient_bc(1);
+    BC::Constant::ZeroNeumann coefficient_bc(1, geometry[0]);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         coefficient_bc.define(geometry[lev]);
@@ -488,7 +488,7 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     {
         constexpr int tensor_components =
             AMREX_SPACEDIM * AMREX_SPACEDIM;
-        BC::Constant::ZeroNeumann tensor_bc(tensor_components);
+        BC::Constant::ZeroNeumann tensor_bc(tensor_components, geometry[0]);
         for (int lev = 0; lev < nlevels; ++lev)
         {
             tensor_bc.define(geometry[lev]);

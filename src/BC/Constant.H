@@ -283,6 +283,15 @@ public:
             m_bc_val[d].resize(ncomp, 0.0);
         }
     }
+
+    ZeroNeumann(int ncomp, const amrex::Geometry& geometry, Unit unit = Unit::Less()) :
+        ZeroNeumann(ncomp, unit)
+    {
+        // Preserve periodic coefficient ghosts instead of overwriting them with edge values.
+        for (int d = 0; d < m_nfaces; ++d)
+            if (geometry.isPeriodic(d % AMREX_SPACEDIM))
+                m_bc_type[d].assign(ncomp, (int)amrex::LinOpBCType::Periodic);
+    }
 };
 
 class Constant::ZeroDirichlet : public Constant

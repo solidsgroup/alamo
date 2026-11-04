@@ -17,6 +17,9 @@ PressurePoisson::Parse(PressurePoisson& value, IO::ParmParse& pp)
     pp.query_default("verbose", value.verbose, 0);
     pp.query_default("max_iter", value.max_iter, 200);
     Util::Assert(INFO, TEST(value.max_iter > 0));
+    pp.query_default("pre_smooth", value.pre_smooth, 2);
+    pp.query_default("post_smooth", value.post_smooth, 2);
+    Util::Assert(INFO, TEST(value.pre_smooth >= 0 && value.post_smooth >= 0));
     pp.query_default("max_order", value.max_order, 2);
     pp.query_validate("bottom_solver", value.bottom_solver,
                       {"bicgstab", "bicgcg", "cgbicg", "cg"});
@@ -135,7 +138,7 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
 {
     BL_PROFILE("Operator::PressurePoisson::Solve");
 
-    BC::Constant::ZeroNeumann coefficient_bc(1);
+    BC::Constant::ZeroNeumann coefficient_bc(1, geometry[0]);
     for (int lev = 0; lev < nlevels; ++lev)
     {
         coefficient_bc.define(geometry[lev]);
@@ -214,6 +217,8 @@ PressurePoisson::Solve(Set::Scalar time, const amrex::BCRec& pressure_bc)
     solver.setVerbose(verbose);
     // Allow more MLMG cycles through the input while retaining the default limit of 200.
     solver.setMaxIter(max_iter);
+    solver.setPreSmooth(pre_smooth);
+    solver.setPostSmooth(post_smooth);
     // Thin domains can leave a large, poorly conditioned bottom grid. Expose
     // its solver and work limit without relaxing the convergence tolerance.
     if (bottom_solver == "bicgcg")

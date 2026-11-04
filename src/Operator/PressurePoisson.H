@@ -41,6 +41,8 @@ private:
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
     int max_iter = 200;
+    int pre_smooth = 2;
+    int post_smooth = 2;
     int max_order = 2;
     std::string bottom_solver = "bicgstab";
     int bottom_max_iter = 200;
