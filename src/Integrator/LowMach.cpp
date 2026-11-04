@@ -1207,6 +1207,13 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
     for (int n = 0; n < substeps; ++n)
         ApplyImplicitPhaseChangeStep(
             time - dt + (n + 1) * subdt, subdt);
+
+    // Each substep refreshes its entry state; only the final exit needs another refresh.
+    diffusion.FillBoundary(
+        component_density_mf, *component_density_bc,
+        time - dt + substeps * subdt, nspecies);
+    for (int lev = 0; lev <= finest_level; ++lev)
+        UpdateComponentState(lev, *component_density_mf[lev]);
 }
 
 void
@@ -1415,10 +1422,6 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
     }
     diffusion.Synchronize(component_density_mf, nspecies);
     diffusion.Synchronize(phase_change_dilatation_mf, 1);
-    diffusion.FillBoundary(
-        component_density_mf, *component_density_bc, time, nspecies);
-    for (int lev = 0; lev < nlev; ++lev)
-        UpdateComponentState(lev, *component_density_mf[lev]);
 }
 
 void
