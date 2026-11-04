@@ -1,4 +1,5 @@
 #include "Constant.H"
+#include <AMReX_BoxList.H>
 
 namespace BC
 {
@@ -73,6 +74,23 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     const bool nodal = type == amrex::IndexType::TheNodeType();
     const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 
+    // Skip untouched interiors, retaining nodal boundary planes and corner precedence.
+    amrex::Box interior = domain;
+    if (nodal) interior.grow(-1);
+    if (interior.contains(box)) return;
+    const auto boundary_boxes = amrex::boxDiff(box, interior);
+    amrex::Vector<amrex::Box> corner_boxes;
+    for (int yside = 0; yside < 2; ++yside)
+        for (int xside = 0; xside < 2; ++xside)
+        {
+            amrex::Box corner = box;
+            if (xside == 0) corner.setBig(0, std::min(box.bigEnd(0), lo.x - 1));
+            else corner.setSmall(0, std::max(box.smallEnd(0), hi.x + 1));
+            if (yside == 0) corner.setBig(1, std::min(box.bigEnd(1), lo.y - 1));
+            else corner.setSmall(1, std::max(box.smallEnd(1), hi.y + 1));
+            if (corner.ok()) corner_boxes.push_back(corner);
+        }
+
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
     for (int n = 0; n < a_in.nComp(); n++)
@@ -97,7 +115,8 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         const Set::Scalar bc_val_zhi =
             m_bc_val[Face::ZHI].empty() ? 0.0 : m_bc_val[Face::ZHI][n](time);
 #endif
-        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        for (const auto& boundary_box : boundary_boxes)
+        amrex::ParallelFor (boundary_box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             amrex::IntVect glevel;
             AMREX_D_TERM(   glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
@@ -221,7 +240,8 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         // Fixes this issue in 2D only for now.
         //
         // TODO: more general fix for 3D cell-based fields
-        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        for (const auto& corner_box : corner_boxes)
+        amrex::ParallelFor (corner_box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             if (i < lo.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j+1,k,n) );
             if (i < lo.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j-1,k,n) );
