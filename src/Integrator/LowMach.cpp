@@ -3076,6 +3076,59 @@ LowMach::PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const cha
 }
 
 void
+LowMach::PrintPhaseTransferDiagnostics(Set::Scalar time, int iter)
+{
+    if (phase_change_transfer_mf.size() == 0 ||
+        !((diagnostics_stages && time >= diagnostics_start_time) ||
+          (diagnostics_interval > 0 && iter % diagnostics_interval == 0))) return;
+
+    std::array<Set::Scalar, 4> totals{};
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        const auto& field = *phase_change_transfer_mf[lev];
+        // Count only leaf cells: coarse values covered by finer grids would
+        // otherwise count the same physical transfer twice.
+        amrex::iMultiFab mask = lev < finest_level ?
+            amrex::makeFineMask(field, phase_change_transfer_mf[lev+1]->boxArray(),
+                               refRatio(lev), 1, 0) :
+            amrex::iMultiFab(field.boxArray(), field.DistributionMap(), 1, 0);
+        if (lev == finest_level) mask.setVal(1);
+        Set::Scalar cell_volume = 1.0;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            cell_volume *= geom[lev].CellSize(d);
+
+        amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum,
+                         amrex::ReduceOpSum, amrex::ReduceOpSum> op;
+        amrex::ReduceData<Set::Scalar, Set::Scalar, Set::Scalar, Set::Scalar> data(op);
+        using Tuple = typename decltype(data)::Type;
+        for (amrex::MFIter mfi(field, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const auto stats = field.const_array(mfi);
+            const auto leaf = mask.const_array(mfi);
+            op.eval(mfi.tilebox(), data,
+                [=] AMREX_GPU_DEVICE(int i, int j, int k) -> Tuple
+                {
+                    if (!leaf(i,j,k)) return {0.0, 0.0, 0.0, 0.0};
+                    return {cell_volume * stats(i,j,k,0),
+                            cell_volume * stats(i,j,k,1),
+                            stats(i,j,k,2), stats(i,j,k,3)};
+                });
+        }
+        const auto value = data.value();
+        totals[0] += amrex::get<0>(value);
+        totals[1] += amrex::get<1>(value);
+        totals[2] += amrex::get<2>(value);
+        totals[3] += amrex::get<3>(value);
+    }
+    amrex::ParallelDescriptor::ReduceRealSum(totals.data(), 4);
+    amrex::Print() << "LowMach phase_transfer time " << time
+        << " requested_mass " << totals[0] << " rejected_mass " << totals[1]
+        << " rejected_fraction " << (totals[0] > 0.0 ? totals[1] / totals[0] : 0.0)
+        << " cell_transfers " << totals[2] << " limited_cell_transfers " << totals[3]
+        << "\n";
+}
+
+void
 LowMach::TimeStepComplete(Set::Scalar time, int iter)
 {
     PrintSourceDiagnostics(time + dt[0], dt[0], "advection_chemistry");
@@ -3086,6 +3139,7 @@ LowMach::TimeStepComplete(Set::Scalar time, int iter)
     ProjectVelocity(time + dt[0], dt[0]);
     PrintSourceDiagnostics(time + dt[0], dt[0], "projection");
     PrintDiagnostics(time, iter);
+    PrintPhaseTransferDiagnostics(time + dt[0], iter);
 }
 
 void

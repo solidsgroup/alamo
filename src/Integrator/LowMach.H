@@ -87,6 +87,7 @@ public:
     void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
     void PrintDiagnostics(Set::Scalar time, int iter);
     void PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const char* stage);
+    void PrintPhaseTransferDiagnostics(Set::Scalar time, int iter);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
