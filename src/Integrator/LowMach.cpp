@@ -19,6 +19,22 @@
 
 namespace Integrator
 {
+namespace
+{
+// Reuse the selected conservative advection stencil without allocating a
+// MultiFab for the shared, prescribed rigid translation velocity.
+struct RigidTranslationVelocity
+{
+    Set::Vector value;
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar operator()(int, int, int, int d) const
+    {
+        return value(d);
+    }
+};
+}
+
 LowMach::LowMach(IO::ParmParse& pp) : LowMach()
 {
     pp_queryclass(*this);
@@ -392,6 +408,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                     value.reinitialize_condensed_composition, false);
     if (value.reinitialize_condensed_composition)
     {
+        if (!value.rigid_solid_species.empty() &&
+            value.rigid_velocity.squaredNorm() > 0.0)
+            Util::Exception(INFO,
+                "amr.reinitialize_condensed_composition restores a fixed spatial IC "
+                "and cannot be used with nonzero rigid.velocity");
         pp.query_default("amr.reinitialize_condensed_composition_eta_min",
                         value.reinitialize_condensed_composition_eta_min, 0.99);
         if (value.reinitialize_condensed_composition_eta_min < 0.0 ||
@@ -1960,6 +1981,9 @@ LowMach::ProjectVelocity(Set::Scalar time, Set::Scalar dt)
         const Set::Scalar inverse_relaxation_time = rigid_solid ?
             1.0 / rigid_relaxation_time : 0.0;
 
+        // Uniform rigid translation is an advective flux in RHS, not a
+        // volume-production source. Project using the transported occupancy
+        // and the existing conversion/thermal volume ledgers.
         pressure_poisson.RHS(lev).setVal(0.0);
         for (const auto& configured_mechanism : mechanisms)
         {
@@ -2301,6 +2325,10 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     const auto thermal = thermal_data;
     const auto thermochemical = thermochemical_data;
     const auto advect_scheme = advect;
+    const bool moving_rigid = !rigid_solid_species.empty() &&
+        rigid_velocity.squaredNorm() > 0.0;
+    const RigidTranslationVelocity rigid_u{rigid_velocity};
+    const int number_of_species = nspecies;
     const Set::Vector gravity = g;
     const Set::Scalar rho_floor = density_floor;
     const bool explicit_viscosity =
@@ -2472,6 +2500,12 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                             component_density, u, i, j, k, solid, dx.data(),
                             {Numeric::Advect::Form::Conservative}, sten) + mechanism_source;
             }
+            if (moving_rigid)
+                for (int n = ngas; n < number_of_species; ++n)
+                    if (n != solid)
+                        component_density_rhs(i,j,k,n) += advect_scheme(
+                            component_density, rigid_u, i, j, k, n, dx.data(),
+                            {Numeric::Advect::Form::Conservative}, sten);
             if (deformable_solid)
                 for (int d = 0; d < AMREX_SPACEDIM; ++d)
                     xi_rhs(i,j,k,d) = advect_scheme(
@@ -2663,6 +2697,12 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
         Set::Scalar dxmin = std::min(dx[0], dx[1]);
+        // The prescribed solid speed can exceed the fluid speed, including
+        // before the first Brinkman projection. Every direction transports
+        // rigid mass in the unsplit advection update.
+        if (!rigid_solid_species.empty())
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                advmax += std::abs(rigid_velocity(d)) / dx[d];
         // Every coordinate direction contributes to the explicit Laplacian's
         // stability limit, including on meshes with unequal cell widths.
         Set::Scalar inverse_dx_squared_sum = 0.0;
