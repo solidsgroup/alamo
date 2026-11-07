@@ -2329,6 +2329,8 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         rigid_velocity.squaredNorm() > 0.0;
     const RigidTranslationVelocity rigid_u{rigid_velocity};
     const int number_of_species = nspecies;
+    const bool condensed_thermal = condensed_thermal_transport;
+    const Set::Scalar* condensed_cp = amrex::get<6>(thermal);
     const Set::Vector gravity = g;
     const Set::Scalar rho_floor = density_floor;
     const bool explicit_viscosity =
@@ -2463,13 +2465,43 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                         component_density, T(i,j,k), i, j, k, thermal);
                 (void)gas_volume_fraction;
                 (void)conductivity;
-                (void)cp;
-                Set::Vector grad_T =
-                    Numeric::Gradient(
-                        T, i, j, k, 0, dx.data(), sten);
                 if (heat_capacity > 0.0)
-                    T_rhs(i,j,k) -=
-                        gas_heat_capacity / heat_capacity * vel.dot(grad_T);
+                {
+                    if (moving_rigid)
+                    {
+                        // A common temperature carries gas heat with u and
+                        // rigid heat with U_r. Match ComputeThermalState's
+                        // capacity, including its gas-cp fallback.
+                        Set::Scalar rigid_heat_capacity = 0.0;
+                        for (int n = ngas; n < number_of_species; ++n)
+                            if (n != solid)
+                                rigid_heat_capacity += Util::Max(
+                                    component_density(i,j,k,n), 0.0) *
+                                    (condensed_thermal ? condensed_cp[n] : cp);
+                        // The fallback labels the entire mixture capacity
+                        // as gas capacity. Replace its rigid contribution.
+                        const Set::Scalar fluid_heat_capacity = condensed_thermal ?
+                            gas_heat_capacity : gas_heat_capacity - rigid_heat_capacity;
+                        // Use the selected advection stencil for translating
+                        // thermal profiles too: it respects filled periodic
+                        // ghosts instead of one-sided domain-edge gradients.
+                        if (fluid_heat_capacity > 0.0)
+                            T_rhs(i,j,k) += fluid_heat_capacity / heat_capacity *
+                                advect_scheme(T, u, i, j, k, 0, dx.data(),
+                                    {Numeric::Advect::Form::Advective}, sten);
+                        if (rigid_heat_capacity > 0.0)
+                            T_rhs(i,j,k) += rigid_heat_capacity / heat_capacity *
+                                advect_scheme(T, rigid_u, i, j, k, 0, dx.data(),
+                                    {Numeric::Advect::Form::Advective}, sten);
+                    }
+                    else
+                    {
+                        const Set::Vector grad_T = Numeric::Gradient(
+                            T, i, j, k, 0, dx.data(), sten);
+                        T_rhs(i,j,k) -=
+                            gas_heat_capacity / heat_capacity * vel.dot(grad_T);
+                    }
+                }
             }
             T_rhs(i,j,k) += temperature;
             if (external_heat_source)
