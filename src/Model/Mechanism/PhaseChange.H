@@ -279,8 +279,10 @@ public:
                 const Set::Scalar DX[AMREX_SPACEDIM]) const
     {
         if (input_is_rigid) return;
-        Transfer(component_density_rhs, state,
-                 (*this)(state, i, j, k, DX), i, j, k);
+        // This is a source rate, not a finite density update. Availability
+        // limiting belongs to Transfer, where an actual mass is exchanged.
+        AccumulateMassChange(component_density_rhs, state,
+            reference_density * (*this)(state, i, j, k, DX), i, j, k);
     }
 
     Set::Scalar StabilityRate(const Set::Scalar dx,
@@ -334,7 +336,40 @@ public:
         Set::Scalar* heat = nullptr,
         const Model::Gas::Gas::DeviceData* gas = nullptr) const
     {
-        const Set::Scalar mass_change = reference_density * eta_change;
+        const Set::Scalar requested = reference_density * eta_change;
+        // Negative mass_change consumes solid; positive consumes all products
+        // in their prescribed proportions. Read the mutable densities so
+        // successive mechanisms cannot spend the same available mass twice.
+        Set::Scalar mass_change = Util::Max(requested,
+            -Util::Max(component_density(i,j,k,input), 0.0));
+        if (mass_change > 0.0)
+            for (int n = 0; n < nproducts; ++n)
+            {
+                const Set::Scalar fraction = mass_fractions[n];
+                if (!(fraction > 0.0)) continue;
+                const Set::Scalar available = Util::Max(
+                    component_density(i,j,k,products[n]), 0.0);
+                Set::Scalar bound = available / fraction;
+                // Division followed by multiplication can otherwise leave
+                // a negative roundoff residual in an exhausted product.
+                if (fraction * bound > available)
+                    bound = std::nextafter(bound, Set::Scalar(0));
+                mass_change = Util::Min(mass_change, bound);
+            }
+        if (mass_change == 0.0) return 0.0;
+        return AccumulateMassChange(
+            component_density, state, mass_change, i, j, k, heat, gas);
+    }
+
+private:
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Scalar AccumulateMassChange(
+        const amrex::Array4<Set::Scalar>& component_density,
+        const State& state, const Set::Scalar mass_change,
+        const int i, const int j, const int k,
+        Set::Scalar* heat = nullptr,
+        const Model::Gas::Gas::DeviceData* gas = nullptr) const
+    {
         if (heat != nullptr)
         {
             Set::Scalar product_sensible_enthalpy = 0.0;
@@ -360,8 +395,6 @@ public:
         return mass_change *
             (1.0 / reference_density - product_specific_volume);
     }
-
-private:
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     Set::Scalar KineticFactor(const Set::Scalar temperature) const
