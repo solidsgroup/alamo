@@ -150,15 +150,16 @@ public:
         const State& state, const Set::Scalar eta_change,
         const int i, const int j, const int k,
         Set::Scalar* heat = nullptr,
-        const Model::Gas::Gas::DeviceData* gas = nullptr) const
+        const Model::Gas::Gas::DeviceData* gas = nullptr,
+        const amrex::Array4<Set::Scalar>& diagnostics = {}) const
     {
         if constexpr (I < sizeof...(OBJ))
         {
             if (selected == I)
                 return std::get<I>(obj).Transfer(
-                    component_density, state, eta_change, i, j, k, heat, gas);
+                    component_density, state, eta_change, i, j, k, heat, gas, diagnostics);
             return Transfer<I + 1>(
-                component_density, state, eta_change, i, j, k, heat, gas);
+                component_density, state, eta_change, i, j, k, heat, gas, diagnostics);
         }
         Util::Abort(INFO, selected);
         return NAN;

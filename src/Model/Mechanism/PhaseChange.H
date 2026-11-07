@@ -334,7 +334,8 @@ public:
         const State& state, const Set::Scalar eta_change,
         const int i, const int j, const int k,
         Set::Scalar* heat = nullptr,
-        const Model::Gas::Gas::DeviceData* gas = nullptr) const
+        const Model::Gas::Gas::DeviceData* gas = nullptr,
+        const amrex::Array4<Set::Scalar>& diagnostics = {}) const
     {
         const Set::Scalar requested = reference_density * eta_change;
         // Negative mass_change consumes solid; positive consumes all products
@@ -356,6 +357,15 @@ public:
                     bound = std::nextafter(bound, Set::Scalar(0));
                 mass_change = Util::Min(mass_change, bound);
             }
+        if (diagnostics)
+        {
+            // Per-cell sums over mechanisms and substeps: mass densities,
+            // attempted transfers, and availability-limited transfers.
+            diagnostics(i,j,k,0) += Util::Abs(requested);
+            diagnostics(i,j,k,1) += Util::Abs(requested - mass_change);
+            diagnostics(i,j,k,2) += requested != 0.0 ? 1.0 : 0.0;
+            diagnostics(i,j,k,3) += requested != mass_change ? 1.0 : 0.0;
+        }
         if (mass_change == 0.0) return 0.0;
         return AccumulateMassChange(
             component_density, state, mass_change, i, j, k, heat, gas);

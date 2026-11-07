@@ -503,6 +503,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(
             value.phase_change_heat_mf, &value.bc_nothing, 1, 0,
             "phase_change_heat", value.diagnostics_extended_fields, false);
+        if (value.diagnostics_extended_fields || value.diagnostics_stages ||
+            value.diagnostics_interval > 0)
+            value.AddField<Set::Scalar,Set::HC::Cell>(
+                value.phase_change_transfer_mf, &value.bc_nothing, 4, 0,
+                "phase_change_transfer", value.diagnostics_extended_fields, false,
+                {"_requested_mass", "_rejected_mass", "_attempts", "_limited"});
     }
     if ((value.thermal_diffusion == DiffusionMode::Implicit) || (value.species_diffusion == DiffusionMode::Implicit))
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
@@ -1168,7 +1174,11 @@ LowMach::ApplyImplicitPhaseChange(Set::Scalar time, Set::Scalar dt)
     const Set::Scalar subdt = dt / substeps;
 
     for (int lev = 0; lev <= finest_level; ++lev)
+    {
         phase_change_dilatation_mf[lev]->setVal(0.0);
+        if (phase_change_transfer_mf.size() > 0)
+            phase_change_transfer_mf[lev]->setVal(0.0);
+    }
     for (int n = 0; n < substeps; ++n)
         ApplyImplicitPhaseChangeStep(
             time - dt + (n + 1) * subdt, subdt);
@@ -1308,6 +1318,9 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<Set::Scalar> component_density = component_density_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_dilatation = phase_change_dilatation_mf.Patch(lev,mfi);
                 Set::Patch<Set::Scalar> integrated_heat = phase_change_heat_mf.Patch(lev,mfi);
+                const amrex::Array4<Set::Scalar> transfer_diagnostics =
+                    phase_change_transfer_mf.size() == 0 ? amrex::Array4<Set::Scalar>{} :
+                    phase_change_transfer_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1335,7 +1348,8 @@ LowMach::ApplyImplicitPhaseChangeStep(Set::Scalar time, Set::Scalar dt)
                         integrated_dilatation(i,j,k) +=
                             mechanism.Transfer(
                                 component_density, state,
-                                mechanism_eta_change, i, j, k, &integrated_heat(i,j,k), &phase_gas_data);
+                                mechanism_eta_change, i, j, k, &integrated_heat(i,j,k),
+                                &phase_gas_data, transfer_diagnostics);
                     });
             }
         }
@@ -2172,6 +2186,8 @@ LowMach::Initialize(int lev)
     {
         phase_change_dilatation_mf[lev]->setVal(0.0);
         phase_change_heat_mf[lev]->setVal(0.0);
+        if (phase_change_transfer_mf.size() > 0)
+            phase_change_transfer_mf[lev]->setVal(0.0);
     }
     if (lev == 0 && !(pressure_reference == pressure_reference))
         pressure_reference = pressure_mf[0]->sum(0, false) /
