@@ -102,6 +102,24 @@ public:
         if (Util::Abs(sum - 1.0) > 1.0e-12)
             Util::Exception(INFO, pp.full("out.mass_fractions"), " must sum to one");
 
+        // Availability is per species, including when an output is listed
+        // more than once. Consolidate here rather than in every cell update.
+        int unique_products = 0;
+        for (int n = 0; n < value.nproducts; ++n)
+        {
+            int m = 0;
+            for (; m < unique_products; ++m)
+                if (value.products[m] == value.products[n]) break;
+            if (m < unique_products)
+                value.mass_fractions[m] += value.mass_fractions[n];
+            else
+            {
+                value.products[unique_products] = value.products[n];
+                value.mass_fractions[unique_products++] = value.mass_fractions[n];
+            }
+        }
+        value.nproducts = unique_products;
+
         pp.query_default("rate_multiplier", value.rate_multiplier, 1.0);
         if (value.rate_multiplier < 0.0)
             Util::Exception(INFO, "rate_multiplier must be nonnegative");
