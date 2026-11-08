@@ -730,7 +730,10 @@ public:
 
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                // disp_mf is already nodal. grownnodaltilebox() is for a
+                // cell-centered iterator and can add an extra high-side node,
+                // writing past a rank-local nodal FAB in MPI runs.
+                amrex::Box bx = mfi.growntilebox() & domain;
                 auto const& disp = disp_mf[lev]->array(mfi);
                 auto const& model = model_mf[lev]->array(mfi);
                 auto const& psi = psi_mf[lev]->array(mfi);
