@@ -14,6 +14,8 @@
 #define INTEGRATOR_LOWMACH_H
 
 #include "Integrator/Integrator.H"
+#include "Integrator/Base/Mechanics.H"
+#include "Model/Solid/Affine/CrystalPlastic.H"
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
@@ -26,6 +28,7 @@
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "Model/Gas/Gas.H"
+#include "Model/Solid/Finite/CrystalPlastic.H"
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Frozen.H"
@@ -46,7 +49,8 @@
 
 namespace Integrator
 {
-class LowMach : virtual public Integrator
+class LowMach : virtual public Integrator,
+    virtual public Base::Mechanics<Model::Solid::Affine::CrystalPlastic>
 {
 public:
     static constexpr const char* name = "lowmach";
@@ -54,6 +58,18 @@ public:
         Model::Chemistry::Frozen,
         Model::Chemistry::FiniteRate,
         Model::Chemistry::Rocfire>;
+    enum class SolidModelType
+    {
+        NeoHookean,
+        CrystalPlastic
+    };
+    // One common physical Fp plus independent nonnegative accumulated-slip
+    // histories for the orthorhombic and cubic slip-system families.
+    static constexpr int crystal_plastic_fp_component = 0;
+    static constexpr int orthorhombic_slip_component = 9;
+    static constexpr int cubic_slip_component = 21;
+    static constexpr int ap_phase_component = 33;
+    static constexpr int crystal_plastic_state_components = 34;
 
     LowMach() {};
     LowMach(IO::ParmParse& pp);
@@ -93,8 +109,18 @@ public:
                             const amrex::MultiFab& u_mf,
                             const amrex::MultiFab& eta_mf,
                             const amrex::MultiFab& xi_mf,
+                            const amrex::MultiFab* plastic_state_input_mf = nullptr,
                             bool write_diagnostics = false);
+    void NormalizeCrystalPlasticState(int lev,
+                            amrex::MultiFab& plastic_state_mf,
+                            const amrex::MultiFab& eta_mf);
+    void UpdateCrystalPlasticTotalSlip(int lev);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
+    // Quasi-static thermo-crystal-plastic solve on the rigid solid (Base::Mechanics).
+    void UpdateModel(int step, Set::Scalar time) override;
+    bool QuasiStaticMechanics() const
+    { return m_type != Base::Mechanics<Model::Solid::Affine::CrystalPlastic>::Type::Disable; }
+    void UpdateAPPhaseDiagnostic(int lev);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
                             amrex::MultiFab& component_density_mf, Set::Scalar dt);
@@ -134,10 +160,12 @@ public:
             amrex::MultiFab& T_rhs_mf,
             amrex::MultiFab& component_density_rhs_mf,
             amrex::MultiFab* xi_rhs_mf,
+            amrex::MultiFab* plastic_rhs_mf,
             const amrex::MultiFab& u_mf,
             const amrex::MultiFab& T_mf,
             const amrex::MultiFab& component_density_mf,
-            const amrex::MultiFab* xi_mf);
+            const amrex::MultiFab* xi_mf,
+            const amrex::MultiFab* plastic_state_mf);
 
 protected:
     Set::Field<Set::Scalar> velocity_mf;
@@ -149,6 +177,9 @@ protected:
     Set::Field<Set::Scalar> component_density_old_mf;
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> crystal_plastic_state_mf;
+    Set::Field<Set::Scalar> crystal_plastic_state_old_mf;
+    Set::Field<Set::Scalar> crystal_plastic_total_slip_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
@@ -174,6 +205,7 @@ protected:
     Set::Field<Set::Scalar> qdot_mf;
     Set::Field<Set::Matrix> deformation_gradient_mf;
     Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
+    Set::Field<Set::Scalar> ap_phase_eta_mf;
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
@@ -196,6 +228,30 @@ protected:
     Model::Gas::Gas::DeviceData gas_device_data;
     ThermalData thermal_data;
     Chemistry chemistry;
+    Model::Solid::Finite::CrystalPlastic crystal_plastic_model;
+    // Quasi-static mechanics on the rigid solid ("elastic.*" inputs)
+    Model::Solid::Affine::CrystalPlastic elastic_base_model;
+    Set::Scalar elastic_alpha = 0.0;
+    Set::Scalar elastic_temperature_reference = 300.0;
+    Set::Scalar elastic_weight_floor = 1.0e-6;
+    Model::Solid::Finite::CrystalPlastic cubic_crystal_plastic_model;
+    SolidModelType solid_model_type = SolidModelType::NeoHookean;
+    bool ap_phase_enabled = false;
+    bool ap_phase_diagnostic_enabled = false;
+    int ap_phase_diagnostic_species = -1;
+    Set::Scalar ap_phase_diagnostic_transition_temperature = 513.15;
+    Set::Scalar ap_phase_diagnostic_temperature_width = 10.0;
+    Set::Scalar ap_phase_diagnostic_transition_pressure = 9.0e8;
+    Set::Scalar ap_phase_diagnostic_pressure_width = 5.0e7;
+    Set::Scalar ap_phase_transition_temperature = 513.15;
+    Set::Scalar ap_phase_temperature_width = 10.0;
+    Set::Scalar ap_phase_transition_pressure = 9.0e8;
+    Set::Scalar ap_phase_pressure_width = 5.0e7;
+    Set::Scalar ap_phase_relaxation_time = 1.0e-3;
+    Set::Scalar ap_phase_cfl = 0.25;
+    Set::Scalar crystal_plastic_cfl = 0.5;
+    Set::Scalar crystal_plastic_max_slip_increment = 1.0e-3;
+    Set::Scalar crystal_plastic_empty_eta = 1.0e-10;
     ChemistryData chemistry_device_data;
     ThermochemicalData thermochemical_data;
     Model::Solid::Finite::NeoHookean finite_solid_model;
@@ -205,8 +261,11 @@ protected:
     std::vector<std::string> species_names;
     std::vector<Set::Scalar> reference_density;
 
-    // Three-component Cartesian crystal normals, indexed by species.
+    // Crystal face normals used by orientation-dependent mechanisms.
     std::vector<std::vector<double>> orientation;
+    // Optional Miller-face orientation mapped onto a simulation surface normal.
+    std::vector<int> miller_orientation_enabled;
+    std::vector<Set::Quaternion> crystal_orientation;
     Model::Chemistry::SpeciesArray condensed_specific_heat;
     Model::Chemistry::SpeciesArray condensed_thermal_conductivity;
     Model::Chemistry::SpeciesArray condensed_inverse_reference_density;

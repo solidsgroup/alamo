@@ -19,11 +19,13 @@ if len(plotfiles) < 3:
 
 times = []
 positions = []
+cubic_seen = False
 interface_widths = []
 for path in plotfiles:
     ds = testlib.yt.load(path)
     data = ds.all_data().to_dataframe(
         [("index", "y"), ("boxlib", "rigid_eta"),
+         ("boxlib", "ap_phase_eta"),
          ("boxlib", "temperature")])
     if not testlib.numpy.all(
             testlib.numpy.isfinite(data["temperature"].to_numpy())):
@@ -36,6 +38,20 @@ for path in plotfiles:
     eta = profile["rigid_eta"].to_numpy()
     if not testlib.numpy.all(testlib.numpy.isfinite(eta)):
         raise AssertionError(f"Non-finite rigid_eta in {path}")
+    phase_eta = data["ap_phase_eta"].to_numpy()
+    if not testlib.numpy.all(testlib.numpy.isfinite(phase_eta)):
+        raise AssertionError(f"Non-finite ap_phase_eta in {path}")
+    if not testlib.numpy.all((phase_eta >= 0.0) &
+                             (phase_eta <= data["rigid_eta"].to_numpy() + 1.0e-14)):
+        raise AssertionError(
+            f"ap_phase_eta must remain within the local AP occupancy in {path}")
+    present = data["rigid_eta"].to_numpy() > 0.1
+    if testlib.numpy.any(phase_eta[present] <
+                         0.5 * data["rigid_eta"].to_numpy()[present]):
+        cubic_seen = True
+    if not times:
+        testlib.numpy.testing.assert_allclose(
+            phase_eta, data["rigid_eta"].to_numpy(), atol=1.0e-14)
     crossing = testlib.numpy.flatnonzero(
         (eta[:-1] >= 0.5) & (eta[1:] < 0.5))
     if not len(crossing):
@@ -48,6 +64,11 @@ for path in plotfiles:
     interface_widths.append(
         y[testlib.numpy.argmin(testlib.numpy.abs(eta - 0.1))] -
         y[testlib.numpy.argmin(testlib.numpy.abs(eta - 0.9))])
+
+# Cubic AP may revert to orthorhombic once the surface cools (e.g. 1 MPa),
+# so require it at any time rather than only in the final frame.
+if not cubic_seen:
+    raise AssertionError("No cubic AP appeared in the heated solid")
 
 times = testlib.numpy.asarray(times)
 positions = testlib.numpy.asarray(positions)

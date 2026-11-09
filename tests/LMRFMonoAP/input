@@ -103,6 +103,16 @@ AP_solid.specific_heat = 1297.90_J/kg/K
 AP_solid.thermal_conductivity = 0.4186_W/m/K
 AP_solid.orientation = 1.0 0.0 0.0
 
+# Output-only structural phase indicator: 1 is orthorhombic AP and 0 is
+# cubic AP or no remaining AP. This diagnostic is evaluated while writing
+# plotfiles and is not supplied to the calibrated burn mechanism.
+ap_phase_diagnostic.enabled = 1
+ap_phase_diagnostic.species = AP_solid
+ap_phase_diagnostic.transition_temperature = 513.15_K
+ap_phase_diagnostic.temperature_width = 10.0_K
+ap_phase_diagnostic.transition_pressure = 0.9_GPa
+ap_phase_diagnostic.pressure_width = 0.05_GPa
+
 chemistry.model.type = rocfire
 chemistry.model.rocfire.A = 473.98594351242497_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
 chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7

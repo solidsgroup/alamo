@@ -77,6 +77,9 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     value.reference_density.assign(value.nspecies, NAN);
     value.orientation.assign(
         value.nspecies, std::vector<double>{1.0, 0.0, 0.0});
+    value.miller_orientation_enabled.assign(value.nspecies, 0);
+    value.crystal_orientation.assign(
+        value.nspecies, Set::Quaternion(1.0, 0.0, 0.0, 0.0));
     value.lattice_constants.resize(value.nspecies);
     value.condensed_specific_heat.fill(NAN);
     value.condensed_thermal_conductivity.fill(NAN);
@@ -123,30 +126,26 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         if (mechanics != "fluid")
         {
-            // Cartesian crystal normal; defaults to the +x direction.
+            std::string orientation_type;
+            pp.query_default(name + ".orientation_type", orientation_type,
+                             std::string("cartesian"));
+
             auto& normal = value.orientation[n];
             pp.queryarr_default(
                 name + ".orientation", normal,
                 std::vector<double>{1.0, 0.0, 0.0});
-
             if (normal.size() != 3)
                 Util::Exception(INFO, name,
-                                ".orientation must contain exactly three components");
-
+                    ".orientation must contain exactly three components");
             for (double component : normal)
                 if (!std::isfinite(component))
                     Util::Exception(INFO, name,
-                                    ".orientation components must be finite");
-
-            const double magnitude =
+                        ".orientation components must be finite");
+            const double input_magnitude =
                 std::hypot(normal[0], normal[1], normal[2]);
-
-            if (!(magnitude > 0.0) || !std::isfinite(magnitude))
+            if (!(input_magnitude > 0.0) || !std::isfinite(input_magnitude))
                 Util::Exception(INFO, name,
-                                ".orientation must have a finite, nonzero magnitude");
-
-            for (double& component : normal)
-                component /= magnitude;
+                    ".orientation must have a finite, nonzero magnitude");
 
             auto& material_lattice_constants = value.lattice_constants[n];
             pp.queryarr_default(
@@ -154,15 +153,106 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 std::vector<double>{});
             if (!material_lattice_constants.empty() &&
                 material_lattice_constants.size() != 3)
-                Util::Exception(
-                    INFO, name,
+                Util::Exception(INFO, name,
                     ".lattice_constants must contain exactly three values");
             for (const double lattice_constant : material_lattice_constants)
                 if (!(lattice_constant > 0.0) ||
                     !std::isfinite(lattice_constant))
-                    Util::Exception(
-                        INFO, name,
+                    Util::Exception(INFO, name,
                         ".lattice_constants must be finite and positive");
+
+            if (orientation_type == "cartesian")
+            {
+                for (double& component : normal)
+                    component /= input_magnitude;
+            }
+            else if (orientation_type == "miller")
+            {
+                if (material_lattice_constants.size() != 3)
+                    Util::Exception(INFO, name,
+                        ".lattice_constants is required for Miller orientation");
+                const Eigen::Vector3d miller(
+                    normal[0], normal[1], normal[2]);
+                Eigen::Vector3d crystal_normal(
+                    miller[0] / material_lattice_constants[0],
+                    miller[1] / material_lattice_constants[1],
+                    miller[2] / material_lattice_constants[2]);
+                crystal_normal.normalize();
+
+                std::vector<double> surface_values;
+                pp.queryarr_default(
+                    name + ".orientation_surface_normal", surface_values,
+                    std::vector<double>{0.0, 1.0, 0.0});
+                std::vector<double> axis_values;
+                pp.queryarr_default(
+                    name + ".orientation_in_plane_axis", axis_values,
+                    std::vector<double>{1.0, 0.0, 0.0});
+                std::vector<double> crystal_direction_values;
+                pp.queryarr_required(
+                    name + ".orientation_crystal_in_plane_direction",
+                    crystal_direction_values);
+                if (surface_values.size() != 3 || axis_values.size() != 3 ||
+                    crystal_direction_values.size() != 3)
+                    Util::Exception(INFO, name,
+                        " Miller orientation vectors require three components");
+                Eigen::Vector3d lab_normal(
+                    surface_values[0], surface_values[1], surface_values[2]);
+                Eigen::Vector3d lab_tangent(
+                    axis_values[0], axis_values[1], axis_values[2]);
+                Eigen::Vector3d crystal_direction_indices(
+                    crystal_direction_values[0], crystal_direction_values[1],
+                    crystal_direction_values[2]);
+                if (!lab_normal.allFinite() || !lab_tangent.allFinite() ||
+                    !crystal_direction_indices.allFinite() ||
+                    !(lab_normal.norm() > 0.0) ||
+                    !(crystal_direction_indices.norm() > 0.0))
+                    Util::Exception(INFO, name,
+                        " Miller orientation vectors must be finite and nonzero");
+                const double plane_direction_dot =
+                    miller.dot(crystal_direction_indices);
+                const double plane_direction_scale =
+                    miller.norm() * crystal_direction_indices.norm();
+                if (std::abs(plane_direction_dot) >
+                    1.0e-10 * plane_direction_scale)
+                    Util::Exception(INFO, name,
+                        ".orientation_crystal_in_plane_direction [uvw] must satisfy hu+kv+lw=0");
+                lab_normal.normalize();
+                normal = {crystal_normal[0], crystal_normal[1],
+                          crystal_normal[2]};
+                lab_tangent -= lab_tangent.dot(lab_normal) * lab_normal;
+                if (!(lab_tangent.norm() > 1.0e-12))
+                    Util::Exception(INFO, name,
+                        ".orientation_in_plane_axis must not be parallel to the surface normal");
+                lab_tangent.normalize();
+
+                Eigen::Vector3d crystal_tangent(
+                    crystal_direction_indices[0] * material_lattice_constants[0],
+                    crystal_direction_indices[1] * material_lattice_constants[1],
+                    crystal_direction_indices[2] * material_lattice_constants[2]);
+                crystal_tangent.normalize();
+
+                Eigen::Matrix3d crystal_basis, lab_basis;
+                crystal_basis.col(0) = crystal_tangent;
+                crystal_basis.col(1) =
+                    crystal_normal.cross(crystal_tangent).normalized();
+                crystal_basis.col(2) = crystal_normal;
+                lab_basis.col(0) = lab_tangent;
+                lab_basis.col(1) =
+                    lab_normal.cross(lab_tangent).normalized();
+                lab_basis.col(2) = lab_normal;
+                const Eigen::Matrix3d rotation =
+                    lab_basis * crystal_basis.transpose();
+                if (!rotation.allFinite() ||
+                    std::abs(rotation.determinant() - 1.0) > 1.0e-10)
+                    Util::Exception(INFO, name,
+                        " Miller orientation did not produce a proper rotation");
+                value.crystal_orientation[n] = Set::Quaternion(rotation);
+                value.crystal_orientation[n].normalize();
+                value.miller_orientation_enabled[n] = 1;
+            }
+            else
+                Util::Exception(INFO, orientation_type,
+                    " is not a valid orientation_type for species ", name);
 
             const bool has_specific_heat =
                 pp.contains(name + ".specific_heat");
@@ -320,7 +410,102 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         std::string solid_model_type;
         pp.query_required("solid.model.type", solid_model_type);
-        if (solid_model_type != "finite.neohookean")
+        if (solid_model_type == "finite.neohookean")
+        {
+            value.solid_model_type = SolidModelType::NeoHookean;
+            pp.queryclass<Model::Solid::Finite::NeoHookean>(
+                "solid.model.finite.neohookean", value.finite_solid_model);
+        }
+        else if (solid_model_type == "finite.crystalplastic")
+        {
+#ifdef ALAMO_GPU
+            Util::Exception(INFO,
+                            "finite.crystalplastic LowMach mechanics currently requires a CPU build");
+#else
+            value.solid_model_type = SolidModelType::CrystalPlastic;
+            pp.queryclass<Model::Solid::Finite::CrystalPlastic>(
+                "solid.model.finite.crystalplastic", value.crystal_plastic_model);
+            pp.query_default("solid.model.plastic.cfl",
+                             value.crystal_plastic_cfl, 0.5);
+            pp.query_default("solid.model.plastic.max_slip_increment",
+                             value.crystal_plastic_max_slip_increment, 1.0e-3);
+            pp.query_default("solid.model.plastic.empty_eta",
+                             value.crystal_plastic_empty_eta, 1.0e-10);
+            pp.query_default("solid.model.ap_phase.enabled",
+                             value.ap_phase_enabled, false);
+            if (value.ap_phase_enabled)
+            {
+                pp.queryclass<Model::Solid::Finite::CrystalPlastic>(
+                    "solid.model.finite.crystalplastic_cubic",
+                    value.cubic_crystal_plastic_model);
+                pp.query_default("solid.model.ap_phase.transition_temperature",
+                    value.ap_phase_transition_temperature, "513.15_K",
+                    Unit::Temperature());
+                pp.query_default("solid.model.ap_phase.temperature_width",
+                    value.ap_phase_temperature_width, "10.0_K",
+                    Unit::Temperature());
+                pp.query_default("solid.model.ap_phase.transition_pressure",
+                    value.ap_phase_transition_pressure, "0.9_GPa",
+                    Unit::Pressure());
+                pp.query_default("solid.model.ap_phase.pressure_width",
+                    value.ap_phase_pressure_width, "0.05_GPa",
+                    Unit::Pressure());
+                pp.query_default("solid.model.ap_phase.relaxation_time",
+                    value.ap_phase_relaxation_time, "1.0e-3_s",
+                    Unit::Time());
+                pp.query_default("solid.model.ap_phase.cfl",
+                    value.ap_phase_cfl, 0.25);
+            }
+            if (!(value.crystal_plastic_cfl > 0.0) ||
+                !(value.crystal_plastic_max_slip_increment > 0.0) ||
+                !std::isfinite(value.crystal_plastic_empty_eta) ||
+                value.crystal_plastic_empty_eta < 0.0 ||
+                value.crystal_plastic_empty_eta >= 1.0)
+                Util::Exception(INFO,
+                    "Invalid solid.model.plastic timestep or interface controls");
+            const auto validate_crystal = [](const auto& cp)
+            {
+                const Set::Scalar normal_minor =
+                    cp.C11*cp.C22-cp.C12*cp.C12;
+                const Set::Scalar normal_det =
+                    cp.C11*cp.C22*cp.C33 + 2.0*cp.C12*cp.C13*cp.C23 -
+                    cp.C11*cp.C23*cp.C23 - cp.C22*cp.C13*cp.C13 -
+                    cp.C33*cp.C12*cp.C12;
+                return std::isfinite(cp.C11) && std::isfinite(cp.C22) &&
+                    std::isfinite(cp.C33) && std::isfinite(cp.C12) &&
+                    std::isfinite(cp.C13) && std::isfinite(cp.C23) &&
+                    std::isfinite(cp.C44) && std::isfinite(cp.C55) &&
+                    std::isfinite(cp.C66) && cp.C11 > 0.0 &&
+                    normal_minor > 0.0 && normal_det > 0.0 &&
+                    cp.C44 > 0.0 && cp.C55 > 0.0 && cp.C66 > 0.0;
+            };
+            if (!validate_crystal(value.crystal_plastic_model) ||
+                (value.ap_phase_enabled &&
+                 !validate_crystal(value.cubic_crystal_plastic_model)))
+                Util::Exception(INFO,
+                    "Crystal elastic constants must define a stable solid");
+            const int solid_species = value.deformable_solid_species;
+            if (value.miller_orientation_enabled[solid_species])
+            {
+                const Set::Quaternion orientation_q =
+                    value.crystal_orientation[solid_species];
+                value.crystal_plastic_model.q = orientation_q;
+                if (value.ap_phase_enabled)
+                    value.cubic_crystal_plastic_model.q = orientation_q;
+            }
+
+            if (value.ap_phase_enabled &&
+                (!(value.ap_phase_temperature_width > 0.0) ||
+                 !(value.ap_phase_pressure_width > 0.0) ||
+                 !(value.ap_phase_relaxation_time > 0.0) ||
+                 !(value.ap_phase_cfl > 0.0) ||
+                 !std::isfinite(value.ap_phase_transition_temperature) ||
+                 !std::isfinite(value.ap_phase_transition_pressure)))
+                Util::Exception(INFO,
+                    "Invalid AP phase transition width, time, or threshold");
+#endif
+        }
+        else
             Util::Exception(INFO, solid_model_type,
                             " is not a valid deformable solid model for LowMach");
         pp.query_default("solid.model.eta_threshold", value.finite_solid_eta_threshold, 0.5);
@@ -337,7 +522,6 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             Util::Exception(INFO, "solid.model.reference_density must be positive");
         value.reference_density[value.deformable_solid_species] =
             value.finite_solid_reference_density;
-        pp.queryclass<Model::Solid::Finite::NeoHookean>("solid.model.finite.neohookean", value.finite_solid_model);
     }
     if (!value.rigid_solid_species.empty())
     {
@@ -356,6 +540,78 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
                 Util::Exception(INFO, value.species_names[n],
                                 ".reference_density must be positive");
         }
+    }
+
+    // Optional quasi-static thermo-crystal-plastic solve on the rigid solid.
+    // The rigid solid keeps the flow and burn unchanged; the elastic solve
+    // uses Integrator::Base::Mechanics (as in ThermoElastic) with stiffness
+    // weighted by the remaining solid fraction rigid_eta.
+    {
+        using MechanicsBase = Base::Mechanics<Model::Solid::Affine::CrystalPlastic>;
+        value.m_type = MechanicsBase::Type::Disable;
+        if (pp.contains("elastic.type"))
+        {
+            pp.queryclass<MechanicsBase>("elastic", value);
+            if (value.m_type == MechanicsBase::Type::Dynamic)
+                Util::Exception(INFO, "LowMach supports only elastic.type = static or disable");
+            if (value.m_type == MechanicsBase::Type::Static)
+            {
+                if (value.rigid_solid_species.empty())
+                    Util::Exception(INFO, "elastic.type = static requires a rigid_solid species");
+                Model::Solid::Finite::CrystalPlastic cp;
+                pp.queryclass<Model::Solid::Finite::CrystalPlastic>("elastic_model", cp);
+                const int solid = value.rigid_solid_species[0];
+                if (value.miller_orientation_enabled[solid])
+                    cp.q = value.crystal_orientation[solid];
+                value.elastic_base_model.Define(cp);
+                // Linear thermal expansion coefficient (1/K)
+                pp.query_default("elastic_coupling.alpha", value.elastic_alpha, 0.0);
+                // Stress-free temperature for the thermal strain
+                pp.query_default("elastic_coupling.stress_free_temperature",
+                    value.elastic_temperature_reference, "300.0_K", Unit::Temperature());
+                // Stiffness fraction kept where the solid has burned away
+                pp.query_default("elastic_coupling.weight_floor", value.elastic_weight_floor, 1.0e-6);
+                // Slip is only evolved where rigid_eta exceeds this value
+                pp.query_default("elastic_coupling.active_eta", value.elastic_base_model.active_weight, 0.5);
+                // Maximum slip per explicit substep on any system
+                pp.query_default("elastic_coupling.max_slip_increment",
+                    value.elastic_base_model.max_slip_increment, 1.0e-4);
+                if (!(value.elastic_weight_floor > 0.0) || !(value.elastic_weight_floor <= 1.0) ||
+                    !(value.elastic_base_model.max_slip_increment > 0.0) ||
+                    !std::isfinite(value.elastic_alpha))
+                    Util::Exception(INFO, "Invalid elastic_coupling.weight_floor, max_slip_increment, or alpha");
+            }
+        }
+    }
+
+    pp.query_default("ap_phase_diagnostic.enabled",
+                     value.ap_phase_diagnostic_enabled, false);
+    if (value.ap_phase_diagnostic_enabled)
+    {
+        std::string phase_species;
+        pp.query_required("ap_phase_diagnostic.species", phase_species);
+        for (int n = value.ngas_species; n < value.nspecies; ++n)
+            if (value.species_names[n] == phase_species)
+                value.ap_phase_diagnostic_species = n;
+        if (value.ap_phase_diagnostic_species < 0)
+            Util::Exception(INFO, "Unknown condensed AP phase diagnostic species: ",
+                            phase_species);
+        pp.query_default("ap_phase_diagnostic.transition_temperature",
+            value.ap_phase_diagnostic_transition_temperature, "513.15_K",
+            Unit::Temperature());
+        pp.query_default("ap_phase_diagnostic.temperature_width",
+            value.ap_phase_diagnostic_temperature_width, "10.0_K",
+            Unit::Temperature());
+        pp.query_default("ap_phase_diagnostic.transition_pressure",
+            value.ap_phase_diagnostic_transition_pressure, "0.9_GPa",
+            Unit::Pressure());
+        pp.query_default("ap_phase_diagnostic.pressure_width",
+            value.ap_phase_diagnostic_pressure_width, "0.05_GPa",
+            Unit::Pressure());
+        if (!(value.ap_phase_diagnostic_temperature_width > 0.0) ||
+            !(value.ap_phase_diagnostic_pressure_width > 0.0))
+            Util::Exception(INFO,
+                "AP phase diagnostic transition widths must be positive");
     }
 
     for (int n = value.ngas_species; n < value.nspecies; ++n)
@@ -567,6 +823,31 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.eta_mf, &value.bc_nothing, 1, nghost, "eta", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_mf,     value.xi_bc, AMREX_SPACEDIM, nghost, "xi",     true,  true, vector_suffix);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.xi_old_mf, value.xi_bc, AMREX_SPACEDIM, nghost, "xi_old", false, true, vector_suffix);
+        if (value.solid_model_type == SolidModelType::CrystalPlastic)
+        {
+            std::vector<std::string> plastic_suffix = {
+                "_Fp_xx", "_Fp_xy", "_Fp_xz", "_Fp_yx", "_Fp_yy",
+                "_Fp_yz", "_Fp_zx", "_Fp_zy", "_Fp_zz",
+                "_gamma1", "_gamma2", "_gamma3", "_gamma4", "_gamma5",
+                "_gamma6", "_gamma7", "_gamma8", "_gamma9", "_gamma10",
+                "_gamma11", "_gamma12",
+                "_cubic_gamma1", "_cubic_gamma2", "_cubic_gamma3",
+                "_cubic_gamma4", "_cubic_gamma5", "_cubic_gamma6",
+                "_cubic_gamma7", "_cubic_gamma8", "_cubic_gamma9",
+                "_cubic_gamma10", "_cubic_gamma11", "_cubic_gamma12",
+                "_ap_phase_eta"};
+            value.AddField<Set::Scalar,Set::HC::Cell>(
+                value.crystal_plastic_state_mf, &value.bc_nothing,
+                crystal_plastic_state_components, nghost,
+                "crystal_plastic", true, true, plastic_suffix);
+            value.AddField<Set::Scalar,Set::HC::Cell>(
+                value.crystal_plastic_state_old_mf, &value.bc_nothing,
+                crystal_plastic_state_components, nghost,
+                "crystal_plastic_old", false, true, plastic_suffix);
+            value.AddField<Set::Scalar,Set::HC::Cell>(
+                value.crystal_plastic_total_slip_mf, &value.bc_nothing,
+                1, 0, "crystal_plastic_total_accumulated_slip", true, false);
+        }
     }
     if (!value.rigid_solid_species.empty())
     {
@@ -579,6 +860,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             value.rigid_solid_species.size(), 1, "rigid_species_eta",
             true, false, rigid_species_suffix);
     }
+
+    if (value.ap_phase_diagnostic_enabled)
+        value.AddField<Set::Scalar,Set::HC::Cell>(
+            value.ap_phase_eta_mf, &value.bc_nothing, 1, 0,
+            "ap_phase_eta", true, false);
 
     value.AddField<Set::Scalar,Set::HC::Cell>(value.density_mf,             &value.bc_nothing, 1,              1,      "density",             true,  false);
     value.AddField<Set::Scalar,Set::HC::Cell>(value.pressure_mf,            value.pressure_bc, 1,              nghost, "pressure",            true,  true);
@@ -689,6 +975,7 @@ LowMach::UpdateSolidStress(int lev,
                             const amrex::MultiFab& u_mf,
                             const amrex::MultiFab& eta_mf,
                             const amrex::MultiFab& xi_mf,
+                            const amrex::MultiFab* plastic_state_input_mf,
                             bool write_diagnostics)
 {
     BL_PROFILE("Integrator::LowMach::UpdateSolidStress");
@@ -700,12 +987,23 @@ LowMach::UpdateSolidStress(int lev,
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
     const Model::Solid::Finite::NeoHookean solid_model = finite_solid_model;
+    const SolidModelType model_type = solid_model_type;
+#ifndef ALAMO_GPU
+    const Model::Solid::Finite::CrystalPlastic crystal_model = crystal_plastic_model;
+    const Model::Solid::Finite::CrystalPlastic cubic_model =
+        cubic_crystal_plastic_model;
+    const bool phase_enabled = ap_phase_enabled;
+#endif
     const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
     const Set::Scalar stress_eta_min =
         Util::Clamp(reference_map_reconstruction.EtaExtension(), 0.0, 1.0);
     const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
     const Set::Scalar solid_viscosity = finite_solid_viscosity;
     const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
+    if (model_type == SolidModelType::CrystalPlastic &&
+        plastic_state_input_mf == nullptr)
+        Util::Exception(INFO,
+            "Crystal plastic stress evaluation requires a plastic state");
 
     amrex::MultiFab xi_stress_mf;
     const amrex::MultiFab* xi_for_stress_mf = &xi_mf;
@@ -724,6 +1022,11 @@ LowMach::UpdateSolidStress(int lev,
         Set::Patch<const Set::Scalar> u = u_mf.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.array(mfi);
         Set::Patch<const Set::Scalar> xi = xi_for_stress_mf->array(mfi);
+        Set::Patch<const Set::Scalar> plastic_state;
+#ifndef ALAMO_GPU
+        if (model_type == SolidModelType::CrystalPlastic)
+            plastic_state = plastic_state_input_mf->const_array(mfi);
+#endif
         Set::Patch<Set::Matrix> solid_deviatoric_stress = solid_deviatoric_stress_mf.Patch(lev,mfi);
         Set::Patch<Set::Matrix> F_field;
         if (write_diagnostics) F_field = deformation_gradient_mf.Patch(lev,mfi);
@@ -756,7 +1059,38 @@ LowMach::UpdateSolidStress(int lev,
 
                 Set::Scalar J = F.determinant();
                 if (valid && Util::Abs(J) > det_floor)
-                    solid_sigma = (solid_model.DW(F) * F.transpose()) / J;
+                {
+#ifndef ALAMO_GPU
+                    if (model_type == SolidModelType::CrystalPlastic)
+                    {
+                        Model::Solid::Finite::CrystalPlastic cell_model = crystal_model;
+                        Model::Solid::Finite::CrystalPlastic cubic_cell_model = cubic_model;
+                        for (int a = 0; a < 3; ++a)
+                            for (int b = 0; b < 3; ++b)
+                            {
+                                const Set::Scalar fp = plastic_state(i,j,k,3*a+b);
+                                cell_model.Fp(a,b) = fp;
+                                cubic_cell_model.Fp(a,b) = fp;
+                            }
+                        Set::Matrix reduced_Fp = Set::reduce(cell_model.Fp);
+                        if (Util::Abs(reduced_Fp.determinant()) > det_floor)
+                        {
+                            const Set::Scalar phase = phase_enabled ?
+                                Util::Clamp(plastic_state(
+                                    i,j,k,ap_phase_component),0.0,1.0) : 1.0;
+                            Set::Matrix P = phase * cell_model.DW(F);
+                            if (phase_enabled)
+                                P += (1.0-phase) * cubic_cell_model.DW(F);
+                            solid_sigma = (P * F.transpose()) / J;
+                        }
+                    }
+                    else
+#endif
+                    {
+                        Set::Matrix P = solid_model.DW(F);
+                        solid_sigma = (P * F.transpose()) / J;
+                    }
+                }
 
                 if (solid_viscosity != 0.0)
                     solid_sigma += solid_viscosity * (grad_u + grad_u.transpose());
@@ -780,6 +1114,120 @@ LowMach::UpdateSolidStress(int lev,
     solid_deviatoric_stress_mf[lev]->FillBoundary(geom[lev].periodicity());
     if (write_diagnostics)
         deformation_gradient_mf[lev]->FillBoundary(geom[lev].periodicity());
+}
+
+void
+LowMach::NormalizeCrystalPlasticState(
+    int lev, amrex::MultiFab& plastic_state_mf,
+    const amrex::MultiFab& eta_mf)
+{
+    if (solid_model_type != SolidModelType::CrystalPlastic) return;
+#ifdef ALAMO_GPU
+    Util::IgnoreUnused(lev, plastic_state_mf, eta_mf);
+#else
+    // Crystal-plastic history is meaningful only where the solid mechanics
+    // model is active. In a burning interface, eta can remain positive but
+    // fall below finite_solid_eta_threshold; advecting Fp through those cells
+    // without a constitutive update can make it singular. Reset the history
+    // as soon as the cell leaves the mechanically active solid.
+    const Set::Scalar empty_eta = Util::Max(
+        crystal_plastic_empty_eta,
+        Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0));
+    const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
+    for (amrex::MFIter mfi(plastic_state_mf, false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        Set::Patch<Set::Scalar> state = plastic_state_mf.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.const_array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (eta(i,j,k) <= empty_eta)
+            {
+                for (int n = 0; n < crystal_plastic_state_components; ++n)
+                    state(i,j,k,n) = 0.0;
+                for (int d = 0; d < 3; ++d)
+                    state(i,j,k,3*d+d) = 1.0;
+            }
+            else
+            {
+                for (int alpha = 0; alpha < 12; ++alpha)
+                {
+                    state(i,j,k,orthorhombic_slip_component+alpha) =
+                        Util::Max(state(
+                            i,j,k,orthorhombic_slip_component+alpha), 0.0);
+                    state(i,j,k,cubic_slip_component+alpha) =
+                        Util::Max(state(
+                            i,j,k,cubic_slip_component+alpha), 0.0);
+                }
+                state(i,j,k,ap_phase_component) = Util::Clamp(
+                    state(i,j,k,ap_phase_component), 0.0, 1.0);
+            }
+        });
+    }
+    plastic_state_mf.FillBoundary(geom[lev].periodicity());
+
+    Set::Scalar invalid = 0.0;
+    for (amrex::MFIter mfi(plastic_state_mf, false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        Set::Patch<const Set::Scalar> state = plastic_state_mf.const_array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.const_array(mfi);
+        amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+        amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+        using ReduceTuple = typename decltype(reduce_data)::Type;
+        reduce_op.eval(bx, reduce_data,
+            [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+        {
+            if (eta(i,j,k) <= empty_eta) return {0.0};
+            Set::Matrix3d Fp = Set::Matrix3d::Zero();
+            for (int a = 0; a < 3; ++a)
+                for (int b = 0; b < 3; ++b)
+                    Fp(a,b) = state(i,j,k,3*a+b);
+            const Set::Scalar det = Set::reduce(Fp).determinant();
+            if (!std::isfinite(det) || det <= det_floor)
+                return {1.0};
+            for (int n = orthorhombic_slip_component;
+                 n < ap_phase_component; ++n)
+                if (!std::isfinite(state(i,j,k,n)) || state(i,j,k,n) < 0.0)
+                    return {1.0};
+            if (!std::isfinite(state(i,j,k,ap_phase_component)))
+                return {1.0};
+            return {0.0};
+        });
+        invalid = Util::Max(invalid, amrex::get<0>(reduce_data.value()));
+    }
+    amrex::ParallelDescriptor::ReduceRealMax(invalid);
+    if (invalid > 0.0)
+        Util::Exception(INFO,
+            "Crystal plastic state contains a singular or non-finite Fp");
+#endif
+}
+
+void
+LowMach::UpdateCrystalPlasticTotalSlip(int lev)
+{
+    if (solid_model_type != SolidModelType::CrystalPlastic) return;
+    for (amrex::MFIter mfi(*crystal_plastic_total_slip_mf[lev], true);
+         mfi.isValid(); ++mfi)
+    {
+        const amrex::Box bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> state =
+            crystal_plastic_state_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> total =
+            crystal_plastic_total_slip_mf.Patch(lev,mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar accumulated = 0.0;
+            for (int alpha = 0; alpha < 12; ++alpha)
+            {
+                accumulated += state(
+                    i,j,k,orthorhombic_slip_component+alpha);
+                accumulated += state(
+                    i,j,k,cubic_slip_component+alpha);
+            }
+            total(i,j,k) = accumulated;
+        });
+    }
 }
 
 //
@@ -2228,6 +2676,17 @@ LowMach::Initialize(int lev)
 {
     BL_PROFILE("Integrator::LowMach::Initialize");
     const bool deformable_solid = deformable_solid_species >= 0;
+    Base::Mechanics<Model::Solid::Affine::CrystalPlastic>::Initialize(lev);
+    if (QuasiStaticMechanics())
+    {
+        const Model::Solid::Affine::CrystalPlastic base = elastic_base_model;
+        for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.growntilebox();
+            amrex::Array4<Model::Solid::Affine::CrystalPlastic> const& model = model_mf[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k) = base; });
+        }
+    }
 
     velocity_mf[lev]->setVal(0.0, 0, velocity_mf[lev]->nComp(), velocity_mf[lev]->nGrow());
     velocity_old_mf[lev]->setVal(0.0, 0, velocity_old_mf[lev]->nComp(), velocity_old_mf[lev]->nGrow());
@@ -2240,6 +2699,20 @@ LowMach::Initialize(int lev)
         eta_mf[lev]->setVal(0.0, 0, eta_mf[lev]->nComp(), eta_mf[lev]->nGrow());
         xi_mf[lev]->setVal(0.0, 0, xi_mf[lev]->nComp(), xi_mf[lev]->nGrow());
         xi_old_mf[lev]->setVal(0.0, 0, xi_old_mf[lev]->nComp(), xi_old_mf[lev]->nGrow());
+        if (solid_model_type == SolidModelType::CrystalPlastic)
+        {
+            crystal_plastic_state_mf[lev]->setVal(0.0);
+            crystal_plastic_state_old_mf[lev]->setVal(0.0);
+            for (int d = 0; d < 3; ++d)
+            {
+                crystal_plastic_state_mf[lev]->setVal(1.0, 3*d + d, 1);
+                crystal_plastic_state_old_mf[lev]->setVal(1.0, 3*d + d, 1);
+            }
+            crystal_plastic_state_mf[lev]->setVal(
+                1.0, ap_phase_component, 1);
+            crystal_plastic_state_old_mf[lev]->setVal(
+                1.0, ap_phase_component, 1);
+        }
     }
     pressure_mf[lev]->setVal(0.0, 0, pressure_mf[lev]->nComp(), pressure_mf[lev]->nGrow());
 
@@ -2344,7 +2817,14 @@ LowMach::Initialize(int lev)
             geom[lev], *eta_mf[lev], *xi_mf[lev], *xi_bc, 0.0);
         reference_map_reconstruction(
             geom[lev], *eta_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
-        UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+        if (solid_model_type == SolidModelType::CrystalPlastic)
+            NormalizeCrystalPlasticState(
+                lev, *crystal_plastic_state_mf[lev], *eta_mf[lev]);
+        UpdateSolidStress(
+            lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev],
+            solid_model_type == SolidModelType::CrystalPlastic
+                ? crystal_plastic_state_mf[lev].get() : nullptr,
+            diagnostics_extended_fields);
     }
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
 }
@@ -2352,9 +2832,21 @@ LowMach::Initialize(int lev)
 void
 LowMach::Regrid(int lev, Set::Scalar time)
 {
+    const bool crystal_plastic =
+        solid_model_type == SolidModelType::CrystalPlastic;
     if (!reinitialize_condensed_composition || lev == 0 ||
         ngas_species >= nspecies)
+    {
+        if (crystal_plastic)
+        {
+            UpdateComponentState(lev, *component_density_mf[lev]);
+            NormalizeCrystalPlasticState(
+                lev, *crystal_plastic_state_mf[lev], *eta_mf[lev]);
+            NormalizeCrystalPlasticState(
+                lev, *crystal_plastic_state_old_mf[lev], *eta_mf[lev]);
+        }
         return;
+    }
 
     const int ncondensed = nspecies - ngas_species;
     amrex::MultiFab initial_density(
@@ -2421,6 +2913,13 @@ LowMach::Regrid(int lev, Set::Scalar time)
                           *component_density_mf[lev], 0, 0, nspecies,
                           component_density_mf[lev]->nGrow());
     UpdateComponentState(lev, *component_density_mf[lev]);
+    if (crystal_plastic)
+    {
+        NormalizeCrystalPlasticState(
+            lev, *crystal_plastic_state_mf[lev], *eta_mf[lev]);
+        NormalizeCrystalPlasticState(
+            lev, *crystal_plastic_state_old_mf[lev], *eta_mf[lev]);
+    }
 }
 
 void
@@ -2429,16 +2928,21 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
             amrex::MultiFab& T_rhs_mf,
             amrex::MultiFab& component_density_rhs_mf,
             amrex::MultiFab* xi_rhs_mf,
+            amrex::MultiFab* plastic_rhs_mf,
             const amrex::MultiFab& u_mf,
             const amrex::MultiFab& T_mf,
             const amrex::MultiFab& component_density_mf,
-            const amrex::MultiFab* xi_mf)
+            const amrex::MultiFab* xi_mf,
+            const amrex::MultiFab* plastic_state_mf)
 {
     const bool deformable_solid = deformable_solid_species >= 0;
+    const bool crystal_plastic =
+        deformable_solid && solid_model_type == SolidModelType::CrystalPlastic;
     const bool split_chemistry = chemistry.Split();
     const bool external_heat_source = heat_source_ic != nullptr;
     if (deformable_solid && finite_solid_deviatoric_stress_divergence_sign != 0.0)
-        UpdateSolidStress(lev, u_mf, *eta_mf[lev], *xi_mf);
+        UpdateSolidStress(lev, u_mf, *eta_mf[lev], *xi_mf,
+                          crystal_plastic ? plastic_state_mf : nullptr);
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
@@ -2630,6 +3134,122 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         });
     }
 
+#ifndef ALAMO_GPU
+    if (crystal_plastic)
+    {
+        if (plastic_rhs_mf == nullptr || plastic_state_mf == nullptr)
+            Util::Exception(INFO,
+                "Crystal plastic RHS requires plastic state and rate fields");
+        plastic_rhs_mf->setVal(0.0);
+        const auto crystal_model = crystal_plastic_model;
+        const auto cubic_model = cubic_crystal_plastic_model;
+        const bool phase_enabled = ap_phase_enabled;
+        const Set::Scalar transition_temperature =
+            ap_phase_transition_temperature;
+        const Set::Scalar temperature_width = ap_phase_temperature_width;
+        const Set::Scalar transition_pressure = ap_phase_transition_pressure;
+        const Set::Scalar pressure_width = ap_phase_pressure_width;
+        const Set::Scalar phase_relaxation_time = ap_phase_relaxation_time;
+        const Set::Scalar eta_threshold =
+            Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
+        const Set::Scalar det_floor = Util::Max(small, finite_solid_J_floor);
+        for (amrex::MFIter mfi(*plastic_state_mf, false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            Set::Patch<const Set::Scalar> u = u_mf.const_array(mfi);
+            Set::Patch<const Set::Scalar> eta = eta_mf[lev]->const_array(mfi);
+            Set::Patch<const Set::Scalar> temperature = T_mf.const_array(mfi);
+            Set::Patch<const Set::Scalar> pressure =
+                pressure_mf[lev]->const_array(mfi);
+            Set::Patch<const Set::Scalar> xi = xi_mf->const_array(mfi);
+            Set::Patch<const Set::Scalar> plastic =
+                plastic_state_mf->const_array(mfi);
+            Set::Patch<Set::Scalar> plastic_rhs =
+                plastic_rhs_mf->array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                const auto sten = Numeric::GetStencil(i, j, k, domain);
+                const Set::Vector vel(
+                    AMREX_D_DECL(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2)));
+                for (int n = 0; n < crystal_plastic_state_components; ++n)
+                {
+                    const Set::Vector grad_state = Numeric::Gradient(
+                        plastic, i, j, k, n, dx.data(), sten);
+                    plastic_rhs(i,j,k,n) = -vel.dot(grad_state);
+                }
+
+                const Set::Scalar eta_val =
+                    Util::Clamp(eta(i,j,k), 0.0, 1.0);
+                if (eta_val <= eta_threshold) return;
+                const Set::Scalar solid_weight = Util::SmootherStep(
+                    (eta_val - eta_threshold) /
+                    Util::Max(1.0 - eta_threshold, 1.0e-12));
+
+                const Set::Scalar phase = phase_enabled ?
+                    Util::Clamp(plastic(i,j,k,ap_phase_component),0.0,1.0) : 1.0;
+                if (phase_enabled)
+                {
+                    const Set::Scalar thermal_target = 0.5 *
+                        (1.0 - std::tanh((temperature(i,j,k) -
+                            transition_temperature) / temperature_width));
+                    const Set::Scalar pressure_target = 0.5 *
+                        (1.0 - std::tanh((pressure(i,j,k) -
+                            transition_pressure) / pressure_width));
+                    const Set::Scalar equilibrium_phase =
+                        thermal_target * pressure_target;
+                    plastic_rhs(i,j,k,ap_phase_component) += solid_weight *
+                        (equilibrium_phase - phase) / phase_relaxation_time;
+                }
+
+                const Set::Matrix grad_xi = Numeric::Gradient(
+                    xi, i, j, k, dx.data(), sten);
+                if (Util::Abs(grad_xi.determinant()) <= det_floor) return;
+                const Set::Matrix F = grad_xi.inverse();
+                if (Util::Abs(F.determinant()) <= det_floor) return;
+
+                Set::Matrix3d Fp = Set::Matrix3d::Zero();
+                for (int a = 0; a < 3; ++a)
+                    for (int b = 0; b < 3; ++b)
+                        Fp(a,b) = plastic(i,j,k,3*a+b);
+                if (Set::reduce(Fp).determinant() <= det_floor) return;
+
+                auto cell_model = crystal_model;
+                auto cubic_cell_model = cubic_model;
+                cell_model.Fp = Fp;
+                cubic_cell_model.Fp = Fp;
+                for (int alpha = 0; alpha < 12; ++alpha)
+                {
+                    cell_model.gamma(alpha) = plastic(
+                        i,j,k,orthorhombic_slip_component+alpha);
+                    cubic_cell_model.gamma(alpha) = plastic(
+                        i,j,k,cubic_slip_component+alpha);
+                }
+                const auto rate = cell_model.Rate(F, Fp, time, temperature(i,j,k));
+                const auto cubic_rate = phase_enabled ?
+                    cubic_cell_model.Rate(F, Fp, time, temperature(i,j,k)) : rate;
+                for (int a = 0; a < 3; ++a)
+                    for (int b = 0; b < 3; ++b)
+                        plastic_rhs(i,j,k,3*a+b) += solid_weight *
+                            (phase*rate.Fp(a,b) +
+                             (1.0-phase)*cubic_rate.Fp(a,b));
+                for (int alpha = 0; alpha < 12; ++alpha)
+                {
+                    plastic_rhs(
+                        i,j,k,orthorhombic_slip_component+alpha) +=
+                        solid_weight * phase * Util::Abs(rate.gamma(alpha));
+                    if (phase_enabled)
+                        plastic_rhs(
+                            i,j,k,cubic_slip_component+alpha) +=
+                            solid_weight * (1.0-phase) *
+                            Util::Abs(cubic_rate.gamma(alpha));
+                }
+            });
+        }
+        plastic_rhs_mf->FillBoundary(geom[lev].periodicity());
+    }
+#endif
+
     u_rhs_mf.FillBoundary(geom[lev].periodicity());
 }
 
@@ -2637,6 +3257,10 @@ void
 LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     const bool deformable_solid = deformable_solid_species >= 0;
+    const bool crystal_plastic =
+        deformable_solid && solid_model_type == SolidModelType::CrystalPlastic;
+    const int xi_index = deformable_solid ? 3 : -1;
+    const int plastic_index = crystal_plastic ? 4 : -1;
     const bool split_chemistry = chemistry.Split();
     if (split_chemistry && time == t_new[0])
         chemistry_dilatation_mf[lev]->setVal(0.0);
@@ -2645,6 +3269,9 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(component_density_old_mf[lev], component_density_mf[lev]);
     if (deformable_solid)
         std::swap(xi_old_mf[lev], xi_mf[lev]);
+    if (crystal_plastic)
+        std::swap(crystal_plastic_state_old_mf[lev],
+                  crystal_plastic_state_mf[lev]);
 
     if (split_chemistry)
     {
@@ -2664,6 +3291,10 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     solution_new.emplace_back(*component_density_mf[lev].get(), amrex::MakeType::make_alias, 0, nspecies);
     if (deformable_solid)
         solution_new.emplace_back(*xi_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
+    if (crystal_plastic)
+        solution_new.emplace_back(*crystal_plastic_state_mf[lev].get(),
+                                  amrex::MakeType::make_alias, 0,
+                                  crystal_plastic_state_components);
 
     amrex::Vector<amrex::MultiFab> solution_old;
     solution_old.emplace_back(*velocity_old_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
@@ -2671,6 +3302,10 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     solution_old.emplace_back(*component_density_old_mf[lev].get(), amrex::MakeType::make_alias, 0, nspecies);
     if (deformable_solid)
         solution_old.emplace_back(*xi_old_mf[lev].get(), amrex::MakeType::make_alias, 0, AMREX_SPACEDIM);
+    if (crystal_plastic)
+        solution_old.emplace_back(*crystal_plastic_state_old_mf[lev].get(),
+                                  amrex::MakeType::make_alias, 0,
+                                  crystal_plastic_state_components);
 
     velocity_bc->define(geom[lev]);
     temperature_bc->define(geom[lev]);
@@ -2691,18 +3326,25 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         state_mf[2].FillBoundary(geom[lev].periodicity());
         if (deformable_solid)
         {
-            xi_bc->FillBoundary(state_mf[3], 0, AMREX_SPACEDIM, rhs_time, 0);
-            state_mf[3].FillBoundary(geom[lev].periodicity());
+            xi_bc->FillBoundary(state_mf[xi_index], 0, AMREX_SPACEDIM, rhs_time, 0);
+            state_mf[xi_index].FillBoundary(geom[lev].periodicity());
         }
+        if (crystal_plastic)
+            state_mf[plastic_index].FillBoundary(geom[lev].periodicity());
 
         UpdateComponentState(lev, state_mf[2]);
         if (deformable_solid)
             reference_map_reconstruction(
-                geom[lev], *eta_mf[lev], state_mf[3], *xi_bc, rhs_time);
+                geom[lev], *eta_mf[lev], state_mf[xi_index], *xi_bc, rhs_time);
+        if (crystal_plastic)
+            NormalizeCrystalPlasticState(
+                lev, state_mf[plastic_index], *eta_mf[lev]);
         RHS(lev, rhs_time, dt, rhs_mf[0], rhs_mf[1], rhs_mf[2],
-            deformable_solid ? &rhs_mf[3] : nullptr,
+            deformable_solid ? &rhs_mf[xi_index] : nullptr,
+            crystal_plastic ? &rhs_mf[plastic_index] : nullptr,
             state_mf[0], state_mf[1], state_mf[2],
-            deformable_solid ? &state_mf[3] : nullptr);
+            deformable_solid ? &state_mf[xi_index] : nullptr,
+            crystal_plastic ? &state_mf[plastic_index] : nullptr);
     });
 
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab>& stage_mf, Set::Scalar stage_time)
@@ -2715,14 +3357,19 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         stage_mf[2].FillBoundary(geom[lev].periodicity());
         if (deformable_solid)
         {
-            xi_bc->FillBoundary(stage_mf[3], 0, AMREX_SPACEDIM, stage_time, 0);
-            stage_mf[3].FillBoundary(geom[lev].periodicity());
+            xi_bc->FillBoundary(stage_mf[xi_index], 0, AMREX_SPACEDIM, stage_time, 0);
+            stage_mf[xi_index].FillBoundary(geom[lev].periodicity());
         }
+        if (crystal_plastic)
+            stage_mf[plastic_index].FillBoundary(geom[lev].periodicity());
 
         UpdateComponentState(lev, stage_mf[2]);
         if (deformable_solid)
             reference_map_reconstruction(
-                geom[lev], *eta_mf[lev], stage_mf[3], *xi_bc, stage_time);
+                geom[lev], *eta_mf[lev], stage_mf[xi_index], *xi_bc, stage_time);
+        if (crystal_plastic)
+            NormalizeCrystalPlasticState(
+                lev, stage_mf[plastic_index], *eta_mf[lev]);
     });
 
     timeintegrator.advance(solution_old, solution_new, time, dt);
@@ -2745,6 +3392,9 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
 
     UpdateComponentState(lev, *component_density_mf[lev]);
+    if (crystal_plastic)
+        NormalizeCrystalPlasticState(
+            lev, *crystal_plastic_state_mf[lev], *eta_mf[lev]);
     if (deformable_solid)
     {
         reference_map_reconstruction(
@@ -2754,13 +3404,70 @@ LowMach::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         reference_map_reconstruction(
             geom[lev], *eta_mf[lev], *xi_mf[lev], *xi_bc, new_time);
     }
+
+    // Explicit slip update at each node from the last quasi-static solve.
+    Base::Mechanics<Model::Solid::Affine::CrystalPlastic>::Advance(lev, time, dt);
+}
+
+void
+LowMach::UpdateModel(int /*step*/, Set::Scalar /*time*/)
+{
+    BL_PROFILE("Integrator::LowMach::UpdateModel");
+    if (!QuasiStaticMechanics()) return;
+    const Set::Scalar alpha = elastic_alpha;
+    const Set::Scalar T0 = elastic_temperature_reference;
+    const Set::Scalar floor = elastic_weight_floor;
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        UpdateComponentState(lev, *component_density_mf[lev]);
+        const amrex::Box domain = geom[lev].Domain();
+        const amrex::Dim3 dlo = amrex::lbound(domain), dhi = amrex::ubound(domain);
+        for (amrex::MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box bx = mfi.nodaltilebox();
+            amrex::Array4<Model::Solid::Affine::CrystalPlastic> const& model = model_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = rigid_eta_mf[lev]->const_array(mfi);
+            amrex::Array4<const Set::Scalar> const& T = temperature_mf[lev]->const_array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                // Average the cells touching this node, clamped to the domain
+                // so that unfilled exterior ghost cells are never read.
+                Set::Scalar eta_sum = 0.0, T_sum = 0.0; int count = 0;
+                for (int di = -1; di <= 0; ++di)
+                for (int dj = -1; dj <= 0; ++dj)
+#if AMREX_SPACEDIM == 3
+                for (int dk = -1; dk <= 0; ++dk)
+#else
+                for (int dk = 0; dk <= 0; ++dk)
+#endif
+                {
+                    const int ii = amrex::max(dlo.x, amrex::min(dhi.x, i + di));
+                    const int jj = amrex::max(dlo.y, amrex::min(dhi.y, j + dj));
+#if AMREX_SPACEDIM == 3
+                    const int kk = amrex::max(dlo.z, amrex::min(dhi.z, k + dk));
+#else
+                    const int kk = k;
+#endif
+                    eta_sum += Util::Clamp(eta(ii,jj,kk), 0.0, 1.0);
+                    T_sum += T(ii,jj,kk);
+                    ++count;
+                }
+                const Set::Scalar eta_node = eta_sum / count;
+                const Set::Scalar T_node = T_sum / count;
+                model(i,j,k).weight = Util::Max(floor, eta_node);
+                model(i,j,k).temperature = T_node;
+                model(i,j,k).thermal_strain = alpha * (T_node - T0);
+            });
+        }
+        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+    }
 }
 
 //
 // Calculate dynamic timestep
 //
 void
-LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+LowMach::TimeStepBegin(Set::Scalar time, int iter)
 {
     //
     // Manage restart data if starting from another simulation
@@ -2791,6 +3498,12 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             if (deformable_solid_species >= 0)
                 amrex::MultiFab::Copy(*xi_old_mf[lev], *xi_mf[lev],
                                       0, 0, AMREX_SPACEDIM, xi_mf[lev]->nGrow());
+            if (solid_model_type == SolidModelType::CrystalPlastic)
+                amrex::MultiFab::Copy(
+                    *crystal_plastic_state_old_mf[lev],
+                    *crystal_plastic_state_mf[lev], 0, 0,
+                    crystal_plastic_state_components,
+                    crystal_plastic_state_mf[lev]->nGrow());
         }
         synchronize_restart_state = false;
     }
@@ -2802,6 +3515,8 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
 
     const bool elastic = (deformable_solid_species >= 0) &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
+    const bool crystal_plastic =
+        solid_model_type == SolidModelType::CrystalPlastic;
     const auto gas_data = gas_device_data;
     for (int lev = 0; lev <= finest_level; ++lev)
     {
@@ -2809,6 +3524,7 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
         Set::Scalar viscmax = 0.0;        // maximum viscous speed
         Set::Scalar elasticmax = 0.0;     // maximum elastic speed
         Set::Scalar phasefieldmax = 0.0;  // maximum phase field speed
+        Set::Scalar plasticmax = 0.0;     // maximum slip rate
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
         Set::Scalar dxmin = std::min(dx[0], dx[1]);
@@ -2850,8 +3566,27 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
             const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
-            const Set::Scalar mu_solid = finite_solid_model.mu;
-            const Set::Scalar kappa_solid = finite_solid_model.kappa;
+            const auto crystal_mu = [](const auto& model)
+            {
+                return Util::Max(model.C44,
+                    Util::Max(model.C55,model.C66));
+            };
+            const auto crystal_kappa = [](const auto& model)
+            {
+                return Util::Max(
+                    model.C11 + Util::Abs(model.C12) + Util::Abs(model.C13),
+                    Util::Max(
+                        model.C22 + Util::Abs(model.C12) + Util::Abs(model.C23),
+                        model.C33 + Util::Abs(model.C13) + Util::Abs(model.C23)));
+            };
+            const Set::Scalar mu_solid = crystal_plastic
+                ? Util::Max(crystal_mu(crystal_plastic_model),
+                    ap_phase_enabled ? crystal_mu(cubic_crystal_plastic_model) : 0.0)
+                : finite_solid_model.mu;
+            const Set::Scalar kappa_solid = crystal_plastic
+                ? Util::Max(crystal_kappa(crystal_plastic_model),
+                    ap_phase_enabled ? crystal_kappa(cubic_crystal_plastic_model) : 0.0)
+                : finite_solid_model.kappa;
             const Set::Scalar solid_viscosity = finite_solid_viscosity;
             const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
 
@@ -2901,10 +3636,87 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             temperaturemax = std::max(temperaturemax, amrex::get<2>(hv));
         }
 
+#ifndef ALAMO_GPU
+        if (crystal_plastic)
+        {
+            const auto crystal_model = crystal_plastic_model;
+            const auto cubic_model = cubic_crystal_plastic_model;
+            const bool phase_enabled = ap_phase_enabled;
+            const auto domain = geom[lev].Domain();
+            const Set::Scalar eta_threshold =
+                Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
+            const Set::Scalar det_floor =
+                Util::Max(small, finite_solid_J_floor);
+            for (amrex::MFIter mfi(*crystal_plastic_state_mf[lev], false);
+                 mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.validbox();
+                Set::Patch<const Set::Scalar> eta =
+                    eta_mf[lev]->const_array(mfi);
+                Set::Patch<const Set::Scalar> T =
+                    temperature_mf[lev]->const_array(mfi);
+                Set::Patch<const Set::Scalar> xi =
+                    xi_mf[lev]->const_array(mfi);
+                Set::Patch<const Set::Scalar> plastic =
+                    crystal_plastic_state_mf[lev]->const_array(mfi);
+                amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+                amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+                using ReduceTuple = typename decltype(reduce_data)::Type;
+                reduce_op.eval(bx, reduce_data,
+                    [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
+                {
+                    if (eta(i,j,k) <= eta_threshold) return {0.0};
+                    const auto sten = Numeric::GetStencil(i, j, k, domain);
+                    const Set::Matrix grad_xi = Numeric::Gradient(
+                        xi, i, j, k, dx.data(), sten);
+                    if (Util::Abs(grad_xi.determinant()) <= det_floor)
+                        return {0.0};
+                    const Set::Matrix F = grad_xi.inverse();
+                    Set::Matrix3d Fp = Set::Matrix3d::Zero();
+                    for (int a = 0; a < 3; ++a)
+                        for (int b = 0; b < 3; ++b)
+                            Fp(a,b) = plastic(i,j,k,3*a+b);
+                    if (Set::reduce(Fp).determinant() <= det_floor)
+                        return {0.0};
+                    auto cell_model = crystal_model;
+                    auto cubic_cell_model = cubic_model;
+                    cell_model.Fp = Fp;
+                    cubic_cell_model.Fp = Fp;
+                    for (int alpha = 0; alpha < 12; ++alpha)
+                    {
+                        cell_model.gamma(alpha) = plastic(
+                            i,j,k,orthorhombic_slip_component+alpha);
+                        cubic_cell_model.gamma(alpha) = plastic(
+                            i,j,k,cubic_slip_component+alpha);
+                    }
+                    const auto rate = cell_model.Rate(F, Fp, time, T(i,j,k));
+                    const auto cubic_rate = phase_enabled ?
+                        cubic_cell_model.Rate(F, Fp, time, T(i,j,k)) : rate;
+                    const Set::Scalar phase = phase_enabled ?
+                        Util::Clamp(plastic(i,j,k,ap_phase_component),0.0,1.0) : 1.0;
+                    Set::Scalar max_rate = 0.0;
+                    for (int alpha = 0; alpha < 12; ++alpha)
+                    {
+                        max_rate = Util::Max(max_rate,
+                            phase * Util::Abs(rate.gamma(alpha)));
+                        if (phase_enabled)
+                            max_rate = Util::Max(max_rate,
+                                (1.0-phase) *
+                                Util::Abs(cubic_rate.gamma(alpha)));
+                    }
+                    return {max_rate};
+                });
+                plasticmax = Util::Max(
+                    plasticmax, amrex::get<0>(reduce_data.value()));
+            }
+        }
+#endif
+
         // Update dynamic timesteps
         amrex::ParallelDescriptor::ReduceRealMax(advmax);
         amrex::ParallelDescriptor::ReduceRealMax(viscmax);
         amrex::ParallelDescriptor::ReduceRealMax(elasticmax);
+        amrex::ParallelDescriptor::ReduceRealMax(plasticmax);
         amrex::ParallelDescriptor::ReduceRealMax(temperaturemax);
         for (const auto& mechanism : mechanisms)
             if (mechanism.RigidComponent() < 0)
@@ -2919,10 +3731,19 @@ LowMach::TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
             elasticmax > 0.0 ? cfl / elasticmax : cfl_v;
         Set::Scalar phasefield_dt = phasefieldmax > 0.0 ?
             phase_field_cfl / phasefieldmax : cfl_v;
+        Set::Scalar plastic_dt = plasticmax > 0.0 ?
+            crystal_plastic_cfl * crystal_plastic_max_slip_increment /
+                plasticmax : cfl_v;
+        Set::Scalar ap_phase_dt = ap_phase_enabled ?
+            ap_phase_cfl * ap_phase_relaxation_time : cfl_v;
         DynamicTimestep_SyncTimeStep(
-            lev, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt}));
+            lev, std::min({adv_dt, visc_dt, elastic_dt, phasefield_dt,
+                           plastic_dt, ap_phase_dt}));
     }
     DynamicTimestep_Update();
+
+    // Quasi-static solve with the current temperature and solid fraction.
+    Base::Mechanics<Model::Solid::Affine::CrystalPlastic>::TimeStepBegin(time, iter);
 }
 
 
@@ -3039,13 +3860,70 @@ LowMach::TimeStepComplete(Set::Scalar time, int iter)
 }
 
 void
+LowMach::UpdateAPPhaseDiagnostic(int lev)
+{
+    if (!ap_phase_diagnostic_enabled) return;
+
+    const int species = ap_phase_diagnostic_species;
+    const Set::Scalar inverse_reference_density =
+        1.0 / reference_density[species];
+    const Set::Scalar transition_temperature =
+        ap_phase_diagnostic_transition_temperature;
+    const Set::Scalar temperature_width = ap_phase_diagnostic_temperature_width;
+    const Set::Scalar transition_pressure = ap_phase_diagnostic_transition_pressure;
+    const Set::Scalar pressure_width = ap_phase_diagnostic_pressure_width;
+
+    for (amrex::MFIter mfi(*ap_phase_eta_mf[lev], true);
+         mfi.isValid(); ++mfi)
+    {
+        const amrex::Box bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> phase_eta =
+            ap_phase_eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temperature =
+            temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> pressure =
+            pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> component_density =
+            component_density_mf.Patch(lev,mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            const Set::Scalar occupancy = Util::Clamp(
+                component_density(i,j,k,species) * inverse_reference_density,
+                0.0, 1.0);
+            const Set::Scalar temperature_orthorhombic = 0.5 *
+                (1.0 - std::tanh((temperature(i,j,k) -
+                    transition_temperature) / temperature_width));
+            const Set::Scalar pressure_orthorhombic = 0.5 *
+                (1.0 - std::tanh((pressure(i,j,k) -
+                    transition_pressure) / pressure_width));
+            phase_eta(i,j,k) = occupancy * temperature_orthorhombic *
+                pressure_orthorhombic;
+        });
+    }
+}
+
+void
 LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*/)
 {
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         UpdateComponentState(lev, *component_density_mf[lev]);
+        UpdateAPPhaseDiagnostic(lev);
         if (deformable_solid_species >= 0)
-            UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+        {
+            if (solid_model_type == SolidModelType::CrystalPlastic)
+            {
+                NormalizeCrystalPlasticState(
+                    lev, *crystal_plastic_state_mf[lev], *eta_mf[lev]);
+                UpdateCrystalPlasticTotalSlip(lev);
+            }
+            UpdateSolidStress(
+                lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev],
+                solid_model_type == SolidModelType::CrystalPlastic
+                    ? crystal_plastic_state_mf[lev].get() : nullptr,
+                diagnostics_extended_fields);
+        }
         UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
     }
 }

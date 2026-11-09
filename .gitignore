@@ -69,3 +69,29 @@ alamo.py
 /*_frames/
 /preview.html
 Working_files/*
+# Rendered test visualizations and run logs; keep the scripts, inputs, and
+# small data files (json/csv/cfg/cif) that regenerate them.
+tests/**/*.png
+tests/**/*.gif
+tests/**/*.mp4
+tests/**/*.webm
+tests/**/*.jpg
+tests/**/*.out
+tests/**/*.py
+AP_crystal/*.py
+AP_crystal/**
+# New AP crystal-plasticity test folders (local only)
+/tests/APCrystalPlasticityTopPressure/
+/tests/LMRFMonoAPCrystalPlasticity/
+/tests/LMRFMonoAPCrystalPlasticityShear/
+/tests/LMRFMonoAPCrystalPlasticitySidePressure/
+/tests/LMRFMonoAPCrystalPlasticitySustainedBurn/
+/tests/LMRFMonoAPCrystalPlasticityZeroLoad/
+/tests/LMRFMonoAPSustainedBurn/
+/tests/LMRFMonoAPSustainedBurnCrystalPlasticity/
+/tests/LMRFMonoAPSustainedBurnCrystalPlasticityHighTemperature/
+/tests/LMRFMonoAPSustainedBurnHighTemperature/
+/tests/LowMachAPCrystalPlasticity/
+/tests/LowMachAPPhaseTransition/
+/tests/LowMachAPThermoelasticCP/
+/tests/LowMachCrystalPlasticity/
