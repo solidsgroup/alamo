@@ -436,16 +436,18 @@ Diffusion::TensorMobility(int lev, int ncomp)
 void
 Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::BCRec& boundary_condition, int ncomp,
-                bool use_tensor_mobility, bool include_source)
+                bool use_tensor_mobility, bool include_source,
+                FaceFluxes* integrated_fluxes)
 {
     Solve(time, dt, amrex::Vector<amrex::BCRec>(ncomp, boundary_condition),
-        ncomp, use_tensor_mobility, include_source);
+        ncomp, use_tensor_mobility, include_source, integrated_fluxes);
 }
 
 void
 Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
                 const amrex::Vector<amrex::BCRec>& boundary_conditions,
-                int ncomp, bool use_tensor_mobility, bool include_source)
+                int ncomp, bool use_tensor_mobility, bool include_source,
+                FaceFluxes* integrated_fluxes)
 {
     BL_PROFILE("Operator::Diffusion::Solve");
     Util::Assert(INFO,
@@ -765,6 +767,27 @@ Diffusion::Solve(Set::Scalar time, Set::Scalar dt,
     try
     {
         solver.solve(state_pointer, rhs_pointer, tolerance_relative, tolerance_absolute);
+        if (integrated_fluxes != nullptr)
+        {
+            Util::Assert(INFO, TEST(!use_tensor_mobility),
+                "Flux extraction currently requires scalar diffusion mobility");
+            integrated_fluxes->resize(nlevels);
+            amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> flux_ptr(nlevels);
+            for (int lev = 0; lev < nlevels; ++lev)
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                {
+                    auto& flux = (*integrated_fluxes)[lev][d];
+                    flux.define(amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(d)),
+                                distribution_mapping[lev], ncomp, 0);
+                    flux_ptr[lev][d] = &flux;
+                }
+            // MLCellABecLap::getFluxes removes the operator's b scalar,
+            // so convert the returned rates to time-integrated fluxes.
+            solver.getFluxes(flux_ptr);
+            for (auto& level_flux : *integrated_fluxes)
+                for (auto& flux : level_flux)
+                    flux.mult(dt);
+        }
     }
     catch (const amrex::MLMG::error& error)
     {
