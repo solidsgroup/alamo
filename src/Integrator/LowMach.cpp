@@ -1544,6 +1544,13 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
     //
     if (species_diffusion == DiffusionMode::Implicit)
     {
+        // After solving the mass balances, enforce
+        // H(r_new,T_new) = H(r_old,T_old) - div(sum_n h_n(T_old)*dt*J_n).
+        // Face enthalpies are lagged; only the cellwise temperature inversion
+        // is nonlinear. The subsequent conduction solve starts from this T.
+        const bool transport_enthalpy = ngas > 1;
+        Set::Field<Set::Scalar> enthalpy_target(nlev);
+        Operator::Diffusion::FaceFluxes species_fluxes;
         diffusion.SetLayout(
             geom, refRatio(), component_density_mf, nlev, ngas_species);
         for (int lev = 0; lev < nlev; ++lev)
@@ -1609,9 +1616,14 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         for (int n = 0; n < ngas_species; ++n)
             species_boundary_conditions[n] = component_density_bc->GetBCRec(n);
         diffusion.Solve(
-            time, dt, species_boundary_conditions, ngas_species);
+            time, dt, species_boundary_conditions, ngas_species,
+            false, false, transport_enthalpy ? &species_fluxes : nullptr);
         for (int lev = 0; lev < nlev; ++lev)
         {
+            if (transport_enthalpy)
+                enthalpy_target[lev] = std::make_unique<amrex::MultiFab>(
+                    component_density_mf[lev]->boxArray(),
+                    component_density_mf[lev]->DistributionMap(), 1, 0);
             const amrex::MultiFab& state = diffusion.State(lev, ngas_species);
             for (amrex::MFIter mfi(*component_density_mf[lev],
                                     amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -1620,10 +1632,16 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
                 Set::Patch<Set::Scalar> component_density =
                     component_density_mf.Patch(lev,mfi);
                 Set::Patch<const Set::Scalar> Y = state.array(mfi);
+                const auto T = temperature_mf[lev]->const_array(mfi);
+                const amrex::Array4<Set::Scalar> target = transport_enthalpy ?
+                    enthalpy_target[lev]->array(mfi) : amrex::Array4<Set::Scalar>{};
                 const int ngas = ngas_species;
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    if (transport_enthalpy)
+                        target(i,j,k) = ComputeSensibleEnthalpy(
+                            component_density, T(i,j,k), i, j, k, thermal);
                     Set::Scalar gas_density = 0.0;
                     for (int n = 0; n < ngas; ++n)
                         gas_density += component_density(i,j,k,n);
@@ -1635,6 +1653,72 @@ LowMach::ApplyImplicitDiffusion(Set::Scalar time, Set::Scalar dt)
         diffusion.Synchronize(component_density_mf, ngas_species);
         diffusion.FillBoundary(
             component_density_mf, *component_density_bc, time, nspecies);
+
+        if (transport_enthalpy)
+        {
+            // Use the actual solved mass fluxes and one face enthalpy for
+            // both neighboring cells. Species reference enthalpies cancel
+            // through their conservative mass balances, so use 300 K sensible
+            // enthalpy to avoid subtracting large formation energies.
+            Operator::Diffusion::FaceFluxes heat_fluxes(nlev);
+            for (int lev = 0; lev < nlev; ++lev)
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                {
+                    auto& energy_flux = heat_fluxes[lev][d];
+                    energy_flux.define(species_fluxes[lev][d].boxArray(),
+                                       species_fluxes[lev][d].DistributionMap(), 1, 0);
+                    const int di = d == 0, dj = d == 1, dk = d == 2;
+                    for (amrex::MFIter mfi(energy_flux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                    {
+                        const auto T = temperature_mf[lev]->const_array(mfi);
+                        const auto mass_flux = species_fluxes[lev][d].const_array(mfi);
+                        const auto heat_flux = energy_flux.array(mfi);
+                        amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            Set::Scalar flux = 0.0;
+                            for (int n = 0; n < ngas; ++n)
+                            {
+                                const Set::Scalar h_face = 0.5 *
+                                    (Model::Gas::Gas::EnthalpyMassSpecies(gas_data, T(i,j,k), n) +
+                                     Model::Gas::Gas::EnthalpyMassSpecies(gas_data, T(i-di,j-dj,k-dk), n)) -
+                                    Model::Gas::Gas::EnthalpyMassSpecies(gas_data, 300.0, n);
+                                flux += h_face * mass_flux(i,j,k,n);
+                            }
+                            heat_flux(i,j,k) = flux; // time-integrated enthalpy flux
+                        });
+                    }
+                }
+            for (int lev = nlev - 2; lev >= 0; --lev)
+                amrex::average_down_faces(amrex::GetArrOfConstPtrs(heat_fluxes[lev+1]),
+                    amrex::GetArrOfPtrs(heat_fluxes[lev]), refRatio(lev), geom[lev]);
+
+            for (int lev = 0; lev < nlev; ++lev)
+            {
+                const auto dx = geom[lev].CellSizeArray();
+                for (amrex::MFIter mfi(*temperature_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    const auto density = component_density_mf[lev]->const_array(mfi);
+                    const auto target = enthalpy_target[lev]->const_array(mfi);
+                    const auto T = temperature_mf[lev]->array(mfi);
+                    amrex::GpuArray<amrex::Array4<const Set::Scalar>, AMREX_SPACEDIM> flux;
+                    for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                        flux[d] = heat_fluxes[lev][d].const_array(mfi);
+                    amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar energy = target(i,j,k);
+                        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                            energy -= (flux[d](i+(d==0),j+(d==1),k+(d==2)) -
+                                       flux[d](i,j,k)) / dx[d];
+                        Set::Scalar temperature = T(i,j,k);
+                        if (!RecoverEnthalpyTemperature(density, energy, temperature, i,j,k, thermal))
+                            Util::Abort(INFO, "Species enthalpy transport failed to recover positive temperature; reduce timestep");
+                        T(i,j,k) = temperature;
+                    });
+                }
+            }
+            diffusion.Synchronize(temperature_mf, 1);
+            diffusion.FillBoundary(temperature_mf, *temperature_bc, time, 1);
+        }
     }
 
     //
