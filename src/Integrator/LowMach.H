@@ -122,6 +122,18 @@ public:
         const ThermalData& data);
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static Set::Scalar ComputeSensibleEnthalpy(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar temperature, int i, int j, int k,
+        const ThermalData& data);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static bool RecoverEnthalpyTemperature(
+        Set::Patch<const Set::Scalar> component_density,
+        Set::Scalar target, Set::Scalar& temperature,
+        int i, int j, int k, const ThermalData& data);
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static
     amrex::GpuTuple<Model::Chemistry::SpeciesArray, Set::Scalar /*temperature*/, Set::Scalar /*dilatation*/>
     ComputeThermochemicalSource(

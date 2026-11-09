@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstring>
+#include <limits>
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_TimeIntegrator.H"
@@ -1116,6 +1117,85 @@ LowMach::ComputeThermalState(
     }
     return {gas_volume_fraction, gas_heat_capacity, heat_capacity,
             conductivity, cp};
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+Set::Scalar
+LowMach::ComputeSensibleEnthalpy(
+    Set::Patch<const Set::Scalar> density, Set::Scalar temperature,
+    int i, int j, int k, const ThermalData& data)
+{
+    const auto& gas_data = amrex::get<0>(data);
+    const int nspecies = amrex::get<1>(data);
+    const int ngas = amrex::get<2>(data);
+    Set::Scalar gas_density = 0.0, total_density = 0.0, enthalpy = 0.0;
+    for (int n = 0; n < nspecies; ++n)
+    {
+        const Set::Scalar r = density(i,j,k,n);
+        total_density += r;
+        if (n < ngas)
+        {
+            gas_density += r;
+            enthalpy += r * (Model::Gas::Gas::EnthalpyMassSpecies(gas_data, temperature, n) -
+                            Model::Gas::Gas::EnthalpyMassSpecies(gas_data, 300.0, n));
+        }
+        else if (amrex::get<5>(data))
+            enthalpy += r * amrex::get<6>(data)[n] * (temperature - 300.0);
+    }
+    if (!amrex::get<5>(data))
+    {
+        // Match ComputeThermalState's full-mixture gas-cp fallback.
+        if (gas_density > 0.0) enthalpy *= total_density / gas_density;
+        else enthalpy = total_density *
+            (Model::Gas::Gas::EnthalpyMassSpecies(gas_data, temperature, 0) -
+             Model::Gas::Gas::EnthalpyMassSpecies(gas_data, 300.0, 0));
+    }
+    return enthalpy;
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+bool
+LowMach::RecoverEnthalpyTemperature(
+    Set::Patch<const Set::Scalar> density, Set::Scalar target,
+    Set::Scalar& temperature, int i, int j, int k, const ThermalData& data)
+{
+    for (int iteration = 0; iteration < 40; ++iteration)
+    {
+        // Use the same heat capacity as ComputeThermalState without
+        // evaluating conductivity and phase accessibility on every iteration.
+        const Set::Scalar cp = Model::Gas::Gas::CpMass(
+            amrex::get<0>(data), temperature, density, i, j, k);
+        Set::Scalar capacity = 0.0;
+        for (int n = 0; n < amrex::get<1>(data); ++n)
+            capacity += Util::Max(density(i,j,k,n), 0.0) *
+                (n < amrex::get<2>(data) || !amrex::get<5>(data) ?
+                    cp : amrex::get<6>(data)[n]);
+        const Set::Scalar residual = ComputeSensibleEnthalpy(
+            density, temperature, i, j, k, data) - target;
+        const Set::Scalar tolerance = 64.0 * std::numeric_limits<Set::Scalar>::epsilon() *
+            Util::Max(1.0, Util::Max(Util::Abs(target), Util::Abs(capacity * temperature)));
+        if (std::isfinite(residual) && Util::Abs(residual) <= tolerance) return true;
+        if (!(capacity > 0.0) || !std::isfinite(residual)) return false;
+        Set::Scalar change = Util::Clamp(-residual / capacity, -0.5 * temperature, temperature);
+        bool accepted = false;
+        for (int damping = 0; damping < 24; ++damping)
+        {
+            const Set::Scalar trial = temperature + change;
+            const Set::Scalar trial_residual = ComputeSensibleEnthalpy(
+                density, trial, i, j, k, data) - target;
+            if (trial > 0.0 && std::isfinite(trial_residual) &&
+                (Util::Abs(trial_residual) < Util::Abs(residual) ||
+                 Util::Abs(trial_residual) <= tolerance))
+            {
+                temperature = trial;
+                accepted = true;
+                break;
+            }
+            change *= 0.5;
+        }
+        if (!accepted) return false;
+    }
+    return false;
 }
 
 void
