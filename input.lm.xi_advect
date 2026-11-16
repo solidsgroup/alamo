@@ -35,8 +35,9 @@ ambient_gas.mechanics = fluid
 solid.mechanics = deformable_solid
 
 cfl = 0.25
-include_viscosity = 0
-include_conduction = 0
+viscosity = 0
+thermal_diffusion = 0
+species_diffusion = 1  # 0 off, 1 explicit, 2 implicit
 advect_temperature = 0
 projection.enabled = 0
 

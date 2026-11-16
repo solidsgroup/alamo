@@ -23,6 +23,8 @@ namespace Operator
 /// for one or more cell-centered components sharing the coefficients. Scalar
 /// mobility uses b I; tensor mobility adds a full symmetric tensor B. This
 /// class owns the AMReX solve data and all coarse/fine bookkeeping.
+/// Set diffusion.dump_on_fail=1 to capture coefficients, right-hand sides,
+/// boundary data, and original/failed guesses when MLMG reports a failure.
 class Diffusion
 {
 public:
@@ -75,6 +77,7 @@ private:
     Set::Scalar tolerance_absolute = 1.0e-12;
     int verbose = 0;
     int max_order = 2;
+    bool dump_on_fail = false;
     amrex::Vector<amrex::Geometry> geometry;
     amrex::Vector<amrex::IntVect> refinement_ratio;
     amrex::Vector<amrex::BoxArray> grids;

@@ -54,6 +54,8 @@ class LowMach : virtual public Integrator,
 {
 public:
     static constexpr const char* name = "lowmach";
+    enum class DiffusionMode : int { Off = 0, Explicit = 1, Implicit = 2 };
+
     using Chemistry = Model::Chemistry::Chemistry<
         Model::Chemistry::Frozen,
         Model::Chemistry::FiniteRate,
@@ -102,6 +104,7 @@ public:
     void TimeStepComplete(Set::Scalar time, int iter) override;
     void PreparePlotFile(Set::Scalar time, const amrex::Vector<int>& iter) override;
     void PrintDiagnostics(Set::Scalar time, int iter);
+    void PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const char* stage);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
@@ -135,7 +138,7 @@ public:
         bool, Model::Chemistry::Rocfire, Chemistry::ODESolver,
         const Chemistry*, const Model::Gas::Gas*>;
     using ThermochemicalData = amrex::GpuTuple<
-        ThermalData, ChemistryData, bool, bool, bool>;
+        ThermalData, ChemistryData, DiffusionMode, DiffusionMode>;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static amrex::GpuTuple<
@@ -301,14 +304,14 @@ protected:
     Set::Scalar reinitialize_condensed_composition_eta_min = 0.99;
     int diagnostics_interval = 0;
     bool diagnostics_extended_fields = false;
+    bool diagnostics_stages = false;
+    Set::Scalar diagnostics_start_time = 0.0;
     bool reinitialize_condensed_composition = false;
     bool projection_enabled = true;
     bool projection_update_pressure = true;
-    bool include_viscosity = true;
-    bool include_conduction = true;
-    bool implicit_momentum_diffusion = false;
-    bool implicit_thermal_diffusion = false;
-    bool implicit_species_diffusion = false;
+    DiffusionMode viscosity = DiffusionMode::Explicit;
+    DiffusionMode thermal_diffusion = DiffusionMode::Explicit;
+    DiffusionMode species_diffusion = DiffusionMode::Explicit;
     bool condensed_thermal_transport = false;
     bool advect_temperature = true;
     Set::Scalar finite_solid_reference_density = 1.0;

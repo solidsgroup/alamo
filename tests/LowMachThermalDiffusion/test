@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Check the discrete heat flux, backward-Euler residual, and explicit CFL."""
+import glob
+from pathlib import Path
+import sys
+
+import numpy as np
+import yt
+
+outdir = Path(sys.argv[1])
+plots = sorted(glob.glob(str(outdir / '*cell')))
+assert len(plots) == 2, f'Expected initial and one-step plots, got {plots}'
+
+def load(path):
+    ds = yt.load(path)
+    grid = ds.covering_grid(0, ds.domain_left_edge, ds.domain_dimensions)
+    return ds, np.asarray(grid[('boxlib', 'temperature')])[:, :, 0]
+
+initial, old = load(plots[0])
+final, new = load(plots[-1])
+dt = float(final.current_time - initial.current_time)
+assert dt > 0.0
+dx = np.asarray(initial.domain_width[:2]) / old.shape
+conductivity = 1.0 + 0.01 * old
+
+def conduction(temperature):
+    source = np.zeros_like(old)
+    diagonal = np.zeros_like(old)
+    for axis in (0, 1):
+        neighbor_high = np.roll(conductivity, -1, axis)
+        neighbor_low = np.roll(conductivity, 1, axis)
+        high = 2.0 * conductivity * neighbor_high / (conductivity + neighbor_high)
+        low = 2.0 * conductivity * neighbor_low / (conductivity + neighbor_low)
+        source += (high * (np.roll(temperature, -1, axis) - temperature) -
+                   low * (temperature - np.roll(temperature, 1, axis))) / dx[axis]**2
+        diagonal += (high + low) / dx[axis]**2
+    return source, diagonal
+
+name = outdir.name
+np.testing.assert_allclose(new.mean(), old.mean(), rtol=0.0, atol=1.0e-9)
+if name.endswith('-off'):
+    np.testing.assert_allclose(new, old, rtol=0.0, atol=1.0e-10)
+elif name.endswith('-implicit'):
+    residual = new - old - dt * conduction(new)[0]
+    np.testing.assert_allclose(residual, 0.0, rtol=0.0, atol=2.0e-8)
+else:
+    source, diagonal = conduction(old)
+    np.testing.assert_allclose(new, old + dt * source, rtol=0.0, atol=1.0e-9)
+    if name.endswith('-dynamic'):
+        np.testing.assert_allclose(dt, 0.8 / diagonal.max(), rtol=1.0e-9)
+        assert dt < 0.001, 'Dynamic diffusion bound did not limit the initial step'
+assert np.isfinite(new).all()
+print('Thermal diffusion flux, heat balance, and mode check passed')

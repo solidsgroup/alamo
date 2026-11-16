@@ -91,7 +91,8 @@ SRC = \
 	src/Operator/PressurePoisson.cpp \
 	src/Set/Set.cpp \
 	src/Util/Debug.cpp \
-	src/Util/Util.cpp
+	src/Util/Util.cpp \
+	src/Util/Zephyr.cpp
 SRC_MAIN = src/lowmach.cc
 else
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )

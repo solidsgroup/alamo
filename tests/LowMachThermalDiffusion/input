@@ -1,0 +1,99 @@
+#@ [2d-explicit]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@
+#@ [2d-implicit]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = thermal_diffusion=2
+#@ args = diffusion.tol_rel=1.0e-12
+#@ args = diffusion.tol_abs=1.0e-12
+#@
+#@ [2d-off]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = thermal_diffusion=0
+#@
+#@ [2d-dynamic]
+#@ exe = lowmach
+#@ dim = 2
+#@ timeout = 120
+#@ args = timestep=0.1
+#@ args = dynamictimestep.on=1
+#@ args = dynamictimestep.min=1.0e-12
+#@ args = dynamictimestep.max=0.1
+#@
+# One forward-Euler step of periodic conduction with k(T)=1+0.01*T.
+# Constant rho=1 kg/m^3 and cp=1 J/kg/K make the heat capacity 1 J/m^3/K.
+# Both spatial directions vary, exposing the flux-gradient term and CFL sum.
+plot_file = tests/LowMachThermalDiffusion/output
+amr.n_cell = 16 16
+amr.max_level = 0
+amr.max_grid_size = 16
+amr.blocking_factor = 4
+amr.regrid_int = -1
+amr.plot_int = 1
+timestep = 1.0e-5_s
+stop_time = 1.0_s
+max_step = 1
+integration.type = RungeKutta
+integration.rk.type = 1
+geometry.prob_lo = 0.0_m 0.0_m 0.0
+geometry.prob_hi = 1.0_m 1.0_m 0.0
+geometry.is_periodic = 1 1 0
+system.amount = kmol
+gas.mw = 28.0_g/mol
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 28.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 28.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 0.01_W/m/K^2
+gas.transport.rocfire.lambda_b = 1.0_W/m/K
+gas.eos.type = cpg
+species.names = gas1
+gas1.mechanics = fluid
+gas1.density.ic.type = constant
+gas1.density.ic.constant.value = 1.0  # kg/m^3; Constant IC takes SI numbers
+chemistry.model.type = frozen
+chemistry.solver.type = forward_euler
+advection.type = upwind
+cfl = 0.8
+viscosity = 0
+thermal_diffusion = 1
+species_diffusion = 0
+advect_temperature = 1
+projection.enabled = 0
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+temperature.ic.type = expression
+temperature.ic.expression.region0 = "300.0+20.0*sin(6.283185307179586*x)*cos(6.283185307179586*y)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 100000.0  # Pa; Constant IC takes SI numbers
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = periodic
+component_density.bc.constant.type.xhi = periodic
+component_density.bc.constant.type.ylo = periodic
+component_density.bc.constant.type.yhi = periodic
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = periodic
+temperature.bc.constant.type.xhi = periodic
+temperature.bc.constant.type.ylo = periodic
+temperature.bc.constant.type.yhi = periodic
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = periodic
+velocity.bc.constant.type.xhi = periodic
+velocity.bc.constant.type.ylo = periodic
+velocity.bc.constant.type.yhi = periodic
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = periodic
+pressure.bc.constant.type.xhi = periodic
+pressure.bc.constant.type.ylo = periodic
+pressure.bc.constant.type.yhi = periodic

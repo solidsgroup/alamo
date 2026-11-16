@@ -13,7 +13,9 @@ match = re.search(r"-(\d)MPa(?:-|$)", outdir)
 if not match:
     raise RuntimeError(f"Could not determine pressure from {outdir}")
 
-plotfiles = sorted(glob.glob(f"{outdir}/*cell/"))
+# Step numbers have a minimum width, so lexical ordering fails at 100000.
+plotfiles = sorted(glob.glob(f"{outdir}/*cell/"),
+                   key=lambda path: int(Path(path).name.removesuffix("cell")))
 if len(plotfiles) < 3:
     raise RuntimeError("LMRFMonoAP requires at least three plotfiles")
 
