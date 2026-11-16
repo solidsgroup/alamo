@@ -210,15 +210,15 @@ protected:
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,bool evolving=true,std::vector<std::string> suffix = {});
     /// Add a new node-based scalar field (wtih additional arguments)
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,bool evolving=true, std::vector<std::string> suffix = {});
-    template<class T>
+    template<class T, class Role>
     /// Add a templated nodal field
-    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
-    template<class T>
+    void RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, bool evolving = true);
+    template<class T, class Role>
     /// Add a templated nodal field (additional arguments)
-    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
-    template<class T>
+    void RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
+    template<class T, class Role>
     /// Add a templated nodal field (additional arguments)
-    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
+    void RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
     /// Add a field with arbitrary type (templated with T) and grid location (templated with d).
     template<class T, int d, class Role = void>
@@ -622,23 +622,23 @@ void Integrator::AddField
 
 
 
-template<class T>
+template<class T, class Role>
 ALAMO_SINGLE_DEFINITION
-void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving) 
+void Integrator::RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, bool evolving)
 {
     //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, "", true, evolving);
 }
-template<class T>
+template<class T, class Role>
 ALAMO_SINGLE_DEFINITION
-void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
+void Integrator::RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
 {
     //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, true, evolving);
 }
-template<class T>
+template<class T, class Role>
 AMREX_ATTRIBUTE_WEAK
-void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving)
+void Integrator::RegisterGeneralFab(Set::Field<T, Role>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving)
 {
     //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, writeout, evolving);
