@@ -67,8 +67,13 @@ public:
         alpha_out = a_alpha_out;
     }
 
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) override
     {
+#if AMREX_SPACEDIM == 1
+        (void)lev;
+        (void)a_field;
+        Util::Abort(INFO, "IC::Sphere is unavailable in 1D; use IC::Expression or IC::Constant.");
+#else
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
         int ncomp = a_field[0]->nComp();
 
@@ -142,6 +147,7 @@ public:
                 }
             });
         }
+#endif
     };
     // This is a somewhat antiquated IC that will eventually be replaced
     // with the Expression IC.

@@ -10,7 +10,7 @@
 // These can have isotropic, major, minor, majorminor, etc., symmetries.
 //
 // The Set namespace also defines the :code:`Field` datatype, which is where most data is stored.
-// It is templated so that :code:`Set::Field<Set::Scalar>` is a field of scalars, :code:`Set::Field<Set::Vector>`
+// It is templated so that :code:`Set::Field<Set::Scalar>` is a field of scalars, :code:`Set::VectorField`
 // is a vector field, etc.
 // One can also have, for instance, a field of models, like :code:`Set::Field<Model::Solid::Linear::Iostropic>`.
 //
@@ -38,8 +38,12 @@ using HC = Hypercube;
 //{
 
 //};
-template <class T>
-class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> 
+struct VectorFieldRole {}; //Added to facilitate 1D Compilation
+struct MatrixFieldRole {}; //Added to facilitate 1D Compilation
+
+template <class T, class Role = void>
+class Field : public amrex::Vector<
+    std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
 {
 public:
     Field() {} 
@@ -82,7 +86,8 @@ public:
 
     amrex::Array4<T> empty;
 };
-
+using VectorField = Field<Set::Vector, VectorFieldRole>; //Added to facilitate 1D Compilation
+using MatrixField = Field<Set::Matrix, MatrixFieldRole>; //Added to facilitate 1D Compilation
 
 template <typename T>
 using Patch = amrex::Array4<T>;
@@ -90,7 +95,7 @@ using Patch = amrex::Array4<T>;
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+void Field<Set::Vector, VectorFieldRole>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -110,7 +115,7 @@ void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, 
 }
 template<>
 ALAMO_SINGLE_DEFINITION
-void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
+void Field<Set::Vector, VectorFieldRole>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -130,7 +135,7 @@ void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstco
 }
 template<>
 ALAMO_SINGLE_DEFINITION
-void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+void Field<Set::Vector, VectorFieldRole>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -150,7 +155,7 @@ void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, i
 }
 template<>
 ALAMO_SINGLE_DEFINITION
-void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
+void Field<Set::Vector, VectorFieldRole>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -169,8 +174,8 @@ void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccom
     }    
 }
 
-template<> ALAMO_SINGLE_DEFINITION int         Field<Set::Vector>::NComp() const {return AMREX_SPACEDIM;} 
-template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Vector>::Name(int i) const
+template<> ALAMO_SINGLE_DEFINITION int         Field<Set::Vector, VectorFieldRole>::NComp() const {return AMREX_SPACEDIM;}
+template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Vector, VectorFieldRole>::Name(int i) const
 {
     #if AMREX_SPACEDIM>0
     if (i==0) return name + "_x";
@@ -187,7 +192,7 @@ template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Vector>::Name(int i) c
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+void Field<Set::Matrix, MatrixFieldRole>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -206,8 +211,8 @@ void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, 
     }    
 }
 template<>
-ALAMO_SINGLE_DEFINITION int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
-template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Matrix>::Name(int i) const
+ALAMO_SINGLE_DEFINITION int Field<Set::Matrix, MatrixFieldRole>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;}
+template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Matrix, MatrixFieldRole>::Name(int i) const
 {
     #if AMREX_SPACEDIM==1
     if (i==0) return name + "_xx";

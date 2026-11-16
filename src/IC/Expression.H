@@ -8,7 +8,7 @@
 // For example:
 //
 // .. code-block:: bash
-// 
+//
 //    ic.region0 = "sin(x*y*z)"
 //    ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
 //
@@ -18,14 +18,14 @@
 // :bdg-primary-line:`Constants`
 // You can add constants to your expressions using the :code:`constant` directive.
 // For instance, in the following code
-// 
+//
 // .. code-block:: bash
 //
 //    psi.ic.type=expression
 //    psi.ic.expression.constant.eps = 0.05
 //    psi.ic.expression.constant.R   = 0.25
 //    psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
-//    
+//
 // the constants :code:`eps` and :code:`R` are defined by the user and then used
 // in the subsequent expression.
 // The variables can have any name made up of characters that is not reserved.
@@ -42,7 +42,7 @@
 
 namespace IC
 {
-class Expression : public IC<Set::Scalar>, public IC<Set::Vector>
+class Expression : public IC<Set::Scalar>, public VectorIC
 {
 public:
     class X;
@@ -54,15 +54,15 @@ private:
     Expression::CoordSys coord = Expression::CoordSys::Cartesian;
 public:
     static constexpr const char* name = "expression";
-    Expression(amrex::Vector<amrex::Geometry>& _geom) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom) {}
-    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+    Expression(amrex::Vector<amrex::Geometry>& _geom) :
+        IC<Set::Scalar>(_geom), VectorIC(_geom) {}
+    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) :
+        IC<Set::Scalar>(_geom), VectorIC(_geom)
     {
         pp_queryclass(name, *this);
     }
-    Expression(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit, IO::ParmParse& pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom), unit(a_unit)
+    Expression(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit, IO::ParmParse& pp, std::string name) :
+        IC<Set::Scalar>(_geom), VectorIC(_geom), unit(a_unit)
     {
         pp_queryclass(name, *this);
     }
@@ -120,14 +120,14 @@ public:
         a_field[lev]->FillBoundary();
     };
 
-    virtual void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar a_time = 0.0) override
+    virtual void Add(const int& lev, Set::VectorField& a_field, Set::Scalar a_time = 0.0) override
     {
         Util::Assert(INFO, TEST(a_field[lev]->nComp() == 1));
         Util::Assert(INFO, TEST(f.size() >= AMREX_SPACEDIM));
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const auto prob_lo = IC<Set::Vector>::geom[lev].ProbLoArray();
-            const auto cell_size = IC<Set::Vector>::geom[lev].CellSizeArray();
+            const auto prob_lo = VectorIC::geom[lev].ProbLoArray();
+            const auto cell_size = VectorIC::geom[lev].CellSizeArray();
             const int coord = static_cast<int>(this->coord);
             const auto unitfactor = this->unitfactor;
             amrex::Box bx;
@@ -178,7 +178,7 @@ public:
     {
         std::string coordstr = "";
         // coordinate system to use
-        pp_query_validate("coord", coordstr, {"cartesian","polar"}); 
+        pp_query_validate("coord", coordstr, {"cartesian","polar"});
         if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
         else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
         else Util::Exception(INFO, "unsupported coordinates ", coordstr);

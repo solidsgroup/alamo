@@ -25,6 +25,26 @@ namespace Operator
 {
 namespace Elastic
 {
+#if AMREX_SPACEDIM == 1
+class TensionTest : public Constant
+{
+public:
+    static constexpr const char* name = "tensiontest";
+
+    TensionTest() = default;
+    TensionTest(IO::ParmParse& pp, std::string name)
+        : Constant()
+    {
+        pp_queryclass(name, *this);
+    }
+
+    static void Parse(TensionTest&, IO::ParmParse&)
+    {
+        if (IO::ParmParse::IgnoreInTraversalMode()) return;
+        Util::Abort(INFO, "Elastic tension-test boundary conditions are unavailable in 1D.");
+    }
+};
+#else
 class TensionTest : public Constant
 {
 public:
@@ -309,6 +329,7 @@ public:
         }
     }
 };
+#endif
 }
 }
 }

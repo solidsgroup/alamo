@@ -7,10 +7,11 @@
 #include "BC/BC.H"
 #include "IC/IC.H"
 #include "Set/Set.H"
+#if AMREX_SPACEDIM > 1
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
-#include "IO/ParmParse.H"
-
 #include "Base/Mechanics.H"
+#endif
+#include "IO/ParmParse.H"
 
 #include "Model/Propellant/PowerLaw.H"
 #include "Model/Propellant/FullFeedback.H"
@@ -19,11 +20,15 @@
 namespace Integrator
 {
 
-class Flame : virtual public Integrator::Integrator,
-                virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+class Flame : virtual public Integrator::Integrator
+#if AMREX_SPACEDIM > 1
+                , virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+#endif
 {
 
+#if AMREX_SPACEDIM > 1
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
+#endif
 
 public:
     static constexpr const char* name = "flame";
@@ -54,7 +59,9 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
+#if AMREX_SPACEDIM > 1
     void UpdateModel(int a_step, Set::Scalar a_time) override;
+#endif
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -116,7 +123,9 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
+#if AMREX_SPACEDIM > 1
         model_type model_ap, model_htpb;
+#endif
         Set::Scalar traction = NAN;
         int phirefinement = -1;
         Set::Scalar etacutoff = NAN;

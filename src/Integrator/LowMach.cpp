@@ -195,10 +195,15 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         }
         else if (mechanics == "deformable_solid")
         {
+#if AMREX_SPACEDIM == 1
+            Util::Exception(INFO,
+                "Deformable solid mechanics are unavailable in the 1D LowMach build.");
+#else
             if (value.deformable_solid_species >= 0)
                 Util::Exception(INFO,
                                 "LowMach currently supports one deformable solid species");
             value.deformable_solid_species = n;
+#endif
         }
         else if (mechanics == "rigid_solid")
             value.rigid_solid_species.push_back(n);
@@ -249,6 +254,7 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.ngas_species > 1 && !value.gas.transport.CommonDiffusivity())
         Util::Exception(INFO,
             "species_diffusion=2 requires a common species diffusivity; use 1 for explicit diffusion");
+#if AMREX_SPACEDIM > 1
     if (value.deformable_solid_species >= 0)
     {
         pp.queryclass("reference_map", value.reference_map_reconstruction);
@@ -274,6 +280,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
             value.finite_solid_reference_density;
         pp.queryclass<Model::Solid::Finite::NeoHookean>("solid.model.finite.neohookean", value.finite_solid_model);
     }
+#else
+    if (value.deformable_solid_species >= 0)
+        Util::Exception(INFO,
+            "Deformable solid mechanics are unavailable in the 1D LowMach build.");
+#endif
     if (!value.rigid_solid_species.empty())
     {
         if (!value.projection_enabled)
@@ -554,8 +565,12 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
     if ((value.thermal_diffusion == DiffusionMode::Implicit) || (value.species_diffusion == DiffusionMode::Implicit))
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_dilatation_mf,
             &value.bc_nothing, 1, 0, "diffusion_dilatation", value.diagnostics_extended_fields, false);
+#if AMREX_SPACEDIM > 1
     if (value.deformable_solid_species >= 0)
-        value.AddField<Set::Matrix,Set::HC::Cell>(value.solid_deviatoric_stress_mf, nullptr, 1, 1, "solid_deviatoric_stress", true, false);
+        value.AddField<Set::Matrix,Set::HC::Cell,Set::MatrixFieldRole>(
+            value.solid_deviatoric_stress_mf, nullptr, 1, 1,
+            "solid_deviatoric_stress", true, false);
+#endif
     if (value.diagnostics_extended_fields)
     {
         value.AddField<Set::Scalar,Set::HC::Cell>(value.mass_fraction_mf, &value.bc_nothing, value.ngas_species, 1, "mass_fraction", true, false, gas_species_suffix);
@@ -568,8 +583,11 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
         value.AddField<Set::Scalar,Set::HC::Cell>(value.diffusion_coeff_mf, &value.bc_nothing, value.ngas_species, 1, "diffusion_coeff", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.wdot_mf, &value.bc_nothing, value.ngas_species, 1, "wdot", true, false);
         value.AddField<Set::Scalar,Set::HC::Cell>(value.qdot_mf, &value.bc_nothing, 1, 1, "qdot", true, false);
+#if AMREX_SPACEDIM > 1
         if (value.deformable_solid_species >= 0)
-            value.AddField<Set::Matrix,Set::HC::Cell>(value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
+            value.AddField<Set::Matrix,Set::HC::Cell,Set::MatrixFieldRole>(
+                value.deformation_gradient_mf, nullptr, 1, 1, "F", true, false);
+#endif
     }
 
     const bool rocfire_chemistry =
@@ -659,6 +677,7 @@ LowMach::SetReferencePressure(Set::Scalar time)
     amrex::get<0>(thermochemical_data) = thermal_data;
 }
 
+#if AMREX_SPACEDIM > 1
 void
 LowMach::UpdateSolidStress(int lev,
                             const amrex::MultiFab& u_mf,
@@ -756,6 +775,7 @@ LowMach::UpdateSolidStress(int lev,
     if (write_diagnostics)
         deformation_gradient_mf[lev]->FillBoundary(geom[lev].periodicity());
 }
+#endif
 
 //
 // Set the following calculated variables:
@@ -944,14 +964,22 @@ LowMach::UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const am
             const Set::Scalar density = rho(i,j,k);
             for (int d = 0; d < AMREX_SPACEDIM; ++d)
                 M(i,j,k,d) = density * u(i,j,k,d);
+            Set::Scalar momentum_y = 0.0;
+#if AMREX_SPACEDIM > 1
+            momentum_y = M(i,j,k,1);
+#endif
             E(i,j,k) = Model::Gas::Gas::ComputeEnergy(
-                gas_data, density, M(i,j,k,0), M(i,j,k,1),
+                gas_data, density, M(i,j,k,0), momentum_y,
                 T(i,j,k), component_density, i, j, k);
 
             auto sten = Numeric::GetStencil(i, j, k, domain);
             Set::Matrix grad_u =
                 Numeric::Gradient(u, i, j, k, dx.data(), sten);
+#if AMREX_SPACEDIM == 2
             omega(i,j,k) = grad_u(1,0) - grad_u(0,1);
+#else
+            omega(i,j,k) = 0.0;
+#endif
 
             mu(i,j,k) = Model::Gas::Gas::DynamicViscosity(
                 gas_data, T(i,j,k), component_density, i, j, k);
@@ -2291,14 +2319,18 @@ LowMach::Initialize(int lev)
 
     pressure_bc->FillBoundary(*pressure_mf[lev], 0, 1, 0.0, 0);
     pressure_mf[lev]->FillBoundary(geom[lev].periodicity());
+#if AMREX_SPACEDIM > 1
     if (deformable_solid)
     {
         reference_map_reconstruction(
             geom[lev], *eta_mf[lev], *xi_mf[lev], *xi_bc, 0.0);
         reference_map_reconstruction(
             geom[lev], *eta_mf[lev], *xi_old_mf[lev], *xi_bc, 0.0);
+#if AMREX_SPACEDIM > 1
         UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+#endif
     }
+#endif
     UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
 }
 
@@ -2391,8 +2423,10 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
     const bool deformable_solid = deformable_solid_species >= 0;
     const bool split_chemistry = chemistry.Split();
     const bool external_heat_source = heat_source_ic != nullptr;
+#if AMREX_SPACEDIM > 1
     if (deformable_solid && finite_solid_deviatoric_stress_divergence_sign != 0.0)
         UpdateSolidStress(lev, u_mf, *eta_mf[lev], *xi_mf);
+#endif
 
     const auto dx = geom[lev].CellSizeArray();
     amrex::Box domain = geom[lev].Domain();
@@ -2421,8 +2455,10 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
         Set::Patch<const Set::Scalar> T = T_mf.array(mfi);
         Set::Patch<const Set::Scalar> component_density = component_density_mf.array(mfi);
         Set::Patch<const Set::Scalar> rho = density_mf.Patch(lev,mfi);
+#if AMREX_SPACEDIM > 1
         Set::Patch<const Set::Matrix> solid_deviatoric_stress =
             solid_deviatoric_stress_mf.Patch(lev,mfi);
+#endif
         Set::Patch<Set::Scalar> u_rhs = u_rhs_mf.array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -2434,9 +2470,11 @@ LowMach::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     gas_data, T(i,j,k), component_density, i, j, k) : 0.0;
 
             Set::Vector div_sigma = Set::Vector::Zero();
+#if AMREX_SPACEDIM > 1
             if (deformable_solid)
                 div_sigma = Numeric::Divergence(
                     solid_deviatoric_stress, i, j, k, dx.data(), sten);
+#endif
 
             Set::Vector adv_u = advect_scheme.Vector(
                 u, u, i, j, k, 0, dx.data(),
@@ -2750,8 +2788,12 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
     // 
     if (!dynamictimestep.on) return;
 
+#if AMREX_SPACEDIM > 1
     const bool elastic = (deformable_solid_species >= 0) &&
         finite_solid_deviatoric_stress_divergence_sign != 0.0;
+#else
+    const bool elastic = false;
+#endif
     const auto gas_data = gas_device_data;
     const auto thermal = thermal_data;
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -2762,7 +2804,9 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
         Set::Scalar phasefieldmax = 0.0;  // maximum phase field speed
         UpdateComponentState(lev, *component_density_mf[lev]);
         const auto dx = geom[lev].CellSizeArray();
-        Set::Scalar dxmin = std::min(dx[0], dx[1]);
+        Set::Scalar dxmin = dx[0];
+        for (int d = 1; d < AMREX_SPACEDIM; ++d)
+            dxmin = std::min(dxmin, dx[d]);
         // Every coordinate direction contributes to the explicit Laplacian's
         // stability limit, including on meshes with unequal cell widths.
         Set::Scalar inverse_dx_squared_sum = 0.0;
@@ -2780,8 +2824,10 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
-                Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
-                return {speed / dxmin};
+                Set::Scalar speed_squared = 0.0;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    speed_squared += u(i,j,k,d) * u(i,j,k,d);
+                return {std::sqrt(speed_squared) / dxmin};
             });
             ReduceTuple hv = reduce_data.value();
             advmax = std::max(advmax, amrex::get<0>(hv));
@@ -2804,11 +2850,13 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
             //const bool elastic = explicit_solid_deviatoric_stress;
             const int ngas = ngas_species;
             const Set::Scalar p_reference = pressure_reference;
+#if AMREX_SPACEDIM > 1
             const Set::Scalar eta_threshold = Util::Clamp(finite_solid_eta_threshold, 0.0, 1.0);
             const Set::Scalar mu_solid = finite_solid_model.mu;
             const Set::Scalar kappa_solid = finite_solid_model.kappa;
             const Set::Scalar solid_viscosity = finite_solid_viscosity;
             const Set::Scalar solid_interface_viscosity = finite_solid_interface_viscosity;
+#endif
 
             amrex::ReduceOps<amrex::ReduceOpMax, amrex::ReduceOpMax,
                             amrex::ReduceOpMax> reduce_op;
@@ -2830,6 +2878,7 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
                                 gas_data, T(i,j,k), p_reference,
                                 component_density, i, j, k, n));
                 Set::Scalar elastic_rate = 0.0;
+#if AMREX_SPACEDIM > 1
                 if (elastic && Util::Clamp(eta(i,j,k), 0.0, 1.0) > eta_threshold)
                 {
                     Set::Scalar density = Util::Max(rho(i,j,k), rho_floor);
@@ -2837,6 +2886,7 @@ LowMach::TimeStepBegin(Set::Scalar time, int /*iter*/)
                     elastic_rate = wave_speed / dxmin;
                     nu = Util::Max(nu, (solid_viscosity + solid_interface_viscosity) / density);
                 }
+#endif
                 Set::Scalar diffusion_rate = nu * inverse_dx_squared_sum;
                 if (conductive)
                 {
@@ -2934,8 +2984,15 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
             using ReduceTuple = typename decltype(reduce_data)::Type;
             reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple
             {
-                Set::Scalar speed = std::sqrt(u(i,j,k,0) * u(i,j,k,0) + u(i,j,k,1) * u(i,j,k,1));
-                return {speed, u(i,j,k,0), u(i,j,k,0), u(i,j,k,1), u(i,j,k,1)};
+                Set::Scalar speed_squared = 0.0;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    speed_squared += u(i,j,k,d) * u(i,j,k,d);
+                Set::Scalar velocity_y = 0.0;
+#if AMREX_SPACEDIM > 1
+                velocity_y = u(i,j,k,1);
+#endif
+                return {std::sqrt(speed_squared), u(i,j,k,0), u(i,j,k,0),
+                    velocity_y, velocity_y};
             });
             ReduceTuple hv = reduce_data.value();
             vmax = std::max(vmax, amrex::get<0>(hv));
@@ -2961,8 +3018,16 @@ LowMach::PrintDiagnostics(Set::Scalar time, int iter)
                     Numeric::Gradient(u, i, j, k, dx.data(), sten);
                 Set::Scalar div = 0.0;
                 for (int d = 0; d < AMREX_SPACEDIM; ++d) div += grad_u(d,d);
-                bool interior = i > domain.smallEnd(0) + 2 && i < domain.bigEnd(0) - 2 &&
-                                j > domain.smallEnd(1) + 2 && j < domain.bigEnd(1) - 2;
+                bool interior = i > domain.smallEnd(0) + 2 &&
+                                i < domain.bigEnd(0) - 2;
+#if AMREX_SPACEDIM > 1
+                interior = interior && j > domain.smallEnd(1) + 2 &&
+                           j < domain.bigEnd(1) - 2;
+#endif
+#if AMREX_SPACEDIM > 2
+                interior = interior && k > domain.smallEnd(2) + 2 &&
+                           k < domain.bigEnd(2) - 2;
+#endif
                 Set::Scalar abs_div = Util::Abs(div);
                 return {abs_div, div * div, 1.0,
                         interior ? abs_div : 0.0,
@@ -3047,7 +3112,10 @@ LowMach::PrintSourceDiagnostics(Set::Scalar time, Set::Scalar step_dt, const cha
                 const Set::Scalar volume = gas_density * Model::Gas::Gas::GasConstant(
                     gas_data, rho, i, j, k) * T(i,j,k) / p_reference +
                     (rigid ? rigid_eta(i,j,k) : 0.0) + (deformable ? eta(i,j,k) : 0.0);
-                const Set::Scalar speed = std::sqrt(u(i,j,k,0)*u(i,j,k,0) + u(i,j,k,1)*u(i,j,k,1));
+                Set::Scalar speed_squared = 0.0;
+                for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                    speed_squared += u(i,j,k,d) * u(i,j,k,d);
+                const Set::Scalar speed = std::sqrt(speed_squared);
                 const Set::Scalar capacity = amrex::get<2>(ComputeThermalState(rho, T(i,j,k), i,j,k, thermal));
                 return {T(i,j,k), -T(i,j,k), speed, -species_min, volume, -volume,
                     -gas_density, -capacity, Util::Abs(volume-1.0),
@@ -3107,8 +3175,10 @@ LowMach::PreparePlotFile(Set::Scalar /*time*/, const amrex::Vector<int>& /*iter*
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         UpdateComponentState(lev, *component_density_mf[lev]);
+#if AMREX_SPACEDIM > 1
         if (deformable_solid_species >= 0)
             UpdateSolidStress(lev, *velocity_mf[lev], *eta_mf[lev], *xi_mf[lev], diagnostics_extended_fields);
+#endif
         UpdateDerivedDiagnostics(lev, *velocity_mf[lev], *temperature_mf[lev]);
     }
 }

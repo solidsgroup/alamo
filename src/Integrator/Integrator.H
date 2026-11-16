@@ -221,8 +221,8 @@ protected:
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
     /// Add a field with arbitrary type (templated with T) and grid location (templated with d).
-    template<class T, int d>
-    void AddField(  Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost,
+    template<class T, int d, class Role = void>
+    void AddField(  Set::Field<T, Role>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost,
                     std::string, bool writeout, bool evolving, std::vector<std::string> suffix = {});
 
     /// Utility to ensure that all fields know what the finest level is
@@ -583,10 +583,10 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
     node.name_array.push_back(names);
 }
 
-template<class T, int d>
+template<class T, int d, class Role>
 ALAMO_SINGLE_DEFINITION
 void Integrator::AddField
-(   Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp,
+(   Set::Field<T, Role>& new_field, BC::BC<T>* new_bc, int ncomp,
     int nghost, std::string name, bool writeout, bool evolving,
     std::vector<std::string> /*suffix*/)
 {
@@ -595,7 +595,7 @@ void Integrator::AddField
         Util::Assert(INFO, TEST(new_bc == nullptr));
         int nlevs_max = maxLevel() + 1;
         new_field.resize(nlevs_max);
-        m_basefields.push_back(new Field<T>(new_field, geom, refRatio(), ncomp, nghost));
+        m_basefields.push_back(new Field<T, Role>(new_field, geom, refRatio(), ncomp, nghost));
         m_basefields.back()->evolving = evolving;
         m_basefields.back()->writeout = writeout;
         m_basefields.back()->setName(name);
@@ -606,7 +606,7 @@ void Integrator::AddField
     {
         int nlevs_max = maxLevel() + 1;
         new_field.resize(nlevs_max);
-        m_basefields_cell.push_back(new Field<T>(new_field, geom, refRatio(), ncomp, nghost));
+        m_basefields_cell.push_back(new Field<T, Role>(new_field, geom, refRatio(), ncomp, nghost));
         m_basefields_cell.back()->evolving = evolving;
         m_basefields_cell.back()->writeout = writeout;
         m_basefields_cell.back()->setName(name);

@@ -18,7 +18,7 @@
 namespace IC
 {
 /// Pure abstract IC object from which all other IC objects inherit.
-template<class T = Set::Scalar>
+template<class T = Set::Scalar, class FieldType = Set::Field<T>>
 class IC
 {
 public:
@@ -26,8 +26,8 @@ public:
         : geom(_geom) {} ;
     virtual ~IC() {}
 
-    virtual void Add(const int &lev, Set::Field<T> &field, Set::Scalar time) = 0;
-    void Add(const int &lev, Set::Field<T> &field)
+    virtual void Add(const int &lev, FieldType &field, Set::Scalar time) = 0;
+    void Add(const int &lev, FieldType &field)
     {
         Add(lev,field,0.0);
     }
@@ -37,7 +37,7 @@ public:
     // "0" value
     template <typename U = T, typename std::enable_if_t<std::is_arithmetic_v<U>, int> = 0>
     void Initialize(const int &a_lev,
-                    Set::Field<T> &a_field,
+                    FieldType &a_field,
                     Set::Scalar a_time = 0.0)
     {
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
@@ -48,7 +48,7 @@ public:
     // SFINAE solution: we initialize using "Zero" if it is a class type.
     template <typename U = T, typename std::enable_if_t<!std::is_arithmetic_v<U>, int> = 0>
     void Initialize(const int &a_lev,
-                    Set::Field<T> &a_field,
+                    FieldType &a_field,
                     Set::Scalar a_time = 0.0)
     {
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
@@ -61,5 +61,7 @@ protected:
     amrex::Vector<amrex::Geometry> &geom;
     int comp = 0;
 };
+
+using VectorIC = IC<Set::Vector, Set::VectorField>;
 }
 #endif

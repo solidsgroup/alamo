@@ -10,7 +10,9 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/PNG.H"
+#if AMREX_SPACEDIM > 1
 #include "Base/Mechanics.H"
+#endif
 #include "Util/Util.H"
 #include "Model/Propellant/Propellant.H"
 #include "Model/Propellant/FullFeedback.H"
@@ -20,8 +22,13 @@
 namespace Integrator
 {
 
-Flame::Flame() : 
+Flame::Flame()
+#if AMREX_SPACEDIM > 1
+    :
     Base::Mechanics<model_type>() {}
+#else
+{}
+#endif
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
@@ -221,6 +228,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
+#if AMREX_SPACEDIM == 1
+    pp.query_if("elastic.on", [&]() {
+        if (IO::ParmParse::InTraversalMode()) return;
+        Util::Abort(INFO, "Elastic mechanics are unavailable in the 1D flame-only build.");
+    });
+#else
     // Whether to use Neo-hookean Elastic model
     value.m_type = Base::Mechanics<model_type>::Type::Disable;
     pp.query_if("elastic.on", [&]() {
@@ -260,6 +273,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         Util::AssertException(INFO, TEST(value.m_type != Disable), "You must specify elastic type to be dynamic or static");
     });
+#endif
 
 
 
@@ -278,16 +292,20 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
+#if AMREX_SPACEDIM > 1
     Base::Mechanics<model_type>::Initialize(lev);
+#endif
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
+#if AMREX_SPACEDIM > 1
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
+#endif
     if (thermal.on) {
         if (thermal.ic_temp)
         {
@@ -309,6 +327,7 @@ void Flame::Initialize(int lev)
     if (variable_pressure) chamber.pressure = 1.0;
 }
 
+#if AMREX_SPACEDIM > 1
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
     if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
@@ -390,11 +409,14 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
     }
 }
+#endif
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
+#if AMREX_SPACEDIM > 1
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
+#endif
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
@@ -428,7 +450,9 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
+#if AMREX_SPACEDIM > 1
     Base::Mechanics<model_type>::Advance(lev, time, dt);
+#endif
     const Set::Scalar* DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
@@ -444,7 +468,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         else if (chamber.pressure <= 0.99) {
             chamber.pressure = 0.99;
         }
+#if AMREX_SPACEDIM > 1
         elastic.traction = chamber.pressure;
+#endif
     }
 
 
@@ -602,7 +628,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
+#if AMREX_SPACEDIM > 1
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+#endif
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -740,8 +768,9 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
     BL_PROFILE("Flame::Integrate");
-    
+#if AMREX_SPACEDIM > 1
     Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
+#endif
 
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);

@@ -1,0 +1,166 @@
+# 1D LowMach adaptation of the Beckstead 500-psia, 130-Hz pilot.
+# The original nonperiodic y direction becomes x; the transverse periodic
+# direction is removed. This short run is a setup/response smoke, not a
+# settled or mesh-converged Beckstead result.
+
+plot_file = results/beckstead_1d_lowmach_130hz/output_%DD_%Y%m%d_%H%M%S
+amr.plot_dt = 2.0e-4_s
+amr.plot_int = -1
+amr.max_level = 2
+amr.n_cell = 240
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = 5
+amr.grid_eff = 0.7
+amr.reinitialize_condensed_composition = 1
+amr.reinitialize_condensed_composition_eta_min = 0.99
+amr.abort_on_nan = 1
+
+eta_refinement_criterion = 0.1
+reaction_refinement_criterion = 1.0e4_1/s
+temperature_refinement_criterion = 500.0
+
+timestep = 1.0e-7_s
+stop_time = 1.0e-2_s
+max_step = 10000
+dynamictimestep.on = 1
+dynamictimestep.min = 1.0e-12
+dynamictimestep.max = 5.0e-6
+dynamictimestep.verbose = 0
+integration.type = RungeKutta
+integration.rk.type = 3
+
+# Preserve the pilot's 2-mm condensed side and 1-mm gas side.
+geometry.prob_lo = -2.0_mm
+geometry.prob_hi = 1.0_mm
+geometry.is_periodic = 0
+
+system.amount = kmol
+gas.mw = 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol 26.0_g/mol
+gas.thermo.type = rocfire
+gas.thermo.rocfire.mw = 26.0_g/mol
+gas.thermo.rocfire.cp_mass = 0.3_cal/g/K
+gas.thermo.rocfire.Tref = 273.15_K
+gas.transport.type = rocfire
+gas.transport.rocfire.mw = 26.0_g/mol
+gas.transport.rocfire.prandtl = 0.69
+gas.transport.rocfire.lewis = 1.0
+gas.transport.rocfire.lambda_a = 2.13037e-7_cal/cm/s/K^2
+gas.transport.rocfire.lambda_b = 5.32743e-6_cal/cm/s/K
+gas.eos.type = tpg
+
+species.names = AP_gas HTPB_gas Mono Premixed Primary Final AP_solid
+AP_gas.mechanics = fluid
+HTPB_gas.mechanics = fluid
+Mono.mechanics = fluid
+Premixed.mechanics = fluid
+Primary.mechanics = fluid
+Final.mechanics = fluid
+AP_solid.mechanics = rigid_solid
+AP_solid.reference_density = 1880.0_kg/m^3
+AP_solid.specific_heat = 1297.90_J/kg/K
+AP_solid.thermal_conductivity = 0.4186_W/m/K
+
+chemistry.model.type = rocfire
+chemistry.model.rocfire.A = 473.98594351242497_g/cm^3/s 25.3e3_g/cm^3/s 5.0e3_g/cm^3/s 0.4e3_g/cm^3/s
+chemistry.model.rocfire.pressure_exponent = 1.6 1.7 1.7 1.7
+chemistry.model.rocfire.activation_energy = 7.28554256403741_kcal/mol 14.5_kcal/mol 11.3_kcal/mol 14.5_kcal/mol
+chemistry.model.rocfire.qgas = 430.0_cal/g 447.0_cal/g 8365.0_cal/g 2127.0_cal/g
+chemistry.model.rocfire.qsolid = -100.0_cal/g -300.0_cal/g
+chemistry.model.rocfire.pressure_reference = 1.0_bar
+chemistry.solver.type = backward_euler
+chemistry.solver.backward_euler.max_iter = 100
+chemistry.solver.backward_euler.reltol = 1.0e-8
+chemistry.solver.backward_euler.abstol = 1.0e-12
+
+mechanisms.names = AP_decomposition
+AP_decomposition.type = phase_change
+AP_decomposition.phase_change.in = AP_solid
+AP_decomposition.phase_change.out = AP_gas
+AP_decomposition.phase_change.rate_multiplier = 19352747.962406512
+AP_decomposition.phase_change.activation_temperature = 5000.0_K
+AP_decomposition.phase_change.temperature_cutoff = 360.0_K
+AP_decomposition.phase_change.phase_field.type = allencahn
+AP_decomposition.phase_change.phase_field.allencahn.mobility = 0.01_1/Pa/s
+AP_decomposition.phase_change.phase_field.allencahn.lambda = 8.333333333333333_Pa
+AP_decomposition.phase_change.phase_field.allencahn.kappa = 1.0e-8_J/m
+AP_decomposition.phase_change.phase_field.allencahn.w0 = 0.0
+AP_decomposition.phase_change.phase_field.allencahn.w12 = 2.0
+AP_decomposition.phase_change.phase_field.allencahn.w1 = 1.0
+
+rigid.relaxation_time = 1.0e-8_s
+rigid.velocity = 0.0
+advection.type = muscl
+advection.muscl.limiter.type = minmod
+cfl = 0.8
+phase_field.cfl = 1.5
+viscosity = 2
+thermal_diffusion = 2
+species_diffusion = 2
+advect_temperature = 1
+projection.enabled = 1
+projection.tol_rel = 1.0e-8
+projection.tol_abs = 1.0e-12
+projection.verbose = 0
+projection.update_pressure = 1
+diffusion.tol_rel = 1.0e-11
+diffusion.tol_abs = 1.0e-12
+diffusion.verbose = 0
+diagnostics.extended_fields = 0
+
+AP_solid.density.ic.type = expression
+AP_solid.density.ic.expression.constant.eps = 10.0_um
+AP_solid.density.ic.expression.region0 = "1880.0*(0.5-0.5*tanh(x/eps))"
+
+Final.density.ic.type = expression
+Final.density.ic.expression.constant.P = 3447379.0
+Final.density.ic.expression.constant.Tambient = 300.0_K
+Final.density.ic.expression.constant.Tignite = 400.0_K
+Final.density.ic.expression.constant.Lsolid = 35.0_um
+Final.density.ic.expression.constant.Lgas = 250.0_um
+Final.density.ic.expression.region0 = "max(0.0,(0.5+0.5*tanh(2.0*x/20.0e-6))*P/(319.787*(Tambient+(Tignite-Tambient)*exp(-max(-x,0.0)/Lsolid-max(x,0.0)/Lgas))))"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0
+temperature.ic.type = expression
+temperature.ic.expression.constant.Tambient = 300.0_K
+temperature.ic.expression.constant.Tignite = 400.0_K
+temperature.ic.expression.constant.Lsolid = 35.0_um
+temperature.ic.expression.constant.Lgas = 250.0_um
+temperature.ic.expression.region0 = "Tambient+(Tignite-Tambient)*exp(-max(-x,0.0)/Lsolid-max(x,0.0)/Lgas)"
+pressure.ic.type = constant
+pressure.ic.constant.value = 3447379.0
+
+# Transient ignition pulse from the 2D pilot; it is not part of the rate
+# analysis window.
+heat_source.ic.type = expression
+heat_source.ic.expression.unit = W/m^3
+heat_source.ic.expression.constant.qflux = 1.0e7_W/m^2
+heat_source.ic.expression.constant.width = 6.25e-6_m
+heat_source.ic.expression.constant.norm = 1.772453850905516
+heat_source.ic.expression.constant.toff = 2.5e-4_s
+heat_source.ic.expression.constant.tramp = 1.0e-5_s
+heat_source.ic.expression.region0 = "qflux*exp(-(x/width)^2)/(norm*width)*0.5*(1.0-tanh((t-toff)/tramp))"
+
+component_density.bc.type = constant
+component_density.bc.constant.type.xlo = neumann
+component_density.bc.constant.type.xhi = neumann
+velocity.bc.type = constant
+velocity.bc.constant.type.xlo = dirichlet
+velocity.bc.constant.type.xhi = neumann
+velocity.bc.constant.val.xlo = 0.0
+temperature.bc.type = constant
+temperature.bc.constant.type.xlo = neumann
+temperature.bc.constant.type.xhi = neumann
+pressure.bc.type = constant
+pressure.bc.constant.type.xlo = dirichlet
+pressure.bc.constant.type.xhi = dirichlet
+pressure.bc.constant.val.xlo = 3447379.0
+pressure.bc.constant.val.xhi = 3447379.0
+
+pressure.reference.expression = "A*cos(omega*(t-start)+phase)*(t >= start)"
+pressure.reference.expression_rate = "-A*omega*sin(omega*(t-start)+phase)*(t >= start)"
+pressure.reference.constant.A = 68948.0_Pa
+pressure.reference.constant.omega = 816.81408993334617_1/s
+pressure.reference.constant.phase = -1.5707963267948966
+pressure.reference.constant.start = 0.00175_s

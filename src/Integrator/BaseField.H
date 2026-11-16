@@ -44,11 +44,11 @@ public:
     Set::Hypercube m_gridtype;
 };
 
-template<class T>
+template<class T, class Role = void>
 class Field : public BaseField
 {
 public:
-    Field(Set::Field<T> & a_field, 
+    Field(Set::Field<T, Role> & a_field,
         const amrex::Vector<amrex::Geometry> &a_geom, 
         const amrex::Vector<amrex::IntVect> &a_refRatio,
         int a_ncomp, int a_nghost) : 
@@ -286,7 +286,7 @@ public:
     
 private:
 
-    Set::Field<T> &m_field;
+    Set::Field<T, Role> &m_field;
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;

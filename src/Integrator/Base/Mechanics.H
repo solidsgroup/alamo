@@ -502,16 +502,16 @@ protected:
     int m_interval = 0;
     Type m_type = Type::Static;
 
-    Set::Field<Set::Vector> disp_mf;
-    Set::Field<Set::Vector> rhs_mf;
-    Set::Field<Set::Vector> res_mf;
-    Set::Field<Set::Matrix> stress_mf;
-    Set::Field<Set::Matrix> strain_mf;
+    Set::VectorField disp_mf;
+    Set::VectorField rhs_mf;
+    Set::VectorField res_mf;
+    Set::MatrixField stress_mf;
+    Set::MatrixField strain_mf;
 
     // Only use these if using the "dynamics" option
-    Set::Field<Set::Vector> disp_old_mf;
-    Set::Field<Set::Vector> vel_mf;
-    Set::Field<Set::Vector> vel_old_mf;
+    Set::VectorField disp_old_mf;
+    Set::VectorField vel_mf;
+    Set::VectorField vel_old_mf;
     //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
     Set::Scalar rho = 1.0;
     Set::Scalar mu_dashpot = NAN;
@@ -522,9 +522,9 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC<Set::Vector>* ic_rhs = nullptr;
+    IC::VectorIC* ic_rhs = nullptr;
 
-    IC::IC<Set::Vector>* velocity_ic = nullptr;
+    IC::VectorIC* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
     BC::Operator::Elastic::Elastic* bc = nullptr;

@@ -904,6 +904,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
+#if AMREX_SPACEDIM > 1
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Gradient(const amrex::Array4<const Set::Matrix>& f,
@@ -925,6 +926,7 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 
     return ret;
 }
+#endif
 
 template<class T>
 [[nodiscard]] AMREX_FORCE_INLINE
@@ -993,6 +995,7 @@ Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
 
 
 
+#if AMREX_SPACEDIM > 1
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
@@ -1013,6 +1016,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
 
     return ret;
 }
+#endif
 
 
 [[nodiscard]] AMREX_FORCE_INLINE

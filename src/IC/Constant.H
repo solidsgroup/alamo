@@ -14,7 +14,7 @@
 
 namespace IC
 {
-class Constant : public IC<Set::Scalar>, public IC<Set::Vector>
+class Constant : public IC<Set::Scalar>, public VectorIC
 {
 public:
     class Zero;
@@ -25,15 +25,15 @@ public:
     virtual ~Constant() = default;
 
     Constant (amrex::Vector<amrex::Geometry> &_geom) :
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom) {}
+        IC<Set::Scalar>(_geom), VectorIC(_geom) {}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+        IC<Set::Scalar>(_geom), VectorIC(_geom)
     {pp_queryclass(*this);}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+        IC<Set::Scalar>(_geom), VectorIC(_geom)
     {pp_queryclass(name,*this);}
     Constant (amrex::Vector<amrex::Geometry> &_geom, Unit a_unit, IO::ParmParse &pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom), unit(a_unit)
+        IC<Set::Scalar>(_geom), VectorIC(_geom), unit(a_unit)
     {pp_queryclass(name,*this);}
 
 
@@ -55,7 +55,7 @@ public:
         }
     }
 
-    virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar /*time*/) override
+    virtual void Add(const int &lev, Set::VectorField &a_field, Set::Scalar /*time*/) override
     {
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == AMREX_SPACEDIM)));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

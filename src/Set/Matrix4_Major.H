@@ -531,7 +531,8 @@ Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b)
     return ret;
 }
 
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+#if AMREX_SPACEDIM > 1
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Major> &a, const Set::Matrix3 &b)
 {
     // TODO: improve efficiency of this method
@@ -545,6 +546,7 @@ Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Major> &a, const Set::
     }    
     return ret;
 }
+#endif
 
 } 
 #endif

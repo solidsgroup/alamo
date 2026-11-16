@@ -64,21 +64,63 @@ public:
                 amrex::nodebilin_interp<T>(tbx, finearr, fine_comp, ncomp, slopearr, crsearr, crse_comp, ratio);
             });
     }
-    virtual void interp_face(const amrex::BaseFab<T>& /*crse*/,
-        const int        /*crse_comp*/,
-        amrex::BaseFab<T>&       /*fine*/,
-        const int        /*fine_comp*/,
-        const int        /*ncomp*/,
-        const amrex::Box&       /*fine_region*/,
-        const amrex::IntVect&   /*ratio*/,
+    virtual void interp_face(const amrex::BaseFab<T>& crse,
+        const int        crse_comp,
+        amrex::BaseFab<T>&       fine,
+        const int        fine_comp,
+        const int        ncomp,
+        const amrex::Box&       fine_region,
+        const amrex::IntVect&   ratio,
         const amrex::IArrayBox& /*solve_mask*/,
-        const amrex::Geometry&  /*crse_geom*/,
-        const amrex::Geometry&  /*fine_geom*/,
-        amrex::Vector<amrex::BCRec> const& /*bcr*/,
-        const int        /*bccomp*/,
-        amrex::RunOn            /*gpu_or_cpu*/)
+        const amrex::Geometry&  crse_geom,
+        const amrex::Geometry&  fine_geom,
+        amrex::Vector<amrex::BCRec> const& bcr,
+        const int        bccomp,
+        amrex::RunOn            gpu_or_cpu)
     {
+#if AMREX_SPACEDIM == 1
+        interp(crse, crse_comp, fine, fine_comp, ncomp, fine_region, ratio,
+            crse_geom, fine_geom, bcr, bccomp, 0, gpu_or_cpu);
+#else
+        (void)crse;
+        (void)crse_comp;
+        (void)fine;
+        (void)fine_comp;
+        (void)ncomp;
+        (void)fine_region;
+        (void)ratio;
+        (void)crse_geom;
+        (void)fine_geom;
+        (void)bcr;
+        (void)bccomp;
+        (void)gpu_or_cpu;
         Util::Abort("The version of this Interpolater for face-based data is not implemented or does not apply. Call 'interp' instead.");
+#endif
+    }
+
+    virtual void interp_face(const amrex::FArrayBox& crse,
+        const int        crse_comp,
+        amrex::FArrayBox&       fine,
+        const int        fine_comp,
+        const int        ncomp,
+        const amrex::Box&       fine_region,
+        const amrex::IntVect&   ratio,
+        const amrex::IArrayBox& /*solve_mask*/,
+        const amrex::Geometry&  crse_geom,
+        const amrex::Geometry&  fine_geom,
+        amrex::Vector<amrex::BCRec> const& bcr,
+        const int        bccomp,
+        amrex::RunOn            gpu_or_cpu) override
+    {
+#if AMREX_SPACEDIM == 1
+        amrex::NodeBilinear::interp(crse, crse_comp, fine, fine_comp, ncomp,
+            fine_region, ratio, crse_geom, fine_geom, bcr, bccomp, 0,
+            gpu_or_cpu);
+#else
+        Util::Abort("The version of this Interpolater for face-based data is not implemented or does not apply. Call 'interp' instead.");
+#endif
+        interp(crse, crse_comp, fine, fine_comp, ncomp, fine_region, ratio,
+            crse_geom, fine_geom, bcr, bccomp, 0, gpu_or_cpu);
     }
 private:
     using amrex::NodeBilinear::interp;

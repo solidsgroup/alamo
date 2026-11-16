@@ -19,7 +19,7 @@
 namespace IC
 {
 /// \brief Initialize using a trigonometric series
-class Trig : public IC<Set::Scalar>, public IC<Set::Vector>
+class Trig : public IC<Set::Scalar>, public VectorIC
 {
 public:
     static constexpr const char* name = "trig";
@@ -29,12 +29,12 @@ public:
                 std::complex<int> _n2 = 0,
                 std::complex<int> _n3 = 0),
         int _dim = AMREX_SPACEDIM) :
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+        IC<Set::Scalar>(_geom), VectorIC(_geom)
     {
         Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3),_dim);
     }
     Trig(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+        IC<Set::Scalar>(_geom), VectorIC(_geom)
     {pp_queryclass(name,*this);}
 
 
@@ -107,13 +107,13 @@ public:
             });
         }
     }
-    virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar) override
+    virtual void Add(const int &lev, Set::VectorField &a_field, Set::Scalar) override
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
-        const Set::Scalar AMREX_D_DECL(L1 = IC<Set::Vector>::geom[lev].ProbHi()[0] - IC<Set::Vector>::geom[lev].ProbLo()[0],
-                            L2 = IC<Set::Vector>::geom[lev].ProbHi()[1] - IC<Set::Vector>::geom[lev].ProbLo()[1],
-                            L3 = IC<Set::Vector>::geom[lev].ProbHi()[2] - IC<Set::Vector>::geom[lev].ProbLo()[2]);
+        const Set::Scalar AMREX_D_DECL(L1 = VectorIC::geom[lev].ProbHi()[0] - VectorIC::geom[lev].ProbLo()[0],
+                            L2 = VectorIC::geom[lev].ProbHi()[1] - VectorIC::geom[lev].ProbLo()[1],
+                            L3 = VectorIC::geom[lev].ProbHi()[2] - VectorIC::geom[lev].ProbLo()[2]);
 
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -128,15 +128,15 @@ public:
                 Set::Scalar AMREX_D_DECL(x1,x2,x3);
                 if (cellcentered)
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Vector>::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Vector>::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Vector>::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = VectorIC::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * VectorIC::geom[lev].CellSize()[0];,
+                                x2 = VectorIC::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * VectorIC::geom[lev].CellSize()[1];,
+                                x3 = VectorIC::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * VectorIC::geom[lev].CellSize()[2];);
                 }
                 else
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Vector>::geom[lev].ProbLo()[0] + (Set::Scalar)(i) * IC<Set::Vector>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Vector>::geom[lev].ProbLo()[1] + (Set::Scalar)(j) * IC<Set::Vector>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Vector>::geom[lev].ProbLo()[2] + (Set::Scalar)(k) * IC<Set::Vector>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = VectorIC::geom[lev].ProbLo()[0] + (Set::Scalar)(i) * VectorIC::geom[lev].CellSize()[0];,
+                                x2 = VectorIC::geom[lev].ProbLo()[1] + (Set::Scalar)(j) * VectorIC::geom[lev].CellSize()[1];,
+                                x3 = VectorIC::geom[lev].ProbLo()[2] + (Set::Scalar)(k) * VectorIC::geom[lev].CellSize()[2];);
                 }
                                    
                 Set::Scalar trigfn = 1.0;
@@ -156,7 +156,7 @@ public:
                             fabs(std::sin(phi3))*std::sin(n3.imag()*Set::Constant::Pi*x3 / L3));
                 #endif
                         
-                field(i,j,k)(IC<Set::Vector>::comp) += alpha * trigfn;
+                field(i,j,k)(VectorIC::comp) += alpha * trigfn;
 
             });
         }

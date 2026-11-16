@@ -150,7 +150,7 @@ public:
         }
         return os.str();
     }
-
+    #if AMREX_SPACEDIM > 1
     static std::string InputArrayString(const Set::Matrix &value)
     {
         std::ostringstream os;
@@ -164,7 +164,7 @@ public:
         }
         return os.str();
     }
-
+    #endif
 private:
     static InputNode input_tree;
     static int traversal_print_depth;

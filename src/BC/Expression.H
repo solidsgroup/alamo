@@ -25,7 +25,9 @@ public:
     static constexpr const char* name = "expression";
 
     //static constexpr const char* const Elastic::strings[];
-    #if AMREX_SPACEDIM==2
+    #if AMREX_SPACEDIM == 1
+    static constexpr const char * const facestr[] = {"xlo", "xhi"};
+    #elif AMREX_SPACEDIM == 2
     static const constexpr char * const facestr[] = {
         "xlo","ylo","xhi","yhi"
     };
@@ -35,7 +37,9 @@ public:
     };
     #endif
 
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 1 //Added to facilitate 1D Compilation
+    enum Face { XLO, XHI, INT };
+#elif AMREX_SPACEDIM==2
     enum Face {
         XLO, YLO, XHI, YHI,
         INT
@@ -84,7 +88,9 @@ public:
 
 
 private:
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 1
+static constexpr int m_nfaces = 2;
+#elif AMREX_SPACEDIM == 2
     static const int m_nfaces = 4;
 #elif AMREX_SPACEDIM==3
     static const int m_nfaces = 6;
@@ -93,8 +99,8 @@ private:
     unsigned int m_ncomp = 0;
 
     std::array<std::vector<int>, m_nfaces> m_bc_type;
-    std::array<std::vector<amrex::Parser>, m_nfaces> m_bc_func_parser; 
-    std::array<std::vector<amrex::ParserExecutor<4>>, m_nfaces> m_bc_func; 
+    std::array<std::vector<amrex::Parser>, m_nfaces> m_bc_func_parser;
+    std::array<std::vector<amrex::ParserExecutor<4>>, m_nfaces> m_bc_func;
 
     //std::array<std::vector<Numeric::Interpolator::Linear<Set::Scalar>>, m_nfaces> m_bc_val;
 
@@ -145,6 +151,7 @@ public:
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+#if AMREX_SPACEDIM > 1
         pp.queryarr_default("type.ylo", str,{"dirichlet"});  // BC type on the lower y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
@@ -156,6 +163,16 @@ public:
         else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         pp.queryarr_default("type.zlo", str,{"dirichlet"});  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
+#else
+        pp.ignore("type.ylo");
+        pp.ignore("type.yhi");
+        pp.ignore("type.zlo");
+        pp.ignore("val.ylo");
+        pp.ignore("val.yhi");
+        pp.ignore("val.zlo");
+        pp.ignore("val.zhi");
+#endif
+
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
@@ -217,7 +234,7 @@ public:
             pp.ignore(querystr);
         }
 #endif
-        
+
     }
 };
 }

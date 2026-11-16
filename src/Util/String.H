@@ -118,7 +118,7 @@ std::string Join(const Set::Vector & vec, char separator = ' ')
     }
     return oss.str();
 }
-
+#if AMREX_SPACEDIM > 1 //Added 11/5/26 for 1D compilation
 AMREX_FORCE_INLINE
 std::string Join(const Set::Matrix & vec, char separator = ' ')
 {
@@ -133,7 +133,7 @@ std::string Join(const Set::Matrix & vec, char separator = ' ')
     }
     return oss.str();
 }
-
+#endif
 AMREX_FORCE_INLINE
 std::vector<std::string> Split(std::string &str, const char delim = ' ')
 {

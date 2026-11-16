@@ -94,6 +94,14 @@ SRC = \
 	src/Util/Util.cpp \
 	src/Util/Zephyr.cpp
 SRC_MAIN = src/lowmach.cc
+else ifeq ($(DIM),1)
+SRC = $(filter-out src/Integrator/%.cpp src/Numeric/Interpolator/Test.cpp src/Operator/Elastic.cpp,$(shell find src/ -mindepth 2 -name "*.cpp")) \
+	src/Integrator/Integrator.cpp \
+	src/Integrator/Flame.cpp
+SRC_MAIN = src/alamo.cc
+LOWMACH_SRC = $(filter-out src/Integrator/Flame.cpp,$(SRC)) \
+	src/Integrator/LowMach.cpp
+LOWMACH_SRC_MAIN = src/lowmach.cc
 else
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
@@ -102,6 +110,13 @@ EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX)))
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
 OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
+ifeq ($(DIM),1)
+LOWMACH_OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(LOWMACH_SRC:.cpp=.cpp.o))
+LOWMACH_DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(LOWMACH_SRC:.cpp=.cpp.d)) \
+	$(subst src/,obj/obj-$(POSTFIX)/, $(LOWMACH_SRC_MAIN:.cc=.cc.d))
+LOWMACH_OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(LOWMACH_SRC_MAIN:.cc=.cc.o))
+LOWMACH_EXE = bin/lowmach-$(POSTFIX)
+endif
 
 NUM = $(words $(SRC) $(SRC_MAIN))
 CTR = 0
@@ -118,6 +133,16 @@ CTR_EXE = 0
 
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
+
+ifeq ($(DIM),1)
+.PHONY: lowmach-1d
+lowmach-1d: $(LOWMACH_DEP) $(LOWMACH_EXE)
+
+$(LOWMACH_EXE): $(LOWMACH_OBJ) $(LOWMACH_OBJ_MAIN)
+	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     %s\n" "$@"
+	@mkdir -p bin/
+	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB} ${MPI_LIB} ${LINKER_FLAGS}
+endif
 
 tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
@@ -360,6 +385,9 @@ ifneq ($(MAKECMDGOALS),info)
 ifneq ($(MAKECMDGOALS),help)
 ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+ifneq ($(filter lowmach-1d,$(MAKECMDGOALS)),)
+-include $(LOWMACH_DEP)
+endif
 endif
 endif
 endif

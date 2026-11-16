@@ -455,7 +455,8 @@ Integrator::FillPatch(int lev, amrex::Real time,
         physbc.define(geom[lev]);
 
         amrex::Interpolater* mapper;
-        Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
+        // AMReX retains the mapper through its cached fill-patch coarsener.
+        static Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
         if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
             mapper = &node_bilinear;
         else
@@ -495,7 +496,8 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
     physbc.define(geom[lev]);
 
     amrex::Interpolater* mapper;
-    Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
+    // AMReX retains the mapper through its cached fill-patch coarsener.
+    static Numeric::Interpolator::NodeBilinear<Set::Scalar> node_bilinear;
     if (mf[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         mapper = &node_bilinear;
     else

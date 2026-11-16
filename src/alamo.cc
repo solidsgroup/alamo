@@ -14,6 +14,7 @@
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
+#if AMREX_SPACEDIM > 1
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
@@ -22,12 +23,14 @@
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
-#include "Integrator/Flame.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
 #include "Integrator/PFC.H"
+#endif
+
+#include "Integrator/Flame.H"
 
 int main (int argc, char* argv[])
 {
@@ -36,12 +39,21 @@ int main (int argc, char* argv[])
     std::string program;
     IO::ParmParse pp;
     // This input determines which integrator is used.
+#if AMREX_SPACEDIM == 1
+    pp.query_validate("alamo.program", program, {"flame"});
+#else
     pp.query_validate(  "alamo.program", program,
                         {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
+#endif
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
 
+#if AMREX_SPACEDIM == 1
+    pp.query_switch("alamo.program", {
+        {"flame", [&] () {pp.select_only<Integrator::Flame>(integrator);}}
+    });
+#else
     pp.query_switch("alamo.program", {
         {"microstructure",  [&] ()
         {
@@ -74,6 +86,7 @@ int main (int argc, char* argv[])
         {"cahnhilliard", [&] () {pp.select_only<Integrator::CahnHilliard>(integrator);}},
         {"pfc", [&] ()          {pp.select_only<Integrator::PFC>(integrator);}}
     });
+#endif
 
 
     integrator->InitData();

@@ -68,7 +68,7 @@ public:
     }
 
     void
-    Init(Set::Field<Set::Vector> &a_rhs,
+    Init(Set::VectorField &a_rhs,
         const amrex::Vector<amrex::Geometry> &a_geom,
         bool a_homogeneous = false) const
     {

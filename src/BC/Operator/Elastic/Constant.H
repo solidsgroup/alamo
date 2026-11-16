@@ -28,6 +28,54 @@ namespace Operator
 {
 namespace Elastic
 {
+#if AMREX_SPACEDIM == 1
+class Constant : public Elastic
+{
+public:
+    static constexpr const char* name = "constant";
+
+    Constant() = default;
+    Constant(IO::ParmParse& pp, std::string name)
+    {
+        pp_queryclass(name, *this);
+    }
+
+    static void Parse(Constant&, IO::ParmParse&)
+    {
+        if (IO::ParmParse::IgnoreInTraversalMode()) return;
+        Util::Abort(INFO, "Elastic constant boundary conditions are unavailable in 1D.");
+    }
+
+    using Elastic::Init;
+
+    void Init(amrex::FabArray<amrex::BaseFab<Set::Vector>>*,
+              const amrex::Geometry&, bool = false) const override
+    {
+        Util::Abort(INFO, "Elastic constant boundary conditions are unavailable in 1D.");
+    }
+
+    void Init(amrex::MultiFab*,
+              const amrex::Geometry&, bool = false) const override
+    {
+        Util::Abort(INFO, "Elastic constant boundary conditions are unavailable in 1D.");
+    }
+
+    std::array<Type, AMREX_SPACEDIM> getType(
+        const int&, const int&, const int&, const amrex::Box&) override
+    {
+        Util::Abort(INFO, "Elastic constant boundary conditions are unavailable in 1D.");
+        return {};
+    }
+
+    Set::Vector operator()(
+        const Set::Vector&, const Set::Matrix&, const Set::Matrix&,
+        const int&, const int&, const int&, const amrex::Box&) override
+    {
+        Util::Abort(INFO, "Elastic constant boundary conditions are unavailable in 1D.");
+        return Set::Vector::Zero();
+    }
+};
+#else
 class Constant : public Elastic
 {
 public:
@@ -595,6 +643,7 @@ public:
 
     }
 };
+#endif
 }
 }
 }

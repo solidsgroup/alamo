@@ -358,14 +358,15 @@ void Initialize (int argc, char* argv[])
             pp.remove("prob_lo");
             pp.remove("prob_hi");
 
-            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
-                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
-            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
-                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
-#if AMREX_SPACEDIM>2
-            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
-                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
-#endif
+            const char* coordinate_names[AMREX_SPACEDIM] = {
+                AMREX_D_DECL("x", "y", "z")
+            };
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                Util::Assert(INFO, TEST(prob_lo[d] < prob_hi[d]),
+                    "Invalid domain specified: ", prob_lo[d], " < ",
+                    coordinate_names[d], " < ", prob_hi[d], " is incorrect.");
+            }
 
             Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
             Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());

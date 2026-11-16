@@ -1,6 +1,6 @@
 //
 // Use expressions to define space and time varying boundary conditions
-// for elastic problems. 
+// for elastic problems.
 //
 
 #ifndef BC_OPERATOR_ELASTIC_EXPRESSION_H
@@ -17,6 +17,51 @@ namespace Operator
 {
 namespace Elastic
 {
+#if AMREX_SPACEDIM == 1
+class Expression : public Elastic
+{
+public:
+    static constexpr const char* name = "expression";
+
+    Expression() = default;
+    Expression(IO::ParmParse&, std::string) {}
+
+    static void Parse(Expression&, IO::ParmParse&)
+    {
+        if (IO::ParmParse::IgnoreInTraversalMode()) return;
+        Util::Abort(INFO, "Elastic expression boundary conditions are unavailable in 1D.");
+    }
+
+    using Elastic::Init;
+
+    void Init(amrex::FabArray<amrex::BaseFab<Set::Vector>>*,
+              const amrex::Geometry&, bool = false) const override
+    {
+        Util::Abort(INFO, "Elastic expression boundary conditions are unavailable in 1D.");
+    }
+
+    void Init(amrex::MultiFab*,
+              const amrex::Geometry&, bool = false) const override
+    {
+        Util::Abort(INFO, "Elastic expression boundary conditions are unavailable in 1D.");
+    }
+
+    std::array<Type, AMREX_SPACEDIM> getType(
+        const int&, const int&, const int&, const amrex::Box&) override
+    {
+        Util::Abort(INFO, "Elastic expression boundary conditions are unavailable in 1D.");
+        return {};
+    }
+
+    Set::Vector operator()(
+        const Set::Vector&, const Set::Matrix&, const Set::Matrix&,
+        const int&, const int&, const int&, const amrex::Box&) override
+    {
+        Util::Abort(INFO, "Elastic expression boundary conditions are unavailable in 1D.");
+        return Set::Vector::Zero();
+    }
+};
+#else
 class Expression : public Elastic
 {
 public:
@@ -68,13 +113,13 @@ public:
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    
+
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
                     Face face = Face::INT;
-                        
+
                     #if AMREX_SPACEDIM == 2
-                        
+
                     if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
                     else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
                     else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
@@ -121,9 +166,9 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement)
                             rhs(i,j,k)(dir) = 0.0;
-                        else 
+                        else
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
@@ -137,10 +182,10 @@ public:
                     }
                 }
             });
-        }                    
+        }
     }
 
-    
+
     virtual void
     Init(amrex::MultiFab * a_rhs,
         const amrex::Geometry &a_geom,
@@ -156,13 +201,13 @@ public:
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    
+
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
                     Face face = Face::INT;
-                        
+
                     #if AMREX_SPACEDIM == 2
-                        
+
                     if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
                     else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
                     else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
@@ -209,9 +254,9 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement)
                             rhs(i,j,k,dir) = 0.0;
-                        else 
+                        else
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
@@ -225,7 +270,7 @@ public:
                     }
                 }
             });
-        }                    
+        }
     }
 
 
@@ -249,9 +294,9 @@ public:
         if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
         if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
         if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
-        
+
         #elif AMREX_SPACEDIM == 3
-        
+
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XLO_YLO_ZLO];
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XLO_YLO_ZHI];
         if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XLO_YHI_ZLO];
@@ -260,7 +305,7 @@ public:
         if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XHI_YLO_ZHI];
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XHI_YHI_ZLO];
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XHI_YHI_ZHI];
-        
+
         if (m[1] == lo.y && m[2] == lo.z)                  return m_bc_type[Face::YLO_ZLO];
         if (m[1] == lo.y && m[2] == hi.z)                  return m_bc_type[Face::YLO_ZHI];
         if (m[1] == hi.y && m[2] == lo.z)                  return m_bc_type[Face::YHI_ZLO];
@@ -273,19 +318,19 @@ public:
         if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
         if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
         if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
-        
+
         if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
         if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
         if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
         if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
         if (m[2] == lo.z)                                  return m_bc_type[Face::ZLO];
         if (m[2] == hi.z)                                  return m_bc_type[Face::ZHI];
-        
-        #endif        
-        
+
+        #endif
+
         return {AMREX_D_DECL(Type::None,Type::None,Type::None)};
     }
-    
+
 
     AMREX_FORCE_INLINE
     Set::Vector operator () (const Set::Vector &u,
@@ -298,24 +343,24 @@ public:
         //Set::Vector f;
 
         const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-        
+
         amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
         // Corners
         #if AMREX_SPACEDIM == 2
-        
+
         if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV));
         if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV));
         if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV));
         if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV));
-        
+
         if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0));
         if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0));
         if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1));
         if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1));
-        
+
         #elif AMREX_SPACEDIM == 3
-        
+
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YLO_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,-SQRT3INV));
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YLO_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,+SQRT3INV));
         if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YHI_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,-SQRT3INV));
@@ -324,7 +369,7 @@ public:
         if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YLO_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,+SQRT3INV));
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YHI_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,-SQRT3INV));
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YHI_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,+SQRT3INV));
-        
+
         if (m[1] == lo.y && m[2] == lo.z)                  return set(m_bc_type[Face::YLO_ZLO],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,-SQRT2INV));
         if (m[1] == lo.y && m[2] == hi.z)                  return set(m_bc_type[Face::YLO_ZHI],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,+SQRT2INV));
         if (m[1] == hi.y && m[2] == lo.z)                  return set(m_bc_type[Face::YHI_ZLO],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,-SQRT2INV));
@@ -337,28 +382,28 @@ public:
         if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV,0       ));
         if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV,0       ));
         if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV,0       ));
-        
+
         if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0, 0));
         if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0, 0));
         if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1, 0));
         if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1, 0));
         if (m[2] == lo.z)                                  return set(m_bc_type[Face::ZLO],         u, gradu, sigma, Set::Vector( 0, 0,-1));
         if (m[2] == hi.z)                                  return set(m_bc_type[Face::ZHI],         u, gradu, sigma, Set::Vector( 0, 0,+1));
-        
+
         #endif
-        
+
         Util::Abort(INFO,"Boundary condition error");
         return Set::Vector::Zero();
     }
 
     AMREX_FORCE_INLINE
-    Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
+    Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type,
                     const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
     {
         Set::Vector f = Set::Vector::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
-            if      (bc_type[i] == Type::Displacement) 
+            if      (bc_type[i] == Type::Displacement)
                 f(i) = u(i);
             else if (bc_type[i] == Type::Traction)
                 f(i) = (sigma*n)(i);
@@ -371,17 +416,17 @@ public:
     }
 
 protected:
-    
+
     #if AMREX_SPACEDIM==2
     static const int m_nfaces = 8;
     #elif AMREX_SPACEDIM==3
     static const int m_nfaces = 26;
     #endif
 
-    std::array<std::array<Type,            AMREX_SPACEDIM>, m_nfaces> m_bc_type; 
-    //std::array<std::array<FunctionParserAD,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
-    std::array<std::array<amrex::Parser,AMREX_SPACEDIM>, m_nfaces> m_bc_func_parser; 
-    std::array<std::array<amrex::ParserExecutor<4>,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
+    std::array<std::array<Type,            AMREX_SPACEDIM>, m_nfaces> m_bc_type;
+    //std::array<std::array<FunctionParserAD,AMREX_SPACEDIM>, m_nfaces> m_bc_func;
+    std::array<std::array<amrex::Parser,AMREX_SPACEDIM>, m_nfaces> m_bc_func_parser;
+    std::array<std::array<amrex::ParserExecutor<4>,AMREX_SPACEDIM>, m_nfaces> m_bc_func;
 
 public:
 
@@ -400,14 +445,14 @@ public:
         bcmap["traction"]     = Type::Traction;
         bcmap["trac"]         = Type::Traction;
         bcmap["periodic"]     = Type::Periodic;
-        
+
         std::vector<std::string> type, val;
-        
+
         //
         // Lambda to parse the type and val strings, and initialize parser.
-        // 
+        //
 
-        auto set =  [&] (std::vector<std::string> type, std::vector<std::string> val, Face face)  
+        auto set =  [&] (std::vector<std::string> type, std::vector<std::string> val, Face face)
         {
             if (type.size() == 1)
                 type.resize(AMREX_SPACEDIM,type[0]);
@@ -422,8 +467,8 @@ public:
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
                 // set enums to appropriate type
-                value.m_bc_type[face][i] = bcmap[type[i]]; 
-                
+                value.m_bc_type[face][i] = bcmap[type[i]];
+
                 // initialize the parser
                 value.m_bc_func_parser[face][i] = amrex::Parser(val[i].c_str());
                 value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t"});
@@ -433,46 +478,46 @@ public:
 
         pp.queryarr_default("type.xlo",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.xlo", val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::XLO); 
+        set(type,val,Face::XLO);
 
         pp.queryarr_default("type.xhi",type, {"disp"}); // 3D Face / 2D Edge  type
         pp.queryarr_default("val.xhi" ,val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::XHI); 
+        set(type,val,Face::XHI);
 
         pp.queryarr_default("type.ylo",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.ylo" ,val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::YLO); 
+        set(type,val,Face::YLO);
 
         pp.queryarr_default("type.yhi",type, {"disp"}); // 3D Face / 2D Edge type
         pp.queryarr_default("val.yhi", val , {"0.0"}); // 3D Face / 2D Edge value
-        set(type,val,Face::YHI); 
+        set(type,val,Face::YHI);
 
 #if AMREX_SPACEDIM==3
         pp.queryarr_default("type.zlo",type, {"disp"}); // 3D Face type
         pp.queryarr_default("val.zlo", val , {"0.0"}); // 3D Face value
-        set(type,val,Face::ZLO); 
+        set(type,val,Face::ZLO);
 
         pp.queryarr_default("type.zhi",type, {"disp"}); // 3D Face type
         pp.queryarr_default("val.zhi", val , {"0.0"}); // 3D Face value
-        set(type,val,Face::ZHI); 
+        set(type,val,Face::ZHI);
 #endif
 
 
         pp.queryarr_default("type.xloylo",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xloylo", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XLO_YLO); 
+        set(type,val,Face::XLO_YLO);
 
         pp.queryarr_default("type.xloyhi",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xloyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XLO_YHI); 
+        set(type,val,Face::XLO_YHI);
 
         pp.queryarr_default("type.xhiylo",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xhiylo", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XHI_YLO); 
+        set(type,val,Face::XHI_YLO);
 
         pp.queryarr_default("type.xhiyhi",type, {"disp"}); // 3D Edge / 2D Corner type
         pp.queryarr_default("val.xhiyhi", val , {"0.0"}); // 3D Edge / 2D Corner value
-        set(type,val,Face::XHI_YHI); 
+        set(type,val,Face::XHI_YHI);
 
 #if AMREX_SPACEDIM==3
         pp.queryarr_default("type.xloylozlo",type,{"disp"}); // 3D Corner type
@@ -481,68 +526,68 @@ public:
 
         pp.queryarr_default("type.xloylozhi",type, {"disp"});  // 3D Corner type
         pp.queryarr_default("val.xloylozhi", val , {"0.0"});  // 3D Corner value
-        set(type,val,Face::XLO_YLO_ZHI); 
+        set(type,val,Face::XLO_YLO_ZHI);
 
         pp.queryarr_default("type.xloyhizlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xloyhizlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XLO_YHI_ZLO); 
+        set(type,val,Face::XLO_YHI_ZLO);
 
         pp.queryarr_default("type.xloyhizhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xloyhizhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XLO_YHI_ZHI); 
+        set(type,val,Face::XLO_YHI_ZHI);
 
         pp.queryarr_default("type.xhiylozlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiylozlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YLO_ZLO); 
+        set(type,val,Face::XHI_YLO_ZLO);
 
         pp.queryarr_default("type.xhiylozhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiylozhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YLO_ZHI); 
+        set(type,val,Face::XHI_YLO_ZHI);
 
         pp.queryarr_default("type.xhiyhizlo",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiyhizlo", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YHI_ZLO); 
+        set(type,val,Face::XHI_YHI_ZLO);
 
         pp.queryarr_default("type.xhiyhizhi",type, {"disp"}); // 3D Corner type
         pp.queryarr_default("val.xhiyhizhi", val , {"0.0"}); // 3D Corner value
-        set(type,val,Face::XHI_YHI_ZHI); 
+        set(type,val,Face::XHI_YHI_ZHI);
 
         pp.queryarr_default("type.ylozlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.ylozlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YLO_ZLO); 
+        set(type,val,Face::YLO_ZLO);
 
         pp.queryarr_default("type.ylozhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.ylozhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YLO_ZHI); 
+        set(type,val,Face::YLO_ZHI);
 
         pp.queryarr_default("type.yhizlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.yhizlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YHI_ZLO); 
+        set(type,val,Face::YHI_ZLO);
 
         pp.queryarr_default("type.yhizhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.yhizhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::YHI_ZHI); 
+        set(type,val,Face::YHI_ZHI);
 
         pp.queryarr_default("type.zloxlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zloxlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZLO_XLO); 
+        set(type,val,Face::ZLO_XLO);
 
         pp.queryarr_default("type.zloxhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zloxhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZLO_XHI); 
+        set(type,val,Face::ZLO_XHI);
 
         pp.queryarr_default("type.zhixlo",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zhixlo", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZHI_XLO); 
+        set(type,val,Face::ZHI_XLO);
 
         pp.queryarr_default("type.zhixhi",type, {"disp"}); // 3D Edge type
         pp.queryarr_default("val.zhixhi", val , {"0.0"}); // 3D Edge value
-        set(type,val,Face::ZHI_XHI); 
+        set(type,val,Face::ZHI_XHI);
 #endif
 
 
 
-  
+
 
 
 
@@ -567,6 +612,7 @@ public:
     Expression(IO::ParmParse &pp, std::string name): Expression()
     {pp.queryclass(name,*this);}
 };
+#endif
 }
 }
 }

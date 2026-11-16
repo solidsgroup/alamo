@@ -23,8 +23,13 @@ public:
     Ellipse (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : Ellipse(_geom)
     {pp_queryclass(name,*this);}
     
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar) override
     {
+#if AMREX_SPACEDIM == 1
+        (void)lev;
+        (void)a_field;
+        Util::Abort(INFO, "IC::Ellipse is unavailable in 1D; use IC::Expression or IC::Constant.");
+#else
         Set::Vector DX(geom[lev].CellSize());
         amrex::IndexType type = a_field[lev]->ixType();
         int ncomp = a_field[lev]->nComp();
@@ -83,6 +88,7 @@ public:
             });
         }
         a_field[lev]->FillBoundary();
+#endif
     }
     
 private:

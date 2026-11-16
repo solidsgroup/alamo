@@ -1154,6 +1154,7 @@ public:
         }
         return -1;
     }
+    #if AMREX_SPACEDIM > 1
     int queryarr(   std::string name, Set::Matrix & value, Unit unit = Unit::Less(),
                     const std::source_location &location = std::source_location::current())
     {
@@ -1218,7 +1219,7 @@ public:
         }    
         return 0;
     }
-
+    #endif
     template<typename T>
     int queryarr_required(  std::string name, std::vector<T> & value,
                             const std::source_location &location = std::source_location::current())
@@ -1395,7 +1396,7 @@ public:
         }
         return -1;
     }
-    
+    #if AMREX_SPACEDIM > 1
     int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix def,
                             const std::source_location &location = std::source_location::current())
     {
@@ -1435,7 +1436,7 @@ public:
         }
         return -1;
     }
-
+    #endif
     int queryarr_default(   std::string name, std::vector<double> & value, std::vector<double> defaultvalue,
                             const std::source_location &location = std::source_location::current())
     {

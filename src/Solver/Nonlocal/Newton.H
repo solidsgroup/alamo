@@ -52,7 +52,7 @@ private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,
         const Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
-        Set::Field<Set::Matrix>& a_dw_mf,
+        Set::MatrixField& a_dw_mf,
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>>& a_ddw_mf,
         Set::Field<T>& a_model_mf)
     {
@@ -141,10 +141,10 @@ private:
         }
     }
 
-    void prepareForSolve(const Set::Field<Set::Vector>& a_u_mf,
-        const Set::Field<Set::Vector>& a_b_mf,
+    void prepareForSolve(const Set::VectorField& a_u_mf,
+        const Set::VectorField& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
-        Set::Field<Set::Matrix>& a_dw_mf,
+        Set::MatrixField& a_dw_mf,
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>>& a_ddw_mf,
         Set::Field<T>& a_model_mf)
     {
@@ -276,13 +276,13 @@ private:
 
 
 public:
-    Set::Scalar solve(const Set::Field<Set::Vector>& a_u_mf,
-        const Set::Field<Set::Vector>& a_b_mf,
+    Set::Scalar solve(const Set::VectorField& a_u_mf,
+        const Set::VectorField& a_b_mf,
         Set::Field<T>& a_model_mf,
         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
         Set::Field<Set::Scalar> dsol_mf, rhs_mf;
-        Set::Field<Set::Matrix> dw_mf;
+        Set::MatrixField dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
 
         dsol_mf.resize(a_u_mf.finest_level + 1); dsol_mf.finest_level = a_u_mf.finest_level;
@@ -363,7 +363,7 @@ public:
         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
         Set::Field<Set::Scalar> dsol_mf, rhs_mf;
-        Set::Field<Set::Matrix> dw_mf;
+        Set::MatrixField dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
 
         dsol_mf.resize(a_u_mf.finest_level + 1); dsol_mf.finest_level = a_u_mf.finest_level;
@@ -447,7 +447,7 @@ public:
         Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<T>& a_model_mf)
     {
-        Set::Field<Set::Matrix> dw_mf;
+        Set::MatrixField dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
         dw_mf.resize(a_u_mf.size());
         ddw_mf.resize(a_u_mf.size());
@@ -465,12 +465,12 @@ public:
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
     }
 
-    void compResidual(Set::Field<Set::Vector>& a_res_mf,
-        Set::Field<Set::Vector>& a_u_mf,
-        Set::Field<Set::Vector>& a_b_mf,
+    void compResidual(Set::VectorField& a_res_mf,
+        Set::VectorField& a_u_mf,
+        Set::VectorField& a_b_mf,
         Set::Field<T>& a_model_mf)
     {
-        Set::Field<Set::Matrix> dw_mf;
+        Set::MatrixField dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM, T::sym>> ddw_mf;
         Set::Field<Set::Scalar> res_mf(a_res_mf.size());
         dw_mf.resize(a_u_mf.size());
@@ -499,9 +499,9 @@ public:
         }
     }
 
-    void compLinearSolverResidual(Set::Field<Set::Vector>& a_res_mf,
-        Set::Field<Set::Vector>& a_u_mf,
-        Set::Field<Set::Vector>& a_b_mf)
+    void compLinearSolverResidual(Set::VectorField& a_res_mf,
+        Set::VectorField& a_u_mf,
+        Set::VectorField& a_b_mf)
     {
         Util::Assert(INFO, TEST(a_res_mf.finest_level == a_u_mf.finest_level));
         Util::Assert(INFO, TEST(a_u_mf.finest_level == a_b_mf.finest_level));
