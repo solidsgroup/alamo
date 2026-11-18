@@ -40,8 +40,7 @@
 // clip its updated field with :code:`clipping` (default false). Derived integrators can override
 // :code:`FillMobilityMask` to apply a spatial multiplier to the face mobility.
 // The hook receives each level's native box layout and valid cells; the caller
-// fills periodic ghosts. Set :code:`diagnostics = true` for SDCH mobility, mask, flux, RHS, raw update,
-// and update delta fields alongside the solution.
+// fills periodic ghosts.
 //
 // This is tested in :ref:`CahnHilliard` and :ref:`SinglyDegenerateCahnHilliard`
 
@@ -97,19 +96,12 @@ protected:
     /// Fill a cell-centered multiplier for the singly-degenerate mobility.
     /// The default is one everywhere; derived integrators may override it.
     virtual void FillMobilityMask(int lev, amrex::MultiFab& mask);
-    void InitializeDiagnostics(int lev);
 
 protected:
 
     Set::Field<Set::Scalar> etanew_mf;     /// The new value for eta this timestep
     Set::Field<Set::Scalar> etaold_mf;     /// Last timestep's value for eta
     Set::Field<Set::Scalar> intermediate;  /// Intermediate field used for CH kinetics
-    Set::Field<Set::Scalar> diagnostic_mobility;
-    Set::Field<Set::Scalar> diagnostic_mobility_mask;
-    Set::Field<Set::Scalar> diagnostic_flux;
-    Set::Field<Set::Scalar> diagnostic_rhs;
-    Set::Field<Set::Scalar> diagnostic_raw;
-    Set::Field<Set::Scalar> diagnostic_delta;
 
     BC::BC<Set::Scalar> *bc = nullptr; /// eta's bc object
     IC::IC<Set::Scalar> *ic = nullptr; /// eta's ic object
@@ -125,7 +117,6 @@ protected:
     Set::Scalar tstart = 1E100;
     Set::Scalar tstart_timestep = -1.0;
     bool clipping = false;
-    bool output_diagnostics = false;
     std::string input_name = "eta";
     std::string field_name = "eta";
     std::string old_field_name = "eta_old";

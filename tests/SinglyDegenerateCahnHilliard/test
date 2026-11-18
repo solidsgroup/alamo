@@ -145,28 +145,6 @@ def mean(ds):
 initial_ds, initial, dx = read(plots[0])
 final_ds, final, _ = read(plots[-1])
 assert np.isfinite(final).all(), "Nonfinite SDCH solution"
-if case == "linear-spectral-renamed":
-    diagnostic_names = ("ch.mobility", "ch.rhs", "ch.alpha_raw", "ch.alpha_delta",
-                        "ch.mobility_mask", "ch.flux_x", "ch.flux_y")
-    if hasattr(final_ds, "fields"):
-        diagnostic_fields = final_ds.fields
-    else:
-        grid = final_ds.covering_grid(final_ds.index.max_level, final_ds.domain_left_edge,
-                                      final_ds.domain_dimensions * 2**final_ds.index.max_level)
-        diagnostic_fields = {name: np.asarray(grid[("boxlib", name)]).squeeze()
-                             for name in diagnostic_names}
-    for name in diagnostic_names:
-        assert name in diagnostic_fields, f"Missing diagnostic field {name}"
-        assert np.isfinite(diagnostic_fields[name]).all(), f"Nonfinite diagnostic {name}"
-    alpha = np.clip(0.5 * (initial + 1.0), 0.0, 1.0)
-    expected_mobility = alpha**2 * (1.0 - alpha)**2
-    np.testing.assert_allclose(diagnostic_fields["ch.mobility"], expected_mobility,
-                               rtol=0, atol=3e-16)
-    np.testing.assert_array_equal(diagnostic_fields["ch.mobility_mask"], 1.0)
-    np.testing.assert_allclose(diagnostic_fields["ch.alpha_raw"], final, rtol=0, atol=2e-14)
-    np.testing.assert_allclose(diagnostic_fields["ch.alpha_delta"], final - initial,
-                               rtol=0, atol=2e-14)
-    assert np.max(np.abs(diagnostic_fields["ch.rhs"])) > 1e-10, "Diagnostic RHS is zero"
 assert abs(mean(final_ds) - mean(initial_ds)) < 2e-12, "SDCH changed the mean"
 assert float(final_ds.current_time) > float(initial_ds.current_time)
 

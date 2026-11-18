@@ -21,11 +21,10 @@ and spectral cases keep a pure phase stationary, and a further realspace case
 checks an initial value outside the pure-phase interval. Spectral checkerboards
 must decay in two and three dimensions, a strongly varying mobility case must
 dissipate energy at a small timestep, and a regridded spectral AMR case checks
-partial fine-level coverage. The 2D spectral Fourier-mode case also uses custom
-input and field names and enables diagnostics, checking the namespaced fields.
-Realspace AMR does not reflux coarse/fine fluxes; use a uniform grid when exact
-mass conservation is required. Spectral AMR assembles a uniform finest-level
-grid, which requires memory proportional to that entire grid.
+partial fine-level coverage. Realspace AMR does not reflux coarse/fine fluxes;
+use a uniform grid when exact mass conservation is required. Spectral AMR
+assembles a uniform finest-level grid, which requires memory proportional to
+that entire grid.
 
 The checker reads both yt native plotfiles and Alamo HDF5 plotfiles. For example,
 run the two-dimensional serial sections with:

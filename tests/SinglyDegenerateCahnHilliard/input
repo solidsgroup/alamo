@@ -8,7 +8,7 @@
 #@ dim = 2
 #@ fft = true
 #@ check-file = linear-spectral-renamed
-#@ args = method=spectral input_name=custom field_name=ch.eta old_field_name=ch.eta_old intermediate_name=ch.int diagnostics=true clipping=false max_step=1
+#@ args = method=spectral input_name=custom field_name=ch.eta old_field_name=ch.eta_old intermediate_name=ch.int clipping=false max_step=1
 #@ args = custom.ic.type=expression custom.ic.expression.constant.pi=3.14159265358979323846
 #@ args = custom.ic.expression.region0="0.15+1e-6*cos(2*pi*x)*cos(2*pi*y/1.5)"
 #@ args = custom.bc.constant.type.xlo=periodic custom.bc.constant.type.xhi=periodic
