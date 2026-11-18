@@ -26,7 +26,9 @@
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
 
+#ifdef ALAMO_FFT
 #include "AMReX_FFT.H"
+#endif
 
 namespace Integrator
 {
@@ -34,6 +36,12 @@ void
 Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 {
     BL_PROFILE("Integrator::Agglomeration::Agglomeration()")
+    pp.query_default("spectral", value.agglom.spectral, false);
+#ifndef ALAMO_FFT
+    if (value.agglom.spectral && !IO::ParmParse::InTraversalMode())
+        Util::Abort(INFO, "Agglomeration spectral mode requires Alamo to be configured with --fft");
+#endif
+
     pp.queryclass<Flame>("flame", &value);
 
     if (value.max_level >= 1)
@@ -57,7 +65,6 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     value.RegisterNewFab(value.agglom.driving_force, value.agglom.alpha_bc, 1, 1, "agglom.driving_force", true, false);
     value.AddField<Set::Vector, Set::Hypercube::Cell>(value.agglom.evolution_driving_force, nullptr, 1, 1, "agglom.evolution_driving_force", false, false);
 
-    pp.query_default("spectral",value.agglom.spectral,false);
     pp.query_default("S",value.agglom.S, 0.0);
 
     value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V");
@@ -139,6 +146,7 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     agglom.driving_force[lev]->FillBoundary(geom[lev].periodicity());
     
+#ifdef ALAMO_FFT
     if (agglom.spectral)
     {
         Util::Assert(INFO,TEST(lev == 0), "Only single level currently supported");
@@ -235,7 +243,9 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Util::Message(INFO,"HI");
 
     }
-    else {
+    else
+#endif
+    {
         // compute the evolution of alpha
         for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
         {
