@@ -32,5 +32,3 @@ run the two-dimensional serial sections with:
 .. code-block:: bash
 
     scripts/runtests.py --dim=2 --serial --fft tests/SinglyDegenerateCahnHilliard
-
-For an HDF5-enabled build, add :code:`--hdf5` to select its matching executable.
