@@ -44,8 +44,6 @@ private:
     std::string bottom_solver = "bicgstab";
     int bottom_max_iter = 200;
     int bottom_verbose = 0;
-    std::string bottom_solver = "default";
-    int bottom_max_iter = 200;
     amrex::Vector<amrex::Geometry> geometry;
     amrex::Vector<amrex::IntVect> refinement_ratio;
     amrex::Vector<amrex::BoxArray> grids;

@@ -15,7 +15,6 @@
 
 #include "Integrator/Integrator.H"
 #include "Integrator/Base/Mechanics.H"
-#include "Model/Solid/Affine/CrystalPlastic.H"
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
@@ -50,7 +49,7 @@
 namespace Integrator
 {
 class LowMach : virtual public Integrator,
-    virtual public Base::Mechanics<Model::Solid::Affine::CrystalPlastic>
+    virtual public Base::Mechanics<Model::Solid::Finite::CrystalPlastic>
 {
 public:
     static constexpr const char* name = "lowmach";
@@ -72,6 +71,9 @@ public:
     static constexpr int cubic_slip_component = 21;
     static constexpr int ap_phase_component = 33;
     static constexpr int crystal_plastic_state_components = 34;
+    static constexpr int elastic_cp_fp_component = 0;
+    static constexpr int elastic_cp_slip_component = 9;
+    static constexpr int elastic_cp_state_components = 21;
 
     LowMach() {};
     LowMach(IO::ParmParse& pp);
@@ -118,11 +120,15 @@ public:
                             amrex::MultiFab& plastic_state_mf,
                             const amrex::MultiFab& eta_mf);
     void UpdateCrystalPlasticTotalSlip(int lev);
+    void UpdateCrystalPlasticDiagnostics(int lev, Set::Scalar time);
+    void NormalizeElasticCrystalPlasticState(int lev);
+    void LoadElasticCrystalPlasticState(int lev);
+    void StoreElasticCrystalPlasticState(int lev);
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     // Quasi-static thermo-crystal-plastic solve on the rigid solid (Base::Mechanics).
     void UpdateModel(int step, Set::Scalar time) override;
     bool QuasiStaticMechanics() const
-    { return m_type != Base::Mechanics<Model::Solid::Affine::CrystalPlastic>::Type::Disable; }
+    { return m_type != Base::Mechanics<Model::Solid::Finite::CrystalPlastic>::Type::Disable; }
     void UpdateAPPhaseDiagnostic(int lev);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
@@ -183,6 +189,13 @@ protected:
     Set::Field<Set::Scalar> crystal_plastic_state_mf;
     Set::Field<Set::Scalar> crystal_plastic_state_old_mf;
     Set::Field<Set::Scalar> crystal_plastic_total_slip_mf;
+    Set::Field<Set::Scalar> crystal_plastic_det_fp_mf;
+    Set::Field<Set::Matrix> crystal_plastic_fe_mf;
+    Set::Field<Set::Matrix> crystal_plastic_mandel_mf;
+    Set::Field<Set::Scalar> crystal_plastic_max_resolved_shear_mf;
+    Set::Field<Set::Scalar> crystal_plastic_max_slip_rate_mf;
+    Set::Field<Set::Scalar> crystal_plastic_decomposition_error_mf;
+    Set::Field<Set::Scalar> elastic_cp_state_mf;
     Set::Field<Set::Scalar> rigid_eta_mf;
     Set::Field<Set::Scalar> rigid_species_eta_mf;
     Set::Field<Set::Scalar> xi_mf;
@@ -233,7 +246,7 @@ protected:
     Chemistry chemistry;
     Model::Solid::Finite::CrystalPlastic crystal_plastic_model;
     // Quasi-static mechanics on the rigid solid ("elastic.*" inputs)
-    Model::Solid::Affine::CrystalPlastic elastic_base_model;
+    Model::Solid::Finite::CrystalPlastic elastic_base_model;
     Set::Scalar elastic_alpha = 0.0;
     Set::Scalar elastic_temperature_reference = 300.0;
     Set::Scalar elastic_weight_floor = 1.0e-6;
@@ -255,6 +268,7 @@ protected:
     Set::Scalar crystal_plastic_cfl = 0.5;
     Set::Scalar crystal_plastic_max_slip_increment = 1.0e-3;
     Set::Scalar crystal_plastic_empty_eta = 1.0e-10;
+    Set::Scalar crystal_plastic_det_tolerance = 1.0e-8;
     ChemistryData chemistry_device_data;
     ThermochemicalData thermochemical_data;
     Model::Solid::Finite::NeoHookean finite_solid_model;

@@ -87,7 +87,9 @@ inline int PhaseChange()
             mw,
             8314.462618,
             cp.data(),
-            kappa.data());
+            kappa.data(),
+            0.0,
+            homogeneous);
         return result;
     };
     bool roots = true, volumes = true, capacities = true;
@@ -137,7 +139,7 @@ inline int PhaseChange()
     fractions.array()(0,0,0,0) = 0.5;
     const ::Model::Mechanism::State state = {
         density.const_array(), eta.const_array(), fractions.const_array(),
-        {}, 900.0, 3.0e6};
+        {}, 300.0, 3.0e6};
     const double delta_eta = -1.0e-3;
     double heat = 0.0;
     const double dilation = blend.Transfer(density.array(), state, delta_eta, 0,0,0, &heat);
@@ -148,7 +150,7 @@ inline int PhaseChange()
         near(rho(0,0,0,0), released_mass*(1.0-w)) &&
         near(rho(0,0,0,1), released_mass*w) && rho(0,0,0,3) == 0.0);
     check("Product molecular weights enter projection dilation", near(dilation,
-        delta_eta + released_mass*8314.462618*900.0/3.0e6*((1.0-w)/20.0+w/40.0)));
+        delta_eta + released_mass*8314.462618*300.0/3.0e6*((1.0-w)/20.0+w/40.0)));
     check("Mass-weighted heat release and sign", near(heat,
         released_mass*((1.0-w)*-1.0e5+w*2.0e5)));
     check("Phase-change heat equals additive constituent energy per regressed volume",
@@ -164,10 +166,14 @@ inline int PhaseChange()
         near(density.const_array()(0,0,0,0), -920.0*delta_eta) &&
         near(density.const_array()(0,0,0,2), 920.0*delta_eta) &&
         near(heat, -920.0*delta_eta*-418400.0));
+    const ::Model::Mechanism::State kinetic_state = {
+        density.const_array(), eta.const_array(), fractions.const_array(),
+        {}, 900.0, 3.0e6};
     check("Local and gradient kinetics use the same blend factor",
-        near(blend.Local(state,0,0,0) / base.Local(state,0,0,0), ratio) &&
-        near(blend.GradientCoefficient(state,0,0,0) /
-             base.GradientCoefficient(state,0,0,0), ratio));
+        near(blend.Local(kinetic_state,0,0,0) /
+             base.Local(kinetic_state,0,0,0), ratio) &&
+        near(blend.GradientCoefficient(kinetic_state,0,0,0) /
+             base.GradientCoefficient(kinetic_state,0,0,0), ratio));
     return failed;
 }
 }

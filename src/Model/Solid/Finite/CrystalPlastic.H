@@ -43,7 +43,11 @@ public:
     struct PlasticRate
     {
         Set::Matrix3d Fp = Set::Matrix3d::Zero();
+        Set::Matrix3d Fe = Set::Matrix3d::Identity();
+        Set::Matrix3d mandel = Set::Matrix3d::Zero();
         Eigen::Matrix<Set::Scalar,12,1> gamma =
+            Eigen::Matrix<Set::Scalar,12,1>::Zero();
+        Eigen::Matrix<Set::Scalar,12,1> resolved_shear =
             Eigen::Matrix<Set::Scalar,12,1>::Zero();
     };
 
@@ -51,19 +55,68 @@ public:
 
     ~CrystalPlastic() = default;
 
-    Set::Scalar W(const Set::Matrix & F) const 
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Set::Matrix ElasticDeformation(
+        const Set::Matrix& F,
+        const Set::Matrix3d& Fp_state) const
     {
-        return PseudoLinear::Orthotropic::W(F * Set::reduce(Fp).inverse());
+        const Set::Matrix reduced_Fp = Set::reduce(Fp_state);
+        return F * reduced_Fp.inverse() / thermal_stretch;
     }
-    Set::Matrix DW(const Set::Matrix & F) const 
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    bool ValidPlasticDeformation(
+        const Set::Matrix3d& Fp_state,
+        const Set::Scalar determinant_floor = 1.0e-12) const
     {
-        Set::Matrix Fpinv = Set::reduce(Fp).inverse();
-        return PseudoLinear::Orthotropic::DW(F * Fpinv) * Fpinv.transpose();
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                if (!std::isfinite(Fp_state(i,j))) return false;
+
+        const Set::Scalar Jp = Set::reduce(Fp_state).determinant();
+        return std::isfinite(Jp) && Jp > determinant_floor;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const 
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    bool ProjectPlasticVolume(
+        Set::Matrix3d& Fp_state,
+        const Set::Scalar determinant_floor = 1.0e-12) const
     {
-        Set::Matrix Fpinv = Set::reduce(Fp).inverse();
-        auto DDW = PseudoLinear::Orthotropic::DDW(F * Fpinv);
+        if (!ValidPlasticDeformation(Fp_state, determinant_floor))
+            return false;
+
+        const Set::Scalar Jp = Set::reduce(Fp_state).determinant();
+        const Set::Scalar scale = std::pow(
+            Jp,
+            -1.0 / static_cast<Set::Scalar>(AMREX_SPACEDIM));
+        if (!std::isfinite(scale)) return false;
+
+        for (int i = 0; i < AMREX_SPACEDIM; ++i)
+            for (int j = 0; j < AMREX_SPACEDIM; ++j)
+                Fp_state(i,j) *= scale;
+
+        const Set::Scalar projected_Jp =
+            Set::reduce(Fp_state).determinant();
+        return ValidPlasticDeformation(Fp_state, determinant_floor) &&
+            std::isfinite(projected_Jp);
+    }
+
+    Set::Scalar W(const Set::Matrix& F) const
+    {
+        const Set::Matrix Fe = ElasticDeformation(F, Fp);
+        return weight * PseudoLinear::Orthotropic::W(Fe);
+    }
+    Set::Matrix DW(const Set::Matrix& F) const
+    {
+        const Set::Matrix A = Set::reduce(Fp).inverse() / thermal_stretch;
+        const Set::Matrix Fe = ElasticDeformation(F, Fp);
+        return weight * PseudoLinear::Orthotropic::DW(Fe) * A.transpose();
+    }
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix& F) const
+    {
+        const Set::Matrix A = Set::reduce(Fp).inverse() / thermal_stretch;
+        const Set::Matrix Fe = ElasticDeformation(F, Fp);
+        const auto DDW = PseudoLinear::Orthotropic::DDW(Fe);
         auto ret = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
             for (int J = 0; J < AMREX_SPACEDIM; J++)
@@ -73,7 +126,7 @@ public:
                         ret(i,J,k,L) = 0.0;
                         for (int Q = 0; Q < AMREX_SPACEDIM; Q++)
                             for (int R = 0; R < AMREX_SPACEDIM; R++)
-                                ret(i,J,k,L) += DDW(i,Q,k,R)*Fpinv(J,Q)*Fpinv(L,R);
+                                ret(i,J,k,L) += weight * DDW(i,Q,k,R)*A(J,Q)*A(L,R);
                     }
         return ret;
     }
@@ -84,16 +137,17 @@ public:
                      Set::Scalar temperature) const
     {
         PlasticRate rate;
-        if (time < tstart) return rate;
+        if (time < tstart || !ValidPlasticDeformation(a_Fp)) return rate;
 
         // With F = Fe Fp and Fp_dot = Lp Fp, the stress power that is
         // work-conjugate to Lp is the Mandel stress M = Fe^T Pe, where
         // Pe = dW/dFe. Slip systems are defined in this intermediate
         // configuration, so their resolved shear is s dot M m.
-        const Set::Matrix Fpinv = Set::reduce(a_Fp).inverse();
-        const Set::Matrix Fe = F * Fpinv;
+        const Set::Matrix Fe = ElasticDeformation(F, a_Fp);
         const Set::Matrix Pe = PseudoLinear::Orthotropic::DW(Fe);
         const Set::Matrix3d mandel = Set::expand(Fe.transpose() * Pe);
+        rate.Fe = Set::expand(Fe);
+        rate.mandel = mandel;
 
         Set::Quaternion normalized_q = q;
         normalized_q.normalize();
@@ -107,6 +161,7 @@ public:
             Set::Vector3d A = ss[n].first;
             Set::Vector3d N = ss[n].second;
             Set::Scalar tau = A.dot(mandel*N);
+            rate.resolved_shear[n] = tau;
             Set::Scalar sign = tau>0 ? 1.0 : -1.0;
 
             // Apply local thermal softening to the initial CRSS. Mechanical
@@ -129,22 +184,43 @@ public:
             L += rate.gamma[n] * A * N.transpose();
         }
 
+        // Crystallographic slip changes shape without changing plastic
+        // volume. Remove any reduced-dimensional trace introduced by
+        // roundoff or imperfect user-supplied slip systems.
+        const Set::Scalar volumetric_rate =
+            Set::reduce(L).trace() /
+            static_cast<Set::Scalar>(AMREX_SPACEDIM);
+        for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            L(d,d) -= volumetric_rate;
+
         rate.Fp = L * a_Fp;
         return rate;
     }
 
     void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix /*P*/, Set::Scalar time)
     {
-        PlasticRate rate = Rate(F, Fp, time, temperature_reference);
-        Fp += rate.Fp * dt;
-        for (int n = 0; n < 12; ++n)
-            gamma(n) += Util::Abs(rate.gamma(n)) * dt;
+        if (time < tstart || !(weight > active_weight) || !(dt > 0.0)) return;
+        Set::Scalar remaining = dt;
+        for (int iter = 0; iter < 1000 && remaining > 0.0; ++iter)
+        {
+            const PlasticRate rate = Rate(F, Fp, time, temperature);
+            Set::Scalar max_rate = 0.0;
+            for (int n = 0; n < 12; ++n)
+                max_rate = Util::Max(max_rate, Util::Abs(rate.gamma(n)));
+            Set::Scalar h = remaining;
+            if (max_rate * h > max_slip_increment)
+                h = max_slip_increment / max_rate;
+            Fp += rate.Fp * h;
+            for (int n = 0; n < 12; ++n)
+                gamma(n) += Util::Abs(rate.gamma(n)) * h;
+            remaining -= h;
+        }
     }
 
 
 public:
     //Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC;
-    //static constexpr KinematicVariable kinvar = KinematicVariable::F;
+    static constexpr KinematicVariable kinvar = KinematicVariable::F;
     //Set::Scalar C11=1.68, C12=1.21, C44=0.75;
     //mutable Set::Quaternion q = Set::Quaternion(1.0, 0.0, 0.0, 0.0);
 
@@ -164,6 +240,13 @@ public:
     Set::Scalar temperature_reference = 300.0;
     Set::Scalar thermal_softening_coefficient = 0.0;
     Set::Scalar minimum_crss_fraction = 1.0;
+    Set::Scalar max_slip_increment = 1.0e-4;
+    Set::Scalar active_weight = 0.5;
+
+    // Local coupling data supplied by the LowMach integrator.
+    Set::Scalar weight = 1.0;
+    Set::Scalar temperature = 300.0;
+    Set::Scalar thermal_stretch = 1.0;
 
     // Control variables
     Set::Scalar tstart = NAN;
@@ -248,6 +331,11 @@ public:
         ret.temperature_reference = 300.0;
         ret.thermal_softening_coefficient = 0.0;
         ret.minimum_crss_fraction = 1.0;
+        ret.max_slip_increment = 0.0;
+        ret.active_weight = 0.0;
+        ret.weight = 0.0;
+        ret.temperature = 0.0;
+        ret.thermal_stretch = 1.0;
         ret.tstart = 0.0;
         return ret;
     }
@@ -373,7 +461,7 @@ public:
     }
 
 #define OP_CLASS CrystalPlastic
-#define OP_VARS X(C11) X(C22) X(C33) X(C12) X(C13) X(C23) X(C44) X(C55) X(C66) X(q) X(Fp) X(gamma) X(slip_directions) X(slip_normals) X(m_rate_inv) X(tau_crss) X(gammadot0) X(hardening_self) X(hardening_latent) X(temperature_reference) X(thermal_softening_coefficient) X(minimum_crss_fraction) X(tstart)
+#define OP_VARS X(C11) X(C22) X(C33) X(C12) X(C13) X(C23) X(C44) X(C55) X(C66) X(q) X(Fp) X(gamma) X(slip_directions) X(slip_normals) X(m_rate_inv) X(tau_crss) X(gammadot0) X(hardening_self) X(hardening_latent) X(temperature_reference) X(thermal_softening_coefficient) X(minimum_crss_fraction) X(max_slip_increment) X(active_weight) X(weight) X(temperature) X(thermal_stretch) X(tstart)
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"

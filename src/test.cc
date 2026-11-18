@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <stdlib.h>
 
 #include "Set/Matrix4.H"
@@ -24,6 +25,7 @@
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
+#include "Model/Solid/Finite/CrystalPlastic.H"
 #include "Model/Solid/Finite/PseudoLinear/Cubic.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 #include "Model/Solid/Linear/Hexagonal.H"
@@ -278,6 +280,81 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
+
+    Util::Test::Message("Finite crystal-plastic incompressibility");
+    {
+        auto model =
+            Model::Solid::Finite::CrystalPlastic::Random(2.0, 1.0, 1.0);
+        model.tstart = 0.0;
+        model.gammadot0 = 1.0;
+        model.m_rate_inv = 1.0;
+        model.hardening_self = 0.0;
+        model.hardening_latent = 0.0;
+        model.slip_directions.setZero();
+        model.slip_normals.setZero();
+        model.slip_directions(0,0) = 1.0;
+        model.slip_normals(0,0) = 1.0;
+        for (int alpha = 0; alpha < 12; ++alpha)
+            model.tau_crss(alpha) = 1.0;
+
+        Set::Matrix F = Set::Matrix::Identity();
+        F(0,0) = 1.1;
+        const Set::Matrix3d Fp = Set::Matrix3d::Identity();
+        const auto rate = model.Rate(F, Fp, 0.0, 300.0);
+        const Set::Scalar trace = Set::reduce(rate.Fp).trace();
+
+        failed += Util::Test::SubMessage(
+            "Plastic velocity gradient has zero reduced trace",
+            !std::isfinite(trace) || std::abs(trace) > 1.0e-12);
+
+        Set::Matrix3d identity = Set::Matrix3d::Identity();
+        const bool identity_projected =
+            model.ProjectPlasticVolume(identity);
+        failed += Util::Test::SubMessage(
+            "Projection preserves the identity",
+            !identity_projected ||
+            (identity - Set::Matrix3d::Identity()).norm() > 1.0e-12);
+
+        Set::Matrix3d expanded = Set::Matrix3d::Identity();
+        expanded(0,0) = 1.2;
+        expanded(0,1) = 0.3;
+        const bool expanded_projected =
+            model.ProjectPlasticVolume(expanded);
+        const Set::Scalar expanded_det =
+            Set::reduce(expanded).determinant();
+        failed += Util::Test::SubMessage(
+            "Projection removes volume while preserving shear",
+            !expanded_projected ||
+            std::abs(expanded_det - 1.0) > 1.0e-12 ||
+            std::abs(expanded(0,1)) <= 1.0e-12);
+
+        Set::Matrix3d compressed = Set::Matrix3d::Identity();
+        compressed(0,0) = 0.8;
+        const bool compressed_projected =
+            model.ProjectPlasticVolume(compressed);
+        failed += Util::Test::SubMessage(
+            "Positive compressed states project to unit determinant",
+            !compressed_projected ||
+            std::abs(Set::reduce(compressed).determinant() - 1.0) >
+                1.0e-12);
+
+        Set::Matrix3d singular = Set::Matrix3d::Identity();
+        singular(0,0) = 0.0;
+        Set::Matrix3d inverted = Set::Matrix3d::Identity();
+        inverted(0,0) = -1.0;
+        Set::Matrix3d not_a_number = Set::Matrix3d::Identity();
+        not_a_number(0,0) =
+            std::numeric_limits<Set::Scalar>::quiet_NaN();
+        Set::Matrix3d infinite = Set::Matrix3d::Identity();
+        infinite(0,0) =
+            std::numeric_limits<Set::Scalar>::infinity();
+        failed += Util::Test::SubMessage(
+            "Projection rejects singular, inverted, and nonfinite states",
+            model.ProjectPlasticVolume(singular) ||
+            model.ProjectPlasticVolume(inverted) ||
+            model.ProjectPlasticVolume(not_a_number) ||
+            model.ProjectPlasticVolume(infinite));
+    }
 
 
     Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>::Test();

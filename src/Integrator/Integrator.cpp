@@ -763,11 +763,6 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                 // storage before boundary exchange, as for nodal restarts.
                 (*cell.fab_array[i])[lev]->setVal(0.0);
             }
-                // Plotfiles contain valid cells only. Initialize scratch fields
-                // and outer ghost corners just as MakeNewLevelFromScratch does,
-                // before copying saved state and applying boundary conditions.
-                (*cell.fab_array[i])[lev]->setVal(0.0);
-            }
         for (int i = 0; i < tmp_numfabs; i++)
         {
             bool match = false;
