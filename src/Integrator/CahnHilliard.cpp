@@ -102,8 +102,8 @@ CahnHilliard::AdvanceReal(int lev, Set::Scalar /*time*/, Set::Scalar dt)
             Set::Scalar lap_eta = Numeric::Laplacian(eta, i, j, k, 0, DX);
 
             inter(i, j, k) = eta(i, j, k) * eta(i, j, k) * eta(i, j, k)
-                             - eta(i, j, k)
-                             - gamma * lap_eta;
+                            - eta(i, j, k)
+                            - gamma * lap_eta;
 
             etanew(i, j, k) = eta(i, j, k) - dt * inter(i, j, k); // Allen Cahn
         });
@@ -146,7 +146,7 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         const Set::Scalar minus = 0.5 * (M + DegenerateMobility(eta(i - di, j - dj, k - dk), L, floor));
         rhs += (plus * (mu(i + di, j + dj, k + dk) - mu(i, j, k))
                 - minus * (mu(i, j, k) - mu(i - di, j - dj, k - dk)))
-               / (dx[dir] * dx[dir]);
+                / (dx[dir] * dx[dir]);
     }
     return rhs;
 }
@@ -160,7 +160,7 @@ void ChemicalPotential(const amrex::MultiFab &eta_mf, amrex::MultiFab &mu_mf, co
         const auto mu = mu_mf.array(mfi);
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             mu(i, j, k) = eta(i, j, k) * eta(i, j, k) * eta(i, j, k) - eta(i, j, k)
-                          - gamma * Numeric::Laplacian(eta, i, j, k, 0, dx.data());
+                        - gamma * Numeric::Laplacian(eta, i, j, k, 0, dx.data());
         });
     }
 }
@@ -253,8 +253,8 @@ CahnHilliard::AdvanceDegenerateSpectral(int lev, Set::Scalar time, Set::Scalar d
             const Set::Scalar sz = std::sin(Set::Constant::Pi * p / length[2]);
 #endif
             const Set::Scalar lap = AMREX_D_TERM(4.0 * sx * sx / (dx[0] * dx[0]),
-                                                 +4.0 * sy * sy / (dx[1] * dx[1]),
-                                                 +4.0 * sz * sz / (dx[2] * dx[2]));
+                                                +4.0 * sy * sy / (dx[1] * dx[1]),
+                                                +4.0 * sz * sz / (dx[2] * dx[2]));
             // Set the conserved mode exactly; the face flux sum is zero up to roundoff.
             if (m != 0 || n != 0 || p != 0)
                 eta_hat(m, n, p) += dt * rhs_hat(m, n, p) / (1.0 + dt * S * lap * lap);
