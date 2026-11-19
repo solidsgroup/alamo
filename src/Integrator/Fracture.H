@@ -274,13 +274,15 @@ public:
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
-            amrex::Box domain = geom[lev].Domain();
+            // Compute energy in periodic ghosts while excluding physical ghosts.
+            amrex::Box domain(geom[lev].growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             Set::Vector DX(geom[lev].CellSize());
 
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                const amrex::Box crack_box = crack.c_mf[lev]->fabbox(mfi.index());
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
@@ -357,7 +359,9 @@ public:
                     else
                     {
                         // Here we implement the 2023 model by Wang et al (DOI: 10.1016/j.apm.2022.12.006)
-                        Set::Vector crack_grad = Numeric::Gradient(c, i, j, k, 0, DX.data());
+                        // The outer ghost layer has no neighbor beyond the FAB.
+                        const auto stencil = Numeric::GetStencil(i, j, k, crack_box);
+                        Set::Vector crack_grad = Numeric::Gradient(c, i, j, k, 0, DX.data(), stencil);
                         if (crack_grad.lpNorm<2>() > 1.e-4)
                         {
 
@@ -489,8 +493,10 @@ public:
                     //=====================================================================
                 });
             }
-            Util::RealFillBoundary(*crack.energy_pristine_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*crack.history_var_mf[lev], geom[lev]);
+            crack.energy_pristine_mf[lev]->setMultiGhost(true);
+            crack.energy_pristine_mf[lev]->FillBoundary(geom[lev].periodicity());
+            crack.history_var_mf[lev]->setMultiGhost(true);
+            crack.history_var_mf[lev]->FillBoundary(geom[lev].periodicity());
         }
 
         integrate_variables_before_advance = false;
