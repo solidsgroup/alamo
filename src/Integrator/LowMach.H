@@ -25,6 +25,7 @@
 #include "IC/IC.H"
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
+#include "IC/PointList.H"
 #include "Model/Gas/Gas.H"
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/FiniteRate.H"

@@ -43,6 +43,12 @@ public:
     {
         pp.queryclass(name, *this);
     }
+    PointList(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit,
+              IO::ParmParse& pp, std::string name) : IC(_geom), field_unit(a_unit)
+    {
+        pp.queryclass(name, *this);
+    }
+
     void Define() {
 
     };
@@ -236,6 +242,36 @@ public:
                 });
             }
         }
+        if (field_value != 1.0 || use_plane)
+        {
+            const Set::Scalar output_value = field_value;
+            const bool mask_with_plane = use_plane;
+            const Set::Vector point = plane_point;
+            const Set::Vector normal = plane_normal;
+            const Set::Scalar width = plane_eps;
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const auto type = a_phi[lev]->ixType();
+                const auto bx = type == amrex::IndexType::TheCellType() ?
+                    mfi.growntilebox() : mfi.grownnodaltilebox();
+                const auto phi = a_phi[lev]->array(mfi);
+                const auto prob_lo = geom[lev].ProbLoArray();
+                const auto cell_size = geom[lev].CellSizeArray();
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar mask = 1.0;
+                    if (mask_with_plane)
+                    {
+                        const Set::Vector x = Set::Position(i, j, k, prob_lo, cell_size, type);
+                        const Set::Scalar distance = (x - point).dot(normal);
+                        mask = width > 0.0 ?
+                            0.5 * (1.0 + std::tanh(2.0 * distance / width)) :
+                            static_cast<Set::Scalar>(distance >= 0.0);
+                    }
+                    phi(i,j,k) *= output_value * mask;
+                });
+            }
+        }
     }
 
     static void Parse(PointList& value, IO::ParmParse& pp)
@@ -266,6 +302,22 @@ public:
         
         // Amount of rotation about rotation center (clockwise)
         pp.query_default("rotation.angle",value.rotation.angle,"0.0", Unit::Angle());
+
+        // Value represented by the polygon indicator (dimensionless by default).
+        pp.query_default("value", value.field_value, "1.0", value.field_unit);
+
+        // Optionally restrict the polygons or their complement to one side of a plane.
+        value.use_plane = pp.contains("plane.normal");
+        if (value.use_plane)
+        {
+            pp.queryarr("plane.normal", value.plane_normal);
+            pp.queryarr_default("plane.point", value.plane_point, "0 0 0", Unit::Length());
+            pp.query_default("plane.eps", value.plane_eps, "0.0", Unit::Length());
+            const Set::Scalar norm = value.plane_normal.norm();
+            Util::AssertException(INFO, TEST(norm > 0.0), "plane.normal must be nonzero");
+            Util::AssertException(INFO, TEST(value.plane_eps >= 0.0), "plane.eps must be nonnegative");
+            value.plane_normal /= norm;
+        }
 
         // ObjNum jump (between consecutive points in the file) larger than this starts a new polygon
         pp.query_default("obj_num_threshold",value.objnum_threshold,"0.5", Unit::Less());
@@ -354,6 +406,12 @@ public:
 
 private:
     std::vector<std::vector<Set::Vector>> polygons; // Each entry is the ordered list of vertices for one closed polygon
+    Unit field_unit = Unit::Less();
+    Set::Scalar field_value = 1.0;
+    bool use_plane = false;
+    Set::Vector plane_point = Set::Vector::Zero();
+    Set::Vector plane_normal = Set::Vector::Zero();
+    Set::Scalar plane_eps = 0.0;
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
