@@ -234,8 +234,12 @@ jobs:
         echo "## 📄 Report: test-2d-24-04-clang" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
-  test-2d-24-04-clang-fft:
+  test-24-04-clang-fft:
+    name: test-${{ matrix.dim }}d-24-04-clang-fft
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        dim: [2, 3]
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
@@ -244,19 +248,19 @@ jobs:
       run: sudo apt install clang
     - name: installing fftw3
       run: sudo apt install libfftw3-dev
-    - name: configure (2d)
-      run: ./configure --dim=2 --comp=clang++ --fft
+    - name: configure (${{ matrix.dim }}d)
+      run: ./configure --dim=${{ matrix.dim }} --comp=clang++ --fft
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
+      run: scripts/runtests.py --serial --no-coverage --dim=${{ matrix.dim }} --comp=clang++  --timeout=200 --no-backspace --fft-only
     - name: create report
       if: always()
-      run: python3 scripts/package_report.py --name test-2d-24-04-clang-fft
+      run: python3 scripts/package_report.py --name test-${{ matrix.dim }}d-24-04-clang-fft
     - name: report artifact summary
       if: always()
       run: |
-        name="test-2d-24-04-clang-fft"
+        name="test-${{ matrix.dim }}d-24-04-clang-fft"
         echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
         if [ -d "$name" ]; then
           echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
@@ -270,11 +274,11 @@ jobs:
       id: upload_report
       uses: actions/upload-artifact@v4
       with:
-        name: test-2d-24-04-clang-fft
-        path: test-2d-24-04-clang-fft
+        name: test-${{ matrix.dim }}d-24-04-clang-fft
+        path: test-${{ matrix.dim }}d-24-04-clang-fft
     - name: Add report link to summary
       if: always()
       run: |
-        echo "## 📄 Report: test-2d-24-04-clang-fft" >> $GITHUB_STEP_SUMMARY
+        echo "## 📄 Report: test-${{ matrix.dim }}d-24-04-clang-fft" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
