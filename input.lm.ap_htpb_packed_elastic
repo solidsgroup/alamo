@@ -192,18 +192,14 @@ HTPB_solid.thermal_conductivity = 0.1300_W/m/K
 
 # Elastic constants, converted from representative literature isotropic
 # (E, nu) values via mu = E/(2*(1+nu)), kappa = E/(3*(1-2*nu)):
-#   AP crystal:    E ~ 21.6 GPa, nu ~ 0.14  -> mu ~ 9.47 GPa,  kappa ~ 10.0 GPa
-#   HTPB binder:   E ~ 5.0 MPa,  nu ~ 0.499 (near-incompressible rubber)
-#                                            -> mu ~ 1.67 MPa, kappa ~ 833 MPa
-# These are representative orders of magnitude for the pure phases, not a fit
-# to this specific formulation -- replace with measured/calibrated values if
-# available. See the WARNING above regarding solver conditioning at these
-# magnitudes.
+#   AP crystal:    E ~ 32449.98MPa GPa, nu ~ 0.14  -> mu ~ 14191.376MPa,  kappa ~ 15162MPa
+#   HTPB binder:   E ~ 5.0 MPa,  nu ~ 0.47 (near-incompressible rubber)
+#                                            -> mu ~ 1.47 MPa, kappa ~ 27.7 MPa
 
-AP_solid.elastic.model.mu    = 9.47e6 # true SI 9.47e9 -- see WARNING above (1e4x rescale)
-AP_solid.elastic.model.kappa = 1.00e8 # true SI 1.00e10 -- see WARNING above (1e4x rescale)
-HTPB_solid.elastic.model.mu    = 1.67e6 # = true SI value -- see WARNING above (1e4x rescale)
-HTPB_solid.elastic.model.kappa = 8.33e8 # = true SI value -- see WARNING above (1e4x rescale)
+AP_solid.elastic.model.mu = 14191.376e6 #
+AP_solid.elastic.model.kappa    = 15162.134e6 #
+HTPB_solid.elastic.model.mu    = 1470588.23529 #
+HTPB_solid.elastic.model.kappa = 27777777.7778 #
 
 # Soft void: the gas region gets a small but nonzero modulus (in the same
 # units as the solid moduli above, i.e. also 1e4x-rescaled -- see WARNING
@@ -398,8 +394,8 @@ pressure.bc.constant.val.yhi = 3000000.0
 # iteration MLMG solve (default elastic.nriters = 1, see
 # Base::Mechanics::Register) does not dominate runtime.
 elastic.type = static
-elastic.interval = 1
-#elastic.dt = 1e-4_s
+#elastic.interval = 10
+elastic.dt = 1e-4_s
 elastic.traction = 0.0
 elastic.apply_fluid_pressure = 1
 elastic.etacutoff = 0.0

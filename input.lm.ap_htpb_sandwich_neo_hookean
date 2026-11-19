@@ -4,7 +4,7 @@
 # Geometry initialization follows tests/LMRFSandwich: binder at x < 50 um,
 # AP at x > 50 um, solid below y=0, 20 um diffuse surface width.
 plot_file = output.lm.ap_htpb_sandwich_neo_hookean
-amr.plot_int = 2147483647
+amr.plot_int = 1
 amr.plot_dt = 1.0e-6_s
 amr.n_cell = 232 560
 amr.max_level = 0
