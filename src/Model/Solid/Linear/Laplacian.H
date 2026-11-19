@@ -5,6 +5,7 @@
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 
+#include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
@@ -25,32 +26,30 @@ namespace Linear
 class Laplacian : public Model::Solid::Solid<Set::Sym::Diagonal>
 {
 public:
-    Laplacian() { Define(); } ;
-    Laplacian(Set::Scalar alpha) { Define(alpha); } ;
-    Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
-    ~Laplacian() {} ;
     void Define(Set::Scalar alpha = 1.0)
     {
-        ddw = alpha*Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
+        ddw = alpha*Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Ones();
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
 public:
     static Laplacian Zero()
     {
-        return Laplacian(0.0);
+        Laplacian ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Zero();
+        return ret;
     }
-    static void Parse(Laplacian value,IO::ParmParse pp)
+    static void Parse(Laplacian &value,IO::ParmParse &pp)
     {
         Set::Scalar alpha = NAN;
         // Coefficient for the Laplacian
@@ -62,8 +61,9 @@ public:
     static const KinematicVariable kinvar = KinematicVariable::gradu;
     static Laplacian Random()
     {
-        Set::Scalar alpha = (Util::Random() + 0.1)/1.1;
-        return Laplacian(alpha);
+        Laplacian ret;
+        ret.ddw.Randomize();
+        return ret;
     }
 
 #define OP_CLASS Laplacian

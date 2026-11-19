@@ -8,12 +8,14 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "AMReX_GpuAsyncArray.H"
+#include "Util/Util.H"
 using namespace std;
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <iterator>
-#include "mpi.h"
+#include <mpi.h>
 #include "IO/ParmParse.H"
 
 namespace IC
@@ -33,17 +35,35 @@ public:
 
     PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        pp_queryclass(name, *this);
+        pp.queryclass(name, *this);
     }
-
     void Define() {
 
     };
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
-        Set::Vector size = Set::Size(geom[lev]);
-        int ncomp = a_phi[lev]->nComp();
+        const Set::Vector size = Set::Size(geom[lev]);
+        const int ncomp = a_phi[lev]->nComp();
+        const auto prob_lo = geom[lev].ProbLoArray();
+        const auto cell_size = geom[lev].CellSizeArray();
+        const amrex::GpuArray<int, AMREX_SPACEDIM> periodic = {
+            AMREX_D_DECL(   geom[0].isPeriodic(0),
+                            geom[0].isPeriodic(1),
+                            geom[0].isPeriodic(2))};
+        std::vector<Set::Scalar> coordinates(
+            X.size() * AMREX_SPACEDIM);
+        for (int n = 0; n < static_cast<int>(X.size()); ++n)
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+                coordinates[n * AMREX_SPACEDIM + d] = X[n](d);
+        amrex::Gpu::AsyncArray<Set::Scalar> X_device(
+            coordinates.data(), coordinates.size());
+        amrex::Gpu::AsyncArray<Set::Scalar> R_device(R.data(), R.size());
+        const Set::Scalar* X = X_device.data();
+        const Set::Scalar* R = R_device.data();
+        const int sphere_count = static_cast<int>(this->X.size());
+        const Set::Scalar eps = this->eps;
+        const bool invert = this->invert;
 
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -56,33 +76,39 @@ public:
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                Set::Vector x =
+                    Set::Position(i, j, k, prob_lo, cell_size, type);
                 Set::Scalar min_grain_id = 0;
 
-                for (unsigned int n = 0; n < X.size(); n++)
+                for (int n = 0; n < sphere_count; n++)
                 {
                     Set::Scalar d;
                     Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
 
-                    d = (x - X[n]).lpNorm<2>();
+                    Set::Vector center;
+                    for (   int direction = 0;
+                            direction < AMREX_SPACEDIM; ++direction)
+                        center(direction) =
+                            X[n * AMREX_SPACEDIM + direction];
+                    d = (x - center).lpNorm<2>();
 
-                    if (geom[0].isPeriodic(0))
+                    if (periodic[0])
                     {
-                        d1 = std::min((x - X[n] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - X[n] - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
+                        d1 = std::min((x - center + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
+                            (x - center - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
                     }
 #if AMREX_SPACEDIM > 1
-                    if (geom[0].isPeriodic(1))
+                    if (periodic[1])
                     {
-                        d1 = std::min((x - X[n] + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - X[n] - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
+                        d1 = std::min((x - center + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
+                            (x - center - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
                     }
 #endif
 #if AMREX_SPACEDIM > 2
-                    if (geom[0].isPeriodic(2))
+                    if (periodic[2])
                     {
-                        d1 = std::min((x - X[n] + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - X[n] - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
+                        d1 = std::min((x - center + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
+                            (x - center - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
                     }
 #endif
 
@@ -107,13 +133,37 @@ public:
     {
         std::string filename;
         int verbose = 0;
-        pp_query("eps", value.eps); // Diffuseness of the sphere boundary
-        pp_query_file("filename", filename); // Location of .xyzr file
-        pp_query("verbose", verbose); // Verbosity (used in parser only)
-        pp_query("mult",value.mult); // Coordinate multiplier
-        pp.query("invert",value.invert); // Coordinate multiplier
+        // Diffuseness of the sphere boundary
+        pp.query_default("eps", value.eps, "0.0", Unit::Length());
+
+        pp.forbid("filename", "use file.name instead");
+        // Location of .xyzr file
+        pp.query_file("file.name", filename); 
+
+        // Verbosity (used in parser only)
+        pp.query_default("verbose", verbose, 0); 
+
+        // Unitless coordinate multiplier
+        pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
+
+        // Whether to invert (1 outside instead of inside spheres)
+        pp.query_default("invert",value.invert,false); 
+
+        // X-offset 
+        pp.queryarr_default("x0",value.x0,"0 0 0", Unit::Length());
+
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
+        
+        Unit unit = Unit::Length();
+        // Units of length in the file
+        pp.queryunit("file.unit",unit);
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        Util::AssertException(  INFO,TEST(unit.isType(Unit::Length())), 
+                                "Unit must be of type length but got unit ",unit.normalized_unitstring());
+        
         std::ifstream datafile(filename);
         std::string line;
         if (datafile.is_open())
@@ -127,8 +177,19 @@ public:
 
                 std::string strx, stry, strz, strR;
                 in >> strx >> stry >> strz >> strR;
-                value.X.push_back(value.x0 + value.mult*Set::Vector(AMREX_D_DECL(std::stod(strx), std::stod(stry), std::stod(strz))));
-                value.R.push_back(value.mult*std::stod(strR));
+
+                Set::Scalar x = (std::stod(strx) * unit).normalized_value();
+                Set::Scalar y = (std::stod(stry) * unit).normalized_value();
+                #if AMREX_SPACEDIM > 2
+                Set::Scalar z = (std::stod(strz) * unit).normalized_value();
+                #endif
+                Set::Scalar r = (std::stod(strR) * unit).normalized_value();
+
+                Set::Vector X(AMREX_D_DECL(x,y,z));
+                X = value.x0 + value.mult*X;
+
+                value.X.push_back(X);
+                value.R.push_back(r);
                 if (verbose > 0)
                     Util::Message(INFO, "x=", value.X.back().transpose(), " r=", value.R.back());
             }

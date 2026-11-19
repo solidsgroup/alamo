@@ -1,0 +1,3 @@
+# MPICH/PMIx hardware discovery retains process-lifetime allocations.
+leak:hwloc_topology_load
+leak:libOpenCL.so

@@ -69,7 +69,7 @@ model1.nu = 0.3
 
 solver.verbose = 3
 solver.nriters = 1
-solver.max_iter = 50
+solver.max_iter = 500
 
 ### UNIAXIAL TENSION ###
 bc.type = constant

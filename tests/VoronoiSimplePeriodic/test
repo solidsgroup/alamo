@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+import sys
+sys.path.insert(0,"../../scripts")
+import testlib
+import numpy, yt, pylab, os, pandas, sys, math
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 0.05
+
+testlib.validate(path="{}/00001cell/".format(outdir),
+                 outdir=outdir,
+                 start=[-8,-8,-8],
+                 end=[8,8,8],
+                 vars=["model.Cxxxx","disp_x","stress_xx"],
+                 tolerance=tolerance,
+                 reference="reference/reference.csv",
+                 generate_ref_data=generate_ref_data)
+
+exit(0)
+

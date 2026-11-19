@@ -39,20 +39,20 @@ namespace Finite
 class CrystalPlastic : public PseudoLinear::Cubic
 {
 public:
-    CrystalPlastic() {};
+    CrystalPlastic() = default;
 
-    virtual ~CrystalPlastic() {};
+    ~CrystalPlastic() = default;
 
-    Set::Scalar W(const Set::Matrix & F) const override
+    Set::Scalar W(const Set::Matrix & F) const 
     {
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
     }
-    Set::Matrix DW(const Set::Matrix & F) const override
+    Set::Matrix DW(const Set::Matrix & F) const 
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const 
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * Fpinv);
@@ -70,7 +70,7 @@ public:
         return ret;
     }
     
-    virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
+    void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) 
     {
         if (time  < tstart) return;
 
@@ -198,12 +198,6 @@ public:
         std::vector<Set::Scalar> tau_crss;
         // Critical resolved shear stress :math:`\tau_{crss}`
         pp_queryarr("tau_crss",tau_crss);
-        if (tau_crss.size() == 1)
-            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[0];
-        else if (tau_crss.size() == 12)
-            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[n];
-        else
-            Util::Exception(INFO,"Expected either 1 or 12 values for tau_crss but got ",tau_crss.size());
 
         // Rate hardening coefficient :math:`\dot{\gamma}_0`
         pp_query_default("gammadot0",value.gammadot0,1.0);
@@ -213,6 +207,16 @@ public:
         
         // Time to activate plastic slip
         pp_query_default("tstart",value.tstart,0.0);    
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        if (tau_crss.size() == 1)
+            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[0];
+        else if (tau_crss.size() == 12)
+            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[n];
+        else
+            Util::Exception(INFO,"Expected either 1 or 12 values for tau_crss but got ",tau_crss.size());
+
     }
 
 #define OP_CLASS CrystalPlastic

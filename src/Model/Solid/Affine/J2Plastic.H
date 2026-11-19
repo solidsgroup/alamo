@@ -34,7 +34,7 @@ public:
         return (yield_strength*alpha + 0.5*hardening_modulus*alpha*alpha);
     }
 
-    void Advance(Set::Scalar /*dt*/, Set::Matrix eps, Set::Matrix /*sig*/) override
+    void Advance(Set::Scalar /*dt*/, Set::Matrix eps, Set::Matrix /*sig*/) 
     {
         Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
         

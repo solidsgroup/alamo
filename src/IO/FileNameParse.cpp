@@ -1,4 +1,5 @@
 #include "IO/FileNameParse.H"
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <chrono>
@@ -35,9 +36,21 @@ void IO::FileNameParse(std::string &filename)
         if (!formatting_string.empty()) {
             Util::Exception(INFO,"Formatting strings are not supported yet");
         } else {
-            std::vector<std::string> variable_value;
-            pp.queryarr(variable_name.c_str(),variable_value);
-            Util::String::ReplaceAll(filename,"{"+variable_name+"}",Util::String::Join(variable_value,'_'));
+            if (variable_name.rfind("SLURM_", 0) == 0)
+            {
+                const char *variable_value = std::getenv(variable_name.c_str());
+                const std::string replacement =
+                    variable_value != nullptr && variable_value[0] != '\0' ?
+                    variable_value : variable_name;
+                Util::String::ReplaceAll(
+                    filename, "{" + variable_name + "}", replacement);
+            }
+            else
+            {
+                std::vector<std::string> variable_value;
+                pp.queryarr(variable_name.c_str(),variable_value);
+                Util::String::ReplaceAll(filename,"{"+variable_name+"}",Util::String::Join(variable_value,'_'));
+            }
         }
     }
 

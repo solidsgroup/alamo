@@ -100,10 +100,9 @@ public:
         Set::Scalar compressive_strength = NAN;
 
         // Toggle to determine mixed mode
-        pp.query_default("mixed_mode", value._mixed_mode, false);
+        pp.query_if_else("mixed_mode",[&]() {
+            value._mixed_mode = true;
 
-        if (value._mixed_mode)
-        {
             // Young's modulus
             pp.query_default("E", youngs, 2.e11);
             
@@ -116,66 +115,86 @@ public:
             std::string fail_surf_type = "";
             // type of failure surface
             pp.query_validate("failure_surface", fail_surf_type, {"wang2023", "mohr", "mc", "columb"}); // degradation function. For now, we only have linear softening
-            std::map<std::string,FSType>  fs_map;
-            fs_map["wang2023"]   = FSType::WANG2023;
-            fs_map["mohr"]       = FSType::MC;
-            fs_map["mc"]         = FSType::MC;
-            fs_map["columb"]     = FSType::MC;
-            value._failure_surface = fs_map[fail_surf_type];
 
-            if (value._failure_surface == FSType::WANG2023)
-            {
-                // Fracture strength
-                pp.query_default("fracture_strength", fracture_strength, 1.e6);
+            pp.query_switch("failure_surface",{
+                    {"wang2023", [&]() {
+                        value._failure_surface = FSType::WANG2023;
+
+                        // Fracture strength
+                        pp.query_default("fracture_strength", fracture_strength, 1.e6);
                 
-                // $\chi$ value
-                pp.query_default("chi", value._chi, 1.0);
+                        // $\chi$ value
+                        pp.query_default("chi", value._chi, 1.0);
                 
-                // Compressive strength
-                pp.query_default("compressive_strength", compressive_strength,4.e8);
-                value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
+                        // Compressive strength
+                        pp.query_default("compressive_strength", compressive_strength,4.e8);
+                        value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
-                tensile_strength = fracture_strength / value.k1;
-                shear_strength = value._chi * tensile_strength;
-                value._beta_bar = (1.0 / (value._chi * value._chi)) - (compressive_strength * compressive_strength / (4.0 * value._chi * value._chi * shear_strength * shear_strength));
+                        tensile_strength = fracture_strength / value.k1;
+                        shear_strength = value._chi * tensile_strength;
+                        value._beta_bar = (1.0 / (value._chi * value._chi)) - (compressive_strength * compressive_strength / (4.0 * value._chi * value._chi * shear_strength * shear_strength));
 
-                value._GcI_bar = value._Gc/(value.k1*value.k1);
-                value._GcII_bar = value._GcI_bar * youngs * value._chi * value._chi / mu ;
-                fracture_strength = tensile_strength * value.k1;
+                        value._GcI_bar = value._Gc/(value.k1*value.k1);
+                        value._GcII_bar = value._GcI_bar * youngs * value._chi * value._chi / mu ;
+                        fracture_strength = tensile_strength * value.k1;
 
-                Util::Message(INFO, "Chi = ", value._chi);
-                Util::Message(INFO, "mu = ", mu);
-                Util::Message(INFO, "k1 = ", value.k1);
-                Util::Message(INFO, "beta_bar = ", value._beta_bar);
-                Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
-                Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
-                Util::Message(INFO, "f_t = ", fracture_strength);
-                Util::Message(INFO, "f_c = ", compressive_strength);
-                Util::Message(INFO, "sig_t = ", tensile_strength);
-                Util::Message(INFO, "tau_s = ", shear_strength);
+                        Util::Message(INFO, "Chi = ", value._chi);
+                        Util::Message(INFO, "mu = ", mu);
+                        Util::Message(INFO, "k1 = ", value.k1);
+                        Util::Message(INFO, "beta_bar = ", value._beta_bar);
+                        Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
+                        Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
+                        Util::Message(INFO, "f_t = ", fracture_strength);
+                        Util::Message(INFO, "f_c = ", compressive_strength);
+                        Util::Message(INFO, "sig_t = ", tensile_strength);
+                        Util::Message(INFO, "tau_s = ", shear_strength);
 
-                value._sig_t = tensile_strength;
-                value._tau_s = shear_strength;
-            }
-            else if (value._failure_surface == FSType::MC)
-            {
-                // cohesion coefficient for MC FS type
-                pp.query_default("cohesion", value._cohesion, 1.0);
-                // friction coefficient for MC FS type
-                pp.query_default("friction", value._friction, 0.5);
+                        value._sig_t = tensile_strength;
+                        value._tau_s = shear_strength;
+
+                    }}, 
+                    {"mohr", [&]() {
+                        value._failure_surface = FSType::MC;
+                        
+                        // cohesion coefficient for MC FS type
+                        pp.query_default("cohesion", value._cohesion, 1.0);
+                        // friction coefficient for MC FS type
+                        pp.query_default("friction", value._friction, 0.5);
                 
-                Set::Scalar phi = std::atan(value._friction);
-                fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
-            }
+                        Set::Scalar phi = std::atan(value._friction);
+                        fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
+                    }}, 
+                    {"mc", [&]() {
+                        value._failure_surface = FSType::MC;
+                        
+                        // cohesion coefficient for MC FS type
+                        pp.query_default("cohesion", value._cohesion, 1.0);
+                        // friction coefficient for MC FS type
+                        pp.query_default("friction", value._friction, 0.5);
+                
+                        Set::Scalar phi = std::atan(value._friction);
+                        fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
+                    }}, 
+                    {"coulomb", [&]() {
+                        value._failure_surface = FSType::MC;
+                        
+                        // cohesion coefficient for MC FS type
+                        pp.query_default("cohesion", value._cohesion, 1.0);
+                        // friction coefficient for MC FS type
+                        pp.query_default("friction", value._friction, 0.5);
+                
+                        Set::Scalar phi = std::atan(value._friction);
+                        fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
+                    }}
+                });
 
-        }
-        else
-        {
+        }, [&]() { // else
+
             // Young's modulus
             pp.query_default("E", youngs, 2.e11);
             // fracture strength beyond which softening starts [Pa]
             pp.query_default("fracture_strength", fracture_strength,1.e6);   
-        }
+        });
         
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);
         value.czm_a0 = 4.0 * irwing_length / (pi * value.zeta);

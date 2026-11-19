@@ -42,6 +42,9 @@ public:
         alpha = a_alpha;
         type = a_type;
 
+        if (a_alpha.size() == 1 && a_number_of_grains > 1)
+            alpha.resize(a_number_of_grains,a_alpha[0]);
+
         voronoi.resize(number_of_grains);
         srand(seed);
         for (int n = 0; n<number_of_grains; n++)
@@ -61,8 +64,11 @@ public:
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.tilebox();
-            bx.grow(a_field[lev]->nGrow());
+            amrex::Box bx;
+            amrex::IndexType ixtype = a_field[lev]->ixType();
+            if (ixtype == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (ixtype == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+
             int ncomp = a_field[lev]->nComp();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -116,17 +122,22 @@ public:
 
     static void Parse(Voronoi &value, IO::ParmParse &pp)
     {
-        pp_query("number_of_grains",value.number_of_grains); // Number of grains
-        if (pp.contains("alpha"))
-        {
-            pp_queryarr("alpha",value.alpha); // Value to take in the region [1.0]
-            value.Define(value.number_of_grains,value.alpha);    
-        }
-        else
-        {
-            value.Define(value.number_of_grains,1.0);
-        }
-        pp_query("seed",value.seed); // Random seed to use
+        pp.query("number_of_grains",value.number_of_grains); // Number of grains
+        pp.queryarr_default("alpha",value.alpha,{1.0}); // value that the field should take in each grain
+        pp.query("seed",value.seed); // Random seed to use
+
+        // Determine initialization type. 
+        // "Partition" splits the tesselation across components, with voronoi region "n" being set to alpha[n]
+        // in field component n only.
+        // "Values" combines all cells into a single component of the field.
+        pp.query_switch("type",{
+                {"partition",[&](){ value.type = Type::Partition; }},
+                {"values",   [&](){ value.type = Type::Values;   }}
+            });
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        value.Define(value.number_of_grains,value.alpha,value.type);
     }
     
 private:

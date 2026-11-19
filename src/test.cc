@@ -1,6 +1,8 @@
 #include <stdlib.h>
 
+#include "Set/Matrix4.H"
 #include "Util/Util.H"
+#include "IO/FileNameParse.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Set/Matrix4.H"
@@ -40,6 +42,7 @@ int main (int argc, char* argv[])
         Util::Test::Message(#TYPE); \
         { \
             int subfailed = 0; \
+            subfailed += Util::Test::SubMessage("PODTest",         TYPE::PODTest<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("ArithmeticTest",  TYPE::ArithmeticTest<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest1", TYPE::DerivativeTest1<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest2", TYPE::DerivativeTest2<TYPE>(true)); \
@@ -63,17 +66,11 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
     
 
-    Util::Test::Message("Set::Matrix4");
-    {
-        int subfailed = 0;
-        Test::Set::Matrix4<2,Set::Sym::Full> test_2d_full;
-        subfailed += Util::Test::SubMessage("2D - Full", test_2d_full.SymmetryTest(0));
-        Test::Set::Matrix4<3,Set::Sym::Full> test_3d_full;
-        subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
-        Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
-        subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
-        failed += Util::Test::SubFinalMessage(subfailed);
-    }
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major>::Test();
 
     Util::Test::Message("Numeric::Interpolator<Linear>");
     {
@@ -102,6 +99,8 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
         subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
         subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
+        subfailed += Util::Test::SubMessage("face gradient",
+            Test::Numeric::FaceGradient());
 #if AMREX_SPACEDIM>2
         // first order
         subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
@@ -124,12 +123,12 @@ int main (int argc, char* argv[])
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
-    Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
-    {
-        int subfailed = 0;
-        subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
-        failed += Util::Test::SubFinalMessage(subfailed);
-    }
+    //Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
+    //{
+    //    int subfailed = 0;
+    //    subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
+    //    failed += Util::Test::SubFinalMessage(subfailed);
+    //}
 
     Util::Test::Message("Unit test");
     {

@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: configure 2d
       continue-on-error: true
-      run: ./configure --dim=2
+      run: ./configure --dim=2 --comp=g++
     - name: make 2d
       continue-on-error: true
       run: make -j8
@@ -26,7 +26,7 @@ jobs:
       run: ./bin/test-2d-g++
     - name: configure 3d
       continue-on-error: true
-      run: ./configure --dim=3
+      run: ./configure --dim=3 --comp=g++
     - name: make 3d
       continue-on-error: true
       run: make -j8
@@ -34,4 +34,25 @@ jobs:
       continue-on-error: true
       run: ./bin/test-3d-g++
     - name: regression tests (2d + 3d)
-      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace --post-timeout=10
+      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace --post-timeout=10 --comp=g++
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name scooter
+    - name: report artifact summary
+      if: always()
+      run: |
+        name="scooter"
+        echo "### Report bundle: $name" >> $GITHUB_STEP_SUMMARY
+        if [ -d "$name" ]; then
+          echo "Files: $(find "$name" -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Run pages: $(find "$name/report" -maxdepth 1 -type f -name '*.html' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "Assets: $(find "$name/tests" -type f 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Report directory missing" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scoter
+        path: scoter

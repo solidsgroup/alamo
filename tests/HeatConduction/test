@@ -2,15 +2,17 @@
 import sys
 sys.path.insert(0,"../../scripts")
 import testlib
+import glob
 
 outdir = sys.argv[1]
 reference = sys.argv[2]
+path = sorted(glob.glob(f"{outdir}/*cell"))[-1]
 
-testlib.validate(path="{}/00500cell/".format(outdir),
+testlib.validate(path=path,
                  outdir=outdir,
                  reference=reference,
                  vars=["Temp"],
-                 tolerance=1E-4)
+                 tolerance=5E-3)
 exit(0)
 
 

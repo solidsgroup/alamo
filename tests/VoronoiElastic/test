@@ -6,6 +6,10 @@ import numpy, yt, pylab, os, pandas, sys, math
 
 outdir = sys.argv[1]
 
+refdata = "reference/reference.csv"
+if len(sys.argv) > 2:
+    refdata = sys.argv[2]
+
 generate_ref_data = False  # Change to True if you need to generate new reference data
 tolerance = 0.01
 
@@ -15,7 +19,8 @@ testlib.validate(path="{}/00200cell/".format(outdir),
                  end=[5.0,2.5,0],
                  vars=["Eta001","disp_x","stress_xx"],
                  tolerance=tolerance,
-                 reference="reference/reference.csv")
+                 reference=refdata,
+                 generate_ref_data=generate_ref_data)
 
 exit(0)
 

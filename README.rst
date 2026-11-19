@@ -5,13 +5,13 @@
    </p>
 
    <p align="center">
-       <img src="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml/badge.svg?branch=development">
-       <img src="https://github.com/solidsgroup/alamo/actions/workflows/coverage.yml/badge.svg?branch=development">
-       <img src="https://img.shields.io/github/last-commit/solidsuccs/alamo/development.svg?label=last%20commit%20%28development%29">
-       <img src="https://img.shields.io/github/contributors/solidsuccs/alamo.svg">
-       <img src="https://img.shields.io/github/issues-pr/solidsuccs/alamo.svg">
-       <img src="https://img.shields.io/github/issues/solidsuccs/alamo.svg">
-       <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10381768.svg">
+       <a href="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml"><img src="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml/badge.svg?branch=development"></a>
+       <a href="https://github.com/solidsgroup/alamo/tree/development"><img src="https://img.shields.io/github/last-commit/solidsuccs/alamo/development.svg?label=last%20commit%20%28development%29"></a>
+       <a href="https://github.com/solidsgroup/alamo/graphs/contributors"><img src="https://img.shields.io/github/contributors/solidsuccs/alamo.svg"></a>
+       <a href="https://github.com/solidsgroup/alamo/pulls"><img src="https://img.shields.io/github/issues-pr/solidsuccs/alamo.svg"></a>
+       <a href="https://github.com/solidsgroup/alamo/issues"><img src="https://img.shields.io/github/issues/solidsuccs/alamo.svg"></a>
+       <a href="https://doi.org/10.5281/zenodo.15792528"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.15792528.svg"></a>
+       <a href="https://joss.theoj.org/papers/43ba1a1a4b86a557f2c74b9f2296a0f4"><img src="https://joss.theoj.org/papers/43ba1a1a4b86a557f2c74b9f2296a0f4/status.svg"></a>
    </p>
 
 .. getting-started:
@@ -175,7 +175,7 @@ Regression Testing
 Alamo contains several `Regression Tests <https://solidsgroup.github.io/alamo/docs/Tests.html>`_ that are routinely tested
 and checked with CI.
 These are checked for `Performance <https://lookerstudio.google.com/s/id-e_zDzO8w>`_ 
-and `Code Coverage <https://solidsgroup.github.io/alamo/cov/>`_
+and `Code Coverage <https://solidsgroup.github.io/alamo/docs/development/cov/>`_
 
 
 Citing Alamo 
@@ -188,6 +188,6 @@ To acknowledge alamo in your publications, please cite the following article.
     @article{runnels2025alamo,
       title={The Alamo multiphysics solver for phase field simulations with strong-form mechanics and block structured adaptive mesh refinement},
       author={Runnels, Brandon and Agrawal, Vinamra and Meier, Maycon},
-      journal={arXiv preprint arXiv:2503.08917},
+      journal={Journal of Open Source Software},
       year={2025}
     }

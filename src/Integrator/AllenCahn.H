@@ -37,6 +37,7 @@
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
 #include "Unit/Unit.H"
+#include "IC/PointList.H"
 
 namespace Integrator
 {
@@ -75,7 +76,7 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp.query_default("ch.L",value.ch.L, "1.0", 1/ Unit::Pressure()/Unit::Time());
+        pp.query_default("ch.L",value.ch.L, "1.0", 1.0 / Unit::Pressure()/Unit::Time());
         // Value for :math:`\epsilon` (diffuse boundary width)
         // pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
         // Value for :math:`\kappa` (Interface energy parameter)
@@ -106,13 +107,12 @@ public:
         
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
-        
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, pp.forward_args(value.geom));
 
         // Use a constant BC object for temperature
         // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, pp.forward_args(1));
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.

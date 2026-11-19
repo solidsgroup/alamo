@@ -1,12 +1,32 @@
 #ifndef SET_MATRIX4_H
 #define SET_MATRIX4_H
 
-#include "Base.H"
+#include <iostream>
 
-#include "Matrix4_Full.H"
-#include "Matrix4_Isotropic.H"
-#include "Matrix4_MajorMinor.H"
-#include "Matrix4_Diagonal.H"
-#include "Matrix4_Major.H"
+#include "Util/Util.H"
+#include "Set/Base.H"
+
+namespace Set
+{
+
+enum Sym {None,Major,Minor,MajorMinor,Diagonal,Full,Isotropic};
+
+template<int DIM, int SYM>
+class Matrix4
+{
+};
+
+template<int dim, int sym>
+std::ostream&
+operator<< (std::ostream& os, const Matrix4<dim,sym>& b)
+{
+    Matrix4<dim,sym> bcopy = b;
+        bcopy.Print(os);
+    return os;
+}
+
+}
+
+
 
 #endif

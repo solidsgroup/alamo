@@ -6,23 +6,22 @@ import glob
 
 outdir = sys.argv[1]
 reference = sys.argv[2]
+#reference = 'reference/eps0.00.dat'
 
-tol = 0.0
-if reference == "reference/eps0.05.dat": tol = 0.02
-if reference == "reference/eps0.10.dat": tol = 0.035
-if reference == "reference/eps0.20.dat": tol = 0.055
-
+tol = 1e-2
+atol = 1e8
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
 testlib.validate(path=path,
                  outdir=outdir,
-                 reference="reference/eps0.00.dat",
-                 start=[0.0, 0.0],
-                 end  =[0.0, 3.0],
+                 reference=reference,
+                 start=[0.08, 0.0],
+                 end  =[0.08, 3.0],
                  coord = 'y',
-                 vars=["momentumx"],
-                 tolerance=[tol],
+                 vars=["momentumx", "momentumy"],
+                 tolerance=[tol, tol],
+                 abs_tolerance=[atol, atol],
                  generate_ref_data = False,
                  tight_layout=False,
 )

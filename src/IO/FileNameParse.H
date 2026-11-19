@@ -1,25 +1,88 @@
 //
-// This manages the processing of the :code:`plot_file` input, which defines the output file.
-// Both variable substitution and time wildcards are supported.
+// ============================================
+// :fas:`file-code;fa-fw` Filename parsing
+// ============================================
 //
-// **Variable substitution**: you can use braces to substitute variable names in the input file.
-// For example, if your input file contains :code:`myinput.value = 3`, then you can specify
-// :code:`plot_file = output_{myinput.value}` to substitute the input's value.
+// The :code:`plot_file` input defines the simulation output directory. Alamo
+// supports time and dimension wildcards, input-variable substitution, and
+// Slurm environment substitution in this value.
 //
-// **Time and dimension wildcards**: You can use the following strings:
+// Time and dimension wildcards
+// ----------------------------
 //
-// - :code:`%Y`: 4-digit year
-// - :code:`%m`: 2-digit month (01-12)
-// - :code:`%d`: 2-digit day (00-31)
-// - :code:`%H`: 2 digit hour (00-23)
-// - :code:`%M`: 2 digit minute (00-59)
-// - :code:`%S`: 2 digit second (00-59)
-// - :code:`%f`: 2 digit microsecond (00-59)
-// - :code:`%D`: spatial dimension
+// The following wildcard strings are available:
 //
-// So a :code:`plot_file = output_%Y%m%d_%H%M%S` may resolve to
-// :code:`output_20250307_211201` (etc) depending on the time the
-// output was created.
+// .. code-block:: text
+//
+//    %Y  Four-digit year
+//    %m  Two-digit month (01-12)
+//    %d  Two-digit day of the month (01-31)
+//    %H  Two-digit hour (00-23)
+//    %M  Two-digit minute (00-59)
+//    %S  Two-digit second (00-59)
+//    %f  Microseconds within the current second
+//    %D  Spatial dimension
+//
+// For example:
+//
+// .. code-block:: makefile
+//
+//    plot_file = output_%Y%m%d_%H%M%S
+//
+// may resolve to:
+//
+// .. code-block:: text
+//
+//    output_20250307_211201
+//
+// Input variable substitution
+// ---------------------------
+//
+// Use braces to substitute a variable from the input file:
+//
+// .. code-block:: makefile
+//
+//    myinput.value = 3
+//    plot_file = output_{myinput.value}
+//
+// This resolves the output directory to:
+//
+// .. code-block:: text
+//
+//    output_3
+//
+// Slurm environment substitution
+// ------------------------------
+//
+// Any brace-delimited variable whose name begins with :code:`SLURM_` is read
+// from the process environment. Common substitutions include:
+//
+// .. code-block:: text
+//
+//    {SLURM_JOB_ID}
+//    {SLURM_JOB_NAME}
+//    {SLURM_JOB_PARTITION}
+//    {SLURM_CLUSTER_NAME}
+//    {SLURM_ARRAY_TASK_ID}
+//
+// For example:
+//
+// .. code-block:: makefile
+//
+//    plot_file = output_{SLURM_JOB_ID}
+//
+// may resolve to:
+//
+// .. code-block:: text
+//
+//    output_314159
+//
+// If the requested variable is unavailable or empty, its name is retained
+// without braces:
+//
+// .. code-block:: text
+//
+//    output_SLURM_JOB_ID
 
 #ifndef IO_FILENAMEPARSE_H
 #define IO_FILENAMEPARSE_H

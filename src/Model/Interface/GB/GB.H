@@ -9,6 +9,10 @@
 #include <iostream>
 #include <fstream>
 
+#include "Set/Base.H"
+#include "Set/Matrix4.H"
+#include "Set/Matrix4_Full.H"
+
 namespace Model
 {
 namespace Interface

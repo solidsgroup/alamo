@@ -50,14 +50,14 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
         amrex::FArrayBox& xfab = x[mfi];
         amrex::FArrayBox& Axfab = Ax[mfi];
 
-        diagfab.setVal(0.0);
+        diagfab.setVal<amrex::RunOn::Device>(0.0);
 
         for (int i = 0; i < num; i++)
         {
             for (int n = 0; n < ncomp; n++)
             {
-                xfab.setVal(0.0);
-                Axfab.setVal(0.0);
+                xfab.setVal<amrex::RunOn::Device>(0.0);
+                Axfab.setVal<amrex::RunOn::Device>(0.0);
 
                 //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++),
@@ -77,8 +77,8 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                 BL_PROFILE_VAR_STOP(part2);
 
                 //BL_PROFILE_VAR("Operator::Part3", part3); 
-                Axfab.mult(xfab, n, n, 1);
-                diagfab.plus(Axfab, n, n, 1);
+                Axfab.mult<amrex::RunOn::Device>(xfab, n, n, 1);
+                diagfab.plus<amrex::RunOn::Device>(Axfab, n, n, 1);
                 //BL_PROFILE_VAR_STOP(part3);
             }
         }
@@ -89,10 +89,12 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 {
     BL_PROFILE("Operator::Fsmooth()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
+    domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
-    int nghost = 2; //b.nGrow();
+    const bool relax_ghost_rows = relaxCoarseFineGhostRows();
+    int nghost = relax_ghost_rows ? 2 : 0;
 
 
     amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -115,80 +117,68 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            const Box& bx = mfi.validbox();
-            amrex::FArrayBox& xfab = x[mfi];
-            const amrex::FArrayBox& bfab = b[mfi];
-            //const amrex::FArrayBox &Axfab   = Ax[mfi];
-            const amrex::FArrayBox& Rxfab = Rx[mfi];
-            const amrex::FArrayBox& diagfab = (*m_diag[amrlev][mglev])[mfi];
+            Box bx = mfi.grownnodaltilebox();
+            
+            const auto xfab = x.array(mfi);
+            const auto bfab = b.const_array(mfi);
+            const auto Rxfab = Rx.const_array(mfi);
+            const auto diagfab = (*m_diag[amrlev][mglev]).const_array(mfi);
+
+            if (!relax_ghost_rows)
+            {
+                const Box cbx = mfi.nodaltilebox() & domain;
+                for (int n = 0; n < ncomp; ++n)
+                {
+                    amrex::LoopConcurrentOnCpu(cbx, [&] (int i, int j, int k)
+                    {
+                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n)
+                            + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n))
+                            / diagfab(i,j,k,n);
+                    });
+                }
+                continue;
+            }
+
 
             for (int n = 0; n < ncomp; n++)
             {
-                AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1 <= bx.hiVect()[0] + 2; m1++),
-                    for (int m2 = bx.loVect()[1] - 2; m2 <= bx.hiVect()[1] + 2; m2++),
-                        for (int m3 = bx.loVect()[2] - 2; m3 <= bx.hiVect()[2] + 2; m3++))
+                const Set::Scalar omega = m_omega;
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
-                    amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
-
                     // Skip ghost cells outside problem domain
-                    if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
-                        m[1] < domain.loVect()[1], ||
-                        m[2] < domain.loVect()[2])) continue;
-                    if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
-                        m[1] > domain.hiVect()[1] + 1, ||
-                        m[2] > domain.hiVect()[2] + 1)) continue;
-
-                    if (AMREX_D_TERM(m[0] == bx.loVect()[0] - nghost || m[0] == bx.hiVect()[0] + nghost, ||
-                        m[1] == bx.loVect()[1] - nghost || m[1] == bx.hiVect()[1] + nghost, ||
-                        m[2] == bx.loVect()[2] - nghost || m[2] == bx.hiVect()[2] + nghost))
+                    if (!domain.contains(i,j,k))
                     {
-                        xfab(m, n) = 0.0;
-                        continue;
+                        //continue;
                     }
-
-                    //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
-                    xfab(m, n) = (1. - m_omega) * xfab(m, n) + m_omega * (bfab(m, n) - Rxfab(m, n)) / diagfab(m, n);
-                }
+                    else if ( !bx.strictly_contains(i,j,k))
+                    {
+                        xfab(i, j, k, n) = 0.0;
+                        //continue;
+                    }
+                    else
+                    {
+                        xfab(i,j,k,n) = (1. - omega) * xfab(i,j,k, n) + omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                    }
+                });
             }
         }
+        amrex::Geometry geom = m_geom[amrlev][mglev];
+        x.setMultiGhost(true);
+        x.FillBoundary(geom.periodicity());
+        nodalSync(amrlev, mglev, x);
     }
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(x, geom);
-    nodalSync(amrlev, mglev, x);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
 {
-    BL_PROFILE("Operator::normalize()");
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
-
-    int ncomp = getNComp();
-    int nghost = 1; //x.nGrow();
-
     if (!m_diagonal_computed)
         Util::Abort(INFO, "Operator::Diagonal() must be called before using normalize");
 
-    for (MFIter mfi(a_x, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
+    a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),relaxCoarseFineGhostRows() ? 2 : 0);
 
-        Box bx = mfi.tilebox();
-        bx.grow(nghost);
-        bx = bx & domain;
-
-        amrex::Array4<amrex::Real> const& x = a_x.array(mfi);
-        amrex::Array4<const amrex::Real> const& diag = m_diag[amrlev][mglev]->array(mfi);
-
-        for (int n = 0; n < ncomp; n++)
-        {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-                x(i, j, k) /= diag(i, j, k);
-
-            });
-        }
-    }
+    a_x.setMultiGhost(true);
+    a_x.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -292,8 +282,8 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     applyBC(amrlev, cmglev - 1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-    amrex::Box cdomain = m_geom[amrlev][cmglev].Domain();
-    cdomain.convert(amrex::IntVect::TheNodeVector());
+    amrex::Box cdomain = m_geom[amrlev][cmglev].growPeriodicDomain(1);
+    cdomain = cdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
@@ -306,12 +296,12 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     for (MFIter mfi(*pcrse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const Box& bx = mfi.tilebox();
+        const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
 
 
         for (int n = 0; n < crse.nComp(); n++)
@@ -384,16 +374,16 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         crse.ParallelCopy(cfine);
     }
 
-    amrex::Geometry geom = m_geom[amrlev][cmglev];
-    realFillBoundary(crse, geom);
+    crse.setMultiGhost(true);
+    crse.FillBoundary(Geom(amrlev,cmglev).periodicity());
     nodalSync(amrlev, cmglev, crse);
 }
 
 void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
     BL_PROFILE("Operator::interpolation()");
-    //int nghost = getNGrow();
-    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
+    amrex::Box fdomain = m_geom[amrlev][fmglev].growPeriodicDomain(2);
+    fdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
@@ -407,12 +397,13 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
-        const Box& fine_bx = mfi.validbox() & fdomain;
+        Box fine_bx = mfi.validbox() & fdomain;
+
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
         tmpfab.resize(tmpbx, fine.nComp());
-        tmpfab.setVal(0.0);
+        tmpfab.setVal<amrex::RunOn::Device>(0.0);
         const amrex::FArrayBox& crsefab = (*cmf)[mfi];
 
         amrex::Array4<const amrex::Real> const& cdata = crsefab.const_array();
@@ -451,11 +442,11 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
             });
         }
-        fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
+        fine[mfi].plus<amrex::RunOn::Device>(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
-    amrex::Geometry geom = m_geom[amrlev][fmglev];
-    realFillBoundary(fine, geom);
+    fine.setMultiGhost(true);
+    fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
     nodalSync(amrlev, fmglev, fine);
 }
 
@@ -473,6 +464,78 @@ void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_so
 
 }
 
+void Operator<Grid::Node>::interpolationAmr(int famrlev, MultiFab& fine,
+    const MultiFab& crse, IntVect const& nghost) const
+{
+    BL_PROFILE("Operator::interpolationAmr()");
+    if (!useQuadraticAmrInterpolation())
+    {
+        amrex::MLNodeLinOp::interpolationAmr(famrlev, fine, crse, nghost);
+        return;
+    }
+    Util::Assert(INFO, TEST(AMRRefRatio(famrlev - 1) == 2));
+    const int ncomp = getNComp();
+
+    for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
+    {
+        Box fbx = mfi.tilebox();
+        const Box valid = mfi.validbox();
+        fbx.grow(nghost);
+        const Dim3 vlo = amrex::lbound(valid), vhi = amrex::ubound(valid);
+        Array4<Real> const& ffab = fine.array(mfi);
+        Array4<Real const> const& cfab = crse.const_array(mfi);
+
+        amrex::LoopConcurrentOnCpu(fbx, ncomp,
+            [=] (int i, int j, int k, int n)
+        {
+            int ci[3][3] = {};
+            Real cw[3][3] = {};
+            int nc[3] = {1, 1, 1};
+            cw[0][0] = cw[1][0] = cw[2][0] = 1.0;
+
+            const int fi[3] = {i, j, k};
+            const int flo[3] = {vlo.x, vlo.y, vlo.z};
+            const int fhi[3] = {vhi.x, vhi.y, vhi.z};
+            for (int d = 0; d < AMREX_SPACEDIM; ++d)
+            {
+                const int q = fi[d] >= 0 ? fi[d] / 2 : (fi[d] - 1) / 2;
+                if (fi[d] % 2 == 0)
+                {
+                    ci[d][0] = q;
+                }
+                else if (fi[d] < flo[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q;     cw[d][0] =  3.0 / 8.0;
+                    ci[d][1] = q + 1; cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 2; cw[d][2] = -1.0 / 8.0;
+                }
+                else if (fi[d] > fhi[d])
+                {
+                    nc[d] = 3;
+                    ci[d][0] = q - 1; cw[d][0] = -1.0 / 8.0;
+                    ci[d][1] = q;     cw[d][1] =  3.0 / 4.0;
+                    ci[d][2] = q + 1; cw[d][2] =  3.0 / 8.0;
+                }
+                else
+                {
+                    nc[d] = 2;
+                    ci[d][0] = q;     cw[d][0] = 0.5;
+                    ci[d][1] = q + 1; cw[d][1] = 0.5;
+                }
+            }
+
+            Real value = 0.0;
+            for (int a = 0; a < nc[0]; ++a)
+                for (int b = 0; b < nc[1]; ++b)
+                    for (int c = 0; c < nc[2]; ++c)
+                        value += cw[0][a] * cw[1][b] * cw[2][c]
+                            * cfab(ci[0][a], ci[1][b], ci[2][c], n);
+            ffab(i, j, k, n) = value;
+        });
+    }
+}
+
 void Operator<Grid::Node>::realFillBoundary(MultiFab& phi, const Geometry& geom)
 {
     Util::RealFillBoundary(phi, geom);
@@ -486,8 +549,9 @@ void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/
     const Geometry& geom = m_geom[amrlev][mglev];
 
     if (!skip_fillboundary) {
-
-        realFillBoundary(phi, geom);
+        //phi.FillBoundary(geom.periodicity());
+        //phi.setMultiGhost(true);
+        phi.FillBoundaryAndSync(geom.periodicity());
     }
 }
 
@@ -556,7 +620,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     int ncomp = AMREX_SPACEDIM;
 
-    amrex::Box cdomain(m_geom[crse_amrlev][0].Domain());
+    amrex::Box cdomain(m_geom[crse_amrlev][0].growPeriodicDomain(2));
     cdomain.convert(amrex::IntVect::TheNodeVector());
 
     const Geometry& cgeom = m_geom[crse_amrlev][0];
@@ -577,12 +641,9 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
 
-    amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1, cgeom.periodicity());
-
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
-        const Box& bx = mfi.validbox();
+        const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const int> const& nmask = nodemask.array(mfi);
         //amrex::Array4<const int> const& cmask = cellmask.array(mfi);
@@ -590,7 +651,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
@@ -652,12 +713,11 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // into the final residual.
     res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
-    const int mglev = 0;
-
     // Sync up ghost nodes
-    amrex::Geometry geom = m_geom[crse_amrlev][mglev];
-    realFillBoundary(res, geom);
-    nodalSync(crse_amrlev, mglev, res);
+    res.setMultiGhost(true);
+    res.FillBoundaryAndSync(Geom(crse_amrlev).periodicity());
+    nodalSync(crse_amrlev, 0, res);
+
     return;
 }
 
@@ -669,8 +729,8 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(resid, geom);
+    resid.setMultiGhost(true);
+    resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
 
 void
@@ -681,8 +741,8 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(resid, geom);
+    resid.setMultiGhost(true);
+    resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
 
 

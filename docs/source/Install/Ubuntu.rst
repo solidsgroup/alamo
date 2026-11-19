@@ -51,3 +51,10 @@ Build this documentation
    :language: bash
    :lines: 2-
       
+Build and test python
+~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../../../.github/workflows/python.sh
+   :language: bash
+   :lines: 2-
+      

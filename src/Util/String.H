@@ -182,6 +182,20 @@ std::complex<int> Parse(std::string input)
     return std::complex<int>(re,im);
 }
 
+#include <string_view>
+
+constexpr std::string_view FuncName(std::string_view s)
+{
+    auto pos = s.find('[');
+    if (pos == std::string_view::npos)
+        return s; // no brackets, return full string
+    return s.substr(0, pos); // everything before the '['
+}
+
+
+
+
+
 }
 
 }

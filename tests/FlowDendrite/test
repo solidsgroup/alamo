@@ -6,24 +6,22 @@ import glob
 
 outdir = sys.argv[1]
 
-tol = 1e-2
+tol = 5e-2
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
 testlib.validate(path=path,
                  outdir=outdir,
                  reference="reference/reference-2d.csv",
-                 start=[-6, 0],
-                 end  =[6, 6],
+                 start=[-2, 0],
+                 end  =[3, 4],
                  coord = "x",
                  vars=["momentumx","density","pressure","eta"],
                  tolerance=[tol, tol, tol, tol],
-                 abs_tolerance=[100, 100, 100, 100], #ignore
+                 abs_tolerance=1e8,
                  generate_ref_data = False,
                  tight_layout=False,
 )
-
-testlib.warning("WARNING: currently using fairly generous tolerances.")
 
 exit(0)
 

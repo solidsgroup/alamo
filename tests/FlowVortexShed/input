@@ -26,9 +26,26 @@ amr.grid_eff = 0.8
 
 
 amr.max_level = 1
-timestep  = 2e-2
+timestep  = 5.0e-3
 amr.n_cell = 60 32
 
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 3.0_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
+
+solver.type = hllc
 
 ### DIMENSIONS ###
 
@@ -67,10 +84,7 @@ eta.ic.expression.region0        = "(y>=ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (
 
 ### HYDRO PARAM ###
 
-gamma = 1.4
 cfl   = 0.01
-mu    = 1e-1
-pref = 1000.0
 
 density.ic.type = expression
 density.ic.expression.region0 = "100.0"
@@ -80,7 +94,7 @@ velocity.ic.expression.region0 = "1.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" 
+pressure.ic.expression.region0 = "1000.0" 
 
 ### SOLID ###
 
@@ -132,8 +146,8 @@ energy.bc.constant.val.yhi = 0.0
 
 momentum.bc.constant.type.xlo = dirichlet neumann
 momentum.bc.constant.type.xhi = neumann neumann
-momentum.bc.constant.type.ylo = neumann dirichlet
-momentum.bc.constant.type.yhi = neumann dirichlet
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 momentum.bc.constant.val.xlo = 100.0 0.0
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
@@ -143,17 +157,17 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.2
-gradu_refinement_criterion = 1.0
+gradu_refinement_criterion = 0.1
 
 #TODO
 
 amr.abort_on_nan = 0
 
-dynamictimestep.on = 1
-dynamictimestep.verbose = 1
-dynamictimestep.cfl = 0.01
-dynamictimestep.max  = 1.0
-dynamictimestep.min  = 0.0
+dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.cfl = 0.01
+#dynamictimestep.max  = 1.0
+#dynamictimestep.min  = 0.0
 
 
 small=1E-8

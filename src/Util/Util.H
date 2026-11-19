@@ -8,7 +8,10 @@
 #include <iterator>
 #include <algorithm>
 #include <complex>
+#include <exception>
+#include <stdexcept>
 #include <stdlib.h>
+#include <string_view>
 
 #include <string>
 #include "Util/String.H"
@@ -16,6 +19,8 @@
 #include "AMReX.H"
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_iMultiFab.H>
+#include <AMReX_Reduce.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -48,12 +53,15 @@ void Finalize ();
 
 void Terminate(const char * msg, int signal, bool backtrace);
 
+AMREX_GPU_HOST_DEVICE
 void Abort (const char * msg);
 
 template<typename... Args>
 AMREX_FORCE_INLINE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Assert (const char *file, const char *func, int line, const char *smt, bool pass, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (pass) return;
 
     std::ostringstream infostream;
@@ -74,12 +82,17 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    if (!pass) amrex::Abort();
+#endif
 }
 
 
 template<typename... Args>
-void Abort (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Abort (const char *file, const char *func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -98,6 +111,9 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
         std::cout << info << message << std::endl;
     }
     Abort("Fatal Error");
+#else
+    amrex::Abort();
+#endif
 }
 
 template<typename... Args>
@@ -323,6 +339,7 @@ namespace Test
 int Message(std::string testname);
 int Message(std::string testname, int passed);
 int SubMessage(std::string testname, int passed);
+void SubWarning(std::string testname);
 int SubFinalMessage(int failed);
 }
 
@@ -350,8 +367,76 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, 
     a_mf.FillBoundary();
 }
 
-
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
+
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T Abs(T a)
+{
+    return a < T(0) ? -a : a;
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T Min(T a, T b)
+{
+    return a < b ? a : b;
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T Max(T a, T b)
+{
+    return a > b ? a : b;
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T Clamp(T value, T lo, T hi)
+{
+    return Min(Max(value, Min(lo, hi)), Max(lo, hi));
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+bool IsFinite(T value)
+{
+    return value == value && value < T(1.0e300) && value > T(-1.0e300);
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T FiniteOr(T value, T fallback)
+{
+    return IsFinite(value) ? value : fallback;
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T MinMod(T a, T b)
+{
+    if (a * b <= T(0)) return T(0);
+    T mag = Min(Abs(a), Abs(b));
+    return a < T(0) ? -mag : mag;
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T MCSlope(T lo, T center, T hi)
+{
+    T dl = center - lo;
+    T dr = hi - center;
+    return MinMod(T(0.5) * (dl + dr), MinMod(T(2.0) * dl, T(2.0) * dr));
+}
+
+template <class T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+T SmootherStep(T value)
+{
+    T x = Clamp(value, T(0), T(1));
+    return x * x * x * (x * (x * T(6.0) - T(15.0)) + T(10.0));
+}
 
 // Prevent compiler from complaining about unused variables
 template <class... Ts>

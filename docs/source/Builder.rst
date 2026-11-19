@@ -1,31 +1,55 @@
 .. role:: cpp(code)
    :language: c++
 
-.. _simba:
+.. _input-builder:
 
-======================================
-:fas:`keyboard;fa-fw` Builder (alpha)
-======================================
+==============================
+:fas:`keyboard;fa-fw` Builder
+==============================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
-This is an Alamo input file builder for the **Integrator::Flame** method.
-Enter values for the Alamo parameters, and an input file is generated at the bottom of this page.
-Required parameters are indicated with red inputs.
-Default values are indicated with placeholder values, and will not be included in the input unless
-you put it in specifically.
-
-.. warning::
-   This is a new and very experimental Alamo feature.
-   This form is entirely auto-generated based on the Alamo code base using the code scrapers.
-   It is not currently complete (there are some known params that are not included)
-   and it is also not yet thoroughly tested.
-
-   Please use with caution.
-
-    
 .. raw:: html
-    :file: Builder.html
+
+   <style>
+     body.alamo-input-builder-page .wy-nav-content-wrap {
+       height: 100vh;
+       overflow: hidden;
+     }
+     body.alamo-input-builder-page .wy-nav-content {
+       position: relative;
+       max-width: none;
+       height: 100%;
+       padding: 0;
+     }
+     body.alamo-input-builder-page .rst-content,
+     body.alamo-input-builder-page .rst-content > div[role="main"],
+     body.alamo-input-builder-page .rst-content > div[role="main"] > div[itemprop="articleBody"],
+     body.alamo-input-builder-page .rst-content > div[role="main"] > div[itemprop="articleBody"] > section {
+       height: 100%;
+       margin: 0;
+     }
+     body.alamo-input-builder-page .rst-content > div[role="navigation"],
+     body.alamo-input-builder-page .rst-content > footer,
+     body.alamo-input-builder-page .rst-content h1 {
+       display: none;
+     }
+     .alamo-input-builder-frame {
+       display: block;
+       position: absolute;
+       inset: 0;
+       width: 100%;
+       height: 100%;
+       border: 0;
+       background: #fff;
+     }
+     @media (max-width: 768px) {
+       body.alamo-input-builder-page .wy-nav-content {
+         height: calc(100% - 54px);
+       }
+     }
+   </style>
+   <script>document.body.classList.add("alamo-input-builder-page");</script>
+   <iframe
+     class="alamo-input-builder-frame"
+     src="_static/input-builders/index.html"
+     title="Alamo input builder"
+     loading="eager"></iframe>

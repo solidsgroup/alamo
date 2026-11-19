@@ -22,9 +22,7 @@
 #include <AMReX.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
-#ifdef ALAMO_FFT
-#include <AMReX_FFT.H>
-#endif
+#include <AMReX_TimeIntegrator.H>
 
 // Alamo Includes
 #include "Set/Base.H"
@@ -38,6 +36,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "Numeric/Stencil.H"
+#include "Operator/Spectral/FFT.H"
 
 namespace Integrator
 {
@@ -87,12 +86,12 @@ public:
                             Unit::Temperature());
 
         // Initial condition type.
-        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>(  "ic",value.ic,value.geom, 
-                                                                    Unit::Temperature());
+        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>(  "ic",value.ic,
+                                                                    pp.forward_args(value.geom, Unit::Temperature()));
 
         // Select BC object for temperature
-        pp.select_default<BC::Constant,BC::Expression>( "bc.temp",value.bc,1,
-                                                        Unit::Temperature());
+        pp.select_default<BC::Constant,BC::Expression>( "bc.temp",value.bc,
+                                                        pp.forward_args(1, Unit::Temperature()));
 
         // Select between using a realspace solve or the spectral method
         pp.query_validate("method",value.method,{"realspace","spectral"});
@@ -131,28 +130,47 @@ protected:
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
-        // Get the cell size corresponding to this level
-        const Set::Scalar* DX = geom[lev].CellSize();
-
-        // Iterate over all of the patches on this level
-        for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        // Create the time integrator object
+        amrex::TimeIntegrator timeintegrator(*temp_old_mf[lev], time);
+        
+        // Calculate the "RHS" of the function.
+        // If using forward Euler, the RHS would be
+        //    T_new = T_old + dt * RHS
+        timeintegrator.set_rhs([&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/)
         {
-            // Get the box (index dimensions) for this patch
-            const amrex::Box &bx = mfi.tilebox();
+            // Get the cell size corresponding to this level
+            const Set::Scalar* DX = geom[lev].CellSize();
 
-            // Get an array-accessible handle to the data on this patch.
-            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
-
-            // Iterate over the grid on this patch
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            // Iterate over all of the patches on this level
+            for (amrex::MFIter mfi(temp_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                // Do the physics!
-                // Note that Numeric::Laplacian is an inlined function so there is no overhead.
-                // You can calculate the derivatives yourself if you want.
-                temp(i, j, k) = temp_old(i, j, k) + dt * alpha * Numeric::Laplacian(temp_old, i, j, k, 0, DX);
-            });
-        }
+                // Get the box (index dimensions) for this patch
+                const amrex::Box &bx = mfi.tilebox();
+
+                // Get an array-accessible handle to the data on this patch.
+                Set::Patch<const Set::Scalar>  temp     = temp_mf.array(mfi);
+                Set::Patch<Set::Scalar>        rhs      = rhs_mf.array(mfi);
+
+                // Iterate over the grid on this patch
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    // Do the physics!
+                    // Note that Numeric::Laplacian is an inlined function so there is no overhead.
+                    // You can calculate the derivatives yourself if you want.
+                    rhs(i, j, k) = alpha * Numeric::Laplacian(temp, i, j, k, 0, DX);
+                });
+            }
+        });
+        
+        // We must update the boundaries here and apply boundary conditions 
+        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar time) 
+        {
+            bc->FillBoundary(stage_mf,0,1,time,0);   
+            stage_mf.FillBoundary(true);
+        });
+
+        // Do the update
+        timeintegrator.advance(*temp_old_mf[lev], *temp_mf[lev], time, dt);
     }
 
 
@@ -160,44 +178,20 @@ protected:
     void
     AdvanceSpectral(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
-        Util::Assert(INFO,TEST(lev == 0), "Only single level currently supported");
-        
-        amrex::Box const & domain = this->geom[lev].Domain();
-
-        amrex::FFT::R2C my_fft(this->geom[lev].Domain());
-        auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
-        amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
-        my_fft.forward(*temp_mf[lev], Temp_hat);
-
-        const Set::Scalar* DX = geom[lev].CellSize();
-
-        Set::Scalar
-            AMREX_D_DECL(
-                pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-                pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
-                pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
-
-        Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
+        Operator::Spectral::FFT fft(geom,refRatio(),lev);
+        amrex::FabArray<amrex::BaseFab<Set::Complex>> Temp_hat = fft.MakeSpectralFab();
+        fft.Forward(*temp_mf[lev], Temp_hat);
 
         for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box &bx = mfi.tilebox();
-            amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
+            amrex::Array4<Set::Complex> const & T_hat =  Temp_hat.array(mfi);
 
-                AMREX_D_TERM(
-                    Set::Scalar k1 = m * pi_Lx;,
-                    Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
-                    Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
-
-                Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
-
-                Set::Scalar factor = exp( - alpha * dt * lap); 
-                T_hat(m,n,p) *= factor*scaling;
-            });
+            fft.ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p, Set::Scalar lap) {
+                    T_hat(m,n,p) *= exp( - alpha * dt * lap);
+                });
         }
-
-        my_fft.backward(Temp_hat, *temp_mf[lev]);
+        fft.Backward(Temp_hat, *temp_mf[lev]);
     }
 #else
     void

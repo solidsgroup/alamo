@@ -7,6 +7,7 @@ import glob
 outdir = sys.argv[1]
 
 tol = 1e-2
+atol = 1e8
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
@@ -18,12 +19,10 @@ testlib.validate(path=path,
                  coord = 'x',
                  vars=["momentumx","density","pressure"],
                  tolerance=[tol, tol, tol],
-                 abs_tolerance=[1E10, 1E10, 1E10],
+                 abs_tolerance=[atol, atol, atol],
                  generate_ref_data = False,
                  tight_layout=False,
 )
-
-testlib.warning("WARNING: currently using fairly generous tolerances.")
 
 exit(0)
 

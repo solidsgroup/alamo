@@ -46,6 +46,7 @@
 #ifndef INTEGRATOR_FRACTURE_H
 #define INTEGRATOR_FRACTURE_H
 
+#include "IO/ParmParse.H"
 #include "Integrator/Base/Mechanics.H"
 
 #include "Model/Interface/Crack/PFCZM.H"
@@ -99,7 +100,7 @@ public:
         if (pp.contains("material.ic.type"))
         {
             // IC determining material distribution
-            pp.select<IC::Laminate, IC::Ellipse, IC::PerturbedInterface, IC::BMP, IC::PNG, IC::Expression>("material.ic", value.material.ic, value.geom);
+            pp.select<IC::Laminate, IC::Ellipse, IC::PerturbedInterface, IC::BMP, IC::PNG, IC::Expression>("material.ic", value.material.ic, pp.forward_args(value.geom));
             value.material.is_ic = true;
         }
         else
@@ -110,7 +111,6 @@ public:
         // Let's query material properties for different materials in the system
         pp.queryclass_enumerate<brittle_model>("material.model", value.material.models);
         value.material.num_mat = value.material.models.size();
-        Util::Assert(INFO, TEST(value.material.models.size() > 0));
 
         // This is the fab that stores the material field.
         // For a simple, single material simulation, this will be a uniform field with value 1 everywhere
@@ -127,7 +127,7 @@ public:
         pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, pp.forward_args(value.geom));
 
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
@@ -145,6 +145,11 @@ public:
 
         // This is needed for the specific crack model we are implementing
         pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
+
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
+        Util::Assert(INFO, TEST(value.material.models.size() > 0));
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
     }
 
