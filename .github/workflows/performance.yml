@@ -14,7 +14,7 @@ jobs:
     name: scooter
     runs-on: scooter
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: configure 2d
       continue-on-error: true
       run: ./configure --dim=2 --comp=g++
@@ -52,7 +52,7 @@ jobs:
         fi
     - name: upload report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: scoter
         path: scoter
