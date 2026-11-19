@@ -16,24 +16,20 @@ plots.sort(key=lambda path: int(re.search(r"(\d+)cell", path.name).group(1)))
 assert len(plots) >= 2, "Missing initial/final plotfiles"
 
 
-eta_field = "ch.eta" if case == "linear-spectral-renamed" else "eta"
-int_field = "ch.int" if case == "linear-spectral-renamed" else "int"
-
-
 def read(path):
     if path.suffix == ".h5":
-        return read_hdf5(path, eta_field)
+        return read_hdf5(path)
     ds = yt.load(str(path))
     level = ds.index.max_level
     dimensions = ds.domain_dimensions.copy()
     dimensions[:ds.dimensionality] *= 2**level
     grid = ds.covering_grid(level, ds.domain_left_edge, dimensions)
-    eta = np.asarray(grid[("boxlib", eta_field)]).squeeze()
+    eta = np.asarray(grid[("boxlib", "eta")]).squeeze()
     dx = np.asarray(ds.domain_width)[:eta.ndim] / np.array(eta.shape)
     return ds, eta, dx
 
 
-def read_hdf5(path, eta_name):
+def read_hdf5(path):
     """Read Alamo's AMReX cell plotfiles without requiring yt's native reader."""
     import h5py
 
@@ -77,11 +73,8 @@ def read_hdf5(path, eta_name):
         first_boxes = handle["level_0"]["boxes"][:]
         domain_dimensions = np.max([box_bounds(box)[1] for box in first_boxes], axis=0) + 1
         finest_shape = tuple((domain_dimensions * 2**max_level).tolist())
-        eta_component = next((index for name, index in components.items()
-                              if name == eta_name or name.endswith("." + eta_name.split(".")[-1])), None)
-        if eta_component is None:
-            raise KeyError(f"HDF5 plotfile has no {eta_name!r} component; found {list(components)}")
-        eta_key = next(name for name, index in components.items() if index == eta_component)
+        if "eta" not in components:
+            raise KeyError(f"HDF5 plotfile has no 'eta' component; found {list(components)}")
         fields = {name: np.full(finest_shape, np.nan) for name in components}
         grids = []
         for level_name in level_names:
@@ -117,14 +110,14 @@ def read_hdf5(path, eta_name):
             domain_left_edge=prob_lo,
             dimensionality=ndim,
             index=SimpleNamespace(max_level=max_level, grids=grids),
-            mean_value=float(np.nanmean(fields[eta_key])),
+            mean_value=float(np.nanmean(fields["eta"])),
             fields=fields,
             covering_grid=lambda level, *_args, **_kwargs: {
                 ("boxlib", name): field[tuple(slice(None, None, 2**(max_level-level)) for _ in range(ndim))]
                 for name, field in fields.items()
             },
         )
-        return ds, fields[eta_key], dx / 2**max_level
+        return ds, fields["eta"], dx / 2**max_level
 
 
 def energy(eta, dx):
@@ -139,7 +132,7 @@ def mean(ds):
         return ds.mean_value
     cells = ds.all_data()
     volumes = cells[("index", "cell_volume")]
-    return float((cells[("boxlib", eta_field)] * volumes).sum() / volumes.sum())
+    return float((cells[("boxlib", "eta")] * volumes).sum() / volumes.sum())
 
 
 initial_ds, initial, dx = read(plots[0])
@@ -162,7 +155,7 @@ elif case.startswith("linear"):
     lap = np.sum(4*np.sin(wave*dx/2)**2/dx**2)
     curvature = 3*base**2 - 1 + 0.01*lap
     potential = np.asarray(final_ds.covering_grid(0, final_ds.domain_left_edge,
-                                                  final_ds.domain_dimensions)[("boxlib", int_field)]).squeeze()
+                                                  final_ds.domain_dimensions)[("boxlib", "int")]).squeeze()
     expected_potential = base**3 - base + (initial-base) * curvature
     np.testing.assert_allclose(potential, expected_potential, rtol=0, atol=1e-12)
     spectral = "spectral" in case

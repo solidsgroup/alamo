@@ -39,25 +39,13 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
     // Regridding criterion
     pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
 
-    // Prefix for the initial and boundary condition inputs (default :code:`eta`).
-    pp.query_default("input_name", value.input_name, value.input_name);
-    // Plotfile field name for the current order parameter (default :code:`eta`).
-    pp.query_default("field_name", value.field_name, value.field_name);
-    // Name of the previous order parameter field used by the realspace method (default :code:`eta_old`).
-    pp.query_default("old_field_name", value.old_field_name, value.old_field_name);
-    // Plotfile name of the intermediate field (the chemical potential for SDCH, default :code:`int`).
-    pp.query_default("intermediate_name", value.intermediate_name, value.intermediate_name);
     // Clip the updated SDCH order parameter to :math:`[-1,1]`. This can change its mean.
     pp.query_default("clipping", value.clipping, false);
-    // In realspace, switch timesteps once the simulation time exceeds this value.
-    pp.query_default("tstart", value.tstart, 1E100);
-    // New realspace timestep after :code:`tstart`. A nonpositive value disables the switch.
-    pp.query_default("tstart_timestep", value.tstart_timestep, -1.0);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random,IC::Expression>(value.input_name + ".ic", value.ic, pp.forward_args(value.geom));
+    pp.select_default<IC::Random,IC::Expression>("eta.ic", value.ic, pp.forward_args(value.geom));
     // boundary condition for :math:`\eta`
-    pp.select_default<BC::Constant>(value.input_name + ".bc", value.bc, pp.forward_args(1));
+    pp.select_default<BC::Constant>("eta.bc", value.bc, pp.forward_args(1));
 
     // Which method to use - realspace or spectral method.
     pp.query_validate("method",value.method,{"realspace","spectral"});
@@ -73,18 +61,16 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
             Util::ParmParseException(INFO, "mobility", "SDCH requires periodic boundaries");
     }
 
-    value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, value.field_name,true);
-    value.RegisterNewFab(value.intermediate, value.bc, 1, 1, value.intermediate_name,true);
+    value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta",true);
+    value.RegisterNewFab(value.intermediate, value.bc, 1, 1, "int",true);
 
     if (value.method == "realspace")
-        value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, value.old_field_name,false);
+        value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, "eta_old",false);
 }
 
 void
 CahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-    if (method == "realspace" && time > tstart && tstart_timestep > 0.0)
-        SetTimestep(tstart_timestep);
     if (mobility == "singly_degenerate")
     {
         if (method == "realspace")

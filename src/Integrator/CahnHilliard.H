@@ -35,9 +35,7 @@
 // the AMR hierarchy; realspace AMR has no flux refluxing at coarse/fine interfaces.
 // By default the solution is not clipped, so timesteps must resolve the
 // interface dynamics. Clipping can change the conserved mean.
-// Optional input and field names are :code:`input_name`, :code:`field_name`,
-// :code:`old_field_name`, and :code:`intermediate_name`. SDCH can optionally
-// clip its updated field with :code:`clipping` (default false).
+// Set :code:`clipping = true` to clip the updated field.
 //
 // This is tested in :ref:`CahnHilliard` and :ref:`SinglyDegenerateCahnHilliard`
 
@@ -107,13 +105,7 @@ protected:
     std::string mobility = "constant";
     Set::Scalar mobility_floor = 0.0;
     Set::Scalar spectral_stabilization = NAN;
-    Set::Scalar tstart = 1E100;
-    Set::Scalar tstart_timestep = -1.0;
     bool clipping = false;
-    std::string input_name = "eta";
-    std::string field_name = "eta";
-    std::string old_field_name = "eta_old";
-    std::string intermediate_name = "int";
 };
 }
 #endif
