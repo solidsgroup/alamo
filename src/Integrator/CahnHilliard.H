@@ -45,8 +45,8 @@
 #include <AMReX.H>
 #include <AMReX_MLMG.H>
 
-#include "IC/IC.H"
 #include "BC/BC.H"
+#include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 
@@ -56,50 +56,50 @@ namespace Integrator
 class CahnHilliard : virtual public Integrator
 {
 public:
-    static constexpr const char* name = "cahnhilliard";
+    static constexpr const char *name = "cahnhilliard";
 
     /// Basic constructor (don't use)
     CahnHilliard();
-    
+
     /// Destroy pointers defined in Parse
     ~CahnHilliard();
 
     /// Use this constructor
-    CahnHilliard(IO::ParmParse& pp) : CahnHilliard()
-    { Parse(*this, pp); }
+    CahnHilliard(IO::ParmParse &pp) : CahnHilliard()
+    {
+        Parse(*this, pp);
+    }
 
     /// Scan input values and initialize fields
-    static void Parse(CahnHilliard& value, IO::ParmParse& pp);
+    static void Parse(CahnHilliard &value, IO::ParmParse &pp);
 
 protected:
-
     /// Set values in fields
-    void Initialize (int lev) override;
+    void Initialize(int lev) override;
     /// Integrate eta over one timestep on lev
-    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     /// spectral version of advance
-    void AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt);
+    void AdvanceSpectral(int lev, Set::Scalar time, Set::Scalar dt);
     /// realspace version of advance
-    void AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt);
+    void AdvanceReal(int lev, Set::Scalar time, Set::Scalar dt);
     /// Conservative realspace update with variable mobility
-    void AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt);
+    void AdvanceDegenerateReal(int lev, Set::Scalar time, Set::Scalar dt);
     /// Stabilized spectral update with variable mobility
-    void AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar dt);
+    void AdvanceDegenerateSpectral(int lev, Set::Scalar time, Set::Scalar dt);
     /// Mark any cells that need to be refined
-    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray &tags, amrex::Real time, int ngrow) override;
 
 protected:
-
-    Set::Field<Set::Scalar> etanew_mf;     /// The new value for eta this timestep
-    Set::Field<Set::Scalar> etaold_mf;     /// Last timestep's value for eta
-    Set::Field<Set::Scalar> intermediate;  /// Intermediate field used for CH kinetics
+    Set::Field<Set::Scalar> etanew_mf;    /// The new value for eta this timestep
+    Set::Field<Set::Scalar> etaold_mf;    /// Last timestep's value for eta
+    Set::Field<Set::Scalar> intermediate; /// Intermediate field used for CH kinetics
 
     BC::BC<Set::Scalar> *bc = nullptr; /// eta's bc object
     IC::IC<Set::Scalar> *ic = nullptr; /// eta's ic object
-    
-    Set::Scalar gamma = NAN; 
-    Set::Scalar L     = NAN; 
-    Set::Scalar refinement_threshold = NAN; 
+
+    Set::Scalar gamma = NAN;
+    Set::Scalar L = NAN;
+    Set::Scalar refinement_threshold = NAN;
 
     std::string method;
     std::string mobility = "constant";
