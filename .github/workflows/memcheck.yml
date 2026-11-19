@@ -23,7 +23,31 @@ env:
   UCX_TLS: self,sm,tcp
 
 jobs:
+  # Skip push runs for branches with an open PR into development or master;
+  # the pull_request run tests those commits instead.
+  pr-check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skip=false
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" != master && "$GITHUB_REF_NAME" != development ]]; then
+            n=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open \
+                  --json isCrossRepository,baseRefName \
+                  --jq 'map(select((.isCrossRepository | not) and (.baseRefName == "development" or .baseRefName == "master"))) | length')
+            if (( n > 0 )); then skip=true; fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   memcheck-2d-asan-gcc:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -66,6 +90,8 @@ jobs:
         path: memcheck-2d-asan-gcc
 
   memcheck-2d-asan-clang:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -108,6 +134,8 @@ jobs:
         path: memcheck-2d-asan-clang
 
   memcheck-2d-msan-clang:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4

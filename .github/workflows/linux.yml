@@ -18,7 +18,31 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/development' }}
 
 jobs:
+  # Skip push runs for branches with an open PR into development or master;
+  # the pull_request run tests those commits instead.
+  pr-check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skip=false
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" != master && "$GITHUB_REF_NAME" != development ]]; then
+            n=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open \
+                  --json isCrossRepository,baseRefName \
+                  --jq 'map(select((.isCrossRepository | not) and (.baseRefName == "development" or .baseRefName == "master"))) | length')
+            if (( n > 0 )); then skip=true; fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   style-check:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +50,8 @@ jobs:
         run: .github/workflows/style/check_tabs.py
 
   editorconfig-compliance:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -38,12 +64,16 @@ jobs:
       - name: EditorConfigCompliance
         run: eclint check src/
   documentation-check:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: checking documentation coverage
         run: python3 scripts/checkdoc.py
   build-docs:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +98,8 @@ jobs:
           echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
 
   test-2d-22-04:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -111,6 +143,8 @@ jobs:
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
 
   test-2d-24-04:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -154,6 +188,8 @@ jobs:
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
 
   test-3d-24-04:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -197,6 +233,8 @@ jobs:
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
 
   test-2d-24-04-clang:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -241,6 +279,8 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "[⬇️ Click here to download](${{ steps.upload_report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
   test-2d-24-04-clang-fft:
+    needs: pr-check
+    if: needs.pr-check.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
