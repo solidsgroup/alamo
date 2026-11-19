@@ -20,7 +20,7 @@ brew install openmpi eigen libpng
 #
 # BUILD
 #
-make
+make -j"$(sysctl -n hw.ncpu)"
 
 #
 # TEST
