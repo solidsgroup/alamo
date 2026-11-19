@@ -70,7 +70,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --comp=g++
     - name: make
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
@@ -113,7 +113,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --comp=g++
     - name: make
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
@@ -156,7 +156,7 @@ jobs:
     - name: configure
       run: ./configure --dim=3 --comp=g++
     - name: make
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace --comp=g++
     - name: parallelism check
@@ -201,7 +201,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --comp=clang++ --perf
     - name: make
-      run: make
+      run: make -j"$(nproc)"
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe" --perf
     - name: regression tests
@@ -247,7 +247,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --comp=clang++ --fft
     - name: make
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
     - name: create report

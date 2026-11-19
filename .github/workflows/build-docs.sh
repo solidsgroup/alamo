@@ -4,9 +4,9 @@ set -eu -o pipefail
 # Generate documentation with
 #
 ./configure --dim=2 --comp=clang++
-make -j2
+make -j"$(nproc)"
 ./configure --dim=3 --comp=clang++
-make -j2
+make -j"$(nproc)"
 make docs
 
 # Open 

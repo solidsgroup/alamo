@@ -32,7 +32,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=g++
     - name: make (2d)
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests with memory checking (2d)
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --comp=g++
       env:
@@ -74,7 +74,7 @@ jobs:
     - name: configure (2d)
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=clang++
     - name: make (2d)
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests with memory checking (2d)
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
       env:
@@ -117,7 +117,7 @@ jobs:
       continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=msan --comp=clang++
     - name: make (2d)
-      run: make
+      run: make -j"$(nproc)"
     - name: regression tests with memory checking (2d)
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
     - name: create report

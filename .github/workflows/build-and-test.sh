@@ -9,7 +9,7 @@ test_comp=$(sed -n 's/^POSTFIX = .*-\([^-]*\)$/\1/p' .make/Makefile.pre.conf)
 #
 # Compile the code by running make
 #
-make
+make -j"$(nproc)"
 
 #
 # Executables should now be available under ./bin
