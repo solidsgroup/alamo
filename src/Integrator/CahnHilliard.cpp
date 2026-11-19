@@ -1,7 +1,6 @@
 #include <AMReX_MLPoisson.H>
 #include <algorithm>
 #include <cmath>
-#include <memory>
 
 #include "IC/Expression.H"
 
@@ -75,12 +74,6 @@ void CahnHilliard::Parse(CahnHilliard &value, IO::ParmParse &pp)
 }
 
 void
-CahnHilliard::FillMobilityMask(int /*lev*/, amrex::MultiFab& mask)
-{
-    mask.setVal(1.0);
-}
-
-void
 CahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     if (method == "realspace" && time > tstart && tstart_timestep > 0.0)
@@ -150,17 +143,16 @@ Set::Scalar DegenerateMobility(Set::Scalar eta, Set::Scalar L, Set::Scalar floor
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Set::Scalar ConservativeRHS(const amrex::Array4<const amrex::Real>& eta,
                             const amrex::Array4<const amrex::Real>& mu,
-                            const amrex::Array4<const amrex::Real>& mask,
                             int i, int j, int k, const Set::Scalar* dx,
                             Set::Scalar L, Set::Scalar floor)
 {
-    const Set::Scalar M = mask(i,j,k) * DegenerateMobility(eta(i,j,k), L, floor);
+    const Set::Scalar M = DegenerateMobility(eta(i,j,k), L, floor);
     Set::Scalar rhs = 0.0;
     for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
     {
         const int di = dir == 0, dj = dir == 1, dk = dir == 2;
-        const Set::Scalar plus = 0.5 * (M + mask(i+di,j+dj,k+dk) * DegenerateMobility(eta(i+di,j+dj,k+dk), L, floor));
-        const Set::Scalar minus = 0.5 * (M + mask(i-di,j-dj,k-dk) * DegenerateMobility(eta(i-di,j-dj,k-dk), L, floor));
+        const Set::Scalar plus = 0.5 * (M + DegenerateMobility(eta(i+di,j+dj,k+dk), L, floor));
+        const Set::Scalar minus = 0.5 * (M + DegenerateMobility(eta(i-di,j-dj,k-dk), L, floor));
         rhs += (plus * (mu(i+di,j+dj,k+dk) - mu(i,j,k))
                 - minus * (mu(i,j,k) - mu(i-di,j-dj,k-dk))) / (dx[dir] * dx[dir]);
     }
@@ -191,19 +183,6 @@ CahnHilliard::AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt)
     etaold_mf[lev]->FillBoundary(geom[lev].periodicity());
     ChemicalPotential(*etaold_mf[lev], *intermediate[lev], geom[lev], gamma);
     intermediate[lev]->FillBoundary(geom[lev].periodicity());
-    amrex::MultiFab mobility_mask(etanew_mf[lev]->boxArray(), etanew_mf[lev]->DistributionMap(), 1, 1);
-    mobility_mask.setVal(1.0);
-    FillMobilityMask(lev, mobility_mask);
-    mobility_mask.FillBoundary(geom[lev].periodicity());
-    std::unique_ptr<amrex::MultiFab> coarse_mobility_mask;
-    if (lev > 0)
-    {
-        coarse_mobility_mask = std::make_unique<amrex::MultiFab>(
-            etanew_mf[lev-1]->boxArray(), etanew_mf[lev-1]->DistributionMap(), 1, 1);
-        coarse_mobility_mask->setVal(1.0);
-        FillMobilityMask(lev-1, *coarse_mobility_mask);
-        coarse_mobility_mask->FillBoundary(geom[lev-1].periodicity());
-    }
     if (lev > 0)
     {
         amrex::Vector<amrex::MultiFab*> coarse{intermediate[lev-1].get()};
@@ -212,12 +191,6 @@ CahnHilliard::AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt)
         bc->define(geom[lev]);
         amrex::Vector<amrex::BCRec> bcs{bc->GetBCRec()};
         amrex::FillPatchTwoLevels(*intermediate[lev], time, coarse, times, fine, times,
-            0, 0, 1, geom[lev-1], geom[lev], *bc, 0, *bc, 0, refRatio(lev-1),
-            &amrex::cell_cons_interp, bcs, 0);
-
-        amrex::Vector<amrex::MultiFab*> coarse_mask{coarse_mobility_mask.get()};
-        amrex::Vector<amrex::MultiFab*> fine_mask{&mobility_mask};
-        amrex::FillPatchTwoLevels(mobility_mask, time, coarse_mask, times, fine_mask, times,
             0, 0, 1, geom[lev-1], geom[lev], *bc, 0, *bc, 0, refRatio(lev-1),
             &amrex::cell_cons_interp, bcs, 0);
     }
@@ -230,11 +203,10 @@ CahnHilliard::AdvanceDegenerateReal (int lev, Set::Scalar time, Set::Scalar dt)
     {
         const auto eta = etaold_mf[lev]->const_array(mfi);
         const auto mu = intermediate[lev]->const_array(mfi);
-        const auto mask = mobility_mask.const_array(mfi);
         const auto next = etanew_mf[lev]->array(mfi);
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            const Set::Scalar rhs = ConservativeRHS(eta, mu, mask, i, j, k, dx.data(), L_local, floor);
+            const Set::Scalar rhs = ConservativeRHS(eta, mu, i, j, k, dx.data(), L_local, floor);
             const Set::Scalar raw = eta(i,j,k) + dt * rhs;
             next(i,j,k) = clipping_local ? std::max(-1.0, std::min(1.0, raw)) : raw;
         });
@@ -257,18 +229,6 @@ CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar 
     amrex::MultiFab mu_mf(eta_mf->boxArray(), eta_mf->DistributionMap(), 1, 1);
     ChemicalPotential(*eta_mf, mu_mf, geom[lev], gamma);
     mu_mf.FillBoundary(geom[lev].periodicity());
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> mask_hierarchy(lev + 1);
-    amrex::Vector<amrex::MultiFab*> mask_pointers(lev + 1);
-    for (int ilev = 0; ilev <= lev; ++ilev)
-    {
-        mask_hierarchy[ilev] = std::make_unique<amrex::MultiFab>(
-            etanew_mf[ilev]->boxArray(), etanew_mf[ilev]->DistributionMap(), 1, 1);
-        FillMobilityMask(ilev, *mask_hierarchy[ilev]);
-        mask_hierarchy[ilev]->FillBoundary(geom[ilev].periodicity());
-        mask_pointers[ilev] = mask_hierarchy[ilev].get();
-    }
-    auto mobility_mask = FFT::CompositeToUniform(mask_pointers, geom, refRatio(), lev, time, *bc, 1, 1);
-    mobility_mask->FillBoundary(geom[lev].periodicity());
     amrex::Vector<amrex::MultiFab*> potential_hierarchy(lev + 1);
     for (int ilev = 0; ilev <= lev; ++ilev) potential_hierarchy[ilev] = intermediate[ilev].get();
     FFT::UniformToComposite(mu_mf, potential_hierarchy, geom, refRatio(), lev, 1);
@@ -280,12 +240,11 @@ CahnHilliard::AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar 
     {
         const auto eta = eta_mf->const_array(mfi);
         const auto mu = mu_mf.const_array(mfi);
-        const auto mask = mobility_mask->const_array(mfi);
         const auto rhs = rhs_mf.array(mfi);
         amrex::ParallelFor(mfi.tilebox(), [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             // Face gradients and their adjoint divergence dissipate the discrete energy.
-            rhs(i,j,k) = ConservativeRHS(eta, mu, mask, i, j, k, dx.data(), L_local, floor);
+            rhs(i,j,k) = ConservativeRHS(eta, mu, i, j, k, dx.data(), L_local, floor);
         });
     }
     auto eta_hat_mf = fft.MakeSpectralFab();

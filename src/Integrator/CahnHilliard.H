@@ -37,10 +37,7 @@
 // interface dynamics. Clipping can change the conserved mean.
 // Optional input and field names are :code:`input_name`, :code:`field_name`,
 // :code:`old_field_name`, and :code:`intermediate_name`. SDCH can optionally
-// clip its updated field with :code:`clipping` (default false). Derived integrators can override
-// :code:`FillMobilityMask` to apply a spatial multiplier to the face mobility.
-// The hook receives each level's native box layout and valid cells; the caller
-// fills periodic ghosts.
+// clip its updated field with :code:`clipping` (default false).
 //
 // This is tested in :ref:`CahnHilliard` and :ref:`SinglyDegenerateCahnHilliard`
 
@@ -92,10 +89,6 @@ protected:
     void AdvanceDegenerateSpectral (int lev, Set::Scalar time, Set::Scalar dt);
     /// Mark any cells that need to be refined
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
-
-    /// Fill a cell-centered multiplier for the singly-degenerate mobility.
-    /// The default is one everywhere; derived integrators may override it.
-    virtual void FillMobilityMask(int lev, amrex::MultiFab& mask);
 
 protected:
 
