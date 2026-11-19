@@ -20,7 +20,7 @@ jobs:
   memcheck-2d-asan-gcc:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v7.0.1
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
     - name: installing mpich (needed for asan)
@@ -54,7 +54,7 @@ jobs:
         fi
     - name: upload report
       if: always()
-      uses: actions/upload-artifact@v7.0.2
+      uses: actions/upload-artifact@v7
       with:
         name: memcheck-2d-asan-gcc
         path: memcheck-2d-asan-gcc
@@ -62,7 +62,7 @@ jobs:
   memcheck-2d-asan-clang:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v7.0.1
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing mpich (needed for asan)
@@ -96,7 +96,7 @@ jobs:
         fi
     - name: upload report
       if: always()
-      uses: actions/upload-artifact@v7.0.2
+      uses: actions/upload-artifact@v7
       with:
         name: memcheck-2d-asan-clang
         path: memcheck-2d-asan-clang
@@ -104,7 +104,7 @@ jobs:
   memcheck-2d-msan-clang:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v7.0.1
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing mpich (needed for msan)
@@ -137,7 +137,7 @@ jobs:
         fi
     - name: upload report
       if: always()
-      uses: actions/upload-artifact@v7.0.2
+      uses: actions/upload-artifact@v7
       with:
         name: memcheck-2d-msan-clang
         path: memcheck-2d-msan-clang
