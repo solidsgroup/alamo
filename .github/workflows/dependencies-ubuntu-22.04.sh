@@ -31,6 +31,9 @@ pip3 install yt matplotlib numpy pandas
 pip3 install sphinx sphinx_rtd_theme sphinx_design
 pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
 
+# [optional] Needed for HDF5 output
+sudo apt install libhdf5-mpi-dev
+
 # Needed for linting and code scraping
 # You need to install python clang with apt, otherwise you must manually
 # provide the clang library location in the python script.

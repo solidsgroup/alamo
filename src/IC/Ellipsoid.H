@@ -79,6 +79,9 @@ private:
 public:
     static void Parse(Ellipsoid & value, IO::ParmParse & pp)
     {
+        // This parser is not yet compliant with traversal mode.
+        if (IO::ParmParse::IgnoreInTraversalMode()) return;
+
         amrex::Vector<Set::Scalar> center;
         if(pp.contains("center")) pp_queryarr("center",center); // Center of the ellipse :math:`\mathbf{x}_0`
 

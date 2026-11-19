@@ -16,30 +16,30 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     std::string program;
 
-    // Validate/make sure the correct Alamo program/Inetrgator is used
-    pp.query_validate("alamo.program", program, { "allencahn", "dendrite", "flame" });
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
 
-    if      (program == "allencahn") pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
-    else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
-    else if (program == "flame")     pp.select_only<Integrator::SFI<Integrator::Flame>>(integrator);
-    else
-    {
-        Util::Abort(INFO, "Invalid program option: " + program);
-        return 1; // This line won't execute, but it tells the compiler the following lines won't execute.
-    }
-
+    // Validate/make sure the correct Alamo program/Inetrgator is used
+    pp.query_switch("alamo.program",{
+            {"allencahn", [&](){
+                pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
+            }},
+            {"dendrite", [&](){
+                pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
+            }},
+            {"flame", [&]() {
+                pp.select_only<Integrator::SFI<Integrator::Flame>>(integrator);
+            }}
+        });
 
     integrator->InitData();
     integrator->Evolve();
 
     delete integrator;
     #else
-
-    Util::Abort(INFO,"This integrator works in 2D only");
-
+    if (!IO::ParmParse::InTraversalMode())
+        Util::Abort(INFO,"This integrator works in 2D only");
     #endif
 
     

@@ -465,6 +465,11 @@ protected:
         std::vector<amrex::Box> box;
     } explicitmesh;
 
+#ifdef AMREX_USE_HDF5
+protected:
+    std::string compression_level = "";
+#endif
+
 protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
     Set::Scalar plot_dt = -1.0;

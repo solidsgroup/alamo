@@ -88,7 +88,3 @@ pf.eta.bc.constant.val.yhi = 0.0
 
 # Deactivate thermal transport model
 thermal.on = 0
-
-# Deactivate elastic model
-elastic.type = disable
-

@@ -134,6 +134,45 @@ private:
     Set::Field<Set::Scalar> DphiNumeric;
     amrex::Vector<std::string> varnames = {"phi","dphi_exact","dphi_numeric"};
 };
+
+inline int FaceGradient()
+{
+    const amrex::Box box(amrex::IntVect(-2), amrex::IntVect(2));
+    amrex::FArrayBox scalar_fab(box, AMREX_SPACEDIM);
+    amrex::BaseFab<Set::Vector> vector_fab(box, 1);
+    const auto scalar = scalar_fab.array();
+    const auto vector = vector_fab.array();
+
+    Set::Matrix exact;
+    for (int n = 0; n < AMREX_SPACEDIM; ++n)
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+            exact(n, dir) = 1.0 + n * AMREX_SPACEDIM + dir;
+
+    amrex::LoopOnCpu(box, [=] (int i, int j, int k)
+    {
+        const int index[3] = {i, j, k};
+        Set::Vector value = Set::Vector::Zero();
+        for (int n = 0; n < AMREX_SPACEDIM; ++n)
+            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir)
+                value(n) += exact(n, dir) * index[dir];
+        vector(i, j, k) = value;
+        for (int n = 0; n < AMREX_SPACEDIM; ++n)
+            scalar(i, j, k, n) = value(n);
+    });
+
+    int failed = 0;
+    const Set::Vector dx = Set::Vector::Ones();
+    for (int face = 0; face < AMREX_SPACEDIM; ++face)
+    {
+        Set::Matrix actual = ::Numeric::FaceGradient(
+            scalar_fab.const_array(), 0, 0, 0, face, dx.data());
+        failed += (actual - exact).lpNorm<Eigen::Infinity>() > 1.0e-12;
+        actual = ::Numeric::FaceGradient(
+            vector_fab.const_array(), 0, 0, 0, face, dx.data());
+        failed += (actual - exact).lpNorm<Eigen::Infinity>() > 1.0e-12;
+    }
+    return failed;
+}
 }
 }
 

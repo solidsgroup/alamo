@@ -6,7 +6,6 @@
 
    <p align="center">
        <a href="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml"><img src="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml/badge.svg?branch=development"></a>
-       <a href="https://github.com/solidsgroup/alamo/actions/workflows/coverage.yml"><img src="https://github.com/solidsgroup/alamo/actions/workflows/coverage.yml/badge.svg?branch=development"></a>
        <a href="https://github.com/solidsgroup/alamo/tree/development"><img src="https://img.shields.io/github/last-commit/solidsuccs/alamo/development.svg?label=last%20commit%20%28development%29"></a>
        <a href="https://github.com/solidsgroup/alamo/graphs/contributors"><img src="https://img.shields.io/github/contributors/solidsuccs/alamo.svg"></a>
        <a href="https://github.com/solidsgroup/alamo/pulls"><img src="https://img.shields.io/github/issues-pr/solidsuccs/alamo.svg"></a>
@@ -176,7 +175,7 @@ Regression Testing
 Alamo contains several `Regression Tests <https://solidsgroup.github.io/alamo/docs/Tests.html>`_ that are routinely tested
 and checked with CI.
 These are checked for `Performance <https://lookerstudio.google.com/s/id-e_zDzO8w>`_ 
-and `Code Coverage <https://solidsgroup.github.io/alamo/cov/>`_
+and `Code Coverage <https://solidsgroup.github.io/alamo/docs/development/cov/>`_
 
 
 Citing Alamo 

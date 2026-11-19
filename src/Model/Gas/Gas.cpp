@@ -17,63 +17,57 @@ namespace Gas {
 // Thermodynamic quantities
 double Gas::cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Specific heat (constant pressure), J/(kmol-K)
-    if (!thermo) Util::Abort(INFO, "[Gas::cp_mol] No Thermo model attached.");
-    return thermo->cp_mol(T, X, i , j, k);
+    return thermo.cp_mol(T, X, i , j, k);
 }
 double Gas::enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Specific enthalpy, J/kmol)
-    if (!thermo) Util::Abort(INFO, "[Gas::enthalpy_mol] No Thermo model attached.");
-    return thermo->enthalpy_mol(T, X, i , j, k);
+    return thermo.enthalpy_mol(T, X, i , j, k);
 }
 double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // specific entropy, J/(kmol-K)
-    if (!thermo) Util::Abort(INFO, "[Gas::entropy_mol] No Thermo model attached.");
-    return thermo->entropy_mol(T, X, i , j, k);
+    return thermo.entropy_mol(T, X, i , j, k);
 }
 
 // Transport quantities
 double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Dynamic viscosity, Pa-s
-    if (!transport) Util::Abort(INFO, "[Gas::dynamic_viscosity] No Transport model attached.");
-    return transport->dynamic_viscosity(T, X, i , j, k);
+    return transport.dynamic_viscosity(T, X, i , j, k);
 }
 double Gas::thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Thermal conductivity coefficient, W/(m-K)
-    if (!transport) Util::Abort(INFO, "[Gas::thermal_conductivity] No Transport model attached.");
-    return transport->thermal_conductivity(T, X, i , j, k);
+    return transport.thermal_conductivity(T, X, i , j, k);
 }
 void Gas::diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k) {
     // Species diffusion coefficients, m^2/s
-    if (!transport) Util::Abort(INFO, "[Gas::diffusion_coeffs] No Transport model attached.");
-    return transport->diffusion_coeffs(DKM, T, P, X, i , j, k);
+    return transport.diffusion_coeffs(DKM, T, P, X, i , j, k);
 }
 
 // EOS
 double Gas::ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const {
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const 
+{
     // Temperature, K
-    if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-    return eos->ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
+    return eos.ComputeT(*this, density, momentumx, momentumy, E, Tguess, X, i, j, k, rtol);
 }
 double Gas::ComputeT(
         double pressure, double density,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
     // Temperature, K
-    if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-    return eos->ComputeT(pressure, density, X, i , j, k);
+    return eos.ComputeT(pressure, density, R(X,i,j,k));
 }
-double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
     // Pressure, Pa
-    if (!eos) Util::Abort(INFO, "[Gas::ComputeP] No EOS model attached.");
-    return eos->ComputeP(density, T, X, i , j, k);
+    return eos.ComputeP(density, T, R(X,i,j,k));
 }
 double Gas::ComputeE(    
         double density, double momentumx, double momentumy, double T,
-        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const 
+{
     // Energy, J/m^3
-    if (!eos) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
-    return eos->ComputeE(density, momentumx, momentumy, T, X, i , j, k);
+    return eos.ComputeE(density, momentumx, momentumy, T, R(X,i,j,k), gamma(T,X,i,j,k));
 }
 
 } // namespace Gas

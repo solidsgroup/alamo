@@ -1,8 +1,11 @@
 #!/usr/bin/python
 from __future__ import annotations
+import html
+import json
 import os 
 import glob
 import re
+import sys
 from os import listdir
 from os.path import isfile, join
 import io
@@ -10,6 +13,215 @@ import configparser
 from collections import OrderedDict
 from pathlib import Path
 import fnmatch
+
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import MakefileLexer
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "builder"))
+
+from reference import (
+    entry_anchor,
+    load_entries,
+    normalized_source_file,
+    owner_page_path,
+    root_objects,
+)
+
+
+def load_input_reference_targets():
+    schema_dir = REPO_ROOT / "docs/source/_static/input-schemas"
+    schemas = sorted(schema_dir.glob("*.schema.json"))
+    grouped, _ = load_entries(REPO_ROOT, schemas)
+    owners = set(grouped)
+    namespace_owners = set()
+    for owner in owners:
+        parts = owner.split("::")
+        for depth in range(1, len(parts)):
+            namespace_owners.add("::".join(parts[:depth]))
+
+    targets = {}
+    for owner, entries in grouped.items():
+        page = owner_page_path(
+            Path("InputsReference"),
+            owner,
+            owner in namespace_owners,
+        ).with_suffix(".html")
+        for entry in entries:
+            target = f"../{page.as_posix()}#{entry_anchor(entry)}"
+            for executable, names in entry.resolved_names.items():
+                executable_targets = targets.setdefault(executable, {})
+                for name in names:
+                    executable_targets.setdefault(name, []).append(
+                        {
+                            "target": target,
+                            "source_file": entry.source_file,
+                            "source_line": entry.source_line,
+                            "directive": entry.directive,
+                            "contexts": [],
+                        }
+                    )
+
+    defaults = {}
+    for schema_path in schemas:
+        executable = schema_path.name.removesuffix(".schema.json")
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        default_candidates = {}
+        for node in root_objects(schema.get("root", {})):
+            path = str(node.get("path", ""))
+            if path and node.get("has_default"):
+                default_value = node.get("default_value")
+                if node.get("has_unnamed_default"):
+                    default_value = ""
+                elif default_value is None and node.get("options"):
+                    default_value = node["options"][0]
+                default_candidates.setdefault(path, set()).add(
+                    normalize_input_value(str(default_value or ""))
+                )
+
+            source = node.get("source")
+            directive = str(node.get("directive", ""))
+            if not isinstance(source, dict) or not directive or not path:
+                continue
+            source_file = normalized_source_file(str(source.get("file", "")))
+            source_line = int(source.get("line", 0))
+            for record in targets.get(executable, {}).get(path, []):
+                if (
+                    record["source_file"] == source_file
+                    and record["source_line"] == source_line
+                    and record["directive"] == directive
+                ):
+                    record["contexts"].extend(node.get("contexts", []))
+
+        defaults[executable] = {
+            path: next(iter(values))
+            for path, values in default_candidates.items()
+            if len(values) == 1
+        }
+    return targets, defaults
+
+
+def normalize_input_value(value):
+    value = value.strip().strip("\"'").strip().lower()
+    if value in {"true", "yes", "on"}:
+        return "1"
+    if value in {"false", "no", "off"}:
+        return "0"
+    return value
+
+
+INPUT_REFERENCE_TARGETS, INPUT_DEFAULTS = load_input_reference_targets()
+
+
+def parsed_input_values(path):
+    values = {}
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        match = re.match(r"\s*([^\s=#]+)\s*=\s*(.*)$", line)
+        if not match:
+            continue
+        value = re.split(r"\s+#", match.group(2), maxsplit=1)[0]
+        values[match.group(1)] = normalize_input_value(value)
+    return values
+
+
+def test_runs(config, path):
+    base_values = parsed_input_values(path)
+    runs = []
+    for section in config:
+        if section == "DEFAULT":
+            continue
+        executable = config[section].get("exe", "alamo")
+        dimension = config[section].get("dim", "3")
+        prefix = f"{executable}-{dimension}d-"
+        schemas = {
+            name for name in INPUT_REFERENCE_TARGETS if name.startswith(prefix)
+        }
+        for schema in schemas:
+            values = dict(INPUT_DEFAULTS.get(schema, {}))
+            values.update(base_values)
+            for argument in config[section].get("args", "").splitlines():
+                match = re.match(r"\s*([^\s=#]+)\s*=\s*(.*)$", argument)
+                if match:
+                    values[match.group(1)] = normalize_input_value(match.group(2))
+            runs.append((schema, values))
+    if runs:
+        return runs
+    return [
+        (schema, {**INPUT_DEFAULTS.get(schema, {}), **base_values})
+        for schema in INPUT_REFERENCE_TARGETS
+    ]
+
+
+def context_matches(contexts, values):
+    if not contexts:
+        return True
+    return any(
+        all(
+            condition.get("path") not in values
+            or values[condition["path"]]
+            == normalize_input_value(str(condition.get("value", "")))
+            for condition in context
+        )
+        for context in contexts
+    )
+
+
+def input_reference_target(name, runs):
+    matches = set()
+    for schema, values in runs:
+        for record in INPUT_REFERENCE_TARGETS.get(schema, {}).get(name, []):
+            if context_matches(record["contexts"], values):
+                matches.add(record["target"])
+    if len(matches) == 1:
+        return matches.pop()
+    return None
+
+
+def write_linked_input(testdocfile, path, caption, runs, block_id):
+    source = path.read_text(encoding="utf-8", errors="replace")
+    rendered = highlight(
+        source,
+        MakefileLexer(),
+        HtmlFormatter(nowrap=True),
+    )
+    names = {
+        match.group(1)
+        for line in source.splitlines()
+        if (match := re.match(r"\s*([^\s=#]+)\s*=", line))
+    }
+    for name in names:
+        target = input_reference_target(name, runs)
+        if not target:
+            continue
+        token = f'<span class="nv">{html.escape(name)}</span>'
+        link = (
+            f'<a class="test-input-reference" href="{html.escape(target)}" '
+            f'title="View input documentation">{token}</a>'
+        )
+        rendered = rendered.replace(token, link)
+
+    contents = [
+        f'<div class="literal-block-wrapper docutils container" id="{block_id}">',
+        '<div class="code-block-caption">',
+        f'<span class="caption-text">{html.escape(caption)}</span>',
+        (
+            f'<a class="headerlink" href="#{block_id}" '
+            'title="Link to this code">&#182;</a>'
+        ),
+        "</div>",
+        '<div class="highlight-makefile notranslate">',
+        '<div class="highlight"><pre><span></span>',
+        *rendered.splitlines(),
+        "</pre></div>",
+        "</div>",
+        "</div>",
+    ]
+    testdocfile.write(".. raw:: html\n\n")
+    for line in contents:
+        testdocfile.write(f"   {line}\n")
+    testdocfile.write("\n")
+
 
 #
 # Special order from SO - dictionary allows for keys to be specified multiple times and 
@@ -292,14 +504,16 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             testdocfile.write("\n\n")
         
         #print(os.path.isfile("../../../{}/input".format(testdirname)))
-        testdocfile.write(".. literalinclude:: ../{}/input\n".format(testdirname))
-        testdocfile.write("   :caption: Input file ({}/input)\n".format(testdirname))
-        testdocfile.write("   :language: makefile\n")
+        write_linked_input(
+            testdocfile,
+            Path(testdirname) / "input",
+            "Input file ({}/input)".format(testdirname),
+            test_runs(config, Path(testdirname) / "input"),
+            "test-input-{}".format(re.sub(r"[^a-z0-9]+", "-", testname.lower())),
+        )
 
         
         
 docfile.write("\n\n")
 docfile.write(toctreestr)    
 docfile.close()
-
-

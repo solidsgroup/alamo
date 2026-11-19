@@ -37,6 +37,7 @@
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
 #include "Unit/Unit.H"
+#include "IC/PointList.H"
 
 namespace Integrator
 {
@@ -106,13 +107,12 @@ public:
         
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
-        
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead, IC::PointList>("alpha.ic", value.ic, pp.forward_args(value.geom));
 
         // Use a constant BC object for temperature
         // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, pp.forward_args(1));
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.

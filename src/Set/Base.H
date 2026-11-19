@@ -7,6 +7,7 @@
 #include "AMReX_Vector.H"
 #include "AMReX_BLassert.H"
 #include "AMReX_Geometry.H"
+#include "AMReX_GpuComplex.H"
 #include "AMReX_IndexType.H"
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
@@ -16,6 +17,7 @@
 namespace Set
 {
 using Scalar   = amrex::Real;
+using Complex  = amrex::GpuComplex<Scalar>;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
 using Vector3d = Eigen::Vector3d;
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
@@ -135,6 +137,22 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
     }
     return Set::Vector::Zero(); 
+}
+
+AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
+Vector Position(const int &i, const int &j, const int &k,
+                const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> &prob_lo,
+                const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> &cell_size,
+                const amrex::IndexType &ixType)
+{
+    (void)k;
+    const amrex::Real offset =
+        ixType == amrex::IndexType::TheNodeType() ? 0.0 : 0.5;
+    return Vector(AMREX_D_DECL(
+        prob_lo[0] + (amrex::Real(i) + offset) * cell_size[0],
+        prob_lo[1] + (amrex::Real(j) + offset) * cell_size[1],
+        prob_lo[2] + (amrex::Real(k) + offset) * cell_size[2]));
 }
 
 AMREX_FORCE_INLINE

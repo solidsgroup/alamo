@@ -377,6 +377,19 @@ public:
         amrex::Vector<Set::Scalar> center;
         pp_queryarr("center", center); // Center of notch
 
+        amrex::Vector<Set::Scalar> orientation;
+        pp_queryarr("orientation", orientation); // Vector describing notch orientation
+
+        pp_queryarr("thickness", value.nThickness); // Thickness of notch
+        pp_queryarr("length", value.nLength);       // Length of notch
+        pp_queryarr("radius", value.nRadius);       // Radius of notch ends
+        pp_query("eps", value.eps);                 // Magnitude of mollifier
+
+        std::string mollifier;
+        pp_query("mollifier", mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}
+
+        if (IO::ParmParse::InTraversalMode()) return;
+
         if (center.size() >= AMREX_SPACEDIM)
         {
             for (int i = 0; i < center.size(); i += AMREX_SPACEDIM)
@@ -386,8 +399,6 @@ public:
         else
             Util::Abort(INFO, "Insufficient values in center");
 
-        amrex::Vector<Set::Scalar> orientation;
-        pp_queryarr("orientation", orientation); // Vector describing notch orientation
 
         if (orientation.size() >= AMREX_SPACEDIM && orientation.size() == center.size())
         {
@@ -402,10 +413,6 @@ public:
             if (value.nOrientation[i].lpNorm<2>() <= 0.)
                 value.nOrientation[i] = Set::Vector::Random();
 
-        pp_queryarr("thickness", value.nThickness); // Thickness of notch
-        pp_queryarr("length", value.nLength);       // Length of notch
-        pp_queryarr("radius", value.nRadius);       // Radius of notch ends
-        pp_query("eps", value.eps);                 // Magnitude of mollifier
 
         if (value.nThickness.size() == 0)
         {
@@ -458,8 +465,6 @@ public:
         if (value.eps <= 0.)
             value.eps = 1.e-5;
 
-        std::string mollifier;
-        pp_query("mollifier", mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}
         if (mollifier == "Dirac" || mollifier == "dirac")
             value.moll = Mollifier::Dirac;
         else if (mollifier == "gauss" || mollifier == "Gauss")

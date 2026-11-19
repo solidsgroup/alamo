@@ -33,7 +33,8 @@ int main (int argc, char* argv[])
     delete integrator;
     #else
 
-    Util::Abort(INFO,"hydro currently works only in 2d");
+    if (!IO::ParmParse::InTraversalMode())
+        Util::Abort(INFO,"hydro currently works only in 2d");
 
     #endif
 

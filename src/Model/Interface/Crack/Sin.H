@@ -8,6 +8,7 @@
 #include "Crack.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {

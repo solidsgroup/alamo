@@ -2,6 +2,7 @@
 
 #include "Set/Matrix4.H"
 #include "Util/Util.H"
+#include "IO/FileNameParse.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Set/Matrix4.H"
@@ -98,6 +99,8 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
         subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
         subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
+        subfailed += Util::Test::SubMessage("face gradient",
+            Test::Numeric::FaceGradient());
 #if AMREX_SPACEDIM>2
         // first order
         subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
