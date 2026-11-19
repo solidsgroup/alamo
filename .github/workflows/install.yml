@@ -14,7 +14,7 @@ jobs:
   install-ubuntu-22-04:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: running the install script
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: build and test
@@ -22,7 +22,7 @@ jobs:
   install-ubuntu-24-04:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: running the install script
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: build and test
@@ -34,7 +34,7 @@ jobs:
   install-python:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: running the install script
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: python
@@ -42,6 +42,6 @@ jobs:
   install-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: running the install script
       run: bash .github/workflows/install-macos.sh

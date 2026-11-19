@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Dependencies
         run: bash .github/workflows/dependencies-ubuntu-24.04.sh
       - name: Configure (2D)
@@ -45,7 +45,7 @@ jobs:
         run: make cov-report
       - name: upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: ./cov
@@ -54,7 +54,7 @@ jobs:
       - name: Compile GitHub Pages
         run: make githubpages
       - name: Upload GitHub Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: githubpages
   deploy-documentation:
@@ -64,4 +64,4 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Deploy Documentation
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

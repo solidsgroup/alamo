@@ -15,14 +15,14 @@ jobs:
   style-check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
 
   editorconfig-compliance:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: update aptitude
         run: sudo apt update
       - name: installing npm
@@ -34,13 +34,13 @@ jobs:
   documentation-check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: checking documentation coverage
         run: python3 scripts/checkdoc.py
   build-docs:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: installing preliminaries
         run: bash .github/workflows/dependencies-ubuntu-24.04.sh
       - name: make
@@ -49,7 +49,7 @@ jobs:
       - name: upload documentation
         if: always()
         id: upload_report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: docs/build/html
@@ -64,7 +64,7 @@ jobs:
   test-2d-22-04:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
@@ -93,7 +93,7 @@ jobs:
     - name: upload report
       if: always()
       id: upload_report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-2d-22-04
         path: test-2d-22-04
@@ -107,7 +107,7 @@ jobs:
   test-2d-24-04:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
@@ -136,7 +136,7 @@ jobs:
     - name: upload report
       if: always()
       id: upload_report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-2d-24-04
         path: test-2d-24-04
@@ -150,7 +150,7 @@ jobs:
   test-3d-24-04:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure
@@ -179,7 +179,7 @@ jobs:
     - name: upload report
       if: always()
       id: upload_report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-3d-24-04
         path: test-3d-24-04
@@ -193,7 +193,7 @@ jobs:
   test-2d-24-04-clang:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing clang
@@ -224,7 +224,7 @@ jobs:
     - name: upload report
       if: always()
       id: upload_report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-2d-24-04-clang
         path: test-2d-24-04-clang
@@ -237,7 +237,7 @@ jobs:
   test-2d-24-04-clang-fft:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing clang
@@ -268,7 +268,7 @@ jobs:
     - name: upload report
       if: always()
       id: upload_report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-2d-24-04-clang-fft
         path: test-2d-24-04-clang-fft
