@@ -2802,7 +2802,11 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model(i,j,k) = mixed;
             });
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        // Face stresses use model values across periodic seams. RealFillBoundary
+        // fills box neighbors but ignores geometry.periodicity(), leaving those
+        // model ghosts uninitialized in periodic domains.
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
     }
 }
 

@@ -239,6 +239,11 @@ private:
         const bool conservative_solve = usesConservativeFaceFlux();
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
+            // Every Newton trial changes valid displacement values. Refresh
+            // neighboring and periodic ghosts before computing face gradients;
+            // filling only after the complete solve leaves trial residuals stale.
+            a_u_mf[lev]->setMultiGhost(true);
+            a_u_mf[lev]->FillBoundaryAndSync(linop->Geom(lev).periodicity());
             amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             amrex::Box row_domain(linop->Geom(lev).growPeriodicDomain(1));
