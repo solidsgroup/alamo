@@ -235,6 +235,9 @@ protected:
         // (cf. tests/ElasticSoftVoid).
         elastic_model_type void_model;
         bool void_model_on = false;
+      // Temperature at which the elastic phase is strain free from thermal expansion
+      // The thermal expansion coefficient is set in F0
+      Set::Scalar tref = 0.0;
     } elastic;
 
     Set::Vector g = Set::Vector::Zero();

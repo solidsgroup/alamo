@@ -516,6 +516,8 @@ LowMach::Parse(LowMach& value, IO::ParmParse& pp)
 
         // Constant traction applied at the solid/fluid interface
         pp.query_default("elastic.traction", value.elastic.traction, "0.0", Unit::Pressure());
+	// Temperature where the solid is strain free from thermal expansion (reference temperature)
+	pp.query_default("elastic.tref", value.elastic.tref, "0.0", Unit::Temperature());
         // Solid fraction below which no interface traction is applied
         pp.query_default("elastic.etacutoff", value.elastic.etacutoff, "0.0", Unit::Less());
         // When true, add the local fluid pressure to the interfacial traction
@@ -2723,6 +2725,7 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar>  rigid_eta   = rigid_eta_mf.Patch(lev, mfi);
             Set::Patch<const Set::Scalar>  species_eta = rigid_species_eta_mf.Patch(lev, mfi);
             Set::Patch<const Set::Scalar>  pressure    = pressure_mf.Patch(lev, mfi);
+	    Set::Patch<const Set::Scalar> temp = temperature_mf.Patch(lev,mfi);
 
             const Set::Scalar traction  = elastic.traction;
             const Set::Scalar etacutoff = elastic.etacutoff;
@@ -2731,6 +2734,8 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             const elastic_model_type void_model = elastic.void_model;
             const bool void_on = elastic.void_model_on;
 
+	    const Set::Scalar tref = elastic.tref;
+	    
             // Interfacial body force: a constant traction plus, optionally,
             // the local fluid pressure. grad_eta points from fluid into the
             // solid, so a positive (compressive) fluid pressure must push
@@ -2773,7 +2778,14 @@ LowMach::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 const bool valid = total > eta_small;
                 elastic_model_type mixed = models[0] * (valid ? w[0] / total : 1.0);
                 for (int m = 1; m < nrigid; ++m)
-                    mixed += models[m] * (valid ? w[m] / total : 0.0);
+	        {
+		    mixed += models[m] * (valid ? w[m] / total : 0.0);
+		}
+
+		const Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+		mixed.F0 -= Set::Matrix::Identity();
+		mixed.F0 *= (temp_avg - tref);
+		mixed.F0 += Set::Matrix::Identity();
 
                 if (void_on)
                 {
