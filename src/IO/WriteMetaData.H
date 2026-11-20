@@ -1,10 +1,8 @@
 //
 // This provide an IO routine for generating run-specific output.
-// Every Alamo run produces a metadata file and (if applicable) a diff.patch
-// file that reflects the exact state when the simulation was run.
-// Note that :code:`WriteMetaData.cpp` records build metadata and copies the
-// generated diff.patch file. Its object is rebuilt through normal Makefile
-// dependencies; the diff.patch file is refreshed separately by the build.
+// Every Alamo run records build metadata and copies the generated Git patches.
+// The build refreshes the patches separately and recompiles the metadata object
+// when the development merge base changes so the patch and recorded hash agree.
 //
 // :bdg-warning-line:`This is standard infrastructure code; make sure you know what you ard doing before you change it.`
 //

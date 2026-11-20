@@ -92,11 +92,13 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 
             if (per > percent) percent = per;
 
+            constexpr char development_hash[] = METADATA_DEVELOPMENT_GITHASH;
             std::ofstream metadatafile;
             metadatafile.open(plot_file+"/metadata",std::ios_base::out);
             metadatafile << "# COMPILATION DETAILS" << std::endl;
             metadatafile << "# ===================" << std::endl;
             metadatafile << "Git_commit_hash = " << METADATA_GITHASH << std::endl;
+            metadatafile << "Git_development_commit_hash = " << (development_hash[0] ? development_hash : "unavailable") << std::endl;
             metadatafile << "AMReX_version = " << amrex::Version() << std::endl;
             metadatafile << "Dimension = " << AMREX_SPACEDIM << std::endl;
             metadatafile << "User = " << METADATA_USER  << std::endl;
@@ -152,21 +154,25 @@ void WriteMetaData(std::string plot_file, Status status, int per)
                 dst.close();
             }
             #endif
+            auto copy_patch = [&plot_file](const char *source, const char *filename)
             {
-                std::ifstream src(GIT_DIFF_PATCH_OUTPUT,std::ios::binary);
+                std::ifstream src(source,std::ios::binary);
                 if (src.is_open())
                 {
-                    std::ofstream dst(plot_file+"/diff.patch",std::ios::binary);
+                    std::ofstream dst(plot_file+filename,std::ios::binary);
                     dst << src.rdbuf();
                     src.close();
                     dst.close();
                 }
                 else
                 {
-                    Util::Warning(INFO,"Could not open ",GIT_DIFF_PATCH_OUTPUT);
+                    Util::Warning(INFO,"Could not open ",source);
                 }
-                
-            }
+            };
+
+            copy_patch(GIT_DIFF_PATCH_OUTPUT, "/diff.patch");
+            if (development_hash[0])
+                copy_patch(GIT_DEVELOPMENT_DIFF_PATCH_OUTPUT, "/development-diff.patch");
 
             metadatafile.close();
         }

@@ -12,6 +12,13 @@ permissions:
   contents: read
 
 jobs:
+  git-patch-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Git patches
+        run: bash .github/workflows/check-git-patches.sh
+
   style-check:
     runs-on: ubuntu-24.04
     steps:

@@ -27,7 +27,7 @@ FG_ORANGE          = \033[38;5;208m
 QUIET ?= @
 
 
-METADATA_GITHASH  = $(shell git describe --always --dirty)
+METADATA_GITHASH  = $(shell git describe --dirty --long --always)
 METADATA_USER     = $(shell whoami)
 METADATA_PLATFORM = $(shell hostname)
 METADATA_COMPILER = $(COMP)
@@ -35,7 +35,16 @@ METADATA_DATE     = $(shell date +%x)
 METADATA_TIME     = $(shell date +%H:%M:%S)
 BUILD_DIR         = ${shell pwd}
 
-METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
+METADATA_DEVELOPMENT_GITHASH := $(shell git merge-base origin/development HEAD 2>/dev/null)
+DEVELOPMENT_BASE_STAMP = .diff/$(POSTFIX).development-base
+GIT_DIFF_PATCH = .diff/$(POSTFIX).diff.patch
+GIT_DEVELOPMENT_DIFF_PATCH = .diff/$(POSTFIX).development-diff.patch
+DEP_DIFF += $(GIT_DIFF_PATCH) $(GIT_DEVELOPMENT_DIFF_PATCH)
+
+CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath $(GIT_DIFF_PATCH))\"
+CXX_COMPILE_FLAGS += -DGIT_DEVELOPMENT_DIFF_PATCH_OUTPUT=\"$(abspath $(GIT_DEVELOPMENT_DIFF_PATCH))\"
+
+METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_DEVELOPMENT_GITHASH=\"$(METADATA_DEVELOPMENT_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
 CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++20 $(METADATA_FLAGS)
@@ -191,7 +200,31 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	$(QUIET)$(DEP_CMD) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
-obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARGET} | ${DEP_DIFF}
+$(DEVELOPMENT_BASE_STAMP): .FORCE
+	@mkdir -p "$(@D)"
+	@if ! printf '%s\n' "$(METADATA_DEVELOPMENT_GITHASH)" | cmp -s - "$@"; then \
+	    printf '%s\n' "$(METADATA_DEVELOPMENT_GITHASH)" > "$@"; \
+	fi
+
+.diff/%.diff.patch: .FORCE
+	@mkdir -p "$(@D)"
+	@rm -f "$@"
+	@if ! git diff --quiet; then \
+	    printf '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)%s$(RESET)\n' "$@"; \
+	fi
+	$(QUIET)git diff --patch --output "$@" --minimal --patch-with-stat --full-index --binary --find-copies-harder
+
+.diff/%.development-diff.patch: .FORCE
+	@rm -f "$@"
+ifneq ($(METADATA_DEVELOPMENT_GITHASH),)
+	@mkdir -p "$(@D)"
+	@if ! git diff --quiet "$(METADATA_DEVELOPMENT_GITHASH)" --; then \
+	    printf '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)%s$(RESET)\n' "$@"; \
+	fi
+	$(QUIET)git diff --patch --output "$@" --minimal --patch-with-stat --full-index --binary --find-copies-harder "$(METADATA_DEVELOPMENT_GITHASH)" --
+endif
+
+obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARGET} $(DEVELOPMENT_BASE_STAMP) | ${DEP_DIFF}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
