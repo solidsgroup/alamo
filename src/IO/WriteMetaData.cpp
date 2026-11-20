@@ -92,12 +92,13 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 
             if (per > percent) percent = per;
 
+            constexpr char development_hash[] = METADATA_DEVELOPMENT_GITHASH;
             std::ofstream metadatafile;
             metadatafile.open(plot_file+"/metadata",std::ios_base::out);
             metadatafile << "# COMPILATION DETAILS" << std::endl;
             metadatafile << "# ===================" << std::endl;
             metadatafile << "Git_commit_hash = " << METADATA_GITHASH << std::endl;
-            metadatafile << "Git_development_commit_hash = " << METADATA_DEVELOPMENT_GITHASH << std::endl;
+            metadatafile << "Git_development_commit_hash = " << (development_hash[0] ? development_hash : "unavailable") << std::endl;
             metadatafile << "AMReX_version = " << amrex::Version() << std::endl;
             metadatafile << "Dimension = " << AMREX_SPACEDIM << std::endl;
             metadatafile << "User = " << METADATA_USER  << std::endl;
@@ -170,7 +171,8 @@ void WriteMetaData(std::string plot_file, Status status, int per)
             };
 
             copy_patch(GIT_DIFF_PATCH_OUTPUT, "/diff.patch");
-            copy_patch(GIT_DEVELOPMENT_DIFF_PATCH_OUTPUT, "/development-diff.patch");
+            if (development_hash[0])
+                copy_patch(GIT_DEVELOPMENT_DIFF_PATCH_OUTPUT, "/development-diff.patch");
 
             metadatafile.close();
         }
