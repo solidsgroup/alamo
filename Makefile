@@ -94,6 +94,12 @@ SRC = \
 	src/Util/Util.cpp \
 	src/Util/Zephyr.cpp
 SRC_MAIN = src/lowmach.cc
+else ifeq ($(DIM),1)
+# Only the low-Mach solver and its shared dependencies support a 1D build.
+SRC = $(filter-out src/Integrator/%.cpp src/Numeric/Interpolator/Test.cpp src/Operator/Elastic.cpp,$(shell find src/ -mindepth 2 -name "*.cpp")) \
+	src/Integrator/Integrator.cpp \
+	src/Integrator/LowMach.cpp
+SRC_MAIN = src/lowmach.cc
 else
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )

@@ -360,8 +360,10 @@ void Initialize (int argc, char* argv[])
 
             Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
                             "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+#if AMREX_SPACEDIM > 1
             Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
                             "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+#endif
 #if AMREX_SPACEDIM>2
             Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
                             "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");

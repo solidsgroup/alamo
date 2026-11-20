@@ -173,6 +173,23 @@ another machine while running ``configure``. At runtime ALAMO starts
 ``zph watch`` as a lightweight sidecar; posting failures do not stop solver
 progress.
 
+One-dimensional low-Mach solver
+------------------------------
+
+To build the low-Mach solver in 1D:
+
+.. code-block:: bash
+
+    ./configure --dim=1 --comp=clang++
+    make -j4
+    python3 scripts/runtests.py --serial --dim=1 tests/LM1D
+
+This builds ``bin/lowmach-1d-clang++``. Use a single value for mesh sizes,
+domain bounds and velocity components, with ``xlo`` and ``xhi`` boundary
+conditions. ``tests/LM1D/input`` provides a short Rocfire example. Deformable
+solid mechanics are unavailable in 1D; fluid and rigid solid species are
+supported. The 2D and 3D build targets are unchanged.
+
 Unit Testing
 ------------
 

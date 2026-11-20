@@ -32,7 +32,9 @@
 #include "Model/Chemistry/Rocfire.H"
 #include "Model/Mechanism/Mechanism.H"
 #include "Model/Mechanism/PhaseChange.H"
+#if AMREX_SPACEDIM > 1
 #include "Model/Solid/Finite/NeoHookean.H"
+#endif
 #include "Set/Base.H"
 #include "Numeric/Advect/Advect.H"
 #include "Numeric/Advect/Centered.H"
@@ -91,11 +93,13 @@ public:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
+#if AMREX_SPACEDIM > 1
     void UpdateSolidStress(int lev,
-                            const amrex::MultiFab& u_mf,
-                            const amrex::MultiFab& eta_mf,
-                            const amrex::MultiFab& xi_mf,
-                            bool write_diagnostics = false);
+                           const amrex::MultiFab& u_mf,
+                           const amrex::MultiFab& eta_mf,
+                           const amrex::MultiFab& xi_mf,
+                           bool write_diagnostics = false);
+#endif
     void UpdateComponentState(int lev, const amrex::MultiFab& component_density_mf);
     void UpdateDerivedDiagnostics(int lev, const amrex::MultiFab& u_mf, const amrex::MultiFab& T_mf);
     void AdvanceChemistry(int lev, amrex::MultiFab& temperature_mf,
@@ -185,8 +189,10 @@ protected:
     Set::Field<Set::Scalar> diffusion_coeff_mf;
     Set::Field<Set::Scalar> wdot_mf;
     Set::Field<Set::Scalar> qdot_mf;
+#if AMREX_SPACEDIM > 1
     Set::Field<Set::Matrix> deformation_gradient_mf;
     Set::Field<Set::Matrix> solid_deviatoric_stress_mf;
+#endif
 
     BC::BC<Set::Scalar>* velocity_bc = nullptr;
     BC::BC<Set::Scalar>* temperature_bc = nullptr;
@@ -210,7 +216,9 @@ protected:
     Chemistry chemistry;
     ChemistryData chemistry_device_data;
     ThermochemicalData thermochemical_data;
+#if AMREX_SPACEDIM > 1
     Model::Solid::Finite::NeoHookean finite_solid_model;
+#endif
     using Mechanism = Model::Mechanism::Mechanism<Model::Mechanism::PhaseChange>;
     std::vector<Mechanism> mechanisms;
     bool phase_change_heat_enabled = false;

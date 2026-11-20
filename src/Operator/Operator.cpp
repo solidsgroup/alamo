@@ -66,8 +66,13 @@ void Operator<Grid::Node>::Diagonal(int amrlev, int mglev, amrex::MultiFab& diag
                 {
                     amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
 
+#if AMREX_SPACEDIM == 1
+                    if (m1 % sep == i) xfab(m, n) = 1.0;
+                    else xfab(m, n) = 0.0;
+#else
                     if (m1 % sep == i / sep && m2 % sep == i % sep) xfab(m, n) = 1.0;
                     else xfab(m, n) = 0.0;
+#endif
                 }
                 //BL_PROFILE_VAR_STOP(part1);
 

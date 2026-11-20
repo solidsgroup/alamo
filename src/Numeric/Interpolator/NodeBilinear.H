@@ -80,6 +80,20 @@ public:
     {
         Util::Abort("The version of this Interpolater for face-based data is not implemented or does not apply. Call 'interp' instead.");
     }
+#if AMREX_SPACEDIM == 1
+    // Faces are nodes in 1D. FillPatch dispatches through this AMReX overload.
+    void interp_face(const amrex::FArrayBox& crse, int crse_comp,
+        amrex::FArrayBox& fine, int fine_comp, int ncomp,
+        const amrex::Box& fine_region, const amrex::IntVect& ratio,
+        const amrex::IArrayBox& /*solve_mask*/,
+        const amrex::Geometry& crse_geom, const amrex::Geometry& fine_geom,
+        amrex::Vector<amrex::BCRec> const& bcr, int bccomp,
+        amrex::RunOn runon) override
+    {
+        amrex::NodeBilinear::interp(crse, crse_comp, fine, fine_comp, ncomp,
+            fine_region, ratio, crse_geom, fine_geom, bcr, bccomp, 0, runon);
+    }
+#endif
 private:
     using amrex::NodeBilinear::interp;
     using amrex::NodeBilinear::interp_face;

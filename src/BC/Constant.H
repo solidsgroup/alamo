@@ -43,8 +43,9 @@ namespace BC
 class Constant
     : public BC<Set::Scalar>
 {
-
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 1
+    enum Face { XLO, XHI, INT };
+#elif AMREX_SPACEDIM==2
     enum Face {
         XLO, YLO, XHI, YHI,
         INT
@@ -107,7 +108,9 @@ public:
 
 
 protected:
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 1
+    static constexpr int m_nfaces = 2;
+#elif AMREX_SPACEDIM == 2
     static const int m_nfaces = 4;
 #elif AMREX_SPACEDIM==3
     static const int m_nfaces = 6;
@@ -157,11 +160,12 @@ public:
         bcmap["periodic"] = (int)amrex::LinOpBCType::Periodic;
 
 
-
         value.m_bc_type[Face::XLO].clear(); value.m_bc_val[Face::XLO].clear();
         value.m_bc_type[Face::XHI].clear(); value.m_bc_val[Face::XHI].clear();
+#if AMREX_SPACEDIM > 1
         value.m_bc_type[Face::YLO].clear(); value.m_bc_val[Face::YLO].clear();
         value.m_bc_type[Face::YHI].clear(); value.m_bc_val[Face::YHI].clear();
+#endif
 #if AMREX_SPACEDIM == 3
         value.m_bc_type[Face::ZLO].clear(); value.m_bc_val[Face::ZLO].clear();
         value.m_bc_type[Face::ZHI].clear(); value.m_bc_val[Face::ZHI].clear();
@@ -188,6 +192,7 @@ public:
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         str.clear();
+#if AMREX_SPACEDIM > 1
         pp.queryarr_default("type.ylo", str,{"dirichlet"});  // BC type on the lower y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
@@ -201,6 +206,11 @@ public:
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         str.clear();
         pp.queryarr_default("type.zlo", str,{"dirichlet"});  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
+#else
+        pp.ignore("type.ylo");
+        pp.ignore("type.yhi");
+        pp.ignore("type.zlo");
+#endif
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
@@ -235,6 +245,7 @@ public:
         else if (val.size() == 1) value.m_bc_val[Face::XHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::XHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+#if AMREX_SPACEDIM > 1
         value.m_bc_val[Face::YLO].clear();
         val.clear();
         pp.queryarr_default("val.ylo", val,{"0.0"});  // BC value on the lower y edge (2d) face (3d)
@@ -251,6 +262,11 @@ public:
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         val.clear();
         pp.queryarr_default("val.zlo", val,{"0.0"});  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
+#else
+        pp.ignore("val.ylo");
+        pp.ignore("val.yhi");
+        pp.ignore("val.zlo");
+#endif
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZLO].clear();
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));

@@ -242,9 +242,13 @@ protected:
     void averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>&);
     const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
+#if AMREX_SPACEDIM == 1
+    static constexpr amrex::IntVect dx = amrex::IntVect(1);
+#else
     static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
                             dy = {AMREX_D_DECL(0,1,0)},
                             dz = {AMREX_D_DECL(0,0,1)});
+#endif
 private:
 
     int m_num_a_fabs = 0;

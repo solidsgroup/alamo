@@ -185,6 +185,9 @@ template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Vector>::Name(int i) c
     return "";
 }
 
+// Vector and Matrix are both Eigen 1x1 matrices in 1D. LowMach's matrix
+// fields belong to deformable mechanics, which is only available in 2D/3D.
+#if AMREX_SPACEDIM > 1
 template<>
 ALAMO_SINGLE_DEFINITION
 void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
@@ -231,6 +234,8 @@ template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Matrix>::Name(int i) c
     return "";
 }
 
+
+#endif
 
 template <>
 class Field<Set::Scalar> : public amrex::Vector<std::unique_ptr<amrex::MultiFab>>

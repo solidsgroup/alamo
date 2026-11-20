@@ -29,12 +29,16 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     {
         const auto bc_type_xlo = m_bc_type[Face::XLO][n];
         const auto bc_type_xhi = m_bc_type[Face::XHI][n];
+#if AMREX_SPACEDIM > 1
         const auto bc_type_ylo = m_bc_type[Face::YLO][n];
         const auto bc_type_yhi = m_bc_type[Face::YHI][n];
+#endif
         const auto bc_func_xlo = m_bc_func[Face::XLO][n];
         const auto bc_func_xhi = m_bc_func[Face::XHI][n];
+#if AMREX_SPACEDIM > 1
         const auto bc_func_ylo = m_bc_func[Face::YLO][n];
         const auto bc_func_yhi = m_bc_func[Face::YHI][n];
+#endif
 #if AMREX_SPACEDIM > 2
         const auto bc_type_zlo = m_bc_type[Face::ZLO][n];
         const auto bc_type_zhi = m_bc_type[Face::ZHI][n];
@@ -96,6 +100,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
+#if AMREX_SPACEDIM > 1
             else if ((glevel[1]<0 || (nodal && j == lo.y)) && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
             {
                 if (BCUtil::IsDirichlet(bc_type_ylo))
@@ -132,6 +137,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
+#endif
 #if AMREX_SPACEDIM>2
             else if ((glevel[2]<0 || (nodal && k == lo.z)) && (face == Orientation::zlo || face == Orientation::All))
             {
@@ -173,6 +179,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
         // Average physical corner ghost cells from the face ghosts, matching
         // Constant BC behavior and avoiding undefined corner values in centered stencils.
+#if AMREX_SPACEDIM > 1
         amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             if (i < lo.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j+1,k,n) );
@@ -180,6 +187,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             if (i > hi.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j+1,k,n) );
             if (i > hi.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j-1,k,n) );
         });
+#endif
     }
 }
 
