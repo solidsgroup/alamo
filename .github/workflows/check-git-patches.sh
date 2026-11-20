@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-postfix=$(sed -n 's/^POSTFIX = //p' .make/Makefile.pre.conf)
-if [[ -z ${postfix} || ${postfix} == *[!a-zA-Z0-9._+-]* ]]; then
-    printf 'Invalid POSTFIX in .make/Makefile.pre.conf\n' >&2
-    exit 1
-fi
+postfix=ci
 patch=".diff/${postfix}.diff.patch"
 development_patch=".diff/${postfix}.development-diff.patch"
 
@@ -14,9 +10,8 @@ if [[ -n ${TMPDIR:-} && ${TMPDIR} != /* ]]; then
 fi
 scratch=$(mktemp -d)
 trap 'rm -rf -- "${scratch}"' EXIT
-mkdir -p "${scratch}/source/"{.make,src,docs/source}
+mkdir -p "${scratch}/source/"{src,docs/source}
 cp Makefile "${scratch}/source/"
-cp .make/Makefile.post.conf "${scratch}/source/.make/"
 cd "${scratch}/source"
 
 # Keep Git operations inside the test repository, even when called from a hook.

@@ -12,6 +12,13 @@ permissions:
   contents: read
 
 jobs:
+  git-patch-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Git patches
+        run: bash .github/workflows/check-git-patches.sh
+
   style-check:
     runs-on: ubuntu-24.04
     steps:
@@ -108,14 +115,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       run: ./configure --dim=2 --comp=g++
-    - name: Check Git patches
-      run: bash .github/workflows/check-git-patches.sh
     - name: make
       run: make
     - name: regression tests

@@ -37,6 +37,12 @@ BUILD_DIR         = ${shell pwd}
 
 METADATA_DEVELOPMENT_GITHASH := $(shell git merge-base origin/development HEAD 2>/dev/null)
 DEVELOPMENT_BASE_STAMP = .diff/$(POSTFIX).development-base
+GIT_DIFF_PATCH = .diff/$(POSTFIX).diff.patch
+GIT_DEVELOPMENT_DIFF_PATCH = .diff/$(POSTFIX).development-diff.patch
+DEP_DIFF += $(GIT_DIFF_PATCH) $(GIT_DEVELOPMENT_DIFF_PATCH)
+
+CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath $(GIT_DIFF_PATCH))\"
+CXX_COMPILE_FLAGS += -DGIT_DEVELOPMENT_DIFF_PATCH_OUTPUT=\"$(abspath $(GIT_DEVELOPMENT_DIFF_PATCH))\"
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_DEVELOPMENT_GITHASH=\"$(METADATA_DEVELOPMENT_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
@@ -199,6 +205,24 @@ $(DEVELOPMENT_BASE_STAMP): .FORCE
 	@if ! printf '%s\n' "$(METADATA_DEVELOPMENT_GITHASH)" | cmp -s - "$@"; then \
 	    printf '%s\n' "$(METADATA_DEVELOPMENT_GITHASH)" > "$@"; \
 	fi
+
+.diff/%.diff.patch: .FORCE
+	@mkdir -p "$(@D)"
+	@rm -f "$@"
+	@if ! git diff --quiet; then \
+	    printf '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)%s$(RESET)\n' "$@"; \
+	fi
+	$(QUIET)git diff --patch --output "$@" --minimal --patch-with-stat --full-index --binary --find-copies-harder
+
+.diff/%.development-diff.patch: .FORCE
+	@rm -f "$@"
+ifneq ($(METADATA_DEVELOPMENT_GITHASH),)
+	@mkdir -p "$(@D)"
+	@if ! git diff --quiet "$(METADATA_DEVELOPMENT_GITHASH)" --; then \
+	    printf '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)%s$(RESET)\n' "$@"; \
+	fi
+	$(QUIET)git diff --patch --output "$@" --minimal --patch-with-stat --full-index --binary --find-copies-harder "$(METADATA_DEVELOPMENT_GITHASH)" --
+endif
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: src/IO/WriteMetaData.cpp ${AMREX_TARGET} $(DEVELOPMENT_BASE_STAMP) | ${DEP_DIFF}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
